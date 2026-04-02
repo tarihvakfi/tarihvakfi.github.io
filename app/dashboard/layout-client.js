@@ -65,10 +65,10 @@ export default function Dashboard({ session }) {
   const nav = suspended
     ? []
     : me.role === 'admin'
-    ? [['dashboard','🏠','Panel'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['announcements','📢','Duyuru'],['requests','📨','Talepler'],['applications','📩','Başvuru'],['help','❓','Yardım']]
+    ? [['dashboard','🏠','Panel'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['departments','🏢','Deptlar'],['announcements','📢','Duyuru'],['requests','📨','Talepler'],['visibility','⚙️','Görünürlük'],['applications','📩','Başvuru'],['help','❓','Yardım']]
     : me.role === 'coord'
-    ? [['dashboard','🏠','Panel'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['announcements','📢','Duyuru'],['requests','📨','Talepler'],['help','❓','Yardım']]
-    : [['dashboard','🏠','Panel'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['announcements','📢','Duyurular'],['requests','📨','Taleplerim'],['help','❓','Yardım']];
+    ? [['dashboard','🏠','Panel'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['departments','🏢','Deptlar'],['announcements','📢','Duyuru'],['requests','📨','Talepler'],['help','❓','Yardım']]
+    : [['dashboard','🏠','Panel'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['departments','🏢','Deptlar'],['announcements','📢','Duyurular'],['requests','📨','Taleplerim'],['help','❓','Yardım']];
 
   return (
     <div className="min-h-screen pb-24">
@@ -105,6 +105,8 @@ export default function Dashboard({ session }) {
         {page === 'announcements' && <AnnouncementsView uid={uid} me={me} can={can} />}
         {page === 'applications' && can('manage_vols') && <ApplicationsView uid={uid} me={me} />}
         {page === 'chat' && <ChatView uid={uid} me={me} />}
+        {page === 'departments' && <DepartmentsView uid={uid} me={me} can={can} />}
+        {page === 'visibility' && me.role === 'admin' && <VisibilityView uid={uid} />}
         {page === 'requests' && <RequestsView uid={uid} me={me} can={can} />}
         {page === 'notifications' && <NotificationsView uid={uid} onRead={() => setUnread(0)} />}
         {page === 'profile' && <ProfileView me={me} uid={uid} onUpdate={m => setMe(m)} />}
@@ -889,6 +891,8 @@ const REQ_TYPES = {
   deactivate: { l: 'Hesabimi pasife almak istiyorum', i: '🔒', short: 'Pasife Alma' },
   resign: { l: 'Vakiftan ayrilmak istiyorum', i: '👋', short: 'Ayrilma' },
   extra_volunteer: { l: 'Ek gonullu talebi', i: '👥', short: 'Ek Gonullu' },
+  cross_dept_task: { l: 'Departmanlar arasi ortak gorev onerisi', i: '🤝', short: 'Ortak Gorev' },
+  recruit_volunteer: { l: 'Baska departmandan gonullu cekme', i: '🔀', short: 'Gonullu Transferi' },
   other: { l: 'Diger', i: '📝', short: 'Diger' },
 };
 const REQ_STATUS = {
@@ -1189,6 +1193,277 @@ function ManageRequestsView({ uid, me }) {
         </div>
       ))}
       {reqs.length === 0 && <Empty i="📨" t="Talep bulunamadi" />}
+    </div>
+  );
+}
+
+// ─── VISIBILITY (ADMIN) ──────────────────
+function VisibilityView({ uid }) {
+  const [settings, setSettings] = useState([]);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { db.getVisibilitySettings().then(({ data }) => setSettings(data || [])); }, []);
+
+  const toggle = async (dept, field) => {
+    const s = settings.find(s => s.department === dept);
+    if (!s) return;
+    const newVal = !s[field];
+    setSaving(true);
+    await db.updateVisibility(dept, { [field]: newVal, updated_by: uid });
+    setSettings(settings.map(x => x.department === dept ? { ...x, [field]: newVal } : x));
+    // Bildirim
+    const { data: deptCoords } = await db.getCoordsByDept(dept);
+    for (const c of (deptCoords || [])) {
+      await db.sendNotification(c.id, 'system', `⚙️ Gorunurluk guncellendi`, `${DM[dept]?.l}: ${field.replace('can_see_','')} ${newVal ? 'acildi' : 'kapatildi'}`);
+    }
+    setSaving(false);
+  };
+
+  const setAll = async (val) => {
+    setSaving(true);
+    const fields = { can_see_tasks: val, can_see_progress: val, can_see_hours: val, can_see_shifts: val, can_see_chat: val, can_see_announcements: val, updated_by: uid };
+    for (const s of settings) {
+      await db.updateVisibility(s.department, fields);
+    }
+    setSettings(settings.map(s => ({ ...s, ...fields })));
+    setSaving(false);
+  };
+
+  const cols = [
+    ['can_see_tasks', 'Gorevler'],
+    ['can_see_progress', 'Ilerleme'],
+    ['can_see_hours', 'Saatler'],
+    ['can_see_shifts', 'Vardiya'],
+    ['can_see_chat', 'Sohbet'],
+    ['can_see_announcements', 'Duyuru'],
+  ];
+
+  return (
+    <div className="fade-up space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-bold">⚙️ Departman Gorunurlugu</h2>
+      </div>
+      <p className="text-xs text-gray-400">Diger departmanlar bu verileri gorebilir mi? Her hucre: diger rollerin erisimini kontrol eder.</p>
+      <div className="flex gap-2">
+        <button onClick={() => setAll(true)} disabled={saving} className="btn-primary !py-1.5 !px-3 !text-[13px]">Hepsini Ac</button>
+        <button onClick={() => setAll(false)} disabled={saving} className="btn-ghost !py-1.5 !px-3 !text-[13px]">Hepsini Kapat</button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-gray-200">
+              <th className="text-left py-2 text-gray-500 font-semibold pr-2">Departman</th>
+              {cols.map(([, l]) => <th key={l} className="text-center py-2 text-gray-500 font-semibold px-1">{l}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {settings.map(s => (
+              <tr key={s.department} className="border-b border-gray-50">
+                <td className="py-2 pr-2 font-medium text-[13px]">{DM[s.department]?.i} {DM[s.department]?.l?.split(' ')[0]}</td>
+                {cols.map(([field]) => (
+                  <td key={field} className="text-center py-2 px-1">
+                    <button onClick={() => toggle(s.department, field)} disabled={saving}
+                      className={`w-8 h-5 rounded-full transition-all ${s[field] ? 'bg-emerald-500' : 'bg-gray-200'}`}>
+                      <div className={`w-3.5 h-3.5 rounded-full bg-white shadow transition-all ${s[field] ? 'ml-[17px]' : 'ml-[3px]'}`} />
+                    </button>
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {saving && <p className="text-xs text-gray-400 text-center">Kaydediliyor...</p>}
+    </div>
+  );
+}
+
+// ─── DEPARTMENTS VIEW ────────────────────
+function DepartmentsView({ uid, me, can }) {
+  const [vis, setVis] = useState([]);
+  const [sel, setSel] = useState(null);
+  const [deptData, setDeptData] = useState(null);
+  const [deptMsgs, setDeptMsgs] = useState([]);
+  const [deptAnns, setDeptAnns] = useState([]);
+  const [deptShifts, setDeptShifts] = useState([]);
+  const [tab, setTab] = useState('tasks');
+  const [overviews, setOverviews] = useState({});
+
+  useEffect(() => {
+    db.getVisibilitySettings().then(({ data }) => setVis(data || []));
+    // Load overviews for all depts
+    Promise.all(DEPTS.map(async d => {
+      const ov = await db.getDeptOverview(d.id);
+      return [d.id, ov];
+    })).then(results => setOverviews(Object.fromEntries(results)));
+  }, []);
+
+  const myDept = me.department;
+  const isCoordOrAdmin = me.role === 'admin' || me.role === 'coord';
+
+  const openDept = async (dept) => {
+    setSel(dept); setTab('tasks');
+    const ov = await db.getDeptOverview(dept);
+    setDeptData(ov);
+    const { data: msgs } = await db.getMessages(dept);
+    setDeptMsgs((msgs || []).slice(0, 20).reverse());
+    const { data: anns } = await db.getAnnouncements();
+    setDeptAnns((anns || []).filter(a => a.department === dept || (!a.department && true)));
+    const { data: shifts } = await db.getShifts({ department: dept });
+    setDeptShifts(shifts || []);
+  };
+
+  const getVis = (dept) => vis.find(v => v.department === dept) || {};
+  const canView = (dept, field) => {
+    if (dept === myDept) return true; // kendi departmani her zaman gorunur
+    if (me.role === 'admin') return true;
+    const v = getVis(dept);
+    return !!v[field];
+  };
+
+  if (sel) {
+    const v = getVis(sel);
+    return (
+      <div className="fade-up space-y-4">
+        <button onClick={() => setSel(null)} className="text-[14px] text-gray-400 hover:text-gray-600">← Departmanlar</button>
+        <div className="card">
+          <h2 className="text-lg font-bold">{DM[sel]?.i} {DM[sel]?.l}</h2>
+          <div className="flex gap-4 mt-2 text-xs text-gray-500">
+            <span>{deptData?.volCount || 0} gonullu</span>
+            <span>{deptData?.totalHours || 0} saat</span>
+            <span>{deptData?.tasks?.length || 0} aktif gorev</span>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1.5 flex-wrap">
+          {[['tasks','Gorevler'],['progress','Ilerleme'],['hours','Saatler'],['shifts','Vardiya'],['chat','Sohbet'],['anns','Duyuru']].map(([k,l]) => (
+            <Tab key={k} active={tab===k} onClick={() => setTab(k)}>{l}</Tab>
+          ))}
+        </div>
+
+        {/* Gorevler */}
+        {tab === 'tasks' && (canView(sel, 'can_see_tasks') ? (
+          <div className="space-y-2">
+            {(deptData?.tasks || []).map(t => (
+              <div key={t.id} className="card !p-3">
+                <div className="flex items-center gap-2">
+                  <span className={`badge ${PRIORITIES[t.priority]?.c}`}>{PRIORITIES[t.priority]?.l}</span>
+                  <span className="font-semibold text-[15px]">{t.title}</span>
+                </div>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <div className="flex-1"><ProgressBar value={t.progress} small /></div>
+                  <span className="text-xs font-semibold text-gray-500">{Math.round(t.progress || 0)}%</span>
+                  <span className={`badge ${t.status === 'done' ? 'bg-emerald-50 text-emerald-600' : t.status === 'review' ? 'bg-blue-50 text-blue-600' : t.status === 'active' ? 'bg-amber-50 text-amber-600' : 'bg-gray-100 text-gray-400'}`}>{STATUSES[t.status]}</span>
+                </div>
+              </div>
+            ))}
+            {sel !== myDept && <button onClick={() => db.createRequest({ user_id: uid, type: 'task_join', title: 'Goreve Katilim', description: `${DM[sel]?.l} departmanindaki bir goreve katilmak istiyorum.`, target_dept: sel }).then(() => alert('Talep gonderildi!'))} className="btn-ghost w-full !text-[13px]">🙋 Bu departmandaki bir goreve katilmak istiyorum</button>}
+            {(deptData?.tasks || []).length === 0 && <Empty i="📋" t="Aktif gorev yok" />}
+          </div>
+        ) : <div className="card text-center !py-6"><p className="text-xs text-gray-400">🔒 Bu bilgi su an gorunur degil. Yonetici tarafindan acilabilir.</p></div>)}
+
+        {/* Ilerleme */}
+        {tab === 'progress' && (canView(sel, 'can_see_progress') ? (
+          <div className="space-y-2">
+            {(deptData?.tasks || []).map(t => (
+              <div key={t.id} className="card !p-3">
+                <div className="font-semibold text-[15px] mb-1">{t.title}</div>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1"><ProgressBar value={t.progress} /></div>
+                  <span className="text-xs font-bold">{Math.round(t.progress || 0)}%</span>
+                </div>
+              </div>
+            ))}
+            {(deptData?.tasks || []).length === 0 && <Empty i="📊" t="Ilerleme verisi yok" />}
+          </div>
+        ) : <div className="card text-center !py-6"><p className="text-xs text-gray-400">🔒 Bu bilgi su an gorunur degil. Yonetici tarafindan acilabilir.</p></div>)}
+
+        {/* Saatler */}
+        {tab === 'hours' && (canView(sel, 'can_see_hours') ? (
+          <div className="card text-center">
+            <div className="text-[28px] font-bold text-emerald-600">{deptData?.totalHours || 0}</div>
+            <div className="text-xs text-gray-400">Toplam Onayli Saat</div>
+          </div>
+        ) : <div className="card text-center !py-6"><p className="text-xs text-gray-400">🔒 Bu bilgi su an gorunur degil. Yonetici tarafindan acilabilir.</p></div>)}
+
+        {/* Vardiya */}
+        {tab === 'shifts' && (canView(sel, 'can_see_shifts') ? (
+          <div className="space-y-2">
+            {DAYS.filter(d => deptShifts.some(s => s.day_of_week === d)).map(day => (
+              <div key={day}>
+                <div className="text-xs font-bold mb-1">{day}</div>
+                {deptShifts.filter(s => s.day_of_week === day).map(sh => (
+                  <div key={sh.id} className="card !p-3 mb-1 flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-[11px] font-bold text-emerald-600">{(sh.profiles?.display_name || '?')[0]}</div>
+                    <span className="text-xs flex-1">{sh.profiles?.display_name}</span>
+                    <span className="text-xs font-semibold">{sh.start_time?.slice(0,5)}–{sh.end_time?.slice(0,5)}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+            {deptShifts.length === 0 && <Empty i="📅" t="Vardiya planlanmamis" />}
+          </div>
+        ) : <div className="card text-center !py-6"><p className="text-xs text-gray-400">🔒 Bu bilgi su an gorunur degil. Yonetici tarafindan acilabilir.</p></div>)}
+
+        {/* Sohbet (sadece okuma) */}
+        {tab === 'chat' && (canView(sel, 'can_see_chat') ? (
+          <div className="space-y-2">
+            <div className="card !p-3 space-y-2 max-h-[40vh] overflow-y-auto">
+              {deptMsgs.length === 0 && <p className="text-xs text-gray-300 text-center py-4">Mesaj yok</p>}
+              {deptMsgs.map((m, i) => (
+                <div key={m.id || i} className="flex gap-2 items-start">
+                  <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-[9px] font-bold text-gray-500 flex-shrink-0">{(m.profiles?.display_name || '?')[0]}</div>
+                  <div><span className="text-xs font-semibold text-gray-700">{m.profiles?.display_name}: </span><span className="text-xs text-gray-500">{m.content}</span></div>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 text-center">Sadece okuma — mesaj yazmak icin departmana katilmaniz gerekir.</p>
+            {sel !== myDept && <button onClick={() => db.createRequest({ user_id: uid, type: 'dept_join', title: 'Ek Departman', description: `${DM[sel]?.l} departmaninda da calismak istiyorum.`, target_dept: sel }).then(() => alert('Talep gonderildi!'))} className="btn-ghost w-full !text-[13px]">➕ Bu departmanda calismak istiyorum</button>}
+          </div>
+        ) : <div className="card text-center !py-6"><p className="text-xs text-gray-400">🔒 Bu bilgi su an gorunur degil. Yonetici tarafindan acilabilir.</p></div>)}
+
+        {/* Duyurular */}
+        {tab === 'anns' && (canView(sel, 'can_see_announcements') ? (
+          <div className="space-y-2">
+            {deptAnns.filter(a => a.department === sel).map(a => (
+              <div key={a.id} className="card">
+                <div className="font-semibold text-[15px]">{a.title}</div>
+                <p className="text-xs text-gray-500 mt-1">{a.body?.slice(0, 150)}</p>
+                <p className="text-xs text-gray-300 mt-1">{fd(a.created_at)}</p>
+              </div>
+            ))}
+            {deptAnns.filter(a => a.department === sel).length === 0 && <Empty i="📢" t="Duyuru yok" />}
+          </div>
+        ) : <div className="card text-center !py-6"><p className="text-xs text-gray-400">🔒 Bu bilgi su an gorunur degil. Yonetici tarafindan acilabilir.</p></div>)}
+
+        {/* Koordinator ek aksiyonlar */}
+        {isCoordOrAdmin && sel !== myDept && (
+          <div className="space-y-2">
+            <button onClick={() => db.createRequest({ user_id: uid, type: 'cross_dept_task', title: 'Ortak Gorev', description: `${DM[myDept]?.l} ve ${DM[sel]?.l} departmanlari arasi ortak gorev onerisi.`, target_dept: sel }).then(() => alert('Oneri gonderildi!'))} className="btn-ghost w-full !text-[13px]">🤝 Ortak gorev oner</button>
+            <button onClick={() => db.createRequest({ user_id: uid, type: 'recruit_volunteer', title: 'Gonullu Transferi', description: `${DM[sel]?.l} departmanindan departmanimiza gonullu transferi talebi.`, target_dept: sel }).then(() => alert('Talep gonderildi!'))} className="btn-ghost w-full !text-[13px]">🔀 Bu departmandan gonullu cek</button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="fade-up space-y-4">
+      <h2 className="text-lg font-bold">🏢 Departmanlar</h2>
+      <div className="grid grid-cols-2 gap-3">
+        {DEPTS.map(d => {
+          const ov = overviews[d.id] || {};
+          const isMine = d.id === myDept;
+          return (
+            <div key={d.id} onClick={() => openDept(d.id)} className={`card cursor-pointer hover:shadow-md transition-shadow ${isMine ? 'border-l-4 border-emerald-400' : ''}`}>
+              <div className="text-2xl mb-1">{d.i}</div>
+              <div className="font-semibold text-[15px]">{d.l.split(' ')[0]}</div>
+              <div className="text-xs text-gray-400 mt-1">{ov.volCount || 0} gonullu · {ov.totalHours || 0}s</div>
+              {isMine && <span className="badge bg-emerald-50 text-emerald-600 mt-1">Benim</span>}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
