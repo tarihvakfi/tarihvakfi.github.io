@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import * as db from '../../lib/supabase';
+import OverviewView from './overview';
 
 const DEPTS = [
   { id:'arsiv', l:'Arşiv & Dokümantasyon', i:'📜' },
@@ -65,10 +66,10 @@ export default function Dashboard({ session }) {
   const nav = suspended
     ? []
     : me.role === 'admin'
-    ? [['dashboard','🏠','Panel'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['departments','🏢','Deptlar'],['announcements','📢','Duyuru'],['requests','📨','Talepler'],['visibility','⚙️','Görünürlük'],['applications','📩','Başvuru'],['help','❓','Yardım']]
+    ? [['dashboard','🏠','Panel'],['overview','📊','Durum'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['departments','🏢','Deptlar'],['announcements','📢','Duyuru'],['requests','📨','Talepler'],['visibility','⚙️','Görünürlük'],['applications','📩','Başvuru'],['help','❓','Yardım']]
     : me.role === 'coord'
-    ? [['dashboard','🏠','Panel'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['departments','🏢','Deptlar'],['announcements','📢','Duyuru'],['requests','📨','Talepler'],['help','❓','Yardım']]
-    : [['dashboard','🏠','Panel'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['departments','🏢','Deptlar'],['announcements','📢','Duyurular'],['requests','📨','Taleplerim'],['help','❓','Yardım']];
+    ? [['dashboard','🏠','Panel'],['overview','📊','Durum'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['departments','🏢','Deptlar'],['announcements','📢','Duyuru'],['requests','📨','Talepler'],['help','❓','Yardım']]
+    : [['dashboard','🏠','Panel'],['overview','📊','Durum'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['departments','🏢','Deptlar'],['announcements','📢','Duyurular'],['requests','📨','Taleplerim'],['help','❓','Yardım']];
 
   return (
     <div className="min-h-screen pb-24">
@@ -98,6 +99,7 @@ export default function Dashboard({ session }) {
           <SuspendedView me={me} uid={uid} />
         ) : (<>
         {page === 'dashboard' && <DashboardView uid={uid} me={me} can={can} setPage={setPage} />}
+        {page === 'overview' && <OverviewView uid={uid} me={me} />}
         {page === 'volunteers' && can('manage_vols') && <VolunteersView uid={uid} me={me} />}
         {page === 'tasks' && <TasksView uid={uid} me={me} can={can} />}
         {page === 'hours' && <HoursView uid={uid} me={me} can={can} />}
