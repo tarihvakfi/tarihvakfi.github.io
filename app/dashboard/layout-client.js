@@ -60,10 +60,10 @@ export default function Dashboard({ session }) {
   );
 
   const nav = me.role === 'admin'
-    ? [['dashboard','🏠','Panel'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['announcements','📢','Duyuru'],['applications','📩','Başvuru']]
+    ? [['dashboard','🏠','Panel'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['announcements','📢','Duyuru'],['applications','📩','Başvuru'],['help','❓','Yardım']]
     : me.role === 'coord'
-    ? [['dashboard','🏠','Panel'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['announcements','📢','Duyuru']]
-    : [['dashboard','🏠','Panel'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['announcements','📢','Duyurular']];
+    ? [['dashboard','🏠','Panel'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['announcements','📢','Duyuru'],['help','❓','Yardım']]
+    : [['dashboard','🏠','Panel'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['announcements','📢','Duyurular'],['help','❓','Yardım']];
 
   return (
     <div className="min-h-screen pb-24">
@@ -97,6 +97,7 @@ export default function Dashboard({ session }) {
         {page === 'applications' && can('manage_vols') && <ApplicationsView uid={uid} me={me} />}
         {page === 'notifications' && <NotificationsView uid={uid} onRead={() => setUnread(0)} />}
         {page === 'profile' && <ProfileView me={me} uid={uid} onUpdate={m => setMe(m)} />}
+        {page === 'help' && <HelpView me={me} />}
       </div>
 
       {/* Nav */}
@@ -562,6 +563,284 @@ function ProfileView({ me, uid, onUpdate }) {
           <button className="btn-primary w-full !text-sm" onClick={save}>Kaydet</button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── YARDIM ──────────────────────────────
+function Accordion({ title, children, defaultOpen }) {
+  const [open, setOpen] = useState(defaultOpen || false);
+  return (
+    <div className="card !p-0 overflow-hidden">
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors">
+        <span className="text-sm font-semibold text-gray-700">{title}</span>
+        <span className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}>▼</span>
+      </button>
+      {open && <div className="px-4 pb-4 border-t border-gray-50">{children}</div>}
+    </div>
+  );
+}
+
+function HelpStep({ n, text }) {
+  return (
+    <div className="flex gap-3 items-start py-1.5">
+      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold flex items-center justify-center">{n}</span>
+      <span className="text-xs text-gray-600 leading-relaxed">{text}</span>
+    </div>
+  );
+}
+
+function HelpView({ me }) {
+  const role = me?.role || 'vol';
+  const isCoord = role === 'coord' || role === 'admin';
+  const isAdmin = role === 'admin';
+
+  return (
+    <div className="space-y-3 fade-up">
+      <div className="text-center py-2">
+        <h2 className="text-lg font-bold" style={{fontFamily:"'Playfair Display',serif"}}>❓ Yardım & Kılavuz</h2>
+        <p className="text-xs text-gray-400 mt-1">
+          {isAdmin ? '👑 Yönetici Kılavuzu' : isCoord ? '📋 Koordinatör Kılavuzu' : '🤝 Gönüllü Kılavuzu'}
+        </p>
+      </div>
+
+      {/* ── Hızlı Referans Tablosu ── */}
+      <Accordion title="📊 Hızlı Referans — Rol Karşılaştırması" defaultOpen>
+        <div className="overflow-x-auto mt-2">
+          <table className="w-full text-[10px]">
+            <thead>
+              <tr className="border-b border-gray-100">
+                <th className="text-left py-1.5 text-gray-500 font-semibold">Özellik</th>
+                <th className="text-center py-1.5 text-emerald-600 font-semibold">🤝 Gönüllü</th>
+                <th className="text-center py-1.5 text-purple-600 font-semibold">📋 Koordinatör</th>
+                <th className="text-center py-1.5 text-orange-600 font-semibold">👑 Yönetici</th>
+              </tr>
+            </thead>
+            <tbody className="text-gray-600">
+              {[
+                ['Panel & İstatistikler', true, true, true],
+                ['Görevleri görüntüleme', true, true, true],
+                ['Saat kaydı girme', true, true, true],
+                ['Vardiya planını görme', true, true, true],
+                ['Duyuruları okuma', true, true, true],
+                ['Bildirimler', true, true, true],
+                ['Profil düzenleme', true, true, true],
+                ['Gönüllü yönetimi', false, true, true],
+                ['Görev oluşturma & atama', false, true, true],
+                ['Saat onaylama / reddetme', false, true, true],
+                ['Vardiya planlama', false, true, true],
+                ['Duyuru yazma', false, true, true],
+                ['Rol atama', false, false, true],
+                ['Başvuru yönetimi', false, false, true],
+                ['Tüm verilere erişim', false, false, true],
+              ].map(([feat, vol, coord, admin], i) => (
+                <tr key={i} className="border-b border-gray-50">
+                  <td className="py-1.5 font-medium">{feat}</td>
+                  <td className="text-center">{vol ? '✅' : '—'}</td>
+                  <td className="text-center">{coord ? '✅' : '—'}</td>
+                  <td className="text-center">{admin ? '✅' : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Accordion>
+
+      {/* ── Gönüllü Bölümü ── */}
+      <Accordion title="⏱️ Saat Kaydı Nasıl Girilir?">
+        <div className="mt-2">
+          <HelpStep n="1" text='Alt menüden "Saatler" sekmesine tıklayın.' />
+          <HelpStep n="2" text='"Yeni Kayıt" butonuna basın.' />
+          <HelpStep n="3" text="Tarih, saat miktarı, departman ve açıklama girin." />
+          <HelpStep n="4" text='"Kaydet" ile gönderin. Kaydınız onay bekleyecek." />
+          <HelpStep n="5" text="Koordinatörünüz onayladığında bildirim alırsınız." />
+          <p className="text-[10px] text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Onay bekleyen kayıtlarınızı silebilirsiniz, onaylanmış kayıtlar silinemez.</p>
+        </div>
+      </Accordion>
+
+      <Accordion title="📋 Görevler Nasıl Takip Edilir?">
+        <div className="mt-2">
+          <HelpStep n="1" text='"Görevler" sekmesine gidin.' />
+          <HelpStep n="2" text="Size atanan görevleri listede göreceksiniz." />
+          <HelpStep n="3" text="Öncelik ve durum bilgisine göre filtreleyebilirsiniz." />
+          <HelpStep n="4" text="Görevin detaylarını görmek için üzerine tıklayın." />
+          <p className="text-[10px] text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Yüksek öncelikli görevler kırmızı etiketle gösterilir.</p>
+        </div>
+      </Accordion>
+
+      <Accordion title="📅 Vardiya Planını Nerede Görürüm?">
+        <div className="mt-2">
+          <HelpStep n="1" text='"Vardiya" sekmesine tıklayın.' />
+          <HelpStep n="2" text="Haftalık vardiya planınızı gün bazında göreceksiniz." />
+          <HelpStep n="3" text="Her vardiya kartında saat, departman ve not bilgisi yer alır." />
+          <p className="text-[10px] text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Tekrarlayan vardiyalar her hafta otomatik görünür.</p>
+        </div>
+      </Accordion>
+
+      <Accordion title="📢 Duyuruları Nerede Okurum?">
+        <div className="mt-2">
+          <HelpStep n="1" text='"Duyurular" sekmesinden tüm duyuruları görebilirsiniz.' />
+          <HelpStep n="2" text="Sabitlenmiş (pinned) duyurular her zaman en üstte görünür." />
+          <HelpStep n="3" text="Departmana özel duyurular sadece ilgili kişilere gösterilir." />
+        </div>
+      </Accordion>
+
+      <Accordion title="🔔 Bildirimler Nasıl Çalışır?">
+        <div className="mt-2">
+          <HelpStep n="1" text="Sağ üstteki zil ikonuna tıklayarak bildirimlerinizi görün." />
+          <HelpStep n="2" text="Okunmamış bildirim sayısı kırmızı baloncukta gösterilir." />
+          <HelpStep n="3" text="Görev atanması, saat onayı ve duyurular bildirim oluşturur." />
+          <HelpStep n="4" text='"Tümünü okundu işaretle" ile bildirimleri temizleyebilirsiniz.' />
+        </div>
+      </Accordion>
+
+      <Accordion title="👤 Profilimi Nasıl Düzenlerim?">
+        <div className="mt-2">
+          <HelpStep n="1" text='Alt menüden "Profil" sekmesine tıklayın.' />
+          <HelpStep n="2" text='"Düzenle" butonuna basın.' />
+          <HelpStep n="3" text="Ad, telefon, şehir ve biyografi bilgilerinizi güncelleyin." />
+          <HelpStep n="4" text='"Kaydet" ile değişikliklerinizi kaydedin.' />
+        </div>
+      </Accordion>
+
+      {/* ── Koordinatör Bölümü ── */}
+      {isCoord && (
+        <>
+          <div className="flex items-center gap-2 pt-2">
+            <div className="flex-1 h-px bg-purple-100"></div>
+            <span className="text-[10px] font-semibold text-purple-500">📋 Koordinatör Araçları</span>
+            <div className="flex-1 h-px bg-purple-100"></div>
+          </div>
+
+          <Accordion title="👥 Gönüllü Yönetimi Nasıl Yapılır?">
+            <div className="mt-2">
+              <HelpStep n="1" text='"Gönüllüler" sekmesinden tüm aktif gönüllüleri görün.' />
+              <HelpStep n="2" text="İsme tıklayarak gönüllünün detay profilini açın." />
+              <HelpStep n="3" text="Departman ataması ve durum değişikliği yapabilirsiniz." />
+              <HelpStep n="4" text="Her gönüllünün toplam saat ve aktif gün sayısını takip edin." />
+            </div>
+          </Accordion>
+
+          <Accordion title="📋 Görev Nasıl Oluşturulur ve Atanır?">
+            <div className="mt-2">
+              <HelpStep n="1" text='"Görevler" sekmesinde "Yeni Görev" butonuna tıklayın.' />
+              <HelpStep n="2" text="Başlık, açıklama, departman ve öncelik belirleyin." />
+              <HelpStep n="3" text="Son tarih seçin ve görevi gönüllülere atayın." />
+              <HelpStep n="4" text="Atanan gönüllüler otomatik bildirim alır." />
+              <p className="text-[10px] text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Birden fazla gönüllüyü aynı göreve atayabilirsiniz.</p>
+            </div>
+          </Accordion>
+
+          <Accordion title="✅ Saat Nasıl Onaylanır / Reddedilir?">
+            <div className="mt-2">
+              <HelpStep n="1" text='"Saatler" sekmesine gidin ve "Onay Bekliyor" filtresini seçin.' />
+              <HelpStep n="2" text="Her kaydın yanındaki onay (✓) veya red (✗) butonuna tıklayın." />
+              <HelpStep n="3" text="Reddetme durumunda bir açıklama notu ekleyebilirsiniz." />
+              <HelpStep n="4" text="Gönüllü, sonucu bildirim olarak alacaktır." />
+            </div>
+          </Accordion>
+
+          <Accordion title="📅 Vardiya Nasıl Planlanır?">
+            <div className="mt-2">
+              <HelpStep n="1" text='"Vardiya" sekmesinde "Yeni Vardiya" butonuna tıklayın.' />
+              <HelpStep n="2" text="Gönüllü, gün, başlangıç-bitiş saati ve departman seçin." />
+              <HelpStep n="3" text='Tekrarlayan vardiya için "Haftalık tekrar" seçeneğini işaretleyin.' />
+              <HelpStep n="4" text="Mevcut vardiyaları düzenleyebilir veya silebilirsiniz." />
+            </div>
+          </Accordion>
+
+          <Accordion title="📢 Duyuru Nasıl Yazılır?">
+            <div className="mt-2">
+              <HelpStep n="1" text='"Duyurular" sekmesinde "Yeni Duyuru" butonuna tıklayın.' />
+              <HelpStep n="2" text="Başlık ve içerik yazın." />
+              <HelpStep n="3" text="Belirli bir departmana mı herkese mi? Seçim yapın." />
+              <HelpStep n="4" text='Önemli duyurular için "Sabitle" seçeneğini işaretleyin.' />
+            </div>
+          </Accordion>
+        </>
+      )}
+
+      {/* ── Yönetici Bölümü ── */}
+      {isAdmin && (
+        <>
+          <div className="flex items-center gap-2 pt-2">
+            <div className="flex-1 h-px bg-orange-100"></div>
+            <span className="text-[10px] font-semibold text-orange-500">👑 Yönetici Araçları</span>
+            <div className="flex-1 h-px bg-orange-100"></div>
+          </div>
+
+          <Accordion title="👑 Rol Atama Nasıl Yapılır?">
+            <div className="mt-2">
+              <HelpStep n="1" text='"Gönüllüler" sekmesinden kullanıcıyı bulun.' />
+              <HelpStep n="2" text="Profil detayında rol alanını tıklayın." />
+              <HelpStep n="3" text="Gönüllü, Koordinatör veya Yönetici rolünü seçin." />
+              <p className="text-[10px] text-gray-400 mt-2 bg-amber-50 rounded-lg p-2">⚠️ Dikkat: Yönetici rolü tüm sisteme erişim sağlar. Dikkatli atayın.</p>
+            </div>
+          </Accordion>
+
+          <Accordion title="📩 Başvuru Yönetimi Nasıl Çalışır?">
+            <div className="mt-2">
+              <HelpStep n="1" text='"Başvuru" sekmesine gidin.' />
+              <HelpStep n="2" text="Bekleyen başvuruları inceleyin: isim, motivasyon, deneyim." />
+              <HelpStep n="3" text='Uygun başvuruları "Onayla" ile kabul edin veya "Mülakata Al" ile ayırın.' />
+              <HelpStep n="4" text="Uygun olmayan başvuruları not ekleyerek reddedin." />
+              <p className="text-[10px] text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Onaylanan başvuru sahiplerine kayıt linki gönderin.</p>
+            </div>
+          </Accordion>
+
+          <Accordion title="💼 Günlük Yönetim Önerileri">
+            <div className="mt-2 space-y-2">
+              <div className="bg-emerald-50 rounded-lg p-2.5">
+                <p className="text-[10px] font-semibold text-emerald-700">☀️ Her Gün</p>
+                <p className="text-[10px] text-emerald-600 mt-0.5">Bekleyen saat kayıtlarını onaylayın. Yeni başvuruları kontrol edin.</p>
+              </div>
+              <div className="bg-blue-50 rounded-lg p-2.5">
+                <p className="text-[10px] font-semibold text-blue-700">📅 Her Hafta</p>
+                <p className="text-[10px] text-blue-600 mt-0.5">Vardiya planını güncelleyin. Görev durumlarını kontrol edin. Duyuru paylaşın.</p>
+              </div>
+              <div className="bg-purple-50 rounded-lg p-2.5">
+                <p className="text-[10px] font-semibold text-purple-700">📊 Her Ay</p>
+                <p className="text-[10px] text-purple-600 mt-0.5">Departman istatistiklerini inceleyin. Aktif olmayan gönüllüleri takip edin. Rapor çıkarın.</p>
+              </div>
+            </div>
+          </Accordion>
+        </>
+      )}
+
+      {/* ── SSS ── */}
+      <div className="flex items-center gap-2 pt-2">
+        <div className="flex-1 h-px bg-gray-200"></div>
+        <span className="text-[10px] font-semibold text-gray-400">Sık Sorulan Sorular</span>
+        <div className="flex-1 h-px bg-gray-200"></div>
+      </div>
+
+      <Accordion title="Şifremi unuttum, ne yapmalıyım?">
+        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Giriş ekranında "E-posta ile Giriş" &gt; "Şifremi unuttum" linkine tıklayın. E-postanıza sıfırlama linki gönderilecektir.</p>
+      </Accordion>
+
+      <Accordion title="Departmanımı değiştirebilir miyim?">
+        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Departman değişikliği koordinatör veya yönetici tarafından yapılır. Koordinatörünüze başvurun.</p>
+      </Accordion>
+
+      <Accordion title="Saat kaydım reddedildi, ne yapmalıyım?">
+        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Bildirimlerde red sebebini okuyun. Düzeltip yeni bir saat kaydı girebilirsiniz. Sorun devam ederse koordinatörünüzle iletişime geçin.</p>
+      </Accordion>
+
+      <Accordion title="Birden fazla departmanda çalışabilir miyim?">
+        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Ana departmanınız profilinizde belirlidir, ancak saat kayıtlarınızı farklı departmanlar için girebilirsiniz. Vardiya atamaları da farklı departmanlara yapılabilir.</p>
+      </Accordion>
+
+      <Accordion title="Sisteme kimler erişebilir?">
+        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Sadece kayıtlı ve onaylanmış Tarih Vakfı gönüllüleri erişebilir. Tüm veriler Supabase üzerinde güvenli şekilde saklanır ve Row Level Security ile korunur.</p>
+      </Accordion>
+
+      <Accordion title="Teknik bir sorun yaşıyorum, kime ulaşmalıyım?">
+        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Dijital departman koordinatörüne veya sistem yöneticisine bildirim gönderin. Acil durumlarda duyurular sekmesinden iletişim bilgilerine ulaşabilirsiniz.</p>
+      </Accordion>
+
+      <div className="text-center py-4">
+        <p className="text-[10px] text-gray-300">Tarih Vakfı Gönüllü Yönetim Sistemi v1.0</p>
+      </div>
     </div>
   );
 }
