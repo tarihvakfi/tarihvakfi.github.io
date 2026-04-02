@@ -1738,50 +1738,64 @@ function HelpView({ me }) {
         </p>
       </div>
 
+      {/* ── Navigasyon Açıklaması ── */}
+      <Accordion title="🧭 Navigasyon Nasıl Çalışır?" defaultOpen>
+        <div className="mt-2">
+          <p className="text-xs text-gray-600 leading-relaxed">Ekranın altında 5 ana sekme bulunur. Her sekmenin içinde üstte alt sekmeler yer alır:</p>
+          <div className="mt-2 space-y-1.5">
+            <p className="text-xs text-gray-500"><span className="font-semibold">🏠 Panel</span> — Ana kontrol paneli, hızlı işlemler</p>
+            <p className="text-xs text-gray-500"><span className="font-semibold">📊 Durum</span> — Genel durum görselleri, grafikler, heatmap</p>
+            <p className="text-xs text-gray-500"><span className="font-semibold">💼 İşler</span> → Görevler | Saatler | Vardiya | Departmanlar | Gönüllüler*</p>
+            <p className="text-xs text-gray-500"><span className="font-semibold">💬 İletişim</span> → Sohbet | Duyurular | Talepler</p>
+            <p className="text-xs text-gray-500"><span className="font-semibold">👤 Ben</span> → Profil | Yardım | Bildirimler</p>
+          </div>
+          <p className="text-xs text-gray-400 mt-2">* Gönüllüler, Başvuru ve Görünürlük sekmeleri yalnızca koordinatör/yönetici için görünür.</p>
+        </div>
+      </Accordion>
+
       {/* ── Hızlı Referans Tablosu ── */}
-      <Accordion title="📊 Hızlı Referans — Rol Karşılaştırması" defaultOpen>
+      <Accordion title="📊 Hızlı Referans — Rol Karşılaştırması">
         <div className="overflow-x-auto mt-2">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-gray-100">
                 <th className="text-left py-1.5 text-gray-500 font-semibold">Özellik</th>
-                <th className="text-center py-1.5 text-emerald-600 font-semibold">🤝 Gönüllü</th>
-                <th className="text-center py-1.5 text-purple-600 font-semibold">📋 Koordinatör</th>
-                <th className="text-center py-1.5 text-orange-600 font-semibold">👑 Yönetici</th>
+                <th className="text-left py-1.5 text-gray-400 font-semibold">Konum</th>
+                <th className="text-center py-1.5 text-emerald-600 font-semibold">🤝</th>
+                <th className="text-center py-1.5 text-purple-600 font-semibold">📋</th>
+                <th className="text-center py-1.5 text-orange-600 font-semibold">👑</th>
               </tr>
             </thead>
             <tbody className="text-gray-600">
               {[
-                ['Panel & İstatistikler', true, true, true],
-                ['Görevleri görüntüleme', true, true, true],
-                ['Saat kaydı girme', true, true, true],
-                ['Vardiya planını görme', true, true, true],
-                ['Duyuruları okuma', true, true, true],
-                ['Bildirimler', true, true, true],
-                ['Profil düzenleme', true, true, true],
-                ['Gönüllü yönetimi', false, true, true],
-                ['Görev oluşturma & atama', false, true, true],
-                ['Saat onaylama / reddetme', false, 'kendi hariç', true],
-                ['Vardiya planlama', false, true, true],
-                ['Duyuru yazma', false, true, true],
-                ['Departman sohbeti', 'kendi', true, true],
-                ['Görev ilerleme güncelleme', 'atanan', true, true],
-                ['Görev yorumları', 'atanan', true, true],
-                ['Görev tamamlama onayı', false, true, true],
-                ['Vardiya notları', true, true, true],
-                ['Destek talebi', true, true, false],
-                ['Talep oluşturma', true, true, false],
-                ['Talep onaylama', false, 'kendi hariç', true],
-                ['Rol atama', false, false, true],
-                ['Başvuru yönetimi', false, false, true],
-                ['Genel Durum görselleri', true, true, true],
-                ['Departmanlar sayfası', 'ayara bağlı', 'ayara bağlı', true],
-                ['Departmanlar arası görev', false, 'talep', true],
-                ['Görünürlük ayarları', false, false, true],
-                ['Tüm verilere erişim', false, false, true],
-              ].map(([feat, vol, coord, admin], i) => (
+                ['Panel & İstatistikler', '🏠 Panel', true, true, true],
+                ['Genel Durum görselleri', '📊 Durum', true, true, true],
+                ['Görevler', '💼 Görevler', true, true, true],
+                ['Saat kaydı girme', '💼 Saatler', true, true, true],
+                ['Saat onaylama', '💼 Saatler', false, 'kendi hariç', true],
+                ['Vardiya planı', '💼 Vardiya', true, true, true],
+                ['Vardiya planlama', '💼 Vardiya', false, true, true],
+                ['Vardiya notları', '💼 Vardiya', true, true, true],
+                ['Departmanlar', '💼 Deptlar', 'ayara bağlı', 'ayara bağlı', true],
+                ['Gönüllü yönetimi', '💼 Gönüllüler', false, true, true],
+                ['Başvuru yönetimi', '💼 Başvuru', false, false, true],
+                ['Görünürlük ayarları', '💼 Görünürlük', false, false, true],
+                ['Departman sohbeti', '💬 Sohbet', 'kendi', true, true],
+                ['Duyurular', '💬 Duyurular', true, true, true],
+                ['Duyuru yazma', '💬 Duyurular', false, true, true],
+                ['Talepler', '💬 Talepler', true, true, true],
+                ['Talep onaylama', '💬 Talepler', false, 'kendi hariç', true],
+                ['Görev ilerleme', '💼 Görevler', 'atanan', true, true],
+                ['Görev tamamlama onayı', '💼 Görevler', false, true, true],
+                ['Destek talebi', '🏠 Panel', true, true, false],
+                ['Profil', '👤 Profil', true, true, true],
+                ['Bildirimler', '👤 Bildirimler', true, true, true],
+                ['Dept arası görev', '💼 Deptlar', false, 'talep', true],
+                ['Rol atama', '💼 Gönüllüler', false, false, true],
+              ].map(([feat, loc, vol, coord, admin], i) => (
                 <tr key={i} className="border-b border-gray-50">
                   <td className="py-1.5 font-medium">{feat}</td>
+                  <td className="py-1.5 text-gray-400 whitespace-nowrap">{loc}</td>
                   <td className="text-center">{vol === true ? '✅' : typeof vol === 'string' ? `✅ ${vol}` : '—'}</td>
                   <td className="text-center">{coord === true ? '✅' : typeof coord === 'string' ? `✅ ${coord}` : '—'}</td>
                   <td className="text-center">{admin === true ? '✅' : typeof admin === 'string' ? `✅ ${admin}` : '—'}</td>
@@ -1821,7 +1835,7 @@ function HelpView({ me }) {
       {/* ── Gönüllü Bölümü ── */}
       <Accordion title="⏱️ Saat Kaydı Nasıl Girilir?">
         <div className="mt-2">
-          <HelpStep n="1" text={`Alt menüden "Saatler" sekmesine tıklayın.`} />
+          <HelpStep n="1" text={`💼 İşler → Saatler sekmesine gidin.`} />
           <HelpStep n="2" text={`"Yeni Kayıt" butonuna basın.`} />
           <HelpStep n="3" text={`Tarih, saat miktarı, departman ve açıklama girin.`} />
           <HelpStep n="4" text={`"Kaydet" ile gönderin. Kaydınız onay bekleyecek.`} />
@@ -1832,7 +1846,7 @@ function HelpView({ me }) {
 
       <Accordion title="📋 Görevler Nasıl Takip Edilir?">
         <div className="mt-2">
-          <HelpStep n="1" text={`"Görevler" sekmesine gidin.`} />
+          <HelpStep n="1" text={`💼 İşler → Görevler sekmesine gidin.`} />
           <HelpStep n="2" text={`Size atanan görevleri listede göreceksiniz.`} />
           <HelpStep n="3" text={`Öncelik ve durum bilgisine göre filtreleyebilirsiniz.`} />
           <HelpStep n="4" text={`Görevin detaylarını görmek için üzerine tıklayın.`} />
@@ -1842,7 +1856,7 @@ function HelpView({ me }) {
 
       <Accordion title="📅 Vardiya Planını Nerede Görürüm?">
         <div className="mt-2">
-          <HelpStep n="1" text={`"Vardiya" sekmesine tıklayın.`} />
+          <HelpStep n="1" text={`💼 İşler → Vardiya sekmesine gidin.`} />
           <HelpStep n="2" text={`Haftalık vardiya planınızı gün bazında göreceksiniz.`} />
           <HelpStep n="3" text={`Her vardiya kartında saat, departman ve not bilgisi yer alır.`} />
           <p className="text-xs text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Tekrarlayan vardiyalar her hafta otomatik görünür.</p>
@@ -1851,7 +1865,7 @@ function HelpView({ me }) {
 
       <Accordion title="📢 Duyuruları Nerede Okurum?">
         <div className="mt-2">
-          <HelpStep n="1" text={`"Duyurular" sekmesinden tüm duyuruları görebilirsiniz.`} />
+          <HelpStep n="1" text={`💬 İletişim → Duyurular sekmesine gidin.`} />
           <HelpStep n="2" text={`Sabitlenmiş (pinned) duyurular her zaman en üstte görünür.`} />
           <HelpStep n="3" text={`Departmana özel duyurular sadece ilgili kişilere gösterilir.`} />
         </div>
@@ -1859,7 +1873,7 @@ function HelpView({ me }) {
 
       <Accordion title="🔔 Bildirimler Nasıl Çalışır?">
         <div className="mt-2">
-          <HelpStep n="1" text={`Sağ üstteki zil ikonuna tıklayarak bildirimlerinizi görün.`} />
+          <HelpStep n="1" text={`👤 Ben → Bildirimler sekmesine gidin (veya sağ üstteki 🔔 ikonuna tıklayın).`} />
           <HelpStep n="2" text={`Okunmamış bildirim sayısı kırmızı baloncukta gösterilir.`} />
           <HelpStep n="3" text={`Görev atanması, saat onayı ve duyurular bildirim oluşturur.`} />
           <HelpStep n="4" text={`"Tümünü okundu işaretle" ile bildirimleri temizleyebilirsiniz.`} />
@@ -1868,7 +1882,7 @@ function HelpView({ me }) {
 
       <Accordion title="👤 Profilimi Nasıl Düzenlerim?">
         <div className="mt-2">
-          <HelpStep n="1" text={`Alt menüden "Profil" sekmesine tıklayın.`} />
+          <HelpStep n="1" text={`👤 Ben → Profil sekmesine gidin.`} />
           <HelpStep n="2" text={`"Düzenle" butonuna basın.`} />
           <HelpStep n="3" text={`Ad, telefon, şehir ve biyografi bilgilerinizi güncelleyin.`} />
           <HelpStep n="4" text={`"Kaydet" ile değişikliklerinizi kaydedin.`} />
@@ -1877,14 +1891,14 @@ function HelpView({ me }) {
 
       <Accordion title="💬 Departman Sohbeti Nasıl Kullanılır?">
         <div className="mt-2">
-          <p className="text-xs text-gray-600 leading-relaxed">Sohbet sekmesinden departmanınızdaki diğer gönüllülerle mesajlaşabilirsiniz. Mesajlar gerçek zamanlı görünür — sayfa yenilemeye gerek yok.</p>
+          <p className="text-xs text-gray-600 leading-relaxed">💬 İletişim → Sohbet sekmesinden departmanınızdaki diğer gönüllülerle mesajlaşabilirsiniz. Mesajlar gerçek zamanlı görünür — sayfa yenilemeye gerek yok.</p>
           <p className="text-xs text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Koordinatörler ve yöneticiler tüm departmanların sohbetlerini görebilir.</p>
         </div>
       </Accordion>
 
       <Accordion title="📊 Görev İlerlemesi Nasıl Güncellenir?">
         <div className="mt-2">
-          <HelpStep n="1" text={`"Görevler" sekmesinde ilgili göreve tıklayın.`} />
+          <HelpStep n="1" text={`💼 İşler → Görevler sekmesinde ilgili göreve tıklayın.`} />
           <HelpStep n="2" text={`İlerleme barındaki slider ile yüzdeyi güncelleyin.`} />
           <HelpStep n="3" text={`"Ne yaptım?" alanına kısa bir not yazın.`} />
           <HelpStep n="4" text={`"Güncelle" butonuna basın.`} />
@@ -1900,7 +1914,7 @@ function HelpView({ me }) {
 
       <Accordion title="📝 Vardiya Notu Nasıl Bırakılır?">
         <div className="mt-2">
-          <HelpStep n="1" text={`"Vardiya" sekmesine gidin.`} />
+          <HelpStep n="1" text={`💼 İşler → Vardiya sekmesine gidin.`} />
           <HelpStep n="2" text={`Bugünün vardiyası altında "Vardiya notu ekle" linkine tıklayın.`} />
           <HelpStep n="3" text={`Ne yapıldığını ve yarına ne kaldığını yazın.`} />
           <HelpStep n="4" text={`"Ekle" butonuna basın.`} />
@@ -1910,7 +1924,7 @@ function HelpView({ me }) {
 
       <Accordion title="📨 Nasıl Talep Oluştururum?">
         <div className="mt-2">
-          <HelpStep n="1" text={`Alt menüden "Taleplerim" sekmesine tıklayın.`} />
+          <HelpStep n="1" text={`💬 İletişim → Talepler sekmesine gidin.`} />
           <HelpStep n="2" text={`"Yeni Talep" butonuna basın.`} />
           <HelpStep n="3" text={`Talep tipini seçin ve gerekli bilgileri doldurun.`} />
           <HelpStep n="4" text={`Açıklama yazıp "Gönder" butonuna basın.`} />
@@ -1954,7 +1968,7 @@ function HelpView({ me }) {
 
       <Accordion title="🆘 Destek Talebi Nasıl Gönderirim?">
         <div className="mt-2">
-          <p className="text-xs text-gray-600 leading-relaxed">Panel sayfasının altında "Destek Talebi Gönder" butonu bulunur. Konu seçip mesajınızı yazın. Talebiniz departman koordinatörünüze gider. Koordinatör yoksa doğrudan yöneticiye iletilir.</p>
+          <p className="text-xs text-gray-600 leading-relaxed">🏠 Panel sayfasının altında "Destek Talebi Gönder" butonu bulunur. Konu seçip mesajınızı yazın. Talebiniz departman koordinatörünüze gider. Koordinatör yoksa doğrudan yöneticiye iletilir.</p>
           <p className="text-xs text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 Not: Yöneticiler zaten en üst yetkiye sahip olduğundan destek talebi butonunu görmezler.</p>
         </div>
       </Accordion>
@@ -1965,7 +1979,7 @@ function HelpView({ me }) {
 
       <Accordion title="🏢 Başka Departmandaki Göreve Nasıl Katılırım?">
         <div className="mt-2">
-          <p className="text-xs text-gray-600 leading-relaxed">Departmanlar sayfasından ilgili departmanın detayına girin. Görevler sekmesinde "Bu departmandaki bir göreve katılmak istiyorum" butonuna tıklayın. Otomatik bir talep oluşturulur ve koordinatör/yönetici tarafından incelenir.</p>
+          <p className="text-xs text-gray-600 leading-relaxed">💼 İşler → Departmanlar sekmesinden ilgili departmanın detayına girin. Görevler sekmesinde "Bu departmandaki bir göreve katılmak istiyorum" butonuna tıklayın. Otomatik bir talep oluşturulur ve koordinatör/yönetici tarafından incelenir.</p>
           <p className="text-xs text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 Alternatif olarak Taleplerim sayfasından "Başka bir göreve katılmak istiyorum" seçeneğini de kullanabilirsiniz.</p>
         </div>
       </Accordion>
@@ -1985,7 +1999,7 @@ function HelpView({ me }) {
 
           <Accordion title="👥 Gönüllü Yönetimi Nasıl Yapılır?">
             <div className="mt-2">
-              <HelpStep n="1" text={`"Gönüllüler" sekmesinden tüm aktif gönüllüleri görün.`} />
+              <HelpStep n="1" text={`💼 İşler → Gönüllüler sekmesine gidin.`} />
               <HelpStep n="2" text={`İsme tıklayarak gönüllünün detay profilini açın.`} />
               <HelpStep n="3" text={`Departman ataması ve durum değişikliği yapabilirsiniz.`} />
               <HelpStep n="4" text={`Her gönüllünün toplam saat ve aktif gün sayısını takip edin.`} />
@@ -1994,7 +2008,7 @@ function HelpView({ me }) {
 
           <Accordion title="📋 Görev Nasıl Oluşturulur ve Atanır?">
             <div className="mt-2">
-              <HelpStep n="1" text={`"Görevler" sekmesinde "Yeni Görev" butonuna tıklayın.`} />
+              <HelpStep n="1" text={`💼 İşler → Görevler sekmesinde "Yeni Görev" butonuna tıklayın.`} />
               <HelpStep n="2" text={`Başlık, açıklama, departman ve öncelik belirleyin.`} />
               <HelpStep n="3" text={`Son tarih seçin ve görevi gönüllülere atayın.`} />
               <HelpStep n="4" text={`Atanan gönüllüler otomatik bildirim alır.`} />
@@ -2004,7 +2018,7 @@ function HelpView({ me }) {
 
           <Accordion title="✅ Saat Nasıl Onaylanır / Reddedilir?">
             <div className="mt-2">
-              <HelpStep n="1" text={`"Saatler" sekmesine gidin ve "Onay Bekliyor" filtresini seçin.`} />
+              <HelpStep n="1" text={`💼 İşler → Saatler sekmesine gidin ve "Onay Bekliyor" filtresini seçin.`} />
               <HelpStep n="2" text={`Her kaydın yanındaki onay (✓) veya red (✗) butonuna tıklayın.`} />
               <HelpStep n="3" text={`Reddetme durumunda bir açıklama notu ekleyebilirsiniz.`} />
               <HelpStep n="4" text={`Gönüllü, sonucu bildirim olarak alacaktır.`} />
@@ -2013,7 +2027,7 @@ function HelpView({ me }) {
 
           <Accordion title="📅 Vardiya Nasıl Planlanır?">
             <div className="mt-2">
-              <HelpStep n="1" text={`"Vardiya" sekmesinde "Yeni Vardiya" butonuna tıklayın.`} />
+              <HelpStep n="1" text={`💼 İşler → Vardiya sekmesinde "Yeni Vardiya" butonuna tıklayın.`} />
               <HelpStep n="2" text={`Gönüllü, gün, başlangıç-bitiş saati ve departman seçin.`} />
               <HelpStep n="3" text={`Tekrarlayan vardiya için "Haftalık tekrar" seçeneğini işaretleyin.`} />
               <HelpStep n="4" text={`Mevcut vardiyaları düzenleyebilir veya silebilirsiniz.`} />
@@ -2022,7 +2036,7 @@ function HelpView({ me }) {
 
           <Accordion title="📢 Duyuru Nasıl Yazılır?">
             <div className="mt-2">
-              <HelpStep n="1" text={`"Duyurular" sekmesinde "Yeni Duyuru" butonuna tıklayın.`} />
+              <HelpStep n="1" text={`💬 İletişim → Duyurular sekmesinde "Yeni Duyuru" butonuna tıklayın.`} />
               <HelpStep n="2" text={`Başlık ve içerik yazın.`} />
               <HelpStep n="3" text={`Belirli bir departmana mı herkese mi? Seçim yapın.`} />
               <HelpStep n="4" text={`Önemli duyurular için "Sabitle" seçeneğini işaretleyin.`} />
@@ -2030,7 +2044,7 @@ function HelpView({ me }) {
           </Accordion>
 
           <Accordion title="💬 Departman Sohbetlerini Nasıl Yönetirim?">
-            <p className="text-xs text-gray-600 mt-2 leading-relaxed">Sohbet sekmesinde üstteki dropdown ile farklı departmanların sohbetlerini görebilirsiniz. Kendi departmanınıza veya diğer departmanlara mesaj yazabilirsiniz.</p>
+            <p className="text-xs text-gray-600 mt-2 leading-relaxed">💬 İletişim → Sohbet sekmesinde üstteki dropdown ile farklı departmanların sohbetlerini görebilirsiniz. Kendi departmanınıza veya diğer departmanlara mesaj yazabilirsiniz.</p>
           </Accordion>
 
           <Accordion title="📊 Görev İlerlemesini Nasıl Takip Ederim?">
@@ -2042,7 +2056,7 @@ function HelpView({ me }) {
 
           <Accordion title="📨 Gelen Talepleri Nasıl Onaylarım?">
             <div className="mt-2">
-              <HelpStep n="1" text={`"Talepler" sekmesine gidin.`} />
+              <HelpStep n="1" text={`💬 İletişim → Talepler sekmesine gidin.`} />
               <HelpStep n="2" text={`Bekleyen talepleri inceleyin.`} />
               <HelpStep n="3" text={`"İncele" butonuna tıklayın.`} />
               <HelpStep n="4" text={`Not ekleyip "Onayla" veya "Reddet" butonuna basın.`} />
@@ -2087,7 +2101,7 @@ function HelpView({ me }) {
 
           <Accordion title="🤝 Departmanlar Arası Görev Nasıl Oluşturulur?">
             <div className="mt-2">
-              <HelpStep n="1" text={`Departmanlar sayfasından hedef departmanın detayına girin.`} />
+              <HelpStep n="1" text={`💼 İşler → Departmanlar sekmesinden hedef departmanın detayına girin.`} />
               <HelpStep n="2" text={`Sayfanın altındaki "Ortak görev öner" butonuna tıklayın.`} />
               <HelpStep n="3" text={`Otomatik bir talep oluşturulur ve yöneticiye gider.`} />
               <p className="text-xs text-gray-500 mt-2 leading-relaxed">Yönetici onayladığında her iki departman koordinatörüne bildirim gider ve ortak görev oluşturulabilir.</p>
@@ -2096,7 +2110,7 @@ function HelpView({ me }) {
 
           <Accordion title="🔀 Başka Departmandan Gönüllü Çekme Talebi Nasıl Yapılır?">
             <div className="mt-2">
-              <HelpStep n="1" text={`Departmanlar sayfasından gönüllü çekmek istediğiniz departmanın detayına girin.`} />
+              <HelpStep n="1" text={`💼 İşler → Departmanlar sekmesinden gönüllü çekmek istediğiniz departmanın detayına girin.`} />
               <HelpStep n="2" text={`"Bu departmandan gönüllü çek" butonuna tıklayın.`} />
               <HelpStep n="3" text={`Açıklamada kaç kişiye ihtiyacınız olduğunu ve hangi becerileri aradığınızı belirtin.`} />
               <p className="text-xs text-gray-500 mt-2 leading-relaxed">Talep yöneticiye gider. Onaylandığında ilgili departman koordinatörü bilgilendirilir.</p>
@@ -2116,7 +2130,7 @@ function HelpView({ me }) {
 
           <Accordion title="👑 Rol Atama Nasıl Yapılır?">
             <div className="mt-2">
-              <HelpStep n="1" text={`"Gönüllüler" sekmesinden kullanıcıyı bulun.`} />
+              <HelpStep n="1" text={`💼 İşler → Gönüllüler sekmesinden kullanıcıyı bulun.`} />
               <HelpStep n="2" text={`Profil detayında rol alanını tıklayın.`} />
               <HelpStep n="3" text={`Gönüllü, Koordinatör veya Yönetici rolünü seçin.`} />
               <p className="text-xs text-gray-400 mt-2 bg-amber-50 rounded-lg p-2">⚠️ Dikkat: Yönetici rolü tüm sisteme erişim sağlar. Dikkatli atayın.</p>
@@ -2125,7 +2139,7 @@ function HelpView({ me }) {
 
           <Accordion title="📩 Başvuru Yönetimi Nasıl Çalışır?">
             <div className="mt-2">
-              <HelpStep n="1" text={`"Başvuru" sekmesine gidin.`} />
+              <HelpStep n="1" text={`💼 İşler → Başvuru sekmesine gidin.`} />
               <HelpStep n="2" text={`Bekleyen başvuruları inceleyin: isim, motivasyon, deneyim.`} />
               <HelpStep n="3" text={`Uygun başvuruları "Onayla" ile kabul edin veya "Mülakata Al" ile ayırın.`} />
               <HelpStep n="4" text={`Uygun olmayan başvuruları not ekleyerek reddedin.`} />
@@ -2180,7 +2194,7 @@ function HelpView({ me }) {
 
           <Accordion title="🔓 Duraklatılmış Kullanıcıyı Nasıl Aktif Ederim?">
             <div className="mt-2">
-              <HelpStep n="1" text={`"Gönüllüler" sekmesinden kullanıcıyı bulun (pasif kullanıcılar soluk görünür).`} />
+              <HelpStep n="1" text={`💼 İşler → Gönüllüler sekmesinden kullanıcıyı bulun (pasif kullanıcılar soluk görünür).`} />
               <HelpStep n="2" text={`Kullanıcı kartına tıklayarak detayını açın.`} />
               <HelpStep n="3" text={`"Aktif Et" butonuna tıklayın.`} />
               <p className="text-xs text-gray-500 mt-2 leading-relaxed">Alternatif olarak, duraklatılmış kullanıcı giriş yapıp "Tekrar Aktif Ol" butonuna tıkladığında size otomatik talep gelir.</p>
@@ -2189,7 +2203,7 @@ function HelpView({ me }) {
 
           <Accordion title="⚙️ Görünürlük Ayarları Nasıl Çalışır?">
             <div className="mt-2">
-              <p className="text-xs text-gray-600 leading-relaxed">Alt menüdeki "Görünürlük" sekmesinden departmanlar arası veri paylaşımını kontrol edersiniz. Her departman için 6 özellik ayrı ayrı açılıp kapatılabilir:</p>
+              <p className="text-xs text-gray-600 leading-relaxed">💼 İşler → Görünürlük sekmesinden departmanlar arası veri paylaşımını kontrol edersiniz. Her departman için 6 özellik ayrı ayrı açılıp kapatılabilir:</p>
               <div className="mt-2 space-y-1">
                 <p className="text-xs text-gray-500">📋 Görevler — departmanın aktif görevleri</p>
                 <p className="text-xs text-gray-500">📊 İlerleme — görev ilerleme yüzdeleri</p>
@@ -2276,6 +2290,14 @@ function HelpView({ me }) {
             </div>
           )}
         </div>
+      </Accordion>
+
+      <Accordion title="14 buton vardı, neden 5 oldu?">
+        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Eski tasarımda alt menüde 14 buton vardı ve özellikle mobilde çok kalabalık görünüyordu. Yeni tasarımda 5 ana kategori (Panel, Durum, İşler, İletişim, Ben) altında tüm sayfalar üst tab bar ile erişilebilir. Hiçbir özellik kaldırılmadı — sadece daha düzenli bir yapıya taşındı.</p>
+      </Accordion>
+
+      <Accordion title="Alt sekmeleri nerede buluyorum?">
+        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Alt menüden bir ana sekmeye (örneğin 💼 İşler) tıkladığınızda, sayfanın üst kısmında yatay kaydırılabilir alt sekmeler belirir (Görevler, Saatler, Vardiya vb.). Bu sekmeler arasında geçiş yaparak ilgili sayfaya ulaşabilirsiniz. Mobilde sığmayan sekmeler için sola/sağa kaydırın.</p>
       </Accordion>
 
       <div className="text-center py-4">
