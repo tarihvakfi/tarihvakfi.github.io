@@ -1291,15 +1291,21 @@ function HelpView({ me }) {
                 ['Saat onaylama / reddetme', false, true, true],
                 ['Vardiya planlama', false, true, true],
                 ['Duyuru yazma', false, true, true],
+                ['Departman sohbeti', 'kendi', true, true],
+                ['Görev ilerleme güncelleme', 'atanan', true, true],
+                ['Görev yorumları', 'atanan', true, true],
+                ['Vardiya notları', true, true, true],
+                ['Talep oluşturma', true, true, false],
+                ['Talep onaylama', false, true, true],
                 ['Rol atama', false, false, true],
                 ['Başvuru yönetimi', false, false, true],
                 ['Tüm verilere erişim', false, false, true],
               ].map(([feat, vol, coord, admin], i) => (
                 <tr key={i} className="border-b border-gray-50">
                   <td className="py-1.5 font-medium">{feat}</td>
-                  <td className="text-center">{vol ? '✅' : '—'}</td>
-                  <td className="text-center">{coord ? '✅' : '—'}</td>
-                  <td className="text-center">{admin ? '✅' : '—'}</td>
+                  <td className="text-center">{vol === true ? '✅' : typeof vol === 'string' ? `✅ ${vol}` : '—'}</td>
+                  <td className="text-center">{coord === true ? '✅' : typeof coord === 'string' ? `✅ ${coord}` : '—'}</td>
+                  <td className="text-center">{admin === true ? '✅' : typeof admin === 'string' ? `✅ ${admin}` : '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -1364,6 +1370,63 @@ function HelpView({ me }) {
         </div>
       </Accordion>
 
+      <Accordion title="💬 Departman Sohbeti Nasıl Kullanılır?">
+        <div className="mt-2">
+          <p className="text-xs text-gray-600 leading-relaxed">Sohbet sekmesinden departmanınızdaki diğer gönüllülerle mesajlaşabilirsiniz. Mesajlar gerçek zamanlı görünür — sayfa yenilemeye gerek yok.</p>
+          <p className="text-[10px] text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Koordinatörler ve yöneticiler tüm departmanların sohbetlerini görebilir.</p>
+        </div>
+      </Accordion>
+
+      <Accordion title="📊 Görev İlerlemesi Nasıl Güncellenir?">
+        <div className="mt-2">
+          <HelpStep n="1" text={`"Görevler" sekmesinde ilgili göreve tıklayın.`} />
+          <HelpStep n="2" text={`İlerleme barındaki slider ile yüzdeyi güncelleyin.`} />
+          <HelpStep n="3" text={`"Ne yaptım?" alanına kısa bir not yazın.`} />
+          <HelpStep n="4" text={`"Güncelle" butonuna basın.`} />
+          <p className="text-xs text-gray-500 mt-2 leading-relaxed">Diğer atanan kişiler bildirim alır. %100 olunca görev otomatik olarak "Tamamlandı" durumuna geçer.</p>
+        </div>
+      </Accordion>
+
+      <Accordion title="💬 Görevlere Nasıl Yorum Yazılır?">
+        <div className="mt-2">
+          <p className="text-xs text-gray-600 leading-relaxed">Görev detay sayfasında ilerleme geçmişinin altında yorum alanı bulunur. Göreve atanan herkes yorum yazabilir. Yorumlar mavi ikonla, ilerleme kayıtları yeşil ikonla gösterilir.</p>
+        </div>
+      </Accordion>
+
+      <Accordion title="📝 Vardiya Notu Nasıl Bırakılır?">
+        <div className="mt-2">
+          <HelpStep n="1" text={`"Vardiya" sekmesine gidin.`} />
+          <HelpStep n="2" text={`Bugünün vardiyası altında "Vardiya notu ekle" linkine tıklayın.`} />
+          <HelpStep n="3" text={`Ne yapıldığını ve yarına ne kaldığını yazın.`} />
+          <HelpStep n="4" text={`"Ekle" butonuna basın.`} />
+          <p className="text-xs text-gray-500 mt-2 leading-relaxed">Aynı departmandaki herkes bu notları görebilir ve bildirim alır.</p>
+        </div>
+      </Accordion>
+
+      <Accordion title="📨 Nasıl Talep Oluştururum?">
+        <div className="mt-2">
+          <HelpStep n="1" text={`Alt menüden "Taleplerim" sekmesine tıklayın.`} />
+          <HelpStep n="2" text={`"Yeni Talep" butonuna basın.`} />
+          <HelpStep n="3" text={`Talep tipini seçin ve gerekli bilgileri doldurun.`} />
+          <HelpStep n="4" text={`Açıklama yazıp "Gönder" butonuna basın.`} />
+          <div className="mt-2 space-y-1">
+            <p className="text-[10px] font-semibold text-gray-600">Yapabileceğiniz talepler:</p>
+            <p className="text-[10px] text-gray-500">🔄 Departman değiştirme</p>
+            <p className="text-[10px] text-gray-500">➕ Başka departmanda da çalışma</p>
+            <p className="text-[10px] text-gray-500">❌ Görev iptali</p>
+            <p className="text-[10px] text-gray-500">🙋 Başka göreve katılma</p>
+            <p className="text-[10px] text-gray-500">🆘 Görev için yardım isteme</p>
+            <p className="text-[10px] text-gray-500">⏸️ Ara verme (duraklama)</p>
+            <p className="text-[10px] text-gray-500">🔒 Hesabı pasife alma</p>
+          </div>
+          <p className="text-xs text-gray-500 mt-2 leading-relaxed">Talebiniz koordinatör veya yönetici tarafından incelenir. Sonucu bildirim olarak alırsınız.</p>
+        </div>
+      </Accordion>
+
+      <Accordion title="📨 Talebimi İptal Edebilir Miyim?">
+        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Evet, bekleyen (pending) talepleri "Vazgeçtim" butonuyla iptal edebilirsiniz. Onaylanmış veya reddedilmiş talepler iptal edilemez.</p>
+      </Accordion>
+
       {/* ── Koordinatör Bölümü ── */}
       {isCoord && (
         <>
@@ -1418,6 +1481,37 @@ function HelpView({ me }) {
               <HelpStep n="4" text={`Önemli duyurular için "Sabitle" seçeneğini işaretleyin.`} />
             </div>
           </Accordion>
+
+          <Accordion title="💬 Departman Sohbetlerini Nasıl Yönetirim?">
+            <p className="text-xs text-gray-600 mt-2 leading-relaxed">Sohbet sekmesinde üstteki dropdown ile farklı departmanların sohbetlerini görebilirsiniz. Kendi departmanınıza veya diğer departmanlara mesaj yazabilirsiniz.</p>
+          </Accordion>
+
+          <Accordion title="📊 Görev İlerlemesini Nasıl Takip Ederim?">
+            <div className="mt-2">
+              <p className="text-xs text-gray-600 leading-relaxed">Görevler sayfasında her görev kartında mini ilerleme barı görünür. Göreve tıklayarak detaylı timeline görebilirsiniz: kim, ne zaman, ne kadar ilerletti.</p>
+              <p className="text-[10px] text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: İlerleme barı rengi yüzdeye göre değişir: kırmızı → sarı → yeşil.</p>
+            </div>
+          </Accordion>
+
+          <Accordion title="📨 Gelen Talepleri Nasıl Onaylarım?">
+            <div className="mt-2">
+              <HelpStep n="1" text={`"Talepler" sekmesine gidin.`} />
+              <HelpStep n="2" text={`Bekleyen talepleri inceleyin.`} />
+              <HelpStep n="3" text={`"İncele" butonuna tıklayın.`} />
+              <HelpStep n="4" text={`Not ekleyip "Onayla" veya "Reddet" butonuna basın.`} />
+              <p className="text-xs text-gray-500 mt-2 leading-relaxed">Onaylanan talepler otomatik uygulanır: departman değişir, görev güncellenir, kullanıcı durumu güncellenir vb.</p>
+            </div>
+          </Accordion>
+
+          <Accordion title="👥 Ek Gönüllü Nasıl Talep Ederim?">
+            <div className="mt-2">
+              <p className="text-xs text-gray-600 leading-relaxed">Taleplerim sayfasından "Ek gönüllü talebi" tipinde talep oluşturabilirsiniz. Kaç kişiye ihtiyaç olduğunu ve hangi beceriler arandığını açıklamaya yazın. Yönetici onayladığında tüm gönüllülere duyuru olarak yayınlanır.</p>
+            </div>
+          </Accordion>
+
+          <Accordion title="📊 Haftalık Departman Özetini Nerede Görürüm?">
+            <p className="text-xs text-gray-600 mt-2 leading-relaxed">Panel sayfasında "Bu Hafta" başlığı altında departman bazlı kartlarda bu haftanın toplam saati, tamamlanan görev sayısı ve aktif gönüllü sayısını görebilirsiniz.</p>
+          </Accordion>
         </>
       )}
 
@@ -1453,16 +1547,27 @@ function HelpView({ me }) {
             <div className="mt-2 space-y-2">
               <div className="bg-emerald-50 rounded-lg p-2.5">
                 <p className="text-[10px] font-semibold text-emerald-700">☀️ Her Gün</p>
-                <p className="text-[10px] text-emerald-600 mt-0.5">Bekleyen saat kayıtlarını onaylayın. Yeni başvuruları kontrol edin.</p>
+                <p className="text-[10px] text-emerald-600 mt-0.5">Bekleyen saat kayıtlarını ve talepleri onaylayın. Yeni başvuruları kontrol edin.</p>
               </div>
               <div className="bg-blue-50 rounded-lg p-2.5">
                 <p className="text-[10px] font-semibold text-blue-700">📅 Her Hafta</p>
-                <p className="text-[10px] text-blue-600 mt-0.5">Vardiya planını güncelleyin. Görev durumlarını kontrol edin. Duyuru paylaşın.</p>
+                <p className="text-[10px] text-blue-600 mt-0.5">Vardiya planını güncelleyin. Görev ilerlemelerini kontrol edin. Duyuru paylaşın.</p>
               </div>
               <div className="bg-purple-50 rounded-lg p-2.5">
                 <p className="text-[10px] font-semibold text-purple-700">📊 Her Ay</p>
                 <p className="text-[10px] text-purple-600 mt-0.5">Departman istatistiklerini inceleyin. Aktif olmayan gönüllüleri takip edin. Rapor çıkarın.</p>
               </div>
+            </div>
+          </Accordion>
+
+          <Accordion title="💬 Tüm Departman Sohbetlerini Görebilir Miyim?">
+            <p className="text-xs text-gray-600 mt-2 leading-relaxed">Evet, Sohbet sekmesinde dropdown ile tüm departmanların sohbetlerini görebilirsiniz. İstediğiniz departmana mesaj da yazabilirsiniz.</p>
+          </Accordion>
+
+          <Accordion title="⏸️ Duraklatma/Pasif Talepleri Nasıl Yönetirim?">
+            <div className="mt-2">
+              <p className="text-xs text-gray-600 leading-relaxed">Talepler sayfasında "pause" ve "deactivate" tipindeki talepler gelir. Onayladığınızda kullanıcının durumu otomatik güncellenir (paused veya inactive).</p>
+              <p className="text-[10px] text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Tekrar aktif etmek için Gönüllüler sayfasından durumu "Aktif Et" butonu ile değiştirebilirsiniz.</p>
             </div>
           </Accordion>
         </>
@@ -1488,7 +1593,15 @@ function HelpView({ me }) {
       </Accordion>
 
       <Accordion title="Birden fazla departmanda çalışabilir miyim?">
-        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Ana departmanınız profilinizde belirlidir, ancak saat kayıtlarınızı farklı departmanlar için girebilirsiniz. Vardiya atamaları da farklı departmanlara yapılabilir.</p>
+        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Taleplerim sayfasından "Başka departmanda da çalışmak istiyorum" talebi oluşturabilirsiniz. Koordinatör onayladığında ilgili departmanın sohbetini ve görevlerini de görebilirsiniz. Saat kayıtlarınızı zaten farklı departmanlar için girebilirsiniz.</p>
+      </Accordion>
+
+      <Accordion title="Ara vermek istiyorum, ne yapmalıyım?">
+        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Taleplerim sayfasından "Bir süre ara vermek istiyorum" seçin ve tarih aralığını açıklamaya yazın (ör: 15 Nisan - 30 Nisan). Koordinatör onayladığında hesabınız duraklatılır. Döndüğünüzde tekrar aktif edilir.</p>
+      </Accordion>
+
+      <Accordion title="Başka bir departmandaki göreve nasıl katılırım?">
+        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Taleplerim sayfasından "Başka bir göreve katılmak istiyorum" seçin ve ilgili görevi belirtin. Koordinatör onaylarsa göreve eklenirsiniz ve görev bildirimleri almaya başlarsınız.</p>
       </Accordion>
 
       <Accordion title="Sisteme kimler erişebilir?">
