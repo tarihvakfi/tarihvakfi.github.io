@@ -1,0 +1,573 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import * as db from '../../lib/supabase';
+
+const DEPTS = [
+  { id:'arsiv', l:'Arşiv & Dokümantasyon', i:'📜' },
+  { id:'egitim', l:'Eğitim & Atölye', i:'📚' },
+  { id:'etkinlik', l:'Etkinlik & Organizasyon', i:'🎪' },
+  { id:'dijital', l:'Dijital & Sosyal Medya', i:'💻' },
+  { id:'rehber', l:'Rehberlik & Gezi', i:'🏛️' },
+  { id:'baski', l:'Yayın & Baskı', i:'📰' },
+  { id:'bagis', l:'Bağış & Sponsorluk', i:'💰' },
+  { id:'idari', l:'İdari İşler', i:'🏢' },
+];
+const DM = Object.fromEntries(DEPTS.map(d=>[d.id,d]));
+const ROLES = { admin:{l:'Yönetici',i:'👑',c:'text-orange-500'}, coord:{l:'Koordinatör',i:'📋',c:'text-purple-500'}, vol:{l:'Gönüllü',i:'🤝',c:'text-emerald-500'} };
+const PRIORITIES = { high:{l:'Yüksek',c:'bg-red-100 text-red-600'}, medium:{l:'Orta',c:'bg-amber-100 text-amber-600'}, low:{l:'Düşük',c:'bg-emerald-100 text-emerald-600'} };
+const STATUSES = { pending:'Bekliyor', active:'Devam Ediyor', done:'Tamamlandı' };
+const HOUR_S = { pending:'Onay Bekliyor', approved:'Onaylandı', rejected:'Reddedildi' };
+const DAYS = ['Pzt','Sal','Çar','Per','Cum','Cmt','Paz'];
+const MO = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+const fd = d => { const x = new Date(d); return `${x.getDate()} ${MO[x.getMonth()]}`; };
+const fdf = d => { const x = new Date(d); return `${x.getDate()} ${MO[x.getMonth()]} ${x.getFullYear()}`; };
+const today = () => new Date().toISOString().slice(0,10);
+
+export default function Dashboard({ session }) {
+  const uid = session.user.id;
+  const [me, setMe] = useState(null);
+  const [page, setPage] = useState('dashboard');
+  const [loading, setLoading] = useState(true);
+  const [unread, setUnread] = useState(0);
+
+  // Load profile
+  useEffect(() => {
+    (async () => {
+      const { data } = await db.getProfile(uid);
+      if (data) setMe(data);
+      const cnt = await db.getUnreadCount(uid);
+      setUnread(cnt);
+      setLoading(false);
+    })();
+  }, [uid]);
+
+  // Realtime notifications
+  useEffect(() => {
+    const sub = db.subscribeNotifications(uid, () => setUnread(n => n + 1));
+    return () => sub.unsubscribe();
+  }, [uid]);
+
+  const can = useCallback((perm) => {
+    if (!me) return false;
+    if (me.role === 'admin') return true;
+    if (me.role === 'coord') return ['manage_vols','assign_tasks','approve_hours','announcements','view_reports'].includes(perm);
+    return false;
+  }, [me]);
+
+  if (loading || !me) return (
+    <div className="flex items-center justify-center min-h-screen"><p className="text-gray-400">Yükleniyor...</p></div>
+  );
+
+  const nav = me.role === 'admin'
+    ? [['dashboard','🏠','Panel'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['announcements','📢','Duyuru'],['applications','📩','Başvuru']]
+    : me.role === 'coord'
+    ? [['dashboard','🏠','Panel'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['announcements','📢','Duyuru']]
+    : [['dashboard','🏠','Panel'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['announcements','📢','Duyurular']];
+
+  return (
+    <div className="min-h-screen pb-24">
+      {/* Header */}
+      <div className="bg-gradient-to-br from-gray-800 to-gray-900 px-5 pt-5 pb-4 rounded-b-3xl">
+        <div className="max-w-2xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-white text-lg font-bold" style={{fontFamily:"'Playfair Display',serif"}}>🏛️ Tarih Vakfı</h1>
+            <p className="text-white/40 text-xs mt-1">
+              {ROLES[me.role]?.i} {me.display_name} · <span className={ROLES[me.role]?.c}>{ROLES[me.role]?.l}</span>
+              {me.department && ` · ${DM[me.department]?.l}`}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setPage('notifications')} className="relative w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm hover:bg-white/20">
+              🔔
+              {unread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-bold">{unread}</span>}
+            </button>
+            <button onClick={db.signOut} className="text-white/30 hover:text-white/60 text-xs">Çıkış</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-2xl mx-auto px-4 pt-3">
+        {page === 'dashboard' && <DashboardView uid={uid} me={me} can={can} setPage={setPage} />}
+        {page === 'volunteers' && can('manage_vols') && <VolunteersView uid={uid} me={me} />}
+        {page === 'tasks' && <TasksView uid={uid} me={me} can={can} />}
+        {page === 'hours' && <HoursView uid={uid} me={me} can={can} />}
+        {page === 'schedule' && <ScheduleView uid={uid} me={me} can={can} />}
+        {page === 'announcements' && <AnnouncementsView uid={uid} me={me} can={can} />}
+        {page === 'applications' && can('manage_vols') && <ApplicationsView uid={uid} me={me} />}
+        {page === 'notifications' && <NotificationsView uid={uid} onRead={() => setUnread(0)} />}
+        {page === 'profile' && <ProfileView me={me} uid={uid} onUpdate={m => setMe(m)} />}
+      </div>
+
+      {/* Nav */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/97 backdrop-blur border-t border-gray-100 py-1.5 z-50">
+        <div className="max-w-2xl mx-auto flex justify-around">
+          {[...nav, ['profile','👤','Profil']].map(([id,ic,lb]) => (
+            <button key={id} onClick={() => setPage(id)} className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg transition-all ${page === id ? 'text-emerald-600' : 'text-gray-400'}`}>
+              <span className="text-base">{ic}</span>
+              <span className="text-[9px] font-semibold">{lb}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
+    </div>
+  );
+}
+
+// ─── DASHBOARD ────────────────────────────
+function DashboardView({ uid, me, can, setPage }) {
+  const [stats, setStats] = useState(null);
+  const [anns, setAnns] = useState([]);
+  useEffect(() => {
+    (async () => {
+      const [vs, an] = await Promise.all([db.getVolunteerStats(), db.getAnnouncements()]);
+      setStats(vs.data); setAnns((an.data || []).slice(0, 3));
+    })();
+  }, []);
+
+  const myStats = stats?.find(s => s.id === uid);
+  const totalVols = stats?.filter(s => s.status === 'active').length || 0;
+  const totalHours = stats?.reduce((a, b) => a + Number(b.approved_hours), 0) || 0;
+
+  return (
+    <div className="fade-up space-y-4">
+      {can('manage_vols') ? (
+        <div className="grid grid-cols-3 gap-2">
+          <Stat v={totalVols} l="Aktif Gönüllü" c="text-emerald-600" />
+          <Stat v={totalHours} l="Toplam Saat" c="text-amber-500" />
+          <Stat v={stats?.filter(s => Number(s.pending_hours) > 0).length || 0} l="Onay Bekleyen" c="text-red-500" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-2">
+          <Stat v={myStats?.approved_hours || 0} l="Onaylı Saat" c="text-emerald-600" />
+          <Stat v={myStats?.pending_hours || 0} l="Bekleyen" c="text-amber-500" />
+          <Stat v={myStats?.active_days || 0} l="Aktif Gün" c="text-purple-500" />
+        </div>
+      )}
+
+      <div className="text-sm font-bold">⚡ Hızlı İşlemler</div>
+      <div className="grid grid-cols-3 gap-2">
+        {me.role === 'vol' && <>
+          <QA ic="⏱️" lb="Saat Kaydet" onClick={() => setPage('hours')} />
+          <QA ic="📋" lb="Görevlerim" onClick={() => setPage('tasks')} />
+          <QA ic="📅" lb="Vardiyam" onClick={() => setPage('schedule')} />
+        </>}
+        {can('manage_vols') && <>
+          <QA ic="👥" lb="Gönüllüler" onClick={() => setPage('volunteers')} />
+          <QA ic="📋" lb="Görev Ata" onClick={() => setPage('tasks')} />
+          <QA ic="⏱️" lb="Onayla" onClick={() => setPage('hours')} />
+        </>}
+      </div>
+
+      {anns.filter(a => a.is_pinned).map(a => (
+        <div key={a.id} className="card border-l-4 border-amber-400">
+          <div className="flex items-center gap-1.5 mb-1"><span className="text-xs">📌</span><span className="font-bold text-sm">{a.title}</span></div>
+          <p className="text-xs text-gray-500 leading-relaxed">{a.body?.slice(0, 150)}</p>
+          <p className="text-[10px] text-gray-300 mt-2">{a.profiles?.display_name} · {fd(a.created_at)}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── VOLUNTEERS ───────────────────────────
+function VolunteersView({ uid, me }) {
+  const [vols, setVols] = useState([]);
+  const [sel, setSel] = useState(null);
+  useEffect(() => { db.getAllProfiles().then(({ data }) => setVols(data || [])); }, []);
+
+  const changeRole = async (id, role) => { await db.setUserRole(id, role); setVols(vols.map(v => v.id === id ? { ...v, role } : v)); };
+  const changeDept = async (id, dept) => { await db.setUserDept(id, dept); setVols(vols.map(v => v.id === id ? { ...v, department: dept } : v)); };
+  const toggleStatus = async (id, status) => { await db.setUserStatus(id, status); setVols(vols.map(v => v.id === id ? { ...v, status } : v)); };
+
+  return (
+    <div className="fade-up space-y-3">
+      <h2 className="text-base font-bold">👥 Gönüllüler ({vols.length})</h2>
+      {vols.map(v => (
+        <div key={v.id} className={`card cursor-pointer ${v.status !== 'active' ? 'opacity-50' : ''}`} onClick={() => setSel(sel === v.id ? null : v.id)}>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-600">{(v.display_name||'?')[0]}</div>
+            <div className="flex-1">
+              <div className="font-semibold text-sm">{v.display_name} <span className="text-xs">{ROLES[v.role]?.i}</span></div>
+              <div className="text-[11px] text-gray-400">{DM[v.department]?.i || '—'} {DM[v.department]?.l || 'Departman atanmamış'} · {Number(v.total_hours || 0).toFixed(0)}s</div>
+            </div>
+            <span className={`badge ${v.status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>{v.status === 'active' ? 'Aktif' : 'Pasif'}</span>
+          </div>
+          {sel === v.id && v.id !== uid && (
+            <div className="mt-3 pt-3 border-t border-gray-50 space-y-2">
+              <div className="flex gap-2 items-center">
+                <span className="text-xs text-gray-400 w-16">Rol:</span>
+                <select className="input-field !py-1.5 !text-xs" value={v.role} onChange={e => changeRole(v.id, e.target.value)}>
+                  <option value="vol">Gönüllü</option><option value="coord">Koordinatör</option>{me.role === 'admin' && <option value="admin">Yönetici</option>}
+                </select>
+              </div>
+              <div className="flex gap-2 items-center">
+                <span className="text-xs text-gray-400 w-16">Dept:</span>
+                <select className="input-field !py-1.5 !text-xs" value={v.department || ''} onChange={e => changeDept(v.id, e.target.value)}>
+                  <option value="">Seçiniz</option>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.l}</option>)}
+                </select>
+              </div>
+              <button onClick={() => toggleStatus(v.id, v.status === 'active' ? 'inactive' : 'active')}
+                className={`text-xs font-semibold px-3 py-1 rounded-lg ${v.status === 'active' ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-600'}`}>
+                {v.status === 'active' ? 'Pasife Al' : 'Aktif Et'}
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── TASKS ────────────────────────────────
+function TasksView({ uid, me, can }) {
+  const [tasks, setTasks] = useState([]);
+  const [vols, setVols] = useState([]);
+  const [show, setShow] = useState(false);
+  const [f, setF] = useState({ title:'', description:'', department:'arsiv', assigned_to:'', priority:'medium', deadline:'' });
+  const load = useCallback(async () => {
+    const [t, v] = await Promise.all([
+      me.role === 'vol' ? db.getTasks({ assignedTo: uid }) : db.getTasks(),
+      db.getAllProfiles()
+    ]);
+    setTasks(t.data || []); setVols((v.data || []).filter(v => v.status === 'active'));
+  }, [uid, me.role]);
+  useEffect(() => { load(); }, [load]);
+
+  const create = async () => {
+    if (!f.title) return;
+    await db.createTask({ ...f, assigned_to: f.assigned_to ? [f.assigned_to] : [], created_by: uid });
+    setShow(false); setF({ title:'', description:'', department:'arsiv', assigned_to:'', priority:'medium', deadline:'' }); load();
+  };
+  const updateStatus = async (id, status) => { await db.updateTask(id, { status, completed_at: status === 'done' ? new Date().toISOString() : null }); load(); };
+
+  return (
+    <div className="fade-up space-y-3">
+      <div className="flex justify-between items-center">
+        <h2 className="text-base font-bold">📋 {me.role === 'vol' ? 'Görevlerim' : 'Görevler'}</h2>
+        {can('assign_tasks') && <button className="btn-primary !py-1.5 !px-3 !text-xs" onClick={() => setShow(!show)}>{show ? '✕' : '+ Yeni'}</button>}
+      </div>
+      {show && (
+        <div className="card border-l-4 border-purple-400 space-y-2">
+          <input className="input-field" placeholder="Görev başlığı" value={f.title} onChange={e => setF({...f, title: e.target.value})} />
+          <textarea className="input-field" rows={2} placeholder="Açıklama" value={f.description} onChange={e => setF({...f, description: e.target.value})} />
+          <div className="grid grid-cols-2 gap-2">
+            <select className="input-field" value={f.department} onChange={e => setF({...f, department: e.target.value})}>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.l}</option>)}</select>
+            <select className="input-field" value={f.priority} onChange={e => setF({...f, priority: e.target.value})}>{Object.entries(PRIORITIES).map(([k,v]) => <option key={k} value={k}>{v.l}</option>)}</select>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <select className="input-field" value={f.assigned_to} onChange={e => setF({...f, assigned_to: e.target.value})}><option value="">Atanacak kişi</option>{vols.map(v => <option key={v.id} value={v.id}>{v.display_name}</option>)}</select>
+            <input className="input-field" type="date" value={f.deadline} onChange={e => setF({...f, deadline: e.target.value})} />
+          </div>
+          <button className="btn-primary w-full !text-sm" onClick={create}>Oluştur</button>
+        </div>
+      )}
+      {tasks.map(t => (
+        <div key={t.id} className="card">
+          <div className="flex items-start gap-2">
+            <div className={`w-2 h-2 rounded-full mt-1.5 ${PRIORITIES[t.priority]?.c?.split(' ')[0]}`} />
+            <div className="flex-1">
+              <div className="font-semibold text-sm">{t.title}</div>
+              <div className="text-[11px] text-gray-400 mt-0.5">{DM[t.department]?.i} {DM[t.department]?.l}{t.deadline && ` · 📅 ${fd(t.deadline)}`}</div>
+              {t.description && <p className="text-xs text-gray-400 mt-1">{t.description}</p>}
+              <div className="flex gap-2 mt-2">
+                <span className={`badge ${t.status === 'done' ? 'bg-emerald-50 text-emerald-600' : t.status === 'active' ? 'bg-amber-50 text-amber-600' : 'bg-gray-100 text-gray-400'}`}>{STATUSES[t.status]}</span>
+                {t.status !== 'done' && (can('assign_tasks') || t.assigned_to?.includes(uid)) && (
+                  <button className="badge bg-emerald-50 text-emerald-600 cursor-pointer" onClick={() => updateStatus(t.id, t.status === 'pending' ? 'active' : 'done')}>
+                    {t.status === 'pending' ? '▶ Başlat' : '✓ Tamamla'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+      {tasks.length === 0 && <Empty i="📋" t="Görev bulunamadı" />}
+    </div>
+  );
+}
+
+// ─── HOURS ────────────────────────────────
+function HoursView({ uid, me, can }) {
+  const [hours, setHours] = useState([]);
+  const [show, setShow] = useState(false);
+  const [tab, setTab] = useState(can('approve_hours') ? 'pending' : 'my');
+  const [f, setF] = useState({ date: today(), hours: '', department: me.department || 'arsiv', description: '' });
+
+  const load = useCallback(async () => {
+    const filters = tab === 'my' ? { volunteerId: uid } : tab === 'pending' ? { status: 'pending' } : {};
+    const { data } = await db.getHourLogs(filters);
+    setHours(data || []);
+  }, [uid, tab]);
+  useEffect(() => { load(); }, [load]);
+
+  const submit = async () => {
+    if (!f.hours) return;
+    await db.logHours({ volunteer_id: uid, date: f.date, hours: parseFloat(f.hours), department: f.department, description: f.description });
+    setShow(false); setF({ date: today(), hours: '', department: me.department || 'arsiv', description: '' }); load();
+  };
+  const review = async (id, status) => { await db.reviewHours(id, status, uid); load(); };
+
+  return (
+    <div className="fade-up space-y-3">
+      <div className="flex justify-between items-center">
+        <h2 className="text-base font-bold">⏱️ Saat Kaydı</h2>
+        <button className="btn-primary !py-1.5 !px-3 !text-xs" onClick={() => setShow(!show)}>{show ? '✕' : '+ Kaydet'}</button>
+      </div>
+      {show && (
+        <div className="card border-l-4 border-emerald-400 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <input className="input-field" type="date" value={f.date} onChange={e => setF({...f, date: e.target.value})} />
+            <input className="input-field" type="number" step="0.5" min="0.5" placeholder="Saat" value={f.hours} onChange={e => setF({...f, hours: e.target.value})} />
+          </div>
+          <select className="input-field" value={f.department} onChange={e => setF({...f, department: e.target.value})}>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.i} {d.l}</option>)}</select>
+          <input className="input-field" placeholder="Yapılan iş" value={f.description} onChange={e => setF({...f, description: e.target.value})} />
+          <button className="btn-primary w-full !text-sm" onClick={submit}>Kaydet</button>
+        </div>
+      )}
+      <div className="flex gap-1.5">
+        {can('approve_hours') && <Tab active={tab==='pending'} onClick={() => setTab('pending')}>Bekleyen</Tab>}
+        <Tab active={tab==='my'} onClick={() => setTab('my')}>Benim</Tab>
+        {can('approve_hours') && <Tab active={tab==='all'} onClick={() => setTab('all')}>Tümü</Tab>}
+      </div>
+      {hours.map(h => {
+        const sc = h.status === 'approved' ? 'text-emerald-600' : h.status === 'rejected' ? 'text-red-500' : 'text-amber-500';
+        return (
+          <div key={h.id} className="card">
+            <div className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
+                {(h.profiles?.display_name || '?')[0]}
+              </div>
+              <div className="flex-1">
+                <div className="font-semibold text-xs">{h.profiles?.display_name || 'Ben'} <span className={`font-semibold ${sc}`}>· {HOUR_S[h.status]}</span></div>
+                <div className="text-[10px] text-gray-400">{fd(h.date)} · {DM[h.department]?.i} {DM[h.department]?.l}{h.description && ` · ${h.description}`}</div>
+              </div>
+              <span className="font-bold text-sm">{h.hours}s</span>
+            </div>
+            {h.status === 'pending' && can('approve_hours') && h.volunteer_id !== uid && (
+              <div className="flex gap-2 mt-2 pt-2 border-t border-gray-50">
+                <button className="badge bg-emerald-50 text-emerald-600 cursor-pointer" onClick={() => review(h.id, 'approved')}>✓ Onayla</button>
+                <button className="badge bg-red-50 text-red-500 cursor-pointer" onClick={() => review(h.id, 'rejected')}>✕ Reddet</button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {hours.length === 0 && <Empty i="⏱️" t="Kayıt bulunamadı" />}
+    </div>
+  );
+}
+
+// ─── SCHEDULE ─────────────────────────────
+function ScheduleView({ uid, me, can }) {
+  const [shifts, setShifts] = useState([]);
+  const [show, setShow] = useState(false);
+  const [vols, setVols] = useState([]);
+  const [f, setF] = useState({ volunteer_id: '', day_of_week: 'Pzt', start_time: '10:00', end_time: '14:00', department: 'arsiv' });
+
+  const load = useCallback(async () => {
+    const filters = me.role === 'vol' ? { volunteerId: uid } : {};
+    const [s, v] = await Promise.all([db.getShifts(filters), db.getAllProfiles()]);
+    setShifts(s.data || []); setVols((v.data || []).filter(v => v.status === 'active'));
+  }, [uid, me.role]);
+  useEffect(() => { load(); }, [load]);
+
+  const create = async () => {
+    const vid = f.volunteer_id || (me.role === 'vol' ? uid : '');
+    if (!vid) return;
+    await db.createShift({ ...f, volunteer_id: vid, created_by: uid });
+    setShow(false); load();
+  };
+  const del = async (id) => { await db.deleteShift(id); load(); };
+
+  const byDay = {};
+  shifts.forEach(s => { (byDay[s.day_of_week] = byDay[s.day_of_week] || []).push(s); });
+  const todayDay = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
+
+  return (
+    <div className="fade-up space-y-3">
+      <div className="flex justify-between items-center">
+        <h2 className="text-base font-bold">📅 Vardiya Planı</h2>
+        {can('manage_vols') && <button className="btn-primary !py-1.5 !px-3 !text-xs" onClick={() => setShow(!show)}>{show ? '✕' : '+ Ekle'}</button>}
+      </div>
+      {show && (
+        <div className="card border-l-4 border-purple-400 space-y-2">
+          <select className="input-field" value={f.volunteer_id} onChange={e => setF({...f, volunteer_id: e.target.value})}><option value="">Gönüllü seç</option>{vols.map(v => <option key={v.id} value={v.id}>{v.display_name}</option>)}</select>
+          <div className="grid grid-cols-3 gap-2">
+            <select className="input-field" value={f.day_of_week} onChange={e => setF({...f, day_of_week: e.target.value})}>{DAYS.map(d => <option key={d}>{d}</option>)}</select>
+            <input className="input-field" type="time" value={f.start_time} onChange={e => setF({...f, start_time: e.target.value})} />
+            <input className="input-field" type="time" value={f.end_time} onChange={e => setF({...f, end_time: e.target.value})} />
+          </div>
+          <select className="input-field" value={f.department} onChange={e => setF({...f, department: e.target.value})}>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.i} {d.l}</option>)}</select>
+          <button className="btn-primary w-full !text-sm" onClick={create}>Ekle</button>
+        </div>
+      )}
+      {DAYS.filter(d => byDay[d]).map(day => (
+        <div key={day}>
+          <div className={`text-xs font-bold mb-1.5 ${day === todayDay ? 'text-emerald-600' : ''}`}>{day === todayDay ? '📍 ' : ''}{day}</div>
+          {byDay[day].map(sh => (
+            <div key={sh.id} className="card mb-1.5 !p-3 flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-[9px] font-bold text-emerald-600">
+                {(sh.profiles?.display_name || '?')[0]}
+              </div>
+              <div className="flex-1">
+                <div className="font-semibold text-xs">{sh.profiles?.display_name}</div>
+                <div className="text-[10px] text-gray-400">{DM[sh.department]?.i} {DM[sh.department]?.l}</div>
+              </div>
+              <span className="text-xs font-semibold">{sh.start_time?.slice(0,5)}–{sh.end_time?.slice(0,5)}</span>
+              {can('manage_vols') && <button onClick={() => del(sh.id)} className="text-[10px] text-gray-300 hover:text-red-400">✕</button>}
+            </div>
+          ))}
+        </div>
+      ))}
+      {shifts.length === 0 && <Empty i="📅" t="Vardiya planı boş" />}
+    </div>
+  );
+}
+
+// ─── ANNOUNCEMENTS ────────────────────────
+function AnnouncementsView({ uid, me, can }) {
+  const [anns, setAnns] = useState([]);
+  const [show, setShow] = useState(false);
+  const [f, setF] = useState({ title: '', body: '', department: '', is_pinned: false });
+
+  useEffect(() => { db.getAnnouncements().then(({ data }) => setAnns(data || [])); }, []);
+
+  const create = async () => {
+    if (!f.title || !f.body) return;
+    await db.createAnnouncement({ ...f, department: f.department || null, author_id: uid });
+    setShow(false); setF({ title: '', body: '', department: '', is_pinned: false });
+    const { data } = await db.getAnnouncements(); setAnns(data || []);
+  };
+
+  const visible = me.role === 'vol' ? anns.filter(a => !a.department || a.department === me.department) : anns;
+
+  return (
+    <div className="fade-up space-y-3">
+      <div className="flex justify-between items-center">
+        <h2 className="text-base font-bold">📢 Duyurular</h2>
+        {can('announcements') && <button className="btn-primary !py-1.5 !px-3 !text-xs" onClick={() => setShow(!show)}>{show ? '✕' : '+ Yeni'}</button>}
+      </div>
+      {show && (
+        <div className="card border-l-4 border-amber-400 space-y-2">
+          <input className="input-field" placeholder="Başlık" value={f.title} onChange={e => setF({...f, title: e.target.value})} />
+          <textarea className="input-field" rows={3} placeholder="İçerik" value={f.body} onChange={e => setF({...f, body: e.target.value})} />
+          <select className="input-field" value={f.department} onChange={e => setF({...f, department: e.target.value})}><option value="">Herkese</option>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.l}</option>)}</select>
+          <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer"><input type="checkbox" checked={f.is_pinned} onChange={e => setF({...f, is_pinned: e.target.checked})} /> Sabitle</label>
+          <button className="btn-primary w-full !text-sm" onClick={create}>Yayınla</button>
+        </div>
+      )}
+      {visible.map(a => (
+        <div key={a.id} className={`card ${a.is_pinned ? 'border-l-4 border-amber-400' : ''}`}>
+          <div className="flex items-center gap-1.5 mb-1">{a.is_pinned && <span className="text-[10px]">📌</span>}<span className="font-bold text-sm">{a.title}</span></div>
+          <p className="text-xs text-gray-500 leading-relaxed">{a.body}</p>
+          <p className="text-[10px] text-gray-300 mt-2">{a.profiles?.display_name} · {fdf(a.created_at)}</p>
+        </div>
+      ))}
+      {visible.length === 0 && <Empty i="📢" t="Duyuru yok" />}
+    </div>
+  );
+}
+
+// ─── APPLICATIONS ─────────────────────────
+function ApplicationsView({ uid, me }) {
+  const [apps, setApps] = useState([]);
+  useEffect(() => { db.getApplications().then(({ data }) => setApps(data || [])); }, []);
+
+  const review = async (id, status) => {
+    await db.reviewApplication(id, status, uid);
+    setApps(apps.map(a => a.id === id ? { ...a, status } : a));
+  };
+
+  return (
+    <div className="fade-up space-y-3">
+      <h2 className="text-base font-bold">📩 Başvurular ({apps.filter(a => a.status === 'pending').length} bekleyen)</h2>
+      {apps.map(a => (
+        <div key={a.id} className="card">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-xs font-bold text-amber-600">{a.name[0]}</div>
+            <div className="flex-1">
+              <div className="font-semibold text-sm">{a.name}</div>
+              <div className="text-[10px] text-gray-400">{a.email}{a.phone && ` · ${a.phone}`} · {DM[a.department]?.l}</div>
+            </div>
+            <span className={`badge ${a.status === 'approved' ? 'bg-emerald-50 text-emerald-600' : a.status === 'rejected' ? 'bg-red-50 text-red-500' : 'bg-amber-50 text-amber-600'}`}>
+              {a.status === 'pending' ? 'Bekliyor' : a.status === 'approved' ? 'Kabul' : 'Red'}
+            </span>
+          </div>
+          {a.motivation && <div className="text-xs text-gray-500 bg-stone-50 rounded-lg p-2.5 mb-2 italic">"{a.motivation}"</div>}
+          {a.status === 'pending' && (
+            <div className="flex gap-2">
+              <button className="badge bg-emerald-50 text-emerald-600 cursor-pointer" onClick={() => review(a.id, 'approved')}>✓ Kabul Et</button>
+              <button className="badge bg-amber-50 text-amber-600 cursor-pointer" onClick={() => review(a.id, 'interview')}>🗓 Mülakat</button>
+              <button className="badge bg-red-50 text-red-500 cursor-pointer" onClick={() => review(a.id, 'rejected')}>✕ Reddet</button>
+            </div>
+          )}
+        </div>
+      ))}
+      {apps.length === 0 && <Empty i="📩" t="Başvuru yok" />}
+    </div>
+  );
+}
+
+// ─── NOTIFICATIONS ────────────────────────
+function NotificationsView({ uid, onRead }) {
+  const [notifs, setNotifs] = useState([]);
+  useEffect(() => {
+    db.getNotifications(uid).then(({ data }) => setNotifs(data || []));
+    db.markAllRead(uid); onRead();
+  }, [uid, onRead]);
+  const icons = { task:'📋', hours:'⏱️', announcement:'📢', application:'📩', shift:'📅', system:'📢', welcome:'🏛️' };
+  return (
+    <div className="fade-up space-y-3">
+      <h2 className="text-base font-bold">🔔 Bildirimler</h2>
+      {notifs.map(n => (
+        <div key={n.id} className={`card flex items-center gap-3 ${!n.is_read ? 'border-l-4 border-emerald-400' : ''}`}>
+          <span className="text-base">{icons[n.type] || '📢'}</span>
+          <div className="flex-1"><div className="font-semibold text-xs">{n.title}</div>{n.body && <div className="text-[10px] text-gray-400">{n.body}</div>}</div>
+          <span className="text-[10px] text-gray-300">{fd(n.created_at)}</span>
+        </div>
+      ))}
+      {notifs.length === 0 && <Empty i="🔔" t="Bildirim yok" />}
+    </div>
+  );
+}
+
+// ─── PROFILE ──────────────────────────────
+function ProfileView({ me, uid, onUpdate }) {
+  const [editing, setEditing] = useState(false);
+  const [f, setF] = useState({ display_name: me.display_name, city: me.city || '', bio: me.bio || '' });
+  const save = async () => {
+    const { data } = await db.updateProfile(uid, f);
+    if (data) onUpdate(data); setEditing(false);
+  };
+  return (
+    <div className="fade-up space-y-3">
+      <div className="card text-center">
+        <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center text-xl font-bold text-emerald-600 mx-auto mb-2">{(me.display_name||'?')[0]}</div>
+        <div className="font-bold text-lg">{me.display_name}</div>
+        <div className="text-xs text-emerald-600 font-semibold">{ROLES[me.role]?.i} {ROLES[me.role]?.l}</div>
+        {me.department && <div className="text-xs text-gray-400">{DM[me.department]?.i} {DM[me.department]?.l}</div>}
+        {me.city && <div className="text-xs text-gray-400">📍 {me.city}</div>}
+        <div className="flex justify-center gap-8 mt-4 pt-3 border-t border-gray-50">
+          <div className="text-center"><div className="font-bold text-emerald-600">{Number(me.total_hours||0).toFixed(0)}</div><div className="text-[9px] text-gray-400">Saat</div></div>
+          <div className="text-center"><div className="font-bold">{fdf(me.joined_at)}</div><div className="text-[9px] text-gray-400">Üyelik</div></div>
+        </div>
+      </div>
+      <button className="btn-ghost w-full !text-sm" onClick={() => setEditing(!editing)}>{editing ? '✕ İptal' : '✏️ Profili Düzenle'}</button>
+      {editing && (
+        <div className="card space-y-2">
+          <input className="input-field" placeholder="İsim" value={f.display_name} onChange={e => setF({...f, display_name: e.target.value})} />
+          <input className="input-field" placeholder="Şehir" value={f.city} onChange={e => setF({...f, city: e.target.value})} />
+          <textarea className="input-field" rows={2} placeholder="Hakkımda" value={f.bio} onChange={e => setF({...f, bio: e.target.value})} />
+          <button className="btn-primary w-full !text-sm" onClick={save}>Kaydet</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── SHARED ───────────────────────────────
+function Stat({ v, l, c }) { return <div className="card text-center !p-3"><div className={`text-xl font-bold ${c}`}>{v}</div><div className="text-[9px] text-gray-400">{l}</div></div>; }
+function QA({ ic, lb, onClick }) { return <button onClick={onClick} className="card !p-3 text-center cursor-pointer hover:shadow-md transition-shadow"><div className="text-xl">{ic}</div><div className="text-[10px] font-semibold mt-1">{lb}</div></button>; }
+function Tab({ active, children, onClick }) { return <button onClick={onClick} className={`text-[10px] font-semibold px-3 py-1.5 rounded-lg transition-all ${active ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400'}`}>{children}</button>; }
+function Empty({ i, t }) { return <div className="card text-center !py-8"><div className="text-2xl mb-2">{i}</div><p className="text-xs text-gray-400">{t}</p></div>; }
