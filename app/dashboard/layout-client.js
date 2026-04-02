@@ -60,10 +60,10 @@ export default function Dashboard({ session }) {
   );
 
   const nav = me.role === 'admin'
-    ? [['dashboard','🏠','Panel'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['announcements','📢','Duyuru'],['applications','📩','Başvuru'],['help','❓','Yardım']]
+    ? [['dashboard','🏠','Panel'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['announcements','📢','Duyuru'],['applications','📩','Başvuru'],['help','❓','Yardım']]
     : me.role === 'coord'
-    ? [['dashboard','🏠','Panel'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['announcements','📢','Duyuru'],['help','❓','Yardım']]
-    : [['dashboard','🏠','Panel'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['announcements','📢','Duyurular'],['help','❓','Yardım']];
+    ? [['dashboard','🏠','Panel'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['announcements','📢','Duyuru'],['help','❓','Yardım']]
+    : [['dashboard','🏠','Panel'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['announcements','📢','Duyurular'],['help','❓','Yardım']];
 
   return (
     <div className="min-h-screen pb-24">
@@ -95,6 +95,7 @@ export default function Dashboard({ session }) {
         {page === 'schedule' && <ScheduleView uid={uid} me={me} can={can} />}
         {page === 'announcements' && <AnnouncementsView uid={uid} me={me} can={can} />}
         {page === 'applications' && can('manage_vols') && <ApplicationsView uid={uid} me={me} />}
+        {page === 'chat' && <ChatView uid={uid} me={me} />}
         {page === 'notifications' && <NotificationsView uid={uid} onRead={() => setUnread(0)} />}
         {page === 'profile' && <ProfileView me={me} uid={uid} onUpdate={m => setMe(m)} />}
         {page === 'help' && <HelpView me={me} />}
@@ -136,6 +137,7 @@ function DashboardView({ uid, me, can, setPage }) {
   const [supMsg, setSupMsg] = useState('');
   const [supSent, setSupSent] = useState(false);
   const [supLoading, setSupLoading] = useState(false);
+  const [weekSummary, setWeekSummary] = useState([]);
   const { adminEmail, adminId } = useAdminEmail();
 
   useEffect(() => {
@@ -144,6 +146,12 @@ function DashboardView({ uid, me, can, setPage }) {
       setStats(vs.data); setAnns((an.data || []).slice(0, 3));
     })();
   }, []);
+
+  useEffect(() => {
+    if (can('view_reports')) {
+      db.getWeeklyDeptSummary().then(setWeekSummary);
+    }
+  }, [can]);
 
   const sendSupport = async () => {
     if (!supMsg.trim() || !adminId) return;
@@ -196,6 +204,25 @@ function DashboardView({ uid, me, can, setPage }) {
           <p className="text-[10px] text-gray-300 mt-2">{a.profiles?.display_name} · {fd(a.created_at)}</p>
         </div>
       ))}
+
+      {/* Haftalik Departman Ozeti */}
+      {can('view_reports') && weekSummary.length > 0 && (
+        <>
+          <div className="text-sm font-bold">📊 Bu Hafta</div>
+          <div className="grid grid-cols-2 gap-2">
+            {weekSummary.map(d => (
+              <div key={d.department} className="card !p-2.5">
+                <div className="text-xs font-bold">{DM[d.department]?.i} {DM[d.department]?.l?.split(' ')[0]}</div>
+                <div className="flex gap-3 mt-1">
+                  <span className="text-[10px] text-emerald-600 font-semibold">{d.hours}s</span>
+                  <span className="text-[10px] text-purple-500 font-semibold">{d.tasks} gorev</span>
+                  <span className="text-[10px] text-gray-400">{d.vols} kisi</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Destek Talebi */}
       <button onClick={() => setShowSupport(!showSupport)} className="w-full card !p-3 flex items-center justify-center gap-2 hover:shadow-md transition-shadow cursor-pointer">
@@ -278,10 +305,21 @@ function VolunteersView({ uid, me }) {
 }
 
 // ─── TASKS ────────────────────────────────
+function ProgressBar({ value, small }) {
+  const v = Math.min(100, Math.max(0, Number(value) || 0));
+  const color = v >= 80 ? 'bg-emerald-500' : v >= 40 ? 'bg-amber-400' : 'bg-red-400';
+  return (
+    <div className={`w-full bg-gray-100 rounded-full overflow-hidden ${small ? 'h-1.5' : 'h-3'}`}>
+      <div className={`${color} h-full rounded-full transition-all duration-500`} style={{ width: `${v}%` }} />
+    </div>
+  );
+}
+
 function TasksView({ uid, me, can }) {
   const [tasks, setTasks] = useState([]);
   const [vols, setVols] = useState([]);
   const [show, setShow] = useState(false);
+  const [sel, setSel] = useState(null);
   const [f, setF] = useState({ title:'', description:'', department:'arsiv', assigned_to:'', priority:'medium', deadline:'' });
   const load = useCallback(async () => {
     const [t, v] = await Promise.all([
@@ -292,17 +330,23 @@ function TasksView({ uid, me, can }) {
   }, [uid, me.role]);
   useEffect(() => { load(); }, [load]);
 
+  const volMap = Object.fromEntries(vols.map(v => [v.id, v]));
+
   const create = async () => {
     if (!f.title) return;
     await db.createTask({ ...f, assigned_to: f.assigned_to ? [f.assigned_to] : [], created_by: uid });
     setShow(false); setF({ title:'', description:'', department:'arsiv', assigned_to:'', priority:'medium', deadline:'' }); load();
   };
-  const updateStatus = async (id, status) => { await db.updateTask(id, { status, completed_at: status === 'done' ? new Date().toISOString() : null }); load(); };
+
+  if (sel) {
+    const task = tasks.find(t => t.id === sel);
+    if (task) return <TaskDetail task={task} uid={uid} me={me} can={can} vols={volMap} onBack={() => { setSel(null); load(); }} />;
+  }
 
   return (
     <div className="fade-up space-y-3">
       <div className="flex justify-between items-center">
-        <h2 className="text-base font-bold">📋 {me.role === 'vol' ? 'Görevlerim' : 'Görevler'}</h2>
+        <h2 className="text-base font-bold">{'\u{1F4CB}'} {me.role === 'vol' ? 'Görevlerim' : 'Görevler'}</h2>
         {can('assign_tasks') && <button className="btn-primary !py-1.5 !px-3 !text-xs" onClick={() => setShow(!show)}>{show ? '✕' : '+ Yeni'}</button>}
       </div>
       {show && (
@@ -321,19 +365,28 @@ function TasksView({ uid, me, can }) {
         </div>
       )}
       {tasks.map(t => (
-        <div key={t.id} className="card">
+        <div key={t.id} className="card cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSel(t.id)}>
           <div className="flex items-start gap-2">
             <div className={`w-2 h-2 rounded-full mt-1.5 ${PRIORITIES[t.priority]?.c?.split(' ')[0]}`} />
             <div className="flex-1">
               <div className="font-semibold text-sm">{t.title}</div>
-              <div className="text-[11px] text-gray-400 mt-0.5">{DM[t.department]?.i} {DM[t.department]?.l}{t.deadline && ` · 📅 ${fd(t.deadline)}`}</div>
-              {t.description && <p className="text-xs text-gray-400 mt-1">{t.description}</p>}
-              <div className="flex gap-2 mt-2">
+              <div className="text-[11px] text-gray-400 mt-0.5">{DM[t.department]?.i} {DM[t.department]?.l}{t.deadline && ` · ${fd(t.deadline)}`}</div>
+              {/* Mini progress bar */}
+              <div className="flex items-center gap-2 mt-1.5">
+                <div className="flex-1"><ProgressBar value={t.progress} small /></div>
+                <span className="text-[10px] font-semibold text-gray-500">{Math.round(t.progress || 0)}%</span>
+              </div>
+              <div className="flex items-center gap-2 mt-1.5">
                 <span className={`badge ${t.status === 'done' ? 'bg-emerald-50 text-emerald-600' : t.status === 'active' ? 'bg-amber-50 text-amber-600' : 'bg-gray-100 text-gray-400'}`}>{STATUSES[t.status]}</span>
-                {t.status !== 'done' && (can('assign_tasks') || t.assigned_to?.includes(uid)) && (
-                  <button className="badge bg-emerald-50 text-emerald-600 cursor-pointer" onClick={() => updateStatus(t.id, t.status === 'pending' ? 'active' : 'done')}>
-                    {t.status === 'pending' ? '▶ Başlat' : '✓ Tamamla'}
-                  </button>
+                {/* Assigned avatars */}
+                {t.assigned_to?.length > 0 && (
+                  <div className="flex -space-x-1.5">
+                    {t.assigned_to.slice(0, 4).map(id => {
+                      const v = volMap[id];
+                      return <div key={id} className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-[8px] font-bold text-emerald-600 border border-white" title={v?.display_name}>{(v?.display_name || '?')[0]}</div>;
+                    })}
+                    {t.assigned_to.length > 4 && <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-[8px] font-bold text-gray-500 border border-white">+{t.assigned_to.length - 4}</div>}
+                  </div>
                 )}
               </div>
             </div>
@@ -341,6 +394,147 @@ function TasksView({ uid, me, can }) {
         </div>
       ))}
       {tasks.length === 0 && <Empty i="📋" t="Görev bulunamadı" />}
+    </div>
+  );
+}
+
+// ─── TASK DETAIL ─────────────────────────
+function TaskDetail({ task, uid, me, can, vols, onBack }) {
+  const [progress, setProgress] = useState(task.progress || 0);
+  const [newProg, setNewProg] = useState(task.progress || 0);
+  const [progNote, setProgNote] = useState('');
+  const [logs, setLogs] = useState([]);
+  const [comments, setComments] = useState([]);
+  const [comment, setComment] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const loadDetails = useCallback(async () => {
+    const [pl, tc] = await Promise.all([db.getProgressLogs(task.id), db.getTaskComments(task.id)]);
+    setLogs(pl.data || []);
+    setComments(tc.data || []);
+  }, [task.id]);
+  useEffect(() => { loadDetails(); }, [loadDetails]);
+
+  const canEdit = can('assign_tasks') || (task.assigned_to && task.assigned_to.includes(uid));
+
+  const submitProgress = async () => {
+    if (newProg === progress && !progNote.trim()) return;
+    setLoading(true);
+    await db.addProgressLog({ task_id: task.id, user_id: uid, previous_value: progress, new_value: newProg, note: progNote });
+    await db.updateTaskProgress(task.id, newProg);
+    // Notify other assigned users
+    if (task.assigned_to) {
+      for (const volId of task.assigned_to) {
+        if (volId !== uid) {
+          await db.sendNotification(volId, 'task', `📊 ${task.title}: %${Math.round(newProg)}`, `${me.display_name}: ${progNote || 'ilerleme guncellendi'}`);
+        }
+      }
+    }
+    setProgress(newProg);
+    setProgNote('');
+    setLoading(false);
+    loadDetails();
+  };
+
+  const submitComment = async () => {
+    if (!comment.trim()) return;
+    setLoading(true);
+    await db.addTaskComment({ task_id: task.id, user_id: uid, content: comment });
+    if (task.assigned_to) {
+      for (const volId of task.assigned_to) {
+        if (volId !== uid) {
+          await db.sendNotification(volId, 'task', `💬 ${task.title}`, `${me.display_name}: ${comment.slice(0, 80)}`);
+        }
+      }
+    }
+    setComment('');
+    setLoading(false);
+    loadDetails();
+  };
+
+  // Merge logs + comments into timeline
+  const timeline = [
+    ...logs.map(l => ({ ...l, _type: 'progress', _time: l.created_at })),
+    ...comments.map(c => ({ ...c, _type: 'comment', _time: c.created_at })),
+  ].sort((a, b) => new Date(b._time) - new Date(a._time));
+
+  return (
+    <div className="fade-up space-y-3">
+      <button onClick={onBack} className="text-sm text-gray-400 hover:text-gray-600">← Geri</button>
+
+      <div className="card">
+        <div className="flex items-center gap-2 mb-2">
+          <span className={`badge ${PRIORITIES[task.priority]?.c}`}>{PRIORITIES[task.priority]?.l}</span>
+          <span className={`badge ${task.status === 'done' ? 'bg-emerald-50 text-emerald-600' : task.status === 'active' ? 'bg-amber-50 text-amber-600' : 'bg-gray-100 text-gray-400'}`}>{STATUSES[task.status]}</span>
+        </div>
+        <h2 className="font-bold text-base">{task.title}</h2>
+        <div className="text-[11px] text-gray-400 mt-1">{DM[task.department]?.i} {DM[task.department]?.l}{task.deadline && ` · Son: ${fdf(task.deadline)}`}</div>
+        {task.description && <p className="text-xs text-gray-500 mt-2">{task.description}</p>}
+        {/* Assigned */}
+        {task.assigned_to?.length > 0 && (
+          <div className="flex items-center gap-1.5 mt-3 pt-2 border-t border-gray-50">
+            <span className="text-[10px] text-gray-400">Atanan:</span>
+            {task.assigned_to.map(id => {
+              const v = vols[id];
+              return <div key={id} className="flex items-center gap-1 bg-gray-50 rounded-full pl-0.5 pr-2 py-0.5">
+                <div className="w-4 h-4 rounded-full bg-emerald-100 flex items-center justify-center text-[7px] font-bold text-emerald-600">{(v?.display_name || '?')[0]}</div>
+                <span className="text-[10px] text-gray-600">{v?.display_name || '?'}</span>
+              </div>;
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Progress */}
+      <div className="card">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-bold">İlerleme</span>
+          <span className={`text-sm font-bold ${progress >= 80 ? 'text-emerald-600' : progress >= 40 ? 'text-amber-500' : 'text-red-500'}`}>{Math.round(progress)}%</span>
+        </div>
+        <ProgressBar value={progress} />
+
+        {canEdit && task.status !== 'done' && (
+          <div className="mt-3 pt-3 border-t border-gray-50 space-y-2">
+            <div className="flex items-center gap-3">
+              <input type="range" min="0" max="100" step="5" value={newProg} onChange={e => setNewProg(Number(e.target.value))} className="flex-1 accent-emerald-600" />
+              <span className="text-xs font-bold w-10 text-right">{newProg}%</span>
+            </div>
+            <input className="input-field !text-xs" placeholder="Ne yaptım? (not)" value={progNote} onChange={e => setProgNote(e.target.value)} />
+            <button onClick={submitProgress} disabled={loading} className="btn-primary w-full !text-xs disabled:opacity-50">{loading ? '...' : 'Guncelle'}</button>
+          </div>
+        )}
+      </div>
+
+      {/* Comment input */}
+      <div className="card space-y-2">
+        <span className="text-sm font-bold">Yorum Ekle</span>
+        <textarea className="input-field !text-xs" rows={2} placeholder="Yorum yazin..." value={comment} onChange={e => setComment(e.target.value)} />
+        <button onClick={submitComment} disabled={loading || !comment.trim()} className="btn-primary w-full !text-xs disabled:opacity-50">Gonder</button>
+      </div>
+
+      {/* Timeline */}
+      {timeline.length > 0 && (
+        <div className="space-y-1.5">
+          <span className="text-sm font-bold">Aktivite</span>
+          {timeline.map(item => (
+            <div key={item.id} className="card !p-2.5 flex items-start gap-2">
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] mt-0.5 ${item._type === 'progress' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}`}>
+                {item._type === 'progress' ? '📊' : '💬'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[10px] text-gray-500">
+                  <span className="font-semibold text-gray-700">{item.profiles?.display_name}</span>
+                  {item._type === 'progress'
+                    ? <>{' '}%{Math.round(item.previous_value)} → %{Math.round(item.new_value)}{item.note && ` — ${item.note}`}</>
+                    : <>{' '}{item.content}</>
+                  }
+                </div>
+                <div className="text-[9px] text-gray-300 mt-0.5">{fd(item._time)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -422,12 +616,20 @@ function ScheduleView({ uid, me, can }) {
   const [show, setShow] = useState(false);
   const [vols, setVols] = useState([]);
   const [f, setF] = useState({ volunteer_id: '', day_of_week: 'Pzt', start_time: '10:00', end_time: '14:00', department: 'arsiv' });
+  const [notes, setNotes] = useState([]);
+  const [noteText, setNoteText] = useState('');
+  const [noteDay, setNoteDay] = useState(null);
 
   const load = useCallback(async () => {
     const filters = me.role === 'vol' ? { volunteerId: uid } : {};
     const [s, v] = await Promise.all([db.getShifts(filters), db.getAllProfiles()]);
     setShifts(s.data || []); setVols((v.data || []).filter(v => v.status === 'active'));
-  }, [uid, me.role]);
+    // Load today's shift notes for my department
+    if (me.department) {
+      const { data } = await db.getShiftNotes(me.department, today());
+      setNotes(data || []);
+    }
+  }, [uid, me.role, me.department]);
   useEffect(() => { load(); }, [load]);
 
   const create = async () => {
@@ -437,6 +639,17 @@ function ScheduleView({ uid, me, can }) {
     setShow(false); load();
   };
   const del = async (id) => { await db.deleteShift(id); load(); };
+
+  const submitNote = async () => {
+    if (!noteText.trim() || !me.department) return;
+    await db.addShiftNote({ user_id: uid, department: me.department, date: today(), content: noteText });
+    // Notify same dept
+    const deptVols = vols.filter(v => v.department === me.department && v.id !== uid);
+    for (const v of deptVols.slice(0, 10)) {
+      await db.sendNotification(v.id, 'shift', `📝 Vardiya notu: ${DM[me.department]?.l}`, `${me.display_name}: ${noteText.slice(0, 80)}`);
+    }
+    setNoteText(''); setNoteDay(null); load();
+  };
 
   const byDay = {};
   shifts.forEach(s => { (byDay[s.day_of_week] = byDay[s.day_of_week] || []).push(s); });
@@ -476,6 +689,29 @@ function ScheduleView({ uid, me, can }) {
               {can('manage_vols') && <button onClick={() => del(sh.id)} className="text-[10px] text-gray-300 hover:text-red-400">✕</button>}
             </div>
           ))}
+          {/* Shift notes for today */}
+          {day === todayDay && (
+            <div className="ml-2 mt-1 mb-2">
+              {notes.map(n => (
+                <div key={n.id} className="flex items-start gap-2 py-1">
+                  <span className="text-[10px]">📝</span>
+                  <div>
+                    <span className="text-[10px] font-semibold text-gray-700">{n.profiles?.display_name}: </span>
+                    <span className="text-[10px] text-gray-500">{n.content}</span>
+                  </div>
+                </div>
+              ))}
+              {noteDay === day ? (
+                <div className="flex gap-1.5 mt-1">
+                  <input className="input-field !py-1 !text-[10px] flex-1" placeholder="Bugün ne yapıldı, yarına ne kaldı..." value={noteText} onChange={e => setNoteText(e.target.value)} />
+                  <button onClick={submitNote} className="btn-primary !py-1 !px-2 !text-[10px]">Ekle</button>
+                  <button onClick={() => setNoteDay(null)} className="text-[10px] text-gray-400">✕</button>
+                </div>
+              ) : (
+                <button onClick={() => setNoteDay(day)} className="text-[10px] text-emerald-600 hover:text-emerald-700 font-semibold mt-1">+ Vardiya notu ekle</button>
+              )}
+            </div>
+          )}
         </div>
       ))}
       {shifts.length === 0 && <Empty i="📅" t="Vardiya planı boş" />}
@@ -563,6 +799,78 @@ function ApplicationsView({ uid, me }) {
         </div>
       ))}
       {apps.length === 0 && <Empty i="📩" t="Başvuru yok" />}
+    </div>
+  );
+}
+
+// ─── CHAT ────────────────────────────────
+function ChatView({ uid, me }) {
+  const isCoordOrAdmin = me.role === 'admin' || me.role === 'coord';
+  const [dept, setDept] = useState(me.department || 'arsiv');
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const loadMessages = useCallback(async () => {
+    const { data } = await db.getMessages(dept);
+    setMessages((data || []).reverse());
+  }, [dept]);
+
+  useEffect(() => { loadMessages(); }, [loadMessages]);
+
+  useEffect(() => {
+    const sub = db.subscribeMessages(dept, (payload) => {
+      setMessages(prev => [...prev, payload.new]);
+    });
+    return () => sub.unsubscribe();
+  }, [dept]);
+
+  const send = async () => {
+    if (!text.trim()) return;
+    setSending(true);
+    await db.sendMessage(uid, dept, text.trim());
+    setText('');
+    setSending(false);
+    loadMessages();
+  };
+
+  return (
+    <div className="fade-up space-y-3">
+      <div className="flex justify-between items-center">
+        <h2 className="text-base font-bold">💬 Departman Sohbeti</h2>
+      </div>
+      {isCoordOrAdmin ? (
+        <div className="flex gap-1.5 flex-wrap">
+          {DEPTS.map(d => (
+            <button key={d.id} onClick={() => setDept(d.id)} className={`text-[10px] font-semibold px-2.5 py-1 rounded-lg transition-all ${dept === d.id ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400'}`}>{d.i} {d.id}</button>
+          ))}
+        </div>
+      ) : (
+        <div className="text-xs text-gray-400">{DM[dept]?.i} {DM[dept]?.l}</div>
+      )}
+
+      {/* Messages */}
+      <div className="card !p-3 space-y-2 max-h-[50vh] overflow-y-auto">
+        {messages.length === 0 && <p className="text-xs text-gray-300 text-center py-6">Henuz mesaj yok. Ilk mesaji siz gonderin!</p>}
+        {messages.map((m, i) => {
+          const isMine = m.user_id === uid;
+          return (
+            <div key={m.id || i} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[80%] rounded-2xl px-3 py-2 ${isMine ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700'}`}>
+                {!isMine && <div className={`text-[9px] font-bold mb-0.5 ${isMine ? 'text-emerald-200' : 'text-emerald-600'}`}>{m.profiles?.display_name || '?'}</div>}
+                <div className="text-xs leading-relaxed">{m.content}</div>
+                <div className={`text-[8px] mt-0.5 ${isMine ? 'text-emerald-200' : 'text-gray-300'}`}>{m.created_at ? new Date(m.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : ''}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Input */}
+      <div className="flex gap-2">
+        <input className="input-field flex-1 !text-xs" placeholder="Mesaj yazin..." value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()} />
+        <button onClick={send} disabled={sending || !text.trim()} className="btn-primary !px-4 !text-xs disabled:opacity-50">Gonder</button>
+      </div>
     </div>
   );
 }
