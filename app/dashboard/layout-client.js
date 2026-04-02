@@ -60,10 +60,10 @@ export default function Dashboard({ session }) {
   );
 
   const nav = me.role === 'admin'
-    ? [['dashboard','🏠','Panel'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['announcements','📢','Duyuru'],['applications','📩','Başvuru'],['help','❓','Yardım']]
+    ? [['dashboard','🏠','Panel'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['announcements','📢','Duyuru'],['requests','📨','Talepler'],['applications','📩','Başvuru'],['help','❓','Yardım']]
     : me.role === 'coord'
-    ? [['dashboard','🏠','Panel'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['announcements','📢','Duyuru'],['help','❓','Yardım']]
-    : [['dashboard','🏠','Panel'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['announcements','📢','Duyurular'],['help','❓','Yardım']];
+    ? [['dashboard','🏠','Panel'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['announcements','📢','Duyuru'],['requests','📨','Talepler'],['help','❓','Yardım']]
+    : [['dashboard','🏠','Panel'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['announcements','📢','Duyurular'],['requests','📨','Taleplerim'],['help','❓','Yardım']];
 
   return (
     <div className="min-h-screen pb-24">
@@ -96,6 +96,7 @@ export default function Dashboard({ session }) {
         {page === 'announcements' && <AnnouncementsView uid={uid} me={me} can={can} />}
         {page === 'applications' && can('manage_vols') && <ApplicationsView uid={uid} me={me} />}
         {page === 'chat' && <ChatView uid={uid} me={me} />}
+        {page === 'requests' && <RequestsView uid={uid} me={me} can={can} />}
         {page === 'notifications' && <NotificationsView uid={uid} onRead={() => setUnread(0)} />}
         {page === 'profile' && <ProfileView me={me} uid={uid} onUpdate={m => setMe(m)} />}
         {page === 'help' && <HelpView me={me} />}
@@ -138,6 +139,7 @@ function DashboardView({ uid, me, can, setPage }) {
   const [supSent, setSupSent] = useState(false);
   const [supLoading, setSupLoading] = useState(false);
   const [weekSummary, setWeekSummary] = useState([]);
+  const [pendingReqs, setPendingReqs] = useState(0);
   const { adminEmail, adminId } = useAdminEmail();
 
   useEffect(() => {
@@ -150,6 +152,7 @@ function DashboardView({ uid, me, can, setPage }) {
   useEffect(() => {
     if (can('view_reports')) {
       db.getWeeklyDeptSummary().then(setWeekSummary);
+      db.getPendingRequestCount().then(setPendingReqs);
     }
   }, [can]);
 
@@ -195,6 +198,15 @@ function DashboardView({ uid, me, can, setPage }) {
           <QA ic="📋" lb="Görev Ata" onClick={() => setPage('tasks')} />
           <QA ic="⏱️" lb="Onayla" onClick={() => setPage('hours')} />
         </>}
+        {can('manage_vols') && pendingReqs > 0 && (
+          <div className="col-span-3">
+            <button onClick={() => setPage('requests')} className="w-full card !p-2.5 flex items-center justify-center gap-2 hover:shadow-md transition-shadow cursor-pointer border-l-4 border-amber-400">
+              <span>📨</span>
+              <span className="text-xs font-semibold text-gray-600">Bekleyen Talepler</span>
+              <span className="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">{pendingReqs}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {anns.filter(a => a.is_pinned).map(a => (
@@ -799,6 +811,278 @@ function ApplicationsView({ uid, me }) {
         </div>
       ))}
       {apps.length === 0 && <Empty i="📩" t="Başvuru yok" />}
+    </div>
+  );
+}
+
+// ─── REQUESTS ────────────────────────────
+const REQ_TYPES = {
+  dept_change: { l: 'Departman degistirmek istiyorum', i: '🔄', short: 'Dept. Degisiklik' },
+  dept_join: { l: 'Baska departmanda da calismak istiyorum', i: '➕', short: 'Ek Departman' },
+  task_cancel: { l: 'Bir gorevi iptal etmek istiyorum', i: '❌', short: 'Gorev Iptali' },
+  task_join: { l: 'Baska bir goreve katilmak istiyorum', i: '🙋', short: 'Goreve Katilim' },
+  task_help: { l: 'Gorevim icin yardim istiyorum', i: '🆘', short: 'Yardim Talebi' },
+  pause: { l: 'Bir sure ara vermek istiyorum', i: '⏸️', short: 'Ara Verme' },
+  deactivate: { l: 'Hesabimi pasife almak istiyorum', i: '🔒', short: 'Pasife Alma' },
+  extra_volunteer: { l: 'Ek gonullu talebi', i: '👥', short: 'Ek Gonullu' },
+  other: { l: 'Diger', i: '📝', short: 'Diger' },
+};
+const REQ_STATUS = {
+  pending: { l: 'Bekliyor', c: 'bg-amber-50 text-amber-600' },
+  approved: { l: 'Onaylandi', c: 'bg-emerald-50 text-emerald-600' },
+  rejected: { l: 'Reddedildi', c: 'bg-red-50 text-red-500' },
+  cancelled: { l: 'Iptal', c: 'bg-gray-100 text-gray-400' },
+};
+
+function RequestsView({ uid, me, can }) {
+  const isReviewer = can('manage_vols');
+
+  if (isReviewer) return <ManageRequestsView uid={uid} me={me} />;
+  return <MyRequestsView uid={uid} me={me} />;
+}
+
+function MyRequestsView({ uid, me }) {
+  const [reqs, setReqs] = useState([]);
+  const [show, setShow] = useState(false);
+  const [type, setType] = useState('other');
+  const [desc, setDesc] = useState('');
+  const [targetDept, setTargetDept] = useState('');
+  const [targetTask, setTargetTask] = useState('');
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async () => {
+    const { data } = await db.getMyRequests(uid);
+    setReqs(data || []);
+  }, [uid]);
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (['task_cancel','task_join','task_help'].includes(type)) {
+      db.getTasks({ assignedTo: uid }).then(({ data }) => setTasks(data || []));
+    }
+  }, [type, uid]);
+
+  const submit = async () => {
+    if (!desc.trim()) return;
+    setLoading(true);
+    const title = REQ_TYPES[type]?.short || type;
+    const reqData = {
+      user_id: uid, type, title, description: desc,
+      target_dept: ['dept_change','dept_join'].includes(type) ? targetDept || null : null,
+      target_task_id: ['task_cancel','task_join','task_help'].includes(type) ? targetTask || null : null,
+    };
+    await db.createRequest(reqData);
+    // Notify admins
+    const { data: admins } = await db.getProfilesByRole('admin');
+    for (const a of (admins || [])) {
+      await db.sendNotification(a.id, 'system', `📨 Yeni talep: ${title}`, `${me.display_name}: ${desc.slice(0, 80)}`);
+    }
+    setShow(false); setDesc(''); setType('other'); setTargetDept(''); setTargetTask('');
+    setLoading(false);
+    load();
+  };
+
+  const cancel = async (id) => {
+    await db.cancelRequest(id);
+    load();
+  };
+
+  return (
+    <div className="fade-up space-y-3">
+      <div className="flex justify-between items-center">
+        <h2 className="text-base font-bold">📨 Taleplerim</h2>
+        <button className="btn-primary !py-1.5 !px-3 !text-xs" onClick={() => setShow(!show)}>{show ? '✕' : '+ Yeni Talep'}</button>
+      </div>
+
+      {show && (
+        <div className="card border-l-4 border-blue-400 space-y-2">
+          <select className="input-field !text-xs" value={type} onChange={e => setType(e.target.value)}>
+            {Object.entries(REQ_TYPES).filter(([k]) => k !== 'extra_volunteer').map(([k, v]) => (
+              <option key={k} value={k}>{v.i} {v.l}</option>
+            ))}
+          </select>
+
+          {['dept_change','dept_join'].includes(type) && (
+            <select className="input-field !text-xs" value={targetDept} onChange={e => setTargetDept(e.target.value)}>
+              <option value="">Hedef departman secin</option>
+              {DEPTS.map(d => <option key={d.id} value={d.id}>{d.i} {d.l}</option>)}
+            </select>
+          )}
+
+          {['task_cancel','task_join','task_help'].includes(type) && (
+            <select className="input-field !text-xs" value={targetTask} onChange={e => setTargetTask(e.target.value)}>
+              <option value="">Gorev secin</option>
+              {tasks.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
+            </select>
+          )}
+
+          {type === 'pause' && (
+            <p className="text-[10px] text-gray-400">Ara verme tarihlerinizi aciklamaya yazin (ornegin: 15 Nisan - 30 Nisan).</p>
+          )}
+
+          <textarea className="input-field !text-xs" rows={3} placeholder="Aciklama yazin (zorunlu)..." value={desc} onChange={e => setDesc(e.target.value)} />
+          <button onClick={submit} disabled={loading || !desc.trim()} className="btn-primary w-full !text-sm disabled:opacity-50">
+            {loading ? 'Gonderiliyor...' : 'Gonder'}
+          </button>
+        </div>
+      )}
+
+      {reqs.map(r => (
+        <div key={r.id} className="card">
+          <div className="flex items-start gap-2">
+            <span className="text-base mt-0.5">{REQ_TYPES[r.type]?.i || '📝'}</span>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-sm">{REQ_TYPES[r.type]?.short || r.title}</span>
+                <span className={`badge ${REQ_STATUS[r.status]?.c}`}>{REQ_STATUS[r.status]?.l}</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">{r.description}</p>
+              {r.target_dept && <div className="text-[10px] text-gray-400 mt-1">Hedef: {DM[r.target_dept]?.i} {DM[r.target_dept]?.l}</div>}
+              {r.tasks?.title && <div className="text-[10px] text-gray-400 mt-0.5">Gorev: {r.tasks.title}</div>}
+              <div className="text-[10px] text-gray-300 mt-1">{fdf(r.created_at)}</div>
+              {r.review_note && r.status !== 'pending' && (
+                <div className={`mt-2 p-2 rounded-lg text-[10px] ${r.status === 'approved' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                  {r.review_note}
+                </div>
+              )}
+            </div>
+          </div>
+          {r.status === 'pending' && (
+            <button onClick={() => cancel(r.id)} className="mt-2 text-[10px] text-gray-400 hover:text-red-500">Vazgectim</button>
+          )}
+        </div>
+      ))}
+      {reqs.length === 0 && !show && <Empty i="📨" t="Henuz talebiniz yok" />}
+    </div>
+  );
+}
+
+function ManageRequestsView({ uid, me }) {
+  const [reqs, setReqs] = useState([]);
+  const [tab, setTab] = useState('pending');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [reviewNote, setReviewNote] = useState('');
+  const [reviewingId, setReviewingId] = useState(null);
+
+  const load = useCallback(async () => {
+    const filters = {};
+    if (tab !== 'all') filters.status = tab;
+    if (typeFilter) filters.type = typeFilter;
+    const { data } = await db.getAllRequests(filters);
+    setReqs(data || []);
+  }, [tab, typeFilter]);
+  useEffect(() => { load(); }, [load]);
+
+  const pendingCount = reqs.filter(r => r.status === 'pending').length;
+
+  const handleReview = async (id, status) => {
+    const { data: req } = await db.reviewRequest(id, status, uid, reviewNote);
+    if (req && status === 'approved') {
+      // Otomatik aksiyonlar
+      if (req.type === 'dept_change' && req.target_dept) {
+        await db.setUserDept(req.user_id, req.target_dept);
+      } else if (req.type === 'task_cancel' && req.target_task_id) {
+        const { data: task } = await db.getTasks();
+        const t = (task || []).find(t => t.id === req.target_task_id);
+        if (t) await db.updateTask(t.id, { assigned_to: (t.assigned_to || []).filter(x => x !== req.user_id) });
+      } else if (req.type === 'task_join' && req.target_task_id) {
+        const { data: task } = await db.getTasks();
+        const t = (task || []).find(t => t.id === req.target_task_id);
+        if (t) await db.updateTask(t.id, { assigned_to: [...(t.assigned_to || []), req.user_id] });
+      } else if (req.type === 'task_help' && req.target_task_id) {
+        const dept = req.profiles?.department;
+        if (dept) {
+          const { data: deptVols } = await db.getProfilesByDept(dept);
+          for (const v of (deptVols || []).slice(0, 20)) {
+            if (v.id !== req.user_id) {
+              await db.sendNotification(v.id, 'task', `🆘 Yardim araniyor: ${req.tasks?.title || ''}`, `${req.profiles?.display_name} bu gorev icin yardim istiyor`);
+            }
+          }
+        }
+      } else if (req.type === 'pause') {
+        await db.setUserStatus(req.user_id, 'paused');
+      } else if (req.type === 'deactivate') {
+        await db.setUserStatus(req.user_id, 'inactive');
+      } else if (req.type === 'extra_volunteer') {
+        const { data: allVols } = await db.getProfilesByRole('vol');
+        for (const v of (allVols || []).slice(0, 30)) {
+          await db.sendNotification(v.id, 'announcement', `👥 Ek gonullu araniyor`, req.description?.slice(0, 100) || '');
+        }
+      }
+    }
+    // Bildirim gonder
+    const statusText = status === 'approved' ? 'onaylandi' : 'reddedildi';
+    await db.sendNotification(req?.user_id || id, 'system', `📨 Talebiniz ${statusText}`, reviewNote || `${REQ_TYPES[req?.type]?.short || ''} talebiniz ${statusText}.`);
+    setReviewNote(''); setReviewingId(null);
+    load();
+  };
+
+  return (
+    <div className="fade-up space-y-3">
+      <h2 className="text-base font-bold">📨 Talepler {tab === 'pending' && pendingCount > 0 && <span className="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full ml-1">{pendingCount}</span>}</h2>
+
+      <div className="flex gap-1.5 flex-wrap">
+        {[['pending','Bekleyen'],['approved','Onaylanan'],['rejected','Reddedilen'],['all','Tumu']].map(([k,l]) => (
+          <Tab key={k} active={tab===k} onClick={() => setTab(k)}>{l}</Tab>
+        ))}
+      </div>
+
+      <select className="input-field !text-xs !py-1.5" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+        <option value="">Tum tipler</option>
+        {Object.entries(REQ_TYPES).map(([k, v]) => <option key={k} value={k}>{v.i} {v.short}</option>)}
+      </select>
+
+      {reqs.map(r => (
+        <div key={r.id} className="card">
+          <div className="flex items-start gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600 flex-shrink-0">
+              {(r.profiles?.display_name || '?')[0]}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold text-sm">{r.profiles?.display_name}</span>
+                <span className={`badge ${REQ_STATUS[r.status]?.c}`}>{REQ_STATUS[r.status]?.l}</span>
+              </div>
+              <div className="text-[10px] text-gray-400">{r.profiles?.department ? `${DM[r.profiles.department]?.i} ${DM[r.profiles.department]?.l}` : ''}</div>
+
+              <div className="mt-1.5 flex items-center gap-1.5">
+                <span className="text-sm">{REQ_TYPES[r.type]?.i}</span>
+                <span className="text-xs font-semibold text-gray-700">{REQ_TYPES[r.type]?.short || r.title}</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">{r.description}</p>
+              {r.target_dept && <div className="text-[10px] text-gray-400 mt-1">Hedef dept: {DM[r.target_dept]?.i} {DM[r.target_dept]?.l}</div>}
+              {r.tasks?.title && <div className="text-[10px] text-gray-400 mt-0.5">Gorev: {r.tasks.title}</div>}
+              <div className="text-[10px] text-gray-300 mt-1">{fdf(r.created_at)}</div>
+
+              {r.status === 'pending' && (
+                <div className="mt-2 pt-2 border-t border-gray-50">
+                  {reviewingId === r.id ? (
+                    <div className="space-y-1.5">
+                      <input className="input-field !text-[10px] !py-1.5" placeholder="Not ekle (opsiyonel)" value={reviewNote} onChange={e => setReviewNote(e.target.value)} />
+                      <div className="flex gap-2">
+                        <button onClick={() => handleReview(r.id, 'approved')} className="badge bg-emerald-50 text-emerald-600 cursor-pointer">✓ Onayla</button>
+                        <button onClick={() => handleReview(r.id, 'rejected')} className="badge bg-red-50 text-red-500 cursor-pointer">✕ Reddet</button>
+                        <button onClick={() => { setReviewingId(null); setReviewNote(''); }} className="text-[10px] text-gray-400">Iptal</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button onClick={() => setReviewingId(r.id)} className="badge bg-blue-50 text-blue-600 cursor-pointer">Incele</button>
+                    </div>
+                  )}
+                </div>
+              )}
+              {r.review_note && r.status !== 'pending' && (
+                <div className={`mt-2 p-2 rounded-lg text-[10px] ${r.status === 'approved' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                  {r.review_note}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+      {reqs.length === 0 && <Empty i="📨" t="Talep bulunamadi" />}
     </div>
   );
 }
