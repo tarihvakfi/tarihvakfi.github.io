@@ -649,57 +649,57 @@ function HelpView({ me }) {
       {/* ── Gönüllü Bölümü ── */}
       <Accordion title="⏱️ Saat Kaydı Nasıl Girilir?">
         <div className="mt-2">
-          <HelpStep n="1" text='Alt menüden "Saatler" sekmesine tıklayın.' />
-          <HelpStep n="2" text='"Yeni Kayıt" butonuna basın.' />
-          <HelpStep n="3" text="Tarih, saat miktarı, departman ve açıklama girin." />
-          <HelpStep n="4" text='"Kaydet" ile gönderin. Kaydınız onay bekleyecek." />
-          <HelpStep n="5" text="Koordinatörünüz onayladığında bildirim alırsınız." />
+          <HelpStep n="1" text={`Alt menüden "Saatler" sekmesine tıklayın.`} />
+          <HelpStep n="2" text={`"Yeni Kayıt" butonuna basın.`} />
+          <HelpStep n="3" text={`Tarih, saat miktarı, departman ve açıklama girin.`} />
+          <HelpStep n="4" text={`"Kaydet" ile gönderin. Kaydınız onay bekleyecek.`} />
+          <HelpStep n="5" text={`Koordinatörünüz onayladığında bildirim alırsınız.`} />
           <p className="text-[10px] text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Onay bekleyen kayıtlarınızı silebilirsiniz, onaylanmış kayıtlar silinemez.</p>
         </div>
       </Accordion>
 
       <Accordion title="📋 Görevler Nasıl Takip Edilir?">
         <div className="mt-2">
-          <HelpStep n="1" text='"Görevler" sekmesine gidin.' />
-          <HelpStep n="2" text="Size atanan görevleri listede göreceksiniz." />
-          <HelpStep n="3" text="Öncelik ve durum bilgisine göre filtreleyebilirsiniz." />
-          <HelpStep n="4" text="Görevin detaylarını görmek için üzerine tıklayın." />
+          <HelpStep n="1" text={`"Görevler" sekmesine gidin.`} />
+          <HelpStep n="2" text={`Size atanan görevleri listede göreceksiniz.`} />
+          <HelpStep n="3" text={`Öncelik ve durum bilgisine göre filtreleyebilirsiniz.`} />
+          <HelpStep n="4" text={`Görevin detaylarını görmek için üzerine tıklayın.`} />
           <p className="text-[10px] text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Yüksek öncelikli görevler kırmızı etiketle gösterilir.</p>
         </div>
       </Accordion>
 
       <Accordion title="📅 Vardiya Planını Nerede Görürüm?">
         <div className="mt-2">
-          <HelpStep n="1" text='"Vardiya" sekmesine tıklayın.' />
-          <HelpStep n="2" text="Haftalık vardiya planınızı gün bazında göreceksiniz." />
-          <HelpStep n="3" text="Her vardiya kartında saat, departman ve not bilgisi yer alır." />
+          <HelpStep n="1" text={`"Vardiya" sekmesine tıklayın.`} />
+          <HelpStep n="2" text={`Haftalık vardiya planınızı gün bazında göreceksiniz.`} />
+          <HelpStep n="3" text={`Her vardiya kartında saat, departman ve not bilgisi yer alır.`} />
           <p className="text-[10px] text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Tekrarlayan vardiyalar her hafta otomatik görünür.</p>
         </div>
       </Accordion>
 
       <Accordion title="📢 Duyuruları Nerede Okurum?">
         <div className="mt-2">
-          <HelpStep n="1" text='"Duyurular" sekmesinden tüm duyuruları görebilirsiniz.' />
-          <HelpStep n="2" text="Sabitlenmiş (pinned) duyurular her zaman en üstte görünür." />
-          <HelpStep n="3" text="Departmana özel duyurular sadece ilgili kişilere gösterilir." />
+          <HelpStep n="1" text={`"Duyurular" sekmesinden tüm duyuruları görebilirsiniz.`} />
+          <HelpStep n="2" text={`Sabitlenmiş (pinned) duyurular her zaman en üstte görünür.`} />
+          <HelpStep n="3" text={`Departmana özel duyurular sadece ilgili kişilere gösterilir.`} />
         </div>
       </Accordion>
 
       <Accordion title="🔔 Bildirimler Nasıl Çalışır?">
         <div className="mt-2">
-          <HelpStep n="1" text="Sağ üstteki zil ikonuna tıklayarak bildirimlerinizi görün." />
-          <HelpStep n="2" text="Okunmamış bildirim sayısı kırmızı baloncukta gösterilir." />
-          <HelpStep n="3" text="Görev atanması, saat onayı ve duyurular bildirim oluşturur." />
-          <HelpStep n="4" text='"Tümünü okundu işaretle" ile bildirimleri temizleyebilirsiniz.' />
+          <HelpStep n="1" text={`Sağ üstteki zil ikonuna tıklayarak bildirimlerinizi görün.`} />
+          <HelpStep n="2" text={`Okunmamış bildirim sayısı kırmızı baloncukta gösterilir.`} />
+          <HelpStep n="3" text={`Görev atanması, saat onayı ve duyurular bildirim oluşturur.`} />
+          <HelpStep n="4" text={`"Tümünü okundu işaretle" ile bildirimleri temizleyebilirsiniz.`} />
         </div>
       </Accordion>
 
       <Accordion title="👤 Profilimi Nasıl Düzenlerim?">
         <div className="mt-2">
-          <HelpStep n="1" text='Alt menüden "Profil" sekmesine tıklayın.' />
-          <HelpStep n="2" text='"Düzenle" butonuna basın.' />
-          <HelpStep n="3" text="Ad, telefon, şehir ve biyografi bilgilerinizi güncelleyin." />
-          <HelpStep n="4" text='"Kaydet" ile değişikliklerinizi kaydedin.' />
+          <HelpStep n="1" text={`Alt menüden "Profil" sekmesine tıklayın.`} />
+          <HelpStep n="2" text={`"Düzenle" butonuna basın.`} />
+          <HelpStep n="3" text={`Ad, telefon, şehir ve biyografi bilgilerinizi güncelleyin.`} />
+          <HelpStep n="4" text={`"Kaydet" ile değişikliklerinizi kaydedin.`} />
         </div>
       </Accordion>
 
@@ -714,47 +714,47 @@ function HelpView({ me }) {
 
           <Accordion title="👥 Gönüllü Yönetimi Nasıl Yapılır?">
             <div className="mt-2">
-              <HelpStep n="1" text='"Gönüllüler" sekmesinden tüm aktif gönüllüleri görün.' />
-              <HelpStep n="2" text="İsme tıklayarak gönüllünün detay profilini açın." />
-              <HelpStep n="3" text="Departman ataması ve durum değişikliği yapabilirsiniz." />
-              <HelpStep n="4" text="Her gönüllünün toplam saat ve aktif gün sayısını takip edin." />
+              <HelpStep n="1" text={`"Gönüllüler" sekmesinden tüm aktif gönüllüleri görün.`} />
+              <HelpStep n="2" text={`İsme tıklayarak gönüllünün detay profilini açın.`} />
+              <HelpStep n="3" text={`Departman ataması ve durum değişikliği yapabilirsiniz.`} />
+              <HelpStep n="4" text={`Her gönüllünün toplam saat ve aktif gün sayısını takip edin.`} />
             </div>
           </Accordion>
 
           <Accordion title="📋 Görev Nasıl Oluşturulur ve Atanır?">
             <div className="mt-2">
-              <HelpStep n="1" text='"Görevler" sekmesinde "Yeni Görev" butonuna tıklayın.' />
-              <HelpStep n="2" text="Başlık, açıklama, departman ve öncelik belirleyin." />
-              <HelpStep n="3" text="Son tarih seçin ve görevi gönüllülere atayın." />
-              <HelpStep n="4" text="Atanan gönüllüler otomatik bildirim alır." />
+              <HelpStep n="1" text={`"Görevler" sekmesinde "Yeni Görev" butonuna tıklayın.`} />
+              <HelpStep n="2" text={`Başlık, açıklama, departman ve öncelik belirleyin.`} />
+              <HelpStep n="3" text={`Son tarih seçin ve görevi gönüllülere atayın.`} />
+              <HelpStep n="4" text={`Atanan gönüllüler otomatik bildirim alır.`} />
               <p className="text-[10px] text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Birden fazla gönüllüyü aynı göreve atayabilirsiniz.</p>
             </div>
           </Accordion>
 
           <Accordion title="✅ Saat Nasıl Onaylanır / Reddedilir?">
             <div className="mt-2">
-              <HelpStep n="1" text='"Saatler" sekmesine gidin ve "Onay Bekliyor" filtresini seçin.' />
-              <HelpStep n="2" text="Her kaydın yanındaki onay (✓) veya red (✗) butonuna tıklayın." />
-              <HelpStep n="3" text="Reddetme durumunda bir açıklama notu ekleyebilirsiniz." />
-              <HelpStep n="4" text="Gönüllü, sonucu bildirim olarak alacaktır." />
+              <HelpStep n="1" text={`"Saatler" sekmesine gidin ve "Onay Bekliyor" filtresini seçin.`} />
+              <HelpStep n="2" text={`Her kaydın yanındaki onay (✓) veya red (✗) butonuna tıklayın.`} />
+              <HelpStep n="3" text={`Reddetme durumunda bir açıklama notu ekleyebilirsiniz.`} />
+              <HelpStep n="4" text={`Gönüllü, sonucu bildirim olarak alacaktır.`} />
             </div>
           </Accordion>
 
           <Accordion title="📅 Vardiya Nasıl Planlanır?">
             <div className="mt-2">
-              <HelpStep n="1" text='"Vardiya" sekmesinde "Yeni Vardiya" butonuna tıklayın.' />
-              <HelpStep n="2" text="Gönüllü, gün, başlangıç-bitiş saati ve departman seçin." />
-              <HelpStep n="3" text='Tekrarlayan vardiya için "Haftalık tekrar" seçeneğini işaretleyin.' />
-              <HelpStep n="4" text="Mevcut vardiyaları düzenleyebilir veya silebilirsiniz." />
+              <HelpStep n="1" text={`"Vardiya" sekmesinde "Yeni Vardiya" butonuna tıklayın.`} />
+              <HelpStep n="2" text={`Gönüllü, gün, başlangıç-bitiş saati ve departman seçin.`} />
+              <HelpStep n="3" text={`Tekrarlayan vardiya için "Haftalık tekrar" seçeneğini işaretleyin.`} />
+              <HelpStep n="4" text={`Mevcut vardiyaları düzenleyebilir veya silebilirsiniz.`} />
             </div>
           </Accordion>
 
           <Accordion title="📢 Duyuru Nasıl Yazılır?">
             <div className="mt-2">
-              <HelpStep n="1" text='"Duyurular" sekmesinde "Yeni Duyuru" butonuna tıklayın.' />
-              <HelpStep n="2" text="Başlık ve içerik yazın." />
-              <HelpStep n="3" text="Belirli bir departmana mı herkese mi? Seçim yapın." />
-              <HelpStep n="4" text='Önemli duyurular için "Sabitle" seçeneğini işaretleyin.' />
+              <HelpStep n="1" text={`"Duyurular" sekmesinde "Yeni Duyuru" butonuna tıklayın.`} />
+              <HelpStep n="2" text={`Başlık ve içerik yazın.`} />
+              <HelpStep n="3" text={`Belirli bir departmana mı herkese mi? Seçim yapın.`} />
+              <HelpStep n="4" text={`Önemli duyurular için "Sabitle" seçeneğini işaretleyin.`} />
             </div>
           </Accordion>
         </>
@@ -771,19 +771,19 @@ function HelpView({ me }) {
 
           <Accordion title="👑 Rol Atama Nasıl Yapılır?">
             <div className="mt-2">
-              <HelpStep n="1" text='"Gönüllüler" sekmesinden kullanıcıyı bulun.' />
-              <HelpStep n="2" text="Profil detayında rol alanını tıklayın." />
-              <HelpStep n="3" text="Gönüllü, Koordinatör veya Yönetici rolünü seçin." />
+              <HelpStep n="1" text={`"Gönüllüler" sekmesinden kullanıcıyı bulun.`} />
+              <HelpStep n="2" text={`Profil detayında rol alanını tıklayın.`} />
+              <HelpStep n="3" text={`Gönüllü, Koordinatör veya Yönetici rolünü seçin.`} />
               <p className="text-[10px] text-gray-400 mt-2 bg-amber-50 rounded-lg p-2">⚠️ Dikkat: Yönetici rolü tüm sisteme erişim sağlar. Dikkatli atayın.</p>
             </div>
           </Accordion>
 
           <Accordion title="📩 Başvuru Yönetimi Nasıl Çalışır?">
             <div className="mt-2">
-              <HelpStep n="1" text='"Başvuru" sekmesine gidin.' />
-              <HelpStep n="2" text="Bekleyen başvuruları inceleyin: isim, motivasyon, deneyim." />
-              <HelpStep n="3" text='Uygun başvuruları "Onayla" ile kabul edin veya "Mülakata Al" ile ayırın.' />
-              <HelpStep n="4" text="Uygun olmayan başvuruları not ekleyerek reddedin." />
+              <HelpStep n="1" text={`"Başvuru" sekmesine gidin.`} />
+              <HelpStep n="2" text={`Bekleyen başvuruları inceleyin: isim, motivasyon, deneyim.`} />
+              <HelpStep n="3" text={`Uygun başvuruları "Onayla" ile kabul edin veya "Mülakata Al" ile ayırın.`} />
+              <HelpStep n="4" text={`Uygun olmayan başvuruları not ekleyerek reddedin.`} />
               <p className="text-[10px] text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Onaylanan başvuru sahiplerine kayıt linki gönderin.</p>
             </div>
           </Accordion>
