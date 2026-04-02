@@ -115,16 +115,45 @@ export default function Dashboard({ session }) {
   );
 }
 
+// ─── ADMIN E-POSTA HOOK ──────────────────
+function useAdminEmail() {
+  const [adminEmail, setAdminEmail] = useState(null);
+  const [adminId, setAdminId] = useState(null);
+  useEffect(() => {
+    db.getProfilesByRole('admin').then(({ data }) => {
+      if (data && data.length > 0) { setAdminEmail(data[0].email); setAdminId(data[0].id); }
+    });
+  }, []);
+  return { adminEmail, adminId };
+}
+
 // ─── DASHBOARD ────────────────────────────
 function DashboardView({ uid, me, can, setPage }) {
   const [stats, setStats] = useState(null);
   const [anns, setAnns] = useState([]);
+  const [showSupport, setShowSupport] = useState(false);
+  const [supTopic, setSupTopic] = useState('Teknik Sorun');
+  const [supMsg, setSupMsg] = useState('');
+  const [supSent, setSupSent] = useState(false);
+  const [supLoading, setSupLoading] = useState(false);
+  const { adminEmail, adminId } = useAdminEmail();
+
   useEffect(() => {
     (async () => {
       const [vs, an] = await Promise.all([db.getVolunteerStats(), db.getAnnouncements()]);
       setStats(vs.data); setAnns((an.data || []).slice(0, 3));
     })();
   }, []);
+
+  const sendSupport = async () => {
+    if (!supMsg.trim() || !adminId) return;
+    setSupLoading(true);
+    await db.sendNotification(adminId, 'system', `🆘 Destek: ${supTopic}`, `${me.display_name}: ${supMsg}`);
+    setSupLoading(false);
+    setSupSent(true);
+    setSupMsg('');
+    setTimeout(() => { setSupSent(false); setShowSupport(false); }, 2000);
+  };
 
   const myStats = stats?.find(s => s.id === uid);
   const totalVols = stats?.filter(s => s.status === 'active').length || 0;
@@ -167,6 +196,34 @@ function DashboardView({ uid, me, can, setPage }) {
           <p className="text-[10px] text-gray-300 mt-2">{a.profiles?.display_name} · {fd(a.created_at)}</p>
         </div>
       ))}
+
+      {/* Destek Talebi */}
+      <button onClick={() => setShowSupport(!showSupport)} className="w-full card !p-3 flex items-center justify-center gap-2 hover:shadow-md transition-shadow cursor-pointer">
+        <span className="text-base">🆘</span>
+        <span className="text-xs font-semibold text-gray-600">Destek Talebi Gönder</span>
+      </button>
+
+      {showSupport && (
+        <div className="card space-y-2.5">
+          <h3 className="text-sm font-bold text-center">🆘 Destek Talebi</h3>
+          <select value={supTopic} onChange={e => setSupTopic(e.target.value)} className="input-field !text-xs">
+            <option>Teknik Sorun</option>
+            <option>Saat Kaydı</option>
+            <option>Görev</option>
+            <option>Vardiya</option>
+            <option>Diğer</option>
+          </select>
+          <textarea className="input-field !text-xs" rows={3} placeholder="Mesajınızı yazın..." value={supMsg} onChange={e => setSupMsg(e.target.value)} />
+          {supSent ? (
+            <div className="bg-green-50 text-green-700 text-xs rounded-xl px-4 py-2.5 text-center">Talebiniz iletildi!</div>
+          ) : (
+            <button onClick={sendSupport} disabled={supLoading || !supMsg.trim()} className="btn-primary w-full !text-sm disabled:opacity-50">
+              {supLoading ? 'Gönderiliyor...' : 'Gönder'}
+            </button>
+          )}
+          {adminEmail && <p className="text-[10px] text-gray-400 text-center">Sistem yöneticisi: {adminEmail}</p>}
+        </div>
+      )}
     </div>
   );
 }
@@ -537,6 +594,7 @@ function NotificationsView({ uid, onRead }) {
 function ProfileView({ me, uid, onUpdate }) {
   const [editing, setEditing] = useState(false);
   const [f, setF] = useState({ display_name: me.display_name, city: me.city || '', bio: me.bio || '' });
+  const { adminEmail } = useAdminEmail();
   const save = async () => {
     const { data } = await db.updateProfile(uid, f);
     if (data) onUpdate(data); setEditing(false);
@@ -561,6 +619,16 @@ function ProfileView({ me, uid, onUpdate }) {
           <input className="input-field" placeholder="Şehir" value={f.city} onChange={e => setF({...f, city: e.target.value})} />
           <textarea className="input-field" rows={2} placeholder="Hakkımda" value={f.bio} onChange={e => setF({...f, bio: e.target.value})} />
           <button className="btn-primary w-full !text-sm" onClick={save}>Kaydet</button>
+        </div>
+      )}
+      {adminEmail && (
+        <div className="card border-l-4 border-blue-300">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-base">🛟</span>
+            <span className="text-sm font-bold text-gray-700">Destek</span>
+          </div>
+          <p className="text-xs text-gray-500">Sorun mu yaşıyorsunuz? Sistem yöneticisi:</p>
+          <p className="text-xs font-semibold text-blue-600 mt-1">{adminEmail}</p>
         </div>
       )}
     </div>
@@ -594,6 +662,7 @@ function HelpView({ me }) {
   const role = me?.role || 'vol';
   const isCoord = role === 'coord' || role === 'admin';
   const isAdmin = role === 'admin';
+  const { adminEmail } = useAdminEmail();
 
   return (
     <div className="space-y-3 fade-up">
@@ -835,7 +904,18 @@ function HelpView({ me }) {
       </Accordion>
 
       <Accordion title="Teknik bir sorun yaşıyorum, kime ulaşmalıyım?">
-        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Dijital departman koordinatörüne veya sistem yöneticisine bildirim gönderin. Acil durumlarda duyurular sekmesinden iletişim bilgilerine ulaşabilirsiniz.</p>
+        <div className="mt-2">
+          <p className="text-xs text-gray-600 leading-relaxed">Panel sayfasındaki "Destek Talebi Gönder" butonunu kullanarak doğrudan sistem yöneticisine bildirim gönderebilirsiniz.</p>
+          {adminEmail && (
+            <div className="bg-blue-50 rounded-lg p-2.5 mt-2 flex items-center gap-2">
+              <span className="text-sm">🛟</span>
+              <div>
+                <p className="text-[10px] font-semibold text-blue-700">Sistem Yöneticisi</p>
+                <p className="text-xs text-blue-600 font-medium">{adminEmail}</p>
+              </div>
+            </div>
+          )}
+        </div>
       </Accordion>
 
       <div className="text-center py-4">
