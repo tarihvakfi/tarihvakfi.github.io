@@ -1373,10 +1373,15 @@ function DepartmentsView({ uid, me, can }) {
   const [deptShifts, setDeptShifts] = useState([]);
   const [tab, setTab] = useState('tasks');
   const [overviews, setOverviews] = useState({});
+  const [showAdminTask, setShowAdminTask] = useState(false);
+  const [showAdminAssign, setShowAdminAssign] = useState(false);
+  const [adminTaskF, setAdminTaskF] = useState({ title:'', description:'', priority:'medium', deadline:'' });
+  const [assignVol, setAssignVol] = useState('');
+  const [allVols, setAllVols] = useState([]);
 
   useEffect(() => {
     db.getVisibilitySettings().then(({ data }) => setVis(data || []));
-    // Load overviews for all depts
+    db.getAllProfiles().then(({ data }) => setAllVols((data || []).filter(v => v.status === 'active')));
     Promise.all(DEPTS.map(async d => {
       const ov = await db.getDeptOverview(d.id);
       return [d.id, ov];
@@ -1443,7 +1448,7 @@ function DepartmentsView({ uid, me, can }) {
                 </div>
               </div>
             ))}
-            {sel !== myDept && <button onClick={() => db.createRequest({ user_id: uid, type: 'task_join', title: 'Goreve Katilim', description: `${DM[sel]?.l} departmanindaki bir goreve katilmak istiyorum.`, target_dept: sel }).then(() => alert('Talep gonderildi!'))} className="btn-ghost w-full !text-[13px]">🙋 Bu departmandaki bir goreve katilmak istiyorum</button>}
+            {sel !== myDept && me.role === 'vol' && <button onClick={() => db.createRequest({ user_id: uid, type: 'task_join', title: 'Goreve Katilim', description: `${DM[sel]?.l} departmanindaki bir goreve katilmak istiyorum.`, target_dept: sel }).then(() => alert('Talep gonderildi!'))} className="btn-ghost w-full !text-[13px]">🙋 Bu departmandaki bir goreve katilmak istiyorum</button>}
             {(deptData?.tasks || []).length === 0 && <Empty i="📋" t="Aktif gorev yok" />}
           </div>
         ) : <div className="card text-center !py-6"><p className="text-xs text-gray-400">🔒 Bu bilgi su an gorunur degil. Yonetici tarafindan acilabilir.</p></div>)}
@@ -1504,7 +1509,7 @@ function DepartmentsView({ uid, me, can }) {
               ))}
             </div>
             <p className="text-xs text-gray-400 text-center">Sadece okuma — mesaj yazmak icin departmana katilmaniz gerekir.</p>
-            {sel !== myDept && <button onClick={() => db.createRequest({ user_id: uid, type: 'dept_join', title: 'Ek Departman', description: `${DM[sel]?.l} departmaninda da calismak istiyorum.`, target_dept: sel }).then(() => alert('Talep gonderildi!'))} className="btn-ghost w-full !text-[13px]">➕ Bu departmanda calismak istiyorum</button>}
+            {sel !== myDept && me.role === 'vol' && <button onClick={() => db.createRequest({ user_id: uid, type: 'dept_join', title: 'Ek Departman', description: `${DM[sel]?.l} departmaninda da calismak istiyorum.`, target_dept: sel }).then(() => alert('Talep gonderildi!'))} className="btn-ghost w-full !text-[13px]">➕ Bu departmanda calismak istiyorum</button>}
           </div>
         ) : <div className="card text-center !py-6"><p className="text-xs text-gray-400">🔒 Bu bilgi su an gorunur degil. Yonetici tarafindan acilabilir.</p></div>)}
 
@@ -1522,8 +1527,44 @@ function DepartmentsView({ uid, me, can }) {
           </div>
         ) : <div className="card text-center !py-6"><p className="text-xs text-gray-400">🔒 Bu bilgi su an gorunur degil. Yonetici tarafindan acilabilir.</p></div>)}
 
-        {/* Koordinator ek aksiyonlar */}
-        {isCoordOrAdmin && sel !== myDept && (
+        {/* Rol bazli aksiyonlar */}
+        {me.role === 'admin' && (
+          <div className="space-y-2">
+            <button onClick={() => setShowAdminTask(!showAdminTask)} className="btn-primary w-full !text-[13px]">📋 Gorev Olustur (bu departmana)</button>
+            {showAdminTask && (
+              <div className="card border-l-4 border-purple-400 space-y-2">
+                <input className="input-field" placeholder="Gorev basligi" value={adminTaskF.title} onChange={e => setAdminTaskF({...adminTaskF, title: e.target.value})} />
+                <textarea className="input-field" rows={2} placeholder="Aciklama" value={adminTaskF.description} onChange={e => setAdminTaskF({...adminTaskF, description: e.target.value})} />
+                <div className="grid grid-cols-2 gap-2">
+                  <select className="input-field" value={adminTaskF.priority} onChange={e => setAdminTaskF({...adminTaskF, priority: e.target.value})}>{Object.entries(PRIORITIES).map(([k,v]) => <option key={k} value={k}>{v.l}</option>)}</select>
+                  <input className="input-field" type="date" value={adminTaskF.deadline} onChange={e => setAdminTaskF({...adminTaskF, deadline: e.target.value})} />
+                </div>
+                <button onClick={async () => {
+                  if (!adminTaskF.title) return;
+                  await db.createTask({ ...adminTaskF, department: sel, assigned_to: [], created_by: uid });
+                  setShowAdminTask(false); setAdminTaskF({ title:'', description:'', priority:'medium', deadline:'' });
+                  const ov = await db.getDeptOverview(sel); setDeptData(ov);
+                }} className="btn-primary w-full !text-[13px]">Olustur</button>
+              </div>
+            )}
+            <button onClick={() => setShowAdminAssign(!showAdminAssign)} className="btn-ghost w-full !text-[13px]">👤 Gonullu Ata (bu departmana)</button>
+            {showAdminAssign && (
+              <div className="card border-l-4 border-emerald-400 space-y-2">
+                <select className="input-field" value={assignVol} onChange={e => setAssignVol(e.target.value)}>
+                  <option value="">Gonullu secin</option>
+                  {allVols.filter(v => v.department !== sel).map(v => <option key={v.id} value={v.id}>{v.display_name} ({DM[v.department]?.l || 'Atanmamis'})</option>)}
+                </select>
+                <button onClick={async () => {
+                  if (!assignVol) return;
+                  await db.setUserDept(assignVol, sel);
+                  setShowAdminAssign(false); setAssignVol('');
+                  alert('Gonullu departmana atandi!');
+                }} className="btn-primary w-full !text-[13px]">Ata</button>
+              </div>
+            )}
+          </div>
+        )}
+        {me.role === 'coord' && sel !== myDept && (
           <div className="space-y-2">
             <button onClick={() => db.createRequest({ user_id: uid, type: 'cross_dept_task', title: 'Ortak Gorev', description: `${DM[myDept]?.l} ve ${DM[sel]?.l} departmanlari arasi ortak gorev onerisi.`, target_dept: sel }).then(() => alert('Oneri gonderildi!'))} className="btn-ghost w-full !text-[13px]">🤝 Ortak gorev oner</button>
             <button onClick={() => db.createRequest({ user_id: uid, type: 'recruit_volunteer', title: 'Gonullu Transferi', description: `${DM[sel]?.l} departmanindan departmanimiza gonullu transferi talebi.`, target_dept: sel }).then(() => alert('Talep gonderildi!'))} className="btn-ghost w-full !text-[13px]">🔀 Bu departmandan gonullu cek</button>
