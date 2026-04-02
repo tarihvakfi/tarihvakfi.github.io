@@ -78,6 +78,10 @@ export default function Dashboard({ session }) {
   );
 
   const suspended = ['paused','inactive','resigned'].includes(me.status);
+  const pendingApproval = me.status === 'pending';
+  const rejected = me.status === 'rejected';
+  const blocked = me.status === 'blocked';
+  const restricted = suspended || pendingApproval || rejected || blocked;
   const isCoordOrAdmin = me.role === 'admin' || me.role === 'coord';
 
   // Sub-tabs per main tab
@@ -131,7 +135,7 @@ export default function Dashboard({ session }) {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {!suspended && (
+            {!restricted && (
               <button onClick={() => goTo('ben','notifications')} className="relative w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm hover:bg-white/20">
                 🔔
                 {unread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold">{unread}</span>}
@@ -143,7 +147,13 @@ export default function Dashboard({ session }) {
       </div>
 
       <div className="max-w-2xl mx-auto px-4 pt-3">
-        {suspended ? (
+        {pendingApproval ? (
+          <PendingApprovalView me={me} />
+        ) : rejected ? (
+          <RejectedView />
+        ) : blocked ? (
+          <BlockedView />
+        ) : suspended ? (
           <SuspendedView me={me} uid={uid} />
         ) : (<>
           {/* Sub tab bars */}
@@ -171,7 +181,7 @@ export default function Dashboard({ session }) {
       </div>
 
       {/* Bottom Nav — 5 tabs */}
-      {!suspended && (
+      {!restricted && (
         <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50" style={{ height: 56 }}>
           <div className="max-w-2xl mx-auto flex h-full">
             {mainNav.map(([id, ic, lb]) => {
@@ -201,6 +211,51 @@ function useAdminEmail() {
     });
   }, []);
   return { adminEmail, adminId };
+}
+
+// ─── PENDING APPROVAL VIEW ───────────────
+function PendingApprovalView({ me }) {
+  const { adminEmail } = useAdminEmail();
+  return (
+    <div className="fade-up space-y-4 text-center pt-8">
+      <div className="text-6xl">🏛️</div>
+      <h2 className="text-xl font-bold text-gray-700">Kaydiniz alindi! ✓</h2>
+      <p className="text-sm text-gray-500 leading-relaxed max-w-sm mx-auto">Hesabiniz yonetici onayi bekliyor. Onaylandiginda sisteme erisebileceksiniz.</p>
+      <div className="card text-left max-w-sm mx-auto">
+        <div className="text-xs text-gray-500"><span className="font-semibold">Ad:</span> {me.display_name}</div>
+        <div className="text-xs text-gray-500 mt-1"><span className="font-semibold">E-posta:</span> {me.email}</div>
+        <div className="text-xs text-gray-400 mt-1">Kayit: {me.joined_at ? new Date(me.joined_at).toLocaleDateString('tr-TR') : ''}</div>
+      </div>
+      {adminEmail && (
+        <p className="text-xs text-gray-400">Sorulariniz icin: <span className="text-blue-600 font-medium">{adminEmail}</span></p>
+      )}
+      <button onClick={db.signOut} className="btn-ghost mx-auto">Cikis Yap</button>
+    </div>
+  );
+}
+
+// ─── REJECTED VIEW ──────────────────────
+function RejectedView() {
+  return (
+    <div className="fade-up space-y-4 text-center pt-8">
+      <div className="text-5xl">❌</div>
+      <h2 className="text-xl font-bold text-gray-700">Basvurunuz reddedilmistir</h2>
+      <p className="text-sm text-gray-500">Detay icin yoneticiyle iletisime gecin.</p>
+      <button onClick={db.signOut} className="btn-ghost mx-auto">Cikis Yap</button>
+    </div>
+  );
+}
+
+// ─── BLOCKED VIEW ───────────────────────
+function BlockedView() {
+  return (
+    <div className="fade-up space-y-4 text-center pt-8">
+      <div className="text-5xl">🚫</div>
+      <h2 className="text-xl font-bold text-gray-700">Hesabiniz engellenmistir</h2>
+      <p className="text-sm text-gray-500">Detay icin yoneticiyle iletisime gecin.</p>
+      <button onClick={db.signOut} className="btn-ghost mx-auto">Cikis Yap</button>
+    </div>
+  );
 }
 
 // ─── SUSPENDED VIEW ──────────────────────
@@ -248,6 +303,7 @@ function DashboardView({ uid, me, can, goTo }) {
   const [supLoading, setSupLoading] = useState(false);
   const [weekSummary, setWeekSummary] = useState([]);
   const [pendingReqs, setPendingReqs] = useState(0);
+  const [pendingUsers, setPendingUsers] = useState([]);
   const { adminEmail, adminId } = useAdminEmail();
 
   useEffect(() => {
@@ -262,7 +318,10 @@ function DashboardView({ uid, me, can, goTo }) {
       db.getWeeklyDeptSummary().then(setWeekSummary);
       db.getPendingRequestCount().then(setPendingReqs);
     }
-  }, [can]);
+    if (me.role === 'admin') {
+      db.getAllProfiles().then(({ data }) => setPendingUsers((data || []).filter(p => p.status === 'pending')));
+    }
+  }, [can, me.role]);
 
   const sendSupport = async () => {
     if (!supMsg.trim()) return;
@@ -348,6 +407,25 @@ function DashboardView({ uid, me, can, goTo }) {
             <span className="bg-red-500 text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full">{pendingReqs}</span>
           </button>
         )}
+        {pendingUsers.length > 0 && (<>
+          <div className="text-sm font-bold">🕐 Onay Bekleyen Kayitlar <span className="bg-red-500 text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full ml-1">{pendingUsers.length}</span></div>
+          {pendingUsers.map(u => (
+            <div key={u.id} className="card border-l-4 border-blue-300">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600">{(u.display_name||'?')[0]}</div>
+                <div className="flex-1">
+                  <div className="font-semibold text-[15px]">{u.display_name}</div>
+                  <div className="text-xs text-gray-400">{u.email} · {u.joined_at ? new Date(u.joined_at).toLocaleDateString('tr-TR') : ''}</div>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-2 pt-2 border-t border-gray-50">
+                <button onClick={async () => { await db.setUserStatus(u.id, 'active'); await db.sendNotification(u.id, 'welcome', 'Hesabiniz onaylandi!', 'Artik sisteme tam erisebilirsiniz.'); setPendingUsers(prev => prev.filter(p => p.id !== u.id)); }} className="badge bg-emerald-50 text-emerald-600 cursor-pointer">✓ Onayla</button>
+                <button onClick={async () => { await db.setUserStatus(u.id, 'rejected'); await db.sendNotification(u.id, 'system', 'Basvurunuz reddedildi', ''); setPendingUsers(prev => prev.filter(p => p.id !== u.id)); }} className="badge bg-red-50 text-red-500 cursor-pointer">✕ Reddet</button>
+                <button onClick={async () => { await db.setUserStatus(u.id, 'blocked'); setPendingUsers(prev => prev.filter(p => p.id !== u.id)); }} className="badge bg-gray-100 text-gray-500 cursor-pointer">🚫 Engelle</button>
+              </div>
+            </div>
+          ))}
+        </>)}
       </>)}
 
       {anns.filter(a => a.is_pinned).map(a => (
@@ -1727,7 +1805,7 @@ function ProfileView({ me, uid, onUpdate }) {
           <button className="btn-primary w-full !text-[14px]" onClick={save}>Kaydet</button>
         </div>
       )}
-      {adminEmail && (
+      {adminEmail && me.role !== 'admin' && (
         <div className="card border-l-4 border-blue-300">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-base">🛟</span>
