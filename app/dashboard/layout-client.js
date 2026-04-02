@@ -1690,6 +1690,10 @@ function HelpView({ me }) {
                 ['Talep onaylama', false, 'kendi hariç', true],
                 ['Rol atama', false, false, true],
                 ['Başvuru yönetimi', false, false, true],
+                ['Genel Durum görselleri', true, true, true],
+                ['Departmanlar sayfası', 'ayara bağlı', 'ayara bağlı', true],
+                ['Departmanlar arası görev', false, 'talep', true],
+                ['Görünürlük ayarları', false, false, true],
                 ['Tüm verilere erişim', false, false, true],
               ].map(([feat, vol, coord, admin], i) => (
                 <tr key={i} className="border-b border-gray-50">
@@ -1701,6 +1705,32 @@ function HelpView({ me }) {
               ))}
             </tbody>
           </table>
+        </div>
+      </Accordion>
+
+      {/* ── Herkes ── */}
+      <Accordion title="📊 Genel Durum Sayfası Nedir?">
+        <div className="mt-2">
+          <p className="text-xs text-gray-600 leading-relaxed">Vakfın tüm çalışmalarının canlı görselleştirmelerini gösteren kapsamlı bir dashboard sayfasıdır. Herkes görebilir. İçerdiği bölümler:</p>
+          <div className="mt-2 space-y-1">
+            <p className="text-xs text-gray-500">📈 Departman aktivite çubuk grafiği (bu ay vs geçen ay)</p>
+            <p className="text-xs text-gray-500">🍩 Görev durumu pasta grafiği</p>
+            <p className="text-xs text-gray-500">🟩 30 günlük çalışma heatmap'i (GitHub tarzı)</p>
+            <p className="text-xs text-gray-500">📉 Haftalık saat trend grafiği</p>
+            <p className="text-xs text-gray-500">📋 Aktif görev ilerleme panosu</p>
+            <p className="text-xs text-gray-500">🫧 Gönüllü dağılımı bubble chart</p>
+            <p className="text-xs text-gray-500">🏆 Bu ayın en aktif gönüllüleri liderlik tablosu</p>
+            <p className="text-xs text-gray-500">⚡ Canlı aktivite akışı</p>
+          </div>
+          <p className="text-xs text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 Veriler Supabase'den gerçek zamanlı çekilir ve sayfa açılınca animasyonlu sayaçlarla gösterilir.</p>
+        </div>
+      </Accordion>
+
+      <Accordion title="🏢 Departmanlar Sayfası Nasıl Çalışır?">
+        <div className="mt-2">
+          <p className="text-xs text-gray-600 leading-relaxed">Diğer departmanların görevlerini, ilerlemelerini, saatlerini, vardiyalarını, sohbetlerini ve duyurularını görebileceğiniz bir sayfadır. Her departman bir kart olarak listelenir.</p>
+          <p className="text-xs text-gray-500 mt-2 leading-relaxed">Hangi bilgilerin görüneceğini yönetici "Görünürlük Ayarları" sayfasından kontrol eder. Kapalı bölümlerde 🔒 "Bu bilgi şu an görünür değil" mesajı görürsünüz.</p>
+          <p className="text-xs text-gray-500 mt-1 leading-relaxed">Kendi departmanınızın tüm verileri her zaman görünürdür.</p>
         </div>
       </Accordion>
 
@@ -1845,6 +1875,21 @@ function HelpView({ me }) {
         </div>
       </Accordion>
 
+      <Accordion title="🔒 Diğer Departmanların Bilgilerini Neden Göremiyorum?">
+        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Departman verileri varsayılan olarak kapalıdır. Yönetici, Görünürlük Ayarları sayfasından her departmanın hangi bilgilerinin diğer departmanlara açık olacağını belirler. Kapalı bir bölüm gördüğünüzde yöneticinize başvurabilirsiniz.</p>
+      </Accordion>
+
+      <Accordion title="🏢 Başka Departmandaki Göreve Nasıl Katılırım?">
+        <div className="mt-2">
+          <p className="text-xs text-gray-600 leading-relaxed">Departmanlar sayfasından ilgili departmanın detayına girin. Görevler sekmesinde "Bu departmandaki bir göreve katılmak istiyorum" butonuna tıklayın. Otomatik bir talep oluşturulur ve koordinatör/yönetici tarafından incelenir.</p>
+          <p className="text-xs text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 Alternatif olarak Taleplerim sayfasından "Başka bir göreve katılmak istiyorum" seçeneğini de kullanabilirsiniz.</p>
+        </div>
+      </Accordion>
+
+      <Accordion title="📊 Grafiklerdeki Veriler Ne Sıklıkla Güncelleniyor?">
+        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Genel Durum sayfasındaki tüm grafikler sayfa her açıldığında Supabase'den güncel verileri çeker. Saat kayıtları onaylandığında, görev ilerlemeleri güncellendiğinde ve yeni duyurular eklendiğinde veriler otomatik yansır. Sayfayı yenileyerek en güncel durumu görebilirsiniz.</p>
+      </Accordion>
+
       {/* ── Koordinatör Bölümü ── */}
       {isCoord && (
         <>
@@ -1955,6 +2000,24 @@ function HelpView({ me }) {
           <Accordion title="🔄 Departman Değişikliği Talebi Hangi Koordinatöre Gidiyor?">
             <p className="text-xs text-gray-600 mt-2 leading-relaxed">Departman değişikliği talebi hem mevcut departman koordinatörüne hem hedef departman koordinatörüne bildirim olarak gider. Ayrıca tüm yöneticilere de bildirim gider. Onaylayan kişi hedef departman koordinatörü veya yöneticidir.</p>
           </Accordion>
+
+          <Accordion title="🤝 Departmanlar Arası Görev Nasıl Oluşturulur?">
+            <div className="mt-2">
+              <HelpStep n="1" text={`Departmanlar sayfasından hedef departmanın detayına girin.`} />
+              <HelpStep n="2" text={`Sayfanın altındaki "Ortak görev öner" butonuna tıklayın.`} />
+              <HelpStep n="3" text={`Otomatik bir talep oluşturulur ve yöneticiye gider.`} />
+              <p className="text-xs text-gray-500 mt-2 leading-relaxed">Yönetici onayladığında her iki departman koordinatörüne bildirim gider ve ortak görev oluşturulabilir.</p>
+            </div>
+          </Accordion>
+
+          <Accordion title="🔀 Başka Departmandan Gönüllü Çekme Talebi Nasıl Yapılır?">
+            <div className="mt-2">
+              <HelpStep n="1" text={`Departmanlar sayfasından gönüllü çekmek istediğiniz departmanın detayına girin.`} />
+              <HelpStep n="2" text={`"Bu departmandan gönüllü çek" butonuna tıklayın.`} />
+              <HelpStep n="3" text={`Açıklamada kaç kişiye ihtiyacınız olduğunu ve hangi becerileri aradığınızı belirtin.`} />
+              <p className="text-xs text-gray-500 mt-2 leading-relaxed">Talep yöneticiye gider. Onaylandığında ilgili departman koordinatörü bilgilendirilir.</p>
+            </div>
+          </Accordion>
         </>
       )}
 
@@ -2037,6 +2100,33 @@ function HelpView({ me }) {
               <HelpStep n="2" text={`Kullanıcı kartına tıklayarak detayını açın.`} />
               <HelpStep n="3" text={`"Aktif Et" butonuna tıklayın.`} />
               <p className="text-xs text-gray-500 mt-2 leading-relaxed">Alternatif olarak, duraklatılmış kullanıcı giriş yapıp "Tekrar Aktif Ol" butonuna tıkladığında size otomatik talep gelir.</p>
+            </div>
+          </Accordion>
+
+          <Accordion title="⚙️ Görünürlük Ayarları Nasıl Çalışır?">
+            <div className="mt-2">
+              <p className="text-xs text-gray-600 leading-relaxed">Alt menüdeki "Görünürlük" sekmesinden departmanlar arası veri paylaşımını kontrol edersiniz. Her departman için 6 özellik ayrı ayrı açılıp kapatılabilir:</p>
+              <div className="mt-2 space-y-1">
+                <p className="text-xs text-gray-500">📋 Görevler — departmanın aktif görevleri</p>
+                <p className="text-xs text-gray-500">📊 İlerleme — görev ilerleme yüzdeleri</p>
+                <p className="text-xs text-gray-500">⏱️ Saatler — toplam onaylı saat (kişi bazlı detay yok)</p>
+                <p className="text-xs text-gray-500">📅 Vardiya — haftalık vardiya planı</p>
+                <p className="text-xs text-gray-500">💬 Sohbet — sadece okuma (mesaj yazma yok)</p>
+                <p className="text-xs text-gray-500">📢 Duyurular — departman duyuruları</p>
+              </div>
+              <p className="text-xs text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 "Hepsini Aç" ve "Hepsini Kapat" butonları ile toplu değişiklik yapabilirsiniz. Değişiklikler anında kaydedilir ve ilgili koordinatöre bildirim gider.</p>
+              <p className="text-xs text-gray-400 mt-1 bg-amber-50 rounded-lg p-2">⚠️ Güvenlik: Kapalı veriler sadece frontend'de değil, API seviyesinde de erişilemez.</p>
+            </div>
+          </Accordion>
+
+          <Accordion title="🤝 Departmanlar Arası Talepleri Nasıl Yönetirim?">
+            <div className="mt-2">
+              <p className="text-xs text-gray-600 leading-relaxed">Talepler sayfasında iki yeni talep tipi görebilirsiniz:</p>
+              <div className="mt-2 space-y-1.5">
+                <p className="text-xs text-gray-500"><span className="font-semibold">🤝 Ortak Görev:</span> Bir koordinatör başka departmanla ortak görev öneriyor. Onaylarsanız ilgili koordinatörlere bildirim gider.</p>
+                <p className="text-xs text-gray-500"><span className="font-semibold">🔀 Gönüllü Transferi:</span> Bir koordinatör başka departmandan gönüllü çekmek istiyor. Onaylarsanız kaynak departman koordinatörü bilgilendirilir.</p>
+              </div>
+              <p className="text-xs text-gray-500 mt-2 leading-relaxed">Bu talepler Talepler sayfasında tip filtresinden kolayca bulunabilir.</p>
             </div>
           </Accordion>
         </>
