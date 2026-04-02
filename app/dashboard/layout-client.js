@@ -16,7 +16,7 @@ const DEPTS = [
 const DM = Object.fromEntries(DEPTS.map(d=>[d.id,d]));
 const ROLES = { admin:{l:'Yönetici',i:'👑',c:'text-orange-500'}, coord:{l:'Koordinatör',i:'📋',c:'text-purple-500'}, vol:{l:'Gönüllü',i:'🤝',c:'text-emerald-500'} };
 const PRIORITIES = { high:{l:'Yüksek',c:'bg-red-100 text-red-600'}, medium:{l:'Orta',c:'bg-amber-100 text-amber-600'}, low:{l:'Düşük',c:'bg-emerald-100 text-emerald-600'} };
-const STATUSES = { pending:'Bekliyor', active:'Devam Ediyor', done:'Tamamlandı' };
+const STATUSES = { pending:'Bekliyor', active:'Devam Ediyor', done:'Tamamlandı', review:'Kontrol Bekliyor' };
 const HOUR_S = { pending:'Onay Bekliyor', approved:'Onaylandı', rejected:'Reddedildi' };
 const DAYS = ['Pzt','Sal','Çar','Per','Cum','Cmt','Paz'];
 const MO = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
@@ -59,7 +59,12 @@ export default function Dashboard({ session }) {
     <div className="flex items-center justify-center min-h-screen"><p className="text-gray-400">Yükleniyor...</p></div>
   );
 
-  const nav = me.role === 'admin'
+  // 4. Paused/inactive/resigned restricted view
+  const suspended = ['paused','inactive','resigned'].includes(me.status);
+
+  const nav = suspended
+    ? []
+    : me.role === 'admin'
     ? [['dashboard','🏠','Panel'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['announcements','📢','Duyuru'],['requests','📨','Talepler'],['applications','📩','Başvuru'],['help','❓','Yardım']]
     : me.role === 'coord'
     ? [['dashboard','🏠','Panel'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['announcements','📢','Duyuru'],['requests','📨','Talepler'],['help','❓','Yardım']]
@@ -75,19 +80,23 @@ export default function Dashboard({ session }) {
             <p className="text-white/40 text-xs mt-1">
               {ROLES[me.role]?.i} {me.display_name} · <span className={ROLES[me.role]?.c}>{ROLES[me.role]?.l}</span>
               {me.department && ` · ${DM[me.department]?.l}`}
+              {suspended && <span className="text-red-400 ml-1">({me.status === 'paused' ? 'Duraklatildi' : me.status === 'resigned' ? 'Ayrildi' : 'Pasif'})</span>}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setPage('notifications')} className="relative w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm hover:bg-white/20">
+            {!suspended && <button onClick={() => setPage('notifications')} className="relative w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm hover:bg-white/20">
               🔔
               {unread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-bold">{unread}</span>}
-            </button>
+            </button>}
             <button onClick={db.signOut} className="text-white/30 hover:text-white/60 text-xs">Çıkış</button>
           </div>
         </div>
       </div>
 
       <div className="max-w-2xl mx-auto px-4 pt-3">
+        {suspended ? (
+          <SuspendedView me={me} uid={uid} />
+        ) : (<>
         {page === 'dashboard' && <DashboardView uid={uid} me={me} can={can} setPage={setPage} />}
         {page === 'volunteers' && can('manage_vols') && <VolunteersView uid={uid} me={me} />}
         {page === 'tasks' && <TasksView uid={uid} me={me} can={can} />}
@@ -100,6 +109,7 @@ export default function Dashboard({ session }) {
         {page === 'notifications' && <NotificationsView uid={uid} onRead={() => setUnread(0)} />}
         {page === 'profile' && <ProfileView me={me} uid={uid} onUpdate={m => setMe(m)} />}
         {page === 'help' && <HelpView me={me} />}
+        </>)}
       </div>
 
       {/* Nav */}
@@ -127,6 +137,40 @@ function useAdminEmail() {
     });
   }, []);
   return { adminEmail, adminId };
+}
+
+// ─── SUSPENDED VIEW ──────────────────────
+function SuspendedView({ me, uid }) {
+  const [sent, setSent] = useState(false);
+  const { adminId } = useAdminEmail();
+  const reactivate = async () => {
+    if (!adminId) return;
+    await db.createRequest({ user_id: uid, type: 'other', title: 'Tekrar Aktif', description: `${me.display_name} tekrar aktif olmak istiyor. (Mevcut durum: ${me.status})` });
+    await db.sendNotification(adminId, 'system', '📨 Tekrar aktif olma talebi', `${me.display_name} tekrar aktif olmak istiyor.`);
+    setSent(true);
+  };
+  const statusText = me.status === 'paused' ? 'Hesabiniz duraklatildi' : me.status === 'resigned' ? 'Vakiftan ayrildiniz' : 'Hesabiniz pasife alindi';
+  return (
+    <div className="fade-up space-y-4 text-center pt-8">
+      <div className="text-5xl">{me.status === 'paused' ? '⏸️' : me.status === 'resigned' ? '👋' : '🔒'}</div>
+      <h2 className="text-lg font-bold text-gray-700">{statusText}</h2>
+      <p className="text-xs text-gray-400">Sisteme erisim kisitlanmistir. Tekrar aktif olmak icin talep gonderebilirsiniz.</p>
+      {me.status !== 'resigned' && (
+        sent ? (
+          <div className="bg-green-50 text-green-700 text-xs rounded-xl px-4 py-3">Talebiniz yoneticiye iletildi!</div>
+        ) : (
+          <button onClick={reactivate} className="btn-primary mx-auto">Tekrar Aktif Ol</button>
+        )
+      )}
+      <div className="card !mt-8 text-left">
+        <div className="text-xs font-bold mb-2">Profil Bilgileri</div>
+        <div className="text-xs text-gray-500">{me.display_name}</div>
+        <div className="text-xs text-gray-400">{me.email}</div>
+        {me.department && <div className="text-xs text-gray-400">{DM[me.department]?.i} {DM[me.department]?.l}</div>}
+        <div className="text-xs text-gray-400">Toplam: {Number(me.total_hours || 0).toFixed(0)} saat</div>
+      </div>
+    </div>
+  );
 }
 
 // ─── DASHBOARD ────────────────────────────
@@ -157,9 +201,18 @@ function DashboardView({ uid, me, can, setPage }) {
   }, [can]);
 
   const sendSupport = async () => {
-    if (!supMsg.trim() || !adminId) return;
+    if (!supMsg.trim()) return;
     setSupLoading(true);
-    await db.sendNotification(adminId, 'system', `🆘 Destek: ${supTopic}`, `${me.display_name}: ${supMsg}`);
+    // Route: vol→coord (fallback admin), coord→admin
+    let targetIds = [];
+    if (me.role === 'vol' && me.department) {
+      const { data: coords } = await db.getCoordsByDept(me.department);
+      targetIds = (coords || []).map(c => c.id);
+    }
+    if (targetIds.length === 0 && adminId) targetIds = [adminId];
+    for (const tid of targetIds) {
+      await db.sendNotification(tid, 'system', `🆘 Destek: ${supTopic}`, `${me.display_name}: ${supMsg}`);
+    }
     setSupLoading(false);
     setSupSent(true);
     setSupMsg('');
@@ -236,33 +289,34 @@ function DashboardView({ uid, me, can, setPage }) {
         </>
       )}
 
-      {/* Destek Talebi */}
-      <button onClick={() => setShowSupport(!showSupport)} className="w-full card !p-3 flex items-center justify-center gap-2 hover:shadow-md transition-shadow cursor-pointer">
-        <span className="text-base">🆘</span>
-        <span className="text-xs font-semibold text-gray-600">Destek Talebi Gönder</span>
-      </button>
-
-      {showSupport && (
-        <div className="card space-y-2.5">
-          <h3 className="text-sm font-bold text-center">🆘 Destek Talebi</h3>
-          <select value={supTopic} onChange={e => setSupTopic(e.target.value)} className="input-field !text-xs">
-            <option>Teknik Sorun</option>
-            <option>Saat Kaydı</option>
-            <option>Görev</option>
-            <option>Vardiya</option>
-            <option>Diğer</option>
-          </select>
-          <textarea className="input-field !text-xs" rows={3} placeholder="Mesajınızı yazın..." value={supMsg} onChange={e => setSupMsg(e.target.value)} />
-          {supSent ? (
-            <div className="bg-green-50 text-green-700 text-xs rounded-xl px-4 py-2.5 text-center">Talebiniz iletildi!</div>
-          ) : (
-            <button onClick={sendSupport} disabled={supLoading || !supMsg.trim()} className="btn-primary w-full !text-sm disabled:opacity-50">
-              {supLoading ? 'Gönderiliyor...' : 'Gönder'}
-            </button>
-          )}
-          {adminEmail && <p className="text-[10px] text-gray-400 text-center">Sistem yöneticisi: {adminEmail}</p>}
-        </div>
-      )}
+      {/* Destek Talebi - admin görmez */}
+      {me.role !== 'admin' && (<>
+        <button onClick={() => setShowSupport(!showSupport)} className="w-full card !p-3 flex items-center justify-center gap-2 hover:shadow-md transition-shadow cursor-pointer">
+          <span className="text-base">🆘</span>
+          <span className="text-xs font-semibold text-gray-600">Destek Talebi Gönder</span>
+        </button>
+        {showSupport && (
+          <div className="card space-y-2.5">
+            <h3 className="text-sm font-bold text-center">🆘 Destek Talebi</h3>
+            <select value={supTopic} onChange={e => setSupTopic(e.target.value)} className="input-field !text-xs">
+              <option>Teknik Sorun</option>
+              <option>Saat Kaydı</option>
+              <option>Görev</option>
+              <option>Vardiya</option>
+              <option>Diğer</option>
+            </select>
+            <textarea className="input-field !text-xs" rows={3} placeholder="Mesajınızı yazın..." value={supMsg} onChange={e => setSupMsg(e.target.value)} />
+            {supSent ? (
+              <div className="bg-green-50 text-green-700 text-xs rounded-xl px-4 py-2.5 text-center">Talebiniz iletildi!</div>
+            ) : (
+              <button onClick={sendSupport} disabled={supLoading || !supMsg.trim()} className="btn-primary w-full !text-sm disabled:opacity-50">
+                {supLoading ? 'Gönderiliyor...' : 'Gönder'}
+              </button>
+            )}
+            {adminEmail && <p className="text-[10px] text-gray-400 text-center">Sistem yöneticisi: {adminEmail}</p>}
+          </div>
+        )}
+      </>)}
     </div>
   );
 }
@@ -389,7 +443,7 @@ function TasksView({ uid, me, can }) {
                 <span className="text-[10px] font-semibold text-gray-500">{Math.round(t.progress || 0)}%</span>
               </div>
               <div className="flex items-center gap-2 mt-1.5">
-                <span className={`badge ${t.status === 'done' ? 'bg-emerald-50 text-emerald-600' : t.status === 'active' ? 'bg-amber-50 text-amber-600' : 'bg-gray-100 text-gray-400'}`}>{STATUSES[t.status]}</span>
+                <span className={`badge ${t.status === 'done' ? 'bg-emerald-50 text-emerald-600' : t.status === 'review' ? 'bg-blue-50 text-blue-600' : t.status === 'active' ? 'bg-amber-50 text-amber-600' : 'bg-gray-100 text-gray-400'}`}>{STATUSES[t.status]}</span>
                 {/* Assigned avatars */}
                 {t.assigned_to?.length > 0 && (
                   <div className="flex -space-x-1.5">
@@ -477,7 +531,7 @@ function TaskDetail({ task, uid, me, can, vols, onBack }) {
       <div className="card">
         <div className="flex items-center gap-2 mb-2">
           <span className={`badge ${PRIORITIES[task.priority]?.c}`}>{PRIORITIES[task.priority]?.l}</span>
-          <span className={`badge ${task.status === 'done' ? 'bg-emerald-50 text-emerald-600' : task.status === 'active' ? 'bg-amber-50 text-amber-600' : 'bg-gray-100 text-gray-400'}`}>{STATUSES[task.status]}</span>
+          <span className={`badge ${task.status === 'done' ? 'bg-emerald-50 text-emerald-600' : task.status === 'review' ? 'bg-blue-50 text-blue-600' : task.status === 'active' ? 'bg-amber-50 text-amber-600' : 'bg-gray-100 text-gray-400'}`}>{STATUSES[task.status]}</span>
         </div>
         <h2 className="font-bold text-base">{task.title}</h2>
         <div className="text-[11px] text-gray-400 mt-1">{DM[task.department]?.i} {DM[task.department]?.l}{task.deadline && ` · Son: ${fdf(task.deadline)}`}</div>
@@ -505,7 +559,7 @@ function TaskDetail({ task, uid, me, can, vols, onBack }) {
         </div>
         <ProgressBar value={progress} />
 
-        {canEdit && task.status !== 'done' && (
+        {canEdit && task.status !== 'done' && task.status !== 'review' && (
           <div className="mt-3 pt-3 border-t border-gray-50 space-y-2">
             <div className="flex items-center gap-3">
               <input type="range" min="0" max="100" step="5" value={newProg} onChange={e => setNewProg(Number(e.target.value))} className="flex-1 accent-emerald-600" />
@@ -514,6 +568,15 @@ function TaskDetail({ task, uid, me, can, vols, onBack }) {
             <input className="input-field !text-xs" placeholder="Ne yaptım? (not)" value={progNote} onChange={e => setProgNote(e.target.value)} />
             <button onClick={submitProgress} disabled={loading} className="btn-primary w-full !text-xs disabled:opacity-50">{loading ? '...' : 'Guncelle'}</button>
           </div>
+        )}
+        {task.status === 'review' && can('assign_tasks') && (
+          <div className="mt-3 pt-3 border-t border-gray-50">
+            <p className="text-[10px] text-blue-600 mb-2">%100 tamamlandi, koordinator onayi bekleniyor.</p>
+            <button onClick={async () => { await db.updateTask(task.id, { status: 'done', completed_at: new Date().toISOString() }); onBack(); }} className="btn-primary w-full !text-xs">✓ Tamamlandiyi Onayla</button>
+          </div>
+        )}
+        {task.status === 'review' && !can('assign_tasks') && (
+          <p className="mt-2 text-[10px] text-blue-500">Koordinator onayi bekleniyor...</p>
         )}
       </div>
 
@@ -824,6 +887,7 @@ const REQ_TYPES = {
   task_help: { l: 'Gorevim icin yardim istiyorum', i: '🆘', short: 'Yardim Talebi' },
   pause: { l: 'Bir sure ara vermek istiyorum', i: '⏸️', short: 'Ara Verme' },
   deactivate: { l: 'Hesabimi pasife almak istiyorum', i: '🔒', short: 'Pasife Alma' },
+  resign: { l: 'Vakiftan ayrilmak istiyorum', i: '👋', short: 'Ayrilma' },
   extra_volunteer: { l: 'Ek gonullu talebi', i: '👥', short: 'Ek Gonullu' },
   other: { l: 'Diger', i: '📝', short: 'Diger' },
 };
@@ -873,10 +937,19 @@ function MyRequestsView({ uid, me }) {
       target_task_id: ['task_cancel','task_join','task_help'].includes(type) ? targetTask || null : null,
     };
     await db.createRequest(reqData);
-    // Notify admins
+    // Notify: admins + relevant coordinators
     const { data: admins } = await db.getProfilesByRole('admin');
-    for (const a of (admins || [])) {
-      await db.sendNotification(a.id, 'system', `📨 Yeni talep: ${title}`, `${me.display_name}: ${desc.slice(0, 80)}`);
+    const notifyIds = new Set((admins || []).map(a => a.id));
+    // For dept_change, notify both current and target dept coordinators
+    if (['dept_change','dept_join'].includes(type)) {
+      if (me.department) { const { data: c } = await db.getCoordsByDept(me.department); (c || []).forEach(x => notifyIds.add(x.id)); }
+      if (targetDept) { const { data: c } = await db.getCoordsByDept(targetDept); (c || []).forEach(x => notifyIds.add(x.id)); }
+    } else if (me.department) {
+      const { data: c } = await db.getCoordsByDept(me.department); (c || []).forEach(x => notifyIds.add(x.id));
+    }
+    notifyIds.delete(uid); // Don't notify self
+    for (const nid of notifyIds) {
+      await db.sendNotification(nid, 'system', `📨 Yeni talep: ${title}`, `${me.display_name}: ${desc.slice(0, 80)}`);
     }
     setShow(false); setDesc(''); setType('other'); setTargetDept(''); setTargetTask('');
     setLoading(false);
@@ -898,7 +971,7 @@ function MyRequestsView({ uid, me }) {
       {show && (
         <div className="card border-l-4 border-blue-400 space-y-2">
           <select className="input-field !text-xs" value={type} onChange={e => setType(e.target.value)}>
-            {Object.entries(REQ_TYPES).filter(([k]) => k !== 'extra_volunteer').map(([k, v]) => (
+            {Object.entries(REQ_TYPES).filter(([k]) => me.role === 'coord' ? k !== 'resign' : k !== 'extra_volunteer').map(([k, v]) => (
               <option key={k} value={k}>{v.i} {v.l}</option>
             ))}
           </select>
@@ -981,6 +1054,18 @@ function ManageRequestsView({ uid, me }) {
     if (req && status === 'approved') {
       // Otomatik aksiyonlar
       if (req.type === 'dept_change' && req.target_dept) {
+        // Notify both old and new dept coordinators
+        const oldDept = req.profiles?.department;
+        if (oldDept) {
+          const { data: oldCoords } = await db.getCoordsByDept(oldDept);
+          for (const c of (oldCoords || [])) {
+            if (c.id !== uid) await db.sendNotification(c.id, 'system', `🔄 ${req.profiles?.display_name} departmandan ayrildi`, `${DM[oldDept]?.l} → ${DM[req.target_dept]?.l}`);
+          }
+        }
+        const { data: newCoords } = await db.getCoordsByDept(req.target_dept);
+        for (const c of (newCoords || [])) {
+          if (c.id !== uid) await db.sendNotification(c.id, 'system', `🔄 ${req.profiles?.display_name} departmana katildi`, `${DM[oldDept]?.l || '?'} → ${DM[req.target_dept]?.l}`);
+        }
         await db.setUserDept(req.user_id, req.target_dept);
       } else if (req.type === 'task_cancel' && req.target_task_id) {
         const { data: task } = await db.getTasks();
@@ -999,11 +1084,27 @@ function ManageRequestsView({ uid, me }) {
               await db.sendNotification(v.id, 'task', `🆘 Yardim araniyor: ${req.tasks?.title || ''}`, `${req.profiles?.display_name} bu gorev icin yardim istiyor`);
             }
           }
+          // Duyuru olarak da ekle
+          await db.createAnnouncement({ title: `🆘 Yardim Araniyor: ${req.tasks?.title || ''}`, body: `${req.profiles?.display_name} "${req.tasks?.title}" gorevi icin yardim ariyor. ${req.description || ''}`, author_id: uid, department: dept, is_pinned: false });
         }
+      } else if (req.type === 'dept_join' && req.target_dept) {
+        await db.addSecondaryDept(req.user_id, req.target_dept);
       } else if (req.type === 'pause') {
         await db.setUserStatus(req.user_id, 'paused');
       } else if (req.type === 'deactivate') {
         await db.setUserStatus(req.user_id, 'inactive');
+      } else if (req.type === 'resign') {
+        await db.setUserStatus(req.user_id, 'resigned');
+        // Remove from all task assignments
+        const { data: allTasks } = await db.getTasks();
+        for (const t of (allTasks || [])) {
+          if (t.assigned_to?.includes(req.user_id)) {
+            await db.updateTask(t.id, { assigned_to: t.assigned_to.filter(x => x !== req.user_id) });
+          }
+        }
+        // Delete shifts
+        const { data: shifts } = await db.getShifts({ volunteerId: req.user_id });
+        for (const s of (shifts || [])) { await db.deleteShift(s.id); }
       } else if (req.type === 'extra_volunteer') {
         const { data: allVols } = await db.getProfilesByRole('vol');
         for (const v of (allVols || []).slice(0, 30)) {
@@ -1055,7 +1156,7 @@ function ManageRequestsView({ uid, me }) {
               {r.tasks?.title && <div className="text-[10px] text-gray-400 mt-0.5">Gorev: {r.tasks.title}</div>}
               <div className="text-[10px] text-gray-300 mt-1">{fdf(r.created_at)}</div>
 
-              {r.status === 'pending' && (
+              {r.status === 'pending' && r.user_id !== uid && (
                 <div className="mt-2 pt-2 border-t border-gray-50">
                   {reviewingId === r.id ? (
                     <div className="space-y-1.5">
@@ -1071,6 +1172,11 @@ function ManageRequestsView({ uid, me }) {
                       <button onClick={() => setReviewingId(r.id)} className="badge bg-blue-50 text-blue-600 cursor-pointer">Incele</button>
                     </div>
                   )}
+                </div>
+              )}
+              {r.status === 'pending' && r.user_id === uid && (
+                <div className="mt-2 pt-2 border-t border-gray-50">
+                  <p className="text-[10px] text-gray-400">Kendi talebinizi onaylayamazsiniz</p>
                 </div>
               )}
               {r.review_note && r.status !== 'pending' && (
@@ -1127,6 +1233,12 @@ function ChatView({ uid, me }) {
         <div className="flex gap-1.5 flex-wrap">
           {DEPTS.map(d => (
             <button key={d.id} onClick={() => setDept(d.id)} className={`text-[10px] font-semibold px-2.5 py-1 rounded-lg transition-all ${dept === d.id ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400'}`}>{d.i} {d.id}</button>
+          ))}
+        </div>
+      ) : (me.secondary_departments?.length > 0) ? (
+        <div className="flex gap-1.5 flex-wrap">
+          {[me.department, ...(me.secondary_departments || [])].filter(Boolean).map(d => (
+            <button key={d} onClick={() => setDept(d)} className={`text-[10px] font-semibold px-2.5 py-1 rounded-lg transition-all ${dept === d ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400'}`}>{DM[d]?.i} {DM[d]?.l?.split(' ')[0]}</button>
           ))}
         </div>
       ) : (
