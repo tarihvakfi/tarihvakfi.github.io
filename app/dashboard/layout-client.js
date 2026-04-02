@@ -25,10 +25,27 @@ const fd = d => { const x = new Date(d); return `${x.getDate()} ${MO[x.getMonth(
 const fdf = d => { const x = new Date(d); return `${x.getDate()} ${MO[x.getMonth()]} ${x.getFullYear()}`; };
 const today = () => new Date().toISOString().slice(0,10);
 
+// ─── SUB TAB BAR ─────────────────────────
+function SubTabBar({ tabs, active, onChange }) {
+  return (
+    <div className="sticky top-0 z-40 -mx-4 px-4 pt-1 pb-2 bg-stone-50">
+      <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+        {tabs.map(([id, label]) => (
+          <button key={id} onClick={() => onChange(id)}
+            className={`whitespace-nowrap px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex-shrink-0 ${active === id ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard({ session }) {
   const uid = session.user.id;
   const [me, setMe] = useState(null);
-  const [page, setPage] = useState('dashboard');
+  const [mainTab, setMainTab] = useState('panel');
+  const [subTab, setSubTab] = useState('');
   const [loading, setLoading] = useState(true);
   const [unread, setUnread] = useState(0);
 
@@ -60,19 +77,48 @@ export default function Dashboard({ session }) {
     <div className="flex items-center justify-center min-h-screen"><p className="text-gray-400">Yükleniyor...</p></div>
   );
 
-  // 4. Paused/inactive/resigned restricted view
   const suspended = ['paused','inactive','resigned'].includes(me.status);
+  const isCoordOrAdmin = me.role === 'admin' || me.role === 'coord';
 
-  const nav = suspended
-    ? []
-    : me.role === 'admin'
-    ? [['dashboard','🏠','Panel'],['overview','📊','Durum'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['departments','🏢','Deptlar'],['announcements','📢','Duyuru'],['requests','📨','Talepler'],['visibility','⚙️','Görünürlük'],['applications','📩','Başvuru'],['help','❓','Yardım']]
+  // Sub-tabs per main tab
+  const workTabs = me.role === 'admin'
+    ? [['tasks','Görevler'],['hours','Saatler'],['schedule','Vardiya'],['departments','Deptlar'],['volunteers','Gönüllüler'],['applications','Başvuru'],['visibility','Görünürlük']]
     : me.role === 'coord'
-    ? [['dashboard','🏠','Panel'],['overview','📊','Durum'],['volunteers','👥','Gönüllüler'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['departments','🏢','Deptlar'],['announcements','📢','Duyuru'],['requests','📨','Talepler'],['help','❓','Yardım']]
-    : [['dashboard','🏠','Panel'],['overview','📊','Durum'],['tasks','📋','Görevler'],['hours','⏱️','Saatler'],['schedule','📅','Vardiya'],['chat','💬','Sohbet'],['departments','🏢','Deptlar'],['announcements','📢','Duyurular'],['requests','📨','Taleplerim'],['help','❓','Yardım']];
+    ? [['tasks','Görevler'],['hours','Saatler'],['schedule','Vardiya'],['departments','Deptlar'],['volunteers','Gönüllüler']]
+    : [['tasks','Görevler'],['hours','Saatler'],['schedule','Vardiya'],['departments','Deptlar']];
+  const commTabs = [['chat','Sohbet'],['announcements','Duyurular'],['requests', isCoordOrAdmin ? 'Talepler' : 'Taleplerim']];
+  const meTabs = [['profile','Profil'],['help','Yardım'],['notifications','Bildirimler']];
+
+  // Set default sub-tab when main tab changes
+  const setMain = (tab) => {
+    setMainTab(tab);
+    if (tab === 'isler') setSubTab(s => workTabs.some(([id]) => id === s) ? s : 'tasks');
+    else if (tab === 'iletisim') setSubTab(s => commTabs.some(([id]) => id === s) ? s : 'chat');
+    else if (tab === 'ben') setSubTab(s => meTabs.some(([id]) => id === s) ? s : 'profile');
+    else setSubTab('');
+  };
+
+  // Quick navigate helper (used by DashboardView)
+  const goTo = (main, sub) => { setMainTab(main); setSubTab(sub); };
+
+  // Determine active page
+  const activePage = mainTab === 'panel' ? 'dashboard'
+    : mainTab === 'durum' ? 'overview'
+    : mainTab === 'isler' ? (subTab || 'tasks')
+    : mainTab === 'iletisim' ? (subTab || 'chat')
+    : mainTab === 'ben' ? (subTab || 'profile')
+    : 'dashboard';
+
+  const mainNav = suspended ? [] : [
+    ['panel','🏠','Panel'],
+    ['durum','📊','Durum'],
+    ['isler','💼','İşler'],
+    ['iletisim','💬','İletişim'],
+    ['ben','👤','Ben'],
+  ];
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen pb-[72px]">
       {/* Header */}
       <div className="bg-gradient-to-br from-gray-800 to-gray-900 px-5 pt-5 pb-4 rounded-b-3xl">
         <div className="max-w-2xl mx-auto flex justify-between items-center">
@@ -85,10 +131,12 @@ export default function Dashboard({ session }) {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {!suspended && <button onClick={() => setPage('notifications')} className="relative w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm hover:bg-white/20">
-              🔔
-              {unread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold">{unread}</span>}
-            </button>}
+            {!suspended && (
+              <button onClick={() => goTo('ben','notifications')} className="relative w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm hover:bg-white/20">
+                🔔
+                {unread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold">{unread}</span>}
+              </button>
+            )}
             <button onClick={db.signOut} className="text-white/30 hover:text-white/60 text-xs">Çıkış</button>
           </div>
         </div>
@@ -98,35 +146,47 @@ export default function Dashboard({ session }) {
         {suspended ? (
           <SuspendedView me={me} uid={uid} />
         ) : (<>
-        {page === 'dashboard' && <DashboardView uid={uid} me={me} can={can} setPage={setPage} />}
-        {page === 'overview' && <OverviewView uid={uid} me={me} />}
-        {page === 'volunteers' && can('manage_vols') && <VolunteersView uid={uid} me={me} />}
-        {page === 'tasks' && <TasksView uid={uid} me={me} can={can} />}
-        {page === 'hours' && <HoursView uid={uid} me={me} can={can} />}
-        {page === 'schedule' && <ScheduleView uid={uid} me={me} can={can} />}
-        {page === 'announcements' && <AnnouncementsView uid={uid} me={me} can={can} />}
-        {page === 'applications' && can('manage_vols') && <ApplicationsView uid={uid} me={me} />}
-        {page === 'chat' && <ChatView uid={uid} me={me} />}
-        {page === 'departments' && <DepartmentsView uid={uid} me={me} can={can} />}
-        {page === 'visibility' && me.role === 'admin' && <VisibilityView uid={uid} />}
-        {page === 'requests' && <RequestsView uid={uid} me={me} can={can} />}
-        {page === 'notifications' && <NotificationsView uid={uid} onRead={() => setUnread(0)} />}
-        {page === 'profile' && <ProfileView me={me} uid={uid} onUpdate={m => setMe(m)} />}
-        {page === 'help' && <HelpView me={me} />}
+          {/* Sub tab bars */}
+          {mainTab === 'isler' && <SubTabBar tabs={workTabs} active={subTab} onChange={setSubTab} />}
+          {mainTab === 'iletisim' && <SubTabBar tabs={commTabs} active={subTab} onChange={setSubTab} />}
+          {mainTab === 'ben' && <SubTabBar tabs={meTabs} active={subTab} onChange={setSubTab} />}
+
+          {/* Pages */}
+          {activePage === 'dashboard' && <DashboardView uid={uid} me={me} can={can} goTo={goTo} />}
+          {activePage === 'overview' && <OverviewView uid={uid} me={me} />}
+          {activePage === 'tasks' && <TasksView uid={uid} me={me} can={can} />}
+          {activePage === 'hours' && <HoursView uid={uid} me={me} can={can} />}
+          {activePage === 'schedule' && <ScheduleView uid={uid} me={me} can={can} />}
+          {activePage === 'departments' && <DepartmentsView uid={uid} me={me} can={can} />}
+          {activePage === 'volunteers' && can('manage_vols') && <VolunteersView uid={uid} me={me} />}
+          {activePage === 'chat' && <ChatView uid={uid} me={me} />}
+          {activePage === 'announcements' && <AnnouncementsView uid={uid} me={me} can={can} />}
+          {activePage === 'requests' && <RequestsView uid={uid} me={me} can={can} />}
+          {activePage === 'profile' && <ProfileView me={me} uid={uid} onUpdate={m => setMe(m)} />}
+          {activePage === 'help' && <HelpView me={me} />}
+          {activePage === 'notifications' && <NotificationsView uid={uid} onRead={() => setUnread(0)} />}
+          {activePage === 'applications' && can('manage_vols') && <ApplicationsView uid={uid} me={me} />}
+          {activePage === 'visibility' && me.role === 'admin' && <VisibilityView uid={uid} />}
         </>)}
       </div>
 
-      {/* Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/97 backdrop-blur border-t border-gray-100 py-1.5 z-50">
-        <div className="max-w-2xl mx-auto flex justify-around">
-          {[...nav, ['profile','👤','Profil']].map(([id,ic,lb]) => (
-            <button key={id} onClick={() => setPage(id)} className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg transition-all ${page === id ? 'text-emerald-600' : 'text-gray-400'}`}>
-              <span className="text-lg">{ic}</span>
-              <span className="text-[11px] font-semibold">{lb}</span>
-            </button>
-          ))}
-        </div>
-      </nav>
+      {/* Bottom Nav — 5 tabs */}
+      {!suspended && (
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50" style={{ height: 56 }}>
+          <div className="max-w-2xl mx-auto flex h-full">
+            {mainNav.map(([id, ic, lb]) => {
+              const active = mainTab === id;
+              return (
+                <button key={id} onClick={() => setMain(id)} className="flex-1 flex flex-col items-center justify-center gap-0.5 relative transition-all">
+                  {active && <div className="absolute top-0 left-1/4 right-1/4 h-[3px] bg-emerald-500 rounded-b" />}
+                  <span className={`text-lg ${active ? '' : 'grayscale opacity-50'}`}>{ic}</span>
+                  <span className={`text-[11px] ${active ? 'font-bold text-emerald-600' : 'font-medium text-gray-400'}`}>{lb}</span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      )}
     </div>
   );
 }
@@ -178,7 +238,7 @@ function SuspendedView({ me, uid }) {
 }
 
 // ─── DASHBOARD ────────────────────────────
-function DashboardView({ uid, me, can, setPage }) {
+function DashboardView({ uid, me, can, goTo }) {
   const [stats, setStats] = useState(null);
   const [anns, setAnns] = useState([]);
   const [showSupport, setShowSupport] = useState(false);
@@ -243,28 +303,52 @@ function DashboardView({ uid, me, can, setPage }) {
         </div>
       )}
 
-      <div className="text-sm font-bold">⚡ Hızlı İşlemler</div>
-      <div className="grid grid-cols-3 gap-2">
-        {me.role === 'vol' && <>
-          <QA ic="⏱️" lb="Saat Kaydet" onClick={() => setPage('hours')} />
-          <QA ic="📋" lb="Görevlerim" onClick={() => setPage('tasks')} />
-          <QA ic="📅" lb="Vardiyam" onClick={() => setPage('schedule')} />
-        </>}
-        {can('manage_vols') && <>
-          <QA ic="👥" lb="Gönüllüler" onClick={() => setPage('volunteers')} />
-          <QA ic="📋" lb="Görev Ata" onClick={() => setPage('tasks')} />
-          <QA ic="⏱️" lb="Onayla" onClick={() => setPage('hours')} />
-        </>}
-        {can('manage_vols') && pendingReqs > 0 && (
-          <div className="col-span-3">
-            <button onClick={() => setPage('requests')} className="w-full card !p-2.5 flex items-center justify-center gap-2 hover:shadow-md transition-shadow cursor-pointer border-l-4 border-amber-400">
-              <span>📨</span>
-              <span className="text-xs font-semibold text-gray-600">Bekleyen Talepler</span>
-              <span className="bg-red-500 text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full">{pendingReqs}</span>
-            </button>
-          </div>
+      {/* Gönüllü */}
+      {me.role === 'vol' && (<>
+        <div className="text-sm font-bold">⚡ Hızlı İşlemler</div>
+        <div className="grid grid-cols-2 gap-3">
+          <QA ic="⏱️" lb="Saat Kaydet" onClick={() => goTo('isler','hours')} />
+          <QA ic="📋" lb="Görevlerim" onClick={() => goTo('isler','tasks')} />
+          <QA ic="📨" lb="Yeni Talep" onClick={() => goTo('iletisim','requests')} />
+          <QA ic="🆘" lb="Destek" onClick={() => setShowSupport(true)} />
+        </div>
+      </>)}
+      {/* Koordinatör */}
+      {me.role === 'coord' && (<>
+        <div className="text-sm font-bold">📋 Operasyon</div>
+        <div className="grid grid-cols-3 gap-3">
+          <QA ic="📋" lb="Görev Ata" onClick={() => goTo('isler','tasks')} />
+          <QA ic="⏱️" lb="Saat Onayla" onClick={() => goTo('isler','hours')} />
+          <QA ic="📨" lb="Talepler" onClick={() => goTo('iletisim','requests')} />
+        </div>
+        {pendingReqs > 0 && (
+          <button onClick={() => goTo('iletisim','requests')} className="w-full card !p-2.5 flex items-center justify-center gap-2 hover:shadow-md transition-shadow cursor-pointer border-l-4 border-amber-400">
+            <span>📨</span><span className="text-xs font-semibold text-gray-600">Bekleyen Talepler</span>
+            <span className="bg-red-500 text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full">{pendingReqs}</span>
+          </button>
         )}
-      </div>
+      </>)}
+      {/* Yönetici */}
+      {me.role === 'admin' && (<>
+        <div className="text-sm font-bold">👥 Yönetim</div>
+        <div className="grid grid-cols-3 gap-3">
+          <QA ic="👥" lb="Gönüllüler" onClick={() => goTo('isler','volunteers')} />
+          <QA ic="📩" lb="Başvurular" onClick={() => goTo('isler','applications')} />
+          <QA ic="⚙️" lb="Görünürlük" onClick={() => goTo('isler','visibility')} />
+        </div>
+        <div className="text-sm font-bold">📋 Operasyon</div>
+        <div className="grid grid-cols-3 gap-3">
+          <QA ic="📋" lb="Görev Ata" onClick={() => goTo('isler','tasks')} />
+          <QA ic="⏱️" lb="Saat Onayla" onClick={() => goTo('isler','hours')} />
+          <QA ic="📨" lb="Talepler" onClick={() => goTo('iletisim','requests')} />
+        </div>
+        {pendingReqs > 0 && (
+          <button onClick={() => goTo('iletisim','requests')} className="w-full card !p-2.5 flex items-center justify-center gap-2 hover:shadow-md transition-shadow cursor-pointer border-l-4 border-amber-400">
+            <span>📨</span><span className="text-xs font-semibold text-gray-600">Bekleyen Talepler</span>
+            <span className="bg-red-500 text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full">{pendingReqs}</span>
+          </button>
+        )}
+      </>)}
 
       {anns.filter(a => a.is_pinned).map(a => (
         <div key={a.id} className="card border-l-4 border-amber-400">
