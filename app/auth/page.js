@@ -52,20 +52,20 @@ export default function AuthPage() {
     setLoading(false);
   };
 
-  const inputCls = "w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all";
-  const btnPrimary = "w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl py-3 px-4 text-sm transition-all active:scale-[0.98] disabled:opacity-50";
-  const btnBack = "text-sm text-gray-400 hover:text-gray-600 transition-colors";
+  const inputCls = "w-full bg-white border border-gray-200 rounded-xl px-4 py-3.5 text-[15px] outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all";
+  const btnPrimary = "w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl py-3.5 px-4 text-[15px] transition-all active:scale-[0.98] disabled:opacity-50";
+  const btnBack = "text-[14px] text-gray-400 hover:text-gray-600 transition-colors";
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-stone-50 to-stone-100">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="text-5xl mb-3">🏛️</div>
-          <h1 className="text-2xl font-bold text-gray-800" style={{ fontFamily: "'Playfair Display', serif" }}>
+          <div className="text-6xl mb-3">🏛️</div>
+          <h1 className="text-3xl font-bold text-gray-800" style={{ fontFamily: "'Playfair Display', serif" }}>
             Tarih Vakfı
           </h1>
-          <p className="text-gray-400 text-sm mt-1">Gönüllü Yönetim Sistemi</p>
+          <p className="text-gray-400 text-base mt-1">Gönüllü Yönetim Sistemi</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
@@ -75,7 +75,7 @@ export default function AuthPage() {
             <div className="space-y-3">
               {/* Google */}
               <button onClick={handleGoogle}
-                className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-gray-700 font-semibold rounded-xl py-3 px-4 text-sm border border-gray-200 transition-all active:scale-[0.98]">
+                className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-gray-700 font-semibold rounded-xl py-3.5 px-4 text-[15px] border border-gray-200 transition-all active:scale-[0.98]">
                 <svg width="18" height="18" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -94,12 +94,12 @@ export default function AuthPage() {
 
               {/* Email login/signup */}
               <button onClick={() => { clear(); setMode('email-login'); }}
-                className="w-full bg-gray-800 hover:bg-gray-900 text-white font-semibold rounded-xl py-3 text-sm transition-all active:scale-[0.98]">
+                className="w-full bg-gray-800 hover:bg-gray-900 text-white font-semibold rounded-xl py-3.5 text-[15px] transition-all active:scale-[0.98]">
                 E-posta ile Giriş
               </button>
 
               <button onClick={() => { clear(); setMode('email-signup'); }}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl py-3 text-sm transition-all active:scale-[0.98]">
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl py-3.5 text-[15px] transition-all active:scale-[0.98]">
                 Yeni Kayıt Ol
               </button>
             </div>

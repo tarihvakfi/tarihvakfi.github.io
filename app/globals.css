@@ -5,15 +5,15 @@
 @tailwind utilities;
 
 @layer base {
-  body { @apply bg-stone-50 text-gray-800 font-sans; font-family: 'DM Sans', sans-serif; }
+  body { @apply bg-stone-50 text-gray-800 font-sans text-base leading-relaxed; font-family: 'DM Sans', sans-serif; }
 }
 
 @layer components {
-  .card { @apply bg-white rounded-2xl p-4 shadow-sm border border-gray-50; }
-  .btn-primary { @apply bg-emerald-600 text-white font-semibold rounded-xl px-5 py-2.5 hover:bg-emerald-700 transition-all active:scale-[0.98]; }
-  .btn-ghost { @apply bg-transparent text-gray-600 border border-gray-200 rounded-xl px-5 py-2.5 font-semibold hover:border-emerald-500 hover:text-emerald-600 transition-all; }
-  .input-field { @apply w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all; }
-  .badge { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold; }
+  .card { @apply bg-white rounded-2xl p-[18px] shadow-sm border border-gray-50; }
+  .btn-primary { @apply bg-emerald-600 text-white font-semibold rounded-xl px-5 py-3 text-sm hover:bg-emerald-700 transition-all active:scale-[0.98]; }
+  .btn-ghost { @apply bg-transparent text-gray-600 border border-gray-200 rounded-xl px-5 py-3 text-sm font-semibold hover:border-emerald-500 hover:text-emerald-600 transition-all; }
+  .input-field { @apply w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-[15px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all; }
+  .badge { @apply inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold; }
 }
 
 @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }

@@ -76,8 +76,8 @@ export default function Dashboard({ session }) {
       <div className="bg-gradient-to-br from-gray-800 to-gray-900 px-5 pt-5 pb-4 rounded-b-3xl">
         <div className="max-w-2xl mx-auto flex justify-between items-center">
           <div>
-            <h1 className="text-white text-lg font-bold" style={{fontFamily:"'Playfair Display',serif"}}>🏛️ Tarih Vakfı</h1>
-            <p className="text-white/40 text-xs mt-1">
+            <h1 className="text-white text-[22px] font-bold" style={{fontFamily:"'Playfair Display',serif"}}>🏛️ Tarih Vakfı</h1>
+            <p className="text-white/40 text-[13px] mt-1">
               {ROLES[me.role]?.i} {me.display_name} · <span className={ROLES[me.role]?.c}>{ROLES[me.role]?.l}</span>
               {me.department && ` · ${DM[me.department]?.l}`}
               {suspended && <span className="text-red-400 ml-1">({me.status === 'paused' ? 'Duraklatildi' : me.status === 'resigned' ? 'Ayrildi' : 'Pasif'})</span>}
@@ -86,7 +86,7 @@ export default function Dashboard({ session }) {
           <div className="flex items-center gap-2">
             {!suspended && <button onClick={() => setPage('notifications')} className="relative w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm hover:bg-white/20">
               🔔
-              {unread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-bold">{unread}</span>}
+              {unread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold">{unread}</span>}
             </button>}
             <button onClick={db.signOut} className="text-white/30 hover:text-white/60 text-xs">Çıkış</button>
           </div>
@@ -117,8 +117,8 @@ export default function Dashboard({ session }) {
         <div className="max-w-2xl mx-auto flex justify-around">
           {[...nav, ['profile','👤','Profil']].map(([id,ic,lb]) => (
             <button key={id} onClick={() => setPage(id)} className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg transition-all ${page === id ? 'text-emerald-600' : 'text-gray-400'}`}>
-              <span className="text-base">{ic}</span>
-              <span className="text-[9px] font-semibold">{lb}</span>
+              <span className="text-lg">{ic}</span>
+              <span className="text-[11px] font-semibold">{lb}</span>
             </button>
           ))}
         </div>
@@ -256,7 +256,7 @@ function DashboardView({ uid, me, can, setPage }) {
             <button onClick={() => setPage('requests')} className="w-full card !p-2.5 flex items-center justify-center gap-2 hover:shadow-md transition-shadow cursor-pointer border-l-4 border-amber-400">
               <span>📨</span>
               <span className="text-xs font-semibold text-gray-600">Bekleyen Talepler</span>
-              <span className="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">{pendingReqs}</span>
+              <span className="bg-red-500 text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full">{pendingReqs}</span>
             </button>
           </div>
         )}
@@ -266,7 +266,7 @@ function DashboardView({ uid, me, can, setPage }) {
         <div key={a.id} className="card border-l-4 border-amber-400">
           <div className="flex items-center gap-1.5 mb-1"><span className="text-xs">📌</span><span className="font-bold text-sm">{a.title}</span></div>
           <p className="text-xs text-gray-500 leading-relaxed">{a.body?.slice(0, 150)}</p>
-          <p className="text-[10px] text-gray-300 mt-2">{a.profiles?.display_name} · {fd(a.created_at)}</p>
+          <p className="text-xs text-gray-300 mt-2">{a.profiles?.display_name} · {fd(a.created_at)}</p>
         </div>
       ))}
 
@@ -279,9 +279,9 @@ function DashboardView({ uid, me, can, setPage }) {
               <div key={d.department} className="card !p-2.5">
                 <div className="text-xs font-bold">{DM[d.department]?.i} {DM[d.department]?.l?.split(' ')[0]}</div>
                 <div className="flex gap-3 mt-1">
-                  <span className="text-[10px] text-emerald-600 font-semibold">{d.hours}s</span>
-                  <span className="text-[10px] text-purple-500 font-semibold">{d.tasks} gorev</span>
-                  <span className="text-[10px] text-gray-400">{d.vols} kisi</span>
+                  <span className="text-xs text-emerald-600 font-semibold">{d.hours}s</span>
+                  <span className="text-xs text-purple-500 font-semibold">{d.tasks} gorev</span>
+                  <span className="text-xs text-gray-400">{d.vols} kisi</span>
                 </div>
               </div>
             ))}
@@ -298,22 +298,22 @@ function DashboardView({ uid, me, can, setPage }) {
         {showSupport && (
           <div className="card space-y-2.5">
             <h3 className="text-sm font-bold text-center">🆘 Destek Talebi</h3>
-            <select value={supTopic} onChange={e => setSupTopic(e.target.value)} className="input-field !text-xs">
+            <select value={supTopic} onChange={e => setSupTopic(e.target.value)} className="input-field !text-[13px]">
               <option>Teknik Sorun</option>
               <option>Saat Kaydı</option>
               <option>Görev</option>
               <option>Vardiya</option>
               <option>Diğer</option>
             </select>
-            <textarea className="input-field !text-xs" rows={3} placeholder="Mesajınızı yazın..." value={supMsg} onChange={e => setSupMsg(e.target.value)} />
+            <textarea className="input-field !text-[13px]" rows={3} placeholder="Mesajınızı yazın..." value={supMsg} onChange={e => setSupMsg(e.target.value)} />
             {supSent ? (
               <div className="bg-green-50 text-green-700 text-xs rounded-xl px-4 py-2.5 text-center">Talebiniz iletildi!</div>
             ) : (
-              <button onClick={sendSupport} disabled={supLoading || !supMsg.trim()} className="btn-primary w-full !text-sm disabled:opacity-50">
+              <button onClick={sendSupport} disabled={supLoading || !supMsg.trim()} className="btn-primary w-full !text-[14px] disabled:opacity-50">
                 {supLoading ? 'Gönderiliyor...' : 'Gönder'}
               </button>
             )}
-            {adminEmail && <p className="text-[10px] text-gray-400 text-center">Sistem yöneticisi: {adminEmail}</p>}
+            {adminEmail && <p className="text-xs text-gray-400 text-center">Sistem yöneticisi: {adminEmail}</p>}
           </div>
         )}
       </>)}
@@ -332,15 +332,15 @@ function VolunteersView({ uid, me }) {
   const toggleStatus = async (id, status) => { await db.setUserStatus(id, status); setVols(vols.map(v => v.id === id ? { ...v, status } : v)); };
 
   return (
-    <div className="fade-up space-y-3">
-      <h2 className="text-base font-bold">👥 Gönüllüler ({vols.length})</h2>
+    <div className="fade-up space-y-4">
+      <h2 className="text-lg font-bold">👥 Gönüllüler ({vols.length})</h2>
       {vols.map(v => (
         <div key={v.id} className={`card cursor-pointer ${v.status !== 'active' ? 'opacity-50' : ''}`} onClick={() => setSel(sel === v.id ? null : v.id)}>
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-600">{(v.display_name||'?')[0]}</div>
             <div className="flex-1">
-              <div className="font-semibold text-sm">{v.display_name} <span className="text-xs">{ROLES[v.role]?.i}</span></div>
-              <div className="text-[11px] text-gray-400">{DM[v.department]?.i || '—'} {DM[v.department]?.l || 'Departman atanmamış'} · {Number(v.total_hours || 0).toFixed(0)}s</div>
+              <div className="font-semibold text-[15px]">{v.display_name} <span className="text-xs">{ROLES[v.role]?.i}</span></div>
+              <div className="text-[13px] text-gray-400">{DM[v.department]?.i || '—'} {DM[v.department]?.l || 'Departman atanmamış'} · {Number(v.total_hours || 0).toFixed(0)}s</div>
             </div>
             <span className={`badge ${v.status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>{v.status === 'active' ? 'Aktif' : 'Pasif'}</span>
           </div>
@@ -348,13 +348,13 @@ function VolunteersView({ uid, me }) {
             <div className="mt-3 pt-3 border-t border-gray-50 space-y-2">
               <div className="flex gap-2 items-center">
                 <span className="text-xs text-gray-400 w-16">Rol:</span>
-                <select className="input-field !py-1.5 !text-xs" value={v.role} onChange={e => changeRole(v.id, e.target.value)}>
+                <select className="input-field !py-1.5 !text-[13px]" value={v.role} onChange={e => changeRole(v.id, e.target.value)}>
                   <option value="vol">Gönüllü</option><option value="coord">Koordinatör</option>{me.role === 'admin' && <option value="admin">Yönetici</option>}
                 </select>
               </div>
               <div className="flex gap-2 items-center">
                 <span className="text-xs text-gray-400 w-16">Dept:</span>
-                <select className="input-field !py-1.5 !text-xs" value={v.department || ''} onChange={e => changeDept(v.id, e.target.value)}>
+                <select className="input-field !py-1.5 !text-[13px]" value={v.department || ''} onChange={e => changeDept(v.id, e.target.value)}>
                   <option value="">Seçiniz</option>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.l}</option>)}
                 </select>
               </div>
@@ -410,10 +410,10 @@ function TasksView({ uid, me, can }) {
   }
 
   return (
-    <div className="fade-up space-y-3">
+    <div className="fade-up space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-base font-bold">{'\u{1F4CB}'} {me.role === 'vol' ? 'Görevlerim' : 'Görevler'}</h2>
-        {can('assign_tasks') && <button className="btn-primary !py-1.5 !px-3 !text-xs" onClick={() => setShow(!show)}>{show ? '✕' : '+ Yeni'}</button>}
+        <h2 className="text-lg font-bold">{'\u{1F4CB}'} {me.role === 'vol' ? 'Görevlerim' : 'Görevler'}</h2>
+        {can('assign_tasks') && <button className="btn-primary !py-1.5 !px-3 !text-[13px]" onClick={() => setShow(!show)}>{show ? '✕' : '+ Yeni'}</button>}
       </div>
       {show && (
         <div className="card border-l-4 border-purple-400 space-y-2">
@@ -427,7 +427,7 @@ function TasksView({ uid, me, can }) {
             <select className="input-field" value={f.assigned_to} onChange={e => setF({...f, assigned_to: e.target.value})}><option value="">Atanacak kişi</option>{vols.map(v => <option key={v.id} value={v.id}>{v.display_name}</option>)}</select>
             <input className="input-field" type="date" value={f.deadline} onChange={e => setF({...f, deadline: e.target.value})} />
           </div>
-          <button className="btn-primary w-full !text-sm" onClick={create}>Oluştur</button>
+          <button className="btn-primary w-full !text-[14px]" onClick={create}>Oluştur</button>
         </div>
       )}
       {tasks.map(t => (
@@ -435,12 +435,12 @@ function TasksView({ uid, me, can }) {
           <div className="flex items-start gap-2">
             <div className={`w-2 h-2 rounded-full mt-1.5 ${PRIORITIES[t.priority]?.c?.split(' ')[0]}`} />
             <div className="flex-1">
-              <div className="font-semibold text-sm">{t.title}</div>
-              <div className="text-[11px] text-gray-400 mt-0.5">{DM[t.department]?.i} {DM[t.department]?.l}{t.deadline && ` · ${fd(t.deadline)}`}</div>
+              <div className="font-semibold text-[15px]">{t.title}</div>
+              <div className="text-[13px] text-gray-400 mt-0.5">{DM[t.department]?.i} {DM[t.department]?.l}{t.deadline && ` · ${fd(t.deadline)}`}</div>
               {/* Mini progress bar */}
               <div className="flex items-center gap-2 mt-1.5">
                 <div className="flex-1"><ProgressBar value={t.progress} small /></div>
-                <span className="text-[10px] font-semibold text-gray-500">{Math.round(t.progress || 0)}%</span>
+                <span className="text-xs font-semibold text-gray-500">{Math.round(t.progress || 0)}%</span>
               </div>
               <div className="flex items-center gap-2 mt-1.5">
                 <span className={`badge ${t.status === 'done' ? 'bg-emerald-50 text-emerald-600' : t.status === 'review' ? 'bg-blue-50 text-blue-600' : t.status === 'active' ? 'bg-amber-50 text-amber-600' : 'bg-gray-100 text-gray-400'}`}>{STATUSES[t.status]}</span>
@@ -449,9 +449,9 @@ function TasksView({ uid, me, can }) {
                   <div className="flex -space-x-1.5">
                     {t.assigned_to.slice(0, 4).map(id => {
                       const v = volMap[id];
-                      return <div key={id} className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-[8px] font-bold text-emerald-600 border border-white" title={v?.display_name}>{(v?.display_name || '?')[0]}</div>;
+                      return <div key={id} className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-600 border border-white" title={v?.display_name}>{(v?.display_name || '?')[0]}</div>;
                     })}
-                    {t.assigned_to.length > 4 && <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-[8px] font-bold text-gray-500 border border-white">+{t.assigned_to.length - 4}</div>}
+                    {t.assigned_to.length > 4 && <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 border border-white">+{t.assigned_to.length - 4}</div>}
                   </div>
                 )}
               </div>
@@ -525,7 +525,7 @@ function TaskDetail({ task, uid, me, can, vols, onBack }) {
   ].sort((a, b) => new Date(b._time) - new Date(a._time));
 
   return (
-    <div className="fade-up space-y-3">
+    <div className="fade-up space-y-4">
       <button onClick={onBack} className="text-sm text-gray-400 hover:text-gray-600">← Geri</button>
 
       <div className="card">
@@ -534,17 +534,17 @@ function TaskDetail({ task, uid, me, can, vols, onBack }) {
           <span className={`badge ${task.status === 'done' ? 'bg-emerald-50 text-emerald-600' : task.status === 'review' ? 'bg-blue-50 text-blue-600' : task.status === 'active' ? 'bg-amber-50 text-amber-600' : 'bg-gray-100 text-gray-400'}`}>{STATUSES[task.status]}</span>
         </div>
         <h2 className="font-bold text-base">{task.title}</h2>
-        <div className="text-[11px] text-gray-400 mt-1">{DM[task.department]?.i} {DM[task.department]?.l}{task.deadline && ` · Son: ${fdf(task.deadline)}`}</div>
+        <div className="text-[13px] text-gray-400 mt-1">{DM[task.department]?.i} {DM[task.department]?.l}{task.deadline && ` · Son: ${fdf(task.deadline)}`}</div>
         {task.description && <p className="text-xs text-gray-500 mt-2">{task.description}</p>}
         {/* Assigned */}
         {task.assigned_to?.length > 0 && (
           <div className="flex items-center gap-1.5 mt-3 pt-2 border-t border-gray-50">
-            <span className="text-[10px] text-gray-400">Atanan:</span>
+            <span className="text-xs text-gray-400">Atanan:</span>
             {task.assigned_to.map(id => {
               const v = vols[id];
               return <div key={id} className="flex items-center gap-1 bg-gray-50 rounded-full pl-0.5 pr-2 py-0.5">
                 <div className="w-4 h-4 rounded-full bg-emerald-100 flex items-center justify-center text-[7px] font-bold text-emerald-600">{(v?.display_name || '?')[0]}</div>
-                <span className="text-[10px] text-gray-600">{v?.display_name || '?'}</span>
+                <span className="text-xs text-gray-600">{v?.display_name || '?'}</span>
               </div>;
             })}
           </div>
@@ -565,26 +565,26 @@ function TaskDetail({ task, uid, me, can, vols, onBack }) {
               <input type="range" min="0" max="100" step="5" value={newProg} onChange={e => setNewProg(Number(e.target.value))} className="flex-1 accent-emerald-600" />
               <span className="text-xs font-bold w-10 text-right">{newProg}%</span>
             </div>
-            <input className="input-field !text-xs" placeholder="Ne yaptım? (not)" value={progNote} onChange={e => setProgNote(e.target.value)} />
-            <button onClick={submitProgress} disabled={loading} className="btn-primary w-full !text-xs disabled:opacity-50">{loading ? '...' : 'Guncelle'}</button>
+            <input className="input-field !text-[13px]" placeholder="Ne yaptım? (not)" value={progNote} onChange={e => setProgNote(e.target.value)} />
+            <button onClick={submitProgress} disabled={loading} className="btn-primary w-full !text-[13px] disabled:opacity-50">{loading ? '...' : 'Guncelle'}</button>
           </div>
         )}
         {task.status === 'review' && can('assign_tasks') && (
           <div className="mt-3 pt-3 border-t border-gray-50">
-            <p className="text-[10px] text-blue-600 mb-2">%100 tamamlandi, koordinator onayi bekleniyor.</p>
-            <button onClick={async () => { await db.updateTask(task.id, { status: 'done', completed_at: new Date().toISOString() }); onBack(); }} className="btn-primary w-full !text-xs">✓ Tamamlandiyi Onayla</button>
+            <p className="text-xs text-blue-600 mb-2">%100 tamamlandi, koordinator onayi bekleniyor.</p>
+            <button onClick={async () => { await db.updateTask(task.id, { status: 'done', completed_at: new Date().toISOString() }); onBack(); }} className="btn-primary w-full !text-[13px]">✓ Tamamlandiyi Onayla</button>
           </div>
         )}
         {task.status === 'review' && !can('assign_tasks') && (
-          <p className="mt-2 text-[10px] text-blue-500">Koordinator onayi bekleniyor...</p>
+          <p className="mt-2 text-xs text-blue-500">Koordinator onayi bekleniyor...</p>
         )}
       </div>
 
       {/* Comment input */}
       <div className="card space-y-2">
         <span className="text-sm font-bold">Yorum Ekle</span>
-        <textarea className="input-field !text-xs" rows={2} placeholder="Yorum yazin..." value={comment} onChange={e => setComment(e.target.value)} />
-        <button onClick={submitComment} disabled={loading || !comment.trim()} className="btn-primary w-full !text-xs disabled:opacity-50">Gonder</button>
+        <textarea className="input-field !text-[13px]" rows={2} placeholder="Yorum yazin..." value={comment} onChange={e => setComment(e.target.value)} />
+        <button onClick={submitComment} disabled={loading || !comment.trim()} className="btn-primary w-full !text-[13px] disabled:opacity-50">Gonder</button>
       </div>
 
       {/* Timeline */}
@@ -593,18 +593,18 @@ function TaskDetail({ task, uid, me, can, vols, onBack }) {
           <span className="text-sm font-bold">Aktivite</span>
           {timeline.map(item => (
             <div key={item.id} className="card !p-2.5 flex items-start gap-2">
-              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] mt-0.5 ${item._type === 'progress' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}`}>
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] mt-0.5 ${item._type === 'progress' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}`}>
                 {item._type === 'progress' ? '📊' : '💬'}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-[10px] text-gray-500">
+                <div className="text-xs text-gray-500">
                   <span className="font-semibold text-gray-700">{item.profiles?.display_name}</span>
                   {item._type === 'progress'
                     ? <>{' '}%{Math.round(item.previous_value)} → %{Math.round(item.new_value)}{item.note && ` — ${item.note}`}</>
                     : <>{' '}{item.content}</>
                   }
                 </div>
-                <div className="text-[9px] text-gray-300 mt-0.5">{fd(item._time)}</div>
+                <div className="text-[11px] text-gray-300 mt-0.5">{fd(item._time)}</div>
               </div>
             </div>
           ))}
@@ -636,10 +636,10 @@ function HoursView({ uid, me, can }) {
   const review = async (id, status) => { await db.reviewHours(id, status, uid); load(); };
 
   return (
-    <div className="fade-up space-y-3">
+    <div className="fade-up space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-base font-bold">⏱️ Saat Kaydı</h2>
-        <button className="btn-primary !py-1.5 !px-3 !text-xs" onClick={() => setShow(!show)}>{show ? '✕' : '+ Kaydet'}</button>
+        <h2 className="text-lg font-bold">⏱️ Saat Kaydı</h2>
+        <button className="btn-primary !py-1.5 !px-3 !text-[13px]" onClick={() => setShow(!show)}>{show ? '✕' : '+ Kaydet'}</button>
       </div>
       {show && (
         <div className="card border-l-4 border-emerald-400 space-y-2">
@@ -649,7 +649,7 @@ function HoursView({ uid, me, can }) {
           </div>
           <select className="input-field" value={f.department} onChange={e => setF({...f, department: e.target.value})}>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.i} {d.l}</option>)}</select>
           <input className="input-field" placeholder="Yapılan iş" value={f.description} onChange={e => setF({...f, description: e.target.value})} />
-          <button className="btn-primary w-full !text-sm" onClick={submit}>Kaydet</button>
+          <button className="btn-primary w-full !text-[14px]" onClick={submit}>Kaydet</button>
         </div>
       )}
       <div className="flex gap-1.5">
@@ -662,12 +662,12 @@ function HoursView({ uid, me, can }) {
         return (
           <div key={h.id} className="card">
             <div className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
+              <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">
                 {(h.profiles?.display_name || '?')[0]}
               </div>
               <div className="flex-1">
                 <div className="font-semibold text-xs">{h.profiles?.display_name || 'Ben'} <span className={`font-semibold ${sc}`}>· {HOUR_S[h.status]}</span></div>
-                <div className="text-[10px] text-gray-400">{fd(h.date)} · {DM[h.department]?.i} {DM[h.department]?.l}{h.description && ` · ${h.description}`}</div>
+                <div className="text-xs text-gray-400">{fd(h.date)} · {DM[h.department]?.i} {DM[h.department]?.l}{h.description && ` · ${h.description}`}</div>
               </div>
               <span className="font-bold text-sm">{h.hours}s</span>
             </div>
@@ -731,10 +731,10 @@ function ScheduleView({ uid, me, can }) {
   const todayDay = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
 
   return (
-    <div className="fade-up space-y-3">
+    <div className="fade-up space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-base font-bold">📅 Vardiya Planı</h2>
-        {can('manage_vols') && <button className="btn-primary !py-1.5 !px-3 !text-xs" onClick={() => setShow(!show)}>{show ? '✕' : '+ Ekle'}</button>}
+        <h2 className="text-lg font-bold">📅 Vardiya Planı</h2>
+        {can('manage_vols') && <button className="btn-primary !py-1.5 !px-3 !text-[13px]" onClick={() => setShow(!show)}>{show ? '✕' : '+ Ekle'}</button>}
       </div>
       {show && (
         <div className="card border-l-4 border-purple-400 space-y-2">
@@ -745,7 +745,7 @@ function ScheduleView({ uid, me, can }) {
             <input className="input-field" type="time" value={f.end_time} onChange={e => setF({...f, end_time: e.target.value})} />
           </div>
           <select className="input-field" value={f.department} onChange={e => setF({...f, department: e.target.value})}>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.i} {d.l}</option>)}</select>
-          <button className="btn-primary w-full !text-sm" onClick={create}>Ekle</button>
+          <button className="btn-primary w-full !text-[14px]" onClick={create}>Ekle</button>
         </div>
       )}
       {DAYS.filter(d => byDay[d]).map(day => (
@@ -753,15 +753,15 @@ function ScheduleView({ uid, me, can }) {
           <div className={`text-xs font-bold mb-1.5 ${day === todayDay ? 'text-emerald-600' : ''}`}>{day === todayDay ? '📍 ' : ''}{day}</div>
           {byDay[day].map(sh => (
             <div key={sh.id} className="card mb-1.5 !p-3 flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-[9px] font-bold text-emerald-600">
+              <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-[11px] font-bold text-emerald-600">
                 {(sh.profiles?.display_name || '?')[0]}
               </div>
               <div className="flex-1">
                 <div className="font-semibold text-xs">{sh.profiles?.display_name}</div>
-                <div className="text-[10px] text-gray-400">{DM[sh.department]?.i} {DM[sh.department]?.l}</div>
+                <div className="text-xs text-gray-400">{DM[sh.department]?.i} {DM[sh.department]?.l}</div>
               </div>
               <span className="text-xs font-semibold">{sh.start_time?.slice(0,5)}–{sh.end_time?.slice(0,5)}</span>
-              {can('manage_vols') && <button onClick={() => del(sh.id)} className="text-[10px] text-gray-300 hover:text-red-400">✕</button>}
+              {can('manage_vols') && <button onClick={() => del(sh.id)} className="text-xs text-gray-300 hover:text-red-400">✕</button>}
             </div>
           ))}
           {/* Shift notes for today */}
@@ -769,21 +769,21 @@ function ScheduleView({ uid, me, can }) {
             <div className="ml-2 mt-1 mb-2">
               {notes.map(n => (
                 <div key={n.id} className="flex items-start gap-2 py-1">
-                  <span className="text-[10px]">📝</span>
+                  <span className="text-xs">📝</span>
                   <div>
-                    <span className="text-[10px] font-semibold text-gray-700">{n.profiles?.display_name}: </span>
-                    <span className="text-[10px] text-gray-500">{n.content}</span>
+                    <span className="text-xs font-semibold text-gray-700">{n.profiles?.display_name}: </span>
+                    <span className="text-xs text-gray-500">{n.content}</span>
                   </div>
                 </div>
               ))}
               {noteDay === day ? (
                 <div className="flex gap-1.5 mt-1">
-                  <input className="input-field !py-1 !text-[10px] flex-1" placeholder="Bugün ne yapıldı, yarına ne kaldı..." value={noteText} onChange={e => setNoteText(e.target.value)} />
-                  <button onClick={submitNote} className="btn-primary !py-1 !px-2 !text-[10px]">Ekle</button>
-                  <button onClick={() => setNoteDay(null)} className="text-[10px] text-gray-400">✕</button>
+                  <input className="input-field !py-1 !text-[13px] flex-1" placeholder="Bugün ne yapıldı, yarına ne kaldı..." value={noteText} onChange={e => setNoteText(e.target.value)} />
+                  <button onClick={submitNote} className="btn-primary !py-1 !px-2 !text-[13px]">Ekle</button>
+                  <button onClick={() => setNoteDay(null)} className="text-xs text-gray-400">✕</button>
                 </div>
               ) : (
-                <button onClick={() => setNoteDay(day)} className="text-[10px] text-emerald-600 hover:text-emerald-700 font-semibold mt-1">+ Vardiya notu ekle</button>
+                <button onClick={() => setNoteDay(day)} className="text-xs text-emerald-600 hover:text-emerald-700 font-semibold mt-1">+ Vardiya notu ekle</button>
               )}
             </div>
           )}
@@ -812,10 +812,10 @@ function AnnouncementsView({ uid, me, can }) {
   const visible = me.role === 'vol' ? anns.filter(a => !a.department || a.department === me.department) : anns;
 
   return (
-    <div className="fade-up space-y-3">
+    <div className="fade-up space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-base font-bold">📢 Duyurular</h2>
-        {can('announcements') && <button className="btn-primary !py-1.5 !px-3 !text-xs" onClick={() => setShow(!show)}>{show ? '✕' : '+ Yeni'}</button>}
+        <h2 className="text-lg font-bold">📢 Duyurular</h2>
+        {can('announcements') && <button className="btn-primary !py-1.5 !px-3 !text-[13px]" onClick={() => setShow(!show)}>{show ? '✕' : '+ Yeni'}</button>}
       </div>
       {show && (
         <div className="card border-l-4 border-amber-400 space-y-2">
@@ -823,14 +823,14 @@ function AnnouncementsView({ uid, me, can }) {
           <textarea className="input-field" rows={3} placeholder="İçerik" value={f.body} onChange={e => setF({...f, body: e.target.value})} />
           <select className="input-field" value={f.department} onChange={e => setF({...f, department: e.target.value})}><option value="">Herkese</option>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.l}</option>)}</select>
           <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer"><input type="checkbox" checked={f.is_pinned} onChange={e => setF({...f, is_pinned: e.target.checked})} /> Sabitle</label>
-          <button className="btn-primary w-full !text-sm" onClick={create}>Yayınla</button>
+          <button className="btn-primary w-full !text-[14px]" onClick={create}>Yayınla</button>
         </div>
       )}
       {visible.map(a => (
         <div key={a.id} className={`card ${a.is_pinned ? 'border-l-4 border-amber-400' : ''}`}>
-          <div className="flex items-center gap-1.5 mb-1">{a.is_pinned && <span className="text-[10px]">📌</span>}<span className="font-bold text-sm">{a.title}</span></div>
+          <div className="flex items-center gap-1.5 mb-1">{a.is_pinned && <span className="text-xs">📌</span>}<span className="font-bold text-sm">{a.title}</span></div>
           <p className="text-xs text-gray-500 leading-relaxed">{a.body}</p>
-          <p className="text-[10px] text-gray-300 mt-2">{a.profiles?.display_name} · {fdf(a.created_at)}</p>
+          <p className="text-xs text-gray-300 mt-2">{a.profiles?.display_name} · {fdf(a.created_at)}</p>
         </div>
       ))}
       {visible.length === 0 && <Empty i="📢" t="Duyuru yok" />}
@@ -849,15 +849,15 @@ function ApplicationsView({ uid, me }) {
   };
 
   return (
-    <div className="fade-up space-y-3">
-      <h2 className="text-base font-bold">📩 Başvurular ({apps.filter(a => a.status === 'pending').length} bekleyen)</h2>
+    <div className="fade-up space-y-4">
+      <h2 className="text-lg font-bold">📩 Başvurular ({apps.filter(a => a.status === 'pending').length} bekleyen)</h2>
       {apps.map(a => (
         <div key={a.id} className="card">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-xs font-bold text-amber-600">{a.name[0]}</div>
             <div className="flex-1">
-              <div className="font-semibold text-sm">{a.name}</div>
-              <div className="text-[10px] text-gray-400">{a.email}{a.phone && ` · ${a.phone}`} · {DM[a.department]?.l}</div>
+              <div className="font-semibold text-[15px]">{a.name}</div>
+              <div className="text-xs text-gray-400">{a.email}{a.phone && ` · ${a.phone}`} · {DM[a.department]?.l}</div>
             </div>
             <span className={`badge ${a.status === 'approved' ? 'bg-emerald-50 text-emerald-600' : a.status === 'rejected' ? 'bg-red-50 text-red-500' : 'bg-amber-50 text-amber-600'}`}>
               {a.status === 'pending' ? 'Bekliyor' : a.status === 'approved' ? 'Kabul' : 'Red'}
@@ -962,40 +962,40 @@ function MyRequestsView({ uid, me }) {
   };
 
   return (
-    <div className="fade-up space-y-3">
+    <div className="fade-up space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-base font-bold">📨 Taleplerim</h2>
-        <button className="btn-primary !py-1.5 !px-3 !text-xs" onClick={() => setShow(!show)}>{show ? '✕' : '+ Yeni Talep'}</button>
+        <h2 className="text-lg font-bold">📨 Taleplerim</h2>
+        <button className="btn-primary !py-1.5 !px-3 !text-[13px]" onClick={() => setShow(!show)}>{show ? '✕' : '+ Yeni Talep'}</button>
       </div>
 
       {show && (
         <div className="card border-l-4 border-blue-400 space-y-2">
-          <select className="input-field !text-xs" value={type} onChange={e => setType(e.target.value)}>
+          <select className="input-field !text-[13px]" value={type} onChange={e => setType(e.target.value)}>
             {Object.entries(REQ_TYPES).filter(([k]) => me.role === 'coord' ? k !== 'resign' : k !== 'extra_volunteer').map(([k, v]) => (
               <option key={k} value={k}>{v.i} {v.l}</option>
             ))}
           </select>
 
           {['dept_change','dept_join'].includes(type) && (
-            <select className="input-field !text-xs" value={targetDept} onChange={e => setTargetDept(e.target.value)}>
+            <select className="input-field !text-[13px]" value={targetDept} onChange={e => setTargetDept(e.target.value)}>
               <option value="">Hedef departman secin</option>
               {DEPTS.map(d => <option key={d.id} value={d.id}>{d.i} {d.l}</option>)}
             </select>
           )}
 
           {['task_cancel','task_join','task_help'].includes(type) && (
-            <select className="input-field !text-xs" value={targetTask} onChange={e => setTargetTask(e.target.value)}>
+            <select className="input-field !text-[13px]" value={targetTask} onChange={e => setTargetTask(e.target.value)}>
               <option value="">Gorev secin</option>
               {tasks.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
             </select>
           )}
 
           {type === 'pause' && (
-            <p className="text-[10px] text-gray-400">Ara verme tarihlerinizi aciklamaya yazin (ornegin: 15 Nisan - 30 Nisan).</p>
+            <p className="text-xs text-gray-400">Ara verme tarihlerinizi aciklamaya yazin (ornegin: 15 Nisan - 30 Nisan).</p>
           )}
 
-          <textarea className="input-field !text-xs" rows={3} placeholder="Aciklama yazin (zorunlu)..." value={desc} onChange={e => setDesc(e.target.value)} />
-          <button onClick={submit} disabled={loading || !desc.trim()} className="btn-primary w-full !text-sm disabled:opacity-50">
+          <textarea className="input-field !text-[13px]" rows={3} placeholder="Aciklama yazin (zorunlu)..." value={desc} onChange={e => setDesc(e.target.value)} />
+          <button onClick={submit} disabled={loading || !desc.trim()} className="btn-primary w-full !text-[14px] disabled:opacity-50">
             {loading ? 'Gonderiliyor...' : 'Gonder'}
           </button>
         </div>
@@ -1007,22 +1007,22 @@ function MyRequestsView({ uid, me }) {
             <span className="text-base mt-0.5">{REQ_TYPES[r.type]?.i || '📝'}</span>
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-sm">{REQ_TYPES[r.type]?.short || r.title}</span>
+                <span className="font-semibold text-[15px]">{REQ_TYPES[r.type]?.short || r.title}</span>
                 <span className={`badge ${REQ_STATUS[r.status]?.c}`}>{REQ_STATUS[r.status]?.l}</span>
               </div>
               <p className="text-xs text-gray-500 mt-1">{r.description}</p>
-              {r.target_dept && <div className="text-[10px] text-gray-400 mt-1">Hedef: {DM[r.target_dept]?.i} {DM[r.target_dept]?.l}</div>}
-              {r.tasks?.title && <div className="text-[10px] text-gray-400 mt-0.5">Gorev: {r.tasks.title}</div>}
-              <div className="text-[10px] text-gray-300 mt-1">{fdf(r.created_at)}</div>
+              {r.target_dept && <div className="text-xs text-gray-400 mt-1">Hedef: {DM[r.target_dept]?.i} {DM[r.target_dept]?.l}</div>}
+              {r.tasks?.title && <div className="text-xs text-gray-400 mt-0.5">Gorev: {r.tasks.title}</div>}
+              <div className="text-xs text-gray-300 mt-1">{fdf(r.created_at)}</div>
               {r.review_note && r.status !== 'pending' && (
-                <div className={`mt-2 p-2 rounded-lg text-[10px] ${r.status === 'approved' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                <div className={`mt-2 p-2 rounded-lg text-xs ${r.status === 'approved' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
                   {r.review_note}
                 </div>
               )}
             </div>
           </div>
           {r.status === 'pending' && (
-            <button onClick={() => cancel(r.id)} className="mt-2 text-[10px] text-gray-400 hover:text-red-500">Vazgectim</button>
+            <button onClick={() => cancel(r.id)} className="mt-2 text-xs text-gray-400 hover:text-red-500">Vazgectim</button>
           )}
         </div>
       ))}
@@ -1120,8 +1120,8 @@ function ManageRequestsView({ uid, me }) {
   };
 
   return (
-    <div className="fade-up space-y-3">
-      <h2 className="text-base font-bold">📨 Talepler {tab === 'pending' && pendingCount > 0 && <span className="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full ml-1">{pendingCount}</span>}</h2>
+    <div className="fade-up space-y-4">
+      <h2 className="text-lg font-bold">📨 Talepler {tab === 'pending' && pendingCount > 0 && <span className="bg-red-500 text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full ml-1">{pendingCount}</span>}</h2>
 
       <div className="flex gap-1.5 flex-wrap">
         {[['pending','Bekleyen'],['approved','Onaylanan'],['rejected','Reddedilen'],['all','Tumu']].map(([k,l]) => (
@@ -1129,7 +1129,7 @@ function ManageRequestsView({ uid, me }) {
         ))}
       </div>
 
-      <select className="input-field !text-xs !py-1.5" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+      <select className="input-field !text-[13px] !py-1.5" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
         <option value="">Tum tipler</option>
         {Object.entries(REQ_TYPES).map(([k, v]) => <option key={k} value={k}>{v.i} {v.short}</option>)}
       </select>
@@ -1142,29 +1142,29 @@ function ManageRequestsView({ uid, me }) {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-semibold text-sm">{r.profiles?.display_name}</span>
+                <span className="font-semibold text-[15px]">{r.profiles?.display_name}</span>
                 <span className={`badge ${REQ_STATUS[r.status]?.c}`}>{REQ_STATUS[r.status]?.l}</span>
               </div>
-              <div className="text-[10px] text-gray-400">{r.profiles?.department ? `${DM[r.profiles.department]?.i} ${DM[r.profiles.department]?.l}` : ''}</div>
+              <div className="text-xs text-gray-400">{r.profiles?.department ? `${DM[r.profiles.department]?.i} ${DM[r.profiles.department]?.l}` : ''}</div>
 
               <div className="mt-1.5 flex items-center gap-1.5">
                 <span className="text-sm">{REQ_TYPES[r.type]?.i}</span>
                 <span className="text-xs font-semibold text-gray-700">{REQ_TYPES[r.type]?.short || r.title}</span>
               </div>
               <p className="text-xs text-gray-500 mt-1">{r.description}</p>
-              {r.target_dept && <div className="text-[10px] text-gray-400 mt-1">Hedef dept: {DM[r.target_dept]?.i} {DM[r.target_dept]?.l}</div>}
-              {r.tasks?.title && <div className="text-[10px] text-gray-400 mt-0.5">Gorev: {r.tasks.title}</div>}
-              <div className="text-[10px] text-gray-300 mt-1">{fdf(r.created_at)}</div>
+              {r.target_dept && <div className="text-xs text-gray-400 mt-1">Hedef dept: {DM[r.target_dept]?.i} {DM[r.target_dept]?.l}</div>}
+              {r.tasks?.title && <div className="text-xs text-gray-400 mt-0.5">Gorev: {r.tasks.title}</div>}
+              <div className="text-xs text-gray-300 mt-1">{fdf(r.created_at)}</div>
 
               {r.status === 'pending' && r.user_id !== uid && (
                 <div className="mt-2 pt-2 border-t border-gray-50">
                   {reviewingId === r.id ? (
                     <div className="space-y-1.5">
-                      <input className="input-field !text-[10px] !py-1.5" placeholder="Not ekle (opsiyonel)" value={reviewNote} onChange={e => setReviewNote(e.target.value)} />
+                      <input className="input-field !text-[13px] !py-1.5" placeholder="Not ekle (opsiyonel)" value={reviewNote} onChange={e => setReviewNote(e.target.value)} />
                       <div className="flex gap-2">
                         <button onClick={() => handleReview(r.id, 'approved')} className="badge bg-emerald-50 text-emerald-600 cursor-pointer">✓ Onayla</button>
                         <button onClick={() => handleReview(r.id, 'rejected')} className="badge bg-red-50 text-red-500 cursor-pointer">✕ Reddet</button>
-                        <button onClick={() => { setReviewingId(null); setReviewNote(''); }} className="text-[10px] text-gray-400">Iptal</button>
+                        <button onClick={() => { setReviewingId(null); setReviewNote(''); }} className="text-xs text-gray-400">Iptal</button>
                       </div>
                     </div>
                   ) : (
@@ -1176,11 +1176,11 @@ function ManageRequestsView({ uid, me }) {
               )}
               {r.status === 'pending' && r.user_id === uid && (
                 <div className="mt-2 pt-2 border-t border-gray-50">
-                  <p className="text-[10px] text-gray-400">Kendi talebinizi onaylayamazsiniz</p>
+                  <p className="text-xs text-gray-400">Kendi talebinizi onaylayamazsiniz</p>
                 </div>
               )}
               {r.review_note && r.status !== 'pending' && (
-                <div className={`mt-2 p-2 rounded-lg text-[10px] ${r.status === 'approved' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                <div className={`mt-2 p-2 rounded-lg text-xs ${r.status === 'approved' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
                   {r.review_note}
                 </div>
               )}
@@ -1225,20 +1225,20 @@ function ChatView({ uid, me }) {
   };
 
   return (
-    <div className="fade-up space-y-3">
+    <div className="fade-up space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-base font-bold">💬 Departman Sohbeti</h2>
+        <h2 className="text-lg font-bold">💬 Departman Sohbeti</h2>
       </div>
       {isCoordOrAdmin ? (
         <div className="flex gap-1.5 flex-wrap">
           {DEPTS.map(d => (
-            <button key={d.id} onClick={() => setDept(d.id)} className={`text-[10px] font-semibold px-2.5 py-1 rounded-lg transition-all ${dept === d.id ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400'}`}>{d.i} {d.id}</button>
+            <button key={d.id} onClick={() => setDept(d.id)} className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition-all ${dept === d.id ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400'}`}>{d.i} {d.id}</button>
           ))}
         </div>
       ) : (me.secondary_departments?.length > 0) ? (
         <div className="flex gap-1.5 flex-wrap">
           {[me.department, ...(me.secondary_departments || [])].filter(Boolean).map(d => (
-            <button key={d} onClick={() => setDept(d)} className={`text-[10px] font-semibold px-2.5 py-1 rounded-lg transition-all ${dept === d ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400'}`}>{DM[d]?.i} {DM[d]?.l?.split(' ')[0]}</button>
+            <button key={d} onClick={() => setDept(d)} className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition-all ${dept === d ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400'}`}>{DM[d]?.i} {DM[d]?.l?.split(' ')[0]}</button>
           ))}
         </div>
       ) : (
@@ -1253,9 +1253,9 @@ function ChatView({ uid, me }) {
           return (
             <div key={m.id || i} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[80%] rounded-2xl px-3 py-2 ${isMine ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700'}`}>
-                {!isMine && <div className={`text-[9px] font-bold mb-0.5 ${isMine ? 'text-emerald-200' : 'text-emerald-600'}`}>{m.profiles?.display_name || '?'}</div>}
+                {!isMine && <div className={`text-[11px] font-bold mb-0.5 ${isMine ? 'text-emerald-200' : 'text-emerald-600'}`}>{m.profiles?.display_name || '?'}</div>}
                 <div className="text-xs leading-relaxed">{m.content}</div>
-                <div className={`text-[8px] mt-0.5 ${isMine ? 'text-emerald-200' : 'text-gray-300'}`}>{m.created_at ? new Date(m.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : ''}</div>
+                <div className={`text-xs mt-0.5 ${isMine ? 'text-emerald-200' : 'text-gray-300'}`}>{m.created_at ? new Date(m.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : ''}</div>
               </div>
             </div>
           );
@@ -1264,8 +1264,8 @@ function ChatView({ uid, me }) {
 
       {/* Input */}
       <div className="flex gap-2">
-        <input className="input-field flex-1 !text-xs" placeholder="Mesaj yazin..." value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()} />
-        <button onClick={send} disabled={sending || !text.trim()} className="btn-primary !px-4 !text-xs disabled:opacity-50">Gonder</button>
+        <input className="input-field flex-1 !text-[13px]" placeholder="Mesaj yazin..." value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()} />
+        <button onClick={send} disabled={sending || !text.trim()} className="btn-primary !px-4 !text-[13px] disabled:opacity-50">Gonder</button>
       </div>
     </div>
   );
@@ -1280,13 +1280,13 @@ function NotificationsView({ uid, onRead }) {
   }, [uid, onRead]);
   const icons = { task:'📋', hours:'⏱️', announcement:'📢', application:'📩', shift:'📅', system:'📢', welcome:'🏛️' };
   return (
-    <div className="fade-up space-y-3">
-      <h2 className="text-base font-bold">🔔 Bildirimler</h2>
+    <div className="fade-up space-y-4">
+      <h2 className="text-lg font-bold">🔔 Bildirimler</h2>
       {notifs.map(n => (
         <div key={n.id} className={`card flex items-center gap-3 ${!n.is_read ? 'border-l-4 border-emerald-400' : ''}`}>
           <span className="text-base">{icons[n.type] || '📢'}</span>
-          <div className="flex-1"><div className="font-semibold text-xs">{n.title}</div>{n.body && <div className="text-[10px] text-gray-400">{n.body}</div>}</div>
-          <span className="text-[10px] text-gray-300">{fd(n.created_at)}</span>
+          <div className="flex-1"><div className="font-semibold text-xs">{n.title}</div>{n.body && <div className="text-xs text-gray-400">{n.body}</div>}</div>
+          <span className="text-xs text-gray-300">{fd(n.created_at)}</span>
         </div>
       ))}
       {notifs.length === 0 && <Empty i="🔔" t="Bildirim yok" />}
@@ -1304,25 +1304,25 @@ function ProfileView({ me, uid, onUpdate }) {
     if (data) onUpdate(data); setEditing(false);
   };
   return (
-    <div className="fade-up space-y-3">
+    <div className="fade-up space-y-4">
       <div className="card text-center">
         <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center text-xl font-bold text-emerald-600 mx-auto mb-2">{(me.display_name||'?')[0]}</div>
-        <div className="font-bold text-lg">{me.display_name}</div>
+        <div className="font-bold text-xl">{me.display_name}</div>
         <div className="text-xs text-emerald-600 font-semibold">{ROLES[me.role]?.i} {ROLES[me.role]?.l}</div>
         {me.department && <div className="text-xs text-gray-400">{DM[me.department]?.i} {DM[me.department]?.l}</div>}
         {me.city && <div className="text-xs text-gray-400">📍 {me.city}</div>}
         <div className="flex justify-center gap-8 mt-4 pt-3 border-t border-gray-50">
-          <div className="text-center"><div className="font-bold text-emerald-600">{Number(me.total_hours||0).toFixed(0)}</div><div className="text-[9px] text-gray-400">Saat</div></div>
-          <div className="text-center"><div className="font-bold">{fdf(me.joined_at)}</div><div className="text-[9px] text-gray-400">Üyelik</div></div>
+          <div className="text-center"><div className="font-bold text-emerald-600">{Number(me.total_hours||0).toFixed(0)}</div><div className="text-[11px] text-gray-400">Saat</div></div>
+          <div className="text-center"><div className="font-bold">{fdf(me.joined_at)}</div><div className="text-[11px] text-gray-400">Üyelik</div></div>
         </div>
       </div>
-      <button className="btn-ghost w-full !text-sm" onClick={() => setEditing(!editing)}>{editing ? '✕ İptal' : '✏️ Profili Düzenle'}</button>
+      <button className="btn-ghost w-full !text-[14px]" onClick={() => setEditing(!editing)}>{editing ? '✕ İptal' : '✏️ Profili Düzenle'}</button>
       {editing && (
         <div className="card space-y-2">
           <input className="input-field" placeholder="İsim" value={f.display_name} onChange={e => setF({...f, display_name: e.target.value})} />
           <input className="input-field" placeholder="Şehir" value={f.city} onChange={e => setF({...f, city: e.target.value})} />
           <textarea className="input-field" rows={2} placeholder="Hakkımda" value={f.bio} onChange={e => setF({...f, bio: e.target.value})} />
-          <button className="btn-primary w-full !text-sm" onClick={save}>Kaydet</button>
+          <button className="btn-primary w-full !text-[14px]" onClick={save}>Kaydet</button>
         </div>
       )}
       {adminEmail && (
@@ -1344,20 +1344,20 @@ function Accordion({ title, children, defaultOpen }) {
   const [open, setOpen] = useState(defaultOpen || false);
   return (
     <div className="card !p-0 overflow-hidden">
-      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors">
-        <span className="text-sm font-semibold text-gray-700">{title}</span>
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-gray-50 transition-colors">
+        <span className="text-[15px] font-semibold text-gray-700">{title}</span>
         <span className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}>▼</span>
       </button>
-      {open && <div className="px-4 pb-4 border-t border-gray-50">{children}</div>}
+      {open && <div className="px-5 pb-5 border-t border-gray-50">{children}</div>}
     </div>
   );
 }
 
 function HelpStep({ n, text }) {
   return (
-    <div className="flex gap-3 items-start py-1.5">
-      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold flex items-center justify-center">{n}</span>
-      <span className="text-xs text-gray-600 leading-relaxed">{text}</span>
+    <div className="flex gap-3 items-start py-2">
+      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center justify-center">{n}</span>
+      <span className="text-[13px] text-gray-600 leading-relaxed">{text}</span>
     </div>
   );
 }
@@ -1371,7 +1371,7 @@ function HelpView({ me }) {
   return (
     <div className="space-y-3 fade-up">
       <div className="text-center py-2">
-        <h2 className="text-lg font-bold" style={{fontFamily:"'Playfair Display',serif"}}>❓ Yardım & Kılavuz</h2>
+        <h2 className="text-xl font-bold" style={{fontFamily:"'Playfair Display',serif"}}>❓ Yardım & Kılavuz</h2>
         <p className="text-xs text-gray-400 mt-1">
           {isAdmin ? '👑 Yönetici Kılavuzu' : isCoord ? '📋 Koordinatör Kılavuzu' : '🤝 Gönüllü Kılavuzu'}
         </p>
@@ -1380,7 +1380,7 @@ function HelpView({ me }) {
       {/* ── Hızlı Referans Tablosu ── */}
       <Accordion title="📊 Hızlı Referans — Rol Karşılaştırması" defaultOpen>
         <div className="overflow-x-auto mt-2">
-          <table className="w-full text-[10px]">
+          <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-gray-100">
                 <th className="text-left py-1.5 text-gray-500 font-semibold">Özellik</th>
@@ -1433,7 +1433,7 @@ function HelpView({ me }) {
           <HelpStep n="3" text={`Tarih, saat miktarı, departman ve açıklama girin.`} />
           <HelpStep n="4" text={`"Kaydet" ile gönderin. Kaydınız onay bekleyecek.`} />
           <HelpStep n="5" text={`Koordinatörünüz onayladığında bildirim alırsınız.`} />
-          <p className="text-[10px] text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Onay bekleyen kayıtlarınızı silebilirsiniz, onaylanmış kayıtlar silinemez.</p>
+          <p className="text-xs text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Onay bekleyen kayıtlarınızı silebilirsiniz, onaylanmış kayıtlar silinemez.</p>
         </div>
       </Accordion>
 
@@ -1443,7 +1443,7 @@ function HelpView({ me }) {
           <HelpStep n="2" text={`Size atanan görevleri listede göreceksiniz.`} />
           <HelpStep n="3" text={`Öncelik ve durum bilgisine göre filtreleyebilirsiniz.`} />
           <HelpStep n="4" text={`Görevin detaylarını görmek için üzerine tıklayın.`} />
-          <p className="text-[10px] text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Yüksek öncelikli görevler kırmızı etiketle gösterilir.</p>
+          <p className="text-xs text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Yüksek öncelikli görevler kırmızı etiketle gösterilir.</p>
         </div>
       </Accordion>
 
@@ -1452,7 +1452,7 @@ function HelpView({ me }) {
           <HelpStep n="1" text={`"Vardiya" sekmesine tıklayın.`} />
           <HelpStep n="2" text={`Haftalık vardiya planınızı gün bazında göreceksiniz.`} />
           <HelpStep n="3" text={`Her vardiya kartında saat, departman ve not bilgisi yer alır.`} />
-          <p className="text-[10px] text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Tekrarlayan vardiyalar her hafta otomatik görünür.</p>
+          <p className="text-xs text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Tekrarlayan vardiyalar her hafta otomatik görünür.</p>
         </div>
       </Accordion>
 
@@ -1485,7 +1485,7 @@ function HelpView({ me }) {
       <Accordion title="💬 Departman Sohbeti Nasıl Kullanılır?">
         <div className="mt-2">
           <p className="text-xs text-gray-600 leading-relaxed">Sohbet sekmesinden departmanınızdaki diğer gönüllülerle mesajlaşabilirsiniz. Mesajlar gerçek zamanlı görünür — sayfa yenilemeye gerek yok.</p>
-          <p className="text-[10px] text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Koordinatörler ve yöneticiler tüm departmanların sohbetlerini görebilir.</p>
+          <p className="text-xs text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Koordinatörler ve yöneticiler tüm departmanların sohbetlerini görebilir.</p>
         </div>
       </Accordion>
 
@@ -1522,14 +1522,14 @@ function HelpView({ me }) {
           <HelpStep n="3" text={`Talep tipini seçin ve gerekli bilgileri doldurun.`} />
           <HelpStep n="4" text={`Açıklama yazıp "Gönder" butonuna basın.`} />
           <div className="mt-2 space-y-1">
-            <p className="text-[10px] font-semibold text-gray-600">Yapabileceğiniz talepler:</p>
-            <p className="text-[10px] text-gray-500">🔄 Departman değiştirme</p>
-            <p className="text-[10px] text-gray-500">➕ Başka departmanda da çalışma</p>
-            <p className="text-[10px] text-gray-500">❌ Görev iptali</p>
-            <p className="text-[10px] text-gray-500">🙋 Başka göreve katılma</p>
-            <p className="text-[10px] text-gray-500">🆘 Görev için yardım isteme</p>
-            <p className="text-[10px] text-gray-500">⏸️ Ara verme (duraklama)</p>
-            <p className="text-[10px] text-gray-500">🔒 Hesabı pasife alma</p>
+            <p className="text-xs font-semibold text-gray-600">Yapabileceğiniz talepler:</p>
+            <p className="text-xs text-gray-500">🔄 Departman değiştirme</p>
+            <p className="text-xs text-gray-500">➕ Başka departmanda da çalışma</p>
+            <p className="text-xs text-gray-500">❌ Görev iptali</p>
+            <p className="text-xs text-gray-500">🙋 Başka göreve katılma</p>
+            <p className="text-xs text-gray-500">🆘 Görev için yardım isteme</p>
+            <p className="text-xs text-gray-500">⏸️ Ara verme (duraklama)</p>
+            <p className="text-xs text-gray-500">🔒 Hesabı pasife alma</p>
           </div>
           <p className="text-xs text-gray-500 mt-2 leading-relaxed">Talebiniz koordinatör veya yönetici tarafından incelenir. Sonucu bildirim olarak alırsınız.</p>
         </div>
@@ -1544,7 +1544,7 @@ function HelpView({ me }) {
         <>
           <div className="flex items-center gap-2 pt-2">
             <div className="flex-1 h-px bg-purple-100"></div>
-            <span className="text-[10px] font-semibold text-purple-500">📋 Koordinatör Araçları</span>
+            <span className="text-xs font-semibold text-purple-500">📋 Koordinatör Araçları</span>
             <div className="flex-1 h-px bg-purple-100"></div>
           </div>
 
@@ -1563,7 +1563,7 @@ function HelpView({ me }) {
               <HelpStep n="2" text={`Başlık, açıklama, departman ve öncelik belirleyin.`} />
               <HelpStep n="3" text={`Son tarih seçin ve görevi gönüllülere atayın.`} />
               <HelpStep n="4" text={`Atanan gönüllüler otomatik bildirim alır.`} />
-              <p className="text-[10px] text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Birden fazla gönüllüyü aynı göreve atayabilirsiniz.</p>
+              <p className="text-xs text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Birden fazla gönüllüyü aynı göreve atayabilirsiniz.</p>
             </div>
           </Accordion>
 
@@ -1601,7 +1601,7 @@ function HelpView({ me }) {
           <Accordion title="📊 Görev İlerlemesini Nasıl Takip Ederim?">
             <div className="mt-2">
               <p className="text-xs text-gray-600 leading-relaxed">Görevler sayfasında her görev kartında mini ilerleme barı görünür. Göreve tıklayarak detaylı timeline görebilirsiniz: kim, ne zaman, ne kadar ilerletti.</p>
-              <p className="text-[10px] text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: İlerleme barı rengi yüzdeye göre değişir: kırmızı → sarı → yeşil.</p>
+              <p className="text-xs text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: İlerleme barı rengi yüzdeye göre değişir: kırmızı → sarı → yeşil.</p>
             </div>
           </Accordion>
 
@@ -1632,7 +1632,7 @@ function HelpView({ me }) {
         <>
           <div className="flex items-center gap-2 pt-2">
             <div className="flex-1 h-px bg-orange-100"></div>
-            <span className="text-[10px] font-semibold text-orange-500">👑 Yönetici Araçları</span>
+            <span className="text-xs font-semibold text-orange-500">👑 Yönetici Araçları</span>
             <div className="flex-1 h-px bg-orange-100"></div>
           </div>
 
@@ -1641,7 +1641,7 @@ function HelpView({ me }) {
               <HelpStep n="1" text={`"Gönüllüler" sekmesinden kullanıcıyı bulun.`} />
               <HelpStep n="2" text={`Profil detayında rol alanını tıklayın.`} />
               <HelpStep n="3" text={`Gönüllü, Koordinatör veya Yönetici rolünü seçin.`} />
-              <p className="text-[10px] text-gray-400 mt-2 bg-amber-50 rounded-lg p-2">⚠️ Dikkat: Yönetici rolü tüm sisteme erişim sağlar. Dikkatli atayın.</p>
+              <p className="text-xs text-gray-400 mt-2 bg-amber-50 rounded-lg p-2">⚠️ Dikkat: Yönetici rolü tüm sisteme erişim sağlar. Dikkatli atayın.</p>
             </div>
           </Accordion>
 
@@ -1651,23 +1651,23 @@ function HelpView({ me }) {
               <HelpStep n="2" text={`Bekleyen başvuruları inceleyin: isim, motivasyon, deneyim.`} />
               <HelpStep n="3" text={`Uygun başvuruları "Onayla" ile kabul edin veya "Mülakata Al" ile ayırın.`} />
               <HelpStep n="4" text={`Uygun olmayan başvuruları not ekleyerek reddedin.`} />
-              <p className="text-[10px] text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Onaylanan başvuru sahiplerine kayıt linki gönderin.</p>
+              <p className="text-xs text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Onaylanan başvuru sahiplerine kayıt linki gönderin.</p>
             </div>
           </Accordion>
 
           <Accordion title="💼 Günlük Yönetim Önerileri">
             <div className="mt-2 space-y-2">
               <div className="bg-emerald-50 rounded-lg p-2.5">
-                <p className="text-[10px] font-semibold text-emerald-700">☀️ Her Gün</p>
-                <p className="text-[10px] text-emerald-600 mt-0.5">Bekleyen saat kayıtlarını ve talepleri onaylayın. Yeni başvuruları kontrol edin.</p>
+                <p className="text-xs font-semibold text-emerald-700">☀️ Her Gün</p>
+                <p className="text-xs text-emerald-600 mt-0.5">Bekleyen saat kayıtlarını ve talepleri onaylayın. Yeni başvuruları kontrol edin.</p>
               </div>
               <div className="bg-blue-50 rounded-lg p-2.5">
-                <p className="text-[10px] font-semibold text-blue-700">📅 Her Hafta</p>
-                <p className="text-[10px] text-blue-600 mt-0.5">Vardiya planını güncelleyin. Görev ilerlemelerini kontrol edin. Duyuru paylaşın.</p>
+                <p className="text-xs font-semibold text-blue-700">📅 Her Hafta</p>
+                <p className="text-xs text-blue-600 mt-0.5">Vardiya planını güncelleyin. Görev ilerlemelerini kontrol edin. Duyuru paylaşın.</p>
               </div>
               <div className="bg-purple-50 rounded-lg p-2.5">
-                <p className="text-[10px] font-semibold text-purple-700">📊 Her Ay</p>
-                <p className="text-[10px] text-purple-600 mt-0.5">Departman istatistiklerini inceleyin. Aktif olmayan gönüllüleri takip edin. Rapor çıkarın.</p>
+                <p className="text-xs font-semibold text-purple-700">📊 Her Ay</p>
+                <p className="text-xs text-purple-600 mt-0.5">Departman istatistiklerini inceleyin. Aktif olmayan gönüllüleri takip edin. Rapor çıkarın.</p>
               </div>
             </div>
           </Accordion>
@@ -1679,7 +1679,7 @@ function HelpView({ me }) {
           <Accordion title="⏸️ Duraklatma/Pasif Talepleri Nasıl Yönetirim?">
             <div className="mt-2">
               <p className="text-xs text-gray-600 leading-relaxed">Talepler sayfasında "pause" ve "deactivate" tipindeki talepler gelir. Onayladığınızda kullanıcının durumu otomatik güncellenir (paused veya inactive).</p>
-              <p className="text-[10px] text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Tekrar aktif etmek için Gönüllüler sayfasından durumu "Aktif Et" butonu ile değiştirebilirsiniz.</p>
+              <p className="text-xs text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Tekrar aktif etmek için Gönüllüler sayfasından durumu "Aktif Et" butonu ile değiştirebilirsiniz.</p>
             </div>
           </Accordion>
         </>
@@ -1688,7 +1688,7 @@ function HelpView({ me }) {
       {/* ── SSS ── */}
       <div className="flex items-center gap-2 pt-2">
         <div className="flex-1 h-px bg-gray-200"></div>
-        <span className="text-[10px] font-semibold text-gray-400">Sık Sorulan Sorular</span>
+        <span className="text-xs font-semibold text-gray-400">Sık Sorulan Sorular</span>
         <div className="flex-1 h-px bg-gray-200"></div>
       </div>
 
@@ -1727,7 +1727,7 @@ function HelpView({ me }) {
             <div className="bg-blue-50 rounded-lg p-2.5 mt-2 flex items-center gap-2">
               <span className="text-sm">🛟</span>
               <div>
-                <p className="text-[10px] font-semibold text-blue-700">Sistem Yöneticisi</p>
+                <p className="text-xs font-semibold text-blue-700">Sistem Yöneticisi</p>
                 <p className="text-xs text-blue-600 font-medium">{adminEmail}</p>
               </div>
             </div>
@@ -1736,14 +1736,14 @@ function HelpView({ me }) {
       </Accordion>
 
       <div className="text-center py-4">
-        <p className="text-[10px] text-gray-300">Tarih Vakfı Gönüllü Yönetim Sistemi v1.0</p>
+        <p className="text-xs text-gray-300">Tarih Vakfı Gönüllü Yönetim Sistemi v1.0</p>
       </div>
     </div>
   );
 }
 
 // ─── SHARED ───────────────────────────────
-function Stat({ v, l, c }) { return <div className="card text-center !p-3"><div className={`text-xl font-bold ${c}`}>{v}</div><div className="text-[9px] text-gray-400">{l}</div></div>; }
-function QA({ ic, lb, onClick }) { return <button onClick={onClick} className="card !p-3 text-center cursor-pointer hover:shadow-md transition-shadow"><div className="text-xl">{ic}</div><div className="text-[10px] font-semibold mt-1">{lb}</div></button>; }
-function Tab({ active, children, onClick }) { return <button onClick={onClick} className={`text-[10px] font-semibold px-3 py-1.5 rounded-lg transition-all ${active ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400'}`}>{children}</button>; }
-function Empty({ i, t }) { return <div className="card text-center !py-8"><div className="text-2xl mb-2">{i}</div><p className="text-xs text-gray-400">{t}</p></div>; }
+function Stat({ v, l, c }) { return <div className="card text-center !p-4"><div className={`text-[28px] font-bold ${c}`}>{v}</div><div className="text-xs text-gray-400">{l}</div></div>; }
+function QA({ ic, lb, onClick }) { return <button onClick={onClick} className="card !p-4 text-center cursor-pointer hover:shadow-md transition-shadow"><div className="text-2xl">{ic}</div><div className="text-xs font-semibold mt-1">{lb}</div></button>; }
+function Tab({ active, children, onClick }) { return <button onClick={onClick} className={`text-xs font-semibold px-3.5 py-2 rounded-lg transition-all ${active ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400'}`}>{children}</button>; }
+function Empty({ i, t }) { return <div className="card text-center !py-10"><div className="text-3xl mb-2">{i}</div><p className="text-sm text-gray-400">{t}</p></div>; }
