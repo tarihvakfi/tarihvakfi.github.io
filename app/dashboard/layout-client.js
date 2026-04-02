@@ -1400,15 +1400,17 @@ function HelpView({ me }) {
                 ['Profil düzenleme', true, true, true],
                 ['Gönüllü yönetimi', false, true, true],
                 ['Görev oluşturma & atama', false, true, true],
-                ['Saat onaylama / reddetme', false, true, true],
+                ['Saat onaylama / reddetme', false, 'kendi hariç', true],
                 ['Vardiya planlama', false, true, true],
                 ['Duyuru yazma', false, true, true],
                 ['Departman sohbeti', 'kendi', true, true],
                 ['Görev ilerleme güncelleme', 'atanan', true, true],
                 ['Görev yorumları', 'atanan', true, true],
+                ['Görev tamamlama onayı', false, true, true],
                 ['Vardiya notları', true, true, true],
+                ['Destek talebi', true, true, false],
                 ['Talep oluşturma', true, true, false],
-                ['Talep onaylama', false, true, true],
+                ['Talep onaylama', false, 'kendi hariç', true],
                 ['Rol atama', false, false, true],
                 ['Başvuru yönetimi', false, false, true],
                 ['Tüm verilere erişim', false, false, true],
@@ -1495,7 +1497,7 @@ function HelpView({ me }) {
           <HelpStep n="2" text={`İlerleme barındaki slider ile yüzdeyi güncelleyin.`} />
           <HelpStep n="3" text={`"Ne yaptım?" alanına kısa bir not yazın.`} />
           <HelpStep n="4" text={`"Güncelle" butonuna basın.`} />
-          <p className="text-xs text-gray-500 mt-2 leading-relaxed">Diğer atanan kişiler bildirim alır. %100 olunca görev otomatik olarak "Tamamlandı" durumuna geçer.</p>
+          <p className="text-xs text-gray-500 mt-2 leading-relaxed">Diğer atanan kişiler bildirim alır. %100 olunca görev "Kontrol Bekliyor" durumuna geçer ve koordinatör onayı ile tamamlanır.</p>
         </div>
       </Accordion>
 
@@ -1537,6 +1539,33 @@ function HelpView({ me }) {
 
       <Accordion title="📨 Talebimi İptal Edebilir Miyim?">
         <p className="text-xs text-gray-600 mt-2 leading-relaxed">Evet, bekleyen (pending) talepleri "Vazgeçtim" butonuyla iptal edebilirsiniz. Onaylanmış veya reddedilmiş talepler iptal edilemez.</p>
+      </Accordion>
+
+      <Accordion title="⏸️ Duraklatılmış Hesabım Var, Ne Yapabilirim?">
+        <div className="mt-2">
+          <p className="text-xs text-gray-600 leading-relaxed">Hesabınız duraklatıldığında sisteme giriş yapabilirsiniz ancak sadece profil bilgilerinizi ve "Tekrar Aktif Ol" butonunu görürsünüz. Diğer sayfalara (panel, görevler, sohbet vb.) erişemezsiniz.</p>
+          <p className="text-xs text-gray-500 mt-2 leading-relaxed">"Tekrar Aktif Ol" butonuna tıkladığınızda yöneticiye talep gider. Yönetici onayladığında hesabınız tekrar aktif olur.</p>
+        </div>
+      </Accordion>
+
+      <Accordion title="👋 Vakıftan Ayrılmak İstiyorum, Süreç Nasıl?">
+        <div className="mt-2">
+          <HelpStep n="1" text={`Taleplerim sayfasından "Vakıftan ayrılmak istiyorum" seçin.`} />
+          <HelpStep n="2" text={`Ayrılma nedeninizi açıklamaya yazın.`} />
+          <HelpStep n="3" text={`Yönetici talebi onayladığında hesabınız "ayrıldı" durumuna geçer.`} />
+          <p className="text-xs text-gray-400 mt-2 bg-amber-50 rounded-lg p-2">⚠️ Ayrılma onaylandığında: görevlerinizden çıkarılırsınız, vardiyalarınız silinir. Profil ve saat kayıtlarınız arşiv olarak kalır.</p>
+        </div>
+      </Accordion>
+
+      <Accordion title="📊 Görev %100 Oldu Ama Tamamlanmadı — Neden?">
+        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Görev %100 ilerlemeye ulaştığında otomatik olarak tamamlanmaz. Bunun yerine "Kontrol Bekliyor" durumuna geçer. Koordinatör görevin kalitesini kontrol ettikten sonra "Tamamlandı Onayla" butonu ile final onayını verir. Bu, görev kalitesini güvence altına alır.</p>
+      </Accordion>
+
+      <Accordion title="🆘 Destek Talebi Nasıl Gönderirim?">
+        <div className="mt-2">
+          <p className="text-xs text-gray-600 leading-relaxed">Panel sayfasının altında "Destek Talebi Gönder" butonu bulunur. Konu seçip mesajınızı yazın. Talebiniz departman koordinatörünüze gider. Koordinatör yoksa doğrudan yöneticiye iletilir.</p>
+          <p className="text-xs text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 Not: Yöneticiler zaten en üst yetkiye sahip olduğundan destek talebi butonunu görmezler.</p>
+        </div>
       </Accordion>
 
       {/* ── Koordinatör Bölümü ── */}
@@ -1624,6 +1653,31 @@ function HelpView({ me }) {
           <Accordion title="📊 Haftalık Departman Özetini Nerede Görürüm?">
             <p className="text-xs text-gray-600 mt-2 leading-relaxed">Panel sayfasında "Bu Hafta" başlığı altında departman bazlı kartlarda bu haftanın toplam saati, tamamlanan görev sayısı ve aktif gönüllü sayısını görebilirsiniz.</p>
           </Accordion>
+
+          <Accordion title="⏱️ Kendi Saat Kaydımı Onaylayabilir Miyim?">
+            <div className="mt-2">
+              <p className="text-xs text-gray-600 leading-relaxed">Hayır. Sistem, tarafsızlığı sağlamak için kendi saat kaydınızı onaylamanızı engeller. Saat onay butonları yalnızca başka gönüllülerin kayıtlarında görünür.</p>
+              <p className="text-xs text-gray-400 mt-2 bg-amber-50 rounded-lg p-2">⚠️ Kendi saatlerinizi bir başka koordinatör veya yönetici onaylamalıdır.</p>
+            </div>
+          </Accordion>
+
+          <Accordion title="📨 Kendi Talebimi Onaylayabilir Miyim?">
+            <p className="text-xs text-gray-600 mt-2 leading-relaxed">Hayır. Aynı şekilde kendi oluşturduğunuz talebi kendiniz onaylayamazsınız. Talepler sayfasında kendi talebinizin altında "Kendi talebinizi onaylayamazsınız" uyarısı görünür. Bir başka koordinatör veya yönetici onaylamalıdır.</p>
+          </Accordion>
+
+          <Accordion title="✅ Görev %100 Olunca Ne Yapmalıyım?">
+            <div className="mt-2">
+              <p className="text-xs text-gray-600 leading-relaxed">Bir görev %100 ilerlemeye ulaştığında durumu otomatik olarak "Kontrol Bekliyor" olur. Bu, final kalite kontrolü yapmanız için bir fırsattır.</p>
+              <HelpStep n="1" text={`Görev detay sayfasını açın.`} />
+              <HelpStep n="2" text={`İlerleme geçmişini ve yorumları inceleyin.`} />
+              <HelpStep n="3" text={`Her şey uygunsa "Tamamlandı Onayla" butonuna basın.`} />
+              <p className="text-xs text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Eksiklik varsa görevi %100'den düşürüp not yazarak geri gönderebilirsiniz.</p>
+            </div>
+          </Accordion>
+
+          <Accordion title="🔄 Departman Değişikliği Talebi Hangi Koordinatöre Gidiyor?">
+            <p className="text-xs text-gray-600 mt-2 leading-relaxed">Departman değişikliği talebi hem mevcut departman koordinatörüne hem hedef departman koordinatörüne bildirim olarak gider. Ayrıca tüm yöneticilere de bildirim gider. Onaylayan kişi hedef departman koordinatörü veya yöneticidir.</p>
+          </Accordion>
         </>
       )}
 
@@ -1682,6 +1736,32 @@ function HelpView({ me }) {
               <p className="text-xs text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 İpucu: Tekrar aktif etmek için Gönüllüler sayfasından durumu "Aktif Et" butonu ile değiştirebilirsiniz.</p>
             </div>
           </Accordion>
+
+          <Accordion title="🆘 Neden Destek Talebi Gönderemiyorum?">
+            <p className="text-xs text-gray-600 mt-2 leading-relaxed">Yönetici olarak sistemdeki en üst yetkiye sahipsiniz. Destek talebi göndermenin anlamı yoktur çünkü zaten tüm işlemleri doğrudan yapabilirsiniz. Bu nedenle panel sayfasında "Destek Talebi" butonu yöneticilere gösterilmez. Aynı şekilde talep oluşturma da yöneticiler için devre dışıdır.</p>
+          </Accordion>
+
+          <Accordion title="👋 Ayrılma Talebi Onaylanınca Ne Oluyor?">
+            <div className="mt-2">
+              <p className="text-xs text-gray-600 leading-relaxed">Bir gönüllünün ayrılma talebi onaylandığında otomatik olarak şunlar gerçekleşir:</p>
+              <div className="mt-2 space-y-1.5">
+                <p className="text-xs text-gray-500">1. Kullanıcının durumu "resigned" (ayrıldı) olarak güncellenir</p>
+                <p className="text-xs text-gray-500">2. Tüm görev atamalarından çıkarılır</p>
+                <p className="text-xs text-gray-500">3. Tüm vardiyaları silinir</p>
+                <p className="text-xs text-gray-500">4. Profil ve saat kayıtları arşiv olarak kalır (silinmez)</p>
+              </div>
+              <p className="text-xs text-gray-400 mt-2 bg-amber-50 rounded-lg p-2">⚠️ Bu işlem geri alınamaz. Kullanıcı tekrar katılmak isterse yeniden kayıt olmalıdır.</p>
+            </div>
+          </Accordion>
+
+          <Accordion title="🔓 Duraklatılmış Kullanıcıyı Nasıl Aktif Ederim?">
+            <div className="mt-2">
+              <HelpStep n="1" text={`"Gönüllüler" sekmesinden kullanıcıyı bulun (pasif kullanıcılar soluk görünür).`} />
+              <HelpStep n="2" text={`Kullanıcı kartına tıklayarak detayını açın.`} />
+              <HelpStep n="3" text={`"Aktif Et" butonuna tıklayın.`} />
+              <p className="text-xs text-gray-500 mt-2 leading-relaxed">Alternatif olarak, duraklatılmış kullanıcı giriş yapıp "Tekrar Aktif Ol" butonuna tıkladığında size otomatik talep gelir.</p>
+            </div>
+          </Accordion>
         </>
       )}
 
@@ -1697,7 +1777,7 @@ function HelpView({ me }) {
       </Accordion>
 
       <Accordion title="Departmanımı değiştirebilir miyim?">
-        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Departman değişikliği koordinatör veya yönetici tarafından yapılır. Koordinatörünüze başvurun.</p>
+        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Evet! Taleplerim sayfasından "Departman değiştirmek istiyorum" seçeneğini kullanın. Talebiniz hem mevcut hem hedef departman koordinatörüne ve yöneticiye bildirilir. Onaylandığında departmanınız otomatik güncellenir.</p>
       </Accordion>
 
       <Accordion title="Saat kaydım reddedildi, ne yapmalıyım?">
@@ -1714,6 +1794,18 @@ function HelpView({ me }) {
 
       <Accordion title="Başka bir departmandaki göreve nasıl katılırım?">
         <p className="text-xs text-gray-600 mt-2 leading-relaxed">Taleplerim sayfasından "Başka bir göreve katılmak istiyorum" seçin ve ilgili görevi belirtin. Koordinatör onaylarsa göreve eklenirsiniz ve görev bildirimleri almaya başlarsınız.</p>
+      </Accordion>
+
+      <Accordion title="Koordinatör kendi saatini onaylayabiliyor mu?">
+        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Hayır. Tarafsızlık ilkesi gereği hiçbir koordinatör kendi saat kaydını onaylayamaz. Onay butonları yalnızca başka gönüllülerin kayıtlarında görünür. Kendi saatleriniz bir başka koordinatör veya yönetici tarafından onaylanmalıdır.</p>
+      </Accordion>
+
+      <Accordion title="Görev %100 oldu ama tamamlanmadı, neden?">
+        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Bu tasarım gereğidir. %100 ilerleme, görevin "Kontrol Bekliyor" durumuna geçmesini sağlar. Koordinatör veya yönetici, görevin kalitesini kontrol ettikten sonra "Tamamlandı Onayla" butonu ile final onayını verir. Bu süreç görev kalitesini güvence altına alır.</p>
+      </Accordion>
+
+      <Accordion title="Yönetici neden talep oluşturamıyor?">
+        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Yöneticiler sistemdeki en üst yetkiye sahiptir ve tüm işlemleri doğrudan yapabilirler (departman değiştirme, görev atama, durum güncelleme vb.). Bu nedenle talep oluşturmalarına gerek yoktur — talep onaylama tarafında çalışırlar.</p>
       </Accordion>
 
       <Accordion title="Sisteme kimler erişebilir?">
