@@ -1858,6 +1858,17 @@ function HelpView({ me }) {
       </div>
 
       {/* ── Navigasyon Açıklaması ── */}
+      <Accordion title="🕐 Kayıt Oldum Ama Sisteme Giremiyorum, Neden?">
+        <div className="mt-2">
+          <p className="text-xs text-gray-600 leading-relaxed">Yeni kayıtlar yönetici onayı gerektirir. "Hesabınız onay bekliyor" mesajı görüyorsanız yöneticinin sizi onaylamasını bekleyin. Onaylandığında sisteme tam erişim sağlarsınız ve bildirim alırsınız.</p>
+          <p className="text-xs text-gray-400 mt-2 bg-gray-50 rounded-lg p-2">💡 Onay süreci genellikle 1 iş günü içinde tamamlanır.</p>
+        </div>
+      </Accordion>
+
+      <Accordion title="🚫 Hesabım Engellenmiş, Ne Yapmalıyım?">
+        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Yönetici hesabınızı engellemiştir. Giriş yaptığınızda "Hesabınız engellenmiştir" mesajı görürsünüz. Engelin kaldırılması için doğrudan yöneticiyle iletişime geçin.</p>
+      </Accordion>
+
       <Accordion title="🧭 Navigasyon Nasıl Çalışır?" defaultOpen>
         <div className="mt-2">
           <p className="text-xs text-gray-600 leading-relaxed">Ekranın altında 5 ana sekme bulunur. Her sekmenin içinde üstte alt sekmeler yer alır:</p>
@@ -2346,6 +2357,51 @@ function HelpView({ me }) {
               <p className="text-xs text-gray-500 mt-2 leading-relaxed">Bu talepler Talepler sayfasında tip filtresinden kolayca bulunabilir.</p>
             </div>
           </Accordion>
+
+          <Accordion title="🕐 Yeni Kayıt Olanları Nasıl Onaylarım?">
+            <div className="mt-2">
+              <HelpStep n="1" text={`🏠 Panel sayfasında "Onay Bekleyen Kayıtlar" bölümüne bakın.`} />
+              <HelpStep n="2" text={`Her kişi kartında ad, e-posta ve kayıt tarihi gösterilir.`} />
+              <HelpStep n="3" text={`"✓ Onayla" → kullanıcı aktif olur, sisteme erişebilir.`} />
+              <HelpStep n="4" text={`"✕ Reddet" → kullanıcı "reddedildi" mesajı görür.`} />
+              <HelpStep n="5" text={`"🚫 Engelle" → kullanıcı "engellenmiştir" mesajı görür.`} />
+              <p className="text-xs text-gray-500 mt-2 leading-relaxed">Onaylanan kişiye hoş geldin bildirimi gider. Reddedilen kişi aynı e-posta ile tekrar kayıt olamaz.</p>
+            </div>
+          </Accordion>
+
+          <Accordion title="🚫 Aktif Bir Kullanıcıyı Nasıl Engellerim?">
+            <div className="mt-2">
+              <HelpStep n="1" text={`💼 İşler → Gönüllüler sekmesinden kişiyi bulun.`} />
+              <HelpStep n="2" text={`Kişi kartına tıklayarak detayını açın.`} />
+              <HelpStep n="3" text={`Durum alanından "Pasife Al" veya doğrudan status'ü değiştirin.`} />
+              <p className="text-xs text-gray-500 mt-2 leading-relaxed">Engeli kaldırmak için aynı yerden durumu "Aktif Et" yapabilirsiniz.</p>
+            </div>
+          </Accordion>
+
+          <Accordion title="🔄 Hesap Durum Geçişleri">
+            <div className="mt-2 space-y-2">
+              <div className="bg-blue-50 rounded-lg p-2.5">
+                <p className="text-xs font-semibold text-blue-700">🕐 Kayıt → Aktif</p>
+                <p className="text-xs text-blue-600 mt-0.5">pending → active: Yönetici "Onayla" butonu ile</p>
+              </div>
+              <div className="bg-red-50 rounded-lg p-2.5">
+                <p className="text-xs font-semibold text-red-700">🕐 Kayıt → Reddedildi</p>
+                <p className="text-xs text-red-600 mt-0.5">pending → rejected: Yönetici "Reddet" butonu ile</p>
+              </div>
+              <div className="bg-gray-100 rounded-lg p-2.5">
+                <p className="text-xs font-semibold text-gray-700">🚫 Aktif → Engelli</p>
+                <p className="text-xs text-gray-600 mt-0.5">active → blocked: Yönetici doğrudan engeller</p>
+              </div>
+              <div className="bg-amber-50 rounded-lg p-2.5">
+                <p className="text-xs font-semibold text-amber-700">⏸️ Aktif → Duraklatma/Pasif/Ayrılma</p>
+                <p className="text-xs text-amber-600 mt-0.5">active → paused/inactive/resigned: Talep + yönetici onayı</p>
+              </div>
+              <div className="bg-emerald-50 rounded-lg p-2.5">
+                <p className="text-xs font-semibold text-emerald-700">✅ Engelli → Aktif</p>
+                <p className="text-xs text-emerald-600 mt-0.5">blocked → active: Yönetici Gönüllüler sayfasından engeli kaldırır</p>
+              </div>
+            </div>
+          </Accordion>
         </>
       )}
 
@@ -2409,6 +2465,10 @@ function HelpView({ me }) {
             </div>
           )}
         </div>
+      </Accordion>
+
+      <Accordion title="Reddedilen biri tekrar başvurabilir mi?">
+        <p className="text-xs text-gray-600 mt-2 leading-relaxed">Evet, farklı bir e-posta adresiyle yeni kayıt oluşturabilir. Aynı e-posta ile tekrar kayıt olamaz çünkü e-posta adresi sistemde zaten kayıtlıdır.</p>
       </Accordion>
 
       <Accordion title="14 buton vardı, neden 5 oldu?">
