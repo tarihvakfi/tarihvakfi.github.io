@@ -266,9 +266,8 @@ export default function BackupView({ uid }) {
         <h3 className="text-xs font-bold text-amber-800 mb-1">⚙️ Google Sheets Kurulumu</h3>
         <div className="text-xs text-amber-700 space-y-1 leading-relaxed">
           <p>1. Google Cloud Console → APIs → "Google Sheets API" aktif et</p>
-          <p>2. Supabase Dashboard → Auth → Providers → Google → Additional Scopes'a ekle:</p>
-          <p className="font-mono text-[10px] bg-white/50 rounded px-2 py-1">https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file</p>
-          <p>3. Cikis yap, Google ile tekrar giris yap (yeni scope'lar icin)</p>
+          <p>2. Cikis yap, Google ile tekrar giris yap (Sheets izni otomatik istenir)</p>
+          <p className="text-xs text-amber-600 mt-1">Scope'lar kod tarafindan eklenir, Supabase'de ek ayar gerekmez.</p>
         </div>
       </div>
     </div>
