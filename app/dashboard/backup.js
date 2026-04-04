@@ -8,7 +8,7 @@ const fdt = d => { const x = new Date(d); return `${x.getDate()} ${MO[x.getMonth
 const fdate = d => { if (!d) return ''; const x = new Date(d); return `${String(x.getDate()).padStart(2,'0')}.${String(x.getMonth()+1).padStart(2,'0')}.${x.getFullYear()}`; };
 
 const SHEETS_CONFIG = [
-  { key: 'profiles', name: 'Gonulluler', cols: ['display_name','email','phone','role','department','status','total_hours','city','joined_at'], headers: ['Ad','E-posta','Telefon','Rol','Departman','Durum','Toplam Saat','Sehir','Kayit Tarihi'], fmt: r => [r.display_name,r.email||'',r.phone||'',r.role,r.department||'',r.status,r.total_hours||0,r.city||'',fdate(r.joined_at)] },
+  { key: 'profiles', name: 'Gonulluler', headers: ['Ad','E-posta','Telefon','Rol','Departman','Durum','Toplam Saat','Sehir','Kayit Tarihi'], fmt: r => [r.display_name,r.email||'',r.phone||'',r.role,r.department||'',r.status,r.total_hours||0,r.city||'',fdate(r.joined_at)] },
   { key: 'tasks', name: 'Gorevler', headers: ['Baslik','Departman','Oncelik','Durum','Ilerleme','Deadline','Atanan','Olusturulma'], fmt: r => [r.title,r.department,r.priority,r.status,`${r.progress||0}%`,fdate(r.deadline),Array.isArray(r.assigned_to) ? r.assigned_to.join(', ') : '',fdate(r.created_at)] },
   { key: 'hours', name: 'Saat Kayitlari', headers: ['Gonullu','Tarih','Saat','Departman','Aciklama','Durum','Onaylayan'], fmt: r => [r.profiles?.display_name||'',fdate(r.date),r.hours,r.department,r.description||'',r.status,r.reviewer?.display_name||''] },
   { key: 'shifts', name: 'Vardiyalar', headers: ['Gonullu','Gun','Baslangic','Bitis','Departman'], fmt: r => [r.profiles?.display_name||'',r.day_of_week,r.start_time?.slice(0,5)||'',r.end_time?.slice(0,5)||'',r.department] },
@@ -28,33 +28,25 @@ function toCsv(headers, rows) {
 }
 
 async function downloadZip(data, uid) {
-  // Dynamic import JSZip
   const JSZip = (await import('jszip')).default;
   const zip = new JSZip();
   let totalRecords = 0;
-
   for (const cfg of SHEETS_CONFIG) {
     const rows = (data[cfg.key] || []).map(cfg.fmt);
     totalRecords += rows.length;
-    zip.file(`${cfg.name}.csv`, '\uFEFF' + toCsv(cfg.headers, rows)); // BOM for Excel
+    zip.file(`${cfg.name}.csv`, '\uFEFF' + toCsv(cfg.headers, rows));
   }
-
   const blob = await zip.generateAsync({ type: 'blob' });
-  const now = new Date();
-  const fname = `tarih-vakfi-yedek-${now.toISOString().slice(0,10)}.zip`;
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = fname;
+  a.download = `tarih-vakfi-yedek-${new Date().toISOString().slice(0,10)}.zip`;
   a.click();
   URL.revokeObjectURL(a.href);
-
   await db.createBackupRecord({ created_by: uid, type: 'csv', record_count: totalRecords });
   return totalRecords;
 }
 
-const ENV_SHEETS_ID = process.env.NEXT_PUBLIC_BACKUP_SHEETS_ID || '';
-
-async function exportToSheets(data, uid, existingId) {
+async function exportToSheets(data, uid, sheetsId) {
   let token = await db.getGoogleToken();
   if (!token) {
     token = await db.reauthorizeGoogleSheets();
@@ -62,45 +54,33 @@ async function exportToSheets(data, uid, existingId) {
   }
 
   const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
-  let spreadsheetId = existingId || ENV_SHEETS_ID || null;
+  let spreadsheetId = sheetsId;
   const now = new Date();
   const title = `Tarih Vakfi Yedek — ${now.toISOString().slice(0,10)} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  let isNew = false;
 
-  // Create or clear spreadsheet
   if (!spreadsheetId) {
-    const sheets = SHEETS_CONFIG.map(cfg => ({ properties: { title: cfg.name } }));
+    // Yeni olustur
+    const sheetDefs = SHEETS_CONFIG.map(cfg => ({ properties: { title: cfg.name } }));
     const res = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
       method: 'POST', headers,
-      body: JSON.stringify({ properties: { title }, sheets }),
+      body: JSON.stringify({ properties: { title }, sheets: sheetDefs }),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
       if (res.status === 403 || res.status === 401) {
-        // Token gecersiz, localStorage'i temizle ve tekrar dene
         localStorage.removeItem('tarihvakfi_google_token');
         throw new Error('Google Sheets izni yok veya token gecersiz. Cikis yapip Google ile tekrar giris yapin.');
       }
+      const err = await res.json().catch(() => ({}));
       throw new Error(err.error?.message || 'Sheets olusturulamadi');
     }
     const ss = await res.json();
     spreadsheetId = ss.spreadsheetId;
+    isNew = true;
   }
 
-  // Write data to each sheet
-  const batchData = [];
-  let totalRecords = 0;
-
-  for (const cfg of SHEETS_CONFIG) {
-    const rows = (data[cfg.key] || []).map(cfg.fmt);
-    totalRecords += rows.length;
-    batchData.push({
-      range: `'${cfg.name}'!A1`,
-      values: [cfg.headers, ...rows],
-    });
-  }
-
-  // Clear all sheets first if updating
-  if (existingId) {
+  // Temizle (guncelleme ise)
+  if (!isNew) {
     for (const cfg of SHEETS_CONFIG) {
       await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/'${encodeURIComponent(cfg.name)}'!A:Z:clear`, {
         method: 'POST', headers,
@@ -108,63 +88,70 @@ async function exportToSheets(data, uid, existingId) {
     }
   }
 
-  // Batch update
+  // Veri yaz
+  const batchData = [];
+  let totalRecords = 0;
+  for (const cfg of SHEETS_CONFIG) {
+    const rows = (data[cfg.key] || []).map(cfg.fmt);
+    totalRecords += rows.length;
+    batchData.push({ range: `'${cfg.name}'!A1`, values: [cfg.headers, ...rows] });
+  }
+
   await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate`, {
     method: 'POST', headers,
-    body: JSON.stringify({
-      valueInputOption: 'RAW',
-      data: batchData,
-    }),
+    body: JSON.stringify({ valueInputOption: 'RAW', data: batchData }),
   });
 
-  // Bold headers + auto resize
+  // Formatlama
   const sheetRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`, { headers });
   const ssData = await sheetRes.json();
-  const requests = [];
+  const fmtReqs = [];
   for (const sheet of (ssData.sheets || [])) {
     const sid = sheet.properties.sheetId;
-    requests.push({
-      repeatCell: {
-        range: { sheetId: sid, startRowIndex: 0, endRowIndex: 1 },
-        cell: { userEnteredFormat: { textFormat: { bold: true }, backgroundColor: { red: 0.95, green: 0.95, blue: 0.95 } } },
-        fields: 'userEnteredFormat(textFormat,backgroundColor)',
-      },
-    });
-    requests.push({
-      autoResizeDimensions: { dimensions: { sheetId: sid, dimension: 'COLUMNS', startIndex: 0, endIndex: 20 } },
-    });
+    fmtReqs.push({ repeatCell: { range: { sheetId: sid, startRowIndex: 0, endRowIndex: 1 }, cell: { userEnteredFormat: { textFormat: { bold: true }, backgroundColor: { red: 0.95, green: 0.95, blue: 0.95 } } }, fields: 'userEnteredFormat(textFormat,backgroundColor)' } });
+    fmtReqs.push({ autoResizeDimensions: { dimensions: { sheetId: sid, dimension: 'COLUMNS', startIndex: 0, endIndex: 20 } } });
   }
-  if (requests.length) {
+  if (fmtReqs.length) {
     await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
-      method: 'POST', headers,
-      body: JSON.stringify({ requests }),
+      method: 'POST', headers, body: JSON.stringify({ requests: fmtReqs }),
     });
   }
 
   const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}`;
-  localStorage.setItem('tarihvakfi_sheets_id', spreadsheetId);
 
-  await db.createBackupRecord({ created_by: uid, type: 'sheets', sheets_url: url, record_count: totalRecords });
+  // Supabase'e kaydet (sheets_id dahil)
+  await db.createBackupRecord({ created_by: uid, type: 'sheets', sheets_url: url, sheets_id: spreadsheetId, record_count: totalRecords });
+
   return { url, totalRecords, spreadsheetId };
 }
 
 export default function BackupView({ uid }) {
   const [backups, setBackups] = useState([]);
+  const [sheetsId, setSheetsId] = useState(null);
+  const [sheetsUrl, setSheetsUrl] = useState(null);
   const [loading, setLoading] = useState('');
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  const [lastBackup, setLastBackup] = useState(null);
   const [lastBackupDays, setLastBackupDays] = useState(null);
 
   useEffect(() => {
-    db.getBackups().then(({ data }) => {
+    (async () => {
+      const { data } = await db.getBackups();
       setBackups(data || []);
       if (data && data.length > 0) {
-        const days = Math.floor((Date.now() - new Date(data[0].created_at).getTime()) / 86400000);
-        setLastBackupDays(days);
+        setLastBackupDays(Math.floor((Date.now() - new Date(data[0].created_at).getTime()) / 86400000));
+        setLastBackup(data[0]);
       } else {
         setLastBackupDays(999);
       }
-    });
+      // Kayitli sheets ID'yi bul
+      const savedId = await db.getSavedSheetsId();
+      if (savedId) {
+        setSheetsId(savedId);
+        setSheetsUrl(`https://docs.google.com/spreadsheets/d/${savedId}`);
+      }
+    })();
   }, []);
 
   const handleCsv = async () => {
@@ -173,92 +160,97 @@ export default function BackupView({ uid }) {
       const data = await db.getAllDataForBackup();
       const count = await downloadZip(data, uid);
       setResult({ type: 'csv', count });
-      db.getBackups().then(({ data }) => setBackups(data || []));
+      const { data: b } = await db.getBackups(); setBackups(b || []);
     } catch (e) { setError(e.message); }
     setLoading('');
   };
 
-  const handleSheets = async (existingId) => {
+  const handleSheets = async () => {
     setLoading('sheets'); setError(''); setResult(null);
     try {
       const data = await db.getAllDataForBackup();
-      const res = await exportToSheets(data, uid, existingId);
+      const res = await exportToSheets(data, uid, sheetsId);
+      setSheetsId(res.spreadsheetId);
+      setSheetsUrl(res.url);
       setResult({ type: 'sheets', ...res });
-      db.getBackups().then(({ data }) => setBackups(data || []));
+      const { data: b } = await db.getBackups(); setBackups(b || []);
+      setLastBackup(b?.[0] || null);
+      setLastBackupDays(0);
     } catch (e) { setError(e.message); }
     setLoading('');
   };
-
-  const savedSheetsId = ENV_SHEETS_ID || (typeof window !== 'undefined' ? localStorage.getItem('tarihvakfi_sheets_id') : null);
-  const hasFixedSheet = !!ENV_SHEETS_ID;
 
   return (
     <div className="fade-up space-y-4">
       <h2 className="text-lg font-bold">📋 Yedekleme</h2>
 
-      {lastBackupDays !== null && lastBackupDays >= 7 && (
-        <div className="card border-l-4 border-amber-400 !p-3">
-          <p className="text-xs text-amber-700 font-semibold">⚠️ {lastBackupDays > 100 ? 'Hic yedek alinmamis' : `Son yedek ${lastBackupDays} gun once alindi`}. Yedekleme onerilir.</p>
+      {/* Son yedek bilgisi */}
+      {lastBackup && (
+        <div className="card !p-3">
+          <div className="text-xs text-gray-400">Son yedek:</div>
+          <div className="text-[15px] font-semibold">{fdt(lastBackup.created_at)}</div>
+          <div className="text-xs text-gray-400">{lastBackup.type === 'sheets' ? '📊 Google Sheets' : '📥 CSV'} — {lastBackup.record_count} kayit</div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-3">
-        <button onClick={handleCsv} disabled={!!loading} className="card hover:shadow-md transition-shadow cursor-pointer text-left">
+      {lastBackupDays !== null && lastBackupDays >= 7 && (
+        <div className="card border-l-4 border-amber-400 !p-3">
+          <p className="text-xs text-amber-700 font-semibold">⚠️ {lastBackupDays > 100 ? 'Hic yedek alinmamis' : `Son yedek ${lastBackupDays} gun once`}. Yedekleme onerilir.</p>
+        </div>
+      )}
+
+      {/* Google Sheets */}
+      <div className="space-y-3">
+        {sheetsUrl && (
+          <a href={sheetsUrl} target="_blank" rel="noopener noreferrer" className="card hover:shadow-md transition-shadow block text-left border-l-4 border-emerald-400">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">📊</span>
+              <div>
+                <div className="font-semibold text-[15px]">Google Sheets Yedegini Ac</div>
+                <div className="text-xs text-gray-400">Yeni sekmede acilir</div>
+              </div>
+              <span className="ml-auto text-xs text-emerald-600">↗</span>
+            </div>
+          </a>
+        )}
+        {!sheetsUrl && !sheetsId && (
+          <div className="card !p-3 text-center">
+            <p className="text-xs text-gray-400">Henuz Google Sheets yedegi olusturulmamis. Ilk yedegi olusturun.</p>
+          </div>
+        )}
+
+        <button onClick={handleSheets} disabled={!!loading} className="card hover:shadow-md transition-shadow cursor-pointer text-left border-l-4 border-blue-300 w-full">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🔄</span>
+            <div>
+              <div className="font-semibold text-[15px]">{sheetsId ? 'Simdi Guncelle' : 'Ilk Yedegi Olustur'}</div>
+              <div className="text-xs text-gray-400">{sheetsId ? 'Mevcut spreadsheet uzerine yaz' : 'Yeni spreadsheet olustur, 12 sheet'}</div>
+            </div>
+          </div>
+          {loading === 'sheets' && <div className="mt-2 text-xs text-blue-600 animate-pulse">{sheetsId ? 'Guncelleniyor...' : 'Olusturuluyor...'}</div>}
+        </button>
+
+        <button onClick={handleCsv} disabled={!!loading} className="card hover:shadow-md transition-shadow cursor-pointer text-left w-full">
           <div className="flex items-center gap-3">
             <span className="text-2xl">📥</span>
             <div>
               <div className="font-semibold text-[15px]">CSV Indir (ZIP)</div>
-              <div className="text-xs text-gray-400">Tum tablolar ayri CSV dosyasi, ZIP arsivi</div>
+              <div className="text-xs text-gray-400">Tum tablolar ayri CSV, ZIP arsivi</div>
             </div>
           </div>
           {loading === 'csv' && <div className="mt-2 text-xs text-emerald-600 animate-pulse">Hazirlaniyor...</div>}
         </button>
-
-        {hasFixedSheet ? (
-          <button onClick={() => handleSheets(ENV_SHEETS_ID)} disabled={!!loading} className="card hover:shadow-md transition-shadow cursor-pointer text-left border-l-4 border-blue-300">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">📊</span>
-              <div>
-                <div className="font-semibold text-[15px]">Google Sheets'i Guncelle</div>
-                <div className="text-xs text-gray-400">Sabit spreadsheet'e aktar (gece yedegi ile ayni dosya)</div>
-              </div>
-            </div>
-            {loading === 'sheets' && <div className="mt-2 text-xs text-blue-600 animate-pulse">Guncelleniyor...</div>}
-          </button>
-        ) : (<>
-          <button onClick={() => handleSheets(null)} disabled={!!loading} className="card hover:shadow-md transition-shadow cursor-pointer text-left">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">📊</span>
-              <div>
-                <div className="font-semibold text-[15px]">Google Sheets'e Aktar</div>
-                <div className="text-xs text-gray-400">Yeni spreadsheet olustur, 12 sheet</div>
-              </div>
-            </div>
-            {loading === 'sheets' && <div className="mt-2 text-xs text-blue-600 animate-pulse">Google Sheets olusturuluyor...</div>}
-          </button>
-          {savedSheetsId && (
-            <button onClick={() => handleSheets(savedSheetsId)} disabled={!!loading} className="card hover:shadow-md transition-shadow cursor-pointer text-left border-l-4 border-blue-300">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">🔄</span>
-                <div>
-                  <div className="font-semibold text-[15px]">Mevcut Sheets'i Guncelle</div>
-                  <div className="text-xs text-gray-400">Son olusturulan spreadsheet'i uzerine yaz</div>
-                </div>
-              </div>
-            </button>
-          )}
-        </>)}
       </div>
 
       {error && <div className="bg-red-50 text-red-600 text-xs rounded-xl px-4 py-3">{error}</div>}
 
       {result && (
         <div className="card border-l-4 border-emerald-400">
-          <div className="text-xs text-emerald-700 font-semibold">✅ Yedekleme tamamlandi! ({result.count} kayit)</div>
-          {result.type === 'sheets' && result.url && (
-            <div className="mt-2 space-y-2">
-              <a href={result.url} target="_blank" rel="noopener noreferrer" className="btn-primary inline-block !text-[13px]">Google Sheets'te Ac</a>
-              <button onClick={() => { navigator.clipboard.writeText(result.url); }} className="btn-ghost !text-[13px] ml-2">Link Kopyala</button>
+          <div className="text-xs text-emerald-700 font-semibold">✅ {result.type === 'sheets' ? 'Google Sheets guncellendi' : 'CSV indirildi'}! ({result.count} kayit)</div>
+          {result.url && (
+            <div className="mt-2 flex gap-2">
+              <a href={result.url} target="_blank" rel="noopener noreferrer" className="btn-primary !text-[13px] inline-block">Sheets'te Ac</a>
+              <button onClick={() => navigator.clipboard.writeText(result.url)} className="btn-ghost !text-[13px]">Link Kopyala</button>
             </div>
           )}
         </div>
@@ -283,14 +275,13 @@ export default function BackupView({ uid }) {
         </div>
       )}
 
-      {/* Kurulum Notu */}
       <div className="card bg-amber-50 border-amber-200">
         <h3 className="text-xs font-bold text-amber-800 mb-1">⚙️ Google Sheets Kurulumu</h3>
         <div className="text-xs text-amber-700 space-y-1 leading-relaxed">
           <p>1. Google Cloud Console → APIs → "Google Sheets API" aktif et</p>
           <p>2. Cikis yap, Google ile tekrar giris yap (Sheets izni otomatik istenir)</p>
           <p>3. Token bulunamazsa butona tikladiginda popup ile izin istenir</p>
-          <p className="text-xs text-amber-600 mt-1">Scope'lar kod tarafindan eklenir, Supabase'de ek ayar gerekmez.</p>
+          <p className="text-xs text-amber-600 mt-1">Gece otomatik yedekleme (GitHub Actions) ve manuel buton ayni dosyayi gunceller.</p>
         </div>
       </div>
     </div>

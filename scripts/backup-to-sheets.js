@@ -3,94 +3,74 @@
  * Tarih Vakfi — Nightly Backup to Google Sheets
  *
  * Supabase'den tum tablolari ceker, Google Sheets'e yazar.
- * GitHub Actions ile her gece calisir.
+ * Sheets ID'yi Supabase backups tablosundan alir (tek dosya mantigi).
+ * Yoksa yeni olusturur ve ID'yi kaydeder.
  *
  * Gerekli env:
  *   SUPABASE_URL, SUPABASE_SERVICE_KEY,
- *   GOOGLE_SERVICE_ACCOUNT (JSON string), GOOGLE_SHEETS_ID
+ *   GOOGLE_SERVICE_ACCOUNT (JSON string)
+ *   GOOGLE_SHEETS_ID (opsiyonel — override)
  */
 
 const { google } = require('googleapis');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
-const SHEETS_ID = process.env.SHEETS_ID || process.env.GOOGLE_SHEETS_ID;
 const SA_KEY = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT || '{}');
+const OVERRIDE_SHEETS_ID = process.env.GOOGLE_SHEETS_ID || '';
 
-if (!SUPABASE_URL || !SUPABASE_KEY || !SHEETS_ID || !SA_KEY.client_email) {
-  console.error('Eksik environment variable. Gerekli: SUPABASE_URL, SUPABASE_SERVICE_KEY, GOOGLE_SERVICE_ACCOUNT, GOOGLE_SHEETS_ID');
+if (!SUPABASE_URL || !SUPABASE_KEY || !SA_KEY.client_email) {
+  console.error('Eksik: SUPABASE_URL, SUPABASE_SERVICE_KEY, GOOGLE_SERVICE_ACCOUNT');
   process.exit(1);
 }
 
-// ── Supabase REST helpers ──
-async function supabaseGet(table, select = '*', order = '') {
+// ── Supabase REST ──
+async function sbGet(table, select = '*', extra = '') {
   const params = new URLSearchParams({ select });
-  if (order) params.set('order', order);
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, {
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json',
-    },
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}${extra ? '&' + extra : ''}`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
   });
-  if (!res.ok) throw new Error(`Supabase ${table}: ${res.status} ${await res.text()}`);
+  if (!res.ok) throw new Error(`${table}: ${res.status}`);
   return res.json();
 }
 
-async function supabaseInsert(table, data) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+async function sbInsert(table, data) {
+  await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
     method: 'POST',
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=minimal',
-    },
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) console.warn(`Supabase insert ${table}: ${res.status}`);
 }
 
 // ── Helpers ──
-const fdate = d => {
-  if (!d) return '';
-  const x = new Date(d);
-  return `${String(x.getDate()).padStart(2, '0')}.${String(x.getMonth() + 1).padStart(2, '0')}.${x.getFullYear()}`;
-};
-const fdatetime = d => {
-  if (!d) return '';
-  const x = new Date(d);
-  return `${fdate(d)} ${String(x.getHours()).padStart(2, '0')}:${String(x.getMinutes()).padStart(2, '0')}`;
-};
+const fdate = d => { if (!d) return ''; const x = new Date(d); return `${String(x.getDate()).padStart(2,'0')}.${String(x.getMonth()+1).padStart(2,'0')}.${x.getFullYear()}`; };
+const fdatetime = d => { if (!d) return ''; const x = new Date(d); return `${fdate(d)} ${String(x.getHours()).padStart(2,'0')}:${String(x.getMinutes()).padStart(2,'0')}`; };
 
 // ── Main ──
 async function main() {
   console.log('Tarih Vakfi Backup basliyor...');
   const startTime = Date.now();
 
-  // 1. Supabase'den veri cek
+  // Veri cek
   console.log('Supabase verileri cekiliyor...');
   const [profiles, tasks, hours, shifts, anns, apps, reqs, msgs, comments, progress, shiftNotes, notifs] = await Promise.all([
-    supabaseGet('profiles', 'id,display_name,email,phone,role,department,status,total_hours,city,joined_at', 'display_name.asc'),
-    supabaseGet('tasks', '*', 'created_at.desc'),
-    supabaseGet('hour_logs', '*', 'date.desc'),
-    supabaseGet('shifts', '*', 'day_of_week.asc'),
-    supabaseGet('announcements', '*', 'created_at.desc'),
-    supabaseGet('applications', '*', 'applied_at.desc'),
-    supabaseGet('requests', '*', 'created_at.desc'),
-    supabaseGet('messages', '*', 'created_at.desc'),
-    supabaseGet('task_comments', '*', 'created_at.desc'),
-    supabaseGet('task_progress_logs', '*', 'created_at.desc'),
-    supabaseGet('shift_notes', '*', 'created_at.desc'),
-    supabaseGet('notifications', '*', 'created_at.desc'),
+    sbGet('profiles', 'id,display_name,email,phone,role,department,status,total_hours,city,joined_at', 'order=display_name.asc'),
+    sbGet('tasks', '*', 'order=created_at.desc'),
+    sbGet('hour_logs', '*', 'order=date.desc'),
+    sbGet('shifts', '*', 'order=day_of_week.asc'),
+    sbGet('announcements', '*', 'order=created_at.desc'),
+    sbGet('applications', '*', 'order=applied_at.desc'),
+    sbGet('requests', '*', 'order=created_at.desc'),
+    sbGet('messages', '*', 'order=created_at.desc'),
+    sbGet('task_comments', '*', 'order=created_at.desc'),
+    sbGet('task_progress_logs', '*', 'order=created_at.desc'),
+    sbGet('shift_notes', '*', 'order=created_at.desc'),
+    sbGet('notifications', '*', 'order=created_at.desc'),
   ]);
 
-  const profMap = Object.fromEntries(profiles.map(p => [p.id, p.display_name]));
-  const taskMap = Object.fromEntries(tasks.map(t => [t.id, t.title]));
-  const name = id => profMap[id] || '';
-  const taskName = id => taskMap[id] || '';
+  const name = id => profiles.find(p => p.id === id)?.display_name || '';
+  const taskName = id => tasks.find(t => t.id === id)?.title || '';
 
-  // Sheet definitions
   const sheets = [
     { name: 'Gonulluler', headers: ['Ad','E-posta','Telefon','Rol','Departman','Durum','Toplam Saat','Sehir','Kayit'], rows: profiles.map(p => [p.display_name, p.email||'', p.phone||'', p.role, p.department||'', p.status, p.total_hours||0, p.city||'', fdate(p.joined_at)]) },
     { name: 'Gorevler', headers: ['Baslik','Departman','Oncelik','Durum','Ilerleme','Deadline','Atanan','Olusturan','Tarih'], rows: tasks.map(t => [t.title, t.department, t.priority, t.status, `${t.progress||0}%`, fdate(t.deadline), (t.assigned_to||[]).map(name).join(', '), name(t.created_by), fdate(t.created_at)]) },
@@ -107,133 +87,111 @@ async function main() {
   ];
 
   // Ozet
-  const activeVols = profiles.filter(p => p.status === 'active').length;
-  const activeTasks = tasks.filter(t => ['active','pending','review'].includes(t.status)).length;
   const now = new Date();
-  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-  const monthlyHours = hours.filter(h => h.status === 'approved' && h.date >= monthStart).reduce((a, h) => a + Number(h.hours), 0);
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
   const totalRecords = sheets.reduce((a, s) => a + s.rows.length, 0);
-
   const depts = ['arsiv','egitim','etkinlik','dijital','rehber','baski','bagis','idari'];
-  const deptSummary = depts.map(d => [
-    d,
-    profiles.filter(p => p.department === d && p.status === 'active').length,
-    hours.filter(h => h.department === d && h.status === 'approved' && h.date >= monthStart).reduce((a, h) => a + Number(h.hours), 0),
-    tasks.filter(t => t.department === d && ['active','pending','review'].includes(t.status)).length,
-  ]);
-
   sheets.unshift({
     name: 'Ozet',
     headers: ['Metrik', 'Deger'],
     rows: [
       ['Son Guncelleme', fdatetime(now)],
       ['Toplam Kayit', totalRecords],
-      ['Aktif Gonullu', activeVols],
-      ['Aktif Gorev', activeTasks],
-      ['Bu Ay Saat', monthlyHours],
+      ['Aktif Gonullu', profiles.filter(p => p.status === 'active').length],
+      ['Aktif Gorev', tasks.filter(t => ['active','pending','review'].includes(t.status)).length],
+      ['Bu Ay Saat', hours.filter(h => h.status === 'approved' && h.date >= monthStart).reduce((a, h) => a + Number(h.hours), 0)],
       [''],
       ['Departman', 'Gonullu', 'Bu Ay Saat', 'Aktif Gorev'],
-      ...deptSummary,
+      ...depts.map(d => [d, profiles.filter(p => p.department === d && p.status === 'active').length, hours.filter(h => h.department === d && h.status === 'approved' && h.date >= monthStart).reduce((a, h) => a + Number(h.hours), 0), tasks.filter(t => t.department === d && ['active','pending','review'].includes(t.status)).length]),
     ],
   });
 
-  // 2. Google Sheets auth
-  console.log('Google Sheets baglantisi kuruluyor...');
-  const auth = new google.auth.GoogleAuth({
-    credentials: SA_KEY,
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-  });
+  // Sheets ID: override > Supabase > yeni olustur
+  console.log('Sheets ID belirleniyor...');
+  let sheetsId = OVERRIDE_SHEETS_ID;
+  if (!sheetsId) {
+    const backups = await sbGet('backups', 'sheets_id', 'sheets_id=not.is.null&order=created_at.desc&limit=1');
+    sheetsId = backups[0]?.sheets_id || '';
+  }
+
+  // Google auth
+  const auth = new google.auth.GoogleAuth({ credentials: SA_KEY, scopes: ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive'] });
   const sheetsApi = google.sheets({ version: 'v4', auth });
+  const driveApi = google.drive({ version: 'v3', auth });
+  let isNew = false;
 
-  // 3. Mevcut sheet'leri kontrol et / olustur
-  console.log('Sheet\'ler hazirlaniyor...');
-  const ss = await sheetsApi.spreadsheets.get({ spreadsheetId: SHEETS_ID });
-  const existingSheets = ss.data.sheets.map(s => s.properties.title);
-
-  const requests = [];
-  for (const s of sheets) {
-    if (!existingSheets.includes(s.name)) {
-      requests.push({ addSheet: { properties: { title: s.name } } });
-    }
-  }
-  if (requests.length) {
-    await sheetsApi.spreadsheets.batchUpdate({ spreadsheetId: SHEETS_ID, requestBody: { requests } });
-  }
-
-  // 4. Verileri yaz
-  console.log('Veriler yaziliyor...');
-  // Temizle
-  for (const s of sheets) {
-    try {
-      await sheetsApi.spreadsheets.values.clear({
-        spreadsheetId: SHEETS_ID,
-        range: `'${s.name}'!A:Z`,
-      });
-    } catch { /* sheet yeni olusturulduysa bos */ }
-  }
-
-  // Batch yaz
-  const batchData = sheets.map(s => ({
-    range: `'${s.name}'!A1`,
-    values: [s.headers, ...s.rows],
-  }));
-
-  await sheetsApi.spreadsheets.values.batchUpdate({
-    spreadsheetId: SHEETS_ID,
-    requestBody: {
-      valueInputOption: 'RAW',
-      data: batchData,
-    },
-  });
-
-  // 5. Formatlama: kalin baslik + otomatik genislik
-  console.log('Formatlama yapiliyor...');
-  const ssAfter = await sheetsApi.spreadsheets.get({ spreadsheetId: SHEETS_ID });
-  const fmtRequests = [];
-  for (const sheet of ssAfter.data.sheets) {
-    const sid = sheet.properties.sheetId;
-    fmtRequests.push({
-      repeatCell: {
-        range: { sheetId: sid, startRowIndex: 0, endRowIndex: 1 },
-        cell: { userEnteredFormat: { textFormat: { bold: true }, backgroundColor: { red: 0.93, green: 0.93, blue: 0.93 } } },
-        fields: 'userEnteredFormat(textFormat,backgroundColor)',
+  if (!sheetsId) {
+    console.log('Yeni spreadsheet olusturuluyor...');
+    const ss = await sheetsApi.spreadsheets.create({
+      requestBody: {
+        properties: { title: `Tarih Vakfi Yedek` },
+        sheets: sheets.map(s => ({ properties: { title: s.name } })),
       },
     });
-    fmtRequests.push({
-      autoResizeDimensions: { dimensions: { sheetId: sid, dimension: 'COLUMNS', startIndex: 0, endIndex: 20 } },
-    });
+    sheetsId = ss.data.spreadsheetId;
+    isNew = true;
+    console.log(`Yeni sheets ID: ${sheetsId}`);
+  } else {
+    console.log(`Mevcut sheets: ${sheetsId}`);
+    // Eksik sheet'leri ekle
+    const ss = await sheetsApi.spreadsheets.get({ spreadsheetId: sheetsId });
+    const existing = ss.data.sheets.map(s => s.properties.title);
+    const missing = sheets.filter(s => !existing.includes(s.name));
+    if (missing.length) {
+      await sheetsApi.spreadsheets.batchUpdate({
+        spreadsheetId: sheetsId,
+        requestBody: { requests: missing.map(s => ({ addSheet: { properties: { title: s.name } } })) },
+      });
+    }
   }
-  await sheetsApi.spreadsheets.batchUpdate({
-    spreadsheetId: SHEETS_ID,
-    requestBody: { requests: fmtRequests },
+
+  // Temizle + yaz
+  console.log('Veriler yaziliyor...');
+  for (const s of sheets) {
+    try { await sheetsApi.spreadsheets.values.clear({ spreadsheetId: sheetsId, range: `'${s.name}'!A:Z` }); } catch {}
+  }
+  await sheetsApi.spreadsheets.values.batchUpdate({
+    spreadsheetId: sheetsId,
+    requestBody: { valueInputOption: 'RAW', data: sheets.map(s => ({ range: `'${s.name}'!A1`, values: [s.headers, ...s.rows] })) },
   });
 
-  // 6. Supabase'e backup kaydi
-  console.log('Backup kaydi olusturuluyor...');
-  const adminProfiles = profiles.filter(p => p.role === 'admin');
-  const adminId = adminProfiles[0]?.id;
+  // Formatlama
+  console.log('Formatlama...');
+  const ssAfter = await sheetsApi.spreadsheets.get({ spreadsheetId: sheetsId });
+  const fmtReqs = [];
+  for (const sheet of ssAfter.data.sheets) {
+    const sid = sheet.properties.sheetId;
+    fmtReqs.push({ repeatCell: { range: { sheetId: sid, startRowIndex: 0, endRowIndex: 1 }, cell: { userEnteredFormat: { textFormat: { bold: true }, backgroundColor: { red: 0.93, green: 0.93, blue: 0.93 } } }, fields: 'userEnteredFormat(textFormat,backgroundColor)' } });
+    fmtReqs.push({ autoResizeDimensions: { dimensions: { sheetId: sid, dimension: 'COLUMNS', startIndex: 0, endIndex: 20 } } });
+  }
+  await sheetsApi.spreadsheets.batchUpdate({ spreadsheetId: sheetsId, requestBody: { requests: fmtReqs } });
+
+  // Admin'lerle paylas
+  const admins = profiles.filter(p => p.role === 'admin' && p.email);
+  console.log(`Admin'lerle paylasiliyor (${admins.length})...`);
+  for (const admin of admins) {
+    try {
+      await driveApi.permissions.create({
+        fileId: sheetsId,
+        requestBody: { type: 'user', role: 'writer', emailAddress: admin.email },
+        sendNotificationEmail: false,
+      });
+    } catch (e) {
+      // Zaten paylasilmis olabilir
+      if (!e.message?.includes('already has access')) console.warn(`  Paylasim hatasi (${admin.email}): ${e.message}`);
+    }
+  }
+
+  // Supabase kayit
+  const adminId = admins[0]?.id;
   if (adminId) {
-    await supabaseInsert('backups', {
-      created_by: adminId,
-      type: 'sheets',
-      sheets_url: `https://docs.google.com/spreadsheets/d/${SHEETS_ID}`,
-      record_count: totalRecords,
-    });
-    // Bildirim
-    await supabaseInsert('notifications', {
-      user_id: adminId,
-      type: 'system',
-      title: 'Otomatik yedekleme tamamlandi',
-      body: `${totalRecords} kayit Google Sheets'e aktarildi. (${fdatetime(now)})`,
-    });
+    await sbInsert('backups', { created_by: adminId, type: 'sheets', sheets_url: `https://docs.google.com/spreadsheets/d/${sheetsId}`, sheets_id: sheetsId, record_count: totalRecords });
+    await sbInsert('notifications', { user_id: adminId, type: 'system', title: 'Otomatik yedekleme tamamlandi', body: `${totalRecords} kayit Google Sheets'e aktarildi. (${fdatetime(now)})` });
   }
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-  console.log(`\nBasarili! ${totalRecords} kayit ${sheets.length} sheet'e yazildi. (${elapsed}s)`);
-  console.log(`Sheets: https://docs.google.com/spreadsheets/d/${SHEETS_ID}`);
+  console.log(`\nBasarili! ${totalRecords} kayit ${sheets.length} sheet. (${elapsed}s)`);
+  console.log(`Sheets: https://docs.google.com/spreadsheets/d/${sheetsId}`);
 }
 
-main().catch(err => {
-  console.error('HATA:', err.message);
-  process.exit(1);
-});
+main().catch(err => { console.error('HATA:', err.message); process.exit(1); });
