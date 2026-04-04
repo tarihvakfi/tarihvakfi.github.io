@@ -976,14 +976,14 @@ function ScheduleView({ uid, me, can }) {
 function AnnouncementsView({ uid, me, can }) {
   const [anns, setAnns] = useState([]);
   const [show, setShow] = useState(false);
-  const [f, setF] = useState({ title: '', body: '', department: '', is_pinned: false });
+  const [f, setF] = useState({ title: '', body: '', department: '', is_pinned: false, is_public: false });
 
   useEffect(() => { db.getAnnouncements().then(({ data }) => setAnns(data || [])); }, []);
 
   const create = async () => {
     if (!f.title || !f.body) return;
     await db.createAnnouncement({ ...f, department: f.department || null, author_id: uid });
-    setShow(false); setF({ title: '', body: '', department: '', is_pinned: false });
+    setShow(false); setF({ title: '', body: '', department: '', is_pinned: false, is_public: false });
     const { data } = await db.getAnnouncements(); setAnns(data || []);
   };
 
@@ -1000,7 +1000,10 @@ function AnnouncementsView({ uid, me, can }) {
           <input className="input-field" placeholder="Başlık" value={f.title} onChange={e => setF({...f, title: e.target.value})} />
           <textarea className="input-field" rows={3} placeholder="İçerik" value={f.body} onChange={e => setF({...f, body: e.target.value})} />
           <select className="input-field" value={f.department} onChange={e => setF({...f, department: e.target.value})}><option value="">Herkese</option>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.l}</option>)}</select>
-          <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer"><input type="checkbox" checked={f.is_pinned} onChange={e => setF({...f, is_pinned: e.target.checked})} /> Sabitle</label>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer"><input type="checkbox" checked={f.is_pinned} onChange={e => setF({...f, is_pinned: e.target.checked})} /> Sabitle</label>
+            <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer"><input type="checkbox" checked={f.is_public} onChange={e => setF({...f, is_public: e.target.checked})} /> Halka acik</label>
+          </div>
           <button className="btn-primary w-full !text-[14px]" onClick={create}>Yayınla</button>
         </div>
       )}

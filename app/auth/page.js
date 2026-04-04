@@ -1,13 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  signInWithGoogle,
+  supabase, signInWithGoogle,
   signUpWithEmail, signInWithEmail, resetPassword,
 } from '../../lib/supabase';
 
 export default function AuthPage() {
   const [mode, setMode] = useState('main'); // main, email-login, email-signup, reset
+
+  // Zaten giris yapmissa dashboard'a yonlendir
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data?.session) window.location.href = '/dashboard/';
+    });
+  }, []);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -29,6 +36,7 @@ export default function AuthPage() {
     clear(); setLoading(true);
     const { error } = await signInWithEmail(email, password);
     if (error) setError(error.message);
+    else window.location.href = '/dashboard/';
     setLoading(false);
   };
 
@@ -146,6 +154,7 @@ export default function AuthPage() {
 
         <p className="text-center text-[10px] text-gray-300 mt-4">
           Giriş yaparak Tarih Vakfı gönüllü sözleşmesini kabul etmiş olursunuz.
+          <br /><a href="/" className="text-emerald-600 hover:underline">← Ana Sayfaya Dön</a>
         </p>
       </div>
     </div>
