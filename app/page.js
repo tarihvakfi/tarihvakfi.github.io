@@ -56,19 +56,14 @@ export default function Home() {
       {/* Header */}
       <header className="bg-white/90 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-          <a href="/" className="flex items-center gap-2.5">
-            <img src="https://tarihvakfi.org.tr/wp-content/uploads/2025/05/tarih-vakfi-logo.png" alt="Tarih Vakfı" className="h-8 w-auto" onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='inline'; }} />
-            <span style={{display:'none'}} className="text-xl">🏛️</span>
-            <span className="font-bold text-gray-800" style={{fontFamily:"'Playfair Display',serif"}}>Tarih Vakfı</span>
+          <a href="/">
+            <img src="https://tarihvakfi.org.tr/wp-content/uploads/2025/05/tarih-vakfi-logo.png" alt="Tarih Vakfı" className="h-8 w-auto" onError={e => { e.target.onerror=null; e.target.src=''; e.target.alt='🏛️ Tarih Vakfı'; }} />
           </a>
-          <div className="flex items-center gap-3">
-            {session ? (
-              <a href="/dashboard/" className="bg-emerald-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-emerald-700 transition-all">Panelim</a>
-            ) : (<>
-              <a href="/auth/" className="text-sm font-semibold text-gray-500 hover:text-gray-800 transition-colors hidden sm:block">Giriş Yap</a>
-              <a href="/auth/" className="bg-emerald-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-emerald-700 transition-all">Gönüllü Girişi</a>
-            </>)}
-          </div>
+          {session ? (
+            <a href="/dashboard/" className="bg-emerald-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-emerald-700 transition-all">Panelim</a>
+          ) : (
+            <a href="/auth/" className="bg-emerald-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-emerald-700 transition-all">Gönüllü Girişi</a>
+          )}
         </div>
       </header>
 
@@ -82,10 +77,6 @@ export default function Home() {
           <p className="text-base md:text-lg text-white/60 mt-5 max-w-xl mx-auto leading-relaxed">
             1991'den beri tarihi korumak ve toplumsal tarih bilincini geliştirmek için çalışıyoruz. Gönüllülerimizle birlikte büyüyoruz.
           </p>
-          <div className="flex gap-3 justify-center mt-8 flex-wrap">
-            <a href="/auth/" className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-7 py-3.5 rounded-xl transition-all active:scale-[0.98] shadow-lg shadow-emerald-500/20">Gönüllü Ol</a>
-            <a href="/auth/" className="bg-white/10 hover:bg-white/20 text-white font-semibold px-7 py-3.5 rounded-xl border border-white/20 transition-all backdrop-blur">Giriş Yap</a>
-          </div>
         </div>
       </section>
 
