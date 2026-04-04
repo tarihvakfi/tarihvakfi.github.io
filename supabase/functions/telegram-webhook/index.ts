@@ -260,8 +260,19 @@ Deno.serve(async (req) => {
     }
 
     // ── /yardim ──
+    // ── /ozet ──
+    if (text === '/ozet') {
+      const { data: ws } = await sb.from('volunteer_work_summary').select('*').eq('id', uid).single()
+      if (ws) {
+        await sendTg(chatId, `📊 <b>Çalışma Özetin</b>\n\nBu hafta: <b>${ws.week_days} gün, ${fmtHours(Number(ws.week_hours))}</b>\nBu ay: <b>${ws.month_days} gün, ${fmtHours(Number(ws.month_hours))}</b>\nToplam: <b>${ws.total_days} gün, ${fmtHours(Number(ws.total_hours))}</b>\n${ws.last_visit ? `\nSon giriş: ${ws.last_visit}` : ''}`)
+      } else {
+        await sendTg(chatId, 'Henüz kayıt yok.')
+      }
+      return new Response('OK')
+    }
+
     if (text === '/yardim' || text === '/help') {
-      await sendTg(chatId, `🏛️ <b>Tarih Vakfı Bot Komutları</b>\n\n🟢 <b>geldim</b> — Giriş yap\n🔴 <b>çıkıyorum</b> — Çıkış yap\n📊 <b>/durum</b> — Haftalık özet\n⏰ <b>/gecmis</b> — Geçmiş kayıt ekle\n❓ <b>/yardim</b> — Bu mesaj\n\nÖrnekler:\n<i>dün 10-15:30</i>\n<i>pazartesi 09:00-14:00</i>`)
+      await sendTg(chatId, `🏛️ <b>Tarih Vakfı Bot Komutları</b>\n\n🟢 <b>geldim</b> — Giriş yap\n🔴 <b>çıkıyorum</b> — Çıkış yap\n📊 <b>/durum</b> — Haftalık özet\n📈 <b>/ozet</b> — Çalışma özeti\n⏰ <b>/gecmis</b> — Geçmiş kayıt ekle\n❓ <b>/yardim</b> — Bu mesaj\n\nÖrnekler:\n<i>dün 10-15:30</i>\n<i>pazartesi 09:00-14:00</i>`)
       return new Response('OK')
     }
 

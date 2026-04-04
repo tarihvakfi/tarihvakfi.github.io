@@ -23,6 +23,7 @@ const MO = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas',
 const fd = d => { const x = new Date(d); return `${x.getDate()} ${MO[x.getMonth()]}`; };
 const fdf = d => { const x = new Date(d); return `${x.getDate()} ${MO[x.getMonth()]} ${x.getFullYear()}`; };
 const today = () => new Date().toISOString().slice(0,10);
+const fmtHours = h => { const hrs = Math.floor(h); const mins = Math.round((h - hrs) * 60); return `${hrs}s ${String(mins).padStart(2,'0')}dk`; };
 
 // ─── MAIN SHELL ──────────────────────────
 export default function Dashboard({ session }) {
@@ -216,22 +217,25 @@ function VolunteerWorkView({ uid, me }) {
   const [progVal, setProgVal] = useState(0);
   const [progNote, setProgNote] = useState('');
   const [weekHistory, setWeekHistory] = useState([]);
+  const [summary, setSummary] = useState(null);
   const [shifts, setShifts] = useState([]);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    const [ac, lc, t, wk, sh] = await Promise.all([
+    const [ac, lc, t, wk, sh, ws] = await Promise.all([
       db.getActiveCheckin(uid),
       db.getLastCheckin(uid),
       db.getTasks({ assignedTo: uid }),
       db.getWeekCheckins(uid),
       db.getShifts({ volunteerId: uid }),
+      db.getWorkSummary(uid),
     ]);
     setActive(ac.data);
     setLastCheckin(lc.data);
     setTasks((t.data || []).filter(t => t.status !== 'done' && t.status !== 'cancelled'));
     setWeekHistory(wk.data || []);
     setShifts(sh.data || []);
+    setSummary(ws.data);
     // Missed checkout check
     if (ac.data && ac.data.date !== today()) setMissedCheckout(ac.data);
     else setMissedCheckout(null);
@@ -294,7 +298,6 @@ function VolunteerWorkView({ uid, me }) {
   };
 
   const fmtTime = t => new Date(t).toLocaleTimeString('tr-TR', { hour:'2-digit', minute:'2-digit' });
-  const fmtHours = h => { const hrs = Math.floor(h); const mins = Math.round((h - hrs) * 60); return `${hrs}s ${String(mins).padStart(2,'0')}dk`; };
   const todayDay = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
   const weekTotal = weekHistory.reduce((a, c) => a + Number(c.hours || 0), 0);
 
@@ -360,6 +363,13 @@ function VolunteerWorkView({ uid, me }) {
             <button onClick={doCheckOut} disabled={saving || !workDone.trim()} className="btn-primary flex-1 !py-3 disabled:opacity-50">{saving ? '...' : '✓ Kaydet'}</button>
             <button onClick={() => setCheckoutForm(false)} className="btn-ghost !py-3">İptal</button>
           </div>
+        </div>
+      )}
+
+      {/* ═══ MİNİ ÖZET ═══ */}
+      {summary && (summary.week_days > 0 || summary.month_days > 0) && (
+        <div className="card !py-3 text-center text-sm text-gray-600">
+          Bu hafta <b className="text-emerald-600">{summary.week_days} gün</b>, <b className="text-emerald-600">{fmtHours(Number(summary.week_hours))}</b> çalıştın 💪
         </div>
       )}
 
@@ -496,14 +506,18 @@ function TeamView({ uid, me }) {
   const [activeNow, setActiveNow] = useState([]);
   const [pending, setPending] = useState([]);
   const [weekTotal, setWeekTotal] = useState({ vols: 0, hours: 0 });
+  const [volSummaries, setVolSummaries] = useState([]);
+  const [sortBy, setSortBy] = useState('hours');
 
   const load = useCallback(async () => {
-    const [ac, pend] = await Promise.all([
+    const [ac, pend, ws] = await Promise.all([
       db.getActiveCheckins(),
       db.getPendingCheckins(),
+      db.getAllWorkSummaries(),
     ]);
     setActiveNow(ac.data || []);
     setPending(pend.data || []);
+    setVolSummaries(ws.data || []);
     // Week stats
     const now = new Date();
     const monday = new Date(now); monday.setDate(now.getDate() - ((now.getDay()+6)%7));
@@ -515,7 +529,6 @@ function TeamView({ uid, me }) {
 
   const approve = async (id) => { await db.approveCheckin(id, uid); load(); };
   const fmtTime = t => new Date(t).toLocaleTimeString('tr-TR', { hour:'2-digit', minute:'2-digit' });
-  const fmtHours = h => { const hrs = Math.floor(h); const mins = Math.round((h - hrs) * 60); return `${hrs}s ${mins}dk`; };
 
   return (
     <div className="space-y-5">
@@ -567,6 +580,38 @@ function TeamView({ uid, me }) {
       <div className="card text-center">
         <div className="text-sm text-gray-500">Bu hafta: <span className="font-bold text-gray-800">{weekTotal.vols} gönüllü</span>, <span className="font-bold text-emerald-600">{fmtHours(weekTotal.hours)}</span></div>
       </div>
+
+      {/* Gönüllü Çalışma Özeti */}
+      {volSummaries.length > 0 && (
+        <div>
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="text-lg font-bold">👥 Gönüllü Özeti</h2>
+            <div className="flex gap-1">
+              {[['hours','Saat'],['days','Gün'],['name','Ad']].map(([k,l]) => (
+                <button key={k} onClick={() => setSortBy(k)} className={`text-xs px-2 py-1 rounded-lg ${sortBy === k ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400'}`}>{l}</button>
+              ))}
+            </div>
+          </div>
+          {[...volSummaries].sort((a, b) => sortBy === 'hours' ? Number(b.month_hours) - Number(a.month_hours) : sortBy === 'days' ? Number(b.month_days) - Number(a.month_days) : a.display_name.localeCompare(b.display_name)).map(v => {
+            const isOnline = activeNow.some(c => c.user_id === v.id);
+            return (
+              <div key={v.id} className="card mb-2 !py-3">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-600">{(v.display_name||'?')[0]}</div>
+                    {isOnline && <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />}
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-sm">{v.display_name} <span className="text-xs text-gray-400">{DM[v.department]?.i}</span></div>
+                    <div className="text-xs text-gray-400">Bu ay: {v.month_days}g / {fmtHours(Number(v.month_hours))} · Toplam: {v.total_days}g / {fmtHours(Number(v.total_hours))}</div>
+                  </div>
+                  {v.last_visit && <span className="text-xs text-gray-300">{v.last_visit === today() ? 'Bugün' : fd(v.last_visit)}</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -766,16 +811,18 @@ function DurumView({ uid, me, can }) {
   const [stats, setStats] = useState(null);
   const [deptComp, setDeptComp] = useState([]);
   const [tasks, setTasks] = useState([]);
+  const [allSummaries, setAllSummaries] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const [s, dc, t] = await Promise.all([
+      const [s, dc, t, ws] = await Promise.all([
         db.getOverviewStats(),
         db.getDeptComparison(),
         db.getTasksForOverview(),
+        db.getAllWorkSummaries(),
       ]);
-      setStats(s); setDeptComp(dc.data || []); setTasks(t.data || []); setLoaded(true);
+      setStats(s); setDeptComp(dc.data || []); setTasks(t.data || []); setAllSummaries(ws.data || []); setLoaded(true);
     })();
   }, []);
 
@@ -786,19 +833,29 @@ function DurumView({ uid, me, can }) {
   return (
     <div className="space-y-5">
       {/* Özet */}
-      <div className="grid grid-cols-2 gap-3">
-        {[
-          { v: stats?.totalVols, l: 'Aktif Gönüllü', c: 'text-emerald-600' },
-          { v: Math.round(stats?.monthlyHours || 0), l: 'Bu Ay Saat', c: 'text-amber-500' },
-          { v: stats?.activeTasks, l: 'Aktif İş', c: 'text-purple-600' },
-          { v: stats?.doneTasks, l: 'Tamamlanan', c: 'text-blue-600' },
-        ].map((s, i) => (
-          <div key={i} className="card text-center">
-            <div className={`text-2xl font-bold ${s.c}`}>{s.v ?? '—'}</div>
-            <div className="text-xs text-gray-400">{s.l}</div>
+      {(() => {
+        const monthDays = allSummaries.reduce((a, s) => a + Number(s.month_days), 0);
+        const monthHrs = allSummaries.reduce((a, s) => a + Number(s.month_hours), 0);
+        const topVol = allSummaries[0];
+        return (<>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { v: stats?.totalVols, l: 'Aktif Gönüllü', c: 'text-emerald-600' },
+              { v: Math.round(stats?.monthlyHours || monthHrs), l: 'Bu Ay Saat', c: 'text-amber-500' },
+              { v: monthDays, l: 'Bu Ay Çalışma Günü', c: 'text-purple-600' },
+              { v: stats?.doneTasks, l: 'Tamamlanan İş', c: 'text-blue-600' },
+            ].map((s, i) => (
+              <div key={i} className="card text-center">
+                <div className={`text-2xl font-bold ${s.c}`}>{s.v ?? '—'}</div>
+                <div className="text-xs text-gray-400">{s.l}</div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+          {topVol && Number(topVol.month_hours) > 0 && (
+            <div className="card !py-3 text-center text-sm text-gray-600">🏆 En aktif: <b>{topVol.display_name}</b> — {topVol.month_days}g / {fmtHours(Number(topVol.month_hours))}</div>
+          )}
+        </>);
+      })()}
 
       {/* Departman Çubuk Grafik */}
       <div className="card">
@@ -1027,6 +1084,9 @@ function ProfileSection({ me, uid, onUpdate }) {
   const [f, setF] = useState({ display_name: me.display_name, city: me.city || '', bio: me.bio || '' });
   const [tgCode, setTgCode] = useState(null);
   const [tgLinked, setTgLinked] = useState(!!me.telegram_id);
+  const [summary, setSummary] = useState(null);
+
+  useEffect(() => { db.getWorkSummary(uid).then(({ data }) => setSummary(data)); }, [uid]);
 
   const save = async () => {
     const { data } = await db.updateProfile(uid, f);
@@ -1058,6 +1118,21 @@ function ProfileSection({ me, uid, onUpdate }) {
           <div className="text-center"><div className="font-bold text-lg">{fdf(me.joined_at)}</div><div className="text-xs text-gray-400">Üyelik</div></div>
         </div>
       </div>
+
+      {/* Çalışma Özeti */}
+      {summary && (
+        <div className="card mt-3">
+          <h3 className="font-bold text-sm mb-3">📊 Çalışma Özeti</h3>
+          <table className="w-full text-sm">
+            <tbody>
+              <tr className="border-b border-gray-50"><td className="py-1.5 text-gray-500">Bu Hafta</td><td className="py-1.5 font-semibold text-right">{summary.week_days} gün · {fmtHours(Number(summary.week_hours))}</td></tr>
+              <tr className="border-b border-gray-50"><td className="py-1.5 text-gray-500">Bu Ay</td><td className="py-1.5 font-semibold text-right">{summary.month_days} gün · {fmtHours(Number(summary.month_hours))}</td></tr>
+              <tr><td className="py-1.5 text-gray-500">Toplam</td><td className="py-1.5 font-bold text-emerald-600 text-right">{summary.total_days} gün · {fmtHours(Number(summary.total_hours))}</td></tr>
+            </tbody>
+          </table>
+          {summary.first_visit && <div className="text-xs text-gray-400 mt-2">İlk giriş: {fdf(summary.first_visit)} · Son: {summary.last_visit === today() ? 'Bugün' : fdf(summary.last_visit)}</div>}
+        </div>
+      )}
 
       {/* Telegram Bağlama */}
       <div className="card mt-3">
