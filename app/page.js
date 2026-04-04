@@ -12,10 +12,17 @@ export default function Home() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data?.session);
+      // Google provider_token'i persist et
+      if (data?.session?.provider_token) {
+        localStorage.setItem('tarihvakfi_google_token', data.session.provider_token);
+      }
       setLoading(false);
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session?.provider_token) {
+        localStorage.setItem('tarihvakfi_google_token', session.provider_token);
+      }
     });
     return () => listener?.subscription?.unsubscribe();
   }, []);

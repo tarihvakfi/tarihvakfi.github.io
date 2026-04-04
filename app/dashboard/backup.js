@@ -53,8 +53,12 @@ async function downloadZip(data, uid) {
 }
 
 async function exportToSheets(data, uid, existingId) {
-  const token = await db.getGoogleToken();
-  if (!token) throw new Error('Google token bulunamadi. Cikis yapip Google ile tekrar giris yapin.');
+  let token = await db.getGoogleToken();
+  if (!token) {
+    // Popup ile yeniden yetkilendirme dene
+    token = await db.reauthorizeGoogleSheets();
+    if (!token) throw new Error('Google Sheets izni alinamadi. Popup engelleniyorsa izin verin, sonra tekrar deneyin.');
+  }
 
   const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
   let spreadsheetId = existingId;
@@ -70,7 +74,11 @@ async function exportToSheets(data, uid, existingId) {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      if (res.status === 403 || res.status === 401) throw new Error('Google Sheets izni yok. Supabase Google provider ayarlarinda Sheets scope ekleyin, sonra cikis yapip tekrar giris yapin.');
+      if (res.status === 403 || res.status === 401) {
+        // Token gecersiz, localStorage'i temizle ve tekrar dene
+        localStorage.removeItem('tarihvakfi_google_token');
+        throw new Error('Google Sheets izni yok veya token gecersiz. Cikis yapip Google ile tekrar giris yapin.');
+      }
       throw new Error(err.error?.message || 'Sheets olusturulamadi');
     }
     const ss = await res.json();
@@ -267,6 +275,7 @@ export default function BackupView({ uid }) {
         <div className="text-xs text-amber-700 space-y-1 leading-relaxed">
           <p>1. Google Cloud Console → APIs → "Google Sheets API" aktif et</p>
           <p>2. Cikis yap, Google ile tekrar giris yap (Sheets izni otomatik istenir)</p>
+          <p>3. Token bulunamazsa butona tikladiginda popup ile izin istenir</p>
           <p className="text-xs text-amber-600 mt-1">Scope'lar kod tarafindan eklenir, Supabase'de ek ayar gerekmez.</p>
         </div>
       </div>
