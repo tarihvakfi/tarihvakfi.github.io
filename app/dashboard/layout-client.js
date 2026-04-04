@@ -180,59 +180,111 @@ function IslerimView({ uid, me, can }) {
   const isAdmin = me.role === 'admin';
 
   const tabs = isAdmin
-    ? [['mine','Bana Atanan'],['all','Tüm İşler'],['hours','Saat Onayları'],['vols','Gönüllüler'],['shifts','Vardiya']]
+    ? [['mine','Benim'],['team','Takımım'],['all','Tüm İşler'],['vols','Gönüllüler'],['shifts','Vardiya']]
     : isCoord
-    ? [['mine','Bana Atanan'],['all','Tüm İşler'],['hours','Saat Onayları']]
+    ? [['mine','Benim'],['team','Takımım'],['all','Tüm İşler']]
     : [];
 
   const [subTab, setSubTab] = useState('mine');
 
-  // Gönüllü: tek görünüm (tab yok)
   if (!isCoord) return <VolunteerWorkView uid={uid} me={me} />;
 
   return (
     <div>
       <TabBar tabs={tabs} active={subTab} onChange={setSubTab} />
       {subTab === 'mine' && <VolunteerWorkView uid={uid} me={me} />}
+      {subTab === 'team' && <TeamView uid={uid} me={me} />}
       {subTab === 'all' && <AllTasksView uid={uid} me={me} can={can} />}
-      {subTab === 'hours' && <HourApprovalsView uid={uid} me={me} />}
       {subTab === 'vols' && isAdmin && <VolunteersView uid={uid} me={me} />}
       {subTab === 'shifts' && isAdmin && <ShiftPlanView uid={uid} me={me} />}
     </div>
   );
 }
 
-// ── Gönüllü İş Görünümü ──
+// ── Gönüllü İş Görünümü (Check-in/out + İşler + Geçmiş + Vardiya) ──
 function VolunteerWorkView({ uid, me }) {
+  const [active, setActive] = useState(null); // aktif check-in
+  const [lastCheckin, setLastCheckin] = useState(null);
+  const [missedCheckout, setMissedCheckout] = useState(null);
+  const [missedTime, setMissedTime] = useState('17:00');
+  const [checkoutForm, setCheckoutForm] = useState(false);
+  const [workDone, setWorkDone] = useState('');
+  const [nextPlan, setNextPlan] = useState('');
+  const [elapsed, setElapsed] = useState('');
   const [tasks, setTasks] = useState([]);
   const [expandTask, setExpandTask] = useState(null);
   const [progVal, setProgVal] = useState(0);
   const [progNote, setProgNote] = useState('');
-  const [comment, setComment] = useState('');
-  const [hours, setHours] = useState([]);
-  const [showHourForm, setShowHourForm] = useState(false);
-  const [hf, setHf] = useState({ date: today(), hours: '', description: '' });
+  const [weekHistory, setWeekHistory] = useState([]);
   const [shifts, setShifts] = useState([]);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    const [t, h, s] = await Promise.all([
+    const [ac, lc, t, wk, sh] = await Promise.all([
+      db.getActiveCheckin(uid),
+      db.getLastCheckin(uid),
       db.getTasks({ assignedTo: uid }),
-      db.getHourLogs({ volunteerId: uid, limit: 5 }),
+      db.getWeekCheckins(uid),
       db.getShifts({ volunteerId: uid }),
     ]);
+    setActive(ac.data);
+    setLastCheckin(lc.data);
     setTasks((t.data || []).filter(t => t.status !== 'done' && t.status !== 'cancelled'));
-    setHours(h.data || []);
-    setShifts(s.data || []);
+    setWeekHistory(wk.data || []);
+    setShifts(sh.data || []);
+    // Missed checkout check
+    if (ac.data && ac.data.date !== today()) setMissedCheckout(ac.data);
+    else setMissedCheckout(null);
   }, [uid]);
   useEffect(() => { load(); }, [load]);
+
+  // Live timer
+  useEffect(() => {
+    if (!active || missedCheckout) return;
+    const tick = () => {
+      const diff = Math.floor((Date.now() - new Date(active.check_in).getTime()) / 1000);
+      const h = Math.floor(diff / 3600); const m = Math.floor((diff % 3600) / 60);
+      setElapsed(`${h}s ${String(m).padStart(2,'0')}dk`);
+    };
+    tick();
+    const id = setInterval(tick, 10000);
+    return () => clearInterval(id);
+  }, [active, missedCheckout]);
+
+  const doCheckIn = async () => {
+    setSaving(true);
+    await db.checkIn(uid);
+    setSaving(false); load();
+  };
+
+  const doFixMissed = async () => {
+    if (!missedCheckout) return;
+    setSaving(true);
+    const d = new Date(missedCheckout.check_in);
+    const [h, m] = missedTime.split(':');
+    d.setHours(parseInt(h), parseInt(m), 0, 0);
+    await db.fixMissedCheckout(missedCheckout.id, d.toISOString());
+    await db.updateCheckinHours(missedCheckout.id);
+    setMissedCheckout(null); setSaving(false); load();
+  };
+
+  const startCheckout = () => { setCheckoutForm(true); };
+
+  const doCheckOut = async () => {
+    if (!workDone.trim() || !active) return;
+    setSaving(true);
+    const now = new Date().toISOString();
+    await db.checkOut(active.id, now, workDone, nextPlan);
+    await db.updateCheckinHours(active.id);
+    setCheckoutForm(false); setWorkDone(''); setNextPlan('');
+    setSaving(false); load();
+  };
 
   const updateProgress = async (task) => {
     if (!progNote.trim()) return;
     setSaving(true);
     await db.addProgressLog({ task_id: task.id, user_id: uid, previous_value: task.progress || 0, new_value: progVal, note: progNote });
     await db.updateTaskProgress(task.id, progVal);
-    // Notify others
     if (task.assigned_to) {
       for (const vid of task.assigned_to) {
         if (vid !== uid) await db.sendNotification(vid, 'task', `📊 ${task.title}: %${progVal}`, `${me.display_name}: ${progNote}`);
@@ -241,119 +293,141 @@ function VolunteerWorkView({ uid, me }) {
     setProgNote(''); setExpandTask(null); setSaving(false); load();
   };
 
-  const addComment = async (task) => {
-    if (!comment.trim()) return;
-    setSaving(true);
-    await db.addTaskComment({ task_id: task.id, user_id: uid, content: comment });
-    if (task.assigned_to) {
-      for (const vid of task.assigned_to) {
-        if (vid !== uid) await db.sendNotification(vid, 'task', `💬 ${task.title}`, `${me.display_name}: ${comment.slice(0,60)}`);
-      }
-    }
-    setComment(''); setSaving(false);
-  };
-
-  const submitHours = async () => {
-    if (!hf.hours) return;
-    setSaving(true);
-    await db.logHours({ volunteer_id: uid, date: hf.date, hours: parseFloat(hf.hours), department: me.department || 'arsiv', description: hf.description });
-    setShowHourForm(false); setHf({ date: today(), hours: '', description: '' }); setSaving(false); load();
-  };
-
+  const fmtTime = t => new Date(t).toLocaleTimeString('tr-TR', { hour:'2-digit', minute:'2-digit' });
+  const fmtHours = h => { const hrs = Math.floor(h); const mins = Math.round((h - hrs) * 60); return `${hrs}s ${String(mins).padStart(2,'0')}dk`; };
   const todayDay = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
-  const myShifts = shifts.filter(s => s.day_of_week);
+  const weekTotal = weekHistory.reduce((a, c) => a + Number(c.hours || 0), 0);
 
   return (
     <div className="space-y-5">
-      {/* Aktif İşlerim */}
-      <div>
-        <h2 className="text-lg font-bold mb-3">📋 Aktif İşlerim</h2>
-        {tasks.length === 0 && <div className="card text-center py-8"><p className="text-sm text-gray-400">Atanmış işiniz yok</p></div>}
-        {tasks.map(t => {
-          const overdue = t.deadline && new Date(t.deadline) < new Date() && t.status !== 'done';
-          const expanded = expandTask === t.id;
-          return (
-            <div key={t.id} className={`card mb-3 ${overdue ? 'border-l-4 border-red-400' : ''}`}>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="font-bold text-base">{t.title}</div>
-                  <div className="text-sm text-gray-400 mt-0.5">{DM[t.department]?.i} {DM[t.department]?.l}{t.deadline && ` · Son: ${fd(t.deadline)}`}{overdue && ' ⚠️'}</div>
-                </div>
-                <span className={`text-sm font-bold ${(t.progress||0) >= 80 ? 'text-emerald-600' : (t.progress||0) >= 40 ? 'text-amber-500' : 'text-red-500'}`}>{Math.round(t.progress || 0)}%</span>
-              </div>
-              {/* Progress bar */}
-              <div className="mt-2 h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                <div className={`h-full rounded-full transition-all ${(t.progress||0) >= 80 ? 'bg-emerald-500' : (t.progress||0) >= 40 ? 'bg-amber-400' : 'bg-red-400'}`} style={{width:`${t.progress||0}%`}} />
-              </div>
-              <div className="flex gap-2 mt-3">
-                <button onClick={() => { setExpandTask(expanded ? null : t.id); setProgVal(t.progress || 0); }} className="text-sm font-semibold text-emerald-600 hover:text-emerald-700">
-                  {expanded ? '✕ Kapat' : '📊 Güncelle'}
-                </button>
-              </div>
-              {expanded && (
-                <div className="mt-3 pt-3 border-t border-gray-100 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <input type="range" min="0" max="100" step="5" value={progVal} onChange={e => setProgVal(Number(e.target.value))} className="flex-1 accent-emerald-600" />
-                    <span className="text-sm font-bold w-12 text-right">{progVal}%</span>
-                  </div>
-                  <input className="input-field" placeholder="Ne yaptım?" value={progNote} onChange={e => setProgNote(e.target.value)} />
-                  <button onClick={() => updateProgress(t)} disabled={saving} className="btn-primary w-full disabled:opacity-50">{saving ? '...' : 'Kaydet'}</button>
-                  <div className="pt-2 border-t border-gray-50">
-                    <div className="flex gap-2">
-                      <input className="input-field flex-1" placeholder="Yorum yaz..." value={comment} onChange={e => setComment(e.target.value)} />
-                      <button onClick={() => addComment(t)} disabled={saving || !comment.trim()} className="btn-primary !px-4 disabled:opacity-50">💬</button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Saat Kaydı */}
-      <div>
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="text-lg font-bold">⏱️ Saat Kaydı</h2>
-          <button onClick={() => setShowHourForm(!showHourForm)} className="btn-primary !py-2 !px-4 !text-sm">{showHourForm ? '✕' : '+ Kaydet'}</button>
+      {/* ═══ CHECK-IN / CHECK-OUT KARTI ═══ */}
+      {missedCheckout ? (
+        <div className="card border-l-4 border-amber-400 text-center space-y-3">
+          <div className="text-3xl">⚠️</div>
+          <div className="font-bold">Dünkü çıkışını yapmadın!</div>
+          <div className="text-sm text-gray-500">Giriş: {fmtTime(missedCheckout.check_in)} ({fd(missedCheckout.date)})</div>
+          <div className="flex items-center justify-center gap-2">
+            <span className="text-sm">Kaçta çıktın?</span>
+            <input type="time" className="input-field !w-28 !py-2 text-center" value={missedTime} onChange={e => setMissedTime(e.target.value)} />
+          </div>
+          <button onClick={doFixMissed} disabled={saving} className="btn-primary !py-3 w-full disabled:opacity-50">Çıkışı Kaydet ve Devam Et</button>
         </div>
-        {showHourForm && (
-          <div className="card mb-3 border-l-4 border-emerald-400 space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-              <input className="input-field" type="date" value={hf.date} onChange={e => setHf({...hf, date: e.target.value})} />
-              <input className="input-field" type="number" step="0.5" min="0.5" placeholder="Saat" value={hf.hours} onChange={e => setHf({...hf, hours: e.target.value})} />
+      ) : !active ? (
+        <div className="card text-center space-y-3">
+          <div className="text-sm text-gray-400">Henüz giriş yapmadın</div>
+          {lastCheckin?.next_plan && (
+            <div className="bg-amber-50 rounded-xl p-3 text-left">
+              <div className="text-xs text-amber-600 font-semibold mb-0.5">📌 Geçen seferden notun:</div>
+              <div className="text-sm text-amber-800">{lastCheckin.next_plan}</div>
             </div>
-            <input className="input-field" placeholder="Ne yaptım?" value={hf.description} onChange={e => setHf({...hf, description: e.target.value})} />
-            <button onClick={submitHours} disabled={saving} className="btn-primary w-full disabled:opacity-50">Kaydet</button>
-          </div>
-        )}
-        {hours.map(h => (
-          <div key={h.id} className="card mb-2 !py-3 flex items-center gap-3">
-            <span className="text-sm font-bold">{h.hours}s</span>
-            <div className="flex-1">
-              <div className="text-sm">{h.description || '—'}</div>
-              <div className="text-xs text-gray-400">{fd(h.date)}</div>
+          )}
+          <button onClick={doCheckIn} disabled={saving} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xl py-5 px-8 rounded-2xl w-full transition-all active:scale-[0.97] shadow-lg shadow-emerald-500/20 disabled:opacity-50">
+            🟢 GELDİM
+          </button>
+          {lastCheckin && (
+            <div className="text-xs text-gray-400">Son gelişin: {fd(lastCheckin.date)}, {fmtTime(lastCheckin.check_in)}–{fmtTime(lastCheckin.check_out)} ({fmtHours(lastCheckin.hours)})</div>
+          )}
+        </div>
+      ) : !checkoutForm ? (
+        <div className="card text-center space-y-3 border-l-4 border-emerald-400">
+          <div className="text-sm text-emerald-600 font-semibold">🟢 Çalışıyorsun — {fmtTime(active.check_in)}'den beri</div>
+          <div className="text-3xl font-bold text-emerald-600">{elapsed}</div>
+          {lastCheckin?.next_plan && (
+            <div className="bg-amber-50 rounded-xl p-3 text-left">
+              <div className="text-xs text-amber-600 font-semibold mb-0.5">📌 Planın:</div>
+              <div className="text-sm text-amber-800">{lastCheckin.next_plan}</div>
             </div>
-            <span className={`text-xs font-semibold ${h.status === 'approved' ? 'text-emerald-600' : h.status === 'rejected' ? 'text-red-500' : 'text-amber-500'}`}>{HOUR_S[h.status]}</span>
+          )}
+          <button onClick={startCheckout} className="bg-red-500 hover:bg-red-600 text-white font-bold text-xl py-5 px-8 rounded-2xl w-full transition-all active:scale-[0.97] shadow-lg shadow-red-500/20">
+            🔴 ÇIKIYORUM
+          </button>
+        </div>
+      ) : (
+        <div className="card border-l-4 border-blue-400 space-y-3">
+          <div className="text-center">
+            <div className="text-sm text-gray-500">✅ Bugünkü çalışman: {fmtTime(active.check_in)} — şimdi</div>
+            <div className="text-lg font-bold">{elapsed}</div>
           </div>
-        ))}
-      </div>
+          <div>
+            <label className="text-sm font-semibold text-gray-700">Bugün ne yaptın? *</label>
+            <input className="input-field mt-1" placeholder="Örn: 3. kutudaki belgeleri taradım" value={workDone} onChange={e => setWorkDone(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-sm font-semibold text-gray-700">Sonraki gelişinde ne yapacaksın?</label>
+            <input className="input-field mt-1" placeholder="Örn: 4. kutuya geçeceğim" value={nextPlan} onChange={e => setNextPlan(e.target.value)} />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={doCheckOut} disabled={saving || !workDone.trim()} className="btn-primary flex-1 !py-3 disabled:opacity-50">{saving ? '...' : '✓ Kaydet'}</button>
+            <button onClick={() => setCheckoutForm(false)} className="btn-ghost !py-3">İptal</button>
+          </div>
+        </div>
+      )}
 
-      {/* Vardiyam */}
-      {myShifts.length > 0 && (
+      {/* ═══ AKTİF İŞLERİM ═══ */}
+      {tasks.length > 0 && (
         <div>
-          <h2 className="text-lg font-bold mb-3">📅 Bu Haftaki Vardiyam</h2>
+          <h2 className="text-lg font-bold mb-3">📋 Aktif İşlerim</h2>
+          {tasks.map(t => {
+            const overdue = t.deadline && new Date(t.deadline) < new Date();
+            const expanded = expandTask === t.id;
+            return (
+              <div key={t.id} className={`card mb-3 ${overdue ? 'border-l-4 border-red-400' : ''}`}>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1"><div className="font-bold">{t.title}</div><div className="text-sm text-gray-400">{DM[t.department]?.i} {DM[t.department]?.l}{t.deadline && ` · ${fd(t.deadline)}`}{overdue && ' ⚠️'}</div></div>
+                  <span className={`text-sm font-bold ${(t.progress||0) >= 80 ? 'text-emerald-600' : 'text-gray-400'}`}>{Math.round(t.progress||0)}%</span>
+                </div>
+                <div className="mt-2 h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full ${(t.progress||0) >= 80 ? 'bg-emerald-500' : (t.progress||0) >= 40 ? 'bg-amber-400' : 'bg-red-400'}`} style={{width:`${t.progress||0}%`}} />
+                </div>
+                <button onClick={() => { setExpandTask(expanded ? null : t.id); setProgVal(t.progress||0); }} className="text-sm font-semibold text-emerald-600 mt-2">{expanded ? '✕ Kapat' : '📊 Güncelle'}</button>
+                {expanded && (
+                  <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
+                    <div className="flex items-center gap-3">
+                      <input type="range" min="0" max="100" step="5" value={progVal} onChange={e => setProgVal(Number(e.target.value))} className="flex-1 accent-emerald-600" />
+                      <span className="text-sm font-bold w-12 text-right">{progVal}%</span>
+                    </div>
+                    <input className="input-field" placeholder="Ne yaptım?" value={progNote} onChange={e => setProgNote(e.target.value)} />
+                    <button onClick={() => updateProgress(t)} disabled={saving} className="btn-primary w-full disabled:opacity-50">Kaydet</button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ═══ BU HAFTA GEÇMİŞİM ═══ */}
+      {weekHistory.length > 0 && (
+        <div>
+          <h2 className="text-lg font-bold mb-3">📅 Bu Hafta</h2>
+          {weekHistory.map(c => (
+            <div key={c.id} className="card mb-2 !py-3 flex items-center gap-3">
+              <div className="flex-1">
+                <div className="text-sm font-semibold">{fd(c.date)} · {fmtTime(c.check_in)}–{c.check_out ? fmtTime(c.check_out) : '?'}</div>
+                <div className="text-xs text-gray-400">{c.work_done || '—'}</div>
+              </div>
+              <span className="text-sm font-bold">{c.hours ? fmtHours(c.hours) : '—'}</span>
+              <span className={`text-xs font-semibold ${c.status === 'approved' ? 'text-emerald-600' : 'text-amber-500'}`}>{c.status === 'approved' ? '✓' : '⏳'}</span>
+            </div>
+          ))}
+          <div className="text-sm text-gray-500 text-right font-semibold">Toplam: {fmtHours(weekTotal)}</div>
+        </div>
+      )}
+
+      {/* ═══ VARDİYAM ═══ */}
+      {shifts.length > 0 && (
+        <div>
+          <h2 className="text-lg font-bold mb-3">📅 Vardiyam</h2>
           <div className="card">
             <table className="w-full text-sm">
-              <thead><tr className="border-b border-gray-100"><th className="text-left py-2 text-gray-500">Gün</th><th className="text-left py-2 text-gray-500">Saat</th><th className="text-left py-2 text-gray-500">Departman</th></tr></thead>
               <tbody>
-                {DAYS.filter(d => myShifts.some(s => s.day_of_week === d)).map(day => {
-                  const sh = myShifts.find(s => s.day_of_week === day);
+                {DAYS.filter(d => shifts.some(s => s.day_of_week === d)).map(day => {
+                  const sh = shifts.find(s => s.day_of_week === day);
                   return (
                     <tr key={day} className={`border-b border-gray-50 ${day === todayDay ? 'bg-emerald-50' : ''}`}>
                       <td className="py-2 font-semibold">{day === todayDay ? `📍 ${day}` : day}</td>
                       <td className="py-2">{sh?.start_time?.slice(0,5)}–{sh?.end_time?.slice(0,5)}</td>
-                      <td className="py-2 text-gray-500">{DM[sh?.department]?.i} {DM[sh?.department]?.l?.split(' ')[0]}</td>
+                      <td className="py-2 text-gray-400">{DM[sh?.department]?.i}</td>
                     </tr>
                   );
                 })}
@@ -362,6 +436,82 @@ function VolunteerWorkView({ uid, me }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Takımım (Koordinatör/Admin) ──
+function TeamView({ uid, me }) {
+  const [activeNow, setActiveNow] = useState([]);
+  const [pending, setPending] = useState([]);
+  const [weekTotal, setWeekTotal] = useState({ vols: 0, hours: 0 });
+
+  const load = useCallback(async () => {
+    const [ac, pend] = await Promise.all([
+      db.getActiveCheckins(),
+      db.getPendingCheckins(),
+    ]);
+    setActiveNow(ac.data || []);
+    setPending(pend.data || []);
+    // Week stats
+    const now = new Date();
+    const monday = new Date(now); monday.setDate(now.getDate() - ((now.getDay()+6)%7));
+    const weekPend = (pend.data || []).filter(c => new Date(c.date) >= monday);
+    const uniqueVols = new Set(weekPend.map(c => c.user_id));
+    setWeekTotal({ vols: uniqueVols.size, hours: weekPend.reduce((a,c) => a + Number(c.hours||0), 0) });
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const approve = async (id) => { await db.approveCheckin(id, uid); load(); };
+  const fmtTime = t => new Date(t).toLocaleTimeString('tr-TR', { hour:'2-digit', minute:'2-digit' });
+  const fmtHours = h => { const hrs = Math.floor(h); const mins = Math.round((h - hrs) * 60); return `${hrs}s ${mins}dk`; };
+
+  return (
+    <div className="space-y-5">
+      {/* Şu an burada */}
+      <div>
+        <h2 className="text-lg font-bold mb-3">🟢 Şu An Burada ({activeNow.length})</h2>
+        {activeNow.length === 0 && <div className="card text-center py-4"><p className="text-sm text-gray-400">Şu an kimse yok</p></div>}
+        {activeNow.map(c => {
+          const diff = Math.floor((Date.now() - new Date(c.check_in).getTime()) / 60000);
+          const h = Math.floor(diff / 60); const m = diff % 60;
+          return (
+            <div key={c.id} className="card mb-2 !py-3 flex items-center gap-3">
+              <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
+              <div className="flex-1">
+                <div className="font-semibold text-sm">{c.profiles?.display_name}</div>
+                <div className="text-xs text-gray-400">{fmtTime(c.check_in)}'den beri · {DM[c.profiles?.department]?.i}</div>
+              </div>
+              <span className="text-sm font-bold text-emerald-600">{h}s {m}dk</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Onay Bekleyenler */}
+      <div>
+        <h2 className="text-lg font-bold mb-3">⏳ Onay Bekleyenler ({pending.length})</h2>
+        {pending.map(c => (
+          <div key={c.id} className="card mb-2 !py-3 flex items-center gap-3">
+            <div className="flex-1">
+              <div className="font-semibold text-sm">{c.profiles?.display_name}</div>
+              <div className="text-xs text-gray-400">{fd(c.date)} · {fmtTime(c.check_in)}–{c.check_out ? fmtTime(c.check_out) : '?'} · {c.hours ? fmtHours(c.hours) : '—'}</div>
+              {c.work_done && <div className="text-xs text-gray-500 mt-0.5">{c.work_done}</div>}
+            </div>
+            {c.user_id !== uid ? (
+              <button onClick={() => approve(c.id)} className="text-xs font-semibold bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg">✓ Onayla</button>
+            ) : (
+              <span className="text-xs text-gray-400">Kendi kaydın</span>
+            )}
+          </div>
+        ))}
+        {pending.length === 0 && <div className="card text-center py-4"><p className="text-sm text-gray-400">Bekleyen onay yok</p></div>}
+      </div>
+
+      {/* Hafta Özet */}
+      <div className="card text-center">
+        <div className="text-sm text-gray-500">Bu hafta: <span className="font-bold text-gray-800">{weekTotal.vols} gönüllü</span>, <span className="font-bold text-emerald-600">{fmtHours(weekTotal.hours)}</span></div>
+      </div>
     </div>
   );
 }
@@ -428,42 +578,6 @@ function AllTasksView({ uid, me, can }) {
           </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-// ── Saat Onayları ──
-function HourApprovalsView({ uid, me }) {
-  const [hours, setHours] = useState([]);
-  const load = useCallback(async () => {
-    const { data } = await db.getHourLogs({ status: 'pending' });
-    setHours(data || []);
-  }, []);
-  useEffect(() => { load(); }, [load]);
-
-  const review = async (id, status) => { await db.reviewHours(id, status, uid); load(); };
-
-  return (
-    <div className="space-y-3">
-      <h2 className="text-lg font-bold">Bekleyen Saat Onayları ({hours.length})</h2>
-      {hours.map(h => (
-        <div key={h.id} className="card flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-sm font-bold text-emerald-600">{(h.profiles?.display_name || '?')[0]}</div>
-          <div className="flex-1">
-            <div className="font-semibold text-sm">{h.profiles?.display_name}</div>
-            <div className="text-xs text-gray-400">{fd(h.date)} · {h.hours}s · {h.description || '—'}</div>
-          </div>
-          {h.volunteer_id !== uid ? (
-            <div className="flex gap-1.5">
-              <button onClick={() => review(h.id, 'approved')} className="text-xs font-semibold bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-lg">✓</button>
-              <button onClick={() => review(h.id, 'rejected')} className="text-xs font-semibold bg-red-50 text-red-500 px-2.5 py-1 rounded-lg">✕</button>
-            </div>
-          ) : (
-            <span className="text-xs text-gray-400">Kendi kaydınız</span>
-          )}
-        </div>
-      ))}
-      {hours.length === 0 && <div className="card text-center py-6"><p className="text-sm text-gray-400">Bekleyen onay yok</p></div>}
     </div>
   );
 }
@@ -924,15 +1038,16 @@ function HelpSection({ me }) {
   const [open, setOpen] = useState(null);
   const items = [
     { q: 'İlerleme nasıl güncellenir?', a: 'İşlerim sayfasında ilgili işe tıklayın → Güncelle → Yüzdeyi ayarlayın → Ne yaptığınızı yazın → Kaydet.' },
-    { q: 'Saat kaydı nasıl girilir?', a: 'İşlerim → "+ Kaydet" butonuna basın → Tarih, saat ve açıklamayı girin → Kaydet. Koordinatör onaylayacaktır.' },
-    { q: 'Vardiyamı nerede görürüm?', a: 'İşlerim sayfasının alt kısmında "Bu Haftaki Vardiyam" tablosu var.' },
+    { q: 'Giriş/çıkış nasıl yapılır?', a: 'İşlerim sayfasında "GELDİM" butonuna bas. Çalışman bitince "ÇIKIYORUM" bas, ne yaptığını yaz, kaydet. Süre otomatik hesaplanır.' },
+    { q: 'Çıkış yapmayı unuttum, ne olur?', a: 'Ertesi gün "GELDİM"a bastığında "Dünkü çıkışını yapmadın" uyarısı çıkar. Çıkış saatini girersin, sonra yeni giriş başlar.' },
+    { q: 'Vardiyamı nerede görürüm?', a: 'İşlerim sayfasının alt kısmında vardiya tablonu görürsün.' },
     { q: 'Mesaj nasıl yazarım?', a: 'Mesajlar → Sohbet sekmesinden departman sohbetine mesaj yazabilirsiniz.' },
     { q: 'İstek nasıl gönderirim?', a: 'Mesajlar sayfasının altında "İstek Gönder" butonu var. Serbest metin yazın, koordinatörünüze/yöneticiye gider.' },
     { q: 'Profilimi nasıl düzenlerim?', a: 'Ben → Profil kartında "Düzenle" butonuna basın.' },
   ];
   if (me.role !== 'vol') {
     items.push(
-      { q: 'Saat kaydını nasıl onaylarım?', a: 'İşlerim → "Saat Onayları" sekmesinde bekleyen kayıtları onaylayın veya reddedin. Kendi kaydınızı onaylayamazsınız.' },
+      { q: 'Giriş/çıkış kayıtlarını nasıl onaylarım?', a: 'İşlerim → "Takımım" sekmesinde bekleyen check-out kayıtlarını onaylayın. Kendi kaydınızı onaylayamazsınız. "Şu an burada" bölümünde aktif gönüllüleri görebilirsiniz.' },
       { q: 'Yeni iş nasıl oluştururum?', a: 'İşlerim → "Tüm İşler" → "+ Yeni İş" butonuna basın. Başlık, açıklama, departman, atanan kişi ve son tarih girin.' },
       { q: 'İş %100 olunca ne olur?', a: 'İş "Kontrol Bekliyor" durumuna geçer. "✓ Tamamla" butonuyla final onayı verin.' },
     );
