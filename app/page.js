@@ -62,7 +62,7 @@ export default function Home() {
           {session ? (
             <a href="/dashboard/" className="bg-emerald-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-emerald-700 transition-all">Panelim</a>
           ) : (
-            <a href="/auth/" className="bg-emerald-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-emerald-700 transition-all">Gönüllü Girişi</a>
+            <a href="/auth/" className="bg-emerald-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-emerald-700 transition-all">Giriş Yap</a>
           )}
         </div>
       </header>
@@ -149,7 +149,7 @@ export default function Home() {
             ))}
           </div>
           <div className="text-center mt-8">
-            <a href="/auth/" className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-8 py-3.5 rounded-xl transition-all inline-block active:scale-[0.98] shadow-lg shadow-emerald-500/20">Hemen Başvur</a>
+            <a href="/auth/" className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-8 py-3.5 rounded-xl transition-all inline-block active:scale-[0.98] shadow-lg shadow-emerald-500/20">Gönüllü Ol</a>
           </div>
         </div>
       </section>
