@@ -397,22 +397,29 @@ function VolunteerWorkView({ uid, me }) {
       )}
 
       {/* ═══ BU HAFTA GEÇMİŞİM ═══ */}
-      {weekHistory.length > 0 && (
-        <div>
-          <h2 className="text-lg font-bold mb-3">📅 Bu Hafta</h2>
-          {weekHistory.map(c => (
-            <div key={c.id} className="card mb-2 !py-3 flex items-center gap-3">
-              <div className="flex-1">
-                <div className="text-sm font-semibold">{fd(c.date)} · {fmtTime(c.check_in)}–{c.check_out ? fmtTime(c.check_out) : '?'}</div>
-                <div className="text-xs text-gray-400">{c.work_done || '—'}</div>
-              </div>
-              <span className="text-sm font-bold">{c.hours ? fmtHours(c.hours) : '—'}</span>
-              <span className={`text-xs font-semibold ${c.status === 'approved' ? 'text-emerald-600' : 'text-amber-500'}`}>{c.status === 'approved' ? '✓' : '⏳'}</span>
-            </div>
-          ))}
-          <div className="text-sm text-gray-500 text-right font-semibold">Toplam: {fmtHours(weekTotal)}</div>
+      {/* ═══ BU HAFTA + GEÇMİŞ KAYIT ═══ */}
+      <div>
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="text-lg font-bold">📅 Bu Hafta</h2>
+          <RetroForm uid={uid} onSave={load} />
         </div>
-      )}
+        {weekHistory.map(c => (
+          <div key={c.id} className={`card mb-2 !py-3 flex items-center gap-3 ${c.is_retroactive ? 'border-l-4 border-amber-300' : ''}`}>
+            <div className="flex-1">
+              <div className="text-sm font-semibold">
+                {fd(c.date)} · {fmtTime(c.check_in)}–{c.check_out ? fmtTime(c.check_out) : '?'}
+                {c.is_retroactive && <span className="text-xs text-amber-500 ml-1">⏰</span>}
+                {c.source === 'telegram' && <span className="text-xs ml-1">✈️</span>}
+              </div>
+              <div className="text-xs text-gray-400">{c.work_done || '—'}</div>
+            </div>
+            <span className="text-sm font-bold">{c.hours ? fmtHours(c.hours) : '—'}</span>
+            <span className={`text-xs font-semibold ${c.status === 'approved' ? 'text-emerald-600' : 'text-amber-500'}`}>{c.status === 'approved' ? '✓' : '⏳'}</span>
+          </div>
+        ))}
+        {weekHistory.length > 0 && <div className="text-sm text-gray-500 text-right font-semibold">Toplam: {fmtHours(weekTotal)}</div>}
+        {weekHistory.length === 0 && <div className="card text-center py-4"><p className="text-sm text-gray-400">Bu hafta kayıt yok</p></div>}
+      </div>
 
       {/* ═══ VARDİYAM ═══ */}
       {shifts.length > 0 && (
@@ -436,6 +443,50 @@ function VolunteerWorkView({ uid, me }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Geçmiş Kayıt Ekleme ──
+function RetroForm({ uid, onSave }) {
+  const [show, setShow] = useState(false);
+  const [f, setF] = useState({ date: '', checkIn: '10:00', checkOut: '15:00', workDone: '' });
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // Max 7 gün geriye
+  const minDate = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  const maxDate = new Date(Date.now() - 86400000).toISOString().slice(0, 10); // dünden geriye
+
+  const save = async () => {
+    setError('');
+    if (!f.date || !f.checkIn || !f.checkOut || !f.workDone.trim()) { setError('Tüm alanları doldurun'); return; }
+    if (f.checkIn >= f.checkOut) { setError('Çıkış, girişten sonra olmalı'); return; }
+    const exists = await db.hasCheckinOnDate(uid, f.date);
+    if (exists) { setError('Bu güne zaten kayıt var'); return; }
+    setSaving(true);
+    await db.addRetroactiveCheckin(uid, f.date, f.checkIn, f.checkOut, f.workDone, 'web');
+    setShow(false); setF({ date: '', checkIn: '10:00', checkOut: '15:00', workDone: '' }); setSaving(false);
+    onSave();
+  };
+
+  if (!show) return <button onClick={() => setShow(true)} className="text-sm font-semibold text-amber-600">+ Geçmiş Ekle</button>;
+
+  return (
+    <div className="card border-l-4 border-amber-300 space-y-2 mt-2 w-full">
+      <div className="flex justify-between items-center">
+        <span className="text-sm font-bold">⏰ Geçmiş Kayıt Ekle</span>
+        <button onClick={() => setShow(false)} className="text-xs text-gray-400">✕</button>
+      </div>
+      <input type="date" className="input-field" min={minDate} max={maxDate} value={f.date} onChange={e => setF({...f, date: e.target.value})} />
+      <div className="grid grid-cols-2 gap-2">
+        <div><label className="text-xs text-gray-500">Giriş</label><input type="time" className="input-field" value={f.checkIn} onChange={e => setF({...f, checkIn: e.target.value})} /></div>
+        <div><label className="text-xs text-gray-500">Çıkış</label><input type="time" className="input-field" value={f.checkOut} onChange={e => setF({...f, checkOut: e.target.value})} /></div>
+      </div>
+      <input className="input-field" placeholder="O gün ne yaptın?" value={f.workDone} onChange={e => setF({...f, workDone: e.target.value})} />
+      {error && <p className="text-xs text-red-500">{error}</p>}
+      <button onClick={save} disabled={saving} className="btn-primary w-full disabled:opacity-50">{saving ? '...' : 'Kaydet'}</button>
+      <p className="text-xs text-gray-400">Koordinatör onayı gerekir</p>
     </div>
   );
 }
@@ -494,10 +545,10 @@ function TeamView({ uid, me }) {
         {pending.map(c => (
           <div key={c.id} className="card mb-2 !py-3">
             <div className="flex items-center gap-3">
-              <span className="text-xs">{c.source === 'telegram' ? '✈️' : '🌐'}</span>
+              <span className="text-xs">{c.source === 'telegram' ? '✈️' : '🌐'}{c.is_retroactive ? '⏰' : ''}</span>
               <div className="flex-1">
                 <div className="font-semibold text-sm">{c.profiles?.display_name}</div>
-                <div className="text-xs text-gray-400">{fd(c.date)} · {fmtTime(c.check_in)}–{c.check_out ? fmtTime(c.check_out) : '?'} · {c.hours ? fmtHours(c.hours) : '—'}</div>
+                <div className="text-xs text-gray-400">{fd(c.date)} · {fmtTime(c.check_in)}–{c.check_out ? fmtTime(c.check_out) : '?'} · {c.hours ? fmtHours(c.hours) : '—'}{c.is_retroactive ? ' · sonradan' : ''}</div>
                 {c.work_done && <div className="text-xs text-gray-500 mt-0.5">{c.work_done}</div>}
               </div>
               {c.user_id !== uid ? (

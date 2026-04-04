@@ -26,6 +26,50 @@ function fmtTime(iso: string): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
+// ── Tarih/saat parse ──
+function parseTime(s: string): string | null {
+  const m = s.match(/(\d{1,2})[:\.]?(\d{2})?/)
+  if (!m) return null
+  const h = parseInt(m[1]); const min = m[2] ? parseInt(m[2]) : 0
+  if (h < 0 || h > 23 || min < 0 || min > 59) return null
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`
+}
+
+function parseDate(s: string): Date | null {
+  const lower = s.toLowerCase().replace(/ı/g, 'i')
+  const now = new Date()
+  if (lower === 'dun' || lower === 'dün') { const d = new Date(now); d.setDate(d.getDate() - 1); return d }
+  if (lower === 'evvelsi' || lower === 'evvelsi gun') { const d = new Date(now); d.setDate(d.getDate() - 2); return d }
+  const days: Record<string, number> = { pazartesi: 1, sali: 2, salı: 2, carsamba: 3, çarşamba: 3, persembe: 4, perşembe: 4, cuma: 5, cumartesi: 6, pazar: 0 }
+  for (const [name, dow] of Object.entries(days)) {
+    if (lower.includes(name)) {
+      const d = new Date(now); const diff = (now.getDay() - dow + 7) % 7 || 7; d.setDate(d.getDate() - diff); return d
+    }
+  }
+  // "3 nisan" format
+  const months: Record<string, number> = { ocak:0, subat:1, şubat:1, mart:2, nisan:3, mayis:4, mayıs:4, haziran:5, temmuz:6, agustos:7, ağustos:7, eylul:8, eylül:8, ekim:9, kasim:10, kasım:10, aralik:11, aralık:11 }
+  for (const [name, mi] of Object.entries(months)) {
+    const dm = lower.match(new RegExp(`(\\d{1,2})\\s*${name}`))
+    if (dm) { return new Date(now.getFullYear(), mi, parseInt(dm[1])) }
+  }
+  return null
+}
+
+function parseRetroNatural(s: string): { date: string; timeIn: string; timeOut: string } | null {
+  const lower = s.toLowerCase()
+  // "dün 10-15:30" or "pazartesi 09:00-14:00"
+  const timeRange = lower.match(/(\d{1,2}[:\.]?\d{0,2})\s*[-–]\s*(\d{1,2}[:\.]?\d{0,2})/)
+  if (!timeRange) return null
+  const timeIn = parseTime(timeRange[1])
+  const timeOut = parseTime(timeRange[2])
+  if (!timeIn || !timeOut) return null
+  // Remove time part to parse date
+  const datePart = lower.replace(timeRange[0], '').trim()
+  const d = parseDate(datePart || 'dün')
+  if (!d) return null
+  return { date: d.toISOString().slice(0, 10), timeIn, timeOut }
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('OK')
 
@@ -217,12 +261,73 @@ Deno.serve(async (req) => {
 
     // ── /yardim ──
     if (text === '/yardim' || text === '/help') {
-      await sendTg(chatId, `🏛️ <b>Tarih Vakfı Bot Komutları</b>\n\n🟢 <b>geldim</b> — Giriş yap\n🔴 <b>çıkıyorum</b> — Çıkış yap\n📊 <b>/durum</b> — Haftalık özet\n❓ <b>/yardim</b> — Bu mesaj\n\nÇıkışta ne yaptığını yaz, fotoğraf da gönderebilirsin!`)
+      await sendTg(chatId, `🏛️ <b>Tarih Vakfı Bot Komutları</b>\n\n🟢 <b>geldim</b> — Giriş yap\n🔴 <b>çıkıyorum</b> — Çıkış yap\n📊 <b>/durum</b> — Haftalık özet\n⏰ <b>/gecmis</b> — Geçmiş kayıt ekle\n❓ <b>/yardim</b> — Bu mesaj\n\nÖrnekler:\n<i>dün 10-15:30</i>\n<i>pazartesi 09:00-14:00</i>`)
+      return new Response('OK')
+    }
+
+    // ── /gecmis komutu ──
+    if (text === '/gecmis') {
+      await sb.from('profiles').update({ telegram_state: 'awaiting_retro_date' }).eq('id', uid)
+      await sendTg(chatId, '⏰ <b>Geçmiş kayıt</b>\nHangi gün? (örn: dün, pazartesi, 3 nisan)')
+      return new Response('OK')
+    }
+    if (user.telegram_state === 'awaiting_retro_date') {
+      const d = parseDate(msg.text?.trim() || '')
+      if (!d) { await sendTg(chatId, '❌ Tarihi anlayamadım. Örn: dün, pazartesi, 3 nisan'); return new Response('OK') }
+      const diff = Math.floor((Date.now() - d.getTime()) / 86400000)
+      if (diff > 7 || diff < 0) { await sendTg(chatId, '❌ Max 7 gün geriye kayıt eklenebilir.'); return new Response('OK') }
+      const dateStr = d.toISOString().slice(0, 10)
+      const { data: exists } = await sb.from('checkins').select('id').eq('user_id', uid).eq('date', dateStr).limit(1)
+      if (exists?.length) { await sendTg(chatId, '❌ Bu güne zaten kayıt var.'); await sb.from('profiles').update({ telegram_state: null }).eq('id', uid); return new Response('OK') }
+      // Store date temporarily
+      await sb.from('profiles').update({ telegram_state: `retro_time:${dateStr}` }).eq('id', uid)
+      await sendTg(chatId, `📅 ${dateStr}\nKaçta geldin? (örn: 10:00)`)
+      return new Response('OK')
+    }
+    if (user.telegram_state?.startsWith('retro_time:')) {
+      const dateStr = user.telegram_state.split(':').slice(1).join(':')
+      const timeIn = parseTime(msg.text?.trim() || '')
+      if (!timeIn) { await sendTg(chatId, '❌ Saati anlayamadım. Örn: 10:00'); return new Response('OK') }
+      await sb.from('profiles').update({ telegram_state: `retro_out:${dateStr}:${timeIn}` }).eq('id', uid)
+      await sendTg(chatId, `✓ Giriş: ${timeIn}\nKaçta çıktın? (örn: 15:30)`)
+      return new Response('OK')
+    }
+    if (user.telegram_state?.startsWith('retro_out:')) {
+      const parts = user.telegram_state.split(':')
+      const dateStr = parts[1]
+      const timeIn = parts.slice(2, 4).join(':')
+      const timeOut = parseTime(msg.text?.trim() || '')
+      if (!timeOut) { await sendTg(chatId, '❌ Saati anlayamadım. Örn: 15:30'); return new Response('OK') }
+      const checkIn = `${dateStr}T${timeIn}:00`
+      const checkOut = `${dateStr}T${timeOut}:00`
+      const hours = Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 3600000 * 100) / 100
+      if (hours <= 0) { await sendTg(chatId, '❌ Çıkış girişten sonra olmalı.'); return new Response('OK') }
+      await sb.from('checkins').insert({ user_id: uid, date: dateStr, check_in: checkIn, check_out: checkOut, hours, status: 'completed', is_retroactive: true, source: 'telegram' })
+      await sb.from('profiles').update({ telegram_state: 'awaiting_report' }).eq('id', uid)
+      await sendTg(chatId, `✅ Geçmiş kayıt eklendi:\n📅 ${dateStr} | ${timeIn} — ${timeOut} | <b>${fmtHours(hours)}</b>\n\n📝 O gün ne yaptın?`)
+      return new Response('OK')
+    }
+
+    // ── Doğal dil geçmiş kayıt: "dün 10-15:30" ──
+    const retroMatch = parseRetroNatural(msg.text?.trim() || '')
+    if (retroMatch) {
+      const { date: dateStr, timeIn, timeOut } = retroMatch
+      const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000)
+      if (diff > 7 || diff < 0) { await sendTg(chatId, '❌ Max 7 gün geriye kayıt eklenebilir.'); return new Response('OK') }
+      const { data: exists } = await sb.from('checkins').select('id').eq('user_id', uid).eq('date', dateStr).limit(1)
+      if (exists?.length) { await sendTg(chatId, '❌ Bu güne zaten kayıt var.'); return new Response('OK') }
+      const checkIn = `${dateStr}T${timeIn}:00`
+      const checkOut = `${dateStr}T${timeOut}:00`
+      const hours = Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 3600000 * 100) / 100
+      if (hours <= 0) { await sendTg(chatId, '❌ Çıkış girişten sonra olmalı.'); return new Response('OK') }
+      await sb.from('checkins').insert({ user_id: uid, date: dateStr, check_in: checkIn, check_out: checkOut, hours, status: 'completed', is_retroactive: true, source: 'telegram' })
+      await sb.from('profiles').update({ telegram_state: 'awaiting_report' }).eq('id', uid)
+      await sendTg(chatId, `✅ Geçmiş kayıt:\n📅 ${dateStr} | ${timeIn} — ${timeOut} | <b>${fmtHours(hours)}</b>\n\n📝 O gün ne yaptın?`)
       return new Response('OK')
     }
 
     // Bilinmeyen mesaj
-    await sendTg(chatId, 'Anlamadım 🤔\nKomutlar: geldim, çıkıyorum, /durum, /yardim')
+    await sendTg(chatId, 'Anlamadım 🤔\nKomutlar: geldim, çıkıyorum, /durum, /gecmis, /yardim\nÖrnek: <i>dün 10-15:30</i>')
 
   } catch (e) {
     console.error('Webhook error:', e)
