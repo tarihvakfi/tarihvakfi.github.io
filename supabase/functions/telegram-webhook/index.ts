@@ -260,6 +260,20 @@ Deno.serve(async (req) => {
     }
 
     // ── /yardim ──
+    // ── /belgelerim ──
+    if (text === '/belgelerim') {
+      const { data: certs } = await sb.from('certificates').select('title, certificate_number, created_at').eq('user_id', uid).order('created_at', { ascending: false }).limit(5)
+      if (certs?.length) {
+        let reply = '🏆 <b>Belgeleriniz:</b>\n'
+        for (const c of certs) reply += `\n  ${c.title} — ${c.created_at?.slice(0,10)} (${c.certificate_number})`
+        reply += '\n\nİndirmek için: tarihvakfi.github.io → Profil → Belgelerim'
+        await sendTg(chatId, reply)
+      } else {
+        await sendTg(chatId, 'Henüz belgeniz yok.')
+      }
+      return new Response('OK')
+    }
+
     // ── /ozet ──
     if (text === '/ozet') {
       const { data: ws } = await sb.from('volunteer_work_summary').select('*').eq('id', uid).single()

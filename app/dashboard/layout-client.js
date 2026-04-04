@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as db from '../../lib/supabase';
 import BackupView from './backup';
+import { CertificateModal, MyCertificates } from './certificates';
 
 const DEPTS = [
   { id:'arsiv', l:'Arşiv & Dokümantasyon', i:'📜' },
@@ -687,10 +688,15 @@ function VolunteersView({ uid, me }) {
   const [vols, setVols] = useState([]);
   const [sel, setSel] = useState(null);
   const [pending, setPending] = useState([]);
+  const [certVol, setCertVol] = useState(null);
+  const [summaries, setSummaries] = useState({});
   useEffect(() => {
     db.getAllProfiles().then(({ data }) => {
       setVols((data || []).filter(v => v.status !== 'pending'));
       setPending((data || []).filter(v => v.status === 'pending'));
+    });
+    db.getAllWorkSummaries().then(({ data }) => {
+      setSummaries(Object.fromEntries((data || []).map(s => [s.id, s])));
     });
   }, []);
 
@@ -742,10 +748,12 @@ function VolunteersView({ uid, me }) {
                   <option value="">Seçiniz</option>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.l}</option>)}
                 </select>
               </div>
+              <button onClick={(e) => { e.stopPropagation(); setCertVol(v); }} className="text-sm font-semibold text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg w-full text-center">🏆 Belge Oluştur</button>
             </div>
           )}
         </div>
       ))}
+      {certVol && <CertificateModal vol={certVol} summary={summaries[certVol.id]} issuerId={uid} onClose={() => setCertVol(null)} />}
     </div>
   );
 }
@@ -1133,6 +1141,9 @@ function ProfileSection({ me, uid, onUpdate }) {
           {summary.first_visit && <div className="text-xs text-gray-400 mt-2">İlk giriş: {fdf(summary.first_visit)} · Son: {summary.last_visit === today() ? 'Bugün' : fdf(summary.last_visit)}</div>}
         </div>
       )}
+
+      {/* Belgelerim */}
+      <MyCertificates uid={uid} me={me} />
 
       {/* Telegram Bağlama */}
       <div className="card mt-3">
