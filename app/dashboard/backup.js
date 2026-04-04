@@ -52,16 +52,17 @@ async function downloadZip(data, uid) {
   return totalRecords;
 }
 
+const ENV_SHEETS_ID = process.env.NEXT_PUBLIC_BACKUP_SHEETS_ID || '';
+
 async function exportToSheets(data, uid, existingId) {
   let token = await db.getGoogleToken();
   if (!token) {
-    // Popup ile yeniden yetkilendirme dene
     token = await db.reauthorizeGoogleSheets();
     if (!token) throw new Error('Google Sheets izni alinamadi. Popup engelleniyorsa izin verin, sonra tekrar deneyin.');
   }
 
   const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
-  let spreadsheetId = existingId;
+  let spreadsheetId = existingId || ENV_SHEETS_ID || null;
   const now = new Date();
   const title = `Tarih Vakfi Yedek — ${now.toISOString().slice(0,10)} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
 
@@ -188,7 +189,8 @@ export default function BackupView({ uid }) {
     setLoading('');
   };
 
-  const savedSheetsId = typeof window !== 'undefined' ? localStorage.getItem('tarihvakfi_sheets_id') : null;
+  const savedSheetsId = ENV_SHEETS_ID || (typeof window !== 'undefined' ? localStorage.getItem('tarihvakfi_sheets_id') : null);
+  const hasFixedSheet = !!ENV_SHEETS_ID;
 
   return (
     <div className="fade-up space-y-4">
@@ -212,28 +214,40 @@ export default function BackupView({ uid }) {
           {loading === 'csv' && <div className="mt-2 text-xs text-emerald-600 animate-pulse">Hazirlaniyor...</div>}
         </button>
 
-        <button onClick={() => handleSheets(null)} disabled={!!loading} className="card hover:shadow-md transition-shadow cursor-pointer text-left">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">📊</span>
-            <div>
-              <div className="font-semibold text-[15px]">Google Sheets'e Aktar</div>
-              <div className="text-xs text-gray-400">Yeni spreadsheet olustur, 12 sheet</div>
-            </div>
-          </div>
-          {loading === 'sheets' && <div className="mt-2 text-xs text-blue-600 animate-pulse">Google Sheets olusturuluyor...</div>}
-        </button>
-
-        {savedSheetsId && (
-          <button onClick={() => handleSheets(savedSheetsId)} disabled={!!loading} className="card hover:shadow-md transition-shadow cursor-pointer text-left border-l-4 border-blue-300">
+        {hasFixedSheet ? (
+          <button onClick={() => handleSheets(ENV_SHEETS_ID)} disabled={!!loading} className="card hover:shadow-md transition-shadow cursor-pointer text-left border-l-4 border-blue-300">
             <div className="flex items-center gap-3">
-              <span className="text-2xl">🔄</span>
+              <span className="text-2xl">📊</span>
               <div>
-                <div className="font-semibold text-[15px]">Mevcut Sheets'i Guncelle</div>
-                <div className="text-xs text-gray-400">Son olusturulan spreadsheet'i uzerine yaz</div>
+                <div className="font-semibold text-[15px]">Google Sheets'i Guncelle</div>
+                <div className="text-xs text-gray-400">Sabit spreadsheet'e aktar (gece yedegi ile ayni dosya)</div>
               </div>
             </div>
+            {loading === 'sheets' && <div className="mt-2 text-xs text-blue-600 animate-pulse">Guncelleniyor...</div>}
           </button>
-        )}
+        ) : (<>
+          <button onClick={() => handleSheets(null)} disabled={!!loading} className="card hover:shadow-md transition-shadow cursor-pointer text-left">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">📊</span>
+              <div>
+                <div className="font-semibold text-[15px]">Google Sheets'e Aktar</div>
+                <div className="text-xs text-gray-400">Yeni spreadsheet olustur, 12 sheet</div>
+              </div>
+            </div>
+            {loading === 'sheets' && <div className="mt-2 text-xs text-blue-600 animate-pulse">Google Sheets olusturuluyor...</div>}
+          </button>
+          {savedSheetsId && (
+            <button onClick={() => handleSheets(savedSheetsId)} disabled={!!loading} className="card hover:shadow-md transition-shadow cursor-pointer text-left border-l-4 border-blue-300">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">🔄</span>
+                <div>
+                  <div className="font-semibold text-[15px]">Mevcut Sheets'i Guncelle</div>
+                  <div className="text-xs text-gray-400">Son olusturulan spreadsheet'i uzerine yaz</div>
+                </div>
+              </div>
+            </button>
+          )}
+        </>)}
       </div>
 
       {error && <div className="bg-red-50 text-red-600 text-xs rounded-xl px-4 py-3">{error}</div>}
