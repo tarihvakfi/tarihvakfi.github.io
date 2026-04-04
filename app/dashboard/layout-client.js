@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as db from '../../lib/supabase';
 import OverviewView from './overview';
+import BackupView from './backup';
 
 const DEPTS = [
   { id:'arsiv', l:'Arşiv & Dokümantasyon', i:'📜' },
@@ -86,7 +87,7 @@ export default function Dashboard({ session }) {
 
   // Sub-tabs per main tab
   const workTabs = me.role === 'admin'
-    ? [['tasks','Görevler'],['hours','Saatler'],['schedule','Vardiya'],['departments','Deptlar'],['volunteers','Gönüllüler'],['applications','Başvuru'],['visibility','Görünürlük']]
+    ? [['tasks','Görevler'],['hours','Saatler'],['schedule','Vardiya'],['departments','Deptlar'],['volunteers','Gönüllüler'],['applications','Başvuru'],['visibility','Görünürlük'],['backup','Yedekle']]
     : me.role === 'coord'
     ? [['tasks','Görevler'],['hours','Saatler'],['schedule','Vardiya'],['departments','Deptlar'],['volunteers','Gönüllüler']]
     : [['tasks','Görevler'],['hours','Saatler'],['schedule','Vardiya'],['departments','Deptlar']];
@@ -177,6 +178,7 @@ export default function Dashboard({ session }) {
           {activePage === 'notifications' && <NotificationsView uid={uid} onRead={() => setUnread(0)} />}
           {activePage === 'applications' && can('manage_vols') && <ApplicationsView uid={uid} me={me} />}
           {activePage === 'visibility' && me.role === 'admin' && <VisibilityView uid={uid} />}
+          {activePage === 'backup' && me.role === 'admin' && <BackupView uid={uid} />}
         </>)}
       </div>
 
@@ -304,6 +306,7 @@ function DashboardView({ uid, me, can, goTo }) {
   const [weekSummary, setWeekSummary] = useState([]);
   const [pendingReqs, setPendingReqs] = useState(0);
   const [pendingUsers, setPendingUsers] = useState([]);
+  const [lastBackupDays, setLastBackupDays] = useState(null);
   const { adminEmail, adminId } = useAdminEmail();
 
   useEffect(() => {
@@ -320,6 +323,10 @@ function DashboardView({ uid, me, can, goTo }) {
     }
     if (me.role === 'admin') {
       db.getAllProfiles().then(({ data }) => setPendingUsers((data || []).filter(p => p.status === 'pending')));
+      db.getBackups().then(({ data }) => {
+        if (data && data.length > 0) setLastBackupDays(Math.floor((Date.now() - new Date(data[0].created_at).getTime()) / 86400000));
+        else setLastBackupDays(999);
+      });
     }
   }, [can, me.role]);
 
@@ -393,7 +400,7 @@ function DashboardView({ uid, me, can, goTo }) {
         <div className="grid grid-cols-3 gap-3">
           <QA ic="👥" lb="Gönüllüler" onClick={() => goTo('isler','volunteers')} />
           <QA ic="📩" lb="Başvurular" onClick={() => goTo('isler','applications')} />
-          <QA ic="⚙️" lb="Görünürlük" onClick={() => goTo('isler','visibility')} />
+          <QA ic="📋" lb="Yedekle" onClick={() => goTo('isler','backup')} />
         </div>
         <div className="text-sm font-bold">📋 Operasyon</div>
         <div className="grid grid-cols-3 gap-3">
@@ -426,6 +433,11 @@ function DashboardView({ uid, me, can, goTo }) {
             </div>
           ))}
         </>)}
+        {lastBackupDays !== null && lastBackupDays >= 7 && (
+          <button onClick={() => goTo('isler','backup')} className="w-full card !p-2.5 flex items-center justify-center gap-2 hover:shadow-md transition-shadow cursor-pointer border-l-4 border-amber-400">
+            <span>⚠️</span><span className="text-xs font-semibold text-amber-700">{lastBackupDays > 100 ? 'Hic yedek alinmamis' : `Son yedek ${lastBackupDays} gun once`}. Yedekleme onerilir.</span>
+          </button>
+        )}
       </>)}
 
       {anns.filter(a => a.is_pinned).map(a => (
