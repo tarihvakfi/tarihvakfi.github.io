@@ -190,9 +190,12 @@ Deno.serve(async (req) => {
       return new Response('OK')
     }
 
-    // ── Giriş (geldim) ──
-    if (['geldim', 'gel', 'merhaba', 'giris', 'giriş'].includes(text)) {
-      // Aktif check-in var mı?
+    // ── Giriş — mod tespiti ──
+    const isCheckinCmd = ['geldim', 'gel', 'merhaba', 'giris', 'giriş', '/gel'].includes(text)
+    const isRemote = ['uzaktan geldim', 'evden çalışıyorum', 'evden calisiyorum', 'uzaktan', '/uzaktan', 'remote'].includes(text)
+    const isOnsite = ['vakıftayım', 'vakiftayim', 'geldim vakıf', 'geldim vakif', '/vakif', '/vakıf'].includes(text)
+
+    if (isCheckinCmd || isRemote || isOnsite) {
       const { data: existing } = await sb.from('checkins').select('id, check_in')
         .eq('user_id', uid).eq('status', 'active').limit(1).single()
       if (existing) {
@@ -200,18 +203,54 @@ Deno.serve(async (req) => {
         return new Response('OK')
       }
 
+      // Mod belirlenmemiş → sor
+      if (isCheckinCmd && !isRemote && !isOnsite) {
+        await sb.from('profiles').update({ telegram_state: 'awaiting_mode' }).eq('id', uid)
+        await sendTg(chatId, `Nasıl çalışacaksın?\n\n🏛️ Vakıfta → "vakıftayım"\n🏠 Uzaktan → "uzaktan"`)
+        return new Response('OK')
+      }
+
+      const mode = isRemote ? 'remote' : 'onsite'
       const now = new Date().toISOString()
       await sb.from('checkins').insert({
-        user_id: uid, check_in: now, date: now.slice(0, 10), source: 'telegram',
+        user_id: uid, check_in: now, date: now.slice(0, 10), source: 'telegram', work_mode: mode,
       })
+      await sb.from('profiles').update({ telegram_state: null }).eq('id', uid)
 
-      // Önceki plan
       const { data: last } = await sb.from('checkins').select('next_plan')
         .eq('user_id', uid).eq('status', 'completed').order('check_out', { ascending: false }).limit(1).single()
 
-      let reply = `🟢 Hoş geldin <b>${user.display_name}</b>!\n✓ Giriş: ${fmtTime(now)}`
+      const modeLabel = mode === 'remote' ? '🏠 uzaktan' : '🏛️ vakıfta'
+      let reply = `🟢 Hoş geldin <b>${user.display_name}</b>! (${modeLabel})\n✓ Giriş: ${fmtTime(now)}`
       if (last?.next_plan) reply += `\n\n📌 Geçen seferden notun:\n"${last.next_plan}"`
       await sendTg(chatId, reply)
+      return new Response('OK')
+    }
+
+    // ── Mod seçim bekleniyor ──
+    if (user.telegram_state === 'awaiting_mode') {
+      if (['vakıftayım', 'vakiftayim', 'vakıf', 'vakif', 'onsite', '1'].includes(text)) {
+        // Redirect to onsite checkin
+        await sb.from('profiles').update({ telegram_state: null }).eq('id', uid)
+        const now = new Date().toISOString()
+        await sb.from('checkins').insert({ user_id: uid, check_in: now, date: now.slice(0, 10), source: 'telegram', work_mode: 'onsite' })
+        const { data: last } = await sb.from('checkins').select('next_plan').eq('user_id', uid).eq('status', 'completed').order('check_out', { ascending: false }).limit(1).single()
+        let reply = `🟢 Hoş geldin <b>${user.display_name}</b>! (🏛️ vakıfta)\n✓ Giriş: ${fmtTime(now)}`
+        if (last?.next_plan) reply += `\n\n📌 "${last.next_plan}"`
+        await sendTg(chatId, reply)
+        return new Response('OK')
+      }
+      if (['uzaktan', 'remote', 'ev', 'evden', '2'].includes(text)) {
+        await sb.from('profiles').update({ telegram_state: null }).eq('id', uid)
+        const now = new Date().toISOString()
+        await sb.from('checkins').insert({ user_id: uid, check_in: now, date: now.slice(0, 10), source: 'telegram', work_mode: 'remote' })
+        const { data: last } = await sb.from('checkins').select('next_plan').eq('user_id', uid).eq('status', 'completed').order('check_out', { ascending: false }).limit(1).single()
+        let reply = `🟢 Hoş geldin <b>${user.display_name}</b>! (🏠 uzaktan)\n✓ Giriş: ${fmtTime(now)}`
+        if (last?.next_plan) reply += `\n\n📌 "${last.next_plan}"`
+        await sendTg(chatId, reply)
+        return new Response('OK')
+      }
+      await sendTg(chatId, '🏛️ "vakıftayım" veya 🏠 "uzaktan" yaz.')
       return new Response('OK')
     }
 

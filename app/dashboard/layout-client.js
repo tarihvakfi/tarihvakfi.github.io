@@ -256,9 +256,9 @@ function VolunteerWorkView({ uid, me }) {
     return () => clearInterval(id);
   }, [active, missedCheckout]);
 
-  const doCheckIn = async () => {
+  const doCheckIn = async (mode = 'onsite') => {
     setSaving(true);
-    await db.checkIn(uid);
+    await db.checkIn(uid, mode);
     setSaving(false); load();
   };
 
@@ -318,23 +318,28 @@ function VolunteerWorkView({ uid, me }) {
         </div>
       ) : !active ? (
         <div className="card text-center space-y-3">
-          <div className="text-sm text-gray-400">Henüz giriş yapmadın</div>
+          <div className="text-sm text-gray-400">Nasıl çalışacaksın?</div>
           {lastCheckin?.next_plan && (
             <div className="bg-amber-50 rounded-xl p-3 text-left">
               <div className="text-xs text-amber-600 font-semibold mb-0.5">📌 Geçen seferden notun:</div>
               <div className="text-sm text-amber-800">{lastCheckin.next_plan}</div>
             </div>
           )}
-          <button onClick={doCheckIn} disabled={saving} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xl py-5 px-8 rounded-2xl w-full transition-all active:scale-[0.97] shadow-lg shadow-emerald-500/20 disabled:opacity-50">
-            🟢 GELDİM
-          </button>
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => doCheckIn('onsite')} disabled={saving} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-lg py-5 rounded-2xl transition-all active:scale-[0.97] shadow-lg shadow-emerald-500/20 disabled:opacity-50">
+              🏛️ Vakıftayım
+            </button>
+            <button onClick={() => doCheckIn('remote')} disabled={saving} className="bg-blue-500 hover:bg-blue-600 text-white font-bold text-lg py-5 rounded-2xl transition-all active:scale-[0.97] shadow-lg shadow-blue-500/20 disabled:opacity-50">
+              🏠 Uzaktan
+            </button>
+          </div>
           {lastCheckin && (
-            <div className="text-xs text-gray-400">Son gelişin: {fd(lastCheckin.date)}, {fmtTime(lastCheckin.check_in)}–{fmtTime(lastCheckin.check_out)} ({fmtHours(lastCheckin.hours)})</div>
+            <div className="text-xs text-gray-400">Son: {fd(lastCheckin.date)}, {fmtTime(lastCheckin.check_in)}–{fmtTime(lastCheckin.check_out)} ({fmtHours(lastCheckin.hours)}) {lastCheckin.work_mode === 'remote' ? '🏠' : '🏛️'}</div>
           )}
         </div>
       ) : !checkoutForm ? (
         <div className="card text-center space-y-3 border-l-4 border-emerald-400">
-          <div className="text-sm text-emerald-600 font-semibold">🟢 Çalışıyorsun — {fmtTime(active.check_in)}'den beri</div>
+          <div className="text-sm text-emerald-600 font-semibold">{active.work_mode === 'remote' ? '🏠' : '🏛️'} Çalışıyorsun — {fmtTime(active.check_in)}'den beri {active.work_mode === 'remote' ? '(uzaktan)' : '(vakıfta)'}</div>
           <div className="text-3xl font-bold text-emerald-600">{elapsed}</div>
           {lastCheckin?.next_plan && (
             <div className="bg-amber-50 rounded-xl p-3 text-left">
@@ -419,6 +424,7 @@ function VolunteerWorkView({ uid, me }) {
             <div className="flex-1">
               <div className="text-sm font-semibold">
                 {fd(c.date)} · {fmtTime(c.check_in)}–{c.check_out ? fmtTime(c.check_out) : '?'}
+                {c.work_mode === 'remote' ? <span className="text-xs ml-1">🏠</span> : <span className="text-xs ml-1">🏛️</span>}
                 {c.is_retroactive && <span className="text-xs text-amber-500 ml-1">⏰</span>}
                 {c.source === 'telegram' && <span className="text-xs ml-1">✈️</span>}
               </div>
@@ -535,17 +541,17 @@ function TeamView({ uid, me }) {
     <div className="space-y-5">
       {/* Şu an burada */}
       <div>
-        <h2 className="text-lg font-bold mb-3">🟢 Şu An Burada ({activeNow.length})</h2>
+        <h2 className="text-lg font-bold mb-3">🟢 Şu An Çalışıyor ({activeNow.length})</h2>
         {activeNow.length === 0 && <div className="card text-center py-4"><p className="text-sm text-gray-400">Şu an kimse yok</p></div>}
         {activeNow.map(c => {
           const diff = Math.floor((Date.now() - new Date(c.check_in).getTime()) / 60000);
           const h = Math.floor(diff / 60); const m = diff % 60;
           return (
             <div key={c.id} className="card mb-2 !py-3 flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-sm">{c.work_mode === 'remote' ? '🏠' : '🏛️'}</span>
               <div className="flex-1">
                 <div className="font-semibold text-sm">{c.profiles?.display_name}</div>
-                <div className="text-xs text-gray-400">{fmtTime(c.check_in)}'den beri · {DM[c.profiles?.department]?.i}</div>
+                <div className="text-xs text-gray-400">{fmtTime(c.check_in)}'den beri · {DM[c.profiles?.department]?.i} · {c.work_mode === 'remote' ? 'uzaktan' : 'vakıfta'}</div>
               </div>
               <span className="text-sm font-bold text-emerald-600">{h}s {m}dk</span>
             </div>
@@ -1136,6 +1142,10 @@ function ProfileSection({ me, uid, onUpdate }) {
               <tr className="border-b border-gray-50"><td className="py-1.5 text-gray-500">Bu Hafta</td><td className="py-1.5 font-semibold text-right">{summary.week_days} gün · {fmtHours(Number(summary.week_hours))}</td></tr>
               <tr className="border-b border-gray-50"><td className="py-1.5 text-gray-500">Bu Ay</td><td className="py-1.5 font-semibold text-right">{summary.month_days} gün · {fmtHours(Number(summary.month_hours))}</td></tr>
               <tr><td className="py-1.5 text-gray-500">Toplam</td><td className="py-1.5 font-bold text-emerald-600 text-right">{summary.total_days} gün · {fmtHours(Number(summary.total_hours))}</td></tr>
+              {(Number(summary.onsite_days) > 0 || Number(summary.remote_days) > 0) && (<>
+                <tr className="border-t border-gray-100"><td className="py-1.5 text-gray-400 text-xs">🏛️ Vakıfta</td><td className="py-1.5 text-xs text-right text-gray-500">{summary.onsite_days} gün · {fmtHours(Number(summary.onsite_hours))}</td></tr>
+                <tr><td className="py-1.5 text-gray-400 text-xs">🏠 Uzaktan</td><td className="py-1.5 text-xs text-right text-gray-500">{summary.remote_days} gün · {fmtHours(Number(summary.remote_hours))}</td></tr>
+              </>)}
             </tbody>
           </table>
           {summary.first_visit && <div className="text-xs text-gray-400 mt-2">İlk giriş: {fdf(summary.first_visit)} · Son: {summary.last_visit === today() ? 'Bugün' : fdf(summary.last_visit)}</div>}
