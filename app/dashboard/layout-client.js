@@ -492,17 +492,21 @@ function TeamView({ uid, me }) {
       <div>
         <h2 className="text-lg font-bold mb-3">⏳ Onay Bekleyenler ({pending.length})</h2>
         {pending.map(c => (
-          <div key={c.id} className="card mb-2 !py-3 flex items-center gap-3">
-            <div className="flex-1">
-              <div className="font-semibold text-sm">{c.profiles?.display_name}</div>
-              <div className="text-xs text-gray-400">{fd(c.date)} · {fmtTime(c.check_in)}–{c.check_out ? fmtTime(c.check_out) : '?'} · {c.hours ? fmtHours(c.hours) : '—'}</div>
-              {c.work_done && <div className="text-xs text-gray-500 mt-0.5">{c.work_done}</div>}
+          <div key={c.id} className="card mb-2 !py-3">
+            <div className="flex items-center gap-3">
+              <span className="text-xs">{c.source === 'telegram' ? '✈️' : '🌐'}</span>
+              <div className="flex-1">
+                <div className="font-semibold text-sm">{c.profiles?.display_name}</div>
+                <div className="text-xs text-gray-400">{fd(c.date)} · {fmtTime(c.check_in)}–{c.check_out ? fmtTime(c.check_out) : '?'} · {c.hours ? fmtHours(c.hours) : '—'}</div>
+                {c.work_done && <div className="text-xs text-gray-500 mt-0.5">{c.work_done}</div>}
+              </div>
+              {c.user_id !== uid ? (
+                <button onClick={() => approve(c.id)} className="text-xs font-semibold bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg">✓ Onayla</button>
+              ) : (
+                <span className="text-xs text-gray-400">Kendi kaydın</span>
+              )}
             </div>
-            {c.user_id !== uid ? (
-              <button onClick={() => approve(c.id)} className="text-xs font-semibold bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg">✓ Onayla</button>
-            ) : (
-              <span className="text-xs text-gray-400">Kendi kaydın</span>
-            )}
+            {c.photo_url && <img src={c.photo_url} alt="Çalışma fotoğrafı" className="mt-2 rounded-xl max-h-40 object-cover w-full" />}
           </div>
         ))}
         {pending.length === 0 && <div className="card text-center py-4"><p className="text-sm text-gray-400">Bekleyen onay yok</p></div>}
@@ -970,10 +974,26 @@ function BenView({ me, uid, unread, setUnread, onUpdate }) {
 function ProfileSection({ me, uid, onUpdate }) {
   const [editing, setEditing] = useState(false);
   const [f, setF] = useState({ display_name: me.display_name, city: me.city || '', bio: me.bio || '' });
+  const [tgCode, setTgCode] = useState(null);
+  const [tgLinked, setTgLinked] = useState(!!me.telegram_id);
+
   const save = async () => {
     const { data } = await db.updateProfile(uid, f);
     if (data) onUpdate(data); setEditing(false);
   };
+
+  const linkTelegram = async () => {
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    await db.updateProfile(uid, { telegram_link_code: code });
+    setTgCode(code);
+  };
+
+  const unlinkTelegram = async () => {
+    await db.updateProfile(uid, { telegram_id: null, telegram_link_code: null, telegram_state: null });
+    setTgLinked(false); setTgCode(null);
+    onUpdate({ ...me, telegram_id: null });
+  };
+
   return (
     <div>
       <div className="card text-center">
@@ -987,6 +1007,33 @@ function ProfileSection({ me, uid, onUpdate }) {
           <div className="text-center"><div className="font-bold text-lg">{fdf(me.joined_at)}</div><div className="text-xs text-gray-400">Üyelik</div></div>
         </div>
       </div>
+
+      {/* Telegram Bağlama */}
+      <div className="card mt-3">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-lg">✈️</span>
+          <span className="font-bold text-sm">Telegram</span>
+          {tgLinked && <span className="text-xs text-emerald-600 font-semibold">✓ Bağlı</span>}
+        </div>
+        {tgLinked ? (
+          <div className="space-y-2">
+            <p className="text-sm text-gray-500">Telegram ile giriş/çıkış yapabilirsiniz.</p>
+            <button onClick={unlinkTelegram} className="text-xs text-red-500 font-semibold">Bağlantıyı Kaldır</button>
+          </div>
+        ) : tgCode ? (
+          <div className="space-y-2 text-center">
+            <p className="text-sm text-gray-500">Telegram'da <b>@tarihvakfi_bot</b>'a gidin ve şu komutu gönderin:</p>
+            <div className="bg-gray-100 rounded-xl py-3 px-4 font-mono text-lg font-bold text-gray-800 tracking-wider">/start {tgCode}</div>
+            <a href={`https://t.me/tarihvakfi_bot?start=${tgCode}`} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 font-semibold">veya buraya tıklayın →</a>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-sm text-gray-500">Telegram ile giriş/çıkış yapmak için hesabınızı bağlayın.</p>
+            <button onClick={linkTelegram} className="btn-primary w-full !text-sm">📱 Telegram Bağla</button>
+          </div>
+        )}
+      </div>
+
       <button className="btn-ghost w-full mt-3" onClick={() => setEditing(!editing)}>{editing ? '✕ İptal' : '✏️ Düzenle'}</button>
       {editing && (
         <div className="card mt-3 space-y-2">

@@ -153,6 +153,38 @@ tarih-vakfi/
 
 3 Trigger: Otomatik profil, saat onay bildirimi, görev atama bildirimi
 
+## Telegram Bot Kurulumu
+
+### Adim 1 — Bot Olustur
+1. Telegram'da **@BotFather**'a gidin
+2. `/newbot` komutunu gonderin
+3. Bot adi: `Tarih Vakfi Gonullu`
+4. Username: `tarihvakfi_bot`
+5. API token'i kopyalayin
+
+### Adim 2 — Supabase Edge Function Deploy
+```bash
+supabase functions deploy telegram-webhook --project-ref PROJE_REF
+```
+
+### Adim 3 — Secrets Ayarla
+```bash
+supabase secrets set TELEGRAM_BOT_TOKEN=BOT_TOKEN_BURAYA
+supabase secrets set TELEGRAM_WEBHOOK_SECRET=RASTGELE_BIR_ANAHTAR
+```
+
+### Adim 4 — Webhook Kaydet
+```bash
+curl "https://api.telegram.org/botBOT_TOKEN/setWebhook?url=https://SUPABASE_URL/functions/v1/telegram-webhook&secret_token=WEBHOOK_SECRET"
+```
+
+### Kullanim
+- Gonulluler: Profil → Telegram Bagla → kodu bot'a gonderin
+- `geldim` → giris yap
+- `cikiyorum` → cikis yap + rapor yaz
+- `/durum` → haftalik ozet
+- `/yardim` → komut listesi
+
 ## Lisans
 
 MIT
