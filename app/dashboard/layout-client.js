@@ -105,7 +105,7 @@ export default function Dashboard({session}){
 
   const adminNav=[
     {section:'YÖNETİM',items:[{id:'genel',l:'Genel Bakış'},{id:'onaylar',l:'Onaylar',badge:true},{id:'gonulluler',l:'Gönüllüler'},{id:'isler',l:'İşler'},{id:'iletisim',l:'İletişim'}]},
-    {section:'VERİ',items:[{id:'raporlar',l:'Raporlar'},{id:'belgeler',l:'Belgeler'},{id:'yedekleme',l:'Yedekleme'}]},
+    {section:'VERİ',items:[{id:'raporlar',l:'Raporlar'},{id:'belgeler',l:'Belgeler'},{id:'yedekleme',l:'Yedekleme'},{id:'icerik',l:'İçerik Yönetimi'}]},
   ];
 
   const sideNav=isCoord?coordNav:isAdmin?adminNav:[];
@@ -243,6 +243,7 @@ export default function Dashboard({session}){
             {isAdmin&&page==='raporlar'&&<ReportsPage uid={uid}/>}
             {isAdmin&&page==='belgeler'&&<BelgelerPage uid={uid} me={me}/>}
             {isAdmin&&page==='yedekleme'&&<SimpleBackup uid={uid}/>}
+            {isAdmin&&page==='icerik'&&<ContentManager uid={uid}/>}
           </div>
         </main>
       </div>
@@ -747,10 +748,16 @@ function BelgelerPage({uid,me}){
 
 /* ═══ HELP ═══ */
 function HelpContent({me}){
-  const items=[{q:'Nasıl rapor girerim?',a:'Çalışma raporu butonuna tıkla, saat yaz, açıklama yaz, konum seç, kaydet.'},{q:'Raporu nasıl düzenlerim?',a:'Rapor satırına tıkla, inline düzenleme açılır.'},{q:'Telegram nasıl bağlanır?',a:'Profil menüsünden Telegram Bağla seç, kodu @tarihvakfi_bot\'a gönder.'}];
-  if(me.role!=='vol')items.push({q:'Raporları nasıl onaylarım?',a:'Onaylar sayfasından onayla veya reddet.'},{q:'İş nasıl oluştururum?',a:'İşler sayfasında + Yeni İş butonuna tıkla.'});
-  if(me.role==='admin')items.push({q:'Rapor nasıl oluştururum?',a:'Raporlar sayfasından dönem seç, otomatik oluşur.'});
-  const[open,setOpen]=useState(null);
+  const[items,setItems]=useState([]);const[open,setOpen]=useState(null);
+  const fallback=[{q:'Nasıl rapor girerim?',a:'Çalışma raporu butonuna tıkla, saat yaz, açıklama yaz, konum seç, kaydet.'},{q:'Raporu nasıl düzenlerim?',a:'Rapor satırına tıkla, inline düzenleme açılır.'},{q:'Telegram nasıl bağlanır?',a:'Profil menüsünden Telegram Bağla seç, kodu @tarihvakfi_bot\'a gönder.'}];
+  useEffect(()=>{(async()=>{
+    const cms=await db.getAllSiteContent();
+    let list=[...(cms.help_volunteer?.items||fallback)];
+    if(me.role!=='vol')list.push(...(cms.help_coordinator?.items||[{q:'Raporları nasıl onaylarım?',a:'Onaylar sayfasından onayla veya reddet.'}]));
+    if(me.role==='admin')list.push(...(cms.help_admin?.items||[{q:'Rapor nasıl oluştururum?',a:'Raporlar sayfasından dönem seç, otomatik oluşur.'}]));
+    setItems(list);
+  })();},[me.role]);
+  if(items.length===0)return<div className="skeleton h-20 w-full"/>;
   return(<div>{items.map((item,i)=><div key={i} onClick={()=>setOpen(open===i?null:i)} className="cursor-pointer py-3 border-b border-[#F3F4F6] last:border-0"><div className="flex justify-between"><span className="text-[14px] font-medium">{item.q}</span><span className="text-[#C4C4C4] text-[12px]">{open===i?'−':'+'}</span></div>{open===i&&<p className="text-[13px] text-[#6B7280] mt-2 leading-relaxed">{item.a}</p>}</div>)}</div>);
 }
 
@@ -862,6 +869,79 @@ function SimpleBackup({uid}){
 
     <div className="sec-label" style={{marginTop:16}}>Manuel indirme</div>
     <button onClick={handleCsv} disabled={loading} className="btn-outline text-[13px] mt-2">{loading?'Hazırlanıyor...':'Tüm verileri indir (.zip)'}</button>
+  </div>);
+}
+
+/* ═══ CONTENT MANAGER (admin CMS) ═══ */
+function ContentManager({uid}){
+  const[cms,setCms]=useState({});const[saving,setSaving]=useState(null);
+  const toast=useToast();
+  useEffect(()=>{(async()=>{const data=await db.getAllSiteContent();setCms(data||{});})();},[]);
+
+  const save=async(key,content)=>{
+    setSaving(key);
+    await db.upsertSiteContent(key,content,uid);
+    setSaving(null);toast.show('Kaydedildi');
+  };
+
+  const updateField=(key,field,value)=>{
+    setCms(prev=>({...prev,[key]:{...(prev[key]||{}), [field]:value}}));
+  };
+
+  const SECTIONS=[
+    {key:'homepage_hero',title:'Anasayfa — Hero',fields:[{f:'title',l:'Başlık',type:'text'},{f:'subtitle',l:'Alt başlık',type:'textarea'}]},
+    {key:'homepage_about',title:'Anasayfa — Hakkımızda',fields:[{f:'title',l:'Başlık',type:'text'},{f:'text',l:'Metin',type:'textarea'}]},
+    {key:'homepage_steps',title:'Anasayfa — Adımlar',fields:null,custom:'steps'},
+    {key:'help_volunteer',title:'Yardım — Gönüllü',fields:null,custom:'faq'},
+    {key:'help_coordinator',title:'Yardım — Koordinatör',fields:null,custom:'faq'},
+    {key:'help_admin',title:'Yardım — Yönetici',fields:null,custom:'faq'},
+  ];
+
+  return(<div><toast.Toast/>
+    <div className="page-title mb-1">İçerik Yönetimi</div>
+    <div className="meta mb-6">Anasayfa ve yardım içeriklerini düzenleyin. Değişiklikler anında yansır.</div>
+
+    {SECTIONS.map(sec=>(
+      <div key={sec.key} className="mb-8">
+        <div className="text-[14px] font-medium text-[#374151] mb-3">{sec.title}</div>
+        <div className="bg-white rounded-[10px] border border-[#F3F4F6] p-4 space-y-3">
+          {sec.fields&&sec.fields.map(fld=>(
+            <div key={fld.f}>
+              <label className="block text-[12px] text-[#6B7280] font-medium mb-1">{fld.l}</label>
+              {fld.type==='text'?
+                <input className="inp text-[13px]" value={cms[sec.key]?.[fld.f]||''} onChange={e=>updateField(sec.key,fld.f,e.target.value)} onBlur={()=>save(sec.key,cms[sec.key])}/>:
+                <textarea className="inp inp-area text-[13px]" value={cms[sec.key]?.[fld.f]||''} onChange={e=>updateField(sec.key,fld.f,e.target.value)} onBlur={()=>save(sec.key,cms[sec.key])}/>
+              }
+            </div>
+          ))}
+
+          {sec.custom==='steps'&&(<>
+            {(cms[sec.key]?.steps||[]).map((step,i)=>(
+              <div key={i} className="flex gap-2 items-start">
+                <span className="text-[12px] text-[#9CA3AF] mt-3 w-4">{step.n||i+1}.</span>
+                <div className="flex-1 space-y-1">
+                  <input className="inp text-[13px] !py-1.5" value={step.t||''} onChange={e=>{const s=[...(cms[sec.key]?.steps||[])];s[i]={...s[i],t:e.target.value};updateField(sec.key,'steps',s);}} onBlur={()=>save(sec.key,cms[sec.key])} placeholder="Başlık"/>
+                  <input className="inp text-[13px] !py-1.5" value={step.d||''} onChange={e=>{const s=[...(cms[sec.key]?.steps||[])];s[i]={...s[i],d:e.target.value};updateField(sec.key,'steps',s);}} onBlur={()=>save(sec.key,cms[sec.key])} placeholder="Açıklama"/>
+                </div>
+              </div>
+            ))}
+          </>)}
+
+          {sec.custom==='faq'&&(<>
+            {(cms[sec.key]?.items||[]).map((item,i)=>(
+              <div key={i} className="space-y-1 border-b border-[#F3F4F6] pb-3 last:border-0">
+                <input className="inp text-[13px] !py-1.5 font-medium" value={item.q||''} onChange={e=>{const items=[...(cms[sec.key]?.items||[])];items[i]={...items[i],q:e.target.value};updateField(sec.key,'items',items);}} onBlur={()=>save(sec.key,cms[sec.key])} placeholder="Soru"/>
+                <textarea className="inp text-[13px] !py-1.5" rows={2} value={item.a||''} onChange={e=>{const items=[...(cms[sec.key]?.items||[])];items[i]={...items[i],a:e.target.value};updateField(sec.key,'items',items);}} onBlur={()=>save(sec.key,cms[sec.key])} placeholder="Cevap"/>
+                <button onClick={()=>{const items=[...(cms[sec.key]?.items||[])];items.splice(i,1);updateField(sec.key,'items',items);save(sec.key,{...cms[sec.key],items});}} className="btn-danger-text text-[11px]">Kaldır</button>
+              </div>
+            ))}
+            <button onClick={()=>{const items=[...(cms[sec.key]?.items||[]),{q:'',a:''}];updateField(sec.key,'items',items);}} className="btn-ghost text-[12px]">+ Soru ekle</button>
+          </>)}
+
+          {saving===sec.key&&<div className="text-[11px] text-[#059669]">Kaydediliyor...</div>}
+        </div>
+      </div>
+    ))}
   </div>);
 }
 

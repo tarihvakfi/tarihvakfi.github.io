@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { supabase, getPublicStats, getPublicAnnouncements, getDeptVolunteerCounts, getPublicDashboard } from '../lib/supabase';
+import { supabase, getPublicStats, getPublicAnnouncements, getDeptVolunteerCounts, getPublicDashboard, getAllSiteContent } from '../lib/supabase';
 
 const MO = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
 const fd = d => { const x = new Date(d); return `${x.getDate()} ${MO[x.getMonth()]} ${x.getFullYear()}`; };
@@ -36,14 +36,14 @@ export default function HomePage() {
   const [deptCounts, setDeptCounts] = useState({});
   const [session, setSession] = useState(null);
   const [loaded, setLoaded] = useState(false);
+  const [cms, setCms] = useState({});
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => { if (data?.session) setSession(data.session); });
     (async () => {
-      const [s, pd, a, d] = await Promise.all([getPublicStats(), getPublicDashboard(), getPublicAnnouncements(), getDeptVolunteerCounts()]);
-      // Merge public_dashboard into stats for richer data
+      const [s, pd, a, d, sc] = await Promise.all([getPublicStats(), getPublicDashboard(), getPublicAnnouncements(), getDeptVolunteerCounts(), getAllSiteContent()]);
       const merged = { ...(s.data || {}), ...(pd || {}) };
-      setStats(merged); setAnns(a.data || []); setDeptCounts(d || {}); setLoaded(true);
+      setStats(merged); setAnns(a.data || []); setDeptCounts(d || {}); setCms(sc || {}); setLoaded(true);
     })();
   }, []);
 
@@ -65,10 +65,10 @@ export default function HomePage() {
       <section className="relative overflow-hidden text-white" style={{background:'linear-gradient(135deg, #064E3B 0%, #059669 100%)'}}>
         <div className="relative max-w-3xl mx-auto text-center py-20 md:py-28 px-4">
           <h1 className="text-3xl md:text-5xl font-semibold leading-tight">
-            Tarih Vakfı<br />Gönüllü Platformu
+            {(cms.homepage_hero?.title || 'Tarih Vakfı Gönüllü Platformu').split('\n').map((line,i)=><span key={i}>{line}<br/></span>)}
           </h1>
           <p className="text-base md:text-lg text-white/60 mt-5 max-w-xl mx-auto leading-relaxed">
-            1991&apos;den beri tarihi korumak ve toplumsal tarih bilincini geliştirmek için çalışıyoruz. Gönüllülerimizle birlikte büyüyoruz.
+            {cms.homepage_hero?.subtitle || '1991\'den beri tarihi korumak ve toplumsal tarih bilincini geliştirmek için çalışıyoruz.'}
           </p>
         </div>
       </section>
@@ -76,9 +76,9 @@ export default function HomePage() {
       {/* Hakkımızda */}
       <section className="py-14 px-4">
         <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-[22px] font-medium mb-4">Hakkımızda</h2>
+          <h2 className="text-[22px] font-medium mb-4">{cms.homepage_about?.title || 'Hakkımızda'}</h2>
           <p className="text-[14px] text-[#6B7280] leading-relaxed">
-            Tarih Vakfı, 1991 yılında 12 kişilik Girişim Kurulu ve 264 Kurucu Mütevelli ile kurulan, tarihe dair demokratik perspektifi geliştirmeyi amaçlayan bağımsız bir sivil toplum kuruluşudur. 35 yıllık tarihinde yüzlerce proje, sergi, kongre, konferans, sempozyum, atölye, söyleşi ve panel gerçekleştirmiştir.
+            {cms.homepage_about?.text || 'Tarih Vakfı, 1991 yılında kurulan, tarihe dair demokratik perspektifi geliştirmeyi amaçlayan bağımsız bir sivil toplum kuruluşudur.'}
           </p>
           <a href="https://tarihvakfi.org.tr" target="_blank" rel="noopener noreferrer" className="inline-block mt-4 text-[13px] text-[#059669] font-medium hover:underline">tarihvakfi.org.tr</a>
         </div>
@@ -123,12 +123,12 @@ export default function HomePage() {
         <div className="max-w-3xl mx-auto">
           <h2 className="text-[22px] font-medium text-center mb-8">Nasıl Gönüllü Olurum?</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
+            {(cms.homepage_steps?.steps || [
               { n: '1', t: 'Kayıt Ol', d: 'Google hesabınız veya e-posta ile hızlıca kayıt olun.' },
               { n: '2', t: 'Onay Bekleyin', d: 'Yönetici hesabınızı inceler ve onaylar.' },
               { n: '3', t: 'Başlayın', d: 'Görev alın, çalışmanızı raporlayın.' },
               { n: '4', t: 'Telegram', d: 'Telefonunuzdan kolayca rapor girin (opsiyonel).' },
-            ].map((s, i) => (
+            ]).map((s, i) => (
               <div key={i} className="stat-box relative pt-8">
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-[#059669] text-white text-[13px] font-semibold flex items-center justify-center">{s.n}</div>
                 <div className="font-medium text-[14px] mb-1">{s.t}</div>
