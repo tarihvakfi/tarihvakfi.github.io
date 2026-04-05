@@ -22,6 +22,14 @@ const fdf = d => { const x = new Date(d); return `${x.getDate()} ${MO[x.getMonth
 const today = () => new Date().toISOString().slice(0,10);
 const fmtH = h => { const hrs = Math.floor(h); const mins = Math.round((h-hrs)*60); return `${hrs}s ${String(mins).padStart(2,'0')}dk`; };
 
+const getStreak = (reports) => {
+  const days = [...new Set((reports||[]).map(r=>r.date))].sort((a,b)=>b.localeCompare(a));
+  let streak = 0, cursor = today();
+  for (const d of days) { if (d===cursor) { streak++; const nd = new Date(cursor+'T12:00:00'); nd.setDate(nd.getDate()-1); cursor=nd.toISOString().slice(0,10); } else break; }
+  return streak;
+};
+const daysUntil = v => Math.round((new Date(v+'T12:00:00') - new Date(today()+'T12:00:00')) / 86400000);
+
 // ═══════════════════════════════════════════
 // ANA SHELL
 // ═══════════════════════════════════════════
@@ -423,6 +431,28 @@ function MyScreen({ uid, me, onModal }) {
           </div>
           <button onClick={() => onModal('summary')} className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center text-sm hover:bg-emerald-100 transition-colors" aria-label="Detaylı özet">📊</button>
         </div>
+        {/* Mini stats */}
+        {(() => {
+          const todayR = reports.filter(r => r.date === today());
+          const pendingR = reports.filter(r => r.status === 'pending').length;
+          const streak = getStreak(reports);
+          const overdue = tasks.filter(t => t.deadline && daysUntil(t.deadline) < 0);
+          const tip = overdue.length ? `Geciken ${overdue.length} işi gözden geçir.`
+            : !todayR.length ? 'Bugün henüz rapor girmedin.'
+            : pendingR ? `${pendingR} rapor onay bekliyor.`
+            : 'Her şey yolunda!';
+          return (<>
+            <div className="grid grid-cols-4 gap-1.5 mt-3">
+              {[
+                { l:'Bugün', v: todayR.length ? fmtH(todayR.reduce((a,r)=>a+Number(r.hours||0),0)) : '—', c: todayR.length ? 'text-emerald-600' : 'text-gray-400' },
+                { l:'Bekleyen', v: pendingR, c: pendingR ? 'text-amber-500' : 'text-gray-400' },
+                { l:'Seri', v: `${streak}g`, c: streak > 1 ? 'text-blue-600' : 'text-gray-400' },
+                { l:'Açık iş', v: tasks.length, c: overdue.length ? 'text-red-500' : 'text-gray-400' },
+              ].map((s,i) => <div key={i} className="bg-white/70 rounded-lg px-2 py-1.5 text-center"><div className="text-[10px] text-gray-400">{s.l}</div><div className={`text-xs font-bold ${s.c}`}>{s.v}</div></div>)}
+            </div>
+            <p className="text-xs text-gray-500 mt-2 bg-white/60 rounded-lg px-3 py-2">{tip}</p>
+          </>);
+        })()}
       </div>
 
       {/* Raporla Butonu / Form */}

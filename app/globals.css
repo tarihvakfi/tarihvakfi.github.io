@@ -5,6 +5,8 @@
 @tailwind utilities;
 
 @layer base {
+  html { scroll-behavior: smooth; }
+  ::selection { background: rgba(16, 185, 129, 0.18); color: #0f172a; }
   body { @apply text-gray-800 font-sans text-base leading-relaxed; font-family: 'DM Sans', system-ui, sans-serif; background: #F8F9FA; }
 }
 
