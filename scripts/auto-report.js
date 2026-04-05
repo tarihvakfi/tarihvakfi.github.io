@@ -266,6 +266,35 @@ async function main() {
       }
     }
     console.log('Aktivite kontrolu tamamlandi.');
+
+    // Gecikme uyarısı
+    console.log('Gecikme kontrolu...');
+    const allTasks = await sbGet('tasks', 'id,title,status,deadline,assigned_to,department', 'status=neq.done&status=neq.cancelled');
+    const todayStr = now.toISOString().slice(0, 10);
+    for (const t of allTasks) {
+      if (t.deadline && t.deadline < todayStr) {
+        const deptCoords = profiles.filter(p => p.role === 'coord' && p.department === t.department);
+        for (const c of [...deptCoords, ...admins]) {
+          if (!hasNotif(c.id, `⚠️ Gecikme: ${t.title}`)) {
+            await sbInsert('notifications', { user_id: c.id, type: 'system', title: `⚠️ Gecikme: ${t.title}`, body: `Deadline ${t.deadline} idi, hâlâ tamamlanmadı.` });
+          }
+        }
+      }
+    }
+
+    // Boşta gönüllü uyarısı (haftalık — pazar günü)
+    if (now.getDay() === 0) {
+      console.log('Bosta gonullu kontrolu...');
+      for (const vol of allVols) {
+        const hasTask = allTasks.some(t => (t.assigned_to || []).includes(vol.id));
+        if (!hasTask) {
+          const deptCoords = profiles.filter(p => p.role === 'coord' && p.department === vol.department);
+          for (const c of deptCoords) {
+            await sbInsert('notifications', { user_id: c.id, type: 'system', title: `📋 ${vol.display_name} boşta`, body: 'Aktif ama atanmış işi yok. İş atamayı düşünün.' });
+          }
+        }
+      }
+    }
   }
 }
 

@@ -200,6 +200,7 @@ function ProfileDropdown({ me, uid, onUpdate, onModal, onClose }) {
           <button onClick={() => { onModal('help'); onClose(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded-lg">❓ Yardım</button>
           <div className="border-t border-gray-50 mt-1 pt-1">
             <button onClick={db.signOut} className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-gray-50 rounded-lg">Çıkış</button>
+            <button onClick={async () => { if (!confirm('Tüm verileriniz kalıcı olarak silinecek. Bu işlem geri alınamaz. Emin misiniz?')) return; await db.updateProfile(uid, { display_name: 'Silinmiş Kullanıcı', email: null, phone: null, bio: '', city: '', status: 'resigned' }); db.signOut(); }} className="w-full text-left px-3 py-2 text-[11px] text-gray-300 hover:text-red-400 hover:bg-gray-50 rounded-lg">Verilerimi Sil</button>
           </div>
         </div>
       ) : (
@@ -285,10 +286,12 @@ function MyScreen({ uid, me, onModal }) {
     const e = {};
     const hours = parseFloat(f.h);
     if (!f.h) e.h = 'Kaç saat çalıştığını yaz';
-    else if (hours < 0.5) e.h = 'En az 0.5 saat olmalı';
+    else if (hours < 0.5) e.h = 'En az yarım saat olmalı';
     else if (hours > 16) e.h = 'Bir günde 16 saatten fazla olamaz';
     if (!f.desc.trim()) e.desc = 'Ne yaptığını kısaca yaz';
     if (f.date > today()) e.date = 'İleri tarih seçilemez';
+    // Günlük max 5 rapor
+    if (!editR && reports.filter(r => r.date === f.date).length >= 5) e.date = 'Bugün için max 5 rapor girilebilir';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -573,7 +576,7 @@ function TeamScreen({ uid, me }) {
 
   const approve = async (id) => { await db.approveReport(id, uid); load(); };
   const approveAll = async () => { const ids = pending.filter(r => r.user_id !== uid).map(r => r.id); await db.approveAllReports(ids, uid); load(); };
-  const createTask = async () => { if (!tf.title) return; await db.createTask({ ...tf, priority:'medium', assigned_to: tf.assigned_to ? [tf.assigned_to] : [], created_by: uid }); setShowNewTask(false); setTf({ title:'', description:'', department: me.department||'arsiv', assigned_to:'', deadline:'' }); load(); };
+  const createTask = async () => { if (!tf.title) return; await db.createTask({ title: tf.title, description: tf.description, department: tf.department, deadline: tf.deadline, materials: tf.materials||'', is_recurring: tf.recurring||false, priority:'medium', assigned_to: tf.assigned_to ? [tf.assigned_to] : [], created_by: uid }); setShowNewTask(false); setTf({ title:'', description:'', department: me.department||'arsiv', assigned_to:'', deadline:'', materials:'', recurring:false }); load(); };
   const createAnn = async () => { if (!annF.title || !annF.body) return; await db.createAnnouncement({ ...annF, department: null, is_pinned: false, is_public: false, author_id: uid }); setShowAnn(false); setAnnF({ title:'', body:'' }); };
   const approveTask = async (id) => { await db.updateTask(id, { status: 'done', completed_at: new Date().toISOString() }); load(); };
   const createShift = async () => { if (!sf.volunteer_id) return; await db.createShift({ ...sf, created_by: uid }); setShowShift(false); load(); };
@@ -617,6 +620,8 @@ function TeamScreen({ uid, me }) {
               <select className="border rounded-xl px-3 py-2 text-sm" value={tf.assigned_to} onChange={e => setTf({...tf, assigned_to: e.target.value})}><option value="">Atanacak</option>{vols.map(v => <option key={v.id} value={v.id}>{v.display_name}</option>)}</select>
             </div>
             <input type="date" className="w-full border rounded-xl px-3 py-2 text-sm" value={tf.deadline} onChange={e => setTf({...tf, deadline: e.target.value})} />
+            <input className="w-full border rounded-xl px-3 py-2 text-sm" placeholder="Gerekli malzeme (opsiyonel)" value={tf.materials||''} onChange={e => setTf({...tf, materials: e.target.value})} />
+            <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer"><input type="checkbox" checked={tf.recurring||false} onChange={e => setTf({...tf, recurring: e.target.checked})} /> 🔄 Tamamlanınca tekrarla</label>
             <button onClick={createTask} className="bg-emerald-600 text-white text-sm font-semibold py-2 rounded-xl w-full">Oluştur</button>
           </div>
         )}
@@ -625,6 +630,7 @@ function TeamScreen({ uid, me }) {
             <div className="flex items-center justify-between">
               <div className="flex-1"><span className="font-semibold text-sm">{t.title}</span> <span className="text-xs text-gray-400">{Math.round(t.progress||0)}%</span></div>
               {t.status === 'review' && <button onClick={() => approveTask(t.id)} className="text-xs bg-emerald-50 text-emerald-600 font-semibold px-2 py-1 rounded-lg">✓ Tamamla</button>}
+              {t.status !== 'done' && t.status !== 'cancelled' && <button onClick={async () => { await db.updateTask(t.id, { status: 'cancelled' }); if (t.assigned_to) { for (const vid of t.assigned_to) await db.sendNotification(vid, 'task', `📋 ${t.title} iptal edildi`, ''); } load(); }} className="text-xs text-red-400 px-2 py-1">İptal</button>}
             </div>
             <div className="mt-1 h-1.5 bg-gray-200 rounded-full overflow-hidden"><div className={`h-full rounded-full ${t.status==='done'?'bg-emerald-500':t.status==='review'?'bg-blue-500':'bg-amber-400'}`} style={{width:`${t.progress||0}%`}} /></div>
           </div>
@@ -899,14 +905,29 @@ function HelpContent({ me }) {
 // RESTRICTED (pending/blocked/etc)
 // ═══════════════════════════════════════════
 function RestrictedShell({ me, uid }) {
-  const msgs = { pending:{i:'⏳',t:'Kaydınız alındı!',d:'Yönetici onayı bekleniyor.'}, rejected:{i:'❌',t:'Başvuru reddedildi',d:'Yöneticiyle iletişime geçin.'}, blocked:{i:'🚫',t:'Hesap engellendi',d:'Yöneticiyle iletişime geçin.'}, paused:{i:'⏸️',t:'Hesap duraklatıldı',d:'Tekrar aktif olmak için talep gönderin.'}, inactive:{i:'🔒',t:'Hesap pasif',d:''}, resigned:{i:'👋',t:'Ayrıldınız',d:''} };
+  const [sent, setSent] = useState(false);
+  const msgs = { pending:{i:'⏳',t:'Kaydınız alındı!',d:'Yönetici onayı bekleniyor.'}, rejected:{i:'❌',t:'Başvuru reddedildi',d:'Yöneticiyle iletişime geçin.'}, blocked:{i:'🚫',t:'Hesap engellendi',d:'Yöneticiyle iletişime geçin.'}, paused:{i:'⏸️',t:'Hesap duraklatıldı',d:'Tekrar aktif olmak için talep gönderin.'}, inactive:{i:'🔒',t:'Hesap pasif',d:'30 gündür raporlama yapılmadığı için pasife alındı.'}, resigned:{i:'👋',t:'Ayrıldınız',d:'Eski verileriniz korunuyor.'} };
   const m = msgs[me.status] || msgs.blocked;
+  const canReactivate = ['paused','inactive','resigned'].includes(me.status);
+
+  const requestReactivation = async () => {
+    const { data: admins } = await db.getProfilesByRole('admin');
+    for (const a of (admins || [])) await db.sendNotification(a.id, 'system', `${me.display_name} tekrar aktif olmak istiyor`, me.status === 'resigned' ? 'Eski gönüllü geri dönüş talebi' : 'Pasif hesap aktivasyon talebi');
+    setSent(true);
+  };
+
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="text-center space-y-4 max-w-sm">
         <div className="text-5xl">{m.i}</div>
         <h2 className="text-xl font-bold">{m.t}</h2>
         <p className="text-sm text-gray-500">{m.d}</p>
+        {canReactivate && !sent && (
+          <button onClick={requestReactivation} className="bg-emerald-600 text-white font-semibold text-sm py-2.5 px-6 rounded-xl">
+            {me.status === 'resigned' ? 'Tekrar Katıl' : 'Tekrar Aktif Ol'}
+          </button>
+        )}
+        {sent && <p className="text-sm text-emerald-600">✓ Talebiniz yöneticiye iletildi!</p>}
         <button onClick={db.signOut} className="text-sm text-gray-400 border border-gray-200 px-6 py-2 rounded-xl">Çıkış</button>
       </div>
     </div>
