@@ -1,9 +1,24 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Component } from 'react';
 import * as db from '../../lib/supabase';
 import BackupView from './backup';
 import { CertificateModal, MyCertificates } from './certificates';
 import { ReportArchive } from './reports';
+
+class DashboardErrorBoundary extends Component {
+  constructor(props){super(props);this.state={error:null};}
+  static getDerivedStateFromError(e){return{error:e};}
+  render(){
+    if(this.state.error)return(
+      <div style={{padding:40,textAlign:'center',fontFamily:'Inter,system-ui'}}>
+        <div style={{fontSize:20,fontWeight:500,marginBottom:12}}>Bir hata oluştu</div>
+        <pre style={{fontSize:12,color:'#666',whiteSpace:'pre-wrap',maxWidth:600,margin:'0 auto',textAlign:'left',background:'#f5f5f5',padding:16,borderRadius:8}}>{this.state.error?.message}{'\n'}{this.state.error?.stack}</pre>
+        <button onClick={()=>this.setState({error:null})} style={{marginTop:16,padding:'8px 24px',background:'#059669',color:'white',border:'none',borderRadius:8,cursor:'pointer'}}>Tekrar Dene</button>
+      </div>
+    );
+    return this.props.children;
+  }
+}
 
 /* ═══ CONSTANTS ═══ */
 const DEPTS=[{id:'arsiv',l:'Arşiv ve Dokümantasyon'},{id:'egitim',l:'Eğitim ve Atölye'},{id:'etkinlik',l:'Etkinlik ve Organizasyon'},{id:'dijital',l:'Dijital ve Sosyal Medya'},{id:'rehber',l:'Rehberlik ve Gezi'},{id:'baski',l:'Yayın ve Baskı'},{id:'bagis',l:'Bağış ve Sponsorluk'},{id:'idari',l:'İdari İşler'}];
@@ -161,6 +176,7 @@ export default function Dashboard({session}){
   );
 
   return(
+    <DashboardErrorBoundary>
     <div className="min-h-screen bg-[#FAFAFA]">
       {/* ── Managing / view banners ── */}
       {managingUser&&(
@@ -253,6 +269,7 @@ export default function Dashboard({session}){
         {volPages.map(p=><button key={p.id} onClick={()=>setPage(p.id)} className={`flex-1 text-[11px] font-medium py-1 ${page===p.id?'text-[#059669] border-t-2 border-[#059669]':'text-[#9CA3AF]'}`}>{p.l}</button>)}
       </nav>}
     </div>
+    </DashboardErrorBoundary>
   );
 }
 
