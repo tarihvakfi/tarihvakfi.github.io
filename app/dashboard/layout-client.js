@@ -68,11 +68,11 @@ export default function Dashboard({ session }) {
   return (
     <div className={`min-h-screen bg-white ${tabs.length ? 'pb-16' : ''}`}>
       {/* Header */}
-      <header className="bg-white border-b border-gray-100 px-4 py-3 sticky top-0 z-50">
+      <header className="bg-white/95 backdrop-blur-sm border-b border-gray-100 px-4 py-3 sticky top-0 z-50">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <a href="/" className="text-lg font-bold" style={{fontFamily:"'Playfair Display',serif"}}>🏛️ Tarih Vakfı</a>
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowNotifs(!showNotifs)} className="relative w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-sm">
+            <button onClick={() => { if (showNotifs) { setShowNotifs(false); } else { setShowNotifs(true); setUnread(0); } }} className="relative w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-sm">
               🔔{unread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">{unread}</span>}
             </button>
             <button onClick={() => setShowProfile(!showProfile)} className="text-sm font-semibold text-gray-600">{me.display_name?.split(' ')[0]} ▾</button>
@@ -391,26 +391,31 @@ function MyScreen({ uid, me, onModal }) {
       )}
 
       {/* Selamlama + Özet */}
-      <div>
-        <h1 className="text-xl font-bold">Merhaba {me.display_name?.split(' ')[0]} 👋</h1>
-        {summary && <p className="text-sm text-gray-500 mt-1">Bu ay: <b>{summary.month_days} gün</b>, <b>{fmtH(Number(summary.month_hours))}</b> çalıştın</p>}
+      <div className="card" style={{background:'linear-gradient(135deg, #ffffff 0%, #ecfdf5 100%)'}}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-gray-800">Merhaba {me.display_name?.split(' ')[0]} 👋</h1>
+            {summary && <p className="text-sm text-gray-500 mt-1">Bu ay: <b className="text-emerald-600">{summary.month_days} gün</b>, <b className="text-emerald-600">{fmtH(Number(summary.month_hours))}</b> çalıştın</p>}
+          </div>
+          <button onClick={() => onModal('summary')} className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center text-sm hover:bg-emerald-100 transition-colors" aria-label="Detaylı özet">📊</button>
+        </div>
       </div>
 
       {/* Raporla Butonu / Form */}
       {!showForm ? (
-        <button onClick={() => { resetForm(); setEditR(null); setShowForm(true); setShowExtra(false); setErrors({}); }} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-lg py-4 rounded-2xl w-full transition-all active:scale-[0.97]" aria-label="Çalışma raporla">
+        <button onClick={() => { resetForm(); setEditR(null); setShowForm(true); setShowExtra(false); setErrors({}); }} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-lg w-full transition-all active:scale-[0.98]" style={{height:56,borderRadius:12}} aria-label="Çalışma raporla">
           📝 Çalışma Raporu
         </button>
       ) : (
-        <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
+        <div className="card space-y-4">
           <div className="flex justify-between items-center">
-            <span className="font-bold">{editR ? '✏️ Düzenle' : '📝 Çalışma Raporu'}</span>
-            <button onClick={() => { setShowForm(false); setEditR(null); setErrors({}); }} className="text-gray-400" aria-label="Kapat">✕</button>
+            <span className="font-bold text-gray-800">{editR ? 'Düzenle' : 'Çalışma Raporu'}</span>
+            <button onClick={() => { setShowForm(false); setEditR(null); setErrors({}); }} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-200 transition-colors" aria-label="Kapat">✕</button>
           </div>
           {/* Saat */}
           <div>
             <label htmlFor="hours-input" className="text-sm text-gray-500">⏱️ Kaç saat?</label>
-            <input id="hours-input" type="number" inputMode="decimal" step="0.5" min="0.5" max="16" className={`w-full border rounded-xl px-4 py-3 text-lg font-bold mt-1 outline-none focus:border-emerald-500 ${errors.h ? 'border-red-300' : 'border-gray-200'}`} placeholder={lastReport ? String(lastReport.hours) : '3'} value={f.h} onChange={e => { setF({...f, h: e.target.value}); setErrors({...errors, h: ''}); }} />
+            <input id="hours-input" type="number" inputMode="decimal" step="0.5" min="0.5" max="16" className={`w-full border rounded-xl px-4 text-2xl font-bold mt-1 outline-none focus:border-emerald-500 text-center ${errors.h ? 'border-red-300' : 'border-gray-200'}`} style={{height:56}} placeholder={lastReport ? String(lastReport.hours) : '3'} value={f.h} onChange={e => { setF({...f, h: e.target.value}); setErrors({...errors, h: ''}); }} />
             {errors.h && <p className="text-xs text-red-500 mt-1">{errors.h}</p>}
           </div>
           {/* Açıklama */}
@@ -421,13 +426,13 @@ function MyScreen({ uid, me, onModal }) {
           </div>
           {/* Nerede */}
           <div className="flex gap-2">
-            <button onClick={() => setF({...f, mode:'onsite'})} className={`flex-1 py-3 rounded-xl text-sm font-semibold ${f.mode==='onsite' ? 'bg-emerald-600 text-white' : 'bg-white border border-gray-200 text-gray-400'}`} aria-label="Vakıfta">🏛️ Vakıfta</button>
-            <button onClick={() => setF({...f, mode:'remote'})} className={`flex-1 py-3 rounded-xl text-sm font-semibold ${f.mode==='remote' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-400'}`} aria-label="Uzaktan">🏠 Uzaktan</button>
+            <button onClick={() => setF({...f, mode:'onsite'})} className={`flex-1 rounded-xl text-sm font-semibold transition-all ${f.mode==='onsite' ? 'bg-emerald-500 text-white shadow-sm' : 'bg-white border border-gray-200 text-gray-500'}`} style={{height:44}} aria-label="Vakıfta">🏛️ Vakıfta</button>
+            <button onClick={() => setF({...f, mode:'remote'})} className={`flex-1 rounded-xl text-sm font-semibold transition-all ${f.mode==='remote' ? 'bg-blue-500 text-white shadow-sm' : 'bg-white border border-gray-200 text-gray-500'}`} style={{height:44}} aria-label="Uzaktan">🏠 Uzaktan</button>
           </div>
           {/* Kaydet */}
-          <button onClick={submit} disabled={saving} className="bg-emerald-600 text-white font-bold py-3 rounded-xl w-full disabled:opacity-50" aria-label="Kaydet">{saving ? '...' : '✓ Kaydet'}</button>
+          <button onClick={submit} disabled={saving} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold w-full rounded-xl disabled:opacity-50 transition-all" style={{height:52}} aria-label="Kaydet">{saving ? '...' : 'Kaydet'}</button>
           {editR?.status === 'approved' && <p className="text-xs text-amber-500 text-center">⚠️ Onaylanmış rapor — tekrar onay gerekecek</p>}
-          {editR && <button onClick={() => handleDelete(editR)} className="w-full text-center text-sm text-red-400 py-2 hover:text-red-600">🗑��� Raporu Sil</button>}
+          {editR && <button onClick={() => handleDelete(editR)} className="w-full text-center text-sm text-red-400 py-2 hover:text-red-500 transition-colors">Raporu Sil</button>}
           {/* Ekstra */}
           {/* İlgili iş (opsiyonel) */}
           {tasks.length > 0 && (
@@ -463,9 +468,9 @@ function MyScreen({ uid, me, onModal }) {
           {tasks.map(t => {
             const expanded = expandTask === t.id;
             return (
-              <div key={t.id} className="bg-gray-50 rounded-xl p-3 mb-2">
+              <div key={t.id} className="card mb-2 !p-3" style={{borderLeft: '4px solid #10B981'}}>
                 <div className="flex items-center justify-between">
-                  <div className="flex-1"><span className="font-semibold text-sm">{t.title}</span><span className="text-xs text-gray-400 ml-2">{Math.round(t.progress||0)}%</span></div>
+                  <div className="flex-1"><span className="font-semibold text-sm text-gray-800">{t.title}</span><span className="text-xs text-gray-400 ml-2">{Math.round(t.progress||0)}%</span></div>
                   <button onClick={() => { setExpandTask(expanded ? null : t.id); setProgVal(t.progress||0); }} className="text-xs text-emerald-600 font-semibold">{expanded ? '✕' : 'Güncelle'}</button>
                 </div>
                 <div className="mt-1.5 h-2 bg-gray-200 rounded-full overflow-hidden"><div className={`h-full rounded-full ${(t.progress||0)>=80?'bg-emerald-500':(t.progress||0)>=40?'bg-amber-400':'bg-red-400'}`} style={{width:`${t.progress||0}%`}} /></div>
@@ -488,18 +493,18 @@ function MyScreen({ uid, me, onModal }) {
       <div>
         <h2 className="font-bold mb-2">📅 Bu Hafta <span className="text-sm text-gray-400 font-normal">{reports.length} rapor, {fmtH(weekTotal)}</span></h2>
         {reports.map(r => (
-          <div key={r.id} className="bg-gray-50 rounded-xl p-3 mb-1.5 flex items-center gap-2 cursor-pointer" onClick={() => startEdit(r)}>
+          <div key={r.id} className="card mb-2 !p-3 flex items-center gap-2 cursor-pointer hover:shadow-md transition-shadow" onClick={() => startEdit(r)}>
             <span className="text-sm">{r.task_id ? '📋' : '📝'}</span>
-            <div className="flex-1">
-              <span className="text-sm font-semibold">{fd(r.date)}</span> <span className="text-sm">{fmtH(r.hours)}</span> <span className="text-xs">{r.work_mode==='remote'?'🏠':'🏛️'}</span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2"><span className="text-sm font-semibold">{fd(r.date)}</span><span className="text-sm text-gray-500">{fmtH(r.hours)}</span><span className="text-xs">{r.work_mode==='remote'?'🏠':'🏛️'}</span></div>
               <div className="text-xs text-gray-400 truncate">{r.description}</div>
             </div>
-            <span className={`text-xs ${r.status==='approved'?'text-emerald-600':r.status==='rejected'?'text-red-500':'text-amber-500'}`}>{r.status==='approved'?'✅':r.status==='rejected'?'❌':'⏳'}</span>
+            <span className={`text-xs flex-shrink-0 ${r.status==='approved'?'text-emerald-500':r.status==='rejected'?'text-red-400':'text-amber-400'}`}>{r.status==='approved'?'✅':r.status==='rejected'?'❌':'⏳'}</span>
           </div>
         ))}
         {reports.length === 0 && <p className="text-sm text-gray-400 text-center py-4">Henüz çalışma raporun yok. İlk raporunu oluşturmak için yukarıdaki butona tıkla 👆</p>}
         {lastReport && !showForm && (
-          <button onClick={quickRepeat} disabled={saving} className="w-full text-center text-sm text-emerald-600 font-semibold py-2 bg-emerald-50 rounded-xl disabled:opacity-50" aria-label="Aynısını tekrarla">🔄 Aynısını tekrarla ({fmtH(lastReport.hours)}, {lastReport.description?.slice(0,25)}...)</button>
+          <button onClick={quickRepeat} disabled={saving} className="w-full text-center text-sm text-emerald-600 font-semibold py-2.5 bg-emerald-50 rounded-xl disabled:opacity-50 hover:bg-emerald-100 transition-colors" aria-label="Aynısını tekrarla">🔄 Aynısını tekrarla — {fmtH(lastReport.hours)}</button>
         )}
       </div>
 
