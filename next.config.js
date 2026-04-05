@@ -3,5 +3,6 @@ const nextConfig = {
   output: 'export',
   images: { unoptimized: true },
   trailingSlash: true,
+  productionBrowserSourceMaps: true,
 };
 module.exports = nextConfig;
