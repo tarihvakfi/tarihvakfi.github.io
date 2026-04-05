@@ -291,3 +291,43 @@ export async function quickReport(periodKey) {
   const data = await fetchReportData(period);
   return generateTextReport(periodKey === 'today' ? 'daily' : 'general', data, period);
 }
+
+// ── Rapor Arşivi ──
+export function ReportArchive() {
+  const [reports, setReports] = useState([]);
+  const [filter, setFilter] = useState('');
+  const [selected, setSelected] = useState(null);
+
+  useEffect(() => { db.getReportArchive(filter || null).then(({ data }) => setReports(data || [])); }, [filter]);
+
+  const typeLabel = { daily: '📅 Günlük', weekly: '📊 Haftalık', monthly: '📈 Aylık' };
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-bold">📂 Rapor Arşivi</h2>
+      <div className="flex gap-1.5">
+        {[['','Tümü'],['daily','Günlük'],['weekly','Haftalık'],['monthly','Aylık']].map(([k,l]) => (
+          <button key={k} onClick={() => setFilter(k)} className={`text-sm font-semibold px-3 py-2 rounded-xl ${filter === k ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400'}`}>{l}</button>
+        ))}
+      </div>
+      {reports.map(r => (
+        <div key={r.id} className="card cursor-pointer hover:shadow-md" onClick={() => setSelected(selected?.id === r.id ? null : r)}>
+          <div className="flex items-center gap-3">
+            <span className="text-sm">{typeLabel[r.type] || r.type}</span>
+            <div className="flex-1">
+              <div className="font-semibold text-sm">{fdf(r.period_start)}{r.period_start !== r.period_end ? ' — ' + fdf(r.period_end) : ''}</div>
+              <div className="text-xs text-gray-400">{r.data?.vol_count || 0} kişi, {fmtH(r.data?.total_hours || 0)}</div>
+            </div>
+          </div>
+          {selected?.id === r.id && (
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <pre className="text-xs whitespace-pre-wrap font-mono text-gray-600 leading-relaxed max-h-60 overflow-y-auto">{r.content}</pre>
+              <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(r.content); }} className="btn-ghost !text-xs mt-2">📋 Kopyala</button>
+            </div>
+          )}
+        </div>
+      ))}
+      {reports.length === 0 && <div className="card text-center py-6"><p className="text-sm text-gray-400">Henüz rapor yok</p></div>}
+    </div>
+  );
+}

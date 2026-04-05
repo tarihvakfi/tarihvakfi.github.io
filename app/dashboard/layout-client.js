@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import * as db from '../../lib/supabase';
 import BackupView from './backup';
 import { CertificateModal, MyCertificates } from './certificates';
-import ReportBuilder from './reports';
+import ReportBuilder, { ReportArchive } from './reports';
 
 const DEPTS = [
   { id:'arsiv', l:'Arşiv & Dokümantasyon', i:'📜' },
@@ -736,10 +736,11 @@ function DurumView({ uid, me, can }) {
         {tasks.length === 0 && <p className="text-sm text-gray-400 text-center py-4">Aktif iş yok</p>}
       </div>
 
-      {/* Admin: Raporlama + Yedekleme */}
+      {/* Admin: Raporlama + Arşiv + Yedekleme */}
       {me.role === 'admin' && (
         <div className="space-y-5">
           <ReportBuilder uid={uid} />
+          <ReportArchive />
           <BackupView uid={uid} />
         </div>
       )}
