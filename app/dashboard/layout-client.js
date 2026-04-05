@@ -40,8 +40,9 @@ export default function Dashboard({session}){
 
   // ── Admin power features ──
   const[viewAsRole,setViewAsRole]=useState(null); // null=normal, 'vol','coord','admin'
-  const[viewAsUser,setViewAsUser]=useState(null); // {id,display_name,...} or null
+  const[managingUser,setManagingUser]=useState(null); // full profile object or null — "olarak yönet"
   const[editMode,setEditMode]=useState(false);
+  const[quickReportFor,setQuickReportFor]=useState(null); // vol profile for quick report modal
 
   useEffect(()=>{(async()=>{const{data}=await db.getProfile(uid);if(data)setMe(data);setUnread(await db.getUnreadCount(uid));setLoading(false);})();},[uid]);
   useEffect(()=>{const sub=db.subscribeNotifications(uid,()=>setUnread(n=>n+1));return()=>sub.unsubscribe();},[uid]);
@@ -50,7 +51,7 @@ export default function Dashboard({session}){
   // Keyboard shortcuts (admin-only: E=edit, 1/2/3=view switch, Esc=reset)
   useEffect(()=>{const h=e=>{
     if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;
-    if(e.key==='Escape'){setShowNotifs(false);setShowProfile(false);setModal(null);setSideOpen(false);if(viewAsUser){setViewAsUser(null);return;}if(viewAsRole){setViewAsRole(null);setPage('genel');return;}}
+    if(e.key==='Escape'){setShowNotifs(false);setShowProfile(false);setModal(null);setSideOpen(false);if(managingUser){setManagingUser(null);setPage('gonulluler');return;}if(viewAsRole){setViewAsRole(null);setPage('genel');return;}}
     if(me?.role==='admin'){
       if(e.key==='e'||e.key==='E'){setEditMode(p=>!p);return;}
       if(e.key==='1'){setViewAsRole(null);setViewAsUser(null);setPage('genel');return;}
@@ -60,9 +61,16 @@ export default function Dashboard({session}){
   };window.addEventListener('keydown',h);return()=>window.removeEventListener('keydown',h);},[me?.role,viewAsRole,viewAsUser]);
 
   const switchView=(role)=>{
-    if(role==='admin'||role===null){setViewAsRole(null);setViewAsUser(null);setEditMode(false);setPage('genel');}
-    else{setViewAsRole(role);setViewAsUser(null);setEditMode(false);setPage(role==='vol'?'ana':'calisma');}
+    if(role==='admin'||role===null){setViewAsRole(null);setManagingUser(null);setEditMode(false);setPage('genel');}
+    else{setViewAsRole(role);setManagingUser(null);setEditMode(false);setPage(role==='vol'?'ana':'calisma');}
   };
+  const startManaging=(vol)=>{
+    if(vol.role==='admin')return; // can't manage other admins
+    setManagingUser(vol);setViewAsRole(null);setEditMode(false);
+    setPage(vol.role==='coord'?'calisma':'ana');
+    db.logAdminAction(uid,vol.id,'manage_as',{display_name:vol.display_name});
+  };
+  const stopManaging=()=>{setManagingUser(null);setPage('gonulluler');};
 
   if(loading||!me)return<div className="flex items-center justify-center min-h-screen"><div className="space-y-3 w-48"><div className="skeleton h-3 w-full"/><div className="skeleton h-3 w-3/4"/><div className="skeleton h-3 w-1/2"/></div></div>;
   const restricted=['paused','inactive','resigned','pending','rejected','blocked'].includes(me.status);
@@ -70,16 +78,18 @@ export default function Dashboard({session}){
 
   const realAdmin=me.role==='admin';
 
-  // Effective role: if admin is viewing as another role, use that
-  const effectiveRole=viewAsUser?'vol':viewAsRole||me.role;
+  // Effective role: if managing a user, use their role; if view-as, use that
+  const effectiveRole=managingUser?managingUser.role:viewAsRole||me.role;
   const isVol=effectiveRole==='vol',isCoord=effectiveRole==='coord',isAdmin=effectiveRole==='admin';
   const openModal=v=>{setModal(v);setShowProfile(false);};
   const hasSidebar=isCoord||isAdmin;
 
-  // The uid to use for data fetching (impersonation)
-  const dataUid=viewAsUser?viewAsUser.id:uid;
-  // The me to display (impersonation)
-  const displayMe=viewAsUser?{...viewAsUser,role:'vol'}:me;
+  // The uid to use for data fetching (managing mode)
+  const dataUid=managingUser?managingUser.id:uid;
+  // The me to display
+  const displayMe=managingUser||me;
+  // Whether we're in managing mode (admin acting on behalf)
+  const isManaging=!!managingUser;
 
   // Content max-width
   const mw=isVol?'max-w-[440px]':isCoord?'max-w-[600px]':'max-w-[680px]';
@@ -151,13 +161,13 @@ export default function Dashboard({session}){
 
   return(
     <div className="min-h-screen bg-[#FAFAFA]">
-      {/* ── Impersonation/view banner ── */}
-      {viewAsUser&&(
-        <div className="bg-[#FEF3C7] text-[#92400E] text-[12px] text-center py-1.5 px-4 font-medium">
-          {viewAsUser.display_name} olarak görüntülüyorsun — <button onClick={()=>{setViewAsUser(null);setPage('gonulluler');}} className="underline font-semibold">Geri dön</button>
+      {/* ── Managing / view banners ── */}
+      {managingUser&&(
+        <div className="bg-[#FEF3C7] text-[#92400E] text-[12px] text-center py-1.5 px-4 font-medium sticky top-0 z-[51]">
+          <b>{managingUser.display_name}</b> olarak yönetiyorsun ({ROLES[managingUser.role]||'Gönüllü'}{managingUser.department?' — '+DM[managingUser.department]?.l?.split(' ')[0]:''}) — <button onClick={stopManaging} className="underline font-semibold">Yöneticiye dön</button>
         </div>
       )}
-      {!viewAsUser&&viewAsRole&&viewAsRole!=='admin'&&(
+      {!managingUser&&viewAsRole&&viewAsRole!=='admin'&&(
         <div className="bg-[#FEF3C7] text-[#92400E] text-[12px] text-center py-1.5 px-4 font-medium">
           {viewAsRole==='vol'?'Gönüllü':'Koordinatör'} görünümündesin — <button onClick={()=>switchView('admin')} className="underline font-semibold">Yöneticiye dön</button>
         </div>
@@ -191,6 +201,7 @@ export default function Dashboard({session}){
       {modal==='certs'&&<Overlay title="Belgelerim" onClose={()=>setModal(null)}><MyCertificates uid={dataUid} me={displayMe}/></Overlay>}
       {modal==='summary'&&<Overlay title="Çalışma Özeti" onClose={()=>setModal(null)}><WorkSummary uid={dataUid}/></Overlay>}
       {modal==='help'&&<Overlay title="Yardım" onClose={()=>setModal(null)}><HelpContent me={displayMe}/></Overlay>}
+      {quickReportFor&&<QuickReportModal vol={quickReportFor} adminUid={uid} onClose={()=>setQuickReportFor(null)}/>}
 
       <div className="flex" style={{minHeight:'calc(100vh - 56px)'}}>
         {/* ── SIDEBAR (desktop) ── */}
@@ -206,13 +217,13 @@ export default function Dashboard({session}){
         <main className="flex-1 overflow-x-hidden">
           <div className={`mx-auto px-4 md:px-6 py-8 ${mw}`}>
             {/* Vol pages */}
-            {isVol&&page==='ana'&&<VolHome uid={dataUid} me={displayMe} onModal={openModal}/>}
+            {isVol&&page==='ana'&&<VolHome uid={dataUid} me={displayMe} onModal={openModal} isManaging={isManaging} adminUid={uid}/>}
             {isVol&&page==='raporlarim'&&<MyReports uid={dataUid}/>}
             {isVol&&page==='islerim'&&<MyTasks uid={dataUid} me={displayMe}/>}
             {isVol&&page==='belgelerim'&&<MyCertificates uid={dataUid} me={displayMe}/>}
 
             {/* Coord pages */}
-            {isCoord&&page==='calisma'&&<VolHome uid={dataUid} me={displayMe} onModal={openModal}/>}
+            {isCoord&&page==='calisma'&&<VolHome uid={dataUid} me={displayMe} onModal={openModal} isManaging={isManaging} adminUid={uid}/>}
             {isCoord&&page==='raporlarim'&&<MyReports uid={dataUid}/>}
             {isCoord&&page==='onaylar'&&<ApprovalsPage uid={uid} onCount={setPendingCount}/>}
             {isCoord&&page==='gonulluler'&&<VolunteersPage uid={uid} me={me}/>}
@@ -223,7 +234,7 @@ export default function Dashboard({session}){
             {/* Admin pages */}
             {isAdmin&&page==='genel'&&<AdminOverview uid={uid} me={me} onNav={setPage}/>}
             {isAdmin&&page==='onaylar'&&<ApprovalsPage uid={uid} onCount={setPendingCount} showUsers/>}
-            {isAdmin&&page==='gonulluler'&&<VolunteersPage uid={uid} me={me} admin onViewAs={v=>{setViewAsUser(v);setViewAsRole(null);setPage('ana');}} editMode={editMode}/>}
+            {isAdmin&&page==='gonulluler'&&<VolunteersPage uid={uid} me={me} admin onManage={startManaging} onQuickReport={setQuickReportFor} editMode={editMode}/>}
             {isAdmin&&page==='isler'&&<TasksPage uid={uid} me={me} editMode={editMode}/>}
             {isAdmin&&page==='iletisim'&&<CommPage uid={uid} me={me}/>}
             {isAdmin&&page==='raporlar'&&<ReportsPage uid={uid}/>}
@@ -267,7 +278,7 @@ function ProfilePanel({me,uid,onUpdate,onModal,onClose}){
 function WorkSummary({uid}){const[s,setS]=useState(null);useEffect(()=>{db.getWorkSummary(uid).then(({data})=>setS(data));},[uid]);if(!s)return<div className="skeleton h-20 w-full"/>;return(<div className="space-y-3">{[['Bu Hafta',`${s.week_days} rapor, ${fmtH(Number(s.week_hours))}`],['Bu Ay',`${s.month_days} rapor, ${fmtH(Number(s.month_hours))}`],['Toplam',`${s.total_days} rapor, ${fmtH(Number(s.total_hours))}`]].map(([l,v],i)=>(<div key={i} className="flex justify-between py-2 border-b border-[#F3F4F6] last:border-0"><span className="text-[13px] text-[#6B7280]">{l}</span><span className={`text-[13px] font-medium ${i===2?'text-[#059669]':''}`}>{v}</span></div>))}</div>);}
 
 /* ═══ VOLUNTEER HOME (shared by vol + coord "Çalışmam") ═══ */
-function VolHome({uid,me,onModal}){
+function VolHome({uid,me,onModal,isManaging,adminUid}){
   const[showForm,setShowForm]=useState(false);const[editR,setEditR]=useState(null);
   const[reports,setReports]=useState([]);const[tasks,setTasks]=useState([]);
   const[summary,setSummary]=useState(null);const[editingId,setEditingId]=useState(null);const[editForm,setEditForm]=useState({});const[confirmDel,setConfirmDel]=useState(null);
@@ -279,7 +290,17 @@ function VolHome({uid,me,onModal}){
   const weekD=summary?Number(summary.week_days):0,weekH=summary?Number(summary.week_hours):0,monthH=summary?Number(summary.month_hours):0;
   const lastPlan=reports.length>0?reports[0].next_plan:null;
 
-  const saveReport=async data=>{if(editR){await db.updateWorkReport(editR.id,data);toast.show('Güncellendi');}else{await db.createWorkReport({...data,user_id:uid,source:'web'});toast.show('Kaydedildi');}setShowForm(false);setEditR(null);load();};
+  const saveReport=async data=>{
+    if(editR){await db.updateWorkReport(editR.id,data);toast.show('Güncellendi');}
+    else{
+      const reportData={...data,user_id:uid,source:'web'};
+      if(isManaging&&adminUid){reportData.entered_by=adminUid;reportData.is_approved=true;reportData.reviewed_by=adminUid;}
+      await db.createWorkReport(reportData);
+      if(isManaging&&adminUid)await db.logAdminAction(adminUid,uid,'create_report',{hours:data.hours,desc:data.description});
+      toast.show('Kaydedildi');
+    }
+    setShowForm(false);setEditR(null);load();
+  };
   const deleteReport=async id=>{await db.deleteWorkReport(id);setConfirmDel(null);toast.show('Silindi');load();};
   const startEdit=r=>{setEditingId(r.id);setEditForm({h:String(r.hours),desc:r.description||'',mode:r.work_mode||'onsite'});};
   const saveInline=async id=>{const h=parseFloat(editForm.h);if(!h||h<=0||h>24)return;await db.updateWorkReport(id,{hours:h,description:editForm.desc,work_mode:editForm.mode});setEditingId(null);toast.show('Güncellendi');load();};
@@ -405,40 +426,89 @@ function ApprovalsPage({uid,onCount,showUsers}){
 }
 
 /* ═══ VOLUNTEERS PAGE ═══ */
-function VolunteersPage({uid,me,admin,onViewAs,editMode}){
+function VolunteersPage({uid,me,admin,onManage,onQuickReport,editMode}){
   const[vols,setVols]=useState([]);const[sums,setSums]=useState({});const[search,setSearch]=useState('');const[exp,setExp]=useState(null);const[certVol,setCertVol]=useState(null);
+  const[volReports,setVolReports]=useState({});const[msgTo,setMsgTo]=useState(null);const[msgText,setMsgText]=useState('');
   const toast=useToast();
   const load=useCallback(async()=>{const[v,s]=await Promise.all([db.getAllProfiles(),db.getAllWorkSummaries()]);setVols((v.data||[]).filter(u=>u.status!=='pending'));setSums(Object.fromEntries((s.data||[]).map(s=>[s.id,s])));},[]);
   useEffect(()=>{load();},[load]);
+
+  // Load recent reports for expanded volunteer
+  const loadVolReports=async(vid)=>{if(volReports[vid])return;const{data}=await db.getUserReports(vid,5);setVolReports(p=>({...p,[vid]:data||[]}));};
+  useEffect(()=>{if(exp)loadVolReports(exp);},[exp]);
+
   const filtered=vols.filter(v=>!search||v.display_name?.toLowerCase().includes(search.toLowerCase()));
-  const changeRole=async(id,r)=>{await db.setUserRole(id,r);load();toast.show('Güncellendi');};
-  const changeDept=async(id,d)=>{await db.setUserDept(id,d);load();toast.show('Güncellendi');};
-  const changeStatus=async(id,s)=>{await db.setUserStatus(id,s);load();toast.show('Güncellendi');};
+  const changeRole=async(id,r)=>{await db.setUserRole(id,r);if(admin)await db.logAdminAction(uid,id,'change_role',{role:r});load();toast.show('Güncellendi');};
+  const changeDept=async(id,d)=>{await db.setUserDept(id,d);if(admin)await db.logAdminAction(uid,id,'change_dept',{dept:d});load();toast.show('Güncellendi');};
+  const changeStatus=async(id,s)=>{await db.setUserStatus(id,s);if(admin)await db.logAdminAction(uid,id,'change_status',{status:s});load();toast.show('Güncellendi');};
+  const sendMsg=async()=>{if(!msgText.trim()||!msgTo)return;await db.sendNotification(msgTo,'system',msgText.trim(),'');if(admin)await db.logAdminAction(uid,msgTo,'send_notification',{msg:msgText.trim()});setMsgTo(null);setMsgText('');toast.show('Gönderildi');};
+
   return(<div><toast.Toast/>
     <div className="page-title mb-1">Gönüllüler</div>
-    <div className="meta mb-4">{vols.filter(v=>v.status==='active').length} aktif</div>
+    <div className="meta mb-4">{vols.filter(v=>v.status==='active').length} aktif, {vols.filter(v=>v.status!=='active').length} pasif</div>
     <input value={search} onChange={e=>setSearch(e.target.value)} className="inp text-[13px] mb-4" placeholder="Ara..."/>
-    {filtered.slice(0,30).map(v=>{const s=sums[v.id];const av=avc(v.display_name);const st=v.activity_status||'active';const dotC=v.status!=='active'?'bg-[#D1D5DB]':st==='active'?'bg-[#059669]':st==='slowing'?'bg-[#F59E0B]':'bg-[#EF4444]';
+    {filtered.slice(0,30).map(v=>{const s=sums[v.id];const av=avc(v.display_name);const st=v.activity_status||'active';const dotC=v.status!=='active'?'bg-[#D1D5DB]':st==='active'?'bg-[#059669]':st==='slowing'?'bg-[#F59E0B]':'bg-[#EF4444]';const stL=v.status!=='active'?'pasif':st==='active'?'aktif':st==='slowing'?'yavaşlıyor':'inaktif';
       return(<div key={v.id}>
         <div onClick={()=>setExp(exp===v.id?null:v.id)} className="flex items-center gap-3 py-3 border-b border-[#F5F5F5] cursor-pointer hover:bg-[#FAFAFA] rounded-lg px-2 -mx-2 transition-colors">
           <div className="av" style={{background:av.bg,color:av.color}}>{(v.display_name||'?')[0]}</div>
           <div className="flex-1 min-w-0"><div className="text-[14px] font-medium">{v.display_name}</div><div className="text-[12px] text-[#9CA3AF]">{DM[v.department]?.l?.split(' ')[0]||'—'} · {s?fmtH(Number(s.month_hours)):'0s'} bu ay</div></div>
           <span className={`dot ${dotC}`}/>
         </div>
-        <Slide open={exp===v.id}><div className="py-3 px-3 bg-[#F9FAFB] rounded-b-lg mb-2 text-[12px] text-[#6B7280] space-y-2">
-          {s&&<div>Toplam: {s.total_days} gün, {fmtH(Number(s.total_hours))} · Son: {v.last_activity_at?fd(v.last_activity_at):'—'}</div>}
-          {admin&&<div className="flex flex-wrap gap-3 items-center">
-            <label className="text-[#9CA3AF]">Rol:</label><select value={v.role} onChange={e=>changeRole(v.id,e.target.value)} className="inp !w-auto !py-1 !px-2 !text-[12px] bg-white"><option value="vol">Gönüllü</option><option value="coord">Koordinatör</option><option value="admin">Yönetici</option></select>
-            <label className="text-[#9CA3AF]">Dept:</label><select value={v.department||''} onChange={e=>changeDept(v.id,e.target.value)} className="inp !w-auto !py-1 !px-2 !text-[12px] bg-white"><option value="">—</option>{DEPTS.map(d=><option key={d.id} value={d.id}>{d.l}</option>)}</select>
-          </div>}
-          <div className="flex gap-3 flex-wrap">
-            {admin&&onViewAs&&<button onClick={()=>onViewAs(v)} className="text-[12px] text-[#059669] font-medium hover:underline">Olarak gör</button>}
-            {admin&&(v.status==='active'?<button onClick={()=>changeStatus(v.id,'blocked')} className="btn-danger-text text-[12px]">Engelle</button>:<button onClick={()=>changeStatus(v.id,'active')} className="btn-ghost text-[12px]">Aktifleştir</button>)}
-            <button onClick={()=>setCertVol(v)} className="text-[12px] text-[#6B7280] hover:text-[#F59E0B]">Belge oluştur</button>
+        <Slide open={exp===v.id}><div className="py-4 px-4 bg-[#F9FAFB] rounded-b-lg mb-2 space-y-3">
+          {/* Identity */}
+          <div className="text-[13px] font-medium text-[#111]">{v.display_name} — {DM[v.department]?.l||'—'} — {ROLES[v.role]||'Gönüllü'}</div>
+
+          {/* Stats */}
+          <div className="text-[12px] text-[#6B7280] space-y-0.5">
+            <div>Bu ay: {s?`${fmtH(Number(s.month_hours))} / ${s.month_days} gün`:'—'}</div>
+            <div>Toplam: {s?`${fmtH(Number(s.total_hours))} / ${s.total_days} gün`:'—'}</div>
+            <div>Son aktivite: {v.last_activity_at?fd(v.last_activity_at):'—'}</div>
+            <div>Telegram: {v.telegram_id?'Bağlı':'Bağlı değil'}</div>
+            <div>Aktivite skoru: {v.activity_score||0} ({stL})</div>
           </div>
+
+          {/* Admin controls */}
+          {admin&&v.id!==uid&&(<>
+            <div className="flex flex-wrap gap-3 items-center text-[12px]">
+              <label className="text-[#9CA3AF]">Rol:</label><select value={v.role} onChange={e=>changeRole(v.id,e.target.value)} className="inp !w-auto !py-1 !px-2 !text-[12px] bg-white"><option value="vol">Gönüllü</option><option value="coord">Koordinatör</option><option value="admin">Yönetici</option></select>
+              <label className="text-[#9CA3AF]">Dept:</label><select value={v.department||''} onChange={e=>changeDept(v.id,e.target.value)} className="inp !w-auto !py-1 !px-2 !text-[12px] bg-white"><option value="">—</option>{DEPTS.map(d=><option key={d.id} value={d.id}>{d.l}</option>)}</select>
+              <label className="text-[#9CA3AF]">Durum:</label>
+              {v.status==='active'?<button onClick={()=>changeStatus(v.id,'blocked')} className="btn-danger-text text-[12px]">Engelle</button>:<button onClick={()=>changeStatus(v.id,'active')} className="btn-ghost text-[12px]">Aktifleştir</button>}
+            </div>
+
+            {/* Recent reports */}
+            {volReports[v.id]&&volReports[v.id].length>0&&(
+              <div><div className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-wide mb-1">Son raporlar</div>
+                {volReports[v.id].map(r=>(
+                  <div key={r.id} className="text-[12px] text-[#6B7280] py-1 border-b border-[#F3F4F6] last:border-0">
+                    {fd(r.date)} — {fmtH(r.hours)} — {r.description?.slice(0,30)||'—'} <span className={r.is_approved?'text-[#059669]':'text-[#F59E0B]'}>({r.is_approved?'onaylı':'bekliyor'})</span>
+                    {r.entered_by&&<span className="text-[#9CA3AF]"> · yönetici girdi</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex flex-wrap gap-3 pt-1">
+              {v.role!=='admin'&&onManage&&<button onClick={()=>onManage(v)} className="btn-sm btn-approve text-[12px] font-medium">Olarak yönet</button>}
+              {onQuickReport&&<button onClick={()=>onQuickReport(v)} className="btn-sm text-[12px]">Rapor gir</button>}
+              <button onClick={()=>{setMsgTo(v.id);setMsgText('');}} className="btn-sm text-[12px]">Mesaj gönder</button>
+              <button onClick={()=>setCertVol(v)} className="btn-sm text-[12px]">Belge oluştur</button>
+            </div>
+          </>)}
         </div></Slide>
       </div>);
     })}
+
+    {/* Send message modal */}
+    {msgTo&&<Overlay title="Mesaj gönder" onClose={()=>setMsgTo(null)}>
+      <div className="space-y-3">
+        <div className="text-[13px] text-[#6B7280]">{vols.find(v=>v.id===msgTo)?.display_name} kişisine bildirim gönder</div>
+        <input className="inp text-[13px]" placeholder="Mesajınız..." value={msgText} onChange={e=>setMsgText(e.target.value)} onKeyDown={e=>e.key==='Enter'&&sendMsg()}/>
+        <button onClick={sendMsg} className="bg-[#059669] text-white text-[13px] font-medium py-2 px-4 rounded-lg">Gönder</button>
+      </div>
+    </Overlay>}
+
     {certVol&&<CertificateModal vol={certVol} summary={sums[certVol.id]} issuerId={uid} onClose={()=>setCertVol(null)}/>}
   </div>);
 }
@@ -679,6 +749,31 @@ function HelpContent({me}){
   if(me.role==='admin')items.push({q:'Rapor nasıl oluştururum?',a:'Raporlar sayfasından dönem seç, otomatik oluşur.'});
   const[open,setOpen]=useState(null);
   return(<div>{items.map((item,i)=><div key={i} onClick={()=>setOpen(open===i?null:i)} className="cursor-pointer py-3 border-b border-[#F3F4F6] last:border-0"><div className="flex justify-between"><span className="text-[14px] font-medium">{item.q}</span><span className="text-[#C4C4C4] text-[12px]">{open===i?'−':'+'}</span></div>{open===i&&<p className="text-[13px] text-[#6B7280] mt-2 leading-relaxed">{item.a}</p>}</div>)}</div>);
+}
+
+/* ═══ QUICK REPORT MODAL (admin enters report on behalf of a volunteer) ═══ */
+function QuickReportModal({vol,adminUid,onClose}){
+  const[f,setF]=useState({h:'',desc:'',mode:'onsite',date:today()});
+  const[saving,setSaving]=useState(false);
+  const toast=useToast();
+  const submit=async()=>{
+    const h=parseFloat(f.h);if(!h||h<=0||h>24)return;
+    setSaving(true);
+    await db.createReportForUser({user_id:vol.id,hours:h,description:f.desc.trim(),work_mode:f.mode,date:f.date,source:'web',entered_by:adminUid,is_approved:true,reviewed_by:adminUid});
+    await db.logAdminAction(adminUid,vol.id,'create_report',{hours:h,desc:f.desc.trim()});
+    setSaving(false);toast.show('Kaydedildi');onClose();
+  };
+  return(<Overlay title={`${vol.display_name} adına rapor gir`} onClose={onClose}>
+    <toast.Toast/>
+    <div className="space-y-4">
+      <div><label className="block text-[12px] text-[#6B7280] font-medium mb-1.5">Süre</label><input type="number" step="0.5" min="0.5" max="24" value={f.h} onChange={e=>setF({...f,h:e.target.value})} className="inp text-center text-[24px] font-semibold" placeholder="3"/></div>
+      <div><label className="block text-[12px] text-[#6B7280] font-medium mb-1.5">Ne yaptı?</label><textarea value={f.desc} onChange={e=>setF({...f,desc:e.target.value})} className="inp inp-area" placeholder="Açıklama..."/></div>
+      <div><label className="block text-[12px] text-[#6B7280] font-medium mb-2">Konum</label><div className="radio-group">{[['onsite','Vakıfta'],['remote','Uzaktan']].map(([v,l])=><span key={v} className="radio-opt" onClick={()=>setF({...f,mode:v})}><span className={`radio-dot ${f.mode===v?'on':''}`}/>{l}</span>)}</div></div>
+      <div><label className="block text-[12px] text-[#6B7280] font-medium mb-1.5">Tarih</label><input type="date" value={f.date} onChange={e=>setF({...f,date:e.target.value})} className="inp"/></div>
+      <button onClick={submit} disabled={saving} className="btn">{saving?'Kaydediliyor...':'Kaydet'}</button>
+      <div className="text-[11px] text-[#C4C4C4] text-center">Bu rapor otomatik onaylı olarak kaydedilir.</div>
+    </div>
+  </Overlay>);
 }
 
 /* ═══ RESTRICTED ═══ */
