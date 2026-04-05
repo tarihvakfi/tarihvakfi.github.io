@@ -65,7 +65,7 @@ export default function HomePage() {
       <section className="relative overflow-hidden text-white" style={{background:'linear-gradient(135deg, #064E3B 0%, #059669 100%)'}}>
         <div className="relative max-w-3xl mx-auto text-center py-20 md:py-28 px-4">
           <h1 className="text-3xl md:text-5xl font-semibold leading-tight">
-            {(cms.homepage_hero?.title || 'Tarih Vakfı Gönüllü Platformu').split('\n').map((line,i)=><span key={i}>{line}<br/></span>)}
+            {String(cms.homepage_hero?.title || 'Tarih Vakfı Gönüllü Platformu').split('\n').map((line,i)=><span key={i}>{line}<br/></span>)}
           </h1>
           <p className="text-base md:text-lg text-white/60 mt-5 max-w-xl mx-auto leading-relaxed">
             {cms.homepage_hero?.subtitle || '1991\'den beri tarihi korumak ve toplumsal tarih bilincini geliştirmek için çalışıyoruz.'}

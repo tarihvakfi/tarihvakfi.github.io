@@ -674,8 +674,8 @@ function AdminOverview({uid,me,onNav}){
       <div>
         {Object.entries(dH).filter(([,h])=>h>0).sort((a,b)=>b[1]-a[1]).length>0&&<><div className="sec-label" style={{marginTop:0}}>Departman aktivitesi</div>{Object.entries(dH).filter(([,h])=>h>0).sort((a,b)=>b[1]-a[1]).map(([d,h])=><div key={d} className="bar-row"><span className="bar-label">{DM[d]?.l?.split(' ')[0]||d}</span><div className="bar-track"><div className="bar-fill" style={{width:`${(h/mD)*100}%`,transition:'width .5s'}}/></div><span className="bar-val text-[12px] text-[#9CA3AF]">{fmtH(h)}</span></div>)}</>}
         {hasPending&&<><div className="sec-label">Bekleyen işlemler</div>
-          {pu.map(u=><div key={u.id} className="appr-card !p-3"><div className="av av-sm" style={avc(u.display_name)}>{(u.display_name||'?')[0]}</div><div className="flex-1 text-[13px]"><b>{u.display_name}</b> — yeni kayıt</div><button onClick={()=>approveU(u.id)} className="btn-sm btn-approve text-[11px]">Onayla</button></div>)}
-          {pr.slice(0,5).map(r=><div key={r.id} className="appr-card !p-3"><div className="av av-sm" style={avc(r.profiles?.display_name)}>{(r.profiles?.display_name||'?')[0]}</div><div className="flex-1 text-[13px]"><b>{r.profiles?.display_name}</b> — {fmtH(r.hours)}</div>{r.user_id!==uid?<button onClick={()=>approveR(r.id)} className="btn-sm btn-approve text-[11px]">Onayla</button>:<span className="text-[11px] text-[#C4C4C4]">Kendi</span>}</div>)}
+          {pu.map(u=><div key={u.id} className="appr-card !p-3"><div className="av av-sm" style={((c)=>({background:c.bg,color:c.color}))(avc(u.display_name))}>{(u.display_name||'?')[0]}</div><div className="flex-1 text-[13px]"><b>{u.display_name}</b> — yeni kayıt</div><button onClick={()=>approveU(u.id)} className="btn-sm btn-approve text-[11px]">Onayla</button></div>)}
+          {pr.slice(0,5).map(r=><div key={r.id} className="appr-card !p-3"><div className="av av-sm" style={((c)=>({background:c.bg,color:c.color}))(avc(r.profiles?.display_name))}>{(r.profiles?.display_name||'?')[0]}</div><div className="flex-1 text-[13px]"><b>{r.profiles?.display_name}</b> — {fmtH(r.hours)}</div>{r.user_id!==uid?<button onClick={()=>approveR(r.id)} className="btn-sm btn-approve text-[11px]">Onayla</button>:<span className="text-[11px] text-[#C4C4C4]">Kendi</span>}</div>)}
         </>}
       </div>
       <div>
@@ -748,16 +748,14 @@ function BelgelerPage({uid,me}){
 
 /* ═══ HELP ═══ */
 function HelpContent({me}){
-  const[items,setItems]=useState([]);const[open,setOpen]=useState(null);
-  const fallback=[{q:'Nasıl rapor girerim?',a:'Çalışma raporu butonuna tıkla, saat yaz, açıklama yaz, konum seç, kaydet.'},{q:'Raporu nasıl düzenlerim?',a:'Rapor satırına tıkla, inline düzenleme açılır.'},{q:'Telegram nasıl bağlanır?',a:'Profil menüsünden Telegram Bağla seç, kodu @tarihvakfi_bot\'a gönder.'}];
-  useEffect(()=>{(async()=>{
-    const cms=await db.getAllSiteContent();
-    let list=[...(cms.help_volunteer?.items||fallback)];
-    if(me.role!=='vol')list.push(...(cms.help_coordinator?.items||[{q:'Raporları nasıl onaylarım?',a:'Onaylar sayfasından onayla veya reddet.'}]));
-    if(me.role==='admin')list.push(...(cms.help_admin?.items||[{q:'Rapor nasıl oluştururum?',a:'Raporlar sayfasından dönem seç, otomatik oluşur.'}]));
-    setItems(list);
-  })();},[me.role]);
-  if(items.length===0)return<div className="skeleton h-20 w-full"/>;
+  const fallbackVol=[{q:'Nasıl rapor girerim?',a:'Çalışma raporu butonuna tıkla, saat yaz, açıklama yaz, konum seç, kaydet.'},{q:'Raporu nasıl düzenlerim?',a:'Rapor satırına tıkla, inline düzenleme açılır.'},{q:'Telegram nasıl bağlanır?',a:'Profil menüsünden Telegram Bağla seç, kodu @tarihvakfi_bot\'a gönder.'}];
+  const fallbackCoord=[{q:'Raporları nasıl onaylarım?',a:'Onaylar sayfasından onayla veya reddet.'},{q:'İş nasıl oluştururum?',a:'İşler sayfasında Yeni İş butonuna tıkla.'}];
+  const fallbackAdmin=[{q:'Rapor nasıl oluştururum?',a:'Raporlar sayfasından dönem seç, otomatik oluşur.'}];
+  const role=me?.role||'vol';
+  let items=[...fallbackVol];
+  if(role!=='vol')items.push(...fallbackCoord);
+  if(role==='admin')items.push(...fallbackAdmin);
+  const[open,setOpen]=useState(null);
   return(<div>{items.map((item,i)=><div key={i} onClick={()=>setOpen(open===i?null:i)} className="cursor-pointer py-3 border-b border-[#F3F4F6] last:border-0"><div className="flex justify-between"><span className="text-[14px] font-medium">{item.q}</span><span className="text-[#C4C4C4] text-[12px]">{open===i?'−':'+'}</span></div>{open===i&&<p className="text-[13px] text-[#6B7280] mt-2 leading-relaxed">{item.a}</p>}</div>)}</div>);
 }
 
