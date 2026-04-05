@@ -77,22 +77,6 @@ export default function Dashboard({session}){
   const restricted=['paused','inactive','resigned','pending','rejected','blocked'].includes(me.status);
   if(restricted)return<RestrictedShell me={me} uid={uid}/>;
 
-  // TEMP: render only header + simple text to isolate error
-  return(<div className="min-h-screen bg-[#FAFAFA]">
-    <header className="sticky top-0 z-50 flex items-center justify-between px-4 md:px-6 bg-white border-b border-[#F3F4F6]" style={{height:56}}>
-      <a href="/" className="font-semibold text-[15px] text-[#111827]">Tarih Vakfı</a>
-      <div className="flex items-center gap-4 text-[13px] text-[#6B7280]">
-        <span>Bildirimler</span>
-        <span className="font-medium text-[#374151]">{String(me.display_name||'').split(' ')[0]}</span>
-      </div>
-    </header>
-    <main className="max-w-[440px] mx-auto px-4 py-8">
-      <div className="greeting">Merhaba, {String(me.display_name||'').split(' ')[0]}</div>
-      <div className="meta mt-1">Role: {String(me.role)}, Status: {String(me.status)}</div>
-      <div className="mt-4 text-[13px] text-[#6B7280]">Dashboard shell works. Adding components back...</div>
-    </main>
-  </div>);
-
   const realAdmin=me.role==='admin';
 
   // Effective role: if managing a user, use their role; if view-as, use that

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import Dashboard from './layout-client';
 
 export default function DashboardPage() {
   const [session, setSession] = useState(null);
@@ -20,5 +21,5 @@ export default function DashboardPage() {
 
   if (loading || !session) return <p>Yukleniyor...</p>;
 
-  return <p>Session OK. User: {String(session.user?.email)}</p>;
+  return <Dashboard session={session} />;
 }
