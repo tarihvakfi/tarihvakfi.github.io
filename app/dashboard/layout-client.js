@@ -28,7 +28,7 @@ const fmtH = h => { const hrs = Math.floor(h); const mins = Math.round((h-hrs)*6
 export default function Dashboard({ session }) {
   const uid = session.user.id;
   const [me, setMe] = useState(null);
-  const [tab, setTab] = useState('islerim');
+  const [tab, setTab] = useState('');
   const [loading, setLoading] = useState(true);
   const [unread, setUnread] = useState(0);
   const [showNotifs, setShowNotifs] = useState(false);
@@ -49,6 +49,13 @@ export default function Dashboard({ session }) {
     return () => sub.unsubscribe();
   }, [uid]);
 
+  // Set default tab based on role
+  useEffect(() => {
+    if (!me) return;
+    if (me.role === 'admin' && !tab) setTab('yonetim');
+    else if ((me.role === 'coord') && !tab) setTab('islerim');
+  }, [me, tab]);
+
   if (loading || !me) return <div className="flex items-center justify-center min-h-screen"><p className="text-gray-400">Yükleniyor...</p></div>;
 
   // Restricted
@@ -58,9 +65,9 @@ export default function Dashboard({ session }) {
   const isCoord = me.role === 'coord' || me.role === 'admin';
   const isAdmin = me.role === 'admin';
 
-  // Gönüllü: 0 sekme, Koordinatör: 2, Admin: 3
+  // Gönüllü: 0 sekme, Koordinatör: 2, Admin: 2
   const tabs = isAdmin
-    ? [['islerim','📋','İşlerim'],['yonetim','👥','Yönetim'],['raporlar','📊','Raporlar']]
+    ? [['yonetim','👥','Yönetim'],['raporlar','📊','Raporlar']]
     : isCoord
     ? [['islerim','📋','İşlerim'],['takimim','👥','Takımım']]
     : [];
@@ -94,10 +101,14 @@ export default function Dashboard({ session }) {
 
       {/* Content */}
       <main className="max-w-2xl mx-auto px-4 py-4">
-        {tab === 'islerim' && <MyScreen uid={uid} me={me} onModal={setModal} />}
-        {tab === 'takimim' && isCoord && <TeamScreen uid={uid} me={me} />}
-        {tab === 'yonetim' && isAdmin && <AdminScreen uid={uid} me={me} />}
-        {tab === 'raporlar' && isAdmin && <ReportsScreen uid={uid} />}
+        {/* Gönüllü: tek ekran (sekme yok) */}
+        {me.role === 'vol' && <MyScreen uid={uid} me={me} onModal={setModal} />}
+        {/* Koordinatör */}
+        {me.role === 'coord' && tab === 'islerim' && <MyScreen uid={uid} me={me} onModal={setModal} />}
+        {me.role === 'coord' && tab === 'takimim' && <TeamScreen uid={uid} me={me} />}
+        {/* Yönetici */}
+        {isAdmin && tab === 'yonetim' && <AdminScreen uid={uid} me={me} />}
+        {isAdmin && tab === 'raporlar' && <ReportsScreen uid={uid} />}
       </main>
 
       {/* Bottom nav — only coord/admin */}
@@ -911,31 +922,36 @@ function AdminScreen({ uid, me }) {
         })}
       </Section>
 
-      {/* Duyurular */}
-      <Section title="📢 Duyurular" count={0} defaultOpen={false}>
-        <button onClick={() => setShowAnn(!showAnn)} className="text-xs bg-emerald-500 text-white font-semibold px-3 py-1.5 rounded-lg mb-2">{showAnn ? '✕' : '+ Yeni'}</button>
-        {showAnn && (
-          <div className="card mb-2 space-y-2 !p-3">
-            <input className="input-field !py-2" placeholder="Başlık" value={annF.title} onChange={e => setAnnF({...annF, title: e.target.value})} />
-            <textarea className="input-field !py-2" rows={2} placeholder="İçerik" value={annF.body} onChange={e => setAnnF({...annF, body: e.target.value})} />
-            <button onClick={createAnn} className="bg-emerald-500 text-white text-sm font-semibold py-2 rounded-xl w-full">Yayınla</button>
+      {/* İletişim: Sohbet + Duyuru + Vardiya */}
+      <Section title="💬 İletişim" count={0} defaultOpen={false}>
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-sm font-bold mb-2">💬 Departman Sohbeti</h3>
+            <ChatSection uid={uid} me={me} />
           </div>
-        )}
-      </Section>
-
-      {/* Sohbet */}
-      <Section title="💬 Sohbet" count={0} defaultOpen={false}>
-        <ChatSection uid={uid} me={me} />
-      </Section>
-
-      {/* Vardiya */}
-      <Section title="📅 Vardiya" count={0} defaultOpen={false}>
-        <ShiftPlanView uid={uid} me={me} />
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-sm font-bold">📢 Duyuru</h3>
+              <button onClick={() => setShowAnn(!showAnn)} className="text-xs text-emerald-600 font-semibold">{showAnn ? '✕' : '+ Yeni'}</button>
+            </div>
+            {showAnn && (
+              <div className="card mb-2 space-y-2 !p-3">
+                <input className="input-field !py-2" placeholder="Başlık" value={annF.title} onChange={e => setAnnF({...annF, title: e.target.value})} />
+                <textarea className="input-field !py-2" rows={2} placeholder="İçerik" value={annF.body} onChange={e => setAnnF({...annF, body: e.target.value})} />
+                <button onClick={createAnn} className="bg-emerald-500 text-white text-sm font-semibold py-2 rounded-xl w-full">Yayınla</button>
+              </div>
+            )}
+          </div>
+          <div>
+            <h3 className="text-sm font-bold mb-2">📅 Vardiya Planı</h3>
+            <ShiftPlanView uid={uid} me={me} />
+          </div>
+        </div>
       </Section>
 
       {/* Dikkat Gerektiren */}
       {needsAttention.length > 0 && (
-        <Section title="⚠️ Dikkat Gerektiren" count={needsAttention.length} defaultOpen={false}>
+        <Section title="⚠️ Dikkat Gerektiren" count={needsAttention.length} defaultOpen={needsAttention.length > 0}>
           {needsAttention.sort((a,b) => (a.activity_score||0)-(b.activity_score||0)).map(v => {
             const days = v.last_activity_at ? Math.floor((Date.now()-new Date(v.last_activity_at).getTime())/86400000) : 999;
             const icon = (v.activity_status==='slowing')?'🟡':(v.activity_status==='inactive')?'🟠':'🔴';
@@ -948,11 +964,6 @@ function AdminScreen({ uid, me }) {
           })}
         </Section>
       )}
-
-      {/* Belge */}
-      <Section title="🏆 Belge Oluştur" count={0} defaultOpen={false}>
-        <p className="text-sm text-gray-400 mb-2">Gönüllüler listesinde 🏆 ikonuna tıklayın.</p>
-      </Section>
 
       {certVol && <CertificateModal vol={certVol} summary={summaries[certVol.id]} issuerId={uid} onClose={() => setCertVol(null)} />}
     </div>
