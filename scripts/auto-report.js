@@ -24,6 +24,12 @@ async function sbInsert(table, data) {
     body: JSON.stringify(data),
   });
 }
+async function sbUpdate(table, data, filter) {
+  await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filter}`, {
+    method: 'PATCH', headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+    body: JSON.stringify(data),
+  });
+}
 async function sendTg(chatId, text) {
   if (!BOT_TOKEN) return;
   await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
@@ -181,6 +187,41 @@ async function main() {
   }
 
   console.log(`Rapor tamamlandi. ${notifyUsers.length} kisiye bildirim gonderildi.`);
+
+  // ── Inactivity check (sadece gunluk raporda) ──
+  if (type === 'daily') {
+    console.log('\nInactivity kontrolu...');
+    const allVols = await sbGet('profiles', 'id,display_name,email,status,role,telegram_id', 'role=eq.vol&status=eq.active');
+    const allReports = await sbGet('work_reports', 'user_id,date', 'order=date.desc');
+    const admins = profiles.filter(p => p.role === 'admin');
+    const now = new Date();
+
+    for (const vol of allVols) {
+      const lastReport = allReports.find(r => r.user_id === vol.id);
+      const lastDate = lastReport ? new Date(lastReport.date) : new Date(0);
+      const daysSince = Math.floor((now - lastDate) / 86400000);
+
+      if (daysSince >= 30) {
+        // Pasife al
+        console.log(`  ❌ ${vol.display_name}: ${daysSince} gun → pasife aliniyor`);
+        await sbUpdate('profiles', { status: 'inactive' }, `id=eq.${vol.id}`);
+        await sbInsert('notifications', { user_id: vol.id, type: 'system', title: '⚠️ Hesabınız pasife alındı', body: '30 gündür çalışma raporu girmediniz. Tekrar aktif olmak için yöneticiyle iletişime geçin.' });
+        for (const a of admins) {
+          await sbInsert('notifications', { user_id: a.id, type: 'system', title: `${vol.display_name} otomatik pasife alındı`, body: '30 gün raporlama yapmadı.' });
+        }
+        if (vol.telegram_id) await sendTg(vol.telegram_id, '⚠️ Hesabınız 30 gündür raporlama yapılmadığı için pasife alındı.\nTekrar aktif olmak için yöneticiyle iletişime geçin.');
+      } else if (daysSince === 25) {
+        console.log(`  ⚠️ ${vol.display_name}: 25 gun — son uyari`);
+        await sbInsert('notifications', { user_id: vol.id, type: 'system', title: '⚠️ Son uyarı: 5 gün kaldı', body: '5 gün içinde çalışma raporu girmezseniz hesabınız pasife alınacak.' });
+        if (vol.telegram_id) await sendTg(vol.telegram_id, '⚠️ Son uyarı: 5 gün içinde çalışma raporu girmezseniz hesabınız pasife alınacak.');
+      } else if (daysSince === 20) {
+        console.log(`  ⚠️ ${vol.display_name}: 20 gun — ilk uyari`);
+        await sbInsert('notifications', { user_id: vol.id, type: 'system', title: '⚠️ 20 gündür rapor girmediniz', body: '10 gün içinde raporlama yapmazsanız hesabınız pasife alınacak.' });
+        if (vol.telegram_id) await sendTg(vol.telegram_id, '⚠️ 20 gündür çalışma raporu girmediniz.\n10 gün içinde raporlama yapmazsanız hesabınız pasife alınacak.');
+      }
+    }
+    console.log('Inactivity kontrolu tamamlandi.');
+  }
 }
 
 main().catch(e => { console.error('HATA:', e.message); process.exit(1); });
