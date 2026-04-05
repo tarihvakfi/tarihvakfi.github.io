@@ -38,18 +38,48 @@ export default function Dashboard({session}){
   const[modal,setModal]=useState(null);
   const[sideOpen,setSideOpen]=useState(false);
 
+  // ── Admin power features ──
+  const[viewAsRole,setViewAsRole]=useState(null); // null=normal, 'vol','coord','admin'
+  const[viewAsUser,setViewAsUser]=useState(null); // {id,display_name,...} or null
+  const[editMode,setEditMode]=useState(false);
+
   useEffect(()=>{(async()=>{const{data}=await db.getProfile(uid);if(data)setMe(data);setUnread(await db.getUnreadCount(uid));setLoading(false);})();},[uid]);
   useEffect(()=>{const sub=db.subscribeNotifications(uid,()=>setUnread(n=>n+1));return()=>sub.unsubscribe();},[uid]);
   useEffect(()=>{if(!me)return;if(me.role==='admin')setPage('genel');else if(me.role==='coord')setPage('calisma');else setPage('ana');},[me?.role]);
-  useEffect(()=>{const h=e=>{if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;if(e.key==='Escape'){setShowNotifs(false);setShowProfile(false);setModal(null);setSideOpen(false);}};window.addEventListener('keydown',h);return()=>window.removeEventListener('keydown',h);},[]);
+
+  // Keyboard shortcuts (admin-only: E=edit, 1/2/3=view switch, Esc=reset)
+  useEffect(()=>{const h=e=>{
+    if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;
+    if(e.key==='Escape'){setShowNotifs(false);setShowProfile(false);setModal(null);setSideOpen(false);if(viewAsUser){setViewAsUser(null);return;}if(viewAsRole){setViewAsRole(null);setPage('genel');return;}}
+    if(me?.role==='admin'){
+      if(e.key==='e'||e.key==='E'){setEditMode(p=>!p);return;}
+      if(e.key==='1'){setViewAsRole(null);setViewAsUser(null);setPage('genel');return;}
+      if(e.key==='2'){switchView('coord');return;}
+      if(e.key==='3'){switchView('vol');return;}
+    }
+  };window.addEventListener('keydown',h);return()=>window.removeEventListener('keydown',h);},[me?.role,viewAsRole,viewAsUser]);
+
+  const switchView=(role)=>{
+    if(role==='admin'||role===null){setViewAsRole(null);setViewAsUser(null);setEditMode(false);setPage('genel');}
+    else{setViewAsRole(role);setViewAsUser(null);setEditMode(false);setPage(role==='vol'?'ana':'calisma');}
+  };
 
   if(loading||!me)return<div className="flex items-center justify-center min-h-screen"><div className="space-y-3 w-48"><div className="skeleton h-3 w-full"/><div className="skeleton h-3 w-3/4"/><div className="skeleton h-3 w-1/2"/></div></div>;
   const restricted=['paused','inactive','resigned','pending','rejected','blocked'].includes(me.status);
   if(restricted)return<RestrictedShell me={me} uid={uid}/>;
 
-  const isVol=me.role==='vol',isCoord=me.role==='coord',isAdmin=me.role==='admin';
+  const realAdmin=me.role==='admin';
+
+  // Effective role: if admin is viewing as another role, use that
+  const effectiveRole=viewAsUser?'vol':viewAsRole||me.role;
+  const isVol=effectiveRole==='vol',isCoord=effectiveRole==='coord',isAdmin=effectiveRole==='admin';
   const openModal=v=>{setModal(v);setShowProfile(false);};
   const hasSidebar=isCoord||isAdmin;
+
+  // The uid to use for data fetching (impersonation)
+  const dataUid=viewAsUser?viewAsUser.id:uid;
+  // The me to display (impersonation)
+  const displayMe=viewAsUser?{...viewAsUser,role:'vol'}:me;
 
   // Content max-width
   const mw=isVol?'max-w-[440px]':isCoord?'max-w-[600px]':'max-w-[680px]';
@@ -73,11 +103,22 @@ export default function Dashboard({session}){
   const [pendingCount,setPendingCount]=useState(0);
   useEffect(()=>{if(!hasSidebar)return;(async()=>{const{data}=await db.getPendingReports();setPendingCount((data||[]).length);})();},[hasSidebar]);
 
-  const closeDropdowns=()=>{setShowNotifs(false);setShowProfile(false);};
-
   const SidebarContent=()=>(
     <div className="flex flex-col h-full">
-      <div className="px-4 pt-5 pb-3 font-semibold text-[15px]">Tarih Vakfı</div>
+      <div className="px-4 pt-5 pb-2 font-semibold text-[15px]">Tarih Vakfı</div>
+
+      {/* Role switcher (admin only) */}
+      {realAdmin&&!viewAsUser&&(
+        <div className="px-3 pb-3">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#C4C4C4] px-1 mb-1">Görünüm</div>
+          <select value={viewAsRole||'admin'} onChange={e=>switchView(e.target.value==='admin'?null:e.target.value)} className="w-full text-[12px] border border-[#E5E7EB] rounded-[7px] px-2 py-[7px] bg-white text-[#374151] outline-none focus:border-[#059669]">
+            <option value="admin">Yönetici</option>
+            <option value="coord">Koordinatör</option>
+            <option value="vol">Gönüllü</option>
+          </select>
+        </div>
+      )}
+
       <nav className="flex-1 px-3 space-y-4 overflow-y-auto">
         {sideNav.map(sec=>(
           <div key={sec.section}>
@@ -91,11 +132,42 @@ export default function Dashboard({session}){
           </div>
         ))}
       </nav>
+
+      {/* Edit mode toggle + user info (admin only, in admin view) */}
+      {realAdmin&&isAdmin&&!viewAsUser&&(
+        <div className="px-3 pb-4 border-t border-[#F3F4F6] pt-3 mt-2">
+          <label className="flex items-center gap-2 cursor-pointer text-[12px] text-[#6B7280]">
+            <div className={`w-8 h-[18px] rounded-full transition-colors relative ${editMode?'bg-[#059669]':'bg-[#D1D5DB]'}`} onClick={()=>setEditMode(!editMode)}>
+              <div className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white shadow transition-transform ${editMode?'translate-x-[16px]':'translate-x-[2px]'}`}/>
+            </div>
+            Düzenleme modu
+          </label>
+          <div className="mt-3 text-[11px] text-[#9CA3AF]">{me.display_name}</div>
+          <div className="text-[10px] text-[#C4C4C4]">{me.email}</div>
+        </div>
+      )}
     </div>
   );
 
   return(
     <div className="min-h-screen bg-[#FAFAFA]">
+      {/* ── Impersonation/view banner ── */}
+      {viewAsUser&&(
+        <div className="bg-[#FEF3C7] text-[#92400E] text-[12px] text-center py-1.5 px-4 font-medium">
+          {viewAsUser.display_name} olarak görüntülüyorsun — <button onClick={()=>{setViewAsUser(null);setPage('gonulluler');}} className="underline font-semibold">Geri dön</button>
+        </div>
+      )}
+      {!viewAsUser&&viewAsRole&&viewAsRole!=='admin'&&(
+        <div className="bg-[#FEF3C7] text-[#92400E] text-[12px] text-center py-1.5 px-4 font-medium">
+          {viewAsRole==='vol'?'Gönüllü':'Koordinatör'} görünümündesin — <button onClick={()=>switchView('admin')} className="underline font-semibold">Yöneticiye dön</button>
+        </div>
+      )}
+      {editMode&&(
+        <div className="bg-[#FEE2E2] text-[#991B1B] text-[12px] text-center py-1.5 px-4 font-medium">
+          Düzenleme modu açık — Değişiklikler anında kaydedilir
+        </div>
+      )}
+
       {/* ── HEADER ── */}
       <header className="sticky top-0 z-50 flex items-center justify-between px-4 md:px-6 bg-white border-b border-[#F3F4F6]" style={{height:56}}>
         <div className="flex items-center gap-4">
@@ -110,15 +182,15 @@ export default function Dashboard({session}){
           <button onClick={()=>{setShowNotifs(!showNotifs);setShowProfile(false);if(!showNotifs){db.markAllRead(uid);setUnread(0);}}} className="relative hover:text-[#111] transition-colors">
             Bildirimler{unread>0&&<span className="absolute -top-1 -right-2 w-[6px] h-[6px] rounded-full bg-[#EF4444]"/>}
           </button>
-          <button onClick={()=>{setShowProfile(!showProfile);setShowNotifs(false);}} className="font-medium text-[#374151] hover:text-[#111] transition-colors">{(me.display_name||'').split(' ')[0]} &#9662;</button>
+          <button onClick={()=>{setShowProfile(!showProfile);setShowNotifs(false);}} className="font-medium text-[#374151] hover:text-[#111] transition-colors">{(displayMe.display_name||'').split(' ')[0]} &#9662;</button>
         </div>
       </header>
 
       {showNotifs&&<NotifPanel uid={uid} onClose={()=>setShowNotifs(false)}/>}
       {showProfile&&<ProfilePanel me={me} uid={uid} onUpdate={setMe} onModal={openModal} onClose={()=>setShowProfile(false)}/>}
-      {modal==='certs'&&<Overlay title="Belgelerim" onClose={()=>setModal(null)}><MyCertificates uid={uid} me={me}/></Overlay>}
-      {modal==='summary'&&<Overlay title="Çalışma Özeti" onClose={()=>setModal(null)}><WorkSummary uid={uid}/></Overlay>}
-      {modal==='help'&&<Overlay title="Yardım" onClose={()=>setModal(null)}><HelpContent me={me}/></Overlay>}
+      {modal==='certs'&&<Overlay title="Belgelerim" onClose={()=>setModal(null)}><MyCertificates uid={dataUid} me={displayMe}/></Overlay>}
+      {modal==='summary'&&<Overlay title="Çalışma Özeti" onClose={()=>setModal(null)}><WorkSummary uid={dataUid}/></Overlay>}
+      {modal==='help'&&<Overlay title="Yardım" onClose={()=>setModal(null)}><HelpContent me={displayMe}/></Overlay>}
 
       <div className="flex" style={{minHeight:'calc(100vh - 56px)'}}>
         {/* ── SIDEBAR (desktop) ── */}
@@ -134,14 +206,14 @@ export default function Dashboard({session}){
         <main className="flex-1 overflow-x-hidden">
           <div className={`mx-auto px-4 md:px-6 py-8 ${mw}`}>
             {/* Vol pages */}
-            {isVol&&page==='ana'&&<VolHome uid={uid} me={me} onModal={openModal}/>}
-            {isVol&&page==='raporlarim'&&<MyReports uid={uid}/>}
-            {isVol&&page==='islerim'&&<MyTasks uid={uid} me={me}/>}
-            {isVol&&page==='belgelerim'&&<MyCertificates uid={uid} me={me}/>}
+            {isVol&&page==='ana'&&<VolHome uid={dataUid} me={displayMe} onModal={openModal}/>}
+            {isVol&&page==='raporlarim'&&<MyReports uid={dataUid}/>}
+            {isVol&&page==='islerim'&&<MyTasks uid={dataUid} me={displayMe}/>}
+            {isVol&&page==='belgelerim'&&<MyCertificates uid={dataUid} me={displayMe}/>}
 
             {/* Coord pages */}
-            {isCoord&&page==='calisma'&&<VolHome uid={uid} me={me} onModal={openModal}/>}
-            {isCoord&&page==='raporlarim'&&<MyReports uid={uid}/>}
+            {isCoord&&page==='calisma'&&<VolHome uid={dataUid} me={displayMe} onModal={openModal}/>}
+            {isCoord&&page==='raporlarim'&&<MyReports uid={dataUid}/>}
             {isCoord&&page==='onaylar'&&<ApprovalsPage uid={uid} onCount={setPendingCount}/>}
             {isCoord&&page==='gonulluler'&&<VolunteersPage uid={uid} me={me}/>}
             {isCoord&&page==='isler'&&<TasksPage uid={uid} me={me}/>}
@@ -151,8 +223,8 @@ export default function Dashboard({session}){
             {/* Admin pages */}
             {isAdmin&&page==='genel'&&<AdminOverview uid={uid} me={me} onNav={setPage}/>}
             {isAdmin&&page==='onaylar'&&<ApprovalsPage uid={uid} onCount={setPendingCount} showUsers/>}
-            {isAdmin&&page==='gonulluler'&&<VolunteersPage uid={uid} me={me} admin/>}
-            {isAdmin&&page==='isler'&&<TasksPage uid={uid} me={me}/>}
+            {isAdmin&&page==='gonulluler'&&<VolunteersPage uid={uid} me={me} admin onViewAs={v=>{setViewAsUser(v);setViewAsRole(null);setPage('ana');}} editMode={editMode}/>}
+            {isAdmin&&page==='isler'&&<TasksPage uid={uid} me={me} editMode={editMode}/>}
             {isAdmin&&page==='iletisim'&&<CommPage uid={uid} me={me}/>}
             {isAdmin&&page==='raporlar'&&<ReportsPage uid={uid}/>}
             {isAdmin&&page==='belgeler'&&<BelgelerPage uid={uid} me={me}/>}
@@ -333,7 +405,7 @@ function ApprovalsPage({uid,onCount,showUsers}){
 }
 
 /* ═══ VOLUNTEERS PAGE ═══ */
-function VolunteersPage({uid,me,admin}){
+function VolunteersPage({uid,me,admin,onViewAs,editMode}){
   const[vols,setVols]=useState([]);const[sums,setSums]=useState({});const[search,setSearch]=useState('');const[exp,setExp]=useState(null);const[certVol,setCertVol]=useState(null);
   const toast=useToast();
   const load=useCallback(async()=>{const[v,s]=await Promise.all([db.getAllProfiles(),db.getAllWorkSummaries()]);setVols((v.data||[]).filter(u=>u.status!=='pending'));setSums(Object.fromEntries((s.data||[]).map(s=>[s.id,s])));},[]);
@@ -359,7 +431,8 @@ function VolunteersPage({uid,me,admin}){
             <label className="text-[#9CA3AF]">Rol:</label><select value={v.role} onChange={e=>changeRole(v.id,e.target.value)} className="inp !w-auto !py-1 !px-2 !text-[12px] bg-white"><option value="vol">Gönüllü</option><option value="coord">Koordinatör</option><option value="admin">Yönetici</option></select>
             <label className="text-[#9CA3AF]">Dept:</label><select value={v.department||''} onChange={e=>changeDept(v.id,e.target.value)} className="inp !w-auto !py-1 !px-2 !text-[12px] bg-white"><option value="">—</option>{DEPTS.map(d=><option key={d.id} value={d.id}>{d.l}</option>)}</select>
           </div>}
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
+            {admin&&onViewAs&&<button onClick={()=>onViewAs(v)} className="text-[12px] text-[#059669] font-medium hover:underline">Olarak gör</button>}
             {admin&&(v.status==='active'?<button onClick={()=>changeStatus(v.id,'blocked')} className="btn-danger-text text-[12px]">Engelle</button>:<button onClick={()=>changeStatus(v.id,'active')} className="btn-ghost text-[12px]">Aktifleştir</button>)}
             <button onClick={()=>setCertVol(v)} className="text-[12px] text-[#6B7280] hover:text-[#F59E0B]">Belge oluştur</button>
           </div>
@@ -371,14 +444,16 @@ function VolunteersPage({uid,me,admin}){
 }
 
 /* ═══ TASKS PAGE ═══ */
-function TasksPage({uid,me}){
-  const[tasks,setTasks]=useState([]);const[vols,setVols]=useState([]);const[show,setShow]=useState(false);
+function TasksPage({uid,me,editMode}){
+  const[tasks,setTasks]=useState([]);const[vols,setVols]=useState([]);const[show,setShow]=useState(false);const[editId,setEditId]=useState(null);const[ef,setEf]=useState({});
   const[tf,setTf]=useState({title:'',description:'',department:me.department||'arsiv',assigned_to:'',deadline:''});
   const toast=useToast();
   const load=useCallback(async()=>{const[t,v]=await Promise.all([db.getTasks(),db.getAllProfiles()]);setTasks(t.data||[]);setVols((v.data||[]).filter(v=>v.status==='active'));},[]);
   useEffect(()=>{load();},[load]);
   const create=async()=>{if(!tf.title)return;await db.createTask({...tf,priority:'medium',assigned_to:tf.assigned_to?[tf.assigned_to]:[],created_by:uid});setShow(false);setTf({title:'',description:'',department:me.department||'arsiv',assigned_to:'',deadline:''});load();toast.show('Oluşturuldu');};
   const complete=async id=>{await db.updateTask(id,{status:'done',completed_at:new Date().toISOString()});load();};
+  const startEdit=t=>{setEditId(t.id);setEf({title:t.title,deadline:t.deadline||'',progress:t.progress||0,status:t.status});};
+  const saveEdit=async id=>{await db.updateTask(id,{title:ef.title,deadline:ef.deadline||null,status:ef.status});if(ef.progress!==undefined)await db.updateTaskProgress(id,ef.progress);setEditId(null);load();toast.show('Güncellendi');};
   return(<div><toast.Toast/>
     <div className="flex justify-between items-center mb-6"><div className="page-title">İşler</div><button onClick={()=>setShow(!show)} className="btn-ghost">{show?'Kapat':'+ Yeni İş'}</button></div>
     <Slide open={show}><div className="p-4 border border-[#F3F4F6] rounded-lg mb-4 space-y-3">
@@ -388,12 +463,26 @@ function TasksPage({uid,me}){
       <button onClick={create} className="bg-[#059669] text-white text-[13px] font-medium py-2 px-4 rounded-lg">Oluştur</button>
     </div></Slide>
     {tasks.filter(t=>t.status!=='cancelled').slice(0,20).map(t=>{const od=t.deadline&&t.deadline<today();return(
-      <div key={t.id} className={`flex items-center gap-3 py-3 border-b border-[#F5F5F5] ${t.status==='done'?'opacity-40':''}`}>
-        <div className="flex-1 min-w-0"><span className="text-[14px] font-medium">{t.title}</span>{od&&<span className="text-[12px] text-[#EF4444] ml-2">gecikmiş</span>}</div>
-        <div className="w-20 flex items-center gap-1.5"><div className="flex-1 progress-track"><div className="progress-fill" style={{width:`${t.progress||0}%`}}/></div><span className="text-[11px] text-[#9CA3AF]">{Math.round(t.progress||0)}%</span></div>
-        {t.deadline&&<span className="text-[11px] text-[#9CA3AF] w-12">{fd(t.deadline)}</span>}
-        {t.status==='review'&&<button onClick={()=>complete(t.id)} className="btn-sm btn-approve text-[11px]">Tamamla</button>}
-        {!['done','cancelled'].includes(t.status)&&<button onClick={async()=>{await db.updateTask(t.id,{status:'cancelled'});load();}} className="text-[11px] text-[#9CA3AF] hover:text-[#EF4444]">iptal</button>}
+      <div key={t.id}>
+        {editMode&&editId===t.id?(
+          <div className="py-3 px-3 bg-[#F9FAFB] rounded-lg mb-2 space-y-2 border-2 border-blue-200">
+            <input className="inp text-[13px] !py-1.5" value={ef.title} onChange={e=>setEf({...ef,title:e.target.value})}/>
+            <div className="flex gap-2 items-center">
+              <input type="date" className="inp text-[13px] !py-1.5 flex-1" value={ef.deadline} onChange={e=>setEf({...ef,deadline:e.target.value})}/>
+              <select className="inp text-[13px] !py-1.5 !w-auto bg-white" value={ef.status} onChange={e=>setEf({...ef,status:e.target.value})}><option value="pending">Bekliyor</option><option value="active">Devam</option><option value="review">Kontrol</option><option value="done">Tamamlandı</option></select>
+            </div>
+            <div className="flex items-center gap-2"><input type="range" min="0" max="100" step="5" value={ef.progress} onChange={e=>setEf({...ef,progress:Number(e.target.value)})} className="flex-1 accent-[#059669]"/><span className="text-[12px] w-8 text-right">{ef.progress}%</span></div>
+            <div className="flex gap-2"><button onClick={()=>saveEdit(t.id)} className="btn-sm btn-approve">Kaydet</button><button onClick={()=>setEditId(null)} className="text-[12px] text-[#9CA3AF]">İptal</button><button onClick={async()=>{await db.updateTask(t.id,{status:'cancelled'});setEditId(null);load();}} className="btn-danger-text text-[12px] ml-auto">Sil</button></div>
+          </div>
+        ):(
+          <div onClick={()=>{if(editMode)startEdit(t);}} className={`flex items-center gap-3 py-3 border-b border-[#F5F5F5] ${t.status==='done'?'opacity-40':''} ${editMode?'cursor-pointer hover:bg-blue-50/30 border-l-2 border-l-blue-200 pl-2':''}`}>
+            <div className="flex-1 min-w-0"><span className="text-[14px] font-medium">{t.title}</span>{od&&<span className="text-[12px] text-[#EF4444] ml-2">gecikmiş</span>}</div>
+            <div className="w-20 flex items-center gap-1.5"><div className="flex-1 progress-track"><div className="progress-fill" style={{width:`${t.progress||0}%`}}/></div><span className="text-[11px] text-[#9CA3AF]">{Math.round(t.progress||0)}%</span></div>
+            {t.deadline&&<span className="text-[11px] text-[#9CA3AF] w-12">{fd(t.deadline)}</span>}
+            {!editMode&&t.status==='review'&&<button onClick={()=>complete(t.id)} className="btn-sm btn-approve text-[11px]">Tamamla</button>}
+            {!editMode&&!['done','cancelled'].includes(t.status)&&<button onClick={async()=>{await db.updateTask(t.id,{status:'cancelled'});load();}} className="text-[11px] text-[#9CA3AF] hover:text-[#EF4444]">iptal</button>}
+          </div>
+        )}
       </div>
     );})}
     {tasks.filter(t=>t.status!=='cancelled').length===0&&<div className="text-[13px] text-[#9CA3AF] text-center py-6">Henüz iş yok</div>}
