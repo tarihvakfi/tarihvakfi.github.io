@@ -40,15 +40,15 @@ export default function Home() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data?.session));
     Promise.all([
-      getPublicStats(),
-      getPublicAnnouncements(),
-      getDeptVolunteerCounts(),
+      getPublicStats().catch(() => ({ data: null })),
+      getPublicAnnouncements().catch(() => ({ data: [] })),
+      getDeptVolunteerCounts().catch(() => ({})),
     ]).then(([s, a, d]) => {
       setStats(s.data);
       setAnns(a.data || []);
       setDeptCounts(d);
       setLoaded(true);
-    });
+    }).catch(() => setLoaded(true));
   }, []);
 
   return (

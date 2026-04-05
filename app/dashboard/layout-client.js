@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import * as db from '../../lib/supabase';
 import BackupView from './backup';
 import { CertificateModal, MyCertificates } from './certificates';
-import ReportBuilder, { ReportArchive } from './reports';
+import ReportBuilder, { ReportArchive, quickReport } from './reports';
 
 const DEPTS = [
   { id:'arsiv', l:'Arşiv & Dokümantasyon', i:'📜' },{ id:'egitim', l:'Eğitim & Atölye', i:'📚' },
@@ -28,7 +28,7 @@ const fmtH = h => { const hrs = Math.floor(h); const mins = Math.round((h-hrs)*6
 export default function Dashboard({ session }) {
   const uid = session.user.id;
   const [me, setMe] = useState(null);
-  const [tab, setTab] = useState('');
+  const [tab, setTab] = useState('islerim');
   const [loading, setLoading] = useState(true);
   const [unread, setUnread] = useState(0);
   const [showNotifs, setShowNotifs] = useState(false);
@@ -49,12 +49,11 @@ export default function Dashboard({ session }) {
     return () => sub.unsubscribe();
   }, [uid]);
 
-  // Set default tab based on role
+  // Set default tab based on role (once)
   useEffect(() => {
     if (!me) return;
-    if (me.role === 'admin' && !tab) setTab('yonetim');
-    else if ((me.role === 'coord') && !tab) setTab('islerim');
-  }, [me, tab]);
+    if (me.role === 'admin') setTab('yonetim');
+  }, [me?.role]);
 
   if (loading || !me) return <div className="flex items-center justify-center min-h-screen"><p className="text-gray-400">Yükleniyor...</p></div>;
 
@@ -987,7 +986,6 @@ function ReportsScreen({ uid }) {
 
   const runQuick = async (period) => {
     setQuickLoading(period); setQuickResult('');
-    const { quickReport } = await import('./reports');
     const result = await quickReport(period);
     setQuickResult(result); setQuickLoading('');
   };
