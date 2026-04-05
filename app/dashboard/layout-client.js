@@ -601,6 +601,9 @@ function TeamScreen({ uid, me }) {
       </Section>
 
       {/* İşler */}
+      {/* Aktivite dikkat */}
+      <ActivityOverview vols={vols} />
+
       <Section title={`📋 İşler (${tasks.filter(t=>t.status!=='cancelled').length})`} count={0} defaultOpen={false}><div>
         <div className="flex justify-end mb-2">
           <button onClick={() => setShowNewTask(!showNewTask)} className="text-xs bg-emerald-600 text-white font-semibold px-3 py-1.5 rounded-lg">{showNewTask ? '✕' : '+ Yeni'}</button>
@@ -698,6 +701,51 @@ function TeamScreen({ uid, me }) {
 // ═══════════════════════════════════════════
 // 👥 YÖNETİM (admin)
 // ═══════════════════════════════════════════
+function ActivityOverview({ vols }) {
+  const [showDetail, setShowDetail] = useState(false);
+  const activeVols = vols.filter(v => v.status === 'active' && v.role === 'vol');
+  const counts = { active: 0, slowing: 0, inactive: 0, dormant: 0 };
+  activeVols.forEach(v => { counts[v.activity_status || 'active']++; });
+  const needsAttention = activeVols.filter(v => ['slowing','inactive','dormant'].includes(v.activity_status));
+
+  if (activeVols.length === 0) return null;
+
+  return (
+    <div>
+      <button onClick={() => setShowDetail(!showDetail)} className="w-full bg-gray-50 rounded-xl p-3 text-left">
+        <div className="flex items-center justify-between">
+          <h2 className="font-bold text-sm">👥 Gönüllü Aktivite</h2>
+          <span className="text-gray-400 text-xs">{showDetail ? '▲' : '▼'}</span>
+        </div>
+        <div className="flex gap-3 mt-1.5 text-xs">
+          <span>🟢 {counts.active}</span>
+          {counts.slowing > 0 && <span className="text-amber-600">🟡 {counts.slowing}</span>}
+          {counts.inactive > 0 && <span className="text-orange-600">🟠 {counts.inactive}</span>}
+          {counts.dormant > 0 && <span className="text-red-600">🔴 {counts.dormant}</span>}
+        </div>
+      </button>
+      {showDetail && needsAttention.length > 0 && (
+        <div className="mt-2 space-y-1.5">
+          {needsAttention.sort((a,b) => (a.activity_score||0) - (b.activity_score||0)).map(v => {
+            const lastAct = v.last_activity_at ? Math.floor((Date.now() - new Date(v.last_activity_at).getTime()) / 86400000) : 999;
+            const icon = (v.activity_status === 'slowing') ? '🟡' : (v.activity_status === 'inactive') ? '🟠' : '🔴';
+            return (
+              <div key={v.id} className="bg-gray-50 rounded-xl p-3 flex items-center gap-2">
+                <span>{icon}</span>
+                <div className="flex-1">
+                  <div className="text-sm font-semibold">{v.display_name}</div>
+                  <div className="text-xs text-gray-400">{lastAct < 999 ? `${lastAct} gündür rapor yok` : 'Hiç rapor yok'} · Skor: {v.activity_score||0}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {showDetail && needsAttention.length === 0 && <p className="text-xs text-gray-400 mt-2 text-center">Herkes aktif 🎉</p>}
+    </div>
+  );
+}
+
 function AdminScreen({ uid, me }) {
   const [pendingUsers, setPendingUsers] = useState([]);
   const [vols, setVols] = useState([]);
@@ -734,6 +782,9 @@ function AdminScreen({ uid, me }) {
           ))}
         </div>
       )}
+
+      {/* Aktivite Özeti */}
+      <ActivityOverview vols={vols} />
 
       {/* TeamScreen (includes approvals, tasks, chat, shifts etc) */}
       <TeamScreen uid={uid} me={me} />

@@ -164,6 +164,19 @@ async function main() {
       const topPerson = sorted[0];
       if (topPerson) lines.push(`\n🏆 En aktif: ${name(topPerson[0])} (${fmtH(topPerson[1].hours)})`);
     }
+
+    // Aktivite durumu
+    const actProfiles = await sbGet('profiles', 'display_name,activity_score,activity_status', 'role=eq.vol&status=eq.active');
+    const actCounts = { active:0, slowing:0, inactive:0, dormant:0 };
+    actProfiles.forEach(p => { actCounts[p.activity_status || 'active']++; });
+    lines.push('');
+    lines.push('📊 Gönüllü Aktivite:');
+    lines.push(`  🟢 Aktif: ${actCounts.active} | 🟡 Yavaşlıyor: ${actCounts.slowing} | 🟠 Pasifleşiyor: ${actCounts.inactive} | 🔴 Hareketsiz: ${actCounts.dormant}`);
+    const slowing = actProfiles.filter(p => ['slowing','inactive','dormant'].includes(p.activity_status));
+    if (slowing.length) {
+      lines.push('  Dikkat:');
+      for (const s of slowing.slice(0,5)) lines.push(`    ${s.activity_status === 'slowing' ? '🟡' : s.activity_status === 'inactive' ? '🟠' : '🔴'} ${s.display_name} (skor: ${s.activity_score})`);
+    }
   }
 
   const content = lines.join('\n');
@@ -188,39 +201,71 @@ async function main() {
 
   console.log(`Rapor tamamlandi. ${notifyUsers.length} kisiye bildirim gonderildi.`);
 
-  // ── Inactivity check (sadece gunluk raporda) ──
+  // ── Aktivite skoru + kademeli hatırlatma (sadece günlük) ──
   if (type === 'daily') {
-    console.log('\nInactivity kontrolu...');
-    const allVols = await sbGet('profiles', 'id,display_name,email,status,role,telegram_id', 'role=eq.vol&status=eq.active');
+    console.log('\nAktivite skoru hesaplaniyor...');
+    const allVols = await sbGet('profiles', 'id,display_name,email,status,role,telegram_id,activity_score,activity_status', 'role=eq.vol&status=eq.active');
     const allReports = await sbGet('work_reports', 'user_id,date', 'order=date.desc');
+    const allProgress = await sbGet('task_progress_logs', 'user_id,created_at', 'order=created_at.desc');
+    const allNotifReads = await sbGet('notifications', 'user_id,is_read,created_at', 'is_read=eq.true&order=created_at.desc');
+    const existingNotifs = await sbGet('notifications', 'user_id,title', 'order=created_at.desc&limit=500');
     const admins = profiles.filter(p => p.role === 'admin');
+    const coords = profiles.filter(p => p.role === 'coord');
     const now = new Date();
+    const d7 = new Date(now - 7*86400000).toISOString().slice(0,10);
+    const d14 = new Date(now - 14*86400000).toISOString().slice(0,10);
+    const d30 = new Date(now - 30*86400000).toISOString().slice(0,10);
+    const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+
+    // Tekrar gonderimi engelle
+    const hasNotif = (uid, titlePrefix) => existingNotifs.some(n => n.user_id === uid && n.title?.startsWith(titlePrefix));
 
     for (const vol of allVols) {
-      const lastReport = allReports.find(r => r.user_id === vol.id);
+      const volReports = allReports.filter(r => r.user_id === vol.id);
+      const lastReport = volReports[0];
       const lastDate = lastReport ? new Date(lastReport.date) : new Date(0);
       const daysSince = Math.floor((now - lastDate) / 86400000);
 
+      // Skor hesapla
+      let score = 0;
+      if (volReports.some(r => r.date >= d7)) score += 30;
+      if (volReports.some(r => r.date >= d14)) score += 20;
+      if (volReports.some(r => r.date >= d30)) score += 10;
+      if (allProgress.some(p => p.user_id === vol.id && p.created_at >= monthStart)) score += 15;
+      if (allNotifReads.some(n => n.user_id === vol.id && n.created_at >= monthStart)) score += 10;
+      if (volReports.some(r => r.date >= monthStart)) score += 15;
+
+      const status = score >= 80 ? 'active' : score >= 50 ? 'slowing' : score >= 20 ? 'inactive' : 'dormant';
+      const statusIcon = score >= 80 ? '🟢' : score >= 50 ? '🟡' : score >= 20 ? '🟠' : '🔴';
+
+      await sbUpdate('profiles', { activity_score: score, activity_status: status, last_activity_at: lastDate.toISOString() }, `id=eq.${vol.id}`);
+
+      // Kademeli hatırlatma
       if (daysSince >= 30) {
-        // Pasife al
-        console.log(`  ❌ ${vol.display_name}: ${daysSince} gun → pasife aliniyor`);
+        console.log(`  🔴 ${vol.display_name}: ${daysSince}g skor:${score} → pasife`);
         await sbUpdate('profiles', { status: 'inactive' }, `id=eq.${vol.id}`);
-        await sbInsert('notifications', { user_id: vol.id, type: 'system', title: '⚠️ Hesabınız pasife alındı', body: '30 gündür çalışma raporu girmediniz. Tekrar aktif olmak için yöneticiyle iletişime geçin.' });
-        for (const a of admins) {
-          await sbInsert('notifications', { user_id: a.id, type: 'system', title: `${vol.display_name} otomatik pasife alındı`, body: '30 gün raporlama yapmadı.' });
-        }
-        if (vol.telegram_id) await sendTg(vol.telegram_id, '⚠️ Hesabınız 30 gündür raporlama yapılmadığı için pasife alındı.\nTekrar aktif olmak için yöneticiyle iletişime geçin.');
-      } else if (daysSince === 25) {
-        console.log(`  ⚠️ ${vol.display_name}: 25 gun — son uyari`);
-        await sbInsert('notifications', { user_id: vol.id, type: 'system', title: '⚠️ Son uyarı: 5 gün kaldı', body: '5 gün içinde çalışma raporu girmezseniz hesabınız pasife alınacak.' });
-        if (vol.telegram_id) await sendTg(vol.telegram_id, '⚠️ Son uyarı: 5 gün içinde çalışma raporu girmezseniz hesabınız pasife alınacak.');
-      } else if (daysSince === 20) {
-        console.log(`  ⚠️ ${vol.display_name}: 20 gun — ilk uyari`);
-        await sbInsert('notifications', { user_id: vol.id, type: 'system', title: '⚠️ 20 gündür rapor girmediniz', body: '10 gün içinde raporlama yapmazsanız hesabınız pasife alınacak.' });
-        if (vol.telegram_id) await sendTg(vol.telegram_id, '⚠️ 20 gündür çalışma raporu girmediniz.\n10 gün içinde raporlama yapmazsanız hesabınız pasife alınacak.');
+        await sbInsert('notifications', { user_id: vol.id, type: 'system', title: 'Hesabınız pasife alındı', body: 'Ara vermek istersen bize bildir, döndüğünde buradayız. 🙂' });
+        for (const a of admins) await sbInsert('notifications', { user_id: a.id, type: 'system', title: `${vol.display_name} otomatik pasife alındı`, body: `${daysSince} gündür raporlama yapmadı.` });
+        if (vol.telegram_id) await sendTg(vol.telegram_id, 'Hesabınız pasife alındı. Ara vermek istersen bize bildir, döndüğünde buradayız. 🙂');
+      } else if (daysSince >= 20 && !hasNotif(vol.id, '⚠️ Seni bekliyoruz')) {
+        console.log(`  🟠 ${vol.display_name}: ${daysSince}g skor:${score} → son uyari`);
+        await sbInsert('notifications', { user_id: vol.id, type: 'system', title: '⚠️ Seni bekliyoruz', body: 'Ara vermek istersen bize bildir. 10 gün içinde raporlama olmazsa hesabın pasife alınacak.' });
+        for (const c of coords.filter(c => c.department === vol.department)) await sbInsert('notifications', { user_id: c.id, type: 'system', title: `${vol.display_name} 20+ gündür aktif değil`, body: '' });
+        if (vol.telegram_id) await sendTg(vol.telegram_id, 'Seni bekliyoruz! Ara vermek istersen bize bildir. 🙂\n10 gün içinde raporlama olmazsa hesabın pasife alınacak.');
+      } else if (daysSince >= 14 && !hasNotif(vol.id, 'Seni özledik')) {
+        console.log(`  🟠 ${vol.display_name}: ${daysSince}g skor:${score} → 14g uyari`);
+        await sbInsert('notifications', { user_id: vol.id, type: 'system', title: 'Seni özledik! 🙂', body: 'Devam etmek istersen bekliyoruz. Ara vermek istersen bize bildir.' });
+        for (const c of coords.filter(c => c.department === vol.department)) await sbInsert('notifications', { user_id: c.id, type: 'system', title: `${vol.display_name} 14 gündür aktif değil`, body: '' });
+        if (vol.telegram_id) await sendTg(vol.telegram_id, 'Seni özledik! Devam etmek istersen bekliyoruz. 🙂');
+      } else if (daysSince >= 7 && !hasNotif(vol.id, 'Nasılsın')) {
+        console.log(`  🟡 ${vol.display_name}: ${daysSince}g skor:${score} → 7g hatirlatma`);
+        await sbInsert('notifications', { user_id: vol.id, type: 'system', title: 'Nasılsın? 🙂', body: 'Son raporundan beri 7 gün geçti. Her şey yolunda mı?' });
+        if (vol.telegram_id) await sendTg(vol.telegram_id, 'Nasılsın? Son raporundan beri 7 gün geçti. Her şey yolunda mı? 🙂');
+      } else {
+        if (score !== vol.activity_score) console.log(`  ${statusIcon} ${vol.display_name}: skor ${vol.activity_score||0}→${score}`);
       }
     }
-    console.log('Inactivity kontrolu tamamlandi.');
+    console.log('Aktivite kontrolu tamamlandi.');
   }
 }
 
