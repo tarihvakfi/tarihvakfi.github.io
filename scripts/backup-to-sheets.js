@@ -53,7 +53,7 @@ async function main() {
 
   // Veri cek
   console.log('Supabase verileri cekiliyor...');
-  const [profiles, tasks, hours, shifts, anns, apps, reqs, msgs, comments, progress, shiftNotes, notifs] = await Promise.all([
+  const [profiles, tasks, hours, shifts, anns, apps, reqs, msgs, comments, progress, shiftNotes, notifs, workReports] = await Promise.all([
     sbGet('profiles', 'id,display_name,email,phone,role,department,status,total_hours,city,joined_at', 'order=display_name.asc'),
     sbGet('tasks', '*', 'order=created_at.desc'),
     sbGet('hour_logs', '*', 'order=date.desc'),
@@ -66,6 +66,7 @@ async function main() {
     sbGet('task_progress_logs', '*', 'order=created_at.desc'),
     sbGet('shift_notes', '*', 'order=created_at.desc'),
     sbGet('notifications', '*', 'order=created_at.desc'),
+    sbGet('work_reports', '*', 'order=date.desc'),
   ]);
 
   const name = id => profiles.find(p => p.id === id)?.display_name || '';
@@ -84,6 +85,7 @@ async function main() {
     { name: 'Gorev Ilerleme', headers: ['Gorev','Guncelleyen','Onceki','Yeni','Not','Tarih'], rows: progress.map(p => [taskName(p.task_id), name(p.user_id), `${p.previous_value}%`, `${p.new_value}%`, p.note||'', fdatetime(p.created_at)]) },
     { name: 'Vardiya Notlari', headers: ['Yazan','Departman','Tarih','Icerik'], rows: shiftNotes.map(n => [name(n.user_id), n.department, fdate(n.date), n.content]) },
     { name: 'Bildirimler', headers: ['Kullanici','Tip','Baslik','Icerik','Okundu','Tarih'], rows: notifs.map(n => [name(n.user_id), n.type, n.title, n.body||'', n.is_read?'Evet':'Hayir', fdatetime(n.created_at)]) },
+    { name: 'Calisma Raporlari', headers: ['Gonullu','Tarih','Saat','Nerede','Aciklama','Plan','Durum','Kaynak'], rows: (workReports||[]).map(r => [name(r.user_id), fdate(r.date), r.hours, r.work_mode==='remote'?'Uzaktan':'Vakifta', r.description||'', r.next_plan||'', r.status, r.source||'web']) },
   ];
 
   // Ozet

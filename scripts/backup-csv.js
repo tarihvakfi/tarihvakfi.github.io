@@ -31,7 +31,7 @@ function toCsv(data) {
 }
 
 async function main() {
-  const tables = ['profiles','tasks','hour_logs','shifts','announcements','applications','requests','messages','task_comments','task_progress_logs','shift_notes','notifications','visibility_settings'];
+  const tables = ['profiles','tasks','hour_logs','shifts','announcements','applications','requests','messages','task_comments','task_progress_logs','shift_notes','notifications','visibility_settings','work_reports','checkins','certificates','backups'];
 
   const now = new Date();
   const stamp = now.toISOString().slice(0, 10);
