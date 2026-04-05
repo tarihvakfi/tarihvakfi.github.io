@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
           .eq('telegram_link_code', code).is('telegram_id', null).single()
         if (profile) {
           await sb.from('profiles').update({ telegram_id: tgUserId, telegram_link_code: null }).eq('id', profile.id)
-          await sendTg(chatId, `✅ Hesabın bağlandı! Hoş geldin <b>${profile.display_name}</b>!\n\nKomutlar:\n📝 "bugün 3 saat belge taradım"\n📊 /ozet — Çalışma özeti\n🏆 /belgelerim — Belgeler\n❓ /yardim — Yardım`)
+          await sendTg(chatId, `✅ Hesabın bağlandı! Hoş geldin <b>${profile.display_name}</b>!\n\nKomutlar:\n📝 "bugün 3 saat belge taradım"\n📋 /raporlarim — Son raporlar\n✏️ /duzenle 1 — Düzenle\n🗑️ /sil 1 — Sil\n📊 /ozet — Çalışma özeti\n❓ /yardim — Tüm komutlar`)
           return new Response('OK')
         }
         await sendTg(chatId, '❌ Kod geçersiz. Web sitesinden yeni kod alın.')
@@ -210,9 +210,84 @@ Deno.serve(async (req) => {
       return new Response('OK')
     }
 
+    // ── /raporlarim — son 5 rapor listele ──
+    if (text === '/raporlarim' || text === '/raporlarım') {
+      const { data: reps } = await sb.from('work_reports').select('id, date, hours, description, work_mode, is_approved')
+        .eq('user_id', uid).order('date', { ascending: false }).limit(5)
+      if (reps?.length) {
+        let reply = '📋 <b>Son Raporların:</b>\n'
+        reps.forEach((r: any, i: number) => {
+          const mode = r.work_mode === 'remote' ? '🏠' : '🏛️'
+          const status = r.is_approved ? '✅' : '⏳'
+          reply += `\n${i + 1}. ${r.date} — ${fmtHours(r.hours)} ${mode} ${status}\n   ${r.description || '—'}`
+        })
+        reply += '\n\n/duzenle N — düzenle (ör: /duzenle 1)\n/sil N — sil (ör: /sil 1)'
+        await sendTg(chatId, reply)
+      } else await sendTg(chatId, 'Henüz raporun yok.')
+      return new Response('OK')
+    }
+
+    // ── /sil N — rapor sil ──
+    if (text.startsWith('/sil')) {
+      const idx = parseInt(text.split(' ')[1]) - 1
+      const { data: reps } = await sb.from('work_reports').select('id, date, hours, description')
+        .eq('user_id', uid).order('date', { ascending: false }).limit(5)
+      if (!reps?.length) { await sendTg(chatId, 'Silinecek rapor yok.'); return new Response('OK') }
+      if (isNaN(idx) || idx < 0 || idx >= reps.length) {
+        await sendTg(chatId, `Geçersiz numara. /raporlarim ile listele, sonra /sil 1 gibi yaz.`)
+        return new Response('OK')
+      }
+      const r = reps[idx]
+      const daysDiff = Math.floor((Date.now() - new Date(r.date).getTime()) / 86400000)
+      if (daysDiff > 30) { await sendTg(chatId, '❌ 30 günden eski raporlar silinemez.'); return new Response('OK') }
+      await sb.from('work_reports').delete().eq('id', r.id)
+      await sendTg(chatId, `🗑️ Silindi: ${r.date} — ${fmtHours(r.hours)}\n"${r.description || '—'}"`)
+      return new Response('OK')
+    }
+
+    // ── /duzenle N — rapor düzenle (state başlat) ──
+    if (text.startsWith('/duzenle') || text.startsWith('/düzenle')) {
+      const idx = parseInt(text.split(' ')[1]) - 1
+      const { data: reps } = await sb.from('work_reports').select('id, date, hours, description, work_mode')
+        .eq('user_id', uid).order('date', { ascending: false }).limit(5)
+      if (!reps?.length) { await sendTg(chatId, 'Düzenlenecek rapor yok.'); return new Response('OK') }
+      if (isNaN(idx) || idx < 0 || idx >= reps.length) {
+        await sendTg(chatId, `Geçersiz numara. /raporlarim ile listele, sonra /duzenle 1 gibi yaz.`)
+        return new Response('OK')
+      }
+      const r = reps[idx]
+      const daysDiff = Math.floor((Date.now() - new Date(r.date).getTime()) / 86400000)
+      if (daysDiff > 30) { await sendTg(chatId, '❌ 30 günden eski raporlar düzenlenemez.'); return new Response('OK') }
+      await sb.from('profiles').update({ telegram_state: `editing:${r.id}` }).eq('id', uid)
+      const mode = r.work_mode === 'remote' ? '🏠 uzaktan' : '🏛️ vakıfta'
+      await sendTg(chatId, `✏️ <b>Düzenleme:</b> ${r.date} — ${fmtHours(r.hours)} (${mode})\n"${r.description || '—'}"\n\nYeni raporu yaz (ör: "3 saat belge taradım uzaktan")\nveya /iptal ile vazgeç.`)
+      return new Response('OK')
+    }
+
+    // ── Düzenleme state: yeni rapor bilgisi bekle ──
+    if (user.telegram_state?.startsWith('editing:')) {
+      if (text === '/iptal') {
+        await sb.from('profiles').update({ telegram_state: null }).eq('id', uid)
+        await sendTg(chatId, 'Düzenleme iptal edildi.')
+        return new Response('OK')
+      }
+      const reportId = user.telegram_state.slice('editing:'.length)
+      const parsed = parseWorkReport(msg.text || '')
+      if (!parsed) {
+        await sendTg(chatId, 'Anlamadım. Örnek: "3 saat belge taradım uzaktan"\nveya /iptal')
+        return new Response('OK')
+      }
+      const updateData: any = { hours: parsed.hours, description: parsed.desc, edited_at: new Date().toISOString(), is_approved: false }
+      if (parsed.mode) updateData.work_mode = parsed.mode
+      await sb.from('work_reports').update(updateData).eq('id', reportId)
+      await sb.from('profiles').update({ telegram_state: null }).eq('id', uid)
+      await sendTg(chatId, `✅ Güncellendi! ${fmtHours(parsed.hours)} — "${parsed.desc}"\n(Tekrar onay gerekecek)`)
+      return new Response('OK')
+    }
+
     // ── /yardim ──
     if (text === '/yardim' || text === '/help') {
-      await sendTg(chatId, `🏛️ <b>Tarih Vakfı Bot</b>\n\n📝 Rapor gir:\n<i>"bugün 3 saat belge taradım"</i>\n<i>"dün 4.5 saat katalog girişi uzaktan"</i>\n\n📊 /ozet — Çalışma özeti\n🏆 /belgelerim — Belgeler\n❓ /yardim — Bu mesaj`)
+      await sendTg(chatId, `🏛️ <b>Tarih Vakfı Bot</b>\n\n📝 Rapor gir:\n<i>"bugün 3 saat belge taradım"</i>\n<i>"dün 4.5 saat katalog girişi uzaktan"</i>\n\n📋 /raporlarim — Son raporlar\n✏️ /duzenle 1 — Raporu düzenle\n🗑️ /sil 1 — Raporu sil\n📊 /ozet — Çalışma özeti\n🏆 /belgelerim — Belgeler\n❓ /yardim — Bu mesaj`)
       return new Response('OK')
     }
 
@@ -241,7 +316,7 @@ Deno.serve(async (req) => {
     }
 
     // Bilinmeyen mesaj
-    await sendTg(chatId, 'Anlamadım 🤔\n\nÖrnek: <i>"bugün 3 saat belge taradım"</i>\nKomutlar: /ozet, /belgelerim, /yardim')
+    await sendTg(chatId, 'Anlamadım 🤔\n\nÖrnek: <i>"bugün 3 saat belge taradım"</i>\n/raporlarim — listele · /duzenle 1 — düzenle · /sil 1 — sil\n/yardim — tüm komutlar')
 
   } catch (e) {
     console.error('Webhook error:', e)
