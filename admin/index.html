@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Yönetici Paneli</title>
+  <link rel="stylesheet" href="../css/main.css" />
+  <link rel="stylesheet" href="../css/admin.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav">
+      <a class="brand" href="../">
+        <img src="../assets/logo-placeholder.svg" alt="Tarih Vakfı" />
+        <span>Tarih Vakfı</span>
+      </a>
+      <nav class="nav-links">
+        <a href="../auth/">Hesap</a>
+        <a href="../app/">Gönüllü paneli</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container section">
+    <section class="dashboard-grid">
+      <article class="card">
+        <p class="eyebrow">Bekleyen başvurular</p>
+        <div id="pendingUsers" class="stack">
+          <p class="empty">Bekleyen kullanıcı listesi burada görünür.</p>
+        </div>
+      </article>
+
+      <article class="card">
+        <p class="eyebrow">Duyuru oluştur</p>
+        <form id="announcementForm" class="form stack">
+          <label>
+            Başlık
+            <input id="announcementTitle" type="text" required />
+          </label>
+          <label>
+            Hedef kitle
+            <select id="announcementAudience">
+              <option value="all">Tümü</option>
+              <option value="volunteers">Gönüllüler</option>
+              <option value="coordinators">Koordinatörler</option>
+              <option value="department">Belirli departman</option>
+            </select>
+          </label>
+          <label>
+            Departman
+            <input id="announcementDepartment" type="text" placeholder="İsteğe bağlı" />
+          </label>
+          <label>
+            Metin
+            <textarea id="announcementBody" rows="5" required></textarea>
+          </label>
+          <button type="submit" class="btn btn-primary">Duyuru yayınla</button>
+        </form>
+        <p id="announcementMessage" class="status-line muted"></p>
+      </article>
+    </section>
+
+    <section class="dashboard-grid">
+      <article class="card">
+        <p class="eyebrow">Görev oluştur</p>
+        <form id="taskForm" class="form stack">
+          <label>
+            Başlık
+            <input id="taskTitle" type="text" required />
+          </label>
+          <label>
+            Açıklama
+            <textarea id="taskDescription" rows="5" required></textarea>
+          </label>
+          <label>
+            Departman
+            <input id="taskDepartment" type="text" required />
+          </label>
+          <label>
+            Atanan e-posta
+            <input id="taskAssignedToEmail" type="email" />
+          </label>
+          <label>
+            Son tarih
+            <input id="taskDueDate" type="date" />
+          </label>
+          <label>
+            Öncelik
+            <select id="taskPriority">
+              <option value="low">Düşük</option>
+              <option value="medium">Orta</option>
+              <option value="high">Yüksek</option>
+            </select>
+          </label>
+          <button type="submit" class="btn btn-primary">Görev kaydet</button>
+        </form>
+        <p id="taskMessage" class="status-line muted"></p>
+      </article>
+
+      <article class="card">
+        <p class="eyebrow">Raporlar</p>
+        <div id="reportsReviewList" class="stack">
+          <p class="empty">İncelenecek raporlar burada görünür.</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="card">
+      <p class="eyebrow">Kullanıcı dizini</p>
+      <div id="userDirectory" class="stack">
+        <p class="empty">Kullanıcı listesi burada görünür.</p>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="../js/firebase-init.js"></script>
+  <script type="module" src="./admin.js"></script>
+</body>
+</html>

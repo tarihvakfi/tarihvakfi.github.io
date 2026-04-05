@@ -1,0 +1,11 @@
+#pendingUsers .list-card,
+#userDirectory .list-card,
+#reportsReviewList .list-card {
+  display: grid;
+  gap: .65rem;
+}
+.admin-actions {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+}

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gönüllü Paneli</title>
+  <link rel="stylesheet" href="../css/main.css" />
+  <link rel="stylesheet" href="../css/app.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav">
+      <a class="brand" href="../">
+        <img src="../assets/logo-placeholder.svg" alt="Tarih Vakfı" />
+        <span>Tarih Vakfı</span>
+      </a>
+      <nav class="nav-links">
+        <a href="../auth/">Hesap</a>
+        <a href="../admin/">Yönetim</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container section">
+    <section class="dashboard-grid">
+      <article class="card">
+        <p class="eyebrow">Profil</p>
+        <h1>Gönüllü paneli</h1>
+        <div id="profileCard" class="stack">
+          <p class="muted">Giriş yapan kullanıcının profil özeti burada görünür.</p>
+        </div>
+      </article>
+
+      <article class="card">
+        <p class="eyebrow">Duyurular</p>
+        <div id="announcementsList" class="stack">
+          <p class="empty">Henüz duyuru yok.</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="dashboard-grid">
+      <article class="card">
+        <p class="eyebrow">Görevlerim</p>
+        <div id="tasksList" class="stack">
+          <p class="empty">Henüz görev bulunamadı.</p>
+        </div>
+      </article>
+
+      <article class="card">
+        <p class="eyebrow">Faaliyet raporu</p>
+        <form id="reportForm" class="form stack">
+          <label>
+            Görev
+            <input type="text" id="taskId" placeholder="Görev kimliği veya başlığı" />
+          </label>
+          <label>
+            Tarih
+            <input type="date" id="reportDate" required />
+          </label>
+          <label>
+            Saat
+            <input type="number" id="hours" min="0" step="0.5" value="1" required />
+          </label>
+          <label>
+            Özet
+            <textarea id="summary" rows="5" required placeholder="Yapılan işi kısaca yazın"></textarea>
+          </label>
+          <button type="submit" class="btn btn-primary">Rapor gönder</button>
+        </form>
+        <p id="reportMessage" class="status-line muted">Raporlar Firestore içindeki reports koleksiyonuna yazılır.</p>
+      </article>
+    </section>
+
+    <section class="card">
+      <p class="eyebrow">Geçmiş raporlar</p>
+      <div id="reportsList" class="stack">
+        <p class="empty">Henüz rapor bulunmuyor.</p>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="../js/firebase-init.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

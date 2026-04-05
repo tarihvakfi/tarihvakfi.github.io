@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Giriş / Başvuru</title>
+  <link rel="stylesheet" href="../css/main.css" />
+  <link rel="stylesheet" href="../css/auth.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav">
+      <a class="brand" href="../">
+        <img src="../assets/logo-placeholder.svg" alt="Tarih Vakfı" />
+        <span>Tarih Vakfı</span>
+      </a>
+      <nav class="nav-links">
+        <a href="../">Ana sayfa</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container auth-layout">
+    <section class="card">
+      <p class="eyebrow">Adım 1</p>
+      <h1>Google hesabınızla giriş yapın</h1>
+      <p class="muted">İlk girişten sonra sistem sizi profil başvurusu formuna yönlendirir.</p>
+      <button id="googleSignInBtn" class="btn btn-primary">Google ile giriş yap</button>
+      <button id="signOutBtn" class="btn btn-secondary hidden">Çıkış yap</button>
+      <p id="authStatus" class="status-line">Henüz giriş yapılmadı.</p>
+    </section>
+
+    <section class="card">
+      <p class="eyebrow">Adım 2</p>
+      <h2>Başvuru profili</h2>
+      <form id="applicationForm" class="form stack">
+        <label>
+          Ad Soyad
+          <input type="text" id="fullName" required />
+        </label>
+        <label>
+          E-posta
+          <input type="email" id="email" disabled />
+        </label>
+        <label>
+          Telefon
+          <input type="tel" id="phone" placeholder="+90 ..." />
+        </label>
+        <label>
+          Departman
+          <select id="department" required>
+            <option value="">Seçiniz</option>
+            <option>Eğitim</option>
+            <option>Arşiv</option>
+            <option>İletişim</option>
+            <option>Etkinlik</option>
+            <option>Dijital İçerik</option>
+          </select>
+        </label>
+        <label>
+          Kısa not
+          <textarea id="notes" rows="4" placeholder="İlgi alanlarınız, katkı sağlayabileceğiniz alanlar..."></textarea>
+        </label>
+        <button type="submit" class="btn btn-primary">Başvuruyu kaydet</button>
+      </form>
+      <p id="applicationMessage" class="status-line muted">Başvuru kaydı yapıldığında durumunuz varsayılan olarak pending olur.</p>
+    </section>
+
+    <section class="card">
+      <p class="eyebrow">Durum</p>
+      <h2>Yetki ve erişim</h2>
+      <div id="statePanel" class="state-panel">
+        <p>Giriş yaptıktan sonra durumunuz burada görüntülenecek.</p>
+      </div>
+      <div class="actions">
+        <a class="btn btn-secondary" href="../app/">Gönüllü paneli</a>
+        <a class="btn btn-secondary" href="../admin/">Yönetici paneli</a>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="../js/firebase-init.js"></script>
+  <script type="module" src="./auth.js"></script>
+</body>
+</html>

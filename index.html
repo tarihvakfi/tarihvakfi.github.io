@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tarih Vakfı Gönüllü Sistemi</title>
+  <meta name="description" content="Tarih Vakfı için ücretsiz gönüllü takip ve görev yönetim sistemi." />
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./css/main.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav">
+      <a class="brand" href="./">
+        <img src="./assets/logo-placeholder.svg" alt="Tarih Vakfı" />
+        <span>Tarih Vakfı</span>
+      </a>
+      <nav class="nav-links">
+        <a href="#about">Hakkında</a>
+        <a href="#how-it-works">Nasıl Çalışır</a>
+        <a href="#roles">Roller</a>
+        <a class="btn btn-primary" href="./auth/">Giriş / Başvuru</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero container">
+      <div>
+        <p class="eyebrow">Gönüllü takip sistemi</p>
+        <h1>Tarih Vakfı için sade, ücretsiz ve sürdürülebilir gönüllü yönetimi</h1>
+        <p class="lead">
+          Başvuru alın, gönüllüleri onaylayın, görev atayın, çalışma raporlarını toplayın ve haftalık özetleri otomatik üretin.
+        </p>
+        <div class="actions">
+          <a class="btn btn-primary" href="./auth/">Google ile giriş yap</a>
+          <a class="btn btn-secondary" href="#about">Detayları gör</a>
+        </div>
+      </div>
+      <div class="card stack">
+        <h2>Sistem hedefi</h2>
+        <ul class="check-list">
+          <li>Başvuru ve onay akışı</li>
+          <li>Rol bazlı erişim</li>
+          <li>Görev atama ve raporlama</li>
+          <li>Haftalık e-posta özetleri</li>
+          <li>GitHub Pages + Firebase + Apps Script mimarisi</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="about" class="container section">
+      <h2>Neden bu yapı?</h2>
+      <div class="grid-3">
+        <article class="card">
+          <h3>Ücretsiz kalır</h3>
+          <p>GitHub Pages ön yüzü barındırır; Firebase Authentication ve Firestore kullanıcı ile veri tarafını yürütür.</p>
+        </article>
+        <article class="card">
+          <h3>Bakımı kolaydır</h3>
+          <p>Sunucu yönetimi yoktur. Küçük bir ekip tarafından sürdürülebilecek kadar basit tutulmuştur.</p>
+        </article>
+        <article class="card">
+          <h3>Roller nettir</h3>
+          <p>Gönüllü, koordinatör ve yönetici akışları ayrılır; yetki sadece arayüzde değil veri kurallarında da korunur.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="how-it-works" class="container section">
+      <h2>Nasıl çalışır?</h2>
+      <div class="timeline">
+        <div class="timeline-item">
+          <strong>1. Giriş</strong>
+          <p>Kullanıcı Google hesabı ile giriş yapar.</p>
+        </div>
+        <div class="timeline-item">
+          <strong>2. Başvuru</strong>
+          <p>İlk girişte profil ve gönüllülük bilgileri doldurulur.</p>
+        </div>
+        <div class="timeline-item">
+          <strong>3. Onay</strong>
+          <p>Yönetici başvuruyu inceler ve onaylar.</p>
+        </div>
+        <div class="timeline-item">
+          <strong>4. Görev</strong>
+          <p>Koordinatör görev atar, gönüllü rapor gönderir.</p>
+        </div>
+        <div class="timeline-item">
+          <strong>5. Özet</strong>
+          <p>Apps Script haftalık yönetici özetlerini e-posta ile gönderir.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="roles" class="container section">
+      <h2>Roller</h2>
+      <div class="grid-3">
+        <article class="card">
+          <h3>Gönüllü</h3>
+          <p>Kendi görevlerini, duyuruları ve rapor geçmişini görür.</p>
+        </article>
+        <article class="card">
+          <h3>Koordinatör</h3>
+          <p>Kendi departmanındaki gönüllüleri, görevleri ve raporları yönetir.</p>
+        </article>
+        <article class="card">
+          <h3>Yönetici</h3>
+          <p>Tüm departmanları, kullanıcıları ve sistem akışını yönetir.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-row">
+      <p>© Tarih Vakfı – Gönüllü Takip Sistemi</p>
+      <a href="./auth/">Uygulamaya git</a>
+    </div>
+  </footer>
+</body>
+</html>

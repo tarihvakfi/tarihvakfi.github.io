@@ -1,0 +1,114 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function currentUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function currentUserData() {
+      return currentUserDoc().data;
+    }
+
+    function isApproved() {
+      return signedIn() && currentUserDoc().exists() && currentUserData().status == "approved";
+    }
+
+    function isBlocked() {
+      return !signedIn() || !currentUserDoc().exists() || currentUserData().status == "blocked";
+    }
+
+    function isAdmin() {
+      return isApproved() && currentUserData().role == "admin";
+    }
+
+    function isCoordinator() {
+      return isApproved() && currentUserData().role == "coordinator";
+    }
+
+    function isCoordinatorOrAdmin() {
+      return isCoordinator() || isAdmin();
+    }
+
+    function sameDepartment(dept) {
+      return isCoordinatorOrAdmin() && currentUserData().department == dept;
+    }
+
+    match /users/{uid} {
+      allow create: if signedIn() && request.auth.uid == uid;
+      allow read: if signedIn() && (
+        request.auth.uid == uid ||
+        isAdmin() ||
+        (isCoordinator() && resource.data.department == currentUserData().department)
+      );
+
+      allow update: if signedIn() && (
+        request.auth.uid == uid ||
+        isAdmin() ||
+        (isCoordinator() &&
+          resource.data.department == currentUserData().department &&
+          request.resource.data.department == resource.data.department)
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    match /tasks/{taskId} {
+      allow read: if isApproved() && (
+        isAdmin() ||
+        (isCoordinator() && resource.data.department == currentUserData().department) ||
+        resource.data.assignedToUid == request.auth.uid ||
+        resource.data.assignedToEmail == request.auth.token.email
+      );
+
+      allow create: if isCoordinatorOrAdmin() && (
+        isAdmin() || request.resource.data.department == currentUserData().department
+      );
+
+      allow update: if isCoordinatorOrAdmin() && (
+        isAdmin() || resource.data.department == currentUserData().department
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    match /reports/{reportId} {
+      allow create: if isApproved()
+        && request.resource.data.userUid == request.auth.uid
+        && request.resource.data.userEmail == request.auth.token.email;
+
+      allow read: if isApproved() && (
+        isAdmin() ||
+        resource.data.userUid == request.auth.uid ||
+        (isCoordinator() &&
+          get(/databases/$(database)/documents/users/$(resource.data.userUid)).data.department == currentUserData().department)
+      );
+
+      allow update: if isApproved() && (
+        isAdmin() ||
+        resource.data.userUid == request.auth.uid ||
+        (isCoordinator() &&
+          get(/databases/$(database)/documents/users/$(resource.data.userUid)).data.department == currentUserData().department)
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    match /announcements/{announcementId} {
+      allow read: if isApproved();
+      allow create, update: if isCoordinatorOrAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /activityLogs/{logId} {
+      allow read: if isCoordinatorOrAdmin();
+      allow create: if isApproved();
+      allow update, delete: if isAdmin();
+    }
+  }
+}
