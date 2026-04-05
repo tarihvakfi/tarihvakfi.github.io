@@ -115,51 +115,7 @@ export default function Dashboard({session}){
   const [pendingCount,setPendingCount]=useState(0);
   useEffect(()=>{if(!hasSidebar)return;(async()=>{const{data}=await db.getPendingReports();setPendingCount((data||[]).length);})();},[hasSidebar]);
 
-  const SidebarContent=()=>(
-    <div className="flex flex-col h-full">
-      <div className="px-4 pt-5 pb-2 font-semibold text-[15px]">Tarih Vakfı</div>
-
-      {/* Role switcher (admin only) */}
-      {realAdmin&&!managingUser&&(
-        <div className="px-3 pb-3">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#C4C4C4] px-1 mb-1">Görünüm</div>
-          <select value={viewAsRole||'admin'} onChange={e=>switchView(e.target.value==='admin'?null:e.target.value)} className="w-full text-[12px] border border-[#E5E7EB] rounded-[7px] px-2 py-[7px] bg-white text-[#374151] outline-none focus:border-[#059669]">
-            <option value="admin">Yönetici</option>
-            <option value="coord">Koordinatör</option>
-            <option value="vol">Gönüllü</option>
-          </select>
-        </div>
-      )}
-
-      <nav className="flex-1 px-3 space-y-4 overflow-y-auto">
-        {sideNav.map(sec=>(
-          <div key={sec.section}>
-            <div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#C4C4C4] px-3 mb-1">{sec.section}</div>
-            {sec.items.map(item=>(
-              <button key={item.id} onClick={()=>{setPage(item.id);setSideOpen(false);}} className={`w-full text-left px-3 py-[9px] rounded-[7px] text-[13px] transition-all mb-0.5 flex items-center justify-between ${page===item.id?'bg-[#ECFDF5] text-[#059669] font-medium':'text-[#6B7280] hover:bg-[#F3F4F6]'}`}>
-                {item.l}
-                {item.badge&&pendingCount>0&&<span className="text-[10px] px-[7px] py-[1px] rounded-full bg-[#FEF3C7] text-[#92400E] font-semibold">{pendingCount}</span>}
-              </button>
-            ))}
-          </div>
-        ))}
-      </nav>
-
-      {/* Edit mode toggle + user info (admin only, in admin view) */}
-      {realAdmin&&isAdmin&&!managingUser&&(
-        <div className="px-3 pb-4 border-t border-[#F3F4F6] pt-3 mt-2">
-          <label className="flex items-center gap-2 cursor-pointer text-[12px] text-[#6B7280]">
-            <div className={`w-8 h-[18px] rounded-full transition-colors relative ${editMode?'bg-[#059669]':'bg-[#D1D5DB]'}`} onClick={()=>setEditMode(!editMode)}>
-              <div className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white shadow transition-transform ${editMode?'translate-x-[16px]':'translate-x-[2px]'}`}/>
-            </div>
-            Düzenleme modu
-          </label>
-          <div className="mt-3 text-[11px] text-[#9CA3AF]">{me.display_name}</div>
-          <div className="text-[10px] text-[#C4C4C4]">{me.email}</div>
-        </div>
-      )}
-    </div>
-  );
+  // SidebarContent inlined directly in JSX below
 
   return(
     <div className="min-h-screen bg-[#FAFAFA]">
@@ -207,12 +163,12 @@ export default function Dashboard({session}){
 
       <div className="flex" style={{minHeight:'calc(100vh - 56px)'}}>
         {/* ── SIDEBAR (desktop) ── */}
-        {hasSidebar&&<aside className="hidden md:block w-[200px] bg-[#FAFAFA] border-r border-[#F3F4F6] flex-shrink-0"><SidebarContent/></aside>}
+        {hasSidebar&&<aside className="hidden md:block w-[200px] bg-[#FAFAFA] border-r border-[#F3F4F6] flex-shrink-0 p-4"><div className="font-semibold text-[15px] mb-4">Tarih Vakfı</div>{sideNav.map(sec=><div key={sec.section} className="mb-4"><div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#C4C4C4] px-1 mb-1">{sec.section}</div>{sec.items.map(item=><button key={item.id} onClick={()=>{setPage(item.id);setSideOpen(false);}} className={`w-full text-left px-3 py-[9px] rounded-[7px] text-[13px] transition-all mb-0.5 ${page===item.id?'bg-[#ECFDF5] text-[#059669] font-medium':'text-[#6B7280] hover:bg-[#F3F4F6]'}`}>{String(item.l)}</button>)}</div>)}</aside>}
 
         {/* ── SIDEBAR OVERLAY (mobile) ── */}
         {hasSidebar&&sideOpen&&(<>
           <div className="fixed inset-0 bg-black/30 z-[55] md:hidden" onClick={()=>setSideOpen(false)}/>
-          <aside className="fixed top-0 left-0 bottom-0 w-[240px] bg-white z-[56] md:hidden shadow-xl"><SidebarContent/></aside>
+          <aside className="fixed top-0 left-0 bottom-0 w-[240px] bg-white z-[56] md:hidden shadow-xl p-4"><div className="font-semibold text-[15px] mb-4">Tarih Vakfı</div>{sideNav.map(sec=><div key={sec.section} className="mb-4"><div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#C4C4C4] px-1 mb-1">{sec.section}</div>{sec.items.map(item=><button key={item.id} onClick={()=>{setPage(item.id);setSideOpen(false);}} className={`w-full text-left px-3 py-[9px] rounded-[7px] text-[13px] mb-0.5 ${page===item.id?'bg-[#ECFDF5] text-[#059669] font-medium':'text-[#6B7280]'}`}>{String(item.l)}</button>)}</div>)}</aside>
         </>)}
 
         {/* ── CONTENT ── */}
