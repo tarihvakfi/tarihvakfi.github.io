@@ -134,11 +134,12 @@ export default function Home() {
       <section className="py-14 px-4 bg-white">
         <div className="max-w-3xl mx-auto">
           <h2 className="text-2xl font-bold text-center mb-8" style={{fontFamily:"'Playfair Display',serif"}}>Nasıl Gönüllü Olurum?</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { i: '📝', n: '1', t: 'Kayıt Ol', d: 'Google hesabınız veya e-posta ile hızlıca kayıt olun.' },
               { i: '⏳', n: '2', t: 'Onay Bekleyin', d: 'Yönetici hesabınızı inceler ve onaylar.' },
-              { i: '🚀', n: '3', t: 'Başlayın', d: 'Görev alın, saat kaydedin, departman ekibine katılın!' },
+              { i: '🚀', n: '3', t: 'Başlayın', d: 'Görev alın, çalışmanızı raporlayın!' },
+              { i: '📱', n: '4', t: 'Telegram Bağla', d: 'Telefonunuzdan kolayca rapor girin (opsiyonel)' },
             ].map((s, i) => (
               <div key={i} className="bg-stone-50 rounded-2xl p-6 text-center relative">
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-emerald-600 text-white text-sm font-bold flex items-center justify-center">{s.n}</div>

@@ -208,7 +208,14 @@ function ProfileDropdown({ me, uid, onUpdate, onModal, onClose }) {
           {me.telegram_id ? (
             <div className="px-3 py-2 text-sm text-emerald-600">✈️ Telegram bağlı ✓</div>
           ) : tgCode ? (
-            <div className="px-3 py-2"><div className="text-xs text-gray-500 mb-1">Bot'a gönderin:</div><div className="font-mono font-bold text-center bg-gray-50 rounded-lg py-2">/start {tgCode}</div><a href={`https://t.me/tarihvakfi_bot?start=${tgCode}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 block text-center mt-1">veya tıklayın →</a></div>
+            <div className="px-3 py-2 space-y-2">
+              <div className="text-xs text-gray-500">1. Telegram'da <b>@tarihvakfi_bot</b>'u aç</div>
+              <div className="text-xs text-gray-500">2. Bu kodu gönder:</div>
+              <div className="flex items-center gap-2"><div className="flex-1 font-mono font-bold text-center bg-gray-50 rounded-lg py-2 text-lg tracking-widest">{tgCode}</div><button onClick={() => navigator.clipboard.writeText(`/start ${tgCode}`)} className="text-xs bg-gray-100 px-2 py-1.5 rounded-lg">Kopyala</button></div>
+              <a href={`https://t.me/tarihvakfi_bot?start=${tgCode}`} target="_blank" rel="noopener noreferrer" className="block text-center text-xs text-blue-600 font-semibold">veya buraya tıkla →</a>
+              <div className="text-[10px] text-gray-400">Kod 10 dakika geçerlidir.</div>
+              <div className="text-[10px] text-gray-400 pt-1 border-t border-gray-100">Bağlandıktan sonra:<br/>• "bugün 3 saat belge taradım"<br/>• /ozet → çalışma özetin<br/>• /yardim → tüm komutlar</div>
+            </div>
           ) : (
             <button onClick={linkTg} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded-lg">✈️ Telegram Bağla</button>
           )}
@@ -402,6 +409,7 @@ function MyScreen({ uid, me, onModal }) {
             <p>1️⃣ <b>Çalışmanı raporla</b> → saat ve ne yaptığını yaz</p>
             <p>2️⃣ <b>İşlerini takip et</b> → sana atanan işleri gör</p>
             <p>3️⃣ <b>Hepsi bu kadar</b> 😊</p>
+            <p>4️⃣ <b>Telegram bağla</b> → telefonundan rapor gir (opsiyonel)</p>
           </div>
           <button onClick={dismissGuide} className="bg-emerald-600 text-white font-semibold text-sm py-2 px-4 rounded-xl mt-3">Anladım, başlayalım!</button>
         </div>
@@ -1076,7 +1084,8 @@ function HelpContent({ me }) {
     { q: 'İşe bağlı rapor nedir?', a: 'Çalışma raporunda opsiyonel olarak ilgili işi seçebilirsin. Seçmesen de rapor kaydedilir — bağımsız çalışma olur.' },
     { q: 'Bildirimlerimi nasıl görebilirim?', a: 'Sağ üstteki 🔔 ikonuna tıkla. Duyurular ve görev atamaları da popup ile açılır.' },
     { q: 'Profilimi nasıl düzenlerim?', a: 'Sağ üstteki adına tıkla → Profili Düzenle.' },
-    { q: 'Telegram nasıl bağlanır?', a: 'Adına tıkla → Telegram Bağla → kodu bot\'a gönder. Sonra "bugün 3 saat belge taradım" yazarak raporla.' },
+    { q: 'Telegram nasıl bağlanır?', a: 'Sağ üstte adınıza tıklayın → Telegram Bağla → Ekrandaki 6 haneli kodu Telegram\'da @tarihvakfi_bot\'a gönderin → "Hesabın bağlandı!" mesajı gelince hazırsınız.' },
+    { q: 'Telegram\'dan nasıl rapor girerim?', a: '"bugün 3 saat belge taradım" yazın, bot kaydeder. "dün 4 saat katalog girişi" ile geçmiş kayıt. /ozet ile çalışma özetinizi, /yardim ile tüm komutları görün.' },
     { q: 'Belgelerimi nerede görebilirim?', a: 'Adına tıkla → Belgelerim.' },
     { q: 'Sorun bildirmek istiyorum', a: 'Sayfanın altındaki "Sorunun mu var? Mesaj gönder" linkini kullan. Koordinatörüne gider.' },
   ];
