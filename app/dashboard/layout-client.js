@@ -59,7 +59,7 @@ export default function Dashboard({session}){
   const[editMode,setEditMode]=useState(false);
   const[quickReportFor,setQuickReportFor]=useState(null); // vol profile for quick report modal
 
-  useEffect(()=>{(async()=>{const{data}=await db.getProfile(uid);if(data)setMe(data);setUnread(await db.getUnreadCount(uid));setLoading(false);})();},[uid]);
+  useEffect(()=>{(async()=>{const{data}=await db.getProfile(uid);if(data){const{settings,secondary_departments,...safe}=data;setMe(safe);}setUnread(await db.getUnreadCount(uid));setLoading(false);})();},[uid]);
   useEffect(()=>{const sub=db.subscribeNotifications(uid,()=>setUnread(n=>n+1));return()=>sub.unsubscribe();},[uid]);
   useEffect(()=>{if(!me)return;if(me.role==='admin')setPage('genel');else if(me.role==='coord')setPage('calisma');else setPage('ana');},[me?.role]);
 
@@ -278,7 +278,7 @@ function NotifPanel({uid,onClose}){const[items,setItems]=useState([]);useEffect(
 
 function ProfilePanel({me,uid,onUpdate,onModal,onClose}){
   const[editing,setEditing]=useState(false);const[f,setF]=useState({display_name:me.display_name,city:me.city||''});const[tgCode,setTgCode]=useState(null);
-  const save=async()=>{const{data}=await db.updateProfile(uid,f);if(data)onUpdate(data);setEditing(false);};
+  const save=async()=>{const{data}=await db.updateProfile(uid,f);if(data){const{settings,secondary_departments,...safe}=data;onUpdate(safe);}setEditing(false);};
   const linkTg=async()=>{const code=String(Math.floor(100000+Math.random()*900000));await db.updateProfile(uid,{telegram_link_code:code});setTgCode(code);};
   return(<div className="fixed top-14 right-4 z-[55] dropdown-panel w-[220px]">
     <div className="px-4 py-3 border-b border-[#F3F4F6]"><div className="text-[13px] font-medium">{me.display_name}</div><div className="text-[11px] text-[#9CA3AF]">{me.email||ROLES[me.role]}</div></div>
