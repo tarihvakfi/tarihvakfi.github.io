@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tarih Vakfi — Minimal Tasarim (Tum Sayfalar)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#F0F0F0;color:#111827;padding:20px}
+h1{font-size:22px;font-weight:600;text-align:center;margin-bottom:6px}
+.sub-title{text-align:center;color:#6B7280;font-size:13px;margin-bottom:48px}
+
+.page{background:#fff;border-radius:16px;margin-bottom:48px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.05);max-width:900px;margin-left:auto;margin-right:auto}
+.page-label{padding:14px 24px;background:#FAFAFA;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #F3F4F6}
+.page-label h3{font-size:13px;font-weight:600;color:#374151}
+.tag{font-size:10px;padding:3px 10px;border-radius:99px;font-weight:600;letter-spacing:0.02em}
+.t-v{background:#ECFDF5;color:#059669}.t-c{background:#EEF2FF;color:#4F46E5}.t-a{background:#FEF3C7;color:#92400E}.t-all{background:#F3F4F6;color:#6B7280}
+
+.screen{background:#FAFAFA}
+.inner{max-width:440px;margin:0 auto;padding:40px 24px}
+.inner-wide{max-width:680px;margin:0 auto;padding:40px 24px}
+.inner-full{padding:32px 40px}
+
+/* Header */
+.hdr{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;background:#fff;border-bottom:1px solid #F3F4F6}
+.hdr .logo{font-weight:600;font-size:15px;color:#111;cursor:pointer}
+.hdr .right{display:flex;align-items:center;gap:16px;font-size:13px;color:#6B7280}
+.hdr .notif{position:relative;cursor:pointer}
+.hdr .notif-dot{position:absolute;top:-2px;right:-4px;width:6px;height:6px;border-radius:50%;background:#EF4444}
+.hdr .user{cursor:pointer;font-weight:500;color:#374151}
+
+/* Bottom nav */
+.bnav{display:flex;justify-content:center;gap:0;border-top:1px solid #F3F4F6;background:#fff}
+.bnav .ni{flex:1;text-align:center;padding:12px 0;font-size:11px;color:#9CA3AF;cursor:pointer;border-top:2px solid transparent}
+.bnav .ni.ac{color:#059669;border-top-color:#059669;font-weight:500}
+
+/* Typography */
+.greeting{font-size:26px;font-weight:500;letter-spacing:-0.01em}
+.meta{font-size:13px;color:#9CA3AF;margin-top:4px}
+.sec-label{font-size:11px;font-weight:600;letter-spacing:0.06em;color:#9CA3AF;text-transform:uppercase;margin:28px 0 10px}
+.page-title{font-size:22px;font-weight:500;letter-spacing:-0.01em;margin-bottom:6px}
+
+/* Inputs */
+.field{margin-bottom:20px}
+.field label{display:block;font-size:12px;color:#6B7280;margin-bottom:6px;font-weight:500}
+.inp{width:100%;padding:12px 16px;border:1px solid #E5E7EB;border-radius:10px;font-size:14px;font-family:inherit;color:#111;background:#fff;outline:none;transition:border .15s}
+.inp:focus{border-color:#059669}
+.inp-big{font-size:36px;font-weight:600;text-align:center;padding:20px 16px;letter-spacing:-0.02em}
+.inp-area{min-height:80px;resize:vertical}
+.inp::placeholder{color:#C4C4C4}
+
+/* Radio */
+.radio-group{display:flex;gap:24px;font-size:13px;color:#6B7280}
+.radio-group span{display:flex;align-items:center;gap:6px;cursor:pointer}
+.radio{width:18px;height:18px;border-radius:50%;border:2px solid #D1D5DB;display:inline-block;transition:all .15s}
+.radio.on{border-color:#059669;background:radial-gradient(#059669 35%,transparent 40%)}
+
+/* Buttons */
+.btn{display:block;width:100%;padding:14px;background:#059669;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:500;cursor:pointer;text-align:center;font-family:inherit;transition:background .15s}
+.btn:hover{background:#047857}
+.btn-outline{display:inline-block;padding:8px 18px;background:transparent;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;cursor:pointer;color:#374151;font-family:inherit;transition:all .15s}
+.btn-outline:hover{border-color:#059669;color:#059669}
+.btn-sm{padding:6px 14px;font-size:12px;border-radius:6px;border:1px solid #E5E7EB;background:#fff;cursor:pointer;font-family:inherit;color:#374151;transition:all .15s}
+.btn-sm:hover{border-color:#059669;color:#059669}
+.btn-approve{color:#059669;border-color:#D1FAE5}
+.btn-approve:hover{background:#ECFDF5}
+.btn-reject{color:#EF4444;border-color:#FEE2E2}
+.btn-reject:hover{background:#FEF2F2}
+.btn-ghost{background:none;border:none;color:#059669;font-size:13px;cursor:pointer;padding:0;font-family:inherit;font-weight:500}
+.btn-danger{background:#EF4444;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit}
+
+/* Cards/Items */
+.report-item{padding:14px 0;border-bottom:1px solid #F5F5F5;display:flex;align-items:center;gap:14px;cursor:pointer;transition:background .1s}
+.report-item:last-child{border:none}
+.report-item:hover{background:#FAFAFA;margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:8px}
+.status-line{width:3px;height:40px;border-radius:2px;flex-shrink:0}
+.sl-green{background:#059669}.sl-yellow{background:#F59E0B}.sl-red{background:#EF4444}.sl-gray{background:#E5E7EB}
+
+.task-card{padding:16px;border:1px solid #F3F4F6;border-radius:10px;margin-bottom:10px;transition:box-shadow .15s}
+.task-card:hover{box-shadow:0 2px 8px rgba(0,0,0,0.04)}
+.task-name{font-size:14px;font-weight:500;margin-bottom:6px}
+.task-meta{font-size:12px;color:#9CA3AF}
+.progress{width:100%;height:4px;background:#F3F4F6;border-radius:2px;margin-top:8px;overflow:hidden}
+.progress-fill{height:100%;background:#059669;border-radius:2px;transition:width .3s}
+
+.stat-row{display:grid;gap:12px;margin:16px 0}
+.s4{grid-template-columns:repeat(4,1fr)}.s3{grid-template-columns:repeat(3,1fr)}.s2{grid-template-columns:repeat(2,1fr)}
+.stat{padding:16px;border-radius:10px;background:#F9FAFB;text-align:center}
+.stat .n{font-size:30px;font-weight:600;letter-spacing:-0.02em}
+.stat .l{font-size:11px;color:#9CA3AF;margin-top:2px}
+
+/* Avatar */
+.av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0}
+.av-1{background:#DBEAFE;color:#1D4ED8}.av-2{background:#EDE9FE;color:#6D28D9}.av-3{background:#FEE2E2;color:#991B1B}.av-4{background:#D1FAE5;color:#065F46}.av-5{background:#FEF3C7;color:#92400E}
+
+/* Approval card */
+.appr{padding:16px;border:1px solid #F3F4F6;border-radius:10px;margin-bottom:10px;display:flex;align-items:center;gap:14px}
+.appr-info{flex:1}
+.appr-name{font-size:14px;font-weight:500}
+.appr-detail{font-size:12px;color:#9CA3AF;margin-top:2px}
+.appr-actions{display:flex;gap:6px;flex-shrink:0}
+
+/* Bar chart */
+.bar-row{display:flex;align-items:center;gap:10px;margin:8px 0;font-size:13px}
+.bar-label{width:80px;text-align:right;color:#6B7280;flex-shrink:0;font-size:12px}
+.bar-track{flex:1;height:8px;background:#F3F4F6;border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;background:#059669;transition:width .5s}
+.bar-val{width:36px;font-size:12px;color:#9CA3AF}
+
+/* Timeline */
+.tl-item{display:flex;gap:14px;padding:10px 0;font-size:13px}
+.tl-dot{width:8px;height:8px;border-radius:50%;background:#D1D5DB;margin-top:5px;flex-shrink:0}
+.tl-dot.green{background:#059669}.tl-dot.yellow{background:#F59E0B}.tl-dot.red{background:#EF4444}
+.tl-text{color:#6B7280;line-height:1.4}
+.tl-text b{color:#111;font-weight:500}
+.tl-time{font-size:11px;color:#C4C4C4;margin-top:2px}
+
+/* Tabs */
+.tabs{display:flex;gap:0;margin-bottom:24px}
+.tab{padding:10px 20px;font-size:13px;color:#9CA3AF;cursor:pointer;border-bottom:2px solid transparent;font-weight:500;transition:all .15s}
+.tab.ac{color:#059669;border-bottom-color:#059669}
+.tab:hover{color:#374151}
+
+/* Table */
+.tbl{width:100%;font-size:13px;border-collapse:collapse}
+.tbl th{text-align:left;padding:10px 0;font-weight:500;color:#9CA3AF;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid #F3F4F6}
+.tbl td{padding:12px 0;border-bottom:1px solid #F9FAFB;vertical-align:middle}
+.tbl tr:last-child td{border:none}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px}
+
+/* Links */
+.link-row{display:flex;justify-content:center;gap:24px;margin-top:14px;font-size:12px;color:#C4C4C4}
+.link-row span{cursor:pointer;transition:color .15s}
+.link-row span:hover{color:#059669}
+.bottom-link{text-align:center;margin-top:32px;font-size:13px;color:#C4C4C4}
+.bottom-link a{color:#059669;text-decoration:none;font-weight:500}
+
+/* Hero */
+.hero{background:linear-gradient(135deg,#064E3B 0%,#059669 100%);padding:32px;border-radius:12px;color:#fff;margin-bottom:24px}
+.hero .ht{font-size:12px;opacity:.6;text-transform:uppercase;letter-spacing:0.06em}
+.hero .hb{font-size:28px;font-weight:600;margin:6px 0;letter-spacing:-0.02em}
+.hero .hs{font-size:13px;opacity:.75}
+
+/* Dropdown mockups */
+.dropdown{background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:6px 0;box-shadow:0 8px 24px rgba(0,0,0,0.08);width:280px}
+.dd-header{padding:10px 16px;font-size:11px;color:#9CA3AF;font-weight:500;text-transform:uppercase;letter-spacing:0.04em}
+.dd-item{padding:10px 16px;font-size:13px;cursor:pointer;transition:background .1s;display:flex;align-items:center;gap:10px}
+.dd-item:hover{background:#F9FAFB}
+.dd-sep{border-top:1px solid #F3F4F6;margin:4px 0}
+.dd-item .dd-icon{width:18px;text-align:center;color:#9CA3AF;font-size:14px;flex-shrink:0}
+
+/* Two col */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+
+/* Quick actions */
+.qa{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}
+.qa-item{padding:10px 18px;border:1px solid #F3F4F6;border-radius:10px;font-size:13px;color:#6B7280;cursor:pointer;transition:all .15s}
+.qa-item:hover{border-color:#059669;color:#059669}
+
+@media(max-width:640px){
+  .inner{padding:28px 16px}
+  .inner-wide{padding:28px 16px}
+  .stat-row.s4{grid-template-columns:repeat(2,1fr)}
+  .two-col{grid-template-columns:1fr}
+  .hdr{padding:12px 16px}
+}
+</style>
+</head>
+<body>
+
+<h1>Tarih Vakfi — Minimal Tasarim Sistemi</h1>
+<p class="sub-title">Konsept 3 bazli tum sayfalar — temiz, merkezi, nefes alan</p>
+
+<!-- ============================== -->
+<!-- PAGE 1: GONULLU ANA EKRAN -->
+<!-- ============================== -->
+<div class="page">
+<div class="page-label"><h3>1. Gonullu — Ana ekran</h3><span class="tag t-v">Gonullu</span></div>
+<div class="screen">
+<div class="hdr">
+  <span class="logo">Tarih Vakfi</span>
+  <div class="right">
+    <span class="notif">Bildirimler<span class="notif-dot"></span></span>
+    <span class="user">Arif &#9662;</span>
+  </div>
+</div>
+<div class="inner">
+  <div class="greeting">Merhaba, Arif</div>
+  <div class="meta">Bu ay 8 gun, 34 saat calistin</div>
+  
+  <div class="stat-row s2" style="margin:28px 0">
+    <div class="stat"><div class="n">8</div><div class="l">gun</div></div>
+    <div class="stat"><div class="n">34:00</div><div class="l">saat</div></div>
+  </div>
+
+  <div style="margin:32px 0"><div class="btn">Calisma raporu</div></div>
+
+  <div class="sec-label">Atanan islerim</div>
+  <div class="task-card">
+    <div class="task-name">3. Kutu belge tarama</div>
+    <div class="task-meta">Arsiv — Son: 15 Nisan</div>
+    <div class="progress"><div class="progress-fill" style="width:55%"></div></div>
+    <div style="font-size:11px;color:#9CA3AF;margin-top:4px">%55</div>
+  </div>
+
+  <div class="sec-label">Bu hafta</div>
+  <div class="report-item">
+    <div class="status-line sl-yellow"></div>
+    <div><div style="font-size:14px;font-weight:500">5 Nis — 4 saat</div><div style="font-size:12px;color:#9CA3AF">Katalog girisi, uzaktan</div></div>
+    <div style="margin-left:auto;font-size:12px;color:#F59E0B">bekliyor</div>
+  </div>
+  <div class="report-item">
+    <div class="status-line sl-green"></div>
+    <div><div style="font-size:14px;font-weight:500">4 Nis — 3 saat</div><div style="font-size:12px;color:#9CA3AF">Belge tarama, vakifta</div></div>
+    <div style="margin-left:auto;font-size:12px;color:#059669">onayli</div>
+  </div>
+
+  <div class="bottom-link">Sorunun mu var? <a href="#">Iletisim</a></div>
+</div>
+</div></div>
+
+<!-- ============================== -->
+<!-- PAGE 2: CALISMA RAPORU FORMU -->
+<!-- ============================== -->
+<div class="page">
+<div class="page-label"><h3>2. Calisma raporu formu</h3><span class="tag t-v">Gonullu</span></div>
+<div class="screen">
+<div class="hdr">
+  <span class="logo">Tarih Vakfi</span>
+  <div class="right"><span class="user">Arif &#9662;</span></div>
+</div>
+<div class="inner">
+  <div class="page-title">Calisma raporu</div>
+  <div class="meta" style="margin-bottom:28px">Calistigini kaydet</div>
+
+  <div class="field">
+    <label>Sure</label>
+    <input type="text" class="inp inp-big" value="3 saat" readonly>
+  </div>
+
+  <div class="field">
+    <label>Ne yaptin?</label>
+    <textarea class="inp inp-area" placeholder="Belgeleri taradim, siniflandirdim..."></textarea>
+  </div>
+
+  <div class="field">
+    <label>Konum</label>
+    <div class="radio-group">
+      <span><span class="radio on"></span> Vakifta</span>
+      <span><span class="radio"></span> Uzaktan</span>
+    </div>
+  </div>
+
+  <div class="btn" style="margin-top:28px">Kaydet</div>
+  
+  <div class="link-row">
+    <span>Tarih degistir</span>
+    <span>Ilgili is sec</span>
+    <span>Plan ekle</span>
+    <span>Fotograf</span>
+  </div>
+</div>
+</div></div>
+
+<!-- ============================== -->
+<!-- PAGE 3: RAPOR DUZENLEME -->
+<!-- ============================== -->
+<div class="page">
+<div class="page-label"><h3>3. Rapor duzenleme / silme</h3><span class="tag t-v">Gonullu</span></div>
+<div class="screen">
+<div class="hdr">
+  <span class="logo" style="color:#6B7280">&#8592; Geri</span>
+  <div class="right"><span class="user">Arif &#9662;</span></div>
+</div>
+<div class="inner">
+  <div class="page-title">Raporu duzenle</div>
+  <div class="meta" style="margin-bottom:28px">4 Nisan 2026</div>
+
+  <div class="field">
+    <label>Sure</label>
+    <input type="text" class="inp" value="3 saat" readonly style="font-size:18px;font-weight:500;text-align:center">
+  </div>
+
+  <div class="field">
+    <label>Ne yaptin?</label>
+    <textarea class="inp inp-area">Belgeleri taradim ve siniflandirdim</textarea>
+  </div>
+
+  <div class="field">
+    <label>Konum</label>
+    <div class="radio-group">
+      <span><span class="radio on"></span> Vakifta</span>
+      <span><span class="radio"></span> Uzaktan</span>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Sonraki plan</label>
+    <input type="text" class="inp" value="4. kutuya gececegim">
+  </div>
+
+  <div class="btn" style="margin-top:24px">Guncelle</div>
+  <div style="text-align:center;margin-top:16px">
+    <span style="color:#EF4444;font-size:13px;cursor:pointer">Raporu sil</span>
+  </div>
+  <div style="text-align:center;margin-top:8px;font-size:11px;color:#C4C4C4">Onaylanmis rapor duzenlenirse tekrar onay gerekir</div>
+</div>
+</div></div>
+
+<!-- ============================== -->
+<!-- PAGE 4: KOORDINATOR — CALISMAM -->
+<!-- ============================== -->
+<div class="page">
+<div class="page-label"><h3>4. Koordinator — Calismam sekmesi</h3><span class="tag t-c">Koordinator</span></div>
+<div class="screen">
+<div class="hdr">
+  <span class="logo">Tarih Vakfi</span>
+  <div class="right">
+    <span class="notif">Bildirimler</span>
+    <span class="user">Zeynep &#9662;</span>
+  </div>
+</div>
+<div class="inner">
+  <div class="greeting">Merhaba, Zeynep</div>
+  <div class="meta">Arsiv departmani koordinatoru</div>
+  
+  <div class="stat-row s2" style="margin:24px 0">
+    <div class="stat"><div class="n">5</div><div class="l">gun</div></div>
+    <div class="stat"><div class="n">22:00</div><div class="l">saat</div></div>
+  </div>
+
+  <div style="margin:28px 0"><div class="btn">Calisma raporu</div></div>
+
+  <div class="sec-label">Bu hafta raporlarim</div>
+  <div class="report-item">
+    <div class="status-line sl-green"></div>
+    <div><div style="font-size:14px;font-weight:500">5 Nis — 5 saat</div><div style="font-size:12px;color:#9CA3AF">Belge siniflandirma, vakifta</div></div>
+    <div style="margin-left:auto;font-size:12px;color:#059669">onayli</div>
+  </div>
+</div>
+<div class="bnav">
+  <div class="ni ac">Calismam</div>
+  <div class="ni">Departmanim</div>
+</div>
+</div></div>
+
+<!-- ============================== -->
+<!-- PAGE 5: KOORDINATOR — DEPARTMANIM -->
+<!-- ============================== -->
+<div class="page">
+<div class="page-label"><h3>5. Koordinator — Departmanim sekmesi</h3><span class="tag t-c">Koordinator</span></div>
+<div class="screen">
+<div class="hdr">
+  <span class="logo">Tarih Vakfi</span>
+  <div class="right"><span class="user">Zeynep &#9662;</span></div>
+</div>
+<div class="inner-wide">
+  <div class="page-title">Arsiv departmani</div>
+  <div class="meta" style="margin-bottom:24px">6 gonullu aktif, 28 saat bu hafta</div>
+
+  <div class="stat-row s4">
+    <div class="stat"><div class="n" style="font-size:24px;color:#F59E0B">4</div><div class="l">bekleyen</div></div>
+    <div class="stat"><div class="n" style="font-size:24px">6</div><div class="l">gonullu</div></div>
+    <div class="stat"><div class="n" style="font-size:24px">3</div><div class="l">acik is</div></div>
+    <div class="stat"><div class="n" style="font-size:24px">28s</div><div class="l">bu hafta</div></div>
+  </div>
+
+  <div class="tabs" style="margin-top:28px">
+    <div class="tab ac">Onaylar (4)</div>
+    <div class="tab">Gonulluler</div>
+    <div class="tab">Isler</div>
+    <div class="tab">Iletisim</div>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <span style="font-size:14px;font-weight:500;color:#374151">4 rapor bekliyor</span>
+    <button class="btn-ghost">Tumunu onayla &#8594;</button>
+  </div>
+
+  <div class="appr">
+    <div class="av av-1">MY</div>
+    <div class="appr-info"><div class="appr-name">Mehmet Yilmaz</div><div class="appr-detail">3 saat — Belge tarama — Vakifta — 5 Nis</div></div>
+    <div class="appr-actions"><button class="btn-sm btn-approve">Onayla</button><button class="btn-sm btn-reject">Reddet</button></div>
+  </div>
+  <div class="appr">
+    <div class="av av-2">ED</div>
+    <div class="appr-info"><div class="appr-name">Elif Demir</div><div class="appr-detail">4 saat — Katalog girisi — Uzaktan — 4 Nis</div></div>
+    <div class="appr-actions"><button class="btn-sm btn-approve">Onayla</button><button class="btn-sm btn-reject">Reddet</button></div>
+  </div>
+  <div class="appr">
+    <div class="av av-4">AO</div>
+    <div class="appr-info"><div class="appr-name">Ayse Ozturk</div><div class="appr-detail">2 saat — Kutu acma — Vakifta — 4 Nis</div></div>
+    <div class="appr-actions"><button class="btn-sm btn-approve">Onayla</button><button class="btn-sm btn-reject">Reddet</button></div>
+  </div>
+</div>
+<div class="bnav">
+  <div class="ni">Calismam</div>
+  <div class="ni ac">Departmanim</div>
+</div>
+</div></div>
+
+<!-- ============================== -->
+<!-- PAGE 6: YONETICI — GENEL BAKIS -->
+<!-- ============================== -->
+<div class="page">
+<div class="page-label"><h3>6. Yonetici — Genel bakis</h3><span class="tag t-a">Yonetici</span></div>
+<div class="screen">
+<div class="hdr">
+  <span class="logo">Tarih Vakfi</span>
+  <div class="right">
+    <span class="notif">Bildirimler</span>
+    <span class="user">Arif &#9662;</span>
+  </div>
+</div>
+<div class="inner-wide">
+  <div style="color:#9CA3AF;font-size:12px;margin-bottom:4px">5 Nisan 2026, Cumartesi</div>
+  <div class="page-title" style="font-size:24px">Genel bakis</div>
+
+  <div class="stat-row s4" style="margin:28px 0">
+    <div class="stat"><div class="n" style="color:#059669">9</div><div class="l">aktif gonullu</div></div>
+    <div class="stat"><div class="n">42s</div><div class="l">bu hafta saat</div></div>
+    <div class="stat"><div class="n" style="color:#059669">3</div><div class="l">tamamlanan is</div></div>
+    <div class="stat"><div class="n" style="color:#EF4444">1</div><div class="l">gecikmis is</div></div>
+  </div>
+
+  <div class="hero">
+    <div class="ht">Bu hafta ozeti</div>
+    <div class="hb">6 gonullu calisti, 42 saat</div>
+    <div class="hs">Gecen haftaya gore %12 artis &#8593;</div>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <div class="sec-label" style="margin-top:0">Departman aktivitesi</div>
+      <div class="bar-row"><span class="bar-label">Arsiv</span><div class="bar-track"><div class="bar-fill" style="width:72%"></div></div><span class="bar-val">18s</span></div>
+      <div class="bar-row"><span class="bar-label">Dijital</span><div class="bar-track"><div class="bar-fill" style="width:48%"></div></div><span class="bar-val">12s</span></div>
+      <div class="bar-row"><span class="bar-label">Egitim</span><div class="bar-track"><div class="bar-fill" style="width:32%"></div></div><span class="bar-val">8s</span></div>
+      <div class="bar-row"><span class="bar-label">Etkinlik</span><div class="bar-track"><div class="bar-fill" style="width:16%"></div></div><span class="bar-val">4s</span></div>
+
+      <div class="sec-label">Bekleyen islemler</div>
+      <div class="appr" style="padding:12px">
+        <div class="av av-1" style="width:28px;height:28px;font-size:10px">MY</div>
+        <div class="appr-info"><div style="font-size:13px"><b>Mehmet</b> — 3s belge tarama</div></div>
+        <div class="appr-actions"><button class="btn-sm btn-approve" style="font-size:11px">Onayla</button></div>
+      </div>
+      <div class="appr" style="padding:12px">
+        <div class="av av-2" style="width:28px;height:28px;font-size:10px">ED</div>
+        <div class="appr-info"><div style="font-size:13px"><b>Elif</b> — 4s katalog</div></div>
+        <div class="appr-actions"><button class="btn-sm btn-approve" style="font-size:11px">Onayla</button></div>
+      </div>
+      <div style="text-align:right;margin-top:8px"><span class="btn-ghost">Tumunu onayla &#8594;</span></div>
+    </div>
+    <div>
+      <div class="sec-label" style="margin-top:0">Son gelismeler</div>
+      <div class="tl-item"><div class="tl-dot green"></div><div><div class="tl-text"><b>Mehmet</b> rapor girdi — 3 saat</div><div class="tl-time">2 dakika once</div></div></div>
+      <div class="tl-item"><div class="tl-dot"></div><div><div class="tl-text"><b>Elif</b> is guncelledi — Katalog %80</div><div class="tl-time">15 dakika once</div></div></div>
+      <div class="tl-item"><div class="tl-dot"></div><div><div class="tl-text">Yeni kayit: <b>Ahmet Celik</b></div><div class="tl-time">1 saat once</div></div></div>
+      <div class="tl-item"><div class="tl-dot green"></div><div><div class="tl-text"><b>3. Kutu Tarama</b> tamamlandi</div><div class="tl-time">dun</div></div></div>
+
+      <div class="sec-label">Dikkat gerektiren</div>
+      <div style="font-size:13px;margin:8px 0;display:flex;align-items:center;gap:8px"><span class="dot" style="background:#F59E0B"></span>Elif — 5 gundur rapor yok <span class="btn-ghost" style="margin-left:auto;font-size:12px">mesaj &#8594;</span></div>
+      <div style="font-size:13px;margin:8px 0;display:flex;align-items:center;gap:8px"><span class="dot" style="background:#EA580C"></span>Ayse — 18 gundur rapor yok <span class="btn-ghost" style="margin-left:auto;font-size:12px">mesaj &#8594;</span></div>
+    </div>
+  </div>
+
+  <div class="qa">
+    <div class="qa-item">Gonulluler &#8594;</div>
+    <div class="qa-item">Isler &#8594;</div>
+    <div class="qa-item">Duyuru yaz</div>
+    <div class="qa-item">Belge olustur</div>
+  </div>
+</div>
+<div class="bnav">
+  <div class="ni ac">Genel</div>
+  <div class="ni">Raporlar</div>
+</div>
+</div></div>
+
+<!-- ============================== -->
+<!-- PAGE 7: YONETICI — RAPORLAR -->
+<!-- ============================== -->
+<div class="page">
+<div class="page-label"><h3>7. Yonetici — Raporlar sekmesi</h3><span class="tag t-a">Yonetici</span></div>
+<div class="screen">
+<div class="hdr">
+  <span class="logo">Tarih Vakfi</span>
+  <div class="right"><span class="user">Arif &#9662;</span></div>
+</div>
+<div class="inner-wide">
+  <div class="page-title">Raporlar</div>
+  <div class="meta" style="margin-bottom:24px">Donemi sec, rapor otomatik oluşsun</div>
+
+  <div class="stat-row s3">
+    <div class="stat" style="cursor:pointer">Bugun</div>
+    <div class="stat" style="cursor:pointer;outline:2px solid #059669;outline-offset:-2px">Bu hafta</div>
+    <div class="stat" style="cursor:pointer">Bu ay</div>
+  </div>
+
+  <div style="border:1px solid #F3F4F6;border-radius:12px;padding:28px;margin-top:24px">
+    <div style="font-size:12px;color:#9CA3AF">31 Mart — 6 Nisan 2026</div>
+    <div style="font-size:22px;font-weight:600;margin:6px 0 0;letter-spacing:-0.01em">Bu hafta</div>
+    <hr style="border:none;border-top:1px solid #F3F4F6;margin:20px 0">
+    
+    <div class="stat-row s3">
+      <div><div style="font-size:32px;font-weight:600">6</div><div style="font-size:11px;color:#9CA3AF">gonullu</div></div>
+      <div><div style="font-size:32px;font-weight:600">42s</div><div style="font-size:11px;color:#9CA3AF">toplam saat</div></div>
+      <div><div style="font-size:32px;font-weight:600">3</div><div style="font-size:11px;color:#9CA3AF">tamamlanan is</div></div>
+    </div>
+
+    <hr style="border:none;border-top:1px solid #F3F4F6;margin:20px 0">
+    <div class="sec-label" style="margin-top:0">Departmanlar</div>
+    <div class="bar-row"><span class="bar-label">Arsiv</span><div class="bar-track"><div class="bar-fill" style="width:72%"></div></div><span class="bar-val">18s</span></div>
+    <div class="bar-row"><span class="bar-label">Dijital</span><div class="bar-track"><div class="bar-fill" style="width:48%"></div></div><span class="bar-val">12s</span></div>
+    <div class="bar-row"><span class="bar-label">Egitim</span><div class="bar-track"><div class="bar-fill" style="width:32%"></div></div><span class="bar-val">8s</span></div>
+    
+    <hr style="border:none;border-top:1px solid #F3F4F6;margin:20px 0">
+    <div style="display:flex;gap:10px">
+      <button class="btn-outline">PDF &#8595;</button>
+      <button class="btn-outline">Excel &#8595;</button>
+      <button class="btn-outline">Kopyala</button>
+    </div>
+  </div>
+
+  <div style="margin-top:28px;padding:16px;background:#F9FAFB;border-radius:10px;font-size:13px;color:#6B7280">
+    <b style="color:#374151">Yedekleme</b> — Son: 5 Nis 2026, 03:00
+    <div style="margin-top:8px;display:flex;gap:16px">
+      <span class="btn-ghost" style="font-size:12px">Guncelle</span>
+      <span class="btn-ghost" style="font-size:12px">Sheets ac</span>
+      <span class="btn-ghost" style="font-size:12px">CSV indir</span>
+    </div>
+  </div>
+</div>
+<div class="bnav">
+  <div class="ni">Genel</div>
+  <div class="ni ac">Raporlar</div>
+</div>
+</div></div>
+
+<!-- ============================== -->
+<!-- PAGE 8: YONETICI — GONULLULER -->
+<!-- ============================== -->
+<div class="page">
+<div class="page-label"><h3>8. Yonetici — Gonullu yonetimi (tam sayfa)</h3><span class="tag t-a">Yonetici</span></div>
+<div class="screen">
+<div class="hdr">
+  <span class="logo" style="color:#6B7280;cursor:pointer">&#8592; Geri</span>
+  <div class="right"><input type="text" class="inp" style="width:200px;padding:6px 12px;font-size:12px" placeholder="Gonullu ara..."></div>
+</div>
+<div class="inner-wide">
+  <div class="page-title">Gonulluler</div>
+  <div class="meta" style="margin-bottom:24px">9 aktif, 3 pasif</div>
+
+  <table class="tbl">
+    <thead><tr><th>Gonullu</th><th>Departman</th><th>Bu ay</th><th>Toplam</th><th>Durum</th><th>Son aktivite</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><div style="display:flex;align-items:center;gap:8px"><div class="av av-1" style="width:26px;height:26px;font-size:9px">MY</div><span style="font-weight:500">Mehmet Yilmaz</span></div></td>
+        <td>Arsiv</td><td>15s</td><td>48s</td>
+        <td><span class="dot" style="background:#059669"></span>aktif</td>
+        <td style="color:#9CA3AF">bugun</td>
+      </tr>
+      <tr>
+        <td><div style="display:flex;align-items:center;gap:8px"><div class="av av-2" style="width:26px;height:26px;font-size:9px">ED</div><span style="font-weight:500">Elif Demir</span></div></td>
+        <td>Dijital</td><td>12s</td><td>40s</td>
+        <td><span class="dot" style="background:#059669"></span>aktif</td>
+        <td style="color:#9CA3AF">dun</td>
+      </tr>
+      <tr>
+        <td><div style="display:flex;align-items:center;gap:8px"><div class="av av-3" style="width:26px;height:26px;font-size:9px">AO</div><span style="font-weight:500">Ayse Ozturk</span></div></td>
+        <td>Rehber</td><td>0s</td><td>30s</td>
+        <td><span class="dot" style="background:#F59E0B"></span>yavasliyor</td>
+        <td style="color:#9CA3AF">18 gun once</td>
+      </tr>
+      <tr>
+        <td><div style="display:flex;align-items:center;gap:8px"><div class="av av-4" style="width:26px;height:26px;font-size:9px">AC</div><span style="font-weight:500">Ahmet Celik</span></div></td>
+        <td>Etkinlik</td><td>8s</td><td>120s</td>
+        <td><span class="dot" style="background:#059669"></span>aktif</td>
+        <td style="color:#9CA3AF">bugun</td>
+      </tr>
+      <tr>
+        <td><div style="display:flex;align-items:center;gap:8px"><div class="av av-5" style="width:26px;height:26px;font-size:9px">FK</div><span style="font-weight:500">Fatma Kaya</span></div></td>
+        <td>Arsiv</td><td>0s</td><td>60s</td>
+        <td><span class="dot" style="background:#D1D5DB"></span>pasif</td>
+        <td style="color:#9CA3AF">32 gun once</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+</div></div>
+
+<!-- ============================== -->
+<!-- PAGE 9: GIRIS SAYFASI -->
+<!-- ============================== -->
+<div class="page">
+<div class="page-label"><h3>9. Giris sayfasi</h3><span class="tag t-all">Tum roller</span></div>
+<div class="screen">
+<div class="inner" style="padding-top:60px;padding-bottom:60px">
+  <div style="text-align:center;margin-bottom:32px">
+    <div style="font-size:24px;font-weight:600;margin-bottom:4px">Tarih Vakfi</div>
+    <div style="font-size:13px;color:#9CA3AF">Gonullu yonetim sistemi</div>
+  </div>
+
+  <div class="btn" style="background:#4285F4;margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:8px">
+    <span style="font-size:18px;font-weight:700;background:#fff;color:#4285F4;width:24px;height:24px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center">G</span>
+    Google ile devam et
+  </div>
+
+  <div style="text-align:center;font-size:12px;color:#C4C4C4;margin:20px 0">veya</div>
+
+  <div class="field">
+    <label>E-posta</label>
+    <input type="email" class="inp" placeholder="ornek@gmail.com">
+  </div>
+  <div class="field">
+    <label>Sifre</label>
+    <input type="password" class="inp" placeholder="********">
+  </div>
+
+  <div class="btn" style="margin-top:8px">Giris yap</div>
+
+  <div style="text-align:center;margin-top:20px;font-size:13px;color:#9CA3AF">
+    Hesabin yok mu? <span style="color:#059669;cursor:pointer;font-weight:500">Kayit ol</span>
+  </div>
+</div>
+</div></div>
+
+<!-- ============================== -->
+<!-- PAGE 10: BILDIRIM + PROFIL DROPDOWN -->
+<!-- ============================== -->
+<div class="page">
+<div class="page-label"><h3>10. Bildirim ve profil dropdown'lari</h3><span class="tag t-all">Tum roller</span></div>
+<div class="screen" style="min-height:400px">
+<div class="hdr"><span class="logo">Tarih Vakfi</span><div class="right" style="gap:24px"><span class="notif">Bildirimler<span class="notif-dot"></span></span><span class="user">Arif &#9662;</span></div></div>
+<div style="display:flex;justify-content:flex-end;gap:20px;padding:8px 24px">
+  <div class="dropdown">
+    <div class="dd-header">Yeni bildirimler</div>
+    <div class="dd-item" style="background:#FAFFFE"><div class="dd-icon" style="color:#059669">&#10003;</div><div><div style="font-weight:500">Raporun onaylandi</div><div style="font-size:11px;color:#9CA3AF;margin-top:2px">3 saat belge tarama — 2 dk once</div></div></div>
+    <div class="dd-item"><div class="dd-icon">&#9998;</div><div><div style="font-weight:500">Yeni is atandi</div><div style="font-size:11px;color:#9CA3AF;margin-top:2px">4. Kutu tarama — 15 dk once</div></div></div>
+    <div class="dd-sep"></div>
+    <div class="dd-item"><div class="dd-icon">&#128227;</div><div><div style="font-weight:500">Yeni duyuru</div><div style="font-size:11px;color:#9CA3AF;margin-top:2px">23 Nisan etkinligi — 1 saat once</div></div></div>
+  </div>
+  <div class="dropdown" style="width:220px">
+    <div style="padding:12px 16px;border-bottom:1px solid #F3F4F6"><div style="font-size:13px;font-weight:500">Arif Solmaz</div><div style="font-size:11px;color:#9CA3AF">arif@gmail.com</div></div>
+    <div class="dd-item">Hizli rapor</div>
+    <div class="dd-item">Calisma ozeti</div>
+    <div class="dd-sep"></div>
+    <div class="dd-item">Profili duzenle</div>
+    <div class="dd-item">Telegram bagla</div>
+    <div class="dd-item">Belgelerim</div>
+    <div class="dd-item">Yardim</div>
+    <div class="dd-sep"></div>
+    <div class="dd-item" style="color:#EF4444">Cikis</div>
+  </div>
+</div>
+</div></div>
+
+<!-- ============================== -->
+<!-- PAGE 11: ONAY BEKLEME EKRANI -->
+<!-- ============================== -->
+<div class="page">
+<div class="page-label"><h3>11. Onay bekleme / engellenme ekranlari</h3><span class="tag t-all">Tum roller</span></div>
+<div class="screen">
+<div class="inner" style="text-align:center;padding:60px 24px">
+  <div style="width:60px;height:60px;border-radius:50%;background:#FEF3C7;display:inline-flex;align-items:center;justify-content:center;margin-bottom:20px;font-size:24px">&#9203;</div>
+  <div style="font-size:20px;font-weight:500;margin-bottom:8px">Hesabiniz onay bekliyor</div>
+  <div style="font-size:14px;color:#6B7280;max-width:320px;margin:0 auto;line-height:1.6">Kaydınız alindi. Yönetici hesabinizi onayladiginda bildirim alacaksiniz.</div>
+  <div style="margin-top:24px"><button class="btn-outline">Sayfayi yenile</button></div>
+</div>
+</div>
+<div class="screen" style="margin-top:2px">
+<div class="inner" style="text-align:center;padding:60px 24px">
+  <div style="width:60px;height:60px;border-radius:50%;background:#FEE2E2;display:inline-flex;align-items:center;justify-content:center;margin-bottom:20px;font-size:24px">&#10007;</div>
+  <div style="font-size:20px;font-weight:500;margin-bottom:8px">Hesabiniz engellendi</div>
+  <div style="font-size:14px;color:#6B7280;max-width:320px;margin:0 auto;line-height:1.6">Bu hesap yonetici tarafindan engellenmistir. Detay icin vakif ile iletisime gecin.</div>
+</div>
+</div></div>
+
+<!-- ============================== -->
+<!-- PAGE 12: IS OLUSTURMA -->
+<!-- ============================== -->
+<div class="page">
+<div class="page-label"><h3>12. Is olusturma formu</h3><span class="tag t-c">Koordinator / Yonetici</span></div>
+<div class="screen">
+<div class="hdr"><span class="logo" style="color:#6B7280">&#8592; Geri</span><div class="right"><span class="user">Zeynep &#9662;</span></div></div>
+<div class="inner">
+  <div class="page-title">Yeni is</div>
+  <div class="meta" style="margin-bottom:28px">Gonulluye is ata</div>
+
+  <div class="field"><label>Baslik</label><input type="text" class="inp" placeholder="3. Kutu belge tarama"></div>
+  <div class="field"><label>Aciklama</label><textarea class="inp inp-area" placeholder="Yapilacak isin detayi..."></textarea></div>
+  <div class="field"><label>Departman</label>
+    <select class="inp" style="color:#111"><option>Arsiv</option><option>Dijital</option><option>Egitim</option><option>Etkinlik</option></select>
+  </div>
+  <div class="field"><label>Atanan gonullu</label><input type="text" class="inp" placeholder="Isim ara..."></div>
+  <div class="field"><label>Son tarih</label><input type="date" class="inp" style="color:#111"></div>
+  <div class="field"><label>Calisma modu</label>
+    <div class="radio-group"><span><span class="radio on"></span> Ikisi de</span><span><span class="radio"></span> Vakifta</span><span><span class="radio"></span> Uzaktan</span></div>
+  </div>
+
+  <div class="btn" style="margin-top:24px">Olustur</div>
+  <div class="link-row"><span>Malzeme notu ekle</span><span>Haftalik tekrarla</span></div>
+</div>
+</div></div>
+
+</body>
+</html>
