@@ -72,7 +72,7 @@ export default function Dashboard({ session }) {
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <a href="/" className="text-lg font-bold" style={{fontFamily:"'Playfair Display',serif"}}>🏛️ Tarih Vakfı</a>
           <div className="flex items-center gap-2">
-            <button onClick={() => { if (showNotifs) { setShowNotifs(false); } else { setShowNotifs(true); setUnread(0); } }} className="relative w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-sm">
+            <button onClick={() => { setShowNotifs(!showNotifs); if (!showNotifs) setUnread(0); }} className="relative w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-sm">
               🔔{unread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">{unread}</span>}
             </button>
             <button onClick={() => setShowProfile(!showProfile)} className="text-sm font-semibold text-gray-600">{me.display_name?.split(' ')[0]} ▾</button>
@@ -138,7 +138,13 @@ function ModalWrap({ title, children, onClose }) {
 function NotifDropdown({ uid, onClose }) {
   const [notifs, setNotifs] = useState([]);
   const [detail, setDetail] = useState(null);
-  useEffect(() => { db.getNotifications(uid, 15).then(({ data }) => setNotifs(data || [])); db.markAllRead(uid); }, [uid]);
+  useEffect(() => {
+    (async () => {
+      const { data } = await db.getNotifications(uid, 15);
+      setNotifs(data || []);
+      await db.markAllRead(uid);
+    })();
+  }, [uid]);
 
   if (detail) return (
     <div className="fixed top-14 right-2 bg-white rounded-2xl shadow-xl border border-gray-100 w-80 max-h-96 overflow-y-auto z-[55]">
