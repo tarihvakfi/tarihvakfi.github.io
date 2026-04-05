@@ -7,40 +7,39 @@ import { CertificateModal, MyCertificates } from './certificates';
 import ReportBuilder, { ReportArchive } from './reports';
 
 const DEPTS = [
-  { id:'arsiv', l:'Arşiv & Dokümantasyon', i:'📜' },
-  { id:'egitim', l:'Eğitim & Atölye', i:'📚' },
-  { id:'etkinlik', l:'Etkinlik & Organizasyon', i:'🎪' },
-  { id:'dijital', l:'Dijital & Sosyal Medya', i:'💻' },
-  { id:'rehber', l:'Rehberlik & Gezi', i:'🏛️' },
-  { id:'baski', l:'Yayın & Baskı', i:'📰' },
-  { id:'bagis', l:'Bağış & Sponsorluk', i:'💰' },
-  { id:'idari', l:'İdari İşler', i:'🏢' },
+  { id:'arsiv', l:'Arşiv & Dokümantasyon', i:'📜' },{ id:'egitim', l:'Eğitim & Atölye', i:'📚' },
+  { id:'etkinlik', l:'Etkinlik & Organizasyon', i:'🎪' },{ id:'dijital', l:'Dijital & Sosyal Medya', i:'💻' },
+  { id:'rehber', l:'Rehberlik & Gezi', i:'🏛️' },{ id:'baski', l:'Yayın & Baskı', i:'📰' },
+  { id:'bagis', l:'Bağış & Sponsorluk', i:'💰' },{ id:'idari', l:'İdari İşler', i:'🏢' },
 ];
 const DM = Object.fromEntries(DEPTS.map(d=>[d.id,d]));
-const ROLES = { admin:{l:'Yönetici',i:'👑',c:'text-orange-500'}, coord:{l:'Koordinatör',i:'📋',c:'text-purple-500'}, vol:{l:'Gönüllü',i:'🤝',c:'text-emerald-500'} };
+const ROLES = { admin:{l:'Yönetici',i:'👑'}, coord:{l:'Koordinatör',i:'📋'}, vol:{l:'Gönüllü',i:'🤝'} };
 const STATUSES = { pending:'Bekliyor', active:'Devam Ediyor', done:'Tamamlandı', review:'Kontrol Bekliyor' };
-const HOUR_S = { pending:'Bekliyor', approved:'Onaylandı', rejected:'Reddedildi' };
 const DAYS = ['Pzt','Sal','Çar','Per','Cum','Cmt','Paz'];
 const MO = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
 const fd = d => { const x = new Date(d); return `${x.getDate()} ${MO[x.getMonth()]}`; };
 const fdf = d => { const x = new Date(d); return `${x.getDate()} ${MO[x.getMonth()]} ${x.getFullYear()}`; };
 const today = () => new Date().toISOString().slice(0,10);
-const fmtHours = h => { const hrs = Math.floor(h); const mins = Math.round((h - hrs) * 60); return `${hrs}s ${String(mins).padStart(2,'0')}dk`; };
+const fmtH = h => { const hrs = Math.floor(h); const mins = Math.round((h-hrs)*60); return `${hrs}s ${String(mins).padStart(2,'0')}dk`; };
 
-// ─── MAIN SHELL ──────────────────────────
+// ═══════════════════════════════════════════
+// ANA SHELL
+// ═══════════════════════════════════════════
 export default function Dashboard({ session }) {
   const uid = session.user.id;
   const [me, setMe] = useState(null);
   const [tab, setTab] = useState('islerim');
   const [loading, setLoading] = useState(true);
   const [unread, setUnread] = useState(0);
+  const [showNotifs, setShowNotifs] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [modal, setModal] = useState(null); // 'chat','help','certs','summary'
 
   useEffect(() => {
     (async () => {
       const { data } = await db.getProfile(uid);
       if (data) setMe(data);
-      const cnt = await db.getUnreadCount(uid);
-      setUnread(cnt);
+      setUnread(await db.getUnreadCount(uid));
       setLoading(false);
     })();
   }, [uid]);
@@ -50,310 +49,308 @@ export default function Dashboard({ session }) {
     return () => sub.unsubscribe();
   }, [uid]);
 
-  const can = useCallback((perm) => {
-    if (!me) return false;
-    if (me.role === 'admin') return true;
-    if (me.role === 'coord') return ['manage_vols','assign_tasks','approve_hours','announcements','view_reports'].includes(perm);
-    return false;
-  }, [me]);
+  if (loading || !me) return <div className="flex items-center justify-center min-h-screen"><p className="text-gray-400">Yükleniyor...</p></div>;
 
-  if (loading || !me) return (
-    <div className="flex items-center justify-center min-h-screen"><p className="text-gray-400">Yükleniyor...</p></div>
-  );
-
-  // Restricted states
+  // Restricted
   const restricted = ['paused','inactive','resigned','pending','rejected','blocked'].includes(me.status);
+  if (restricted) return <RestrictedShell me={me} uid={uid} />;
 
-  if (restricted) return (
-    <div className="min-h-screen bg-stone-50">
-      <Header me={me} />
-      <div className="max-w-lg mx-auto px-4 pt-12">
-        <RestrictedView me={me} uid={uid} />
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="min-h-screen bg-stone-50 pb-[68px]">
-      <Header me={me} unread={unread} onBell={() => setTab('ben')} />
-      <div className="max-w-2xl mx-auto px-4 pt-3">
-        {tab === 'islerim' && <IslerimView uid={uid} me={me} can={can} />}
-        {tab === 'durum' && <DurumView uid={uid} me={me} can={can} />}
-        {tab === 'mesajlar' && <MesajlarView uid={uid} me={me} can={can} />}
-        {tab === 'ben' && <BenView me={me} uid={uid} unread={unread} setUnread={setUnread} onUpdate={m => setMe(m)} />}
-      </div>
-      {/* Bottom Nav — 4 tabs */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50" style={{height:60}}>
-        <div className="max-w-2xl mx-auto flex h-full">
-          {[['islerim','📋','İşlerim'],['durum','📊','Durum'],['mesajlar','💬','Mesajlar'],['ben','👤','Ben']].map(([id,ic,lb]) => {
-            const active = tab === id;
-            return (
-              <button key={id} onClick={() => setTab(id)} className="flex-1 flex flex-col items-center justify-center gap-0.5 relative">
-                {active && <div className="absolute top-0 left-1/4 right-1/4 h-[3px] bg-emerald-500 rounded-b" />}
-                <span className={`text-xl ${active ? '' : 'grayscale opacity-40'}`}>{ic}</span>
-                <span className={`text-[11px] ${active ? 'font-bold text-emerald-600' : 'text-gray-400'}`}>{lb}</span>
-              </button>
-            );
-          })}
-        </div>
-      </nav>
-    </div>
-  );
-}
-
-// ─── HEADER ──────────────────────────────
-function Header({ me, unread, onBell }) {
-  return (
-    <div className="bg-gradient-to-br from-gray-800 to-gray-900 px-5 pt-5 pb-4 rounded-b-3xl">
-      <div className="max-w-2xl mx-auto flex justify-between items-center">
-        <div>
-          <h1 className="text-white text-xl font-bold" style={{fontFamily:"'Playfair Display',serif"}}>🏛️ Tarih Vakfı</h1>
-          <p className="text-white/40 text-[13px] mt-1">
-            {ROLES[me.role]?.i} {me.display_name} · <span className={ROLES[me.role]?.c}>{ROLES[me.role]?.l}</span>
-            {me.department && ` · ${DM[me.department]?.l}`}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {onBell && (
-            <button onClick={onBell} className="relative w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm hover:bg-white/20">
-              🔔{unread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">{unread}</span>}
-            </button>
-          )}
-          <button onClick={db.signOut} className="text-white/30 hover:text-white/60 text-xs">Çıkış</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── RESTRICTED (pending/blocked/etc) ────
-function RestrictedView({ me, uid }) {
-  const [sent, setSent] = useState(false);
-  const status = me.status;
-  const msgs = {
-    pending: { icon: '⏳', title: 'Kaydınız alındı!', desc: 'Hesabınız yönetici onayı bekliyor. Onaylandığında sisteme erişebileceksiniz.' },
-    rejected: { icon: '❌', title: 'Başvurunuz reddedildi', desc: 'Detay için yöneticiyle iletişime geçin.' },
-    blocked: { icon: '🚫', title: 'Hesabınız engellenmiştir', desc: 'Detay için yöneticiyle iletişime geçin.' },
-    paused: { icon: '⏸️', title: 'Hesabınız duraklatıldı', desc: 'Tekrar aktif olmak için talep gönderin.' },
-    inactive: { icon: '🔒', title: 'Hesabınız pasif', desc: 'Tekrar aktif olmak için talep gönderin.' },
-    resigned: { icon: '👋', title: 'Vakıftan ayrıldınız', desc: 'Profil ve kayıtlarınız arşivde saklanır.' },
-  };
-  const m = msgs[status] || msgs.blocked;
-  const canReactivate = ['paused','inactive'].includes(status);
-
-  const reactivate = async () => {
-    const { data: admins } = await db.getProfilesByRole('admin');
-    for (const a of (admins || [])) {
-      await db.sendNotification(a.id, 'system', `Tekrar aktif olma talebi`, `${me.display_name} tekrar aktif olmak istiyor.`);
-    }
-    setSent(true);
-  };
-
-  return (
-    <div className="text-center space-y-4">
-      <div className="text-5xl">{m.icon}</div>
-      <h2 className="text-xl font-bold text-gray-700">{m.title}</h2>
-      <p className="text-sm text-gray-500">{m.desc}</p>
-      {canReactivate && !sent && <button onClick={reactivate} className="btn-primary">Tekrar Aktif Ol</button>}
-      {sent && <p className="text-sm text-emerald-600">Talebiniz gönderildi!</p>}
-      <button onClick={db.signOut} className="btn-ghost">Çıkış Yap</button>
-    </div>
-  );
-}
-
-// ─── TAB BAR (sayfa içi) ─────────────────
-function TabBar({ tabs, active, onChange }) {
-  return (
-    <div className="flex gap-1.5 mb-4 overflow-x-auto no-scrollbar">
-      {tabs.map(([id, label]) => (
-        <button key={id} onClick={() => onChange(id)}
-          className={`whitespace-nowrap px-4 py-2 rounded-xl text-sm font-semibold transition-all flex-shrink-0 ${active === id ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400'}`}>
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// ═════════════════════════════════════════════
-// 📋 İŞLERİM
-// ═════════════════════════════════════════════
-function IslerimView({ uid, me, can }) {
-  const isCoord = can('assign_tasks');
+  const isCoord = me.role === 'coord' || me.role === 'admin';
   const isAdmin = me.role === 'admin';
 
+  // Gönüllü: 0 sekme, Koordinatör: 2, Admin: 3
   const tabs = isAdmin
-    ? [['mine','Benim'],['approvals','Onaylar'],['all','Tüm İşler'],['vols','Gönüllüler'],['shifts','Vardiya']]
+    ? [['islerim','📋','İşlerim'],['yonetim','👥','Yönetim'],['raporlar','📊','Raporlar']]
     : isCoord
-    ? [['mine','Benim'],['approvals','Onaylar'],['all','Tüm İşler']]
+    ? [['islerim','📋','İşlerim'],['takimim','👥','Takımım']]
     : [];
 
-  const [subTab, setSubTab] = useState('mine');
-
-  if (!isCoord) return <MyWorkView uid={uid} me={me} />;
-
   return (
-    <div>
-      <TabBar tabs={tabs} active={subTab} onChange={setSubTab} />
-      {subTab === 'mine' && <MyWorkView uid={uid} me={me} />}
-      {subTab === 'approvals' && <ApprovalsView uid={uid} me={me} />}
-      {subTab === 'all' && <AllTasksView uid={uid} me={me} can={can} />}
-      {subTab === 'vols' && isAdmin && <VolunteersView uid={uid} me={me} />}
-      {subTab === 'shifts' && isAdmin && <ShiftPlanView uid={uid} me={me} />}
+    <div className={`min-h-screen bg-white ${tabs.length ? 'pb-16' : ''}`}>
+      {/* Header */}
+      <header className="bg-white border-b border-gray-100 px-4 py-3 sticky top-0 z-50">
+        <div className="max-w-2xl mx-auto flex items-center justify-between">
+          <span className="text-lg font-bold" style={{fontFamily:"'Playfair Display',serif"}}>🏛️ Tarih Vakfı</span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowNotifs(!showNotifs)} className="relative w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-sm">
+              🔔{unread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">{unread}</span>}
+            </button>
+            <button onClick={() => setShowProfile(!showProfile)} className="text-sm font-semibold text-gray-600">{me.display_name?.split(' ')[0]} ▾</button>
+          </div>
+        </div>
+      </header>
+
+      {/* Notification dropdown */}
+      {showNotifs && <NotifDropdown uid={uid} onClose={() => { setShowNotifs(false); setUnread(0); }} />}
+
+      {/* Profile dropdown */}
+      {showProfile && <ProfileDropdown me={me} uid={uid} onUpdate={m => setMe(m)} onModal={setModal} onClose={() => setShowProfile(false)} />}
+
+      {/* Modals */}
+      {modal === 'chat' && <ModalWrap title="💬 Sohbet" onClose={() => setModal(null)}><ChatSection uid={uid} me={me} /></ModalWrap>}
+      {modal === 'certs' && <ModalWrap title="🏆 Belgelerim" onClose={() => setModal(null)}><MyCertificates uid={uid} me={me} /></ModalWrap>}
+      {modal === 'summary' && <ModalWrap title="📊 Çalışma Özeti" onClose={() => setModal(null)}><WorkSummaryModal uid={uid} /></ModalWrap>}
+      {modal === 'help' && <ModalWrap title="❓ Yardım" onClose={() => setModal(null)}><HelpContent me={me} /></ModalWrap>}
+
+      {/* Content */}
+      <main className="max-w-2xl mx-auto px-4 py-4">
+        {tab === 'islerim' && <MyScreen uid={uid} me={me} onModal={setModal} />}
+        {tab === 'takimim' && isCoord && <TeamScreen uid={uid} me={me} />}
+        {tab === 'yonetim' && isAdmin && <AdminScreen uid={uid} me={me} />}
+        {tab === 'raporlar' && isAdmin && <ReportsScreen uid={uid} />}
+      </main>
+
+      {/* Bottom nav — only coord/admin */}
+      {tabs.length > 0 && (
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50" style={{height:56}}>
+          <div className="max-w-2xl mx-auto flex h-full">
+            {tabs.map(([id,ic,lb]) => (
+              <button key={id} onClick={() => setTab(id)} className="flex-1 flex flex-col items-center justify-center gap-0.5">
+                {tab === id && <div className="absolute top-0 left-1/4 right-1/4 h-[3px] bg-emerald-500 rounded-b" style={{position:'relative',width:'50%',margin:'0 auto'}} />}
+                <span className={`text-lg ${tab === id ? '' : 'grayscale opacity-40'}`}>{ic}</span>
+                <span className={`text-[11px] ${tab === id ? 'font-bold text-emerald-600' : 'text-gray-400'}`}>{lb}</span>
+              </button>
+            ))}
+          </div>
+        </nav>
+      )}
     </div>
   );
 }
 
-// ── Çalışma Raporu + İşler + Geçmiş ──
-function MyWorkView({ uid, me }) {
+// ═══════════════════════════════════════════
+// SHARED COMPONENTS
+// ═══════════════════════════════════════════
+function ModalWrap({ title, children, onClose }) {
+  return (
+    <div className="fixed inset-0 bg-black/50 z-[60] flex items-end sm:items-center justify-center" onClick={onClose}>
+      <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="sticky top-0 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
+          <span className="font-bold">{title}</span>
+          <button onClick={onClose} className="text-gray-400 text-lg">✕</button>
+        </div>
+        <div className="p-4">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function NotifDropdown({ uid, onClose }) {
+  const [notifs, setNotifs] = useState([]);
+  useEffect(() => { db.getNotifications(uid, 10).then(({ data }) => setNotifs(data || [])); db.markAllRead(uid); }, [uid]);
+  return (
+    <div className="fixed top-14 right-2 bg-white rounded-2xl shadow-xl border border-gray-100 w-80 max-h-80 overflow-y-auto z-[55]">
+      <div className="p-3 border-b border-gray-50 font-bold text-sm">🔔 Bildirimler</div>
+      {notifs.map(n => (
+        <div key={n.id} className={`px-3 py-2 border-b border-gray-50 ${!n.is_read ? 'bg-emerald-50/50' : ''}`}>
+          <div className="text-sm font-semibold">{n.title}</div>
+          {n.body && <div className="text-xs text-gray-400">{n.body}</div>}
+          <div className="text-[10px] text-gray-300 mt-0.5">{fd(n.created_at)}</div>
+        </div>
+      ))}
+      {notifs.length === 0 && <div className="p-4 text-center text-sm text-gray-400">Bildirim yok</div>}
+      <button onClick={onClose} className="w-full py-2 text-xs text-gray-400 border-t border-gray-50">Kapat</button>
+    </div>
+  );
+}
+
+function ProfileDropdown({ me, uid, onUpdate, onModal, onClose }) {
+  const [editing, setEditing] = useState(false);
+  const [f, setF] = useState({ display_name: me.display_name, city: me.city||'', bio: me.bio||'' });
+  const [tgCode, setTgCode] = useState(null);
+  const save = async () => { const { data } = await db.updateProfile(uid, f); if (data) onUpdate(data); setEditing(false); };
+  const linkTg = async () => { const code = String(Math.floor(100000 + Math.random() * 900000)); await db.updateProfile(uid, { telegram_link_code: code }); setTgCode(code); };
+
+  return (
+    <div className="fixed top-14 right-2 bg-white rounded-2xl shadow-xl border border-gray-100 w-72 z-[55]">
+      <div className="p-4 text-center border-b border-gray-50">
+        <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-xl font-bold text-emerald-600 mx-auto mb-1">{(me.display_name||'?')[0]}</div>
+        <div className="font-bold">{me.display_name}</div>
+        <div className="text-xs text-gray-400">{ROLES[me.role]?.i} {ROLES[me.role]?.l} · {DM[me.department]?.l || '—'}</div>
+      </div>
+      {!editing ? (
+        <div className="p-2">
+          <button onClick={() => setEditing(true)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded-lg">✏️ Profili Düzenle</button>
+          {me.telegram_id ? (
+            <div className="px-3 py-2 text-sm text-emerald-600">✈️ Telegram bağlı ✓</div>
+          ) : tgCode ? (
+            <div className="px-3 py-2"><div className="text-xs text-gray-500 mb-1">Bot'a gönderin:</div><div className="font-mono font-bold text-center bg-gray-50 rounded-lg py-2">/start {tgCode}</div><a href={`https://t.me/tarihvakfi_bot?start=${tgCode}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 block text-center mt-1">veya tıklayın →</a></div>
+          ) : (
+            <button onClick={linkTg} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded-lg">✈️ Telegram Bağla</button>
+          )}
+          <button onClick={() => { onModal('summary'); onClose(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded-lg">📊 Çalışma Özeti</button>
+          <button onClick={() => { onModal('certs'); onClose(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded-lg">🏆 Belgelerim</button>
+          <button onClick={() => { onModal('help'); onClose(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded-lg">❓ Yardım</button>
+          <div className="border-t border-gray-50 mt-1 pt-1">
+            <button onClick={db.signOut} className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-gray-50 rounded-lg">Çıkış</button>
+          </div>
+        </div>
+      ) : (
+        <div className="p-3 space-y-2">
+          <input className="w-full border rounded-xl px-3 py-2 text-sm" placeholder="İsim" value={f.display_name} onChange={e => setF({...f, display_name: e.target.value})} />
+          <input className="w-full border rounded-xl px-3 py-2 text-sm" placeholder="Şehir" value={f.city} onChange={e => setF({...f, city: e.target.value})} />
+          <div className="flex gap-2">
+            <button onClick={save} className="flex-1 bg-emerald-600 text-white text-sm font-semibold py-2 rounded-xl">Kaydet</button>
+            <button onClick={() => setEditing(false)} className="text-sm text-gray-400 px-3">İptal</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WorkSummaryModal({ uid }) {
+  const [s, setS] = useState(null);
+  useEffect(() => { db.getWorkSummary(uid).then(({ data }) => setS(data)); }, [uid]);
+  if (!s) return <p className="text-sm text-gray-400">Yükleniyor...</p>;
+  return (
+    <table className="w-full text-sm">
+      <tbody>
+        <tr className="border-b"><td className="py-2 text-gray-500">Bu Hafta</td><td className="py-2 font-semibold text-right">{s.week_days} rapor · {fmtH(Number(s.week_hours))}</td></tr>
+        <tr className="border-b"><td className="py-2 text-gray-500">Bu Ay</td><td className="py-2 font-semibold text-right">{s.month_days} rapor · {fmtH(Number(s.month_hours))}</td></tr>
+        <tr className="border-b"><td className="py-2 text-gray-500">Toplam</td><td className="py-2 font-bold text-emerald-600 text-right">{s.total_days} rapor · {fmtH(Number(s.total_hours))}</td></tr>
+        {(Number(s.onsite_hours)>0 || Number(s.remote_hours)>0) && <>
+          <tr className="border-b"><td className="py-2 text-gray-400 text-xs">🏛️ Vakıfta</td><td className="py-2 text-xs text-right">{fmtH(Number(s.onsite_hours))}</td></tr>
+          <tr><td className="py-2 text-gray-400 text-xs">🏠 Uzaktan</td><td className="py-2 text-xs text-right">{fmtH(Number(s.remote_hours))}</td></tr>
+        </>}
+      </tbody>
+    </table>
+  );
+}
+
+// ═══════════════════════════════════════════
+// 📋 İŞLERİM (herkes — tek ekran)
+// ═══════════════════════════════════════════
+function MyScreen({ uid, me, onModal }) {
   const [showForm, setShowForm] = useState(false);
-  const [editReport, setEditReport] = useState(null);
-  const [f, setF] = useState({ date: today(), h: '', m: '0', mode: 'onsite', desc: '', plan: '' });
+  const [editR, setEditR] = useState(null);
+  const [f, setF] = useState({ h: '', desc: '', mode: 'onsite', date: today(), plan: '' });
+  const [showExtra, setShowExtra] = useState(false);
   const [reports, setReports] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [expandTask, setExpandTask] = useState(null);
   const [progVal, setProgVal] = useState(0);
   const [progNote, setProgNote] = useState('');
   const [summary, setSummary] = useState(null);
+  const [anns, setAnns] = useState([]);
   const [shifts, setShifts] = useState([]);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    const [r, t, sh, ws] = await Promise.all([
-      db.getWeekReports(uid),
-      db.getTasks({ assignedTo: uid }),
-      db.getShifts({ volunteerId: uid }),
-      db.getWorkSummary(uid),
+    const [r, t, ws, a, sh] = await Promise.all([
+      db.getWeekReports(uid), db.getTasks({ assignedTo: uid }),
+      db.getWorkSummary(uid), db.getAnnouncements(), db.getShifts({ volunteerId: uid }),
     ]);
     setReports(r.data || []);
-    setTasks((t.data || []).filter(t => t.status !== 'done' && t.status !== 'cancelled'));
-    setShifts(sh.data || []);
+    setTasks((t.data || []).filter(t => !['done','cancelled'].includes(t.status)));
     setSummary(ws.data);
-  }, [uid]);
+    setAnns((a.data || []).filter(a => a.is_pinned || !a.department || a.department === me.department).slice(0, 3));
+    setShifts(sh.data || []);
+  }, [uid, me.department]);
   useEffect(() => { load(); }, [load]);
 
-  const resetForm = () => setF({ date: today(), h: '', m: '0', mode: 'onsite', desc: '', plan: '' });
+  const resetForm = () => setF({ h: '', desc: '', mode: 'onsite', date: today(), plan: '' });
 
   const submit = async () => {
-    const hours = Number(f.h || 0) + Number(f.m || 0) / 60;
-    if (hours <= 0 || !f.desc.trim()) return;
+    const hours = parseFloat(f.h);
+    if (!hours || !f.desc.trim()) return;
     setSaving(true);
-    if (editReport) {
-      const updates = { date: f.date, hours, work_mode: f.mode, description: f.desc, next_plan: f.plan };
-      if (editReport.status === 'approved') updates.status = 'pending';
-      await db.updateWorkReport(editReport.id, updates);
+    if (editR) {
+      const upd = { hours, work_mode: f.mode, description: f.desc, next_plan: f.plan, date: f.date };
+      if (editR.status === 'approved') upd.status = 'pending';
+      await db.updateWorkReport(editR.id, upd);
     } else {
       await db.createWorkReport({ user_id: uid, date: f.date, hours, work_mode: f.mode, description: f.desc, next_plan: f.plan, source: 'web' });
     }
-    setShowForm(false); setEditReport(null); resetForm(); setSaving(false); load();
+    setShowForm(false); setEditR(null); resetForm(); setSaving(false); load();
   };
 
-  const del = async (id) => { await db.deleteWorkReport(id); load(); };
-
   const startEdit = (r) => {
-    const h = Math.floor(r.hours); const m = Math.round((r.hours - h) * 60);
-    setF({ date: r.date, h: String(h), m: String(m), mode: r.work_mode || 'onsite', desc: r.description || '', plan: r.next_plan || '' });
-    setEditReport(r); setShowForm(true);
+    setF({ h: String(r.hours), desc: r.description||'', mode: r.work_mode||'onsite', date: r.date, plan: r.next_plan||'' });
+    setEditR(r); setShowForm(true); setShowExtra(!!r.next_plan);
   };
 
   const updateProgress = async (task) => {
     if (!progNote.trim()) return;
     setSaving(true);
-    await db.addProgressLog({ task_id: task.id, user_id: uid, previous_value: task.progress || 0, new_value: progVal, note: progNote });
+    await db.addProgressLog({ task_id: task.id, user_id: uid, previous_value: task.progress||0, new_value: progVal, note: progNote });
     await db.updateTaskProgress(task.id, progVal);
-    if (task.assigned_to) {
-      for (const vid of task.assigned_to) {
-        if (vid !== uid) await db.sendNotification(vid, 'task', `📊 ${task.title}: %${progVal}`, `${me.display_name}: ${progNote}`);
-      }
-    }
     setProgNote(''); setExpandTask(null); setSaving(false); load();
   };
 
-  const todayDay = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
-  const weekTotal = reports.reduce((a, r) => a + Number(r.hours || 0), 0);
-  const maxDate = today();
-  const minDate = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+  const weekTotal = reports.reduce((a, r) => a + Number(r.hours||0), 0);
+  const todayDay = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay()-1];
 
   return (
-    <div className="space-y-5">
-      {/* ═══ ÇALIŞMA RAPORLA ═══ */}
-      {!showForm ? (
-        <button onClick={() => { resetForm(); setEditReport(null); setShowForm(true); }} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-lg py-4 rounded-2xl w-full transition-all active:scale-[0.97] shadow-lg shadow-emerald-500/20">
-          📝 Çalışma Raporla
-        </button>
-      ) : (
-        <div className="card border-l-4 border-emerald-400 space-y-3">
-          <div className="flex justify-between items-center">
-            <h3 className="font-bold">{editReport ? '✏️ Raporu Düzenle' : '📝 Çalışma Raporu'}</h3>
-            <button onClick={() => { setShowForm(false); setEditReport(null); }} className="text-gray-400">✕</button>
-          </div>
-          <input type="date" className="input-field" min={minDate} max={maxDate} value={f.date} onChange={e => setF({...f, date: e.target.value})} disabled={!!editReport} />
-          <div className="flex gap-2 items-end">
-            <div className="flex-1"><label className="text-xs text-gray-500">Saat</label><input type="number" min="0" max="12" className="input-field" placeholder="3" value={f.h} onChange={e => setF({...f, h: e.target.value})} /></div>
-            <div className="flex-1"><label className="text-xs text-gray-500">Dakika</label><select className="input-field" value={f.m} onChange={e => setF({...f, m: e.target.value})}><option value="0">0</option><option value="15">15</option><option value="30">30</option><option value="45">45</option></select></div>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={() => setF({...f, mode:'onsite'})} className={`flex-1 py-2.5 rounded-xl font-semibold text-sm transition-all ${f.mode==='onsite' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-400'}`}>🏛️ Vakıfta</button>
-            <button onClick={() => setF({...f, mode:'remote'})} className={`flex-1 py-2.5 rounded-xl font-semibold text-sm transition-all ${f.mode==='remote' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}>🏠 Uzaktan</button>
-          </div>
-          <div><label className="text-sm font-semibold text-gray-700">Ne yaptım? *</label><input className="input-field mt-1" placeholder="Örn: 3. kutudaki belgeleri taradım" value={f.desc} onChange={e => setF({...f, desc: e.target.value})} /></div>
-          <div><label className="text-sm font-semibold text-gray-700">Sonraki planım</label><input className="input-field mt-1" placeholder="Örn: 4. kutuya geçeceğim" value={f.plan} onChange={e => setF({...f, plan: e.target.value})} /></div>
-          <button onClick={submit} disabled={saving || !f.desc.trim() || !f.h} className="btn-primary w-full !py-3 disabled:opacity-50">{saving ? '...' : editReport ? '✓ Güncelle' : '✓ Kaydet'}</button>
-          {editReport?.status === 'approved' && <p className="text-xs text-amber-500">⚠️ Onaylanmış rapor düzenlenince tekrar onay gerekir.</p>}
-        </div>
-      )}
-
-      {/* ═══ MİNİ ÖZET ═══ */}
-      {summary && (summary.week_days > 0 || summary.month_days > 0) && (
-        <div className="card !py-3 text-center text-sm text-gray-600">
-          Bu hafta <b className="text-emerald-600">{summary.week_days} rapor</b>, <b className="text-emerald-600">{fmtHours(Number(summary.week_hours))}</b> çalıştın 💪
-        </div>
-      )}
-
-      {/* ═══ BU HAFTA RAPORLARIM ═══ */}
+    <div className="space-y-6">
+      {/* Selamlama + Özet */}
       <div>
-        <h2 className="text-lg font-bold mb-3">📅 Bu Hafta — {reports.length} rapor, {fmtHours(weekTotal)}</h2>
-        {reports.map(r => (
-          <div key={r.id} className={`card mb-2 !py-3 cursor-pointer hover:shadow-md transition-shadow ${r.edited_at ? 'border-l-4 border-amber-300' : ''}`} onClick={() => startEdit(r)}>
-            <div className="flex items-center gap-3">
-              <span className="text-sm">{r.work_mode === 'remote' ? '🏠' : '🏛️'}</span>
-              <div className="flex-1">
-                <div className="text-sm font-semibold">{fd(r.date)} · {fmtHours(r.hours)} {r.edited_at && <span className="text-xs text-amber-500">✏️</span>} {r.source === 'telegram' && <span className="text-xs">✈️</span>}</div>
-                <div className="text-xs text-gray-400">{r.description || '—'}</div>
-              </div>
-              <span className={`text-xs font-semibold ${r.status === 'approved' ? 'text-emerald-600' : r.status === 'rejected' ? 'text-red-500' : 'text-amber-500'}`}>{r.status === 'approved' ? '✅' : r.status === 'rejected' ? '❌' : '⏳'}</span>
-            </div>
-            {r.status === 'pending' && <button onClick={(e) => { e.stopPropagation(); del(r.id); }} className="text-xs text-red-400 mt-1">🗑️ Sil</button>}
-          </div>
-        ))}
-        {reports.length === 0 && <div className="card text-center py-4"><p className="text-sm text-gray-400">Bu hafta rapor yok</p></div>}
+        <h1 className="text-xl font-bold">Merhaba {me.display_name?.split(' ')[0]} 👋</h1>
+        {summary && <p className="text-sm text-gray-500 mt-1">Bu ay: <b>{summary.month_days} gün</b>, <b>{fmtH(Number(summary.month_hours))}</b> çalıştın</p>}
       </div>
 
-      {/* ═══ AKTİF İŞLERİM ═══ */}
+      {/* Raporla Butonu / Form */}
+      {!showForm ? (
+        <button onClick={() => { resetForm(); setEditR(null); setShowForm(true); setShowExtra(false); }} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-lg py-4 rounded-2xl w-full transition-all active:scale-[0.97]">
+          📝 Çalışmamı Raporla
+        </button>
+      ) : (
+        <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="font-bold">{editR ? '✏️ Düzenle' : '📝 Çalışmamı Raporla'}</span>
+            <button onClick={() => { setShowForm(false); setEditR(null); }} className="text-gray-400">✕</button>
+          </div>
+          {/* Saat */}
+          <div>
+            <label className="text-sm text-gray-500">⏱️ Kaç saat?</label>
+            <input type="number" step="0.5" min="0.5" max="12" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-lg font-bold mt-1 outline-none focus:border-emerald-500" placeholder="3" value={f.h} onChange={e => setF({...f, h: e.target.value})} />
+          </div>
+          {/* Açıklama */}
+          <div>
+            <label className="text-sm text-gray-500">📝 Ne yaptım?</label>
+            <input className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm mt-1 outline-none focus:border-emerald-500" placeholder="3. kutudaki belgeleri taradım" value={f.desc} onChange={e => setF({...f, desc: e.target.value})} />
+          </div>
+          {/* Nerede */}
+          <div className="flex gap-2">
+            <button onClick={() => setF({...f, mode:'onsite'})} className={`flex-1 py-2.5 rounded-xl text-sm font-semibold ${f.mode==='onsite' ? 'bg-emerald-600 text-white' : 'bg-white border border-gray-200 text-gray-400'}`}>🏛️ Vakıfta</button>
+            <button onClick={() => setF({...f, mode:'remote'})} className={`flex-1 py-2.5 rounded-xl text-sm font-semibold ${f.mode==='remote' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-400'}`}>🏠 Uzaktan</button>
+          </div>
+          {/* Kaydet */}
+          <button onClick={submit} disabled={saving || !f.h || !f.desc.trim()} className="bg-emerald-600 text-white font-bold py-3 rounded-xl w-full disabled:opacity-50">{saving ? '...' : '✓ Kaydet'}</button>
+          {/* Ekstra (küçük linkler) */}
+          {!showExtra && (
+            <div className="flex gap-4 text-xs text-gray-400">
+              <button onClick={() => setShowExtra(true)}>📅 Tarih değiştir</button>
+              <button onClick={() => setShowExtra(true)}>📌 Plan ekle</button>
+            </div>
+          )}
+          {showExtra && (
+            <div className="space-y-2 pt-2 border-t border-gray-200">
+              <div className="flex gap-2 items-center"><span className="text-xs text-gray-400 w-12">📅</span><input type="date" className="flex-1 border rounded-xl px-3 py-2 text-sm" value={f.date} onChange={e => setF({...f, date: e.target.value})} /></div>
+              <div className="flex gap-2 items-center"><span className="text-xs text-gray-400 w-12">📌</span><input className="flex-1 border rounded-xl px-3 py-2 text-sm" placeholder="Sonraki planım" value={f.plan} onChange={e => setF({...f, plan: e.target.value})} /></div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* İşlerim */}
       {tasks.length > 0 && (
         <div>
-          <h2 className="text-lg font-bold mb-3">📋 Aktif İşlerim</h2>
+          <h2 className="font-bold mb-2">📋 İşlerim</h2>
           {tasks.map(t => {
-            const overdue = t.deadline && new Date(t.deadline) < new Date();
             const expanded = expandTask === t.id;
             return (
-              <div key={t.id} className={`card mb-3 ${overdue ? 'border-l-4 border-red-400' : ''}`}>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1"><div className="font-bold">{t.title}</div><div className="text-sm text-gray-400">{DM[t.department]?.i}{t.deadline && ` · ${fd(t.deadline)}`}{overdue && ' ⚠️'}</div></div>
-                  <span className={`text-sm font-bold ${(t.progress||0) >= 80 ? 'text-emerald-600' : 'text-gray-400'}`}>{Math.round(t.progress||0)}%</span>
+              <div key={t.id} className="bg-gray-50 rounded-xl p-3 mb-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1"><span className="font-semibold text-sm">{t.title}</span><span className="text-xs text-gray-400 ml-2">{Math.round(t.progress||0)}%</span></div>
+                  <button onClick={() => { setExpandTask(expanded ? null : t.id); setProgVal(t.progress||0); }} className="text-xs text-emerald-600 font-semibold">{expanded ? '✕' : 'Güncelle'}</button>
                 </div>
-                <div className="mt-2 h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full ${(t.progress||0) >= 80 ? 'bg-emerald-500' : (t.progress||0) >= 40 ? 'bg-amber-400' : 'bg-red-400'}`} style={{width:`${t.progress||0}%`}} />
-                </div>
-                <button onClick={() => { setExpandTask(expanded ? null : t.id); setProgVal(t.progress||0); }} className="text-sm font-semibold text-emerald-600 mt-2">{expanded ? '✕ Kapat' : '📊 Güncelle'}</button>
+                <div className="mt-1.5 h-2 bg-gray-200 rounded-full overflow-hidden"><div className={`h-full rounded-full ${(t.progress||0)>=80?'bg-emerald-500':(t.progress||0)>=40?'bg-amber-400':'bg-red-400'}`} style={{width:`${t.progress||0}%`}} /></div>
                 {expanded && (
-                  <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
-                    <div className="flex items-center gap-3">
-                      <input type="range" min="0" max="100" step="5" value={progVal} onChange={e => setProgVal(Number(e.target.value))} className="flex-1 accent-emerald-600" />
-                      <span className="text-sm font-bold w-12 text-right">{progVal}%</span>
-                    </div>
-                    <input className="input-field" placeholder="Ne yaptım?" value={progNote} onChange={e => setProgNote(e.target.value)} />
-                    <button onClick={() => updateProgress(t)} disabled={saving} className="btn-primary w-full disabled:opacity-50">Kaydet</button>
+                  <div className="mt-2 pt-2 border-t border-gray-200 space-y-2">
+                    <div className="flex items-center gap-2"><input type="range" min="0" max="100" step="5" value={progVal} onChange={e => setProgVal(Number(e.target.value))} className="flex-1 accent-emerald-600" /><span className="text-sm font-bold w-10 text-right">{progVal}%</span></div>
+                    <input className="w-full border rounded-xl px-3 py-2 text-sm" placeholder="Ne yaptım?" value={progNote} onChange={e => setProgNote(e.target.value)} />
+                    <button onClick={() => updateProgress(t)} disabled={saving} className="bg-emerald-600 text-white text-sm font-semibold py-2 rounded-xl w-full disabled:opacity-50">Kaydet</button>
                   </div>
                 )}
               </div>
@@ -362,408 +359,319 @@ function MyWorkView({ uid, me }) {
         </div>
       )}
 
-      {/* ═══ VARDİYAM ═══ */}
-      {shifts.length > 0 && (
-        <div>
-          <h2 className="text-lg font-bold mb-3">📅 Vardiyam</h2>
-          <div className="card"><table className="w-full text-sm"><tbody>
-            {DAYS.filter(d => shifts.some(s => s.day_of_week === d)).map(day => {
-              const sh = shifts.find(s => s.day_of_week === day);
-              return (<tr key={day} className={`border-b border-gray-50 ${day === todayDay ? 'bg-emerald-50' : ''}`}><td className="py-2 font-semibold">{day === todayDay ? `📍 ${day}` : day}</td><td className="py-2">{sh?.start_time?.slice(0,5)}–{sh?.end_time?.slice(0,5)}</td><td className="py-2 text-gray-400">{DM[sh?.department]?.i}</td></tr>);
-            })}
-          </tbody></table></div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Onaylar (Koordinatör/Admin) ──
-function ApprovalsView({ uid, me }) {
-  const [pending, setPending] = useState([]);
-  const [volSummaries, setVolSummaries] = useState([]);
-  const [sortBy, setSortBy] = useState('hours');
-
-  const load = useCallback(async () => {
-    const [p, ws] = await Promise.all([db.getPendingReports(), db.getAllWorkSummaries()]);
-    setPending(p.data || []);
-    setVolSummaries(ws.data || []);
-  }, []);
-  useEffect(() => { load(); }, [load]);
-
-  const approve = async (id) => { await db.approveReport(id, uid); load(); };
-  const reject = async (id) => { await db.updateWorkReport(id, { status: 'rejected' }); load(); };
-  const approveAll = async () => { await db.approveAllReports(pending.filter(r => r.user_id !== uid).map(r => r.id), uid); load(); };
-
-  return (
-    <div className="space-y-5">
+      {/* Bu Hafta */}
       <div>
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="text-lg font-bold">⏳ Onay Bekleyen ({pending.length})</h2>
-          {pending.filter(r => r.user_id !== uid).length > 1 && <button onClick={approveAll} className="text-xs font-semibold bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg">✓ Hepsini Onayla</button>}
-        </div>
-        {pending.map(r => (
-          <div key={r.id} className={`card mb-2 !py-3 ${r.edited_at ? 'border-l-4 border-amber-300' : ''}`}>
-            <div className="flex items-center gap-3">
-              <span className="text-sm">{r.work_mode === 'remote' ? '🏠' : '🏛️'}</span>
-              <div className="flex-1">
-                <div className="font-semibold text-sm">{r.profiles?.display_name}</div>
-                <div className="text-xs text-gray-400">{fd(r.date)} · {fmtHours(r.hours)} {r.edited_at && <span className="text-amber-500">✏️</span>} {r.source === 'telegram' && '✈️'}</div>
-                {r.description && <div className="text-xs text-gray-500 mt-0.5">{r.description}</div>}
-              </div>
-              {r.user_id !== uid ? (
-                <div className="flex gap-1.5">
-                  <button onClick={() => approve(r.id)} className="text-xs font-semibold bg-emerald-50 text-emerald-600 px-2.5 py-1.5 rounded-lg">✓</button>
-                  <button onClick={() => reject(r.id)} className="text-xs font-semibold bg-red-50 text-red-500 px-2.5 py-1.5 rounded-lg">✕</button>
-                </div>
-              ) : <span className="text-xs text-gray-400">Kendi</span>}
-            </div>
+        <h2 className="font-bold mb-2">📅 Bu Hafta <span className="text-sm text-gray-400 font-normal">{reports.length} rapor, {fmtH(weekTotal)}</span></h2>
+        {reports.map(r => (
+          <div key={r.id} className="bg-gray-50 rounded-xl p-3 mb-1.5 flex items-center gap-2 cursor-pointer" onClick={() => startEdit(r)}>
+            <span className="text-sm">{r.work_mode==='remote'?'🏠':'🏛️'}</span>
+            <div className="flex-1"><span className="text-sm font-semibold">{fd(r.date)}</span> <span className="text-sm">{fmtH(r.hours)}</span><div className="text-xs text-gray-400 truncate">{r.description}</div></div>
+            <span className={`text-xs ${r.status==='approved'?'text-emerald-600':r.status==='rejected'?'text-red-500':'text-amber-500'}`}>{r.status==='approved'?'✅':r.status==='rejected'?'❌':'⏳'}</span>
           </div>
         ))}
-        {pending.length === 0 && <div className="card text-center py-4"><p className="text-sm text-gray-400">Bekleyen onay yok</p></div>}
+        {reports.length === 0 && <p className="text-sm text-gray-400 text-center py-4">Bu hafta rapor yok</p>}
       </div>
 
-      {/* Gönüllü Özeti */}
-      {volSummaries.length > 0 && (
+      {/* Duyurular */}
+      {anns.length > 0 && (
         <div>
-          <div className="flex justify-between items-center mb-3">
-            <h2 className="text-lg font-bold">👥 Gönüllü Özeti</h2>
-            <div className="flex gap-1">
-              {[['hours','Saat'],['days','Gün'],['name','Ad']].map(([k,l]) => (
-                <button key={k} onClick={() => setSortBy(k)} className={`text-xs px-2 py-1 rounded-lg ${sortBy === k ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400'}`}>{l}</button>
-              ))}
-            </div>
-          </div>
-          {[...volSummaries].sort((a, b) => sortBy === 'hours' ? Number(b.month_hours) - Number(a.month_hours) : sortBy === 'days' ? Number(b.month_days) - Number(a.month_days) : a.display_name.localeCompare(b.display_name)).map(v => (
-            <div key={v.id} className="card mb-2 !py-3 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-600">{(v.display_name||'?')[0]}</div>
-              <div className="flex-1">
-                <div className="font-semibold text-sm">{v.display_name} <span className="text-xs text-gray-400">{DM[v.department]?.i}</span></div>
-                <div className="text-xs text-gray-400">Bu ay: {v.month_days} rapor / {fmtHours(Number(v.month_hours))} · Toplam: {v.total_days} / {fmtHours(Number(v.total_hours))}</div>
-              </div>
-              {v.last_visit && <span className="text-xs text-gray-300">{v.last_visit === today() ? 'Bugün' : fd(v.last_visit)}</span>}
+          <h2 className="font-bold mb-2">📢 Duyurular</h2>
+          {anns.map(a => (
+            <div key={a.id} className={`bg-gray-50 rounded-xl p-3 mb-1.5 ${a.is_pinned ? 'border-l-4 border-amber-400' : ''}`}>
+              <div className="font-semibold text-sm">{a.is_pinned && '📌 '}{a.title}</div>
+              <div className="text-xs text-gray-400 mt-0.5">{a.body?.slice(0,100)}</div>
             </div>
           ))}
         </div>
       )}
+
+      {/* Vardiyam */}
+      {shifts.length > 0 && (
+        <div>
+          <h2 className="font-bold mb-2">📅 Vardiyam</h2>
+          <div className="bg-gray-50 rounded-xl p-3">
+            {DAYS.filter(d => shifts.some(s => s.day_of_week === d)).map(day => {
+              const sh = shifts.find(s => s.day_of_week === day);
+              return <div key={day} className={`flex items-center py-1 text-sm ${day===todayDay?'font-bold text-emerald-600':''}`}><span className="w-10">{day}</span><span>{sh?.start_time?.slice(0,5)}–{sh?.end_time?.slice(0,5)}</span></div>;
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Alt linkler (gönüllü için) */}
+      {me.role === 'vol' && (
+        <div className="flex justify-center gap-6 text-sm text-gray-400 pt-4 border-t border-gray-100">
+          <button onClick={() => onModal('chat')}>💬 Sohbet</button>
+          <button onClick={() => onModal('summary')}>📊 Özet</button>
+          <button onClick={() => onModal('help')}>❓ Yardım</button>
+        </div>
+      )}
+
+      {/* Destek */}
+      {me.role !== 'admin' && (
+        <SupportLink uid={uid} me={me} />
+      )}
     </div>
   );
 }
 
-// ── Tüm İşler (Koordinatör/Admin) ──
-function AllTasksView({ uid, me, can }) {
+function SupportLink({ uid, me }) {
+  const [show, setShow] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [sent, setSent] = useState(false);
+  const send = async () => {
+    if (!msg.trim()) return;
+    let targets = [];
+    if (me.department) { const { data } = await db.getCoordsByDept(me.department); targets = (data||[]).map(c => c.id); }
+    if (!targets.length) { const { data } = await db.getProfilesByRole('admin'); targets = (data||[]).map(a => a.id); }
+    for (const t of targets) await db.sendNotification(t, 'system', `💬 ${me.display_name}`, msg.slice(0,200));
+    setSent(true); setMsg(''); setTimeout(() => { setSent(false); setShow(false); }, 2000);
+  };
+  return (
+    <div className="text-center text-xs text-gray-400 pt-2">
+      {!show && !sent && <button onClick={() => setShow(true)}>Bir sorunun mu var? <span className="text-emerald-600 font-semibold">Mesaj gönder</span></button>}
+      {show && <div className="flex gap-2 mt-2"><input className="flex-1 border rounded-xl px-3 py-2 text-sm" placeholder="Mesajınız..." value={msg} onChange={e => setMsg(e.target.value)} /><button onClick={send} disabled={!msg.trim()} className="bg-emerald-600 text-white text-sm px-4 py-2 rounded-xl disabled:opacity-50">Gönder</button></div>}
+      {sent && <span className="text-emerald-600">✓ Gönderildi!</span>}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// 👥 TAKIMIM (koordinatör)
+// ═══════════════════════════════════════════
+function TeamScreen({ uid, me }) {
+  const [pending, setPending] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [vols, setVols] = useState([]);
-  const [show, setShow] = useState(false);
-  const [f, setF] = useState({ title:'', description:'', department: me.department || 'arsiv', assigned_to:'', deadline:'' });
+  const [showNewTask, setShowNewTask] = useState(false);
+  const [tf, setTf] = useState({ title:'', description:'', department: me.department||'arsiv', assigned_to:'', deadline:'' });
+  const [showAnn, setShowAnn] = useState(false);
+  const [annF, setAnnF] = useState({ title:'', body:'' });
+  const [summaries, setSummaries] = useState([]);
+  const [certVol, setCertVol] = useState(null);
+  const [shifts, setShifts] = useState([]);
+  const [showShift, setShowShift] = useState(false);
+  const [sf, setSf] = useState({ volunteer_id:'', day_of_week:'Pzt', start_time:'10:00', end_time:'14:00', department: me.department||'arsiv' });
 
   const load = useCallback(async () => {
-    const [t, v] = await Promise.all([db.getTasks(), db.getAllProfiles()]);
-    setTasks(t.data || []); setVols((v.data || []).filter(v => v.status === 'active'));
+    const [p, t, v, ws, sh] = await Promise.all([
+      db.getPendingReports(), db.getTasks(), db.getAllProfiles(), db.getAllWorkSummaries(), db.getShifts({}),
+    ]);
+    setPending(p.data || []);
+    setTasks(t.data || []);
+    setVols((v.data || []).filter(v => v.status === 'active'));
+    setSummaries(ws.data || []);
+    setShifts(sh.data || []);
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const create = async () => {
-    if (!f.title) return;
-    await db.createTask({ ...f, priority: 'medium', assigned_to: f.assigned_to ? [f.assigned_to] : [], created_by: uid });
-    setShow(false); setF({ title:'', description:'', department: me.department || 'arsiv', assigned_to:'', deadline:'' }); load();
-  };
+  const approve = async (id) => { await db.approveReport(id, uid); load(); };
+  const approveAll = async () => { const ids = pending.filter(r => r.user_id !== uid).map(r => r.id); await db.approveAllReports(ids, uid); load(); };
+  const createTask = async () => { if (!tf.title) return; await db.createTask({ ...tf, priority:'medium', assigned_to: tf.assigned_to ? [tf.assigned_to] : [], created_by: uid }); setShowNewTask(false); setTf({ title:'', description:'', department: me.department||'arsiv', assigned_to:'', deadline:'' }); load(); };
+  const createAnn = async () => { if (!annF.title || !annF.body) return; await db.createAnnouncement({ ...annF, department: null, is_pinned: false, is_public: false, author_id: uid }); setShowAnn(false); setAnnF({ title:'', body:'' }); };
+  const approveTask = async (id) => { await db.updateTask(id, { status: 'done', completed_at: new Date().toISOString() }); load(); };
+  const createShift = async () => { if (!sf.volunteer_id) return; await db.createShift({ ...sf, created_by: uid }); setShowShift(false); load(); };
+  const delShift = async (id) => { await db.deleteShift(id); load(); };
 
-  const approve = async (id) => {
-    await db.updateTask(id, { status: 'done', completed_at: new Date().toISOString() });
-    load();
-  };
+  const sumMap = Object.fromEntries(summaries.map(s => [s.id, s]));
 
   return (
-    <div className="space-y-3">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-bold">Tüm İşler ({tasks.length})</h2>
-        <button onClick={() => setShow(!show)} className="btn-primary !py-2 !px-4 !text-sm">{show ? '✕' : '+ Yeni İş'}</button>
+    <div className="space-y-6">
+      {/* Onaylar */}
+      <div>
+        <div className="flex justify-between items-center mb-2">
+          <h2 className="font-bold">⏳ Onay Bekleyen ({pending.length})</h2>
+          {pending.filter(r => r.user_id !== uid).length > 1 && <button onClick={approveAll} className="text-xs bg-emerald-50 text-emerald-600 font-semibold px-3 py-1 rounded-lg">✓ Hepsini Onayla</button>}
+        </div>
+        {pending.map(r => (
+          <div key={r.id} className="bg-gray-50 rounded-xl p-3 mb-1.5 flex items-center gap-2">
+            <span className="text-sm">{r.work_mode==='remote'?'🏠':'🏛️'}</span>
+            <div className="flex-1"><div className="text-sm font-semibold">{r.profiles?.display_name}</div><div className="text-xs text-gray-400">{fd(r.date)} · {fmtH(r.hours)} · {r.description?.slice(0,40)}{r.edited_at ? ' ✏️' : ''}</div></div>
+            {r.user_id !== uid ? <button onClick={() => approve(r.id)} className="text-xs bg-emerald-50 text-emerald-600 font-semibold px-3 py-1.5 rounded-lg">✓</button> : <span className="text-xs text-gray-300">Kendi</span>}
+          </div>
+        ))}
+        {pending.length === 0 && <p className="text-sm text-gray-400 text-center py-3">Bekleyen yok ✓</p>}
       </div>
-      {show && (
-        <div className="card border-l-4 border-purple-400 space-y-2">
-          <input className="input-field" placeholder="İş başlığı" value={f.title} onChange={e => setF({...f, title: e.target.value})} />
-          <textarea className="input-field" rows={2} placeholder="Açıklama" value={f.description} onChange={e => setF({...f, description: e.target.value})} />
-          <div className="grid grid-cols-2 gap-2">
-            <select className="input-field" value={f.department} onChange={e => setF({...f, department: e.target.value})}>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.l}</option>)}</select>
-            <input className="input-field" type="date" placeholder="Son tarih" value={f.deadline} onChange={e => setF({...f, deadline: e.target.value})} />
-          </div>
-          <select className="input-field" value={f.assigned_to} onChange={e => setF({...f, assigned_to: e.target.value})}><option value="">Atanacak kişi</option>{vols.map(v => <option key={v.id} value={v.id}>{v.display_name}</option>)}</select>
-          <button onClick={create} className="btn-primary w-full">Oluştur</button>
+
+      {/* İşler */}
+      <div>
+        <div className="flex justify-between items-center mb-2">
+          <h2 className="font-bold">📋 İşler ({tasks.length})</h2>
+          <button onClick={() => setShowNewTask(!showNewTask)} className="text-xs bg-emerald-600 text-white font-semibold px-3 py-1.5 rounded-lg">{showNewTask ? '✕' : '+ Yeni'}</button>
         </div>
-      )}
-      {tasks.map(t => (
-        <div key={t.id} className="card">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="font-bold">{t.title}</div>
-              <div className="text-sm text-gray-400">{DM[t.department]?.i} {DM[t.department]?.l}{t.deadline && ` · ${fd(t.deadline)}`}</div>
+        {showNewTask && (
+          <div className="bg-gray-50 rounded-xl p-3 mb-3 space-y-2">
+            <input className="w-full border rounded-xl px-3 py-2 text-sm" placeholder="İş başlığı" value={tf.title} onChange={e => setTf({...tf, title: e.target.value})} />
+            <textarea className="w-full border rounded-xl px-3 py-2 text-sm" rows={2} placeholder="Açıklama" value={tf.description} onChange={e => setTf({...tf, description: e.target.value})} />
+            <div className="grid grid-cols-2 gap-2">
+              <select className="border rounded-xl px-3 py-2 text-sm" value={tf.department} onChange={e => setTf({...tf, department: e.target.value})}>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.l}</option>)}</select>
+              <select className="border rounded-xl px-3 py-2 text-sm" value={tf.assigned_to} onChange={e => setTf({...tf, assigned_to: e.target.value})}><option value="">Atanacak</option>{vols.map(v => <option key={v.id} value={v.id}>{v.display_name}</option>)}</select>
             </div>
-            <span className={`text-sm font-bold ${(t.progress||0) >= 80 ? 'text-emerald-600' : 'text-gray-400'}`}>{Math.round(t.progress||0)}%</span>
+            <input type="date" className="w-full border rounded-xl px-3 py-2 text-sm" value={tf.deadline} onChange={e => setTf({...tf, deadline: e.target.value})} />
+            <button onClick={createTask} className="bg-emerald-600 text-white text-sm font-semibold py-2 rounded-xl w-full">Oluştur</button>
           </div>
-          <div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
-            <div className={`h-full rounded-full ${t.status === 'done' ? 'bg-emerald-500' : t.status === 'review' ? 'bg-blue-500' : 'bg-amber-400'}`} style={{width:`${t.progress||0}%`}} />
+        )}
+        {tasks.filter(t => t.status !== 'cancelled').slice(0, 10).map(t => (
+          <div key={t.id} className="bg-gray-50 rounded-xl p-3 mb-1.5">
+            <div className="flex items-center justify-between">
+              <div className="flex-1"><span className="font-semibold text-sm">{t.title}</span> <span className="text-xs text-gray-400">{Math.round(t.progress||0)}%</span></div>
+              {t.status === 'review' && <button onClick={() => approveTask(t.id)} className="text-xs bg-emerald-50 text-emerald-600 font-semibold px-2 py-1 rounded-lg">✓ Tamamla</button>}
+            </div>
+            <div className="mt-1 h-1.5 bg-gray-200 rounded-full overflow-hidden"><div className={`h-full rounded-full ${t.status==='done'?'bg-emerald-500':t.status==='review'?'bg-blue-500':'bg-amber-400'}`} style={{width:`${t.progress||0}%`}} /></div>
           </div>
-          <div className="flex items-center gap-2 mt-2">
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${t.status === 'done' ? 'bg-emerald-50 text-emerald-600' : t.status === 'review' ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>{STATUSES[t.status]}</span>
-            {t.status === 'review' && can('assign_tasks') && (
-              <button onClick={() => approve(t.id)} className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg">✓ Tamamla</button>
-            )}
+        ))}
+      </div>
+
+      {/* Gönüllü Özeti */}
+      <div>
+        <h2 className="font-bold mb-2">👥 Gönüllüler</h2>
+        {summaries.filter(s => Number(s.total_hours) > 0).map(v => (
+          <div key={v.id} className="bg-gray-50 rounded-xl p-3 mb-1.5 flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-600">{(v.display_name||'?')[0]}</div>
+            <div className="flex-1"><div className="text-sm font-semibold">{v.display_name}</div><div className="text-xs text-gray-400">Bu ay: {v.month_days}r / {fmtH(Number(v.month_hours))}</div></div>
+            <button onClick={() => setCertVol(vols.find(x => x.id === v.id))} className="text-xs text-amber-600">🏆</button>
           </div>
+        ))}
+      </div>
+
+      {/* Sohbet */}
+      <div>
+        <h2 className="font-bold mb-2">💬 Sohbet</h2>
+        <ChatSection uid={uid} me={me} />
+      </div>
+
+      {/* Duyuru */}
+      <div>
+        <div className="flex justify-between items-center mb-2">
+          <h2 className="font-bold">📢 Duyuru Yaz</h2>
+          <button onClick={() => setShowAnn(!showAnn)} className="text-xs text-emerald-600 font-semibold">{showAnn ? '✕' : '+'}</button>
         </div>
-      ))}
+        {showAnn && (
+          <div className="bg-gray-50 rounded-xl p-3 space-y-2">
+            <input className="w-full border rounded-xl px-3 py-2 text-sm" placeholder="Başlık" value={annF.title} onChange={e => setAnnF({...annF, title: e.target.value})} />
+            <textarea className="w-full border rounded-xl px-3 py-2 text-sm" rows={2} placeholder="İçerik" value={annF.body} onChange={e => setAnnF({...annF, body: e.target.value})} />
+            <button onClick={createAnn} className="bg-emerald-600 text-white text-sm font-semibold py-2 rounded-xl w-full">Yayınla</button>
+          </div>
+        )}
+      </div>
+
+      {/* Vardiya */}
+      <div>
+        <div className="flex justify-between items-center mb-2">
+          <h2 className="font-bold">📅 Vardiya Planı</h2>
+          <button onClick={() => setShowShift(!showShift)} className="text-xs text-emerald-600 font-semibold">{showShift ? '✕' : '+ Ekle'}</button>
+        </div>
+        {showShift && (
+          <div className="bg-gray-50 rounded-xl p-3 space-y-2 mb-2">
+            <select className="w-full border rounded-xl px-3 py-2 text-sm" value={sf.volunteer_id} onChange={e => setSf({...sf, volunteer_id: e.target.value})}><option value="">Gönüllü</option>{vols.map(v => <option key={v.id} value={v.id}>{v.display_name}</option>)}</select>
+            <div className="grid grid-cols-3 gap-2">
+              <select className="border rounded-xl px-3 py-2 text-sm" value={sf.day_of_week} onChange={e => setSf({...sf, day_of_week: e.target.value})}>{DAYS.map(d => <option key={d}>{d}</option>)}</select>
+              <input type="time" className="border rounded-xl px-3 py-2 text-sm" value={sf.start_time} onChange={e => setSf({...sf, start_time: e.target.value})} />
+              <input type="time" className="border rounded-xl px-3 py-2 text-sm" value={sf.end_time} onChange={e => setSf({...sf, end_time: e.target.value})} />
+            </div>
+            <button onClick={createShift} className="bg-emerald-600 text-white text-sm font-semibold py-2 rounded-xl w-full">Ekle</button>
+          </div>
+        )}
+        {DAYS.filter(d => shifts.some(s => s.day_of_week === d)).map(day => (
+          <div key={day} className="mb-1"><span className="text-xs font-bold text-gray-500">{day}</span>
+            {shifts.filter(s => s.day_of_week === day).map(sh => (
+              <div key={sh.id} className="bg-gray-50 rounded-xl p-2 mt-0.5 flex items-center gap-2 text-sm">
+                <span className="flex-1">{sh.profiles?.display_name} · {sh.start_time?.slice(0,5)}–{sh.end_time?.slice(0,5)}</span>
+                <button onClick={() => delShift(sh.id)} className="text-xs text-gray-300">✕</button>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {certVol && <CertificateModal vol={certVol} summary={sumMap[certVol.id]} issuerId={uid} onClose={() => setCertVol(null)} />}
     </div>
   );
 }
 
-// ── Gönüllüler (Admin) ──
-function VolunteersView({ uid, me }) {
+// ═══════════════════════════════════════════
+// 👥 YÖNETİM (admin)
+// ═══════════════════════════════════════════
+function AdminScreen({ uid, me }) {
+  const [pendingUsers, setPendingUsers] = useState([]);
   const [vols, setVols] = useState([]);
   const [sel, setSel] = useState(null);
-  const [pending, setPending] = useState([]);
   const [certVol, setCertVol] = useState(null);
   const [summaries, setSummaries] = useState({});
-  useEffect(() => {
-    db.getAllProfiles().then(({ data }) => {
-      setVols((data || []).filter(v => v.status !== 'pending'));
-      setPending((data || []).filter(v => v.status === 'pending'));
-    });
-    db.getAllWorkSummaries().then(({ data }) => {
-      setSummaries(Object.fromEntries((data || []).map(s => [s.id, s])));
-    });
-  }, []);
 
+  const load = useCallback(async () => {
+    const [p, ws] = await Promise.all([db.getAllProfiles(), db.getAllWorkSummaries()]);
+    const all = p.data || [];
+    setPendingUsers(all.filter(u => u.status === 'pending'));
+    setVols(all.filter(u => u.status !== 'pending'));
+    setSummaries(Object.fromEntries((ws.data || []).map(s => [s.id, s])));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const approveUser = async (id) => { await db.setUserStatus(id, 'active'); await db.sendNotification(id, 'welcome', 'Hesabınız onaylandı!', ''); load(); };
+  const rejectUser = async (id) => { await db.setUserStatus(id, 'rejected'); load(); };
   const changeRole = async (id, role) => { await db.setUserRole(id, role); setVols(vols.map(v => v.id === id ? {...v, role} : v)); };
   const changeDept = async (id, dept) => { await db.setUserDept(id, dept); setVols(vols.map(v => v.id === id ? {...v, department: dept} : v)); };
-  const approveUser = async (id) => {
-    await db.setUserStatus(id, 'active');
-    await db.sendNotification(id, 'welcome', 'Hesabınız onaylandı!', 'Sisteme erişebilirsiniz.');
-    setPending(pending.filter(p => p.id !== id));
-  };
-  const rejectUser = async (id) => { await db.setUserStatus(id, 'rejected'); setPending(pending.filter(p => p.id !== id)); };
 
   return (
-    <div className="space-y-3">
-      {pending.length > 0 && (<>
-        <h2 className="text-lg font-bold">🕐 Onay Bekleyenler ({pending.length})</h2>
-        {pending.map(u => (
-          <div key={u.id} className="card border-l-4 border-blue-300 flex items-center gap-3">
-            <div className="flex-1">
-              <div className="font-semibold">{u.display_name}</div>
-              <div className="text-xs text-gray-400">{u.email}</div>
+    <div className="space-y-6">
+      {/* Pending */}
+      {pendingUsers.length > 0 && (
+        <div>
+          <h2 className="font-bold mb-2">🕐 Onay Bekleyen ({pendingUsers.length})</h2>
+          {pendingUsers.map(u => (
+            <div key={u.id} className="bg-gray-50 rounded-xl p-3 mb-1.5 flex items-center gap-3">
+              <div className="flex-1"><div className="font-semibold text-sm">{u.display_name}</div><div className="text-xs text-gray-400">{u.email}</div></div>
+              <button onClick={() => approveUser(u.id)} className="text-xs bg-emerald-50 text-emerald-600 px-3 py-1 rounded-lg font-semibold">✓</button>
+              <button onClick={() => rejectUser(u.id)} className="text-xs bg-red-50 text-red-500 px-3 py-1 rounded-lg font-semibold">✕</button>
             </div>
-            <button onClick={() => approveUser(u.id)} className="text-xs font-semibold bg-emerald-50 text-emerald-600 px-3 py-1 rounded-lg">✓ Onayla</button>
-            <button onClick={() => rejectUser(u.id)} className="text-xs font-semibold bg-red-50 text-red-500 px-3 py-1 rounded-lg">✕ Reddet</button>
+          ))}
+        </div>
+      )}
+
+      {/* TeamScreen (includes approvals, tasks, chat, shifts etc) */}
+      <TeamScreen uid={uid} me={me} />
+
+      {/* Gönüllü Yönetimi */}
+      <div>
+        <h2 className="font-bold mb-2">👥 Gönüllü Yönetimi ({vols.length})</h2>
+        {vols.map(v => (
+          <div key={v.id} className={`bg-gray-50 rounded-xl p-3 mb-1.5 ${v.status !== 'active' ? 'opacity-50' : ''}`}>
+            <div className="flex items-center gap-2 cursor-pointer" onClick={() => setSel(sel === v.id ? null : v.id)}>
+              <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-600">{(v.display_name||'?')[0]}</div>
+              <div className="flex-1"><div className="text-sm font-semibold">{v.display_name} {ROLES[v.role]?.i}</div><div className="text-xs text-gray-400">{DM[v.department]?.l || '—'}</div></div>
+              <button onClick={e => { e.stopPropagation(); setCertVol(v); }} className="text-xs text-amber-600">🏆</button>
+            </div>
+            {sel === v.id && v.id !== uid && (
+              <div className="mt-2 pt-2 border-t border-gray-200 space-y-2">
+                <select className="w-full border rounded-xl px-3 py-2 text-sm" value={v.role} onChange={e => changeRole(v.id, e.target.value)}><option value="vol">Gönüllü</option><option value="coord">Koordinatör</option><option value="admin">Yönetici</option></select>
+                <select className="w-full border rounded-xl px-3 py-2 text-sm" value={v.department||''} onChange={e => changeDept(v.id, e.target.value)}><option value="">Departman</option>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.l}</option>)}</select>
+              </div>
+            )}
           </div>
         ))}
-      </>)}
-      <h2 className="text-lg font-bold">👥 Gönüllüler ({vols.length})</h2>
-      {vols.map(v => (
-        <div key={v.id} className={`card ${v.status !== 'active' ? 'opacity-50' : ''}`} onClick={() => setSel(sel === v.id ? null : v.id)}>
-          <div className="flex items-center gap-3 cursor-pointer">
-            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-600">{(v.display_name||'?')[0]}</div>
-            <div className="flex-1">
-              <div className="font-semibold text-sm">{v.display_name} <span className="text-xs">{ROLES[v.role]?.i}</span></div>
-              <div className="text-xs text-gray-400">{DM[v.department]?.i || '—'} {DM[v.department]?.l || 'Atanmamış'} · {Number(v.total_hours||0).toFixed(0)}s</div>
-            </div>
-          </div>
-          {sel === v.id && v.id !== uid && (
-            <div className="mt-3 pt-3 border-t border-gray-50 space-y-2">
-              <div className="flex gap-2 items-center">
-                <span className="text-xs text-gray-400 w-12">Rol:</span>
-                <select className="input-field !py-1.5 !text-xs" value={v.role} onChange={e => changeRole(v.id, e.target.value)}>
-                  <option value="vol">Gönüllü</option><option value="coord">Koordinatör</option><option value="admin">Yönetici</option>
-                </select>
-              </div>
-              <div className="flex gap-2 items-center">
-                <span className="text-xs text-gray-400 w-12">Dept:</span>
-                <select className="input-field !py-1.5 !text-xs" value={v.department||''} onChange={e => changeDept(v.id, e.target.value)}>
-                  <option value="">Seçiniz</option>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.l}</option>)}
-                </select>
-              </div>
-              <button onClick={(e) => { e.stopPropagation(); setCertVol(v); }} className="text-sm font-semibold text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg w-full text-center">🏆 Belge Oluştur</button>
-            </div>
-          )}
-        </div>
-      ))}
+      </div>
       {certVol && <CertificateModal vol={certVol} summary={summaries[certVol.id]} issuerId={uid} onClose={() => setCertVol(null)} />}
     </div>
   );
 }
 
-// ── Vardiya Planlama (Admin) ──
-function ShiftPlanView({ uid, me }) {
-  const [shifts, setShifts] = useState([]);
-  const [vols, setVols] = useState([]);
-  const [show, setShow] = useState(false);
-  const [f, setF] = useState({ volunteer_id:'', day_of_week:'Pzt', start_time:'10:00', end_time:'14:00', department:'arsiv' });
-
-  const load = useCallback(async () => {
-    const [s, v] = await Promise.all([db.getShifts({}), db.getAllProfiles()]);
-    setShifts(s.data || []); setVols((v.data || []).filter(v => v.status === 'active'));
-  }, []);
-  useEffect(() => { load(); }, [load]);
-
-  const create = async () => { if (!f.volunteer_id) return; await db.createShift({...f, created_by: uid}); setShow(false); load(); };
-  const del = async (id) => { await db.deleteShift(id); load(); };
-
-  const byDay = {}; shifts.forEach(s => { (byDay[s.day_of_week] = byDay[s.day_of_week] || []).push(s); });
-
+// ═══════════════════════════════════════════
+// 📊 RAPORLAR (admin)
+// ═══════════════════════════════════════════
+function ReportsScreen({ uid }) {
   return (
-    <div className="space-y-3">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-bold">📅 Vardiya Planı</h2>
-        <button onClick={() => setShow(!show)} className="btn-primary !py-2 !px-4 !text-sm">{show ? '✕' : '+ Ekle'}</button>
-      </div>
-      {show && (
-        <div className="card border-l-4 border-purple-400 space-y-2">
-          <select className="input-field" value={f.volunteer_id} onChange={e => setF({...f, volunteer_id: e.target.value})}><option value="">Gönüllü seç</option>{vols.map(v => <option key={v.id} value={v.id}>{v.display_name}</option>)}</select>
-          <div className="grid grid-cols-3 gap-2">
-            <select className="input-field" value={f.day_of_week} onChange={e => setF({...f, day_of_week: e.target.value})}>{DAYS.map(d => <option key={d}>{d}</option>)}</select>
-            <input className="input-field" type="time" value={f.start_time} onChange={e => setF({...f, start_time: e.target.value})} />
-            <input className="input-field" type="time" value={f.end_time} onChange={e => setF({...f, end_time: e.target.value})} />
-          </div>
-          <select className="input-field" value={f.department} onChange={e => setF({...f, department: e.target.value})}>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.i} {d.l}</option>)}</select>
-          <button onClick={create} className="btn-primary w-full">Ekle</button>
-        </div>
-      )}
-      {DAYS.filter(d => byDay[d]).map(day => (
-        <div key={day}>
-          <div className="text-sm font-bold mb-1">{day}</div>
-          {byDay[day].map(sh => (
-            <div key={sh.id} className="card mb-1.5 !py-3 flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-[10px] font-bold text-emerald-600">{(sh.profiles?.display_name||'?')[0]}</div>
-              <span className="text-sm flex-1">{sh.profiles?.display_name}</span>
-              <span className="text-xs text-gray-500">{DM[sh.department]?.i}</span>
-              <span className="text-sm font-semibold">{sh.start_time?.slice(0,5)}–{sh.end_time?.slice(0,5)}</span>
-              <button onClick={() => del(sh.id)} className="text-xs text-gray-300 hover:text-red-400">✕</button>
-            </div>
-          ))}
-        </div>
-      ))}
+    <div className="space-y-6">
+      <ReportBuilder uid={uid} />
+      <ReportArchive />
+      <BackupView uid={uid} />
     </div>
   );
 }
 
-// ═════════════════════════════════════════════
-// 📊 DURUM
-// ═════════════════════════════════════════════
-function DurumView({ uid, me, can }) {
-  const [stats, setStats] = useState(null);
-  const [deptComp, setDeptComp] = useState([]);
-  const [tasks, setTasks] = useState([]);
-  const [allSummaries, setAllSummaries] = useState([]);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      const [s, dc, t, ws] = await Promise.all([
-        db.getOverviewStats(),
-        db.getDeptComparison(),
-        db.getTasksForOverview(),
-        db.getAllWorkSummaries(),
-      ]);
-      setStats(s); setDeptComp(dc.data || []); setTasks(t.data || []); setAllSummaries(ws.data || []); setLoaded(true);
-    })();
-  }, []);
-
-  const maxH = Math.max(...deptComp.map(d => Number(d.this_month)), 1);
-
-  if (!loaded) return <div className="text-center py-12 text-gray-400">Yükleniyor...</div>;
-
-  return (
-    <div className="space-y-5">
-      {/* Özet */}
-      {(() => {
-        const monthDays = allSummaries.reduce((a, s) => a + Number(s.month_days), 0);
-        const monthHrs = allSummaries.reduce((a, s) => a + Number(s.month_hours), 0);
-        const topVol = allSummaries[0];
-        return (<>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { v: stats?.totalVols, l: 'Aktif Gönüllü', c: 'text-emerald-600' },
-              { v: Math.round(stats?.monthlyHours || monthHrs), l: 'Bu Ay Saat', c: 'text-amber-500' },
-              { v: monthDays, l: 'Bu Ay Çalışma Günü', c: 'text-purple-600' },
-              { v: stats?.doneTasks, l: 'Tamamlanan İş', c: 'text-blue-600' },
-            ].map((s, i) => (
-              <div key={i} className="card text-center">
-                <div className={`text-2xl font-bold ${s.c}`}>{s.v ?? '—'}</div>
-                <div className="text-xs text-gray-400">{s.l}</div>
-              </div>
-            ))}
-          </div>
-          {topVol && Number(topVol.month_hours) > 0 && (
-            <div className="card !py-3 text-center text-sm text-gray-600">🏆 En aktif: <b>{topVol.display_name}</b> — {topVol.month_days}g / {fmtHours(Number(topVol.month_hours))}</div>
-          )}
-        </>);
-      })()}
-
-      {/* Departman Çubuk Grafik */}
-      <div className="card">
-        <h3 className="font-bold mb-3">Departman Aktivitesi (Bu Ay)</h3>
-        {DEPTS.map(d => {
-          const data = deptComp.find(c => c.department === d.id);
-          const val = Number(data?.this_month || 0);
-          return (
-            <div key={d.id} className="mb-2">
-              <div className="flex items-center gap-2 mb-0.5">
-                <span className="text-sm">{d.i}</span>
-                <span className="text-xs font-semibold flex-1">{d.l.split(' ')[0]}</span>
-                <span className="text-xs font-bold">{val}s</span>
-              </div>
-              <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-500 rounded-full transition-all" style={{width:`${(val/maxH)*100}%`}} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* İş İlerleme Listesi */}
-      <div className="card">
-        <h3 className="font-bold mb-3">Aktif İşler — İlerleme</h3>
-        {tasks.slice(0, 10).map(t => (
-          <div key={t.id} className="mb-2.5">
-            <div className="flex justify-between text-sm">
-              <span className="font-semibold truncate mr-2">{t.title}</span>
-              <span className={`font-bold ${(t.progress||0) >= 80 ? 'text-emerald-600' : 'text-gray-400'}`}>{Math.round(t.progress||0)}%</span>
-            </div>
-            <div className="mt-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full ${(t.progress||0) >= 80 ? 'bg-emerald-500' : (t.progress||0) >= 40 ? 'bg-amber-400' : 'bg-red-400'}`} style={{width:`${t.progress||0}%`}} />
-            </div>
-          </div>
-        ))}
-        {tasks.length === 0 && <p className="text-sm text-gray-400 text-center py-4">Aktif iş yok</p>}
-      </div>
-
-      {/* Admin: Raporlama + Arşiv + Yedekleme */}
-      {me.role === 'admin' && (
-        <div className="space-y-5">
-          <ReportBuilder uid={uid} />
-          <ReportArchive />
-          <BackupView uid={uid} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ═════════════════════════════════════════════
-// 💬 MESAJLAR
-// ═════════════════════════════════════════════
-function MesajlarView({ uid, me, can }) {
-  const [subTab, setSubTab] = useState('sohbet');
-  return (
-    <div>
-      <TabBar tabs={[['sohbet','Sohbet'],['duyurular','Duyurular']]} active={subTab} onChange={setSubTab} />
-      {subTab === 'sohbet' && <ChatSection uid={uid} me={me} />}
-      {subTab === 'duyurular' && <AnnouncementsSection uid={uid} me={me} can={can} />}
-      {/* İstek Gönder */}
-      {me.role !== 'admin' && <RequestSection uid={uid} me={me} />}
-    </div>
-  );
-}
-
+// ═══════════════════════════════════════════
+// SOHBET
+// ═══════════════════════════════════════════
 function ChatSection({ uid, me }) {
   const isCoordOrAdmin = me.role === 'admin' || me.role === 'coord';
   const [dept, setDept] = useState(me.department || 'arsiv');
@@ -775,319 +683,75 @@ function ChatSection({ uid, me }) {
     setMessages((data || []).reverse());
   }, [dept]);
   useEffect(() => { load(); }, [load]);
-
   useEffect(() => {
     const sub = db.subscribeMessages(dept, () => load());
     return () => sub.unsubscribe();
   }, [dept, load]);
 
-  const send = async () => {
-    if (!text.trim()) return;
-    await db.sendMessage(uid, dept, text.trim());
-    setText(''); load();
-  };
+  const send = async () => { if (!text.trim()) return; await db.sendMessage(uid, dept, text.trim()); setText(''); load(); };
 
   return (
-    <div className="space-y-3">
-      {isCoordOrAdmin && (
-        <div className="flex gap-1.5 flex-wrap">
-          {DEPTS.map(d => (
-            <button key={d.id} onClick={() => setDept(d.id)} className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg ${dept === d.id ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400'}`}>{d.i}</button>
-          ))}
-        </div>
-      )}
-      <div className="card !p-3 space-y-2 max-h-[45vh] overflow-y-auto">
-        {messages.length === 0 && <p className="text-sm text-gray-300 text-center py-6">Henüz mesaj yok</p>}
-        {messages.map((m, i) => {
-          const isMine = m.user_id === uid;
-          return (
-            <div key={m.id || i} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[80%] rounded-2xl px-3 py-2 ${isMine ? 'bg-emerald-600 text-white' : 'bg-gray-100'}`}>
-                {!isMine && <div className="text-xs font-bold text-emerald-600 mb-0.5">{m.profiles?.display_name}</div>}
-                <div className="text-sm">{m.content}</div>
-              </div>
+    <div className="space-y-2">
+      {isCoordOrAdmin && <div className="flex gap-1 flex-wrap">{DEPTS.map(d => <button key={d.id} onClick={() => setDept(d.id)} className={`text-xs px-2 py-1 rounded-lg ${dept===d.id?'bg-gray-800 text-white':'bg-gray-100 text-gray-400'}`}>{d.i}</button>)}</div>}
+      <div className="bg-gray-50 rounded-xl p-3 space-y-1.5 max-h-60 overflow-y-auto">
+        {messages.length === 0 && <p className="text-xs text-gray-300 text-center py-4">Henüz mesaj yok</p>}
+        {messages.map((m, i) => (
+          <div key={m.id||i} className={`flex ${m.user_id===uid?'justify-end':'justify-start'}`}>
+            <div className={`max-w-[75%] rounded-2xl px-3 py-1.5 ${m.user_id===uid?'bg-emerald-600 text-white':'bg-white'}`}>
+              {m.user_id !== uid && <div className="text-xs font-bold text-emerald-600 mb-0.5">{m.profiles?.display_name}</div>}
+              <div className="text-sm">{m.content}</div>
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
       <div className="flex gap-2">
-        <input className="input-field flex-1" placeholder="Mesaj yazın..." value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()} />
-        <button onClick={send} disabled={!text.trim()} className="btn-primary !px-5 disabled:opacity-50">Gönder</button>
+        <input className="flex-1 border rounded-xl px-3 py-2 text-sm" placeholder="Mesaj..." value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key==='Enter' && send()} />
+        <button onClick={send} disabled={!text.trim()} className="bg-emerald-600 text-white text-sm px-4 py-2 rounded-xl disabled:opacity-50">Gönder</button>
       </div>
     </div>
   );
 }
 
-function AnnouncementsSection({ uid, me, can }) {
-  const [anns, setAnns] = useState([]);
-  const [show, setShow] = useState(false);
-  const [f, setF] = useState({ title:'', body:'', is_public: false });
-
-  useEffect(() => { db.getAnnouncements().then(({ data }) => setAnns(data || [])); }, []);
-
-  const create = async () => {
-    if (!f.title || !f.body) return;
-    await db.createAnnouncement({ ...f, department: null, is_pinned: false, author_id: uid });
-    setShow(false); setF({ title:'', body:'', is_public: false });
-    db.getAnnouncements().then(({ data }) => setAnns(data || []));
-  };
-
-  const visible = me.role === 'vol' ? anns.filter(a => !a.department || a.department === me.department) : anns;
-
-  return (
-    <div className="space-y-3">
-      {can('announcements') && (
-        <div className="flex justify-end">
-          <button onClick={() => setShow(!show)} className="btn-primary !py-2 !px-4 !text-sm">{show ? '✕' : '+ Duyuru'}</button>
-        </div>
-      )}
-      {show && (
-        <div className="card border-l-4 border-amber-400 space-y-2">
-          <input className="input-field" placeholder="Başlık" value={f.title} onChange={e => setF({...f, title: e.target.value})} />
-          <textarea className="input-field" rows={3} placeholder="İçerik" value={f.body} onChange={e => setF({...f, body: e.target.value})} />
-          <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
-            <input type="checkbox" checked={f.is_public} onChange={e => setF({...f, is_public: e.target.checked})} /> 🌐 Halka açık
-          </label>
-          <button onClick={create} className="btn-primary w-full">Yayınla</button>
-        </div>
-      )}
-      {visible.map(a => (
-        <div key={a.id} className={`card ${a.is_pinned ? 'border-l-4 border-amber-400' : ''}`}>
-          <div className="font-bold">{a.is_pinned && '📌 '}{a.title}</div>
-          <p className="text-sm text-gray-500 mt-1 leading-relaxed">{a.body}</p>
-          <p className="text-xs text-gray-300 mt-2">{a.profiles?.display_name} · {fdf(a.created_at)}</p>
-        </div>
-      ))}
-      {visible.length === 0 && <div className="card text-center py-6"><p className="text-sm text-gray-400">Duyuru yok</p></div>}
-    </div>
-  );
-}
-
-function RequestSection({ uid, me }) {
-  const [show, setShow] = useState(false);
-  const [msg, setMsg] = useState('');
-  const [sent, setSent] = useState(false);
-
-  const send = async () => {
-    if (!msg.trim()) return;
-    // Gönüllü → koordinatör, koordinatör → admin
-    let targetIds = [];
-    if (me.role === 'vol' && me.department) {
-      const { data } = await db.getCoordsByDept(me.department);
-      targetIds = (data || []).map(c => c.id);
-    }
-    if (targetIds.length === 0) {
-      const { data } = await db.getProfilesByRole('admin');
-      targetIds = (data || []).map(a => a.id);
-    }
-    for (const tid of targetIds) {
-      await db.sendNotification(tid, 'system', `💬 İstek: ${me.display_name}`, msg.slice(0, 200));
-    }
-    setSent(true); setMsg('');
-    setTimeout(() => { setSent(false); setShow(false); }, 2000);
-  };
-
-  return (
-    <div className="mt-6 pt-4 border-t border-gray-100">
-      {!show && !sent && (
-        <button onClick={() => setShow(true)} className="btn-ghost w-full">💬 İstek Gönder</button>
-      )}
-      {show && (
-        <div className="space-y-2">
-          <textarea className="input-field" rows={3} placeholder="İsteğinizi yazın..." value={msg} onChange={e => setMsg(e.target.value)} />
-          <div className="flex gap-2">
-            <button onClick={send} disabled={!msg.trim()} className="btn-primary flex-1 disabled:opacity-50">Gönder</button>
-            <button onClick={() => setShow(false)} className="btn-ghost">İptal</button>
-          </div>
-        </div>
-      )}
-      {sent && <p className="text-sm text-emerald-600 text-center">✓ İsteğiniz gönderildi!</p>}
-    </div>
-  );
-}
-
-// ═════════════════════════════════════════════
-// 👤 BEN
-// ═════════════════════════════════════════════
-function BenView({ me, uid, unread, setUnread, onUpdate }) {
-  return (
-    <div className="space-y-5">
-      <ProfileSection me={me} uid={uid} onUpdate={onUpdate} />
-      <NotificationsSection uid={uid} unread={unread} setUnread={setUnread} />
-      <HelpSection me={me} />
-      <div className="text-center pt-4">
-        <button onClick={db.signOut} className="btn-ghost">Çıkış Yap</button>
-      </div>
-    </div>
-  );
-}
-
-function ProfileSection({ me, uid, onUpdate }) {
-  const [editing, setEditing] = useState(false);
-  const [f, setF] = useState({ display_name: me.display_name, city: me.city || '', bio: me.bio || '' });
-  const [tgCode, setTgCode] = useState(null);
-  const [tgLinked, setTgLinked] = useState(!!me.telegram_id);
-  const [summary, setSummary] = useState(null);
-
-  useEffect(() => { db.getWorkSummary(uid).then(({ data }) => setSummary(data)); }, [uid]);
-
-  const save = async () => {
-    const { data } = await db.updateProfile(uid, f);
-    if (data) onUpdate(data); setEditing(false);
-  };
-
-  const linkTelegram = async () => {
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    await db.updateProfile(uid, { telegram_link_code: code });
-    setTgCode(code);
-  };
-
-  const unlinkTelegram = async () => {
-    await db.updateProfile(uid, { telegram_id: null, telegram_link_code: null, telegram_state: null });
-    setTgLinked(false); setTgCode(null);
-    onUpdate({ ...me, telegram_id: null });
-  };
-
-  return (
-    <div>
-      <div className="card text-center">
-        <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-2xl font-bold text-emerald-600 mx-auto mb-2">{(me.display_name||'?')[0]}</div>
-        <div className="font-bold text-xl">{me.display_name}</div>
-        <div className="text-sm text-emerald-600 font-semibold">{ROLES[me.role]?.i} {ROLES[me.role]?.l}</div>
-        {me.department && <div className="text-sm text-gray-400">{DM[me.department]?.i} {DM[me.department]?.l}</div>}
-        {me.city && <div className="text-sm text-gray-400">📍 {me.city}</div>}
-        <div className="flex justify-center gap-8 mt-4 pt-3 border-t border-gray-50">
-          <div className="text-center"><div className="font-bold text-emerald-600 text-lg">{Number(me.total_hours||0).toFixed(0)}</div><div className="text-xs text-gray-400">Saat</div></div>
-          <div className="text-center"><div className="font-bold text-lg">{fdf(me.joined_at)}</div><div className="text-xs text-gray-400">Üyelik</div></div>
-        </div>
-      </div>
-
-      {/* Çalışma Özeti */}
-      {summary && (
-        <div className="card mt-3">
-          <h3 className="font-bold text-sm mb-3">📊 Çalışma Özeti</h3>
-          <table className="w-full text-sm">
-            <tbody>
-              <tr className="border-b border-gray-50"><td className="py-1.5 text-gray-500">Bu Hafta</td><td className="py-1.5 font-semibold text-right">{summary.week_days} gün · {fmtHours(Number(summary.week_hours))}</td></tr>
-              <tr className="border-b border-gray-50"><td className="py-1.5 text-gray-500">Bu Ay</td><td className="py-1.5 font-semibold text-right">{summary.month_days} gün · {fmtHours(Number(summary.month_hours))}</td></tr>
-              <tr><td className="py-1.5 text-gray-500">Toplam</td><td className="py-1.5 font-bold text-emerald-600 text-right">{summary.total_days} gün · {fmtHours(Number(summary.total_hours))}</td></tr>
-              {(Number(summary.onsite_days) > 0 || Number(summary.remote_days) > 0) && (<>
-                <tr className="border-t border-gray-100"><td className="py-1.5 text-gray-400 text-xs">🏛️ Vakıfta</td><td className="py-1.5 text-xs text-right text-gray-500">{summary.onsite_days} gün · {fmtHours(Number(summary.onsite_hours))}</td></tr>
-                <tr><td className="py-1.5 text-gray-400 text-xs">🏠 Uzaktan</td><td className="py-1.5 text-xs text-right text-gray-500">{summary.remote_days} gün · {fmtHours(Number(summary.remote_hours))}</td></tr>
-              </>)}
-            </tbody>
-          </table>
-          {summary.first_visit && <div className="text-xs text-gray-400 mt-2">İlk giriş: {fdf(summary.first_visit)} · Son: {summary.last_visit === today() ? 'Bugün' : fdf(summary.last_visit)}</div>}
-        </div>
-      )}
-
-      {/* Belgelerim */}
-      <MyCertificates uid={uid} me={me} />
-
-      {/* Telegram Bağlama */}
-      <div className="card mt-3">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-lg">✈️</span>
-          <span className="font-bold text-sm">Telegram</span>
-          {tgLinked && <span className="text-xs text-emerald-600 font-semibold">✓ Bağlı</span>}
-        </div>
-        {tgLinked ? (
-          <div className="space-y-2">
-            <p className="text-sm text-gray-500">Telegram ile giriş/çıkış yapabilirsiniz.</p>
-            <button onClick={unlinkTelegram} className="text-xs text-red-500 font-semibold">Bağlantıyı Kaldır</button>
-          </div>
-        ) : tgCode ? (
-          <div className="space-y-2 text-center">
-            <p className="text-sm text-gray-500">Telegram'da <b>@tarihvakfi_bot</b>'a gidin ve şu komutu gönderin:</p>
-            <div className="bg-gray-100 rounded-xl py-3 px-4 font-mono text-lg font-bold text-gray-800 tracking-wider">/start {tgCode}</div>
-            <a href={`https://t.me/tarihvakfi_bot?start=${tgCode}`} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 font-semibold">veya buraya tıklayın →</a>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <p className="text-sm text-gray-500">Telegram ile giriş/çıkış yapmak için hesabınızı bağlayın.</p>
-            <button onClick={linkTelegram} className="btn-primary w-full !text-sm">📱 Telegram Bağla</button>
-          </div>
-        )}
-      </div>
-
-      <button className="btn-ghost w-full mt-3" onClick={() => setEditing(!editing)}>{editing ? '✕ İptal' : '✏️ Düzenle'}</button>
-      {editing && (
-        <div className="card mt-3 space-y-2">
-          <input className="input-field" placeholder="İsim" value={f.display_name} onChange={e => setF({...f, display_name: e.target.value})} />
-          <input className="input-field" placeholder="Şehir" value={f.city} onChange={e => setF({...f, city: e.target.value})} />
-          <textarea className="input-field" rows={2} placeholder="Hakkımda" value={f.bio} onChange={e => setF({...f, bio: e.target.value})} />
-          <button className="btn-primary w-full" onClick={save}>Kaydet</button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function NotificationsSection({ uid, unread, setUnread }) {
-  const [notifs, setNotifs] = useState([]);
-  const [showAll, setShowAll] = useState(false);
-  useEffect(() => {
-    db.getNotifications(uid).then(({ data }) => setNotifs(data || []));
-  }, [uid]);
-
-  const markAllRead = async () => {
-    await db.markAllRead(uid);
-    setNotifs(notifs.map(n => ({...n, is_read: true})));
-    setUnread(0);
-  };
-
-  const visible = showAll ? notifs : notifs.slice(0, 5);
-
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-3">
-        <h2 className="text-lg font-bold">🔔 Bildirimler {unread > 0 && <span className="bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full ml-1">{unread}</span>}</h2>
-        {unread > 0 && <button onClick={markAllRead} className="text-xs text-emerald-600 font-semibold">Tümünü okundu yap</button>}
-      </div>
-      {visible.map(n => (
-        <div key={n.id} className={`card mb-2 !py-3 ${!n.is_read ? 'border-l-4 border-emerald-400' : ''}`}>
-          <div className="font-semibold text-sm">{n.title}</div>
-          {n.body && <div className="text-xs text-gray-400 mt-0.5">{n.body}</div>}
-          <div className="text-xs text-gray-300 mt-1">{fd(n.created_at)}</div>
-        </div>
-      ))}
-      {notifs.length > 5 && !showAll && <button onClick={() => setShowAll(true)} className="text-sm text-emerald-600 font-semibold">Tümünü göster ({notifs.length})</button>}
-      {notifs.length === 0 && <div className="card text-center py-6"><p className="text-sm text-gray-400">Bildirim yok</p></div>}
-    </div>
-  );
-}
-
-function HelpSection({ me }) {
-  const [open, setOpen] = useState(null);
+// ═══════════════════════════════════════════
+// YARDIM
+// ═══════════════════════════════════════════
+function HelpContent({ me }) {
   const items = [
-    { q: 'İlerleme nasıl güncellenir?', a: 'İşlerim sayfasında ilgili işe tıklayın → Güncelle → Yüzdeyi ayarlayın → Ne yaptığınızı yazın → Kaydet.' },
-    { q: 'Çalışma nasıl raporlanır?', a: '"Çalışma Raporla" butonuna bas → saat, dakika, nerede çalıştığını ve ne yaptığını yaz → Kaydet. 15 saniye.' },
+    { q: 'Çalışma nasıl raporlanır?', a: '"Çalışmamı Raporla" butonuna bas, saati ve ne yaptığını yaz, kaydet. 10 saniye.' },
     { q: 'Raporu düzenleyebilir miyim?', a: 'Evet, rapora tıkla ve düzenle. Onaylanmış raporlar düzenlenince tekrar onay gerekir.' },
-    { q: 'Vardiyamı nerede görürüm?', a: 'İşlerim sayfasının alt kısmında vardiya tablonu görürsün.' },
-    { q: 'Mesaj nasıl yazarım?', a: 'Mesajlar → Sohbet sekmesinden departman sohbetine mesaj yazabilirsiniz.' },
-    { q: 'İstek nasıl gönderirim?', a: 'Mesajlar sayfasının altında "İstek Gönder" butonu var. Serbest metin yazın, koordinatörünüze/yöneticiye gider.' },
-    { q: 'Profilimi nasıl düzenlerim?', a: 'Ben → Profil kartında "Düzenle" butonuna basın.' },
+    { q: 'İş ilerlemesi nasıl güncellenir?', a: 'İşlerim bölümünde ilgili işte "Güncelle" tıkla, yüzdeyi ayarla, not yaz, kaydet.' },
+    { q: 'Telegram ile nasıl raporlarım?', a: 'Profil menüsünden Telegram\'ı bağlayın. Sonra bota "bugün 3 saat belge taradım" yazın.' },
+    { q: 'Destek nasıl alırım?', a: 'Sayfanın altında "Mesaj gönder" linkine tıklayın. Koordinatörünüze mesaj gider.' },
   ];
-  if (me.role !== 'vol') {
-    items.push(
-      { q: 'Raporları nasıl onaylarım?', a: 'İşlerim → "Onaylar" sekmesinde bekleyen raporları onaylayın veya reddedin. "Hepsini Onayla" ile toplu onay yapabilirsiniz. Kendi kaydınızı onaylayamazsınız.' },
-      { q: 'Yeni iş nasıl oluştururum?', a: 'İşlerim → "Tüm İşler" → "+ Yeni İş" butonuna basın. Başlık, açıklama, departman, atanan kişi ve son tarih girin.' },
-      { q: 'İş %100 olunca ne olur?', a: 'İş "Kontrol Bekliyor" durumuna geçer. "✓ Tamamla" butonuyla final onayı verin.' },
-    );
-  }
-
+  if (me.role !== 'vol') items.push(
+    { q: 'Raporları nasıl onaylarım?', a: 'Takımım bölümünde bekleyen raporları onaylayın. "Hepsini Onayla" ile toplu onay yapabilirsiniz.' },
+    { q: 'Yeni iş nasıl oluştururum?', a: 'Takımım → "+ Yeni" butonuna basın. Başlık, açıklama, atanan kişi ve son tarih girin.' },
+  );
+  const [open, setOpen] = useState(null);
   return (
-    <div>
-      <h2 className="text-lg font-bold mb-3">❓ Yardım</h2>
-      {items.map((item, i) => (
-        <div key={i} className="card mb-2 cursor-pointer" onClick={() => setOpen(open === i ? null : i)}>
-          <div className="flex justify-between items-center">
-            <span className="font-semibold text-sm">{item.q}</span>
-            <span className="text-gray-400">{open === i ? '▲' : '▼'}</span>
-          </div>
-          {open === i && <p className="text-sm text-gray-500 mt-2 leading-relaxed">{item.a}</p>}
-        </div>
-      ))}
+    <div className="space-y-1">{items.map((item, i) => (
+      <div key={i} className="bg-gray-50 rounded-xl p-3 cursor-pointer" onClick={() => setOpen(open===i?null:i)}>
+        <div className="flex justify-between"><span className="text-sm font-semibold">{item.q}</span><span className="text-gray-400">{open===i?'▲':'▼'}</span></div>
+        {open === i && <p className="text-sm text-gray-500 mt-2">{item.a}</p>}
+      </div>
+    ))}</div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// RESTRICTED (pending/blocked/etc)
+// ═══════════════════════════════════════════
+function RestrictedShell({ me, uid }) {
+  const msgs = { pending:{i:'⏳',t:'Kaydınız alındı!',d:'Yönetici onayı bekleniyor.'}, rejected:{i:'❌',t:'Başvuru reddedildi',d:'Yöneticiyle iletişime geçin.'}, blocked:{i:'🚫',t:'Hesap engellendi',d:'Yöneticiyle iletişime geçin.'}, paused:{i:'⏸️',t:'Hesap duraklatıldı',d:'Tekrar aktif olmak için talep gönderin.'}, inactive:{i:'🔒',t:'Hesap pasif',d:''}, resigned:{i:'👋',t:'Ayrıldınız',d:''} };
+  const m = msgs[me.status] || msgs.blocked;
+  return (
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
+      <div className="text-center space-y-4 max-w-sm">
+        <div className="text-5xl">{m.i}</div>
+        <h2 className="text-xl font-bold">{m.t}</h2>
+        <p className="text-sm text-gray-500">{m.d}</p>
+        <button onClick={db.signOut} className="text-sm text-gray-400 border border-gray-200 px-6 py-2 rounded-xl">Çıkış</button>
+      </div>
     </div>
   );
 }
