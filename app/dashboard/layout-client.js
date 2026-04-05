@@ -576,9 +576,8 @@ function TeamScreen({ uid, me }) {
       </Section>
 
       {/* İşler */}
-      <Section title="📋 İşler" count={tasks.filter(t=>t.status!=='cancelled'&&t.status!=='done').length} defaultOpen={false}><div>
-        <div className="flex justify-between items-center mb-2">
-          <h2 className="font-bold">📋 İşler ({tasks.length})</h2>
+      <Section title={`📋 İşler (${tasks.filter(t=>t.status!=='cancelled').length})`} count={0} defaultOpen={false}><div>
+        <div className="flex justify-end mb-2">
           <button onClick={() => setShowNewTask(!showNewTask)} className="text-xs bg-emerald-600 text-white font-semibold px-3 py-1.5 rounded-lg">{showNewTask ? '✕' : '+ Yeni'}</button>
         </div>
         {showNewTask && (
@@ -602,7 +601,7 @@ function TeamScreen({ uid, me }) {
             <div className="mt-1 h-1.5 bg-gray-200 rounded-full overflow-hidden"><div className={`h-full rounded-full ${t.status==='done'?'bg-emerald-500':t.status==='review'?'bg-blue-500':'bg-amber-400'}`} style={{width:`${t.progress||0}%`}} /></div>
           </div>
         ))}
-      </div>
+      </div></Section>
 
       {/* Gönüllü Özeti */}
       <div>
