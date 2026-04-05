@@ -1031,6 +1031,48 @@ function ReportsScreen({ uid }) {
 // ═══════════════════════════════════════════
 // SOHBET
 // ═══════════════════════════════════════════
+function ShiftPlanView({ uid, me }) {
+  const [shifts, setShifts] = useState([]);
+  const [vols, setVols] = useState([]);
+  const [show, setShow] = useState(false);
+  const [f, setF] = useState({ volunteer_id:'', day_of_week:'Pzt', start_time:'10:00', end_time:'14:00', department: me.department||'arsiv' });
+  const load = useCallback(async () => {
+    const [s, v] = await Promise.all([db.getShifts({}), db.getAllProfiles()]);
+    setShifts(s.data || []); setVols((v.data || []).filter(v => v.status === 'active'));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const create = async () => { if (!f.volunteer_id) return; await db.createShift({...f, created_by: uid}); setShow(false); load(); };
+  const del = async (id) => { await db.deleteShift(id); load(); };
+  return (
+    <div className="space-y-2">
+      <button onClick={() => setShow(!show)} className="text-xs bg-emerald-500 text-white font-semibold px-3 py-1.5 rounded-lg">{show ? '✕' : '+ Vardiya Ata'}</button>
+      {show && (
+        <div className="card !p-3 space-y-2">
+          <select className="input-field !py-2" value={f.volunteer_id} onChange={e => setF({...f, volunteer_id: e.target.value})}><option value="">Gönüllü</option>{vols.map(v => <option key={v.id} value={v.id}>{v.display_name}</option>)}</select>
+          <div className="grid grid-cols-3 gap-2">
+            <select className="input-field !py-2" value={f.day_of_week} onChange={e => setF({...f, day_of_week: e.target.value})}>{DAYS.map(d => <option key={d}>{d}</option>)}</select>
+            <input type="time" className="input-field !py-2" value={f.start_time} onChange={e => setF({...f, start_time: e.target.value})} />
+            <input type="time" className="input-field !py-2" value={f.end_time} onChange={e => setF({...f, end_time: e.target.value})} />
+          </div>
+          <button onClick={create} className="bg-emerald-500 text-white text-sm font-semibold py-2 rounded-xl w-full">Ekle</button>
+        </div>
+      )}
+      {DAYS.filter(d => shifts.some(s => s.day_of_week === d)).map(day => (
+        <div key={day}>
+          <div className="text-xs font-bold text-gray-500 mb-0.5">{day}</div>
+          {shifts.filter(s => s.day_of_week === day).map(sh => (
+            <div key={sh.id} className="card !p-2 mb-1 flex items-center gap-2 text-sm">
+              <span className="flex-1">{sh.profiles?.display_name} · {sh.start_time?.slice(0,5)}–{sh.end_time?.slice(0,5)}</span>
+              <button onClick={() => del(sh.id)} className="text-xs text-gray-300 hover:text-red-400">✕</button>
+            </div>
+          ))}
+        </div>
+      ))}
+      {shifts.length === 0 && <p className="text-sm text-gray-400 text-center py-2">Vardiya yok</p>}
+    </div>
+  );
+}
+
 function ChatSection({ uid, me }) {
   const isCoordOrAdmin = me.role === 'admin' || me.role === 'coord';
   const [dept, setDept] = useState(me.department || 'arsiv');
