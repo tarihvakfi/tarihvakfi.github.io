@@ -765,66 +765,195 @@ function ActivityOverview({ vols }) {
 
 function AdminScreen({ uid, me }) {
   const [pendingUsers, setPendingUsers] = useState([]);
+  const [pendingReports, setPendingReports] = useState([]);
   const [vols, setVols] = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [sel, setSel] = useState(null);
   const [certVol, setCertVol] = useState(null);
   const [summaries, setSummaries] = useState({});
+  const [search, setSearch] = useState('');
+  const [showNewTask, setShowNewTask] = useState(false);
+  const [tf, setTf] = useState({ title:'', description:'', department: me.department||'arsiv', assigned_to:'', deadline:'', materials:'' });
+  const [showAnn, setShowAnn] = useState(false);
+  const [annF, setAnnF] = useState({ title:'', body:'' });
 
   const load = useCallback(async () => {
-    const [p, ws] = await Promise.all([db.getAllProfiles(), db.getAllWorkSummaries()]);
+    const [p, pr, ws, t] = await Promise.all([db.getAllProfiles(), db.getPendingReports(), db.getAllWorkSummaries(), db.getTasks()]);
     const all = p.data || [];
     setPendingUsers(all.filter(u => u.status === 'pending'));
     setVols(all.filter(u => u.status !== 'pending'));
+    setPendingReports(pr.data || []);
+    setTasks(t.data || []);
     setSummaries(Object.fromEntries((ws.data || []).map(s => [s.id, s])));
   }, []);
   useEffect(() => { load(); }, [load]);
 
   const approveUser = async (id) => { await db.setUserStatus(id, 'active'); await db.sendNotification(id, 'welcome', 'Hesabınız onaylandı!', ''); load(); };
   const rejectUser = async (id) => { await db.setUserStatus(id, 'rejected'); load(); };
+  const blockUser = async (id) => { await db.setUserStatus(id, 'blocked'); load(); };
+  const approveReport = async (id) => { await db.approveReport(id, uid); load(); };
+  const approveAllReports = async () => { const ids = pendingReports.filter(r => r.user_id !== uid).map(r => r.id); await db.approveAllReports(ids, uid); load(); };
   const changeRole = async (id, role) => { await db.setUserRole(id, role); setVols(vols.map(v => v.id === id ? {...v, role} : v)); };
   const changeDept = async (id, dept) => { await db.setUserDept(id, dept); setVols(vols.map(v => v.id === id ? {...v, department: dept} : v)); };
+  const createTask = async () => { if (!tf.title) return; await db.createTask({ ...tf, priority:'medium', assigned_to: tf.assigned_to ? [tf.assigned_to] : [], created_by: uid }); setShowNewTask(false); setTf({ title:'', description:'', department: me.department||'arsiv', assigned_to:'', deadline:'', materials:'' }); load(); };
+  const createAnn = async () => { if (!annF.title || !annF.body) return; await db.createAnnouncement({ ...annF, department: null, is_pinned: false, is_public: false, author_id: uid }); setShowAnn(false); setAnnF({ title:'', body:'' }); };
+
+  const activeTasks = tasks.filter(t => ['active','pending','review'].includes(t.status));
+  const overdueTasks = activeTasks.filter(t => t.deadline && t.deadline < today());
+  const needsAttention = vols.filter(v => v.status === 'active' && v.role === 'vol' && ['slowing','inactive','dormant'].includes(v.activity_status));
+  const filteredVols = vols.filter(v => !search || v.display_name?.toLowerCase().includes(search.toLowerCase()) || v.email?.toLowerCase().includes(search.toLowerCase()));
+  const allGood = pendingUsers.length === 0 && pendingReports.length === 0 && overdueTasks.length === 0 && needsAttention.length === 0;
 
   return (
-    <div className="space-y-6">
-      {/* Pending */}
+    <div className="space-y-4">
+      {/* Özet kartlar */}
+      <div className="grid grid-cols-4 gap-2">
+        {[
+          { n: pendingUsers.length, l: 'Yeni Kayıt', i: '🆕', c: pendingUsers.length ? 'bg-blue-50 border-blue-200' : '' },
+          { n: pendingReports.length, l: 'Onay Bekl.', i: '⏳', c: pendingReports.length ? 'bg-amber-50 border-amber-200' : '' },
+          { n: vols.filter(v => v.status === 'active').length, l: 'Aktif Gön.', i: '👥' },
+          { n: activeTasks.length, l: 'Açık İş', i: '📋', c: overdueTasks.length ? 'bg-red-50 border-red-200' : '' },
+        ].map((s, i) => (
+          <div key={i} className={`card !p-2.5 text-center ${s.c || ''}`}>
+            <div className="text-lg font-bold">{s.n}</div>
+            <div className="text-[10px] text-gray-500">{s.i} {s.l}</div>
+          </div>
+        ))}
+      </div>
+
+      {allGood && <div className="card !p-3 text-center text-sm text-emerald-600 font-semibold">✅ Her şey yolunda!</div>}
+
+      {/* Kayıt Onaylama */}
       {pendingUsers.length > 0 && (
-        <div>
-          <h2 className="font-bold mb-2">🕐 Onay Bekleyen ({pendingUsers.length})</h2>
+        <Section title="🆕 Kayıt Onaylama" count={pendingUsers.length} defaultOpen={true}>
           {pendingUsers.map(u => (
-            <div key={u.id} className="bg-gray-50 rounded-xl p-3 mb-1.5 flex items-center gap-3">
-              <div className="flex-1"><div className="font-semibold text-sm">{u.display_name}</div><div className="text-xs text-gray-400">{u.email}</div></div>
-              <button onClick={() => approveUser(u.id)} className="text-xs bg-emerald-50 text-emerald-600 px-3 py-1 rounded-lg font-semibold">✓</button>
-              <button onClick={() => rejectUser(u.id)} className="text-xs bg-red-50 text-red-500 px-3 py-1 rounded-lg font-semibold">✕</button>
+            <div key={u.id} className="card mb-2 !p-3">
+              <div className="flex items-center gap-2">
+                <div className="flex-1"><div className="font-semibold text-sm">{u.display_name}</div><div className="text-xs text-gray-400">{u.email} · {fd(u.joined_at)}</div></div>
+                <button onClick={() => approveUser(u.id)} className="text-xs bg-emerald-50 text-emerald-600 px-2.5 py-1.5 rounded-lg font-semibold">✓ Onayla</button>
+                <button onClick={() => rejectUser(u.id)} className="text-xs bg-red-50 text-red-400 px-2 py-1.5 rounded-lg">✕</button>
+                <button onClick={() => blockUser(u.id)} className="text-xs text-gray-300 px-2 py-1.5">🚫</button>
+              </div>
             </div>
           ))}
-        </div>
+        </Section>
       )}
 
-      {/* Aktivite Özeti */}
-      <ActivityOverview vols={vols} />
-
-      {/* TeamScreen (includes approvals, tasks, chat, shifts etc) */}
-      <TeamScreen uid={uid} me={me} />
-
-      {/* Gönüllü Yönetimi */}
-      <div>
-        <h2 className="font-bold mb-2">👥 Gönüllü Yönetimi ({vols.length})</h2>
-        {vols.map(v => (
-          <div key={v.id} className={`bg-gray-50 rounded-xl p-3 mb-1.5 ${v.status !== 'active' ? 'opacity-50' : ''}`}>
-            <div className="flex items-center gap-2 cursor-pointer" onClick={() => setSel(sel === v.id ? null : v.id)}>
-              <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-600">{(v.display_name||'?')[0]}</div>
-              <div className="flex-1"><div className="text-sm font-semibold">{v.display_name} {ROLES[v.role]?.i}</div><div className="text-xs text-gray-400">{DM[v.department]?.l || '—'}</div></div>
-              <button onClick={e => { e.stopPropagation(); setCertVol(v); }} className="text-xs text-amber-600">🏆</button>
+      {/* Rapor Onaylama */}
+      {pendingReports.length > 0 && (
+        <Section title="⏳ Rapor Onaylama" count={pendingReports.length} defaultOpen={true}>
+          {pendingReports.map(r => (
+            <div key={r.id} className="card mb-1.5 !p-3 flex items-center gap-2">
+              <span className="text-xs">{r.task_id ? '📋' : '📝'} {r.work_mode==='remote'?'🏠':'🏛️'}</span>
+              <div className="flex-1"><div className="text-sm font-semibold">{r.profiles?.display_name}</div><div className="text-xs text-gray-400">{fd(r.date)} · {fmtH(r.hours)} · {r.description?.slice(0,30)}{r.edited_at?' ✏️':''}</div></div>
+              {r.user_id !== uid ? <button onClick={() => approveReport(r.id)} className="text-xs bg-emerald-50 text-emerald-600 px-2.5 py-1.5 rounded-lg font-semibold">✓</button> : <span className="text-xs text-gray-300">Kendi</span>}
             </div>
-            {sel === v.id && v.id !== uid && (
-              <div className="mt-2 pt-2 border-t border-gray-200 space-y-2">
-                <select className="w-full border rounded-xl px-3 py-2 text-sm" value={v.role} onChange={e => changeRole(v.id, e.target.value)}><option value="vol">Gönüllü</option><option value="coord">Koordinatör</option><option value="admin">Yönetici</option></select>
-                <select className="w-full border rounded-xl px-3 py-2 text-sm" value={v.department||''} onChange={e => changeDept(v.id, e.target.value)}><option value="">Departman</option>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.l}</option>)}</select>
+          ))}
+          {pendingReports.filter(r => r.user_id !== uid).length > 1 && <button onClick={approveAllReports} className="w-full text-center text-sm text-emerald-600 font-semibold py-2 bg-emerald-50 rounded-xl mt-1">✓ Hepsini Onayla</button>}
+        </Section>
+      )}
+
+      {/* Gönüllüler */}
+      <Section title="👥 Gönüllüler" count={vols.filter(v=>v.status==='active').length} defaultOpen={false}>
+        <input className="input-field !py-2 mb-2" placeholder="Ara..." value={search} onChange={e => setSearch(e.target.value)} />
+        {filteredVols.map(v => (
+          <div key={v.id} className={`card mb-1.5 !p-3 ${v.status !== 'active' ? 'opacity-40' : ''}`}>
+            <div className="flex items-center gap-2 cursor-pointer" onClick={() => setSel(sel === v.id ? null : v.id)}>
+              <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center text-[10px] font-bold text-emerald-600">{(v.display_name||'?')[0]}</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold truncate">{v.display_name}</div>
+                <div className="text-xs text-gray-400">{DM[v.department]?.l || '—'} · {ROLES[v.role]?.i}</div>
+              </div>
+              {v.id !== uid && (
+                <select className="text-xs border rounded-lg px-1.5 py-1 bg-white" value={v.role} onClick={e=>e.stopPropagation()} onChange={e => changeRole(v.id, e.target.value)}>
+                  <option value="vol">Gön</option><option value="coord">Krd</option><option value="admin">Yön</option>
+                </select>
+              )}
+              <button onClick={e => { e.stopPropagation(); setCertVol(v); }} className="text-xs text-amber-500">🏆</button>
+            </div>
+            {sel === v.id && (
+              <div className="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-500 space-y-1">
+                {v.id !== uid && <select className="w-full border rounded-lg px-2 py-1.5 text-sm" value={v.department||''} onChange={e => changeDept(v.id, e.target.value)}><option value="">Departman seç</option>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.l}</option>)}</select>}
+                {summaries[v.id] && <div>Bu ay: {summaries[v.id].month_days}g / {fmtH(Number(summaries[v.id].month_hours))} · Toplam: {summaries[v.id].total_days}g / {fmtH(Number(summaries[v.id].total_hours))}</div>}
+                <div>Son aktivite: {v.last_activity_at ? fd(v.last_activity_at) : '—'} · Skor: {v.activity_score||0}</div>
               </div>
             )}
           </div>
         ))}
-      </div>
+      </Section>
+
+      {/* İşler */}
+      <Section title={`📋 İşler (${activeTasks.length} açık${overdueTasks.length ? `, ${overdueTasks.length} gecikmiş` : ''})`} count={overdueTasks.length} defaultOpen={false}>
+        <button onClick={() => setShowNewTask(!showNewTask)} className="text-xs bg-emerald-500 text-white font-semibold px-3 py-1.5 rounded-lg mb-2">{showNewTask ? '✕' : '+ Yeni İş'}</button>
+        {showNewTask && (
+          <div className="card mb-2 space-y-2 !p-3">
+            <input className="input-field !py-2" placeholder="İş başlığı" value={tf.title} onChange={e => setTf({...tf, title: e.target.value})} />
+            <div className="grid grid-cols-2 gap-2">
+              <select className="input-field !py-2" value={tf.department} onChange={e => setTf({...tf, department: e.target.value})}>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.l}</option>)}</select>
+              <select className="input-field !py-2" value={tf.assigned_to} onChange={e => setTf({...tf, assigned_to: e.target.value})}><option value="">Atanacak</option>{vols.filter(v=>v.status==='active').map(v => <option key={v.id} value={v.id}>{v.display_name}</option>)}</select>
+            </div>
+            <input type="date" className="input-field !py-2" value={tf.deadline} onChange={e => setTf({...tf, deadline: e.target.value})} />
+            <button onClick={createTask} className="bg-emerald-500 text-white text-sm font-semibold py-2 rounded-xl w-full">Oluştur</button>
+          </div>
+        )}
+        {tasks.filter(t => t.status !== 'cancelled').slice(0, 15).map(t => {
+          const overdue = t.deadline && t.deadline < today() && !['done','cancelled'].includes(t.status);
+          return (
+            <div key={t.id} className={`card mb-1.5 !p-3 ${overdue ? 'border-l-4 border-red-400' : ''}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0"><span className="text-sm font-semibold truncate">{t.title}</span> <span className="text-xs text-gray-400">{Math.round(t.progress||0)}%</span></div>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${t.status==='done'?'bg-emerald-50 text-emerald-600':t.status==='review'?'bg-blue-50 text-blue-600':'bg-gray-100 text-gray-500'}`}>{STATUSES[t.status]}</span>
+              </div>
+              <div className="mt-1 h-1.5 bg-gray-100 rounded-full overflow-hidden"><div className={`h-full rounded-full ${t.status==='done'?'bg-emerald-500':'bg-emerald-400'}`} style={{width:`${t.progress||0}%`}} /></div>
+              {t.status === 'review' && <button onClick={async () => { await db.updateTask(t.id, { status:'done', completed_at: new Date().toISOString() }); load(); }} className="text-xs text-emerald-600 font-semibold mt-1">✓ Tamamla</button>}
+            </div>
+          );
+        })}
+      </Section>
+
+      {/* Duyurular */}
+      <Section title="📢 Duyurular" count={0} defaultOpen={false}>
+        <button onClick={() => setShowAnn(!showAnn)} className="text-xs bg-emerald-500 text-white font-semibold px-3 py-1.5 rounded-lg mb-2">{showAnn ? '✕' : '+ Yeni'}</button>
+        {showAnn && (
+          <div className="card mb-2 space-y-2 !p-3">
+            <input className="input-field !py-2" placeholder="Başlık" value={annF.title} onChange={e => setAnnF({...annF, title: e.target.value})} />
+            <textarea className="input-field !py-2" rows={2} placeholder="İçerik" value={annF.body} onChange={e => setAnnF({...annF, body: e.target.value})} />
+            <button onClick={createAnn} className="bg-emerald-500 text-white text-sm font-semibold py-2 rounded-xl w-full">Yayınla</button>
+          </div>
+        )}
+      </Section>
+
+      {/* Sohbet */}
+      <Section title="💬 Sohbet" count={0} defaultOpen={false}>
+        <ChatSection uid={uid} me={me} />
+      </Section>
+
+      {/* Vardiya */}
+      <Section title="📅 Vardiya" count={0} defaultOpen={false}>
+        <ShiftPlanView uid={uid} me={me} />
+      </Section>
+
+      {/* Dikkat Gerektiren */}
+      {needsAttention.length > 0 && (
+        <Section title="⚠️ Dikkat Gerektiren" count={needsAttention.length} defaultOpen={false}>
+          {needsAttention.sort((a,b) => (a.activity_score||0)-(b.activity_score||0)).map(v => {
+            const days = v.last_activity_at ? Math.floor((Date.now()-new Date(v.last_activity_at).getTime())/86400000) : 999;
+            const icon = (v.activity_status==='slowing')?'🟡':(v.activity_status==='inactive')?'🟠':'🔴';
+            return (
+              <div key={v.id} className="card mb-1.5 !p-3 flex items-center gap-2">
+                <span>{icon}</span>
+                <div className="flex-1"><div className="text-sm font-semibold">{v.display_name}</div><div className="text-xs text-gray-400">{days < 999 ? `${days} gündür rapor yok` : 'Hiç rapor yok'}</div></div>
+              </div>
+            );
+          })}
+        </Section>
+      )}
+
+      {/* Belge */}
+      <Section title="🏆 Belge Oluştur" count={0} defaultOpen={false}>
+        <p className="text-sm text-gray-400 mb-2">Gönüllüler listesinde 🏆 ikonuna tıklayın.</p>
+      </Section>
+
       {certVol && <CertificateModal vol={certVol} summary={summaries[certVol.id]} issuerId={uid} onClose={() => setCertVol(null)} />}
     </div>
   );
@@ -834,11 +963,50 @@ function AdminScreen({ uid, me }) {
 // 📊 RAPORLAR (admin)
 // ═══════════════════════════════════════════
 function ReportsScreen({ uid }) {
+  const [quickResult, setQuickResult] = useState('');
+  const [quickLoading, setQuickLoading] = useState('');
+
+  const runQuick = async (period) => {
+    setQuickLoading(period); setQuickResult('');
+    const { quickReport } = await import('./reports');
+    const result = await quickReport(period);
+    setQuickResult(result); setQuickLoading('');
+  };
+
   return (
-    <div className="space-y-6">
-      <ReportBuilder uid={uid} />
-      <ReportArchive />
-      <BackupView uid={uid} />
+    <div className="space-y-4">
+      {/* Hızlı raporlar */}
+      <div className="grid grid-cols-3 gap-2">
+        {[['today','📅 Bugün'],['week','📊 Bu Hafta'],['month','📈 Bu Ay']].map(([k,l]) => (
+          <button key={k} onClick={() => runQuick(k)} disabled={!!quickLoading} className={`card !p-3 text-center cursor-pointer hover:shadow-md transition-shadow ${quickLoading===k?'opacity-50':''}`}>
+            <div className="text-sm font-semibold">{l}</div>
+          </button>
+        ))}
+      </div>
+
+      {quickResult && (
+        <div className="card">
+          <pre className="text-xs whitespace-pre-wrap font-mono text-gray-600 leading-relaxed max-h-[50vh] overflow-y-auto">{quickResult}</pre>
+          <div className="flex gap-2 mt-3 pt-2 border-t border-gray-100">
+            <button onClick={() => navigator.clipboard.writeText(quickResult)} className="text-xs bg-emerald-50 text-emerald-600 font-semibold px-3 py-1.5 rounded-lg">📋 Kopyala</button>
+          </div>
+        </div>
+      )}
+
+      {/* Detaylı rapor */}
+      <Section title="📄 Detaylı Rapor Oluştur" count={0} defaultOpen={false}>
+        <ReportBuilder uid={uid} />
+      </Section>
+
+      {/* Arşiv */}
+      <Section title="📂 Rapor Arşivi" count={0} defaultOpen={false}>
+        <ReportArchive />
+      </Section>
+
+      {/* Yedekleme */}
+      <Section title="💾 Yedekleme" count={0} defaultOpen={false}>
+        <BackupView uid={uid} />
+      </Section>
     </div>
   );
 }
