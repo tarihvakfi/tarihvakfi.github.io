@@ -59,7 +59,13 @@ export default function Dashboard({session}){
   const[editMode,setEditMode]=useState(false);
   const[quickReportFor,setQuickReportFor]=useState(null); // vol profile for quick report modal
 
-  useEffect(()=>{(async()=>{const{data}=await db.getProfile(uid);if(data){const{settings,secondary_departments,...safe}=data;setMe(safe);}setUnread(await db.getUnreadCount(uid));setLoading(false);})();},[uid]);
+  useEffect(()=>{(async()=>{const{data}=await db.getProfile(uid);if(data){
+    // Strip ALL non-primitive fields to prevent React #310
+    const safe={};for(const[k,v]of Object.entries(data)){if(v===null||typeof v!=='object')safe[k]=v;}
+    // Keep arrays as-is (React can render them)
+    if(data.tags)safe.tags=data.tags;if(data.skills)safe.skills=data.skills;if(data.available_days)safe.available_days=data.available_days;
+    setMe(safe);
+  }setUnread(await db.getUnreadCount(uid));setLoading(false);})();},[uid]);
   useEffect(()=>{const sub=db.subscribeNotifications(uid,()=>setUnread(n=>n+1));return()=>sub.unsubscribe();},[uid]);
   useEffect(()=>{if(!me)return;if(me.role==='admin')setPage('genel');else if(me.role==='coord')setPage('calisma');else setPage('ana');},[me?.role]);
 
@@ -88,6 +94,15 @@ export default function Dashboard({session}){
   const stopManaging=()=>{setManagingUser(null);setPage('gonulluler');};
 
   if(loading||!me)return<div className="flex items-center justify-center min-h-screen"><div className="space-y-3 w-48"><div className="skeleton h-3 w-full"/><div className="skeleton h-3 w-3/4"/><div className="skeleton h-3 w-1/2"/></div></div>;
+
+  // DEBUG: Check for object fields that would crash React render
+  if(typeof window!=='undefined'&&me){
+    for(const[k,v]of Object.entries(me)){
+      if(v!==null&&typeof v==='object'&&!Array.isArray(v)){
+        console.error('BUG: me.'+k+' is an object:',JSON.stringify(v));
+      }
+    }
+  }
   const restricted=['paused','inactive','resigned','pending','rejected','blocked'].includes(me.status);
   if(restricted)return<RestrictedShell me={me} uid={uid}/>;
 
@@ -278,7 +293,7 @@ function NotifPanel({uid,onClose}){const[items,setItems]=useState([]);useEffect(
 
 function ProfilePanel({me,uid,onUpdate,onModal,onClose}){
   const[editing,setEditing]=useState(false);const[f,setF]=useState({display_name:me.display_name,city:me.city||''});const[tgCode,setTgCode]=useState(null);
-  const save=async()=>{const{data}=await db.updateProfile(uid,f);if(data){const{settings,secondary_departments,...safe}=data;onUpdate(safe);}setEditing(false);};
+  const save=async()=>{const{data}=await db.updateProfile(uid,f);if(data){const safe={};for(const[k,v]of Object.entries(data)){if(v===null||typeof v!=='object')safe[k]=v;}if(data.tags)safe.tags=data.tags;if(data.skills)safe.skills=data.skills;if(data.available_days)safe.available_days=data.available_days;onUpdate(safe);}setEditing(false);};
   const linkTg=async()=>{const code=String(Math.floor(100000+Math.random()*900000));await db.updateProfile(uid,{telegram_link_code:code});setTgCode(code);};
   return(<div className="fixed top-14 right-4 z-[55] dropdown-panel w-[220px]">
     <div className="px-4 py-3 border-b border-[#F3F4F6]"><div className="text-[13px] font-medium">{me.display_name}</div><div className="text-[11px] text-[#9CA3AF]">{me.email||ROLES[me.role]}</div></div>
