@@ -237,6 +237,7 @@ function MyScreen({ uid, me, onModal }) {
   const [f, setF] = useState({ h: '', desc: '', mode: 'onsite', date: today(), plan: '', taskId: '' });
   const [errors, setErrors] = useState({});
   const [showExtra, setShowExtra] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const [showGuide, setShowGuide] = useState(me.first_login);
   const [reports, setReports] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -304,6 +305,23 @@ function MyScreen({ uid, me, onModal }) {
     setSaving(false); load();
   };
 
+  const handleDelete = async (r) => {
+    if (!r) return;
+    const daysDiff = Math.floor((Date.now() - new Date(r.date).getTime()) / 86400000);
+    if (daysDiff > 30) { toast.show('❌ 30 günden eski raporlar silinemez'); return; }
+    if (r.status === 'approved') { setConfirmDelete(r); return; }
+    await db.deleteWorkReport(r.id);
+    toast.show('🗑️ Rapor silindi');
+    setShowForm(false); setEditR(null); load();
+  };
+
+  const confirmDeleteAction = async () => {
+    if (!confirmDelete) return;
+    await db.deleteWorkReport(confirmDelete.id);
+    toast.show('🗑️ Rapor silindi');
+    setConfirmDelete(null); setShowForm(false); setEditR(null); load();
+  };
+
   const startEdit = (r) => {
     setF({ h: String(r.hours), desc: r.description||'', mode: r.work_mode||'onsite', date: r.date, plan: r.next_plan||'', taskId: r.task_id||'' });
     setEditR(r); setShowForm(true); setShowExtra(!!r.next_plan); setErrors({});
@@ -329,6 +347,21 @@ function MyScreen({ uid, me, onModal }) {
   return (
     <div className="space-y-6">
       <toast.Toast />
+
+      {/* Silme onay modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={() => setConfirmDelete(null)}>
+          <div className="bg-white rounded-2xl p-5 max-w-sm w-full text-center space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="text-3xl">⚠️</div>
+            <p className="font-bold">Onaylanmış raporu sil?</p>
+            <p className="text-sm text-gray-500">Bu rapor onaylanmış. Silersen <b>{fmtH(confirmDelete.hours)}</b> toplam saatinden düşülecek.</p>
+            <div className="flex gap-2">
+              <button onClick={confirmDeleteAction} className="flex-1 bg-red-500 text-white font-semibold py-2.5 rounded-xl">Evet, Sil</button>
+              <button onClick={() => setConfirmDelete(null)} className="flex-1 border border-gray-200 font-semibold py-2.5 rounded-xl text-gray-500">Vazgeç</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* İlk kullanım rehberi */}
       {showGuide && (
@@ -381,6 +414,7 @@ function MyScreen({ uid, me, onModal }) {
           {/* Kaydet */}
           <button onClick={submit} disabled={saving} className="bg-emerald-600 text-white font-bold py-3 rounded-xl w-full disabled:opacity-50" aria-label="Kaydet">{saving ? '...' : '✓ Kaydet'}</button>
           {editR?.status === 'approved' && <p className="text-xs text-amber-500 text-center">⚠️ Onaylanmış rapor — tekrar onay gerekecek</p>}
+          {editR && <button onClick={() => handleDelete(editR)} className="w-full text-center text-sm text-red-400 py-2 hover:text-red-600">🗑��� Raporu Sil</button>}
           {/* Ekstra */}
           {/* İlgili iş (opsiyonel) */}
           {tasks.length > 0 && (
@@ -584,7 +618,7 @@ function TeamScreen({ uid, me }) {
           <div key={r.id} className="bg-gray-50 rounded-xl p-3 mb-1.5 flex items-center gap-2">
             <span className="text-sm">{r.task_id ? '📋' : '📝'}</span>
             <div className="flex-1"><div className="text-sm font-semibold">{r.profiles?.display_name} <span className="text-xs">{r.work_mode==='remote'?'🏠':'🏛️'}</span></div><div className="text-xs text-gray-400">{fd(r.date)} · {fmtH(r.hours)} · {r.description?.slice(0,40)}{r.edited_at ? ' ✏️' : ''}{r.task_id ? ' · İşe bağlı' : ''}</div></div>
-            {r.user_id !== uid ? <button onClick={() => approve(r.id)} className="text-xs bg-emerald-50 text-emerald-600 font-semibold px-3 py-1.5 rounded-lg">✓</button> : <span className="text-xs text-gray-300">Kendi</span>}
+            {r.user_id !== uid ? (<div className="flex gap-1"><button onClick={() => approve(r.id)} className="text-xs bg-emerald-50 text-emerald-600 font-semibold px-2.5 py-1.5 rounded-lg">✓</button><button onClick={async () => { await db.deleteWorkReport(r.id); load(); }} className="text-xs bg-red-50 text-red-400 px-2 py-1.5 rounded-lg">🗑️</button></div>) : <span className="text-xs text-gray-300">Kendi</span>}
           </div>
         ))}
         {pending.length === 0 && <p className="text-sm text-gray-400 text-center py-3">Bekleyen yok ✓</p>}
