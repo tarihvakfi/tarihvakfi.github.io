@@ -31,11 +31,8 @@ export default function DashboardPage() {
   }, []);
 
   if (loading || !session) return (
-    <div className="flex items-center justify-center min-h-screen bg-stone-50">
-      <div className="text-center">
-        <div className="text-4xl mb-3">🏛️</div>
-        <p className="text-gray-400 text-sm">Yükleniyor...</p>
-      </div>
+    <div className="flex items-center justify-center min-h-screen bg-[#FAFAFA]">
+      <div className="space-y-3 w-48"><div className="skeleton h-3 w-full"/><div className="skeleton h-3 w-3/4"/><div className="skeleton h-3 w-1/2"/></div>
     </div>
   );
 

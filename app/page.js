@@ -74,7 +74,7 @@ export default function Home() {
       <section className="relative overflow-hidden text-white" style={{background:'linear-gradient(135deg, #1a3c34 0%, #2d5a4e 40%, #1e3a5f 100%)'}}>
         <div className="absolute inset-0 opacity-10" style={{backgroundImage:'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M0 0h40v40H0z\' fill=\'none\'/%3E%3Cpath d=\'M0 40L40 0\' stroke=\'%23fff\' stroke-width=\'.5\'/%3E%3C/svg%3E")'}} />
         <div className="relative max-w-3xl mx-auto text-center py-20 md:py-28 px-4">
-          <h1 className="text-3xl md:text-5xl font-bold leading-tight" style={{fontFamily:"'Playfair Display',serif"}}>
+          <h1 className="text-3xl md:text-5xl font-bold leading-tight">
             Tarih Vakfı<br />Gönüllü Platformu
           </h1>
           <p className="text-base md:text-lg text-white/60 mt-5 max-w-xl mx-auto leading-relaxed">
@@ -86,7 +86,7 @@ export default function Home() {
       {/* Vakıf Hakkında */}
       <section className="py-14 px-4">
         <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-2xl font-bold mb-4" style={{fontFamily:"'Playfair Display',serif"}}>Hakkımızda</h2>
+          <h2 className="text-2xl font-bold mb-4">Hakkımızda</h2>
           <p className="text-sm md:text-base text-gray-600 leading-relaxed">
             Tarih Vakfı, 1991 yılında 12 kişilik Girişim Kurulu ve 264 Kurucu Mütevelli ile kurulan, tarihe dair demokratik perspektifi geliştirmeyi amaçlayan bağımsız bir sivil toplum kuruluşudur. 35 yıllık tarihinde yüzlerce proje, sergi, kongre, konferans, sempozyum, atölye, söyleşi ve panel gerçekleştirmiştir.
           </p>
@@ -118,7 +118,7 @@ export default function Home() {
       {/* Çalışma Alanları / Departmanlar */}
       <section className="py-14 px-4">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl font-bold text-center mb-3" style={{fontFamily:"'Playfair Display',serif"}}>Çalışma Alanlarımız</h2>
+          <h2 className="text-2xl font-bold text-center mb-3">Çalışma Alanlarımız</h2>
           <p className="text-sm text-gray-400 text-center mb-8">Gönüllülerimiz 8 farklı departmanda aktif olarak çalışmaktadır</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {DEPTS.map(d => (
@@ -136,7 +136,7 @@ export default function Home() {
       {/* Nasıl Gönüllü Olurum */}
       <section className="py-14 px-4 bg-white">
         <div className="max-w-3xl mx-auto">
-          <h2 className="text-2xl font-bold text-center mb-8" style={{fontFamily:"'Playfair Display',serif"}}>Nasıl Gönüllü Olurum?</h2>
+          <h2 className="text-2xl font-bold text-center mb-8">Nasıl Gönüllü Olurum?</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { i: '📝', n: '1', t: 'Kayıt Ol', d: 'Google hesabınız veya e-posta ile hızlıca kayıt olun.' },
@@ -162,7 +162,7 @@ export default function Home() {
       {anns.length > 0 && (
         <section className="py-14 px-4">
           <div className="max-w-3xl mx-auto">
-            <h2 className="text-2xl font-bold text-center mb-8" style={{fontFamily:"'Playfair Display',serif"}}>Son Gelişmeler</h2>
+            <h2 className="text-2xl font-bold text-center mb-8">Son Gelişmeler</h2>
             <div className="space-y-3">
               {anns.map((a, i) => (
                 <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50">
@@ -184,7 +184,7 @@ export default function Home() {
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-xl">🏛️</span>
-                <span className="font-bold text-lg" style={{fontFamily:"'Playfair Display',serif"}}>Tarih Vakfı</span>
+                <span className="font-bold text-lg">Tarih Vakfı</span>
               </div>
               <p className="text-sm text-white/50 leading-relaxed">
                 Tarihe dair demokratik perspektifi geliştirmeyi amaçlayan bağımsız bir sivil toplum kuruluşu.

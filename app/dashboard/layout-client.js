@@ -294,7 +294,7 @@ function VolHome({uid,me,onModal,isManaging,adminUid}){
     if(editR){await db.updateWorkReport(editR.id,data);toast.show('Güncellendi');}
     else{
       const reportData={...data,user_id:uid,source:'web'};
-      if(isManaging&&adminUid){reportData.entered_by=adminUid;reportData.is_approved=true;reportData.reviewed_by=adminUid;}
+      if(isManaging&&adminUid){reportData.entered_by=adminUid;reportData.status='approved';reportData.approved_by=adminUid;}
       await db.createWorkReport(reportData);
       if(isManaging&&adminUid)await db.logAdminAction(adminUid,uid,'create_report',{hours:data.hours,desc:data.description});
       toast.show('Kaydedildi');
@@ -331,9 +331,9 @@ function VolHome({uid,me,onModal,isManaging,adminUid}){
         <div className="flex gap-2 items-center"><button onClick={()=>saveInline(r.id)} className="btn-sm btn-approve">Kaydet</button><button onClick={()=>setEditingId(null)} className="text-[12px] text-[#9CA3AF]">İptal</button><button onClick={()=>setConfirmDel(r.id)} className="btn-danger-text ml-auto text-[12px]">Sil</button></div>
       </div>:
       <div className="report-row" onClick={()=>startEdit(r)}>
-        <div className={`sl ${r.is_approved?'sl-green':'sl-yellow'}`}/>
+        <div className={`sl ${r.status==='approved'?'sl-green':'sl-yellow'}`}/>
         <div className="flex-1 min-w-0"><div className="text-[14px] font-medium">{fd(r.date)} — {fmtH(r.hours)}</div><div className="text-[12px] text-[#9CA3AF]">{r.description||'—'}, {r.work_mode==='remote'?'uzaktan':'vakıfta'}</div></div>
-        <div className={`text-[12px] flex-shrink-0 ${r.is_approved?'text-[#059669]':'text-[#F59E0B]'}`}>{r.is_approved?'onaylı':'bekliyor'}</div>
+        <div className={`text-[12px] flex-shrink-0 ${r.status==='approved'?'text-[#059669]':'text-[#F59E0B]'}`}>{r.status==='approved'?'onaylı':'bekliyor'}</div>
       </div>}
       {confirmDel===r.id&&<div className="flex items-center gap-3 py-2 px-2 text-[13px]"><span className="text-[#EF4444]">Silinsin mi?</span><button onClick={()=>deleteReport(r.id)} className="font-medium text-[#EF4444]">Evet</button><button onClick={()=>setConfirmDel(null)} className="text-[#9CA3AF]">Hayır</button></div>}
     </div>)}</div>}
@@ -373,9 +373,9 @@ function MyReports({uid}){
     {reports.length===0?<div className="text-[13px] text-[#9CA3AF]">Henüz rapor yok.</div>:
     reports.map(r=>(
       <div key={r.id} className="report-row">
-        <div className={`sl ${r.is_approved?'sl-green':'sl-yellow'}`}/>
+        <div className={`sl ${r.status==='approved'?'sl-green':'sl-yellow'}`}/>
         <div className="flex-1 min-w-0"><div className="text-[14px] font-medium">{fdf(r.date)} — {fmtH(r.hours)}</div><div className="text-[12px] text-[#9CA3AF]">{r.description||'—'}, {r.work_mode==='remote'?'uzaktan':'vakıfta'}</div></div>
-        <div className={`text-[12px] ${r.is_approved?'text-[#059669]':'text-[#F59E0B]'}`}>{r.is_approved?'onaylı':'bekliyor'}</div>
+        <div className={`text-[12px] ${r.status==='approved'?'text-[#059669]':'text-[#F59E0B]'}`}>{r.status==='approved'?'onaylı':'bekliyor'}</div>
       </div>
     ))}
   </div>);
@@ -481,7 +481,7 @@ function VolunteersPage({uid,me,admin,onManage,onQuickReport,editMode}){
               <div><div className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-wide mb-1">Son raporlar</div>
                 {volReports[v.id].map(r=>(
                   <div key={r.id} className="text-[12px] text-[#6B7280] py-1 border-b border-[#F3F4F6] last:border-0">
-                    {fd(r.date)} — {fmtH(r.hours)} — {r.description?.slice(0,30)||'—'} <span className={r.is_approved?'text-[#059669]':'text-[#F59E0B]'}>({r.is_approved?'onaylı':'bekliyor'})</span>
+                    {fd(r.date)} — {fmtH(r.hours)} — {r.description?.slice(0,30)||'—'} <span className={r.status==='approved'?'text-[#059669]':'text-[#F59E0B]'}>({r.status==='approved'?'onaylı':'bekliyor'})</span>
                     {r.entered_by&&<span className="text-[#9CA3AF]"> · yönetici girdi</span>}
                   </div>
                 ))}
@@ -675,7 +675,7 @@ function AdminOverview({uid,me,onNav}){
         </>}
       </div>
       <div>
-        {recent.length>0&&<><div className="sec-label" style={{marginTop:0}}>Son gelişmeler</div>{recent.slice(0,6).map((r,i)=><div key={r.id||i} className="tl-item"><div className={`tl-dot ${r.is_approved?'tl-dot-green':''}`}/><div><div className="text-[13px] text-[#6B7280]"><b className="text-[#111] font-medium">{r.profiles?.display_name}</b> — {fmtH(r.hours)}</div><div className="text-[11px] text-[#C4C4C4] mt-0.5">{timeAgo(r.created_at)}</div></div></div>)}</>}
+        {recent.length>0&&<><div className="sec-label" style={{marginTop:0}}>Son gelişmeler</div>{recent.slice(0,6).map((r,i)=><div key={r.id||i} className="tl-item"><div className={`tl-dot ${r.status==='approved'?'tl-dot-green':''}`}/><div><div className="text-[13px] text-[#6B7280]"><b className="text-[#111] font-medium">{r.profiles?.display_name}</b> — {fmtH(r.hours)}</div><div className="text-[11px] text-[#C4C4C4] mt-0.5">{timeAgo(r.created_at)}</div></div></div>)}</>}
         {attn.length>0&&<><div className="sec-label">Dikkat gerektiren</div>{attn.sort((a,b)=>(a.activity_score||0)-(b.activity_score||0)).slice(0,5).map(v=>{const days=v.last_activity_at?Math.floor((Date.now()-new Date(v.last_activity_at).getTime())/864e5):999;const dc=v.activity_status==='slowing'?'bg-[#F59E0B]':'bg-[#EF4444]';return<div key={v.id} className="flex items-center gap-2 py-2 text-[13px]"><span className={`dot ${dc}`}/><span>{v.display_name} — {days<999?`${days} gün`:'hiç rapor yok'}</span></div>;})}</>}
       </div>
     </div>
@@ -759,7 +759,7 @@ function QuickReportModal({vol,adminUid,onClose}){
   const submit=async()=>{
     const h=parseFloat(f.h);if(!h||h<=0||h>24)return;
     setSaving(true);
-    await db.createReportForUser({user_id:vol.id,hours:h,description:f.desc.trim(),work_mode:f.mode,date:f.date,source:'web',entered_by:adminUid,is_approved:true,reviewed_by:adminUid});
+    await db.createReportForUser({user_id:vol.id,hours:h,description:f.desc.trim(),work_mode:f.mode,date:f.date,source:'web',entered_by:adminUid,status:'approved',approved_by:adminUid});
     await db.logAdminAction(adminUid,vol.id,'create_report',{hours:h,desc:f.desc.trim()});
     setSaving(false);toast.show('Kaydedildi');onClose();
   };
