@@ -885,22 +885,32 @@ function ChatSection({ uid, me }) {
 // ═══════════════════════════════════════════
 function HelpContent({ me }) {
   const items = [
-    { q: 'Çalışma nasıl raporlanır?', a: '"Çalışmamı Raporla" butonuna bas, saati ve ne yaptığını yaz, kaydet. 10 saniye.' },
-    { q: 'Raporu düzenleyebilir miyim?', a: 'Evet, rapora tıkla ve düzenle. Onaylanmış raporlar düzenlenince tekrar onay gerekir.' },
-    { q: 'İş ilerlemesi nasıl güncellenir?', a: 'İşlerim bölümünde ilgili işte "Güncelle" tıkla, yüzdeyi ayarla, not yaz, kaydet.' },
-    { q: 'Telegram ile nasıl raporlarım?', a: 'Profil menüsünden Telegram\'ı bağlayın. Sonra bota "bugün 3 saat belge taradım" yazın.' },
-    { q: 'Destek nasıl alırım?', a: 'Sayfanın altında "Mesaj gönder" linkine tıklayın. Koordinatörünüze mesaj gider.' },
+    { q: 'Nasıl çalışma raporu girerim?', a: 'Çalışma Raporu butonuna tıkla → saat yaz → ne yaptığını yaz → Vakıfta/Uzaktan seç → Kaydet. Hepsi bu.' },
+    { q: 'Raporumu nasıl düzenlerim?', a: 'Bu Hafta listesinde rapora tıkla → düzenle → Güncelle. Onaylanmış rapor düzenlenirse tekrar onay gerekir.' },
+    { q: 'Raporumu nasıl silerim?', a: 'Rapora tıkla → Raporu Sil. Onaylanmış rapor silinirken onay istenir. 30 günden eski raporlar silinemez.' },
+    { q: 'İşe bağlı rapor nedir?', a: 'Çalışma raporunda opsiyonel olarak ilgili işi seçebilirsin. Seçmesen de rapor kaydedilir — bağımsız çalışma olur.' },
+    { q: 'Bildirimlerimi nasıl görebilirim?', a: 'Sağ üstteki 🔔 ikonuna tıkla. Duyurular ve görev atamaları da popup ile açılır.' },
+    { q: 'Profilimi nasıl düzenlerim?', a: 'Sağ üstteki adına tıkla → Profili Düzenle.' },
+    { q: 'Telegram nasıl bağlanır?', a: 'Adına tıkla → Telegram Bağla → kodu bot\'a gönder. Sonra "bugün 3 saat belge taradım" yazarak raporla.' },
+    { q: 'Belgelerimi nerede görebilirim?', a: 'Adına tıkla → Belgelerim.' },
+    { q: 'Sorun bildirmek istiyorum', a: 'Sayfanın altındaki "Sorunun mu var? Mesaj gönder" linkini kullan. Koordinatörüne gider.' },
   ];
   if (me.role !== 'vol') items.push(
-    { q: 'Raporları nasıl onaylarım?', a: 'Takımım bölümünde bekleyen raporları onaylayın. "Hepsini Onayla" ile toplu onay yapabilirsiniz.' },
-    { q: 'Yeni iş nasıl oluştururum?', a: 'Takımım → "+ Yeni" butonuna basın. Başlık, açıklama, atanan kişi ve son tarih girin.' },
+    { q: 'Raporları nasıl onaylarım?', a: 'Takımım → Onay Bekleyenler → Onayla veya Reddet. Hepsini Onayla ile toplu onay. Kendi raporunu onaylayamazsın.' },
+    { q: 'Nasıl iş oluştururum?', a: 'Takımım → İşler → + Yeni İş. Başlık, açıklama, atanan kişi ve son tarih gir.' },
+    { q: 'İş tamamlama onayı nedir?', a: 'İş %100 olunca Kontrol Bekliyor durumuna geçer. ✓ Tamamla ile bitirirsin.' },
+  );
+  if (me.role === 'admin') items.push(
+    { q: 'Yeni kullanıcıları nasıl onaylarım?', a: 'Yönetim → Onay Bekleyenler → Onayla/Reddet.' },
+    { q: 'Rapor nasıl oluştururum?', a: 'Raporlar sekmesi → tip ve dönem seç → Önizle → Excel veya metin olarak indir.' },
+    { q: 'Yedekleme nasıl yapılır?', a: 'Raporlar → aşağı kaydır → Yedekle → Google Sheets veya CSV.' },
   );
   const [open, setOpen] = useState(null);
   return (
-    <div className="space-y-1">{items.map((item, i) => (
-      <div key={i} className="bg-gray-50 rounded-xl p-3 cursor-pointer" onClick={() => setOpen(open===i?null:i)}>
-        <div className="flex justify-between"><span className="text-sm font-semibold">{item.q}</span><span className="text-gray-400">{open===i?'▲':'▼'}</span></div>
-        {open === i && <p className="text-sm text-gray-500 mt-2">{item.a}</p>}
+    <div className="space-y-1.5">{items.map((item, i) => (
+      <div key={i} className="card !p-3 cursor-pointer" onClick={() => setOpen(open===i?null:i)}>
+        <div className="flex justify-between items-center"><span className="text-sm font-semibold">{item.q}</span><span className="text-gray-300 text-xs">{open===i?'▲':'▼'}</span></div>
+        {open === i && <p className="text-sm text-gray-500 mt-2 leading-relaxed">{item.a}</p>}
       </div>
     ))}</div>
   );
