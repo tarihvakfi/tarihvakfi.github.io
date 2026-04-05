@@ -234,7 +234,7 @@ function useToast() {
 function MyScreen({ uid, me, onModal }) {
   const [showForm, setShowForm] = useState(false);
   const [editR, setEditR] = useState(null);
-  const [f, setF] = useState({ h: '', desc: '', mode: 'onsite', date: today(), plan: '' });
+  const [f, setF] = useState({ h: '', desc: '', mode: 'onsite', date: today(), plan: '', taskId: '' });
   const [errors, setErrors] = useState({});
   const [showExtra, setShowExtra] = useState(false);
   const [showGuide, setShowGuide] = useState(me.first_login);
@@ -266,7 +266,7 @@ function MyScreen({ uid, me, onModal }) {
   // Smart defaults from last report
   const lastReport = reports[0];
   const resetForm = () => setF({
-    h: '', desc: '', mode: lastReport?.work_mode || 'onsite', date: today(), plan: ''
+    h: '', desc: '', mode: lastReport?.work_mode || 'onsite', date: today(), plan: '', taskId: ''
   });
 
   const validate = () => {
@@ -290,7 +290,7 @@ function MyScreen({ uid, me, onModal }) {
       await db.updateWorkReport(editR.id, upd);
       toast.show(editR.status === 'approved' ? '✅ Güncellendi. Tekrar onay gerekiyor.' : '✅ Güncellendi!');
     } else {
-      await db.createWorkReport({ user_id: uid, date: f.date, hours: parseFloat(f.h), work_mode: f.mode, description: f.desc, next_plan: f.plan, source: 'web' });
+      await db.createWorkReport({ user_id: uid, date: f.date, hours: parseFloat(f.h), work_mode: f.mode, description: f.desc, next_plan: f.plan, source: 'web', task_id: f.taskId || null });
       toast.show('✅ Kaydedildi! Koordinatörün onaylayacak.');
     }
     setShowForm(false); setEditR(null); resetForm(); setErrors({}); setSaving(false); load();
@@ -305,7 +305,7 @@ function MyScreen({ uid, me, onModal }) {
   };
 
   const startEdit = (r) => {
-    setF({ h: String(r.hours), desc: r.description||'', mode: r.work_mode||'onsite', date: r.date, plan: r.next_plan||'' });
+    setF({ h: String(r.hours), desc: r.description||'', mode: r.work_mode||'onsite', date: r.date, plan: r.next_plan||'', taskId: r.task_id||'' });
     setEditR(r); setShowForm(true); setShowExtra(!!r.next_plan); setErrors({});
   };
 
@@ -382,6 +382,16 @@ function MyScreen({ uid, me, onModal }) {
           <button onClick={submit} disabled={saving} className="bg-emerald-600 text-white font-bold py-3 rounded-xl w-full disabled:opacity-50" aria-label="Kaydet">{saving ? '...' : '✓ Kaydet'}</button>
           {editR?.status === 'approved' && <p className="text-xs text-amber-500 text-center">⚠️ Onaylanmış rapor — tekrar onay gerekecek</p>}
           {/* Ekstra */}
+          {/* İlgili iş (opsiyonel) */}
+          {tasks.length > 0 && (
+            <div>
+              <label className="text-xs text-gray-400">📋 İlgili iş (opsiyonel)</label>
+              <select className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm mt-1" value={f.taskId} onChange={e => setF({...f, taskId: e.target.value})}>
+                <option value="">Bağımsız çalışma</option>
+                {tasks.map(t => <option key={t.id} value={t.id}>{t.title} ({Math.round(t.progress||0)}%)</option>)}
+              </select>
+            </div>
+          )}
           {!showExtra && (
             <div className="flex gap-4 text-xs text-gray-400 justify-center">
               <button onClick={() => setShowExtra(true)}>📅 Tarih değiştir</button>
@@ -397,10 +407,12 @@ function MyScreen({ uid, me, onModal }) {
         </div>
       )}
 
-      {/* İşlerim */}
-      {tasks.length > 0 && (
-        <div>
-          <h2 className="font-bold mb-2">📋 İşlerim</h2>
+      {/* Atanan İşlerim */}
+      <div>
+        <h2 className="font-bold mb-2">📋 Atanan İşlerim</h2>
+        {tasks.length === 0 && <p className="text-sm text-gray-400 bg-gray-50 rounded-xl p-3 text-center">Sana atanmış iş yok. Ama çalışmanı yukarıdan raporlayabilirsin.</p>}
+        {tasks.length > 0 && (
+          <div>
           {tasks.map(t => {
             const expanded = expandTask === t.id;
             return (
@@ -421,16 +433,20 @@ function MyScreen({ uid, me, onModal }) {
               </div>
             );
           })}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
 
       {/* Bu Hafta */}
       <div>
         <h2 className="font-bold mb-2">📅 Bu Hafta <span className="text-sm text-gray-400 font-normal">{reports.length} rapor, {fmtH(weekTotal)}</span></h2>
         {reports.map(r => (
           <div key={r.id} className="bg-gray-50 rounded-xl p-3 mb-1.5 flex items-center gap-2 cursor-pointer" onClick={() => startEdit(r)}>
-            <span className="text-sm">{r.work_mode==='remote'?'🏠':'🏛️'}</span>
-            <div className="flex-1"><span className="text-sm font-semibold">{fd(r.date)}</span> <span className="text-sm">{fmtH(r.hours)}</span><div className="text-xs text-gray-400 truncate">{r.description}</div></div>
+            <span className="text-sm">{r.task_id ? '📋' : '📝'}</span>
+            <div className="flex-1">
+              <span className="text-sm font-semibold">{fd(r.date)}</span> <span className="text-sm">{fmtH(r.hours)}</span> <span className="text-xs">{r.work_mode==='remote'?'🏠':'🏛️'}</span>
+              <div className="text-xs text-gray-400 truncate">{r.description}</div>
+            </div>
             <span className={`text-xs ${r.status==='approved'?'text-emerald-600':r.status==='rejected'?'text-red-500':'text-amber-500'}`}>{r.status==='approved'?'✅':r.status==='rejected'?'❌':'⏳'}</span>
           </div>
         ))}
@@ -566,8 +582,8 @@ function TeamScreen({ uid, me }) {
         </div>
         {pending.map(r => (
           <div key={r.id} className="bg-gray-50 rounded-xl p-3 mb-1.5 flex items-center gap-2">
-            <span className="text-sm">{r.work_mode==='remote'?'🏠':'🏛️'}</span>
-            <div className="flex-1"><div className="text-sm font-semibold">{r.profiles?.display_name}</div><div className="text-xs text-gray-400">{fd(r.date)} · {fmtH(r.hours)} · {r.description?.slice(0,40)}{r.edited_at ? ' ✏️' : ''}</div></div>
+            <span className="text-sm">{r.task_id ? '📋' : '📝'}</span>
+            <div className="flex-1"><div className="text-sm font-semibold">{r.profiles?.display_name} <span className="text-xs">{r.work_mode==='remote'?'🏠':'🏛️'}</span></div><div className="text-xs text-gray-400">{fd(r.date)} · {fmtH(r.hours)} · {r.description?.slice(0,40)}{r.edited_at ? ' ✏️' : ''}{r.task_id ? ' · İşe bağlı' : ''}</div></div>
             {r.user_id !== uid ? <button onClick={() => approve(r.id)} className="text-xs bg-emerald-50 text-emerald-600 font-semibold px-3 py-1.5 rounded-lg">✓</button> : <span className="text-xs text-gray-300">Kendi</span>}
           </div>
         ))}
