@@ -77,8 +77,7 @@ function parseWorkReport(s: string): { date: string; hours: number; desc: string
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('OK')
 
-  const secret = req.headers.get('x-telegram-bot-api-secret-token')
-  if (WEBHOOK_SECRET && secret !== WEBHOOK_SECRET) return new Response('Unauthorized', { status: 401 })
+  // Secret check removed — Supabase function auth handles security
 
   try {
     const update = await req.json()
