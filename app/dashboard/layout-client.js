@@ -70,7 +70,7 @@ export default function Dashboard({ session }) {
       {/* Header */}
       <header className="bg-white border-b border-gray-100 px-4 py-3 sticky top-0 z-50">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <span className="text-lg font-bold" style={{fontFamily:"'Playfair Display',serif"}}>🏛️ Tarih Vakfı</span>
+          <a href="/" className="text-lg font-bold" style={{fontFamily:"'Playfair Display',serif"}}>🏛️ Tarih Vakfı</a>
           <div className="flex items-center gap-2">
             <button onClick={() => setShowNotifs(!showNotifs)} className="relative w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-sm">
               🔔{unread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">{unread}</span>}
@@ -87,7 +87,7 @@ export default function Dashboard({ session }) {
       {showProfile && <ProfileDropdown me={me} uid={uid} onUpdate={m => setMe(m)} onModal={setModal} onClose={() => setShowProfile(false)} />}
 
       {/* Modals */}
-      {modal === 'chat' && <ModalWrap title="💬 Sohbet" onClose={() => setModal(null)}><ChatSection uid={uid} me={me} /></ModalWrap>}
+      {/* Sohbet modal kaldırıldı — koordinatör/admin Takımım/Yönetim içinde kullanır */}
       {modal === 'certs' && <ModalWrap title="🏆 Belgelerim" onClose={() => setModal(null)}><MyCertificates uid={uid} me={me} /></ModalWrap>}
       {modal === 'summary' && <ModalWrap title="📊 Çalışma Özeti" onClose={() => setModal(null)}><WorkSummaryModal uid={uid} /></ModalWrap>}
       {modal === 'help' && <ModalWrap title="❓ Yardım" onClose={() => setModal(null)}><HelpContent me={me} /></ModalWrap>}
@@ -137,14 +137,31 @@ function ModalWrap({ title, children, onClose }) {
 
 function NotifDropdown({ uid, onClose }) {
   const [notifs, setNotifs] = useState([]);
-  useEffect(() => { db.getNotifications(uid, 10).then(({ data }) => setNotifs(data || [])); db.markAllRead(uid); }, [uid]);
+  const [detail, setDetail] = useState(null);
+  useEffect(() => { db.getNotifications(uid, 15).then(({ data }) => setNotifs(data || [])); db.markAllRead(uid); }, [uid]);
+
+  if (detail) return (
+    <div className="fixed top-14 right-2 bg-white rounded-2xl shadow-xl border border-gray-100 w-80 max-h-96 overflow-y-auto z-[55]">
+      <div className="p-3 border-b border-gray-50 flex items-center justify-between">
+        <button onClick={() => setDetail(null)} className="text-xs text-gray-400">← Geri</button>
+        <button onClick={onClose} className="text-gray-400">✕</button>
+      </div>
+      <div className="p-4">
+        <div className="text-lg mb-1">{detail.type === 'announcement' ? '📢' : detail.type === 'task' ? '📋' : '🔔'}</div>
+        <div className="font-bold text-sm mb-2">{detail.title}</div>
+        {detail.body && <p className="text-sm text-gray-600 leading-relaxed">{detail.body}</p>}
+        <div className="text-xs text-gray-300 mt-3">{fdf(detail.created_at)}</div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="fixed top-14 right-2 bg-white rounded-2xl shadow-xl border border-gray-100 w-80 max-h-80 overflow-y-auto z-[55]">
       <div className="p-3 border-b border-gray-50 font-bold text-sm">🔔 Bildirimler</div>
       {notifs.map(n => (
-        <div key={n.id} className={`px-3 py-2 border-b border-gray-50 ${!n.is_read ? 'bg-emerald-50/50' : ''}`}>
+        <div key={n.id} onClick={() => setDetail(n)} className={`px-3 py-2 border-b border-gray-50 cursor-pointer hover:bg-gray-50 ${!n.is_read ? 'bg-emerald-50/50' : ''}`}>
           <div className="text-sm font-semibold">{n.title}</div>
-          {n.body && <div className="text-xs text-gray-400">{n.body}</div>}
+          {n.body && <div className="text-xs text-gray-400 truncate">{n.body}</div>}
           <div className="text-[10px] text-gray-300 mt-0.5">{fd(n.created_at)}</div>
         </div>
       ))}
@@ -245,22 +262,16 @@ function MyScreen({ uid, me, onModal }) {
   const [progVal, setProgVal] = useState(0);
   const [progNote, setProgNote] = useState('');
   const [summary, setSummary] = useState(null);
-  const [anns, setAnns] = useState([]);
-  const [shifts, setShifts] = useState([]);
   const [saving, setSaving] = useState(false);
   const toast = useToast();
 
   const load = useCallback(async () => {
-    const [r, t, ws, a, sh] = await Promise.all([
-      db.getWeekReports(uid), db.getTasks({ assignedTo: uid }),
-      db.getWorkSummary(uid), db.getAnnouncements(), db.getShifts({ volunteerId: uid }),
+    const [r, t, ws] = await Promise.all([
+      db.getWeekReports(uid), db.getTasks({ assignedTo: uid }), db.getWorkSummary(uid),
     ]);
     setReports(r.data || []);
     setTasks((t.data || []).filter(t => !['done','cancelled'].includes(t.status)));
     setSummary(ws.data);
-    const threeDaysAgo = new Date(Date.now() - 3*86400000).toISOString().slice(0,10);
-    setAnns((a.data || []).filter(a => a.is_pinned || ((!a.department || a.department === me.department) && a.created_at?.slice(0,10) >= threeDaysAgo)).slice(0, 5));
-    setShifts(sh.data || []);
   }, [uid, me.department]);
   useEffect(() => { load(); }, [load]);
 
@@ -342,7 +353,6 @@ function MyScreen({ uid, me, onModal }) {
   };
 
   const weekTotal = reports.reduce((a, r) => a + Number(r.hours||0), 0);
-  const todayDay = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay()-1];
 
   return (
     <div className="space-y-6">
@@ -386,12 +396,12 @@ function MyScreen({ uid, me, onModal }) {
       {/* Raporla Butonu / Form */}
       {!showForm ? (
         <button onClick={() => { resetForm(); setEditR(null); setShowForm(true); setShowExtra(false); setErrors({}); }} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-lg py-4 rounded-2xl w-full transition-all active:scale-[0.97]" aria-label="Çalışma raporla">
-          📝 Çalışmamı Raporla
+          📝 Çalışma Raporu
         </button>
       ) : (
         <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
           <div className="flex justify-between items-center">
-            <span className="font-bold">{editR ? '✏️ Düzenle' : '📝 Çalışmamı Raporla'}</span>
+            <span className="font-bold">{editR ? '✏️ Düzenle' : '📝 Çalışma Raporu'}</span>
             <button onClick={() => { setShowForm(false); setEditR(null); setErrors({}); }} className="text-gray-400" aria-label="Kapat">✕</button>
           </div>
           {/* Saat */}
@@ -489,41 +499,6 @@ function MyScreen({ uid, me, onModal }) {
           <button onClick={quickRepeat} disabled={saving} className="w-full text-center text-sm text-emerald-600 font-semibold py-2 bg-emerald-50 rounded-xl disabled:opacity-50" aria-label="Aynısını tekrarla">🔄 Aynısını tekrarla ({fmtH(lastReport.hours)}, {lastReport.description?.slice(0,25)}...)</button>
         )}
       </div>
-
-      {/* Duyurular */}
-      {anns.length > 0 && (
-        <div>
-          <h2 className="font-bold mb-2">📢 Duyurular</h2>
-          {anns.map(a => (
-            <div key={a.id} className={`bg-gray-50 rounded-xl p-3 mb-1.5 ${a.is_pinned ? 'border-l-4 border-amber-400' : ''}`}>
-              <div className="font-semibold text-sm">{a.is_pinned && '📌 '}{a.title}</div>
-              <div className="text-xs text-gray-400 mt-0.5">{a.body?.slice(0,100)}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Vardiyam */}
-      {shifts.length > 0 && (
-        <div>
-          <h2 className="font-bold mb-2">📅 Vardiyam</h2>
-          <div className="bg-gray-50 rounded-xl p-3">
-            {DAYS.filter(d => shifts.some(s => s.day_of_week === d)).map(day => {
-              const sh = shifts.find(s => s.day_of_week === day);
-              return <div key={day} className={`flex items-center py-1 text-sm ${day===todayDay?'font-bold text-emerald-600':''}`}><span className="w-10">{day}</span><span>{sh?.start_time?.slice(0,5)}–{sh?.end_time?.slice(0,5)}</span></div>;
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Alt linkler (gönüllü için) */}
-      {me.role === 'vol' && (
-        <div className="flex justify-center gap-6 text-sm text-gray-400 pt-4 border-t border-gray-100">
-          <button onClick={() => onModal('chat')}>💬 Sohbet</button>
-          <button onClick={() => onModal('summary')}>📊 Özet</button>
-          <button onClick={() => onModal('help')}>❓ Yardım</button>
-        </div>
-      )}
 
       {/* Destek */}
       {me.role !== 'admin' && (
