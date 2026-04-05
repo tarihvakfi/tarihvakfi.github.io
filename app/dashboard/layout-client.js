@@ -43,6 +43,7 @@ export default function Dashboard({session}){
   const[managingUser,setManagingUser]=useState(null); // full profile object or null — "olarak yönet"
   const[editMode,setEditMode]=useState(false);
   const[quickReportFor,setQuickReportFor]=useState(null); // vol profile for quick report modal
+  const[pendingCount,setPendingCount]=useState(0);
 
   useEffect(()=>{(async()=>{const{data}=await db.getProfile(uid);if(data)setMe(data);setUnread(await db.getUnreadCount(uid));setLoading(false);})();},[uid]);
   useEffect(()=>{const sub=db.subscribeNotifications(uid,()=>setUnread(n=>n+1));return()=>sub.unsubscribe();},[uid]);
@@ -112,7 +113,6 @@ export default function Dashboard({session}){
   const sideNav=isCoord?coordNav:isAdmin?adminNav:[];
 
   // Pending count for badge
-  const [pendingCount,setPendingCount]=useState(0);
   useEffect(()=>{if(!hasSidebar)return;(async()=>{const{data}=await db.getPendingReports();setPendingCount((data||[]).length);})();},[hasSidebar]);
 
   // SidebarContent inlined directly in JSX below
