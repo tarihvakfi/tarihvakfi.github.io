@@ -77,6 +77,17 @@ export default function Dashboard({session}){
   const restricted=['paused','inactive','resigned','pending','rejected','blocked'].includes(me.status);
   if(restricted)return<RestrictedShell me={me} uid={uid}/>;
 
+  // TEMP DEBUG: return minimal UI to find error source
+  return(<div style={{padding:40,fontFamily:'Inter,system-ui'}}>
+    <h1>Dashboard loaded</h1>
+    <p>User: {String(me.display_name)}</p>
+    <p>Role: {String(me.role)}</p>
+    <p>Status: {String(me.status)}</p>
+    <p>Fields: {Object.keys(me).join(', ')}</p>
+    <p>Object fields: {Object.entries(me).filter(([,v])=>v!==null&&typeof v==='object').map(([k])=>k).join(', ')||'none'}</p>
+    <button onClick={()=>window.location.reload()}>Reload</button>
+  </div>);
+
   const realAdmin=me.role==='admin';
 
   // Effective role: if managing a user, use their role; if view-as, use that
