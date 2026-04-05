@@ -58,7 +58,7 @@ export default function Dashboard({session}){
       if(e.key==='2'){switchView('coord');return;}
       if(e.key==='3'){switchView('vol');return;}
     }
-  };window.addEventListener('keydown',h);return()=>window.removeEventListener('keydown',h);},[me?.role,viewAsRole,viewAsUser]);
+  };window.addEventListener('keydown',h);return()=>window.removeEventListener('keydown',h);},[me?.role,viewAsRole,managingUser]);
 
   const switchView=(role)=>{
     if(role==='admin'||role===null){setViewAsRole(null);setManagingUser(null);setEditMode(false);setPage('genel');}
@@ -119,7 +119,7 @@ export default function Dashboard({session}){
       <div className="px-4 pt-5 pb-2 font-semibold text-[15px]">Tarih Vakfı</div>
 
       {/* Role switcher (admin only) */}
-      {realAdmin&&!viewAsUser&&(
+      {realAdmin&&!managingUser&&(
         <div className="px-3 pb-3">
           <div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#C4C4C4] px-1 mb-1">Görünüm</div>
           <select value={viewAsRole||'admin'} onChange={e=>switchView(e.target.value==='admin'?null:e.target.value)} className="w-full text-[12px] border border-[#E5E7EB] rounded-[7px] px-2 py-[7px] bg-white text-[#374151] outline-none focus:border-[#059669]">
@@ -145,7 +145,7 @@ export default function Dashboard({session}){
       </nav>
 
       {/* Edit mode toggle + user info (admin only, in admin view) */}
-      {realAdmin&&isAdmin&&!viewAsUser&&(
+      {realAdmin&&isAdmin&&!managingUser&&(
         <div className="px-3 pb-4 border-t border-[#F3F4F6] pt-3 mt-2">
           <label className="flex items-center gap-2 cursor-pointer text-[12px] text-[#6B7280]">
             <div className={`w-8 h-[18px] rounded-full transition-colors relative ${editMode?'bg-[#059669]':'bg-[#D1D5DB]'}`} onClick={()=>setEditMode(!editMode)}>
