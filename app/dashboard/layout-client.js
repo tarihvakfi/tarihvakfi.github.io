@@ -77,6 +77,15 @@ export default function Dashboard({session}){
   const restricted=['paused','inactive','resigned','pending','rejected','blocked'].includes(me.status);
   if(restricted)return<RestrictedShell me={me} uid={uid}/>;
 
+  // Temp: wrap in try-catch to find object child
+  try { JSON.stringify(me); } catch(e) { return <div>Profile stringify error: {String(e)}</div>; }
+  // Check ALL me values
+  for(const[k,v]of Object.entries(me||{})){
+    if(v!==null&&v!==undefined&&typeof v==='object'&&!Array.isArray(v)){
+      return <div style={{padding:40}}>Found object field in profile: <b>{k}</b> = {JSON.stringify(v)}<br/>This causes React error 310. Fix: null this field.</div>;
+    }
+  }
+
   const realAdmin=me.role==='admin';
 
   // Effective role: if managing a user, use their role; if view-as, use that
