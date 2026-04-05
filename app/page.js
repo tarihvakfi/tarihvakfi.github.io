@@ -39,16 +39,19 @@ export default function Home() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data?.session));
-    Promise.all([
-      getPublicStats().catch(() => ({ data: null })),
-      getPublicAnnouncements().catch(() => ({ data: [] })),
-      getDeptVolunteerCounts().catch(() => ({})),
-    ]).then(([s, a, d]) => {
-      setStats(s.data);
-      setAnns(a.data || []);
-      setDeptCounts(d);
+    (async () => {
+      try {
+        const [s, a, d] = await Promise.all([
+          getPublicStats(),
+          getPublicAnnouncements(),
+          getDeptVolunteerCounts(),
+        ]);
+        setStats(s?.data);
+        setAnns(s?.data ? (a?.data || []) : []);
+        setDeptCounts(d || {});
+      } catch (e) { /* ignore */ }
       setLoaded(true);
-    }).catch(() => setLoaded(true));
+    })();
   }, []);
 
   return (
