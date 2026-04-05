@@ -219,13 +219,25 @@ function WorkSummaryModal({ uid }) {
 }
 
 // ═══════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════
+function useToast() {
+  const [msg, setMsg] = useState('');
+  const show = (m) => { setMsg(m); setTimeout(() => setMsg(''), 3000); };
+  const Toast = () => msg ? <div className="fixed top-16 left-1/2 -translate-x-1/2 bg-emerald-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-lg z-[70] animate-pulse">{msg}</div> : null;
+  return { show, Toast };
+}
+
+// ═══════════════════════════════════════════
 // 📋 İŞLERİM (herkes — tek ekran)
 // ═══════════════════════════════════════════
 function MyScreen({ uid, me, onModal }) {
   const [showForm, setShowForm] = useState(false);
   const [editR, setEditR] = useState(null);
   const [f, setF] = useState({ h: '', desc: '', mode: 'onsite', date: today(), plan: '' });
+  const [errors, setErrors] = useState({});
   const [showExtra, setShowExtra] = useState(false);
+  const [showGuide, setShowGuide] = useState(me.first_login);
   const [reports, setReports] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [expandTask, setExpandTask] = useState(null);
@@ -235,6 +247,7 @@ function MyScreen({ uid, me, onModal }) {
   const [anns, setAnns] = useState([]);
   const [shifts, setShifts] = useState([]);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   const load = useCallback(async () => {
     const [r, t, ws, a, sh] = await Promise.all([
@@ -244,30 +257,61 @@ function MyScreen({ uid, me, onModal }) {
     setReports(r.data || []);
     setTasks((t.data || []).filter(t => !['done','cancelled'].includes(t.status)));
     setSummary(ws.data);
-    setAnns((a.data || []).filter(a => a.is_pinned || !a.department || a.department === me.department).slice(0, 3));
+    const threeDaysAgo = new Date(Date.now() - 3*86400000).toISOString().slice(0,10);
+    setAnns((a.data || []).filter(a => a.is_pinned || ((!a.department || a.department === me.department) && a.created_at?.slice(0,10) >= threeDaysAgo)).slice(0, 5));
     setShifts(sh.data || []);
   }, [uid, me.department]);
   useEffect(() => { load(); }, [load]);
 
-  const resetForm = () => setF({ h: '', desc: '', mode: 'onsite', date: today(), plan: '' });
+  // Smart defaults from last report
+  const lastReport = reports[0];
+  const resetForm = () => setF({
+    h: '', desc: '', mode: lastReport?.work_mode || 'onsite', date: today(), plan: ''
+  });
+
+  const validate = () => {
+    const e = {};
+    const hours = parseFloat(f.h);
+    if (!f.h) e.h = 'Kaç saat çalıştığını yaz';
+    else if (hours < 0.5) e.h = 'En az 0.5 saat olmalı';
+    else if (hours > 16) e.h = 'Bir günde 16 saatten fazla olamaz';
+    if (!f.desc.trim()) e.desc = 'Ne yaptığını kısaca yaz';
+    if (f.date > today()) e.date = 'İleri tarih seçilemez';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
 
   const submit = async () => {
-    const hours = parseFloat(f.h);
-    if (!hours || !f.desc.trim()) return;
+    if (!validate()) return;
     setSaving(true);
     if (editR) {
-      const upd = { hours, work_mode: f.mode, description: f.desc, next_plan: f.plan, date: f.date };
+      const upd = { hours: parseFloat(f.h), work_mode: f.mode, description: f.desc, next_plan: f.plan, date: f.date };
       if (editR.status === 'approved') upd.status = 'pending';
       await db.updateWorkReport(editR.id, upd);
+      toast.show(editR.status === 'approved' ? '✅ Güncellendi. Tekrar onay gerekiyor.' : '✅ Güncellendi!');
     } else {
-      await db.createWorkReport({ user_id: uid, date: f.date, hours, work_mode: f.mode, description: f.desc, next_plan: f.plan, source: 'web' });
+      await db.createWorkReport({ user_id: uid, date: f.date, hours: parseFloat(f.h), work_mode: f.mode, description: f.desc, next_plan: f.plan, source: 'web' });
+      toast.show('✅ Kaydedildi! Koordinatörün onaylayacak.');
     }
-    setShowForm(false); setEditR(null); resetForm(); setSaving(false); load();
+    setShowForm(false); setEditR(null); resetForm(); setErrors({}); setSaving(false); load();
+  };
+
+  const quickRepeat = async () => {
+    if (!lastReport) return;
+    setSaving(true);
+    await db.createWorkReport({ user_id: uid, date: today(), hours: lastReport.hours, work_mode: lastReport.work_mode, description: lastReport.description, source: 'web' });
+    toast.show('✅ Kaydedildi!');
+    setSaving(false); load();
   };
 
   const startEdit = (r) => {
     setF({ h: String(r.hours), desc: r.description||'', mode: r.work_mode||'onsite', date: r.date, plan: r.next_plan||'' });
-    setEditR(r); setShowForm(true); setShowExtra(!!r.next_plan);
+    setEditR(r); setShowForm(true); setShowExtra(!!r.next_plan); setErrors({});
+  };
+
+  const dismissGuide = async () => {
+    setShowGuide(false);
+    await db.updateProfile(uid, { first_login: false });
   };
 
   const updateProgress = async (task) => {
@@ -275,6 +319,7 @@ function MyScreen({ uid, me, onModal }) {
     setSaving(true);
     await db.addProgressLog({ task_id: task.id, user_id: uid, previous_value: task.progress||0, new_value: progVal, note: progNote });
     await db.updateTaskProgress(task.id, progVal);
+    toast.show('✅ İlerleme güncellendi!');
     setProgNote(''); setExpandTask(null); setSaving(false); load();
   };
 
@@ -283,6 +328,22 @@ function MyScreen({ uid, me, onModal }) {
 
   return (
     <div className="space-y-6">
+      <toast.Toast />
+
+      {/* İlk kullanım rehberi */}
+      {showGuide && (
+        <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-200">
+          <h3 className="font-bold text-emerald-800 mb-2">Hoş geldin! 🎉</h3>
+          <p className="text-sm text-emerald-700 leading-relaxed">Sistem çok basit:</p>
+          <div className="mt-2 space-y-1 text-sm text-emerald-600">
+            <p>1️⃣ <b>Çalışmanı raporla</b> → saat ve ne yaptığını yaz</p>
+            <p>2️⃣ <b>İşlerini takip et</b> → sana atanan işleri gör</p>
+            <p>3️⃣ <b>Hepsi bu kadar</b> 😊</p>
+          </div>
+          <button onClick={dismissGuide} className="bg-emerald-600 text-white font-semibold text-sm py-2 px-4 rounded-xl mt-3">Anladım, başlayalım!</button>
+        </div>
+      )}
+
       {/* Selamlama + Özet */}
       <div>
         <h1 className="text-xl font-bold">Merhaba {me.display_name?.split(' ')[0]} 👋</h1>
@@ -291,43 +352,46 @@ function MyScreen({ uid, me, onModal }) {
 
       {/* Raporla Butonu / Form */}
       {!showForm ? (
-        <button onClick={() => { resetForm(); setEditR(null); setShowForm(true); setShowExtra(false); }} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-lg py-4 rounded-2xl w-full transition-all active:scale-[0.97]">
+        <button onClick={() => { resetForm(); setEditR(null); setShowForm(true); setShowExtra(false); setErrors({}); }} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-lg py-4 rounded-2xl w-full transition-all active:scale-[0.97]" aria-label="Çalışma raporla">
           📝 Çalışmamı Raporla
         </button>
       ) : (
         <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
           <div className="flex justify-between items-center">
             <span className="font-bold">{editR ? '✏️ Düzenle' : '📝 Çalışmamı Raporla'}</span>
-            <button onClick={() => { setShowForm(false); setEditR(null); }} className="text-gray-400">✕</button>
+            <button onClick={() => { setShowForm(false); setEditR(null); setErrors({}); }} className="text-gray-400" aria-label="Kapat">✕</button>
           </div>
           {/* Saat */}
           <div>
-            <label className="text-sm text-gray-500">⏱️ Kaç saat?</label>
-            <input type="number" step="0.5" min="0.5" max="12" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-lg font-bold mt-1 outline-none focus:border-emerald-500" placeholder="3" value={f.h} onChange={e => setF({...f, h: e.target.value})} />
+            <label htmlFor="hours-input" className="text-sm text-gray-500">⏱️ Kaç saat?</label>
+            <input id="hours-input" type="number" inputMode="decimal" step="0.5" min="0.5" max="16" className={`w-full border rounded-xl px-4 py-3 text-lg font-bold mt-1 outline-none focus:border-emerald-500 ${errors.h ? 'border-red-300' : 'border-gray-200'}`} placeholder={lastReport ? String(lastReport.hours) : '3'} value={f.h} onChange={e => { setF({...f, h: e.target.value}); setErrors({...errors, h: ''}); }} />
+            {errors.h && <p className="text-xs text-red-500 mt-1">{errors.h}</p>}
           </div>
           {/* Açıklama */}
           <div>
-            <label className="text-sm text-gray-500">📝 Ne yaptım?</label>
-            <input className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm mt-1 outline-none focus:border-emerald-500" placeholder="3. kutudaki belgeleri taradım" value={f.desc} onChange={e => setF({...f, desc: e.target.value})} />
+            <label htmlFor="desc-input" className="text-sm text-gray-500">📝 Ne yaptım?</label>
+            <input id="desc-input" className={`w-full border rounded-xl px-4 py-3 text-sm mt-1 outline-none focus:border-emerald-500 ${errors.desc ? 'border-red-300' : 'border-gray-200'}`} placeholder={lastReport?.description || '3. kutudaki belgeleri taradım'} value={f.desc} onChange={e => { setF({...f, desc: e.target.value}); setErrors({...errors, desc: ''}); }} />
+            {errors.desc && <p className="text-xs text-red-500 mt-1">{errors.desc}</p>}
           </div>
           {/* Nerede */}
           <div className="flex gap-2">
-            <button onClick={() => setF({...f, mode:'onsite'})} className={`flex-1 py-2.5 rounded-xl text-sm font-semibold ${f.mode==='onsite' ? 'bg-emerald-600 text-white' : 'bg-white border border-gray-200 text-gray-400'}`}>🏛️ Vakıfta</button>
-            <button onClick={() => setF({...f, mode:'remote'})} className={`flex-1 py-2.5 rounded-xl text-sm font-semibold ${f.mode==='remote' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-400'}`}>🏠 Uzaktan</button>
+            <button onClick={() => setF({...f, mode:'onsite'})} className={`flex-1 py-3 rounded-xl text-sm font-semibold ${f.mode==='onsite' ? 'bg-emerald-600 text-white' : 'bg-white border border-gray-200 text-gray-400'}`} aria-label="Vakıfta">🏛️ Vakıfta</button>
+            <button onClick={() => setF({...f, mode:'remote'})} className={`flex-1 py-3 rounded-xl text-sm font-semibold ${f.mode==='remote' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-400'}`} aria-label="Uzaktan">🏠 Uzaktan</button>
           </div>
           {/* Kaydet */}
-          <button onClick={submit} disabled={saving || !f.h || !f.desc.trim()} className="bg-emerald-600 text-white font-bold py-3 rounded-xl w-full disabled:opacity-50">{saving ? '...' : '✓ Kaydet'}</button>
-          {/* Ekstra (küçük linkler) */}
+          <button onClick={submit} disabled={saving} className="bg-emerald-600 text-white font-bold py-3 rounded-xl w-full disabled:opacity-50" aria-label="Kaydet">{saving ? '...' : '✓ Kaydet'}</button>
+          {editR?.status === 'approved' && <p className="text-xs text-amber-500 text-center">⚠️ Onaylanmış rapor — tekrar onay gerekecek</p>}
+          {/* Ekstra */}
           {!showExtra && (
-            <div className="flex gap-4 text-xs text-gray-400">
+            <div className="flex gap-4 text-xs text-gray-400 justify-center">
               <button onClick={() => setShowExtra(true)}>📅 Tarih değiştir</button>
               <button onClick={() => setShowExtra(true)}>📌 Plan ekle</button>
             </div>
           )}
           {showExtra && (
             <div className="space-y-2 pt-2 border-t border-gray-200">
-              <div className="flex gap-2 items-center"><span className="text-xs text-gray-400 w-12">📅</span><input type="date" className="flex-1 border rounded-xl px-3 py-2 text-sm" value={f.date} onChange={e => setF({...f, date: e.target.value})} /></div>
-              <div className="flex gap-2 items-center"><span className="text-xs text-gray-400 w-12">📌</span><input className="flex-1 border rounded-xl px-3 py-2 text-sm" placeholder="Sonraki planım" value={f.plan} onChange={e => setF({...f, plan: e.target.value})} /></div>
+              <div className="flex gap-2 items-center"><span className="text-xs text-gray-400 w-8">📅</span><input type="date" className={`flex-1 border rounded-xl px-3 py-2 text-sm ${errors.date ? 'border-red-300' : ''}`} max={today()} value={f.date} onChange={e => setF({...f, date: e.target.value})} />{errors.date && <span className="text-xs text-red-500">{errors.date}</span>}</div>
+              <div className="flex gap-2 items-center"><span className="text-xs text-gray-400 w-8">📌</span><input className="flex-1 border rounded-xl px-3 py-2 text-sm" placeholder="Sonraki planım" value={f.plan} onChange={e => setF({...f, plan: e.target.value})} /></div>
             </div>
           )}
         </div>
@@ -349,6 +413,7 @@ function MyScreen({ uid, me, onModal }) {
                 {expanded && (
                   <div className="mt-2 pt-2 border-t border-gray-200 space-y-2">
                     <div className="flex items-center gap-2"><input type="range" min="0" max="100" step="5" value={progVal} onChange={e => setProgVal(Number(e.target.value))} className="flex-1 accent-emerald-600" /><span className="text-sm font-bold w-10 text-right">{progVal}%</span></div>
+                    <div className="flex gap-1.5">{[25,50,75,100].map(v => <button key={v} onClick={() => setProgVal(v)} className={`text-xs px-2.5 py-1 rounded-lg ${progVal===v?'bg-emerald-600 text-white':'bg-gray-100 text-gray-400'}`}>%{v}</button>)}</div>
                     <input className="w-full border rounded-xl px-3 py-2 text-sm" placeholder="Ne yaptım?" value={progNote} onChange={e => setProgNote(e.target.value)} />
                     <button onClick={() => updateProgress(t)} disabled={saving} className="bg-emerald-600 text-white text-sm font-semibold py-2 rounded-xl w-full disabled:opacity-50">Kaydet</button>
                   </div>
@@ -369,7 +434,10 @@ function MyScreen({ uid, me, onModal }) {
             <span className={`text-xs ${r.status==='approved'?'text-emerald-600':r.status==='rejected'?'text-red-500':'text-amber-500'}`}>{r.status==='approved'?'✅':r.status==='rejected'?'❌':'⏳'}</span>
           </div>
         ))}
-        {reports.length === 0 && <p className="text-sm text-gray-400 text-center py-4">Bu hafta rapor yok</p>}
+        {reports.length === 0 && <p className="text-sm text-gray-400 text-center py-4">Henüz çalışma raporun yok. İlk raporunu oluşturmak için yukarıdaki butona tıkla 👆</p>}
+        {lastReport && !showForm && (
+          <button onClick={quickRepeat} disabled={saving} className="w-full text-center text-sm text-emerald-600 font-semibold py-2 bg-emerald-50 rounded-xl disabled:opacity-50" aria-label="Aynısını tekrarla">🔄 Aynısını tekrarla ({fmtH(lastReport.hours)}, {lastReport.description?.slice(0,25)}...)</button>
+        )}
       </div>
 
       {/* Duyurular */}
@@ -439,6 +507,19 @@ function SupportLink({ uid, me }) {
 // ═══════════════════════════════════════════
 // 👥 TAKIMIM (koordinatör)
 // ═══════════════════════════════════════════
+function Section({ title, count, defaultOpen, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div>
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between py-2">
+        <h2 className="font-bold">{title} {count > 0 && <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1">{count}</span>}</h2>
+        <span className="text-gray-400">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && children}
+    </div>
+  );
+}
+
 function TeamScreen({ uid, me }) {
   const [pending, setPending] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -478,9 +559,9 @@ function TeamScreen({ uid, me }) {
   return (
     <div className="space-y-6">
       {/* Onaylar */}
-      <div>
-        <div className="flex justify-between items-center mb-2">
-          <h2 className="font-bold">⏳ Onay Bekleyen ({pending.length})</h2>
+      <Section title="⏳ Onay Bekleyen" count={pending.length} defaultOpen={true}>
+        <div>
+        <div className="flex justify-end mb-2">
           {pending.filter(r => r.user_id !== uid).length > 1 && <button onClick={approveAll} className="text-xs bg-emerald-50 text-emerald-600 font-semibold px-3 py-1 rounded-lg">✓ Hepsini Onayla</button>}
         </div>
         {pending.map(r => (
@@ -492,9 +573,10 @@ function TeamScreen({ uid, me }) {
         ))}
         {pending.length === 0 && <p className="text-sm text-gray-400 text-center py-3">Bekleyen yok ✓</p>}
       </div>
+      </Section>
 
       {/* İşler */}
-      <div>
+      <Section title="📋 İşler" count={tasks.filter(t=>t.status!=='cancelled'&&t.status!=='done').length} defaultOpen={false}><div>
         <div className="flex justify-between items-center mb-2">
           <h2 className="font-bold">📋 İşler ({tasks.length})</h2>
           <button onClick={() => setShowNewTask(!showNewTask)} className="text-xs bg-emerald-600 text-white font-semibold px-3 py-1.5 rounded-lg">{showNewTask ? '✕' : '+ Yeni'}</button>
