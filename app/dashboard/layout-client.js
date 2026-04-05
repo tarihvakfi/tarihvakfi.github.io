@@ -44,7 +44,7 @@ export default function Dashboard({session}){
   const[editMode,setEditMode]=useState(false);
   const[quickReportFor,setQuickReportFor]=useState(null); // vol profile for quick report modal
 
-  useEffect(()=>{(async()=>{const{data}=await db.getProfile(uid);if(data)setMe(data);setUnread(await db.getUnreadCount(uid));setLoading(false);})();},[uid]);
+  useEffect(()=>{(async()=>{const{data}=await db.getProfile(uid);if(data){data.settings=null;data.secondary_departments=null;setMe(data);}setUnread(await db.getUnreadCount(uid));setLoading(false);})();},[uid]);
   useEffect(()=>{const sub=db.subscribeNotifications(uid,()=>setUnread(n=>n+1));return()=>sub.unsubscribe();},[uid]);
   useEffect(()=>{if(!me)return;if(me.role==='admin')setPage('genel');else if(me.role==='coord')setPage('calisma');else setPage('ana');},[me?.role]);
 
@@ -76,17 +76,6 @@ export default function Dashboard({session}){
 
   const restricted=['paused','inactive','resigned','pending','rejected','blocked'].includes(me.status);
   if(restricted)return<RestrictedShell me={me} uid={uid}/>;
-
-  // TEMP DEBUG: return minimal UI to find error source
-  return(<div style={{padding:40,fontFamily:'Inter,system-ui'}}>
-    <h1>Dashboard loaded</h1>
-    <p>User: {String(me.display_name)}</p>
-    <p>Role: {String(me.role)}</p>
-    <p>Status: {String(me.status)}</p>
-    <p>Fields: {Object.keys(me).join(', ')}</p>
-    <p>Object fields: {Object.entries(me).filter(([,v])=>v!==null&&typeof v==='object').map(([k])=>k).join(', ')||'none'}</p>
-    <button onClick={()=>window.location.reload()}>Reload</button>
-  </div>);
 
   const realAdmin=me.role==='admin';
 
@@ -229,7 +218,7 @@ function NotifPanel({uid,onClose}){const[items,setItems]=useState([]);useEffect(
 
 function ProfilePanel({me,uid,onUpdate,onModal,onClose}){
   const[editing,setEditing]=useState(false);const[f,setF]=useState({display_name:me.display_name,city:me.city||''});const[tgCode,setTgCode]=useState(null);
-  const save=async()=>{const{data}=await db.updateProfile(uid,f);if(data)onUpdate(data);setEditing(false);};
+  const save=async()=>{const{data}=await db.updateProfile(uid,f);if(data){data.settings=null;data.secondary_departments=null;onUpdate(data);}setEditing(false);};
   const linkTg=async()=>{const code=String(Math.floor(100000+Math.random()*900000));await db.updateProfile(uid,{telegram_link_code:code});setTgCode(code);};
   return(<div className="fixed top-14 right-4 z-[55] dropdown-panel w-[220px]">
     <div className="px-4 py-3 border-b border-[#F3F4F6]"><div className="text-[13px] font-medium">{me.display_name}</div><div className="text-[11px] text-[#9CA3AF]">{me.email||ROLES[me.role]}</div></div>
