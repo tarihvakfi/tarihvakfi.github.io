@@ -171,6 +171,33 @@ Deno.serve(async (req) => {
       return new Response('OK')
     }
 
+    // ── /rapor (sadece admin) ──
+    if (text === '/rapor' || text.startsWith('/rapor ')) {
+      if (user.department && !['admin'].includes((await sb.from('profiles').select('role').eq('id', uid).single()).data?.role)) {
+        await sendTg(chatId, '⚠️ Bu komut sadece yöneticiler için.'); return new Response('OK')
+      }
+      const arg = text.split(' ')[1] || 'hafta'
+      const now = new Date()
+      const todayStr = now.toISOString().slice(0,10)
+      let start = todayStr, label = 'Bugün'
+      if (arg === 'hafta' || arg === 'week') {
+        const mon = new Date(now); mon.setDate(now.getDate() - ((now.getDay()+6)%7))
+        start = mon.toISOString().slice(0,10); label = 'Bu Hafta'
+      } else if (arg === 'ay' || arg === 'month') {
+        start = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`; label = 'Bu Ay'
+      }
+      const { data: reps } = await sb.from('work_reports').select('hours, work_mode, user_id, description, profiles!user_id(display_name)')
+        .gte('date', start).lte('date', todayStr)
+      const totalH = (reps||[]).reduce((a: number,r: any) => a + Number(r.hours||0), 0)
+      const vols = new Set((reps||[]).map((r: any) => r.user_id)).size
+      const onsite = (reps||[]).filter((r: any) => r.work_mode === 'onsite').reduce((a: number,r: any) => a + Number(r.hours||0), 0)
+      const remote = (reps||[]).filter((r: any) => r.work_mode === 'remote').reduce((a: number,r: any) => a + Number(r.hours||0), 0)
+      let reply = `📄 <b>${label} Raporu</b>\n\n👥 Çalışan: ${vols} kişi\n⏱️ Toplam: ${fmtHours(totalH)}\n🏛️ Vakıfta: ${fmtHours(onsite)}\n🏠 Uzaktan: ${fmtHours(remote)}\n📝 Rapor sayısı: ${(reps||[]).length}`
+      reply += '\n\nDetaylı rapor için siteyi ziyaret edin.'
+      await sendTg(chatId, reply)
+      return new Response('OK')
+    }
+
     // ── /belgelerim ──
     if (text === '/belgelerim') {
       const { data: certs } = await sb.from('certificates').select('title, certificate_number, created_at')
