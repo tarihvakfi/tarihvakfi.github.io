@@ -80,7 +80,7 @@ export default function Dashboard({ session }) {
     : [];
 
   return (
-    <div className={`min-h-screen bg-white ${tabs.length ? 'pb-16' : ''}`}>
+    <div className={`min-h-screen ${isAdmin ? 'bg-[#F3F4F6]' : 'bg-white'} ${tabs.length ? 'pb-16' : ''}`}>
       {/* Header */}
       <header className="bg-white/95 backdrop-blur-sm border-b border-gray-100 px-4 py-3 sticky top-0 z-50">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
@@ -107,7 +107,7 @@ export default function Dashboard({ session }) {
       {modal === 'help' && <ModalWrap title="❓ Yardım" onClose={() => setModal(null)}><HelpContent me={me} /></ModalWrap>}
 
       {/* Content */}
-      <main className="max-w-2xl mx-auto px-4 py-4">
+      <main className={`mx-auto px-4 py-4 ${isAdmin ? 'max-w-5xl' : 'max-w-2xl'}`}>
         {/* Gönüllü: tek ekran (sekme yok) */}
         {me.role === 'vol' && <MyScreen uid={uid} me={me} onModal={setModal} />}
         {/* Koordinatör */}
@@ -811,6 +811,18 @@ function ActivityOverview({ vols }) {
   );
 }
 
+// ═══════════════════════════════════════════
+// ADMIN KART BİLEŞENİ
+// ═══════════════════════════════════════════
+function DashCard({ title, children, className = '', maxH = 'max-h-[340px]' }) {
+  return (
+    <div className={`bg-white rounded-2xl p-5 shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_4px_20px_rgba(0,0,0,0.12)] transition-shadow ${className}`}>
+      {title && <h3 className="font-bold text-base mb-3">{title}</h3>}
+      <div className={`${maxH} overflow-y-auto`}>{children}</div>
+    </div>
+  );
+}
+
 function AdminScreen({ uid, me }) {
   const [pendingUsers, setPendingUsers] = useState([]);
   const [pendingReports, setPendingReports] = useState([]);
@@ -821,9 +833,10 @@ function AdminScreen({ uid, me }) {
   const [summaries, setSummaries] = useState({});
   const [search, setSearch] = useState('');
   const [showNewTask, setShowNewTask] = useState(false);
-  const [tf, setTf] = useState({ title:'', description:'', department: me.department||'arsiv', assigned_to:'', deadline:'', materials:'' });
+  const [tf, setTf] = useState({ title:'', description:'', department: me.department||'arsiv', assigned_to:'', deadline:'' });
   const [showAnn, setShowAnn] = useState(false);
   const [annF, setAnnF] = useState({ title:'', body:'' });
+  const [commTab, setCommTab] = useState('chat');
 
   const load = useCallback(async () => {
     const [p, pr, ws, t] = await Promise.all([db.getAllProfiles(), db.getPendingReports(), db.getAllWorkSummaries(), db.getTasks()]);
@@ -853,154 +866,142 @@ function AdminScreen({ uid, me }) {
   const allGood = pendingUsers.length === 0 && pendingReports.length === 0 && overdueTasks.length === 0 && needsAttention.length === 0;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Özet kartlar */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { n: pendingUsers.length, l: 'Yeni Kayıt', i: '🆕', c: pendingUsers.length ? 'bg-blue-50 border-blue-200' : '' },
-          { n: pendingReports.length, l: 'Onay Bekl.', i: '⏳', c: pendingReports.length ? 'bg-amber-50 border-amber-200' : '' },
-          { n: vols.filter(v => v.status === 'active').length, l: 'Aktif Gön.', i: '👥' },
-          { n: activeTasks.length, l: 'Açık İş', i: '📋', c: overdueTasks.length ? 'bg-red-50 border-red-200' : '' },
+          { n: pendingUsers.length, l: 'Yeni Kayıt', i: '🆕', bg: 'bg-blue-50', c: 'text-blue-600' },
+          { n: pendingReports.length, l: 'Onay Bekleyen', i: '⏳', bg: 'bg-amber-50', c: 'text-amber-600' },
+          { n: vols.filter(v => v.status === 'active').length, l: 'Aktif Gönüllü', i: '👥', bg: 'bg-emerald-50', c: 'text-emerald-600' },
+          { n: activeTasks.length, l: 'Açık İş', i: '📋', bg: 'bg-purple-50', c: 'text-purple-600' },
         ].map((s, i) => (
-          <div key={i} className={`card !p-2.5 text-center ${s.c || ''}`}>
-            <div className="text-lg font-bold">{s.n}</div>
-            <div className="text-[10px] text-gray-500">{s.i} {s.l}</div>
+          <div key={i} className={`${s.bg} rounded-2xl p-4 text-center`}>
+            <div className={`text-3xl font-bold ${s.c}`}>{s.n}</div>
+            <div className="text-xs text-gray-500 mt-1">{s.i} {s.l}</div>
           </div>
         ))}
       </div>
 
-      {allGood && <div className="card !p-3 text-center text-sm text-emerald-600 font-semibold">✅ Her şey yolunda!</div>}
+      {/* 2 Sütun Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
-      {/* Kayıt Onaylama */}
-      {pendingUsers.length > 0 && (
-        <Section title="🆕 Kayıt Onaylama" count={pendingUsers.length} defaultOpen={true}>
-          {pendingUsers.map(u => (
-            <div key={u.id} className="card mb-2 !p-3">
-              <div className="flex items-center gap-2">
-                <div className="flex-1"><div className="font-semibold text-sm">{u.display_name}</div><div className="text-xs text-gray-400">{u.email} · {fd(u.joined_at)}</div></div>
-                <button onClick={() => approveUser(u.id)} className="text-xs bg-emerald-50 text-emerald-600 px-2.5 py-1.5 rounded-lg font-semibold">✓ Onayla</button>
-                <button onClick={() => rejectUser(u.id)} className="text-xs bg-red-50 text-red-400 px-2 py-1.5 rounded-lg">✕</button>
-                <button onClick={() => blockUser(u.id)} className="text-xs text-gray-300 px-2 py-1.5">🚫</button>
+        {/* SOL: Bekleyen İşlemler */}
+        <DashCard title="📋 Bekleyen İşlemler">
+          {allGood ? (
+            <div className="text-center py-8"><div className="text-4xl mb-2">✅</div><p className="text-sm text-emerald-600 font-semibold">Her şey yolunda!</p></div>
+          ) : (<div className="space-y-2">
+            {pendingUsers.map(u => (
+              <div key={u.id} className="flex items-center gap-2 p-2.5 rounded-xl bg-blue-50/50">
+                <span className="text-sm">🆕</span>
+                <div className="flex-1 min-w-0"><div className="text-sm font-semibold truncate">{u.display_name}</div><div className="text-xs text-gray-400">{u.email}</div></div>
+                <button onClick={() => approveUser(u.id)} className="text-xs bg-emerald-500 text-white px-2.5 py-1 rounded-lg font-semibold">✓</button>
+                <button onClick={() => rejectUser(u.id)} className="text-xs bg-red-100 text-red-500 px-2 py-1 rounded-lg">✕</button>
               </div>
-            </div>
-          ))}
-        </Section>
-      )}
-
-      {/* Rapor Onaylama */}
-      {pendingReports.length > 0 && (
-        <Section title="⏳ Rapor Onaylama" count={pendingReports.length} defaultOpen={true}>
-          {pendingReports.map(r => (
-            <div key={r.id} className="card mb-1.5 !p-3 flex items-center gap-2">
-              <span className="text-xs">{r.task_id ? '📋' : '📝'} {r.work_mode==='remote'?'🏠':'🏛️'}</span>
-              <div className="flex-1"><div className="text-sm font-semibold">{r.profiles?.display_name}</div><div className="text-xs text-gray-400">{fd(r.date)} · {fmtH(r.hours)} · {r.description?.slice(0,30)}{r.edited_at?' ✏️':''}</div></div>
-              {r.user_id !== uid ? <button onClick={() => approveReport(r.id)} className="text-xs bg-emerald-50 text-emerald-600 px-2.5 py-1.5 rounded-lg font-semibold">✓</button> : <span className="text-xs text-gray-300">Kendi</span>}
-            </div>
-          ))}
-          {pendingReports.filter(r => r.user_id !== uid).length > 1 && <button onClick={approveAllReports} className="w-full text-center text-sm text-emerald-600 font-semibold py-2 bg-emerald-50 rounded-xl mt-1">✓ Hepsini Onayla</button>}
-        </Section>
-      )}
-
-      {/* Gönüllüler */}
-      <Section title="👥 Gönüllüler" count={vols.filter(v=>v.status==='active').length} defaultOpen={false}>
-        <input className="input-field !py-2 mb-2" placeholder="Ara..." value={search} onChange={e => setSearch(e.target.value)} />
-        {filteredVols.map(v => (
-          <div key={v.id} className={`card mb-1.5 !p-3 ${v.status !== 'active' ? 'opacity-40' : ''}`}>
-            <div className="flex items-center gap-2 cursor-pointer" onClick={() => setSel(sel === v.id ? null : v.id)}>
-              <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center text-[10px] font-bold text-emerald-600">{(v.display_name||'?')[0]}</div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold truncate">{v.display_name}</div>
-                <div className="text-xs text-gray-400">{DM[v.department]?.l || '—'} · {ROLES[v.role]?.i}</div>
+            ))}
+            {pendingReports.map(r => (
+              <div key={r.id} className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-50/50">
+                <span className="text-sm">{r.work_mode==='remote'?'🏠':'🏛️'}</span>
+                <div className="flex-1 min-w-0"><div className="text-sm font-semibold truncate">{r.profiles?.display_name}</div><div className="text-xs text-gray-400">{fd(r.date)} · {fmtH(r.hours)} · {r.description?.slice(0,25)}</div></div>
+                {r.user_id !== uid ? <button onClick={() => approveReport(r.id)} className="text-xs bg-emerald-500 text-white px-2.5 py-1 rounded-lg font-semibold">✓</button> : <span className="text-xs text-gray-300">Kendi</span>}
               </div>
-              {v.id !== uid && (
-                <select className="text-xs border rounded-lg px-1.5 py-1 bg-white" value={v.role} onClick={e=>e.stopPropagation()} onChange={e => changeRole(v.id, e.target.value)}>
-                  <option value="vol">Gön</option><option value="coord">Krd</option><option value="admin">Yön</option>
-                </select>
-              )}
-              <button onClick={e => { e.stopPropagation(); setCertVol(v); }} className="text-xs text-amber-500">🏆</button>
-            </div>
-            {sel === v.id && (
-              <div className="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-500 space-y-1">
-                {v.id !== uid && <select className="w-full border rounded-lg px-2 py-1.5 text-sm" value={v.department||''} onChange={e => changeDept(v.id, e.target.value)}><option value="">Departman seç</option>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.l}</option>)}</select>}
-                {summaries[v.id] && <div>Bu ay: {summaries[v.id].month_days}g / {fmtH(Number(summaries[v.id].month_hours))} · Toplam: {summaries[v.id].total_days}g / {fmtH(Number(summaries[v.id].total_hours))}</div>}
-                <div>Son aktivite: {v.last_activity_at ? fd(v.last_activity_at) : '—'} · Skor: {v.activity_score||0}</div>
-              </div>
-            )}
-          </div>
-        ))}
-      </Section>
+            ))}
+            {pendingReports.filter(r => r.user_id !== uid).length > 1 && <button onClick={approveAllReports} className="w-full text-sm text-emerald-600 font-semibold py-2 bg-emerald-50 rounded-xl">✓ Hepsini Onayla</button>}
+          </div>)}
+        </DashCard>
 
-      {/* İşler */}
-      <Section title={`📋 İşler (${activeTasks.length} açık${overdueTasks.length ? `, ${overdueTasks.length} gecikmiş` : ''})`} count={overdueTasks.length} defaultOpen={false}>
-        <button onClick={() => setShowNewTask(!showNewTask)} className="text-xs bg-emerald-500 text-white font-semibold px-3 py-1.5 rounded-lg mb-2">{showNewTask ? '✕' : '+ Yeni İş'}</button>
-        {showNewTask && (
-          <div className="card mb-2 space-y-2 !p-3">
-            <input className="input-field !py-2" placeholder="İş başlığı" value={tf.title} onChange={e => setTf({...tf, title: e.target.value})} />
-            <div className="grid grid-cols-2 gap-2">
-              <select className="input-field !py-2" value={tf.department} onChange={e => setTf({...tf, department: e.target.value})}>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.l}</option>)}</select>
-              <select className="input-field !py-2" value={tf.assigned_to} onChange={e => setTf({...tf, assigned_to: e.target.value})}><option value="">Atanacak</option>{vols.filter(v=>v.status==='active').map(v => <option key={v.id} value={v.id}>{v.display_name}</option>)}</select>
-            </div>
-            <input type="date" className="input-field !py-2" value={tf.deadline} onChange={e => setTf({...tf, deadline: e.target.value})} />
-            <button onClick={createTask} className="bg-emerald-500 text-white text-sm font-semibold py-2 rounded-xl w-full">Oluştur</button>
-          </div>
-        )}
-        {tasks.filter(t => t.status !== 'cancelled').slice(0, 15).map(t => {
-          const overdue = t.deadline && t.deadline < today() && !['done','cancelled'].includes(t.status);
-          return (
-            <div key={t.id} className={`card mb-1.5 !p-3 ${overdue ? 'border-l-4 border-red-400' : ''}`}>
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0"><span className="text-sm font-semibold truncate">{t.title}</span> <span className="text-xs text-gray-400">{Math.round(t.progress||0)}%</span></div>
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${t.status==='done'?'bg-emerald-50 text-emerald-600':t.status==='review'?'bg-blue-50 text-blue-600':'bg-gray-100 text-gray-500'}`}>{STATUSES[t.status]}</span>
+        {/* SAĞ: Gönüllüler */}
+        <DashCard title="👥 Gönüllüler">
+          <input className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm mb-2 outline-none focus:border-emerald-500" placeholder="🔍 Ara..." value={search} onChange={e => setSearch(e.target.value)} />
+          <div className="space-y-1">
+            {filteredVols.slice(0, 20).map(v => (
+              <div key={v.id} className={`flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors ${v.status !== 'active' ? 'opacity-40' : ''}`} onClick={() => setSel(sel === v.id ? null : v.id)}>
+                <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center text-[10px] font-bold text-emerald-600 flex-shrink-0">{(v.display_name||'?')[0]}</div>
+                <div className="flex-1 min-w-0"><div className="text-sm font-semibold truncate">{v.display_name}</div><div className="text-[11px] text-gray-400">{DM[v.department]?.l || '—'}</div></div>
+                {v.id !== uid && <select className="text-[11px] border rounded-lg px-1.5 py-1 bg-white w-12" value={v.role} onClick={e=>e.stopPropagation()} onChange={e => changeRole(v.id, e.target.value)}><option value="vol">Gön</option><option value="coord">Krd</option><option value="admin">Yön</option></select>}
+                <button onClick={e => { e.stopPropagation(); setCertVol(v); }} className="text-xs text-amber-500 flex-shrink-0">🏆</button>
               </div>
-              <div className="mt-1 h-1.5 bg-gray-100 rounded-full overflow-hidden"><div className={`h-full rounded-full ${t.status==='done'?'bg-emerald-500':'bg-emerald-400'}`} style={{width:`${t.progress||0}%`}} /></div>
-              {t.status === 'review' && <button onClick={async () => { await db.updateTask(t.id, { status:'done', completed_at: new Date().toISOString() }); load(); }} className="text-xs text-emerald-600 font-semibold mt-1">✓ Tamamla</button>}
-            </div>
-          );
-        })}
-      </Section>
-
-      {/* İletişim: Sohbet + Duyuru + Vardiya */}
-      <Section title="💬 İletişim" count={0} defaultOpen={false}>
-        <div className="space-y-4">
-          <div>
-            <h3 className="text-sm font-bold mb-2">💬 Departman Sohbeti</h3>
-            <ChatSection uid={uid} me={me} />
+            ))}
           </div>
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-sm font-bold">📢 Duyuru</h3>
-              <button onClick={() => setShowAnn(!showAnn)} className="text-xs text-emerald-600 font-semibold">{showAnn ? '✕' : '+ Yeni'}</button>
+          {sel && (() => { const v = vols.find(x=>x.id===sel); return v && v.id !== uid ? (
+            <div className="mt-2 p-3 bg-gray-50 rounded-xl text-xs text-gray-500 space-y-1.5">
+              <select className="w-full border rounded-lg px-2 py-1.5 text-sm bg-white" value={v.department||''} onChange={e => changeDept(v.id, e.target.value)}><option value="">Departman seç</option>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.l}</option>)}</select>
+              {summaries[v.id] && <div>Bu ay: {summaries[v.id].month_days}g / {fmtH(Number(summaries[v.id].month_hours))}</div>}
+              <div>Skor: {v.activity_score||0} · Son: {v.last_activity_at ? fd(v.last_activity_at) : '—'}</div>
             </div>
-            {showAnn && (
-              <div className="card mb-2 space-y-2 !p-3">
-                <input className="input-field !py-2" placeholder="Başlık" value={annF.title} onChange={e => setAnnF({...annF, title: e.target.value})} />
-                <textarea className="input-field !py-2" rows={2} placeholder="İçerik" value={annF.body} onChange={e => setAnnF({...annF, body: e.target.value})} />
-                <button onClick={createAnn} className="bg-emerald-500 text-white text-sm font-semibold py-2 rounded-xl w-full">Yayınla</button>
+          ) : null; })()}
+        </DashCard>
+
+        {/* SOL: İşler */}
+        <DashCard title={`📋 İşler (${activeTasks.length} açık)`}>
+          <button onClick={() => setShowNewTask(!showNewTask)} className="text-xs bg-emerald-500 text-white font-semibold px-3 py-1.5 rounded-lg mb-2">{showNewTask ? '✕' : '+ Yeni İş'}</button>
+          {showNewTask && (
+            <div className="p-3 bg-gray-50 rounded-xl space-y-2 mb-2">
+              <input className="w-full border rounded-xl px-3 py-2 text-sm" placeholder="İş başlığı" value={tf.title} onChange={e => setTf({...tf, title: e.target.value})} />
+              <div className="grid grid-cols-2 gap-2">
+                <select className="border rounded-xl px-3 py-2 text-sm" value={tf.department} onChange={e => setTf({...tf, department: e.target.value})}>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.l}</option>)}</select>
+                <select className="border rounded-xl px-3 py-2 text-sm" value={tf.assigned_to} onChange={e => setTf({...tf, assigned_to: e.target.value})}><option value="">Atanacak</option>{vols.filter(v=>v.status==='active').map(v => <option key={v.id} value={v.id}>{v.display_name}</option>)}</select>
               </div>
-            )}
-          </div>
-          <div>
-            <h3 className="text-sm font-bold mb-2">📅 Vardiya Planı</h3>
-            <ShiftPlanView uid={uid} me={me} />
-          </div>
-        </div>
-      </Section>
-
-      {/* Dikkat Gerektiren */}
-      {needsAttention.length > 0 && (
-        <Section title="⚠️ Dikkat Gerektiren" count={needsAttention.length} defaultOpen={needsAttention.length > 0}>
-          {needsAttention.sort((a,b) => (a.activity_score||0)-(b.activity_score||0)).map(v => {
-            const days = v.last_activity_at ? Math.floor((Date.now()-new Date(v.last_activity_at).getTime())/86400000) : 999;
-            const icon = (v.activity_status==='slowing')?'🟡':(v.activity_status==='inactive')?'🟠':'🔴';
+              <input type="date" className="w-full border rounded-xl px-3 py-2 text-sm" value={tf.deadline} onChange={e => setTf({...tf, deadline: e.target.value})} />
+              <button onClick={createTask} className="bg-emerald-500 text-white text-sm font-semibold py-2 rounded-xl w-full">Oluştur</button>
+            </div>
+          )}
+          {tasks.filter(t => !['cancelled','done'].includes(t.status)).slice(0,8).map(t => {
+            const od = t.deadline && t.deadline < today();
             return (
-              <div key={v.id} className="card mb-1.5 !p-3 flex items-center gap-2">
-                <span>{icon}</span>
-                <div className="flex-1"><div className="text-sm font-semibold">{v.display_name}</div><div className="text-xs text-gray-400">{days < 999 ? `${days} gündür rapor yok` : 'Hiç rapor yok'}</div></div>
+              <div key={t.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50">
+                <div className="flex-1 min-w-0"><div className="text-sm font-semibold truncate">{t.title}</div></div>
+                <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden flex-shrink-0"><div className="h-full bg-emerald-400 rounded-full" style={{width:`${t.progress||0}%`}} /></div>
+                <span className="text-[11px] text-gray-400 flex-shrink-0 w-8 text-right">{Math.round(t.progress||0)}%</span>
+                {od && <span className="text-[10px] text-red-500 flex-shrink-0">⚠️</span>}
+                {t.status === 'review' && <button onClick={async () => { await db.updateTask(t.id, { status:'done', completed_at: new Date().toISOString() }); load(); }} className="text-[11px] text-emerald-600 font-semibold flex-shrink-0">✓</button>}
               </div>
             );
           })}
-        </Section>
-      )}
+        </DashCard>
+
+        {/* SAĞ: İletişim */}
+        <DashCard title="💬 İletişim" maxH="max-h-[400px]">
+          <div className="flex gap-1 mb-3">
+            {[['chat','Sohbet'],['ann','Duyuru'],['shift','Vardiya']].map(([k,l]) => (
+              <button key={k} onClick={() => setCommTab(k)} className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all ${commTab===k?'bg-gray-800 text-white':'bg-gray-100 text-gray-400'}`}>{l}</button>
+            ))}
+          </div>
+          {commTab === 'chat' && <ChatSection uid={uid} me={me} />}
+          {commTab === 'ann' && (<div>
+            <button onClick={() => setShowAnn(!showAnn)} className="text-xs bg-emerald-500 text-white font-semibold px-3 py-1.5 rounded-lg mb-2">{showAnn?'✕':'+ Yeni'}</button>
+            {showAnn && (
+              <div className="p-3 bg-gray-50 rounded-xl space-y-2 mb-2">
+                <input className="w-full border rounded-xl px-3 py-2 text-sm" placeholder="Başlık" value={annF.title} onChange={e => setAnnF({...annF, title: e.target.value})} />
+                <textarea className="w-full border rounded-xl px-3 py-2 text-sm" rows={2} placeholder="İ��erik" value={annF.body} onChange={e => setAnnF({...annF, body: e.target.value})} />
+                <button onClick={createAnn} className="bg-emerald-500 text-white text-sm font-semibold py-2 rounded-xl w-full">Yayınla</button>
+              </div>
+            )}
+          </div>)}
+          {commTab === 'shift' && <ShiftPlanView uid={uid} me={me} />}
+        </DashCard>
+
+        {/* Dikkat Gerektiren (varsa) */}
+        {needsAttention.length > 0 && (
+          <DashCard title="⚠️ Dikkat Gerektiren" className="border-l-4 border-amber-400">
+            {needsAttention.sort((a,b) => (a.activity_score||0)-(b.activity_score||0)).map(v => {
+              const days = v.last_activity_at ? Math.floor((Date.now()-new Date(v.last_activity_at).getTime())/86400000) : 999;
+              const icon = v.activity_status==='slowing'?'🟡':v.activity_status==='inactive'?'🟠':'🔴';
+              return (
+                <div key={v.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50">
+                  <span>{icon}</span>
+                  <div className="flex-1"><div className="text-sm font-semibold">{v.display_name}</div><div className="text-xs text-gray-400">{days < 999 ? `${days}g rapor yok` : 'Hiç yok'}</div></div>
+                </div>
+              );
+            })}
+          </DashCard>
+        )}
+
+        {/* Belge Oluştur */}
+        <DashCard title="🏆 Belge Oluştur">
+          <p className="text-sm text-gray-400">Gönüllüler kartında 🏆 ikonuna tıklayarak belge oluşturun.</p>
+        </DashCard>
+
+      </div>
 
       {certVol && <CertificateModal vol={certVol} summary={summaries[certVol.id]} issuerId={uid} onClose={() => setCertVol(null)} />}
     </div>
@@ -1021,39 +1022,41 @@ function ReportsScreen({ uid }) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Hızlı raporlar */}
-      <div className="grid grid-cols-3 gap-2">
-        {[['today','📅 Bugün'],['week','📊 Bu Hafta'],['month','📈 Bu Ay']].map(([k,l]) => (
-          <button key={k} onClick={() => runQuick(k)} disabled={!!quickLoading} className={`card !p-3 text-center cursor-pointer hover:shadow-md transition-shadow ${quickLoading===k?'opacity-50':''}`}>
+      <div className="grid grid-cols-3 gap-3">
+        {[['today','📅','Bugün'],['week','📊','Bu Hafta'],['month','📈','Bu Ay']].map(([k,ic,l]) => (
+          <button key={k} onClick={() => runQuick(k)} disabled={!!quickLoading} className={`bg-white rounded-2xl p-4 text-center shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_4px_20px_rgba(0,0,0,0.12)] transition-shadow cursor-pointer ${quickLoading===k?'opacity-50':''}`}>
+            <div className="text-2xl mb-1">{ic}</div>
             <div className="text-sm font-semibold">{l}</div>
           </button>
         ))}
       </div>
 
+      {/* Rapor Önizleme */}
       {quickResult && (
-        <div className="card">
-          <pre className="text-xs whitespace-pre-wrap font-mono text-gray-600 leading-relaxed max-h-[50vh] overflow-y-auto">{quickResult}</pre>
+        <DashCard title="📊 Rapor Önizleme" maxH="max-h-[50vh]">
+          <pre className="text-xs whitespace-pre-wrap font-mono text-gray-600 leading-relaxed">{quickResult}</pre>
           <div className="flex gap-2 mt-3 pt-2 border-t border-gray-100">
-            <button onClick={() => navigator.clipboard.writeText(quickResult)} className="text-xs bg-emerald-50 text-emerald-600 font-semibold px-3 py-1.5 rounded-lg">📋 Kopyala</button>
+            <button onClick={() => navigator.clipboard.writeText(quickResult)} className="text-xs bg-emerald-500 text-white font-semibold px-3 py-1.5 rounded-lg">📋 Kopyala</button>
           </div>
-        </div>
+        </DashCard>
       )}
 
-      {/* Detaylı rapor */}
-      <Section title="📄 Detaylı Rapor Oluştur" count={0} defaultOpen={false}>
-        <ReportBuilder uid={uid} />
-      </Section>
+      {/* 2 Sütun Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <DashCard title="📄 Detaylı Rapor">
+          <ReportBuilder uid={uid} />
+        </DashCard>
+        <DashCard title="📂 Rapor Arşivi">
+          <ReportArchive />
+        </DashCard>
+      </div>
 
-      {/* Arşiv */}
-      <Section title="📂 Rapor Arşivi" count={0} defaultOpen={false}>
-        <ReportArchive />
-      </Section>
-
-      {/* Yedekleme */}
-      <Section title="💾 Yedekleme" count={0} defaultOpen={false}>
+      {/* Yedekleme — tam genişlik */}
+      <DashCard title="💾 Yedekleme" maxH="max-h-none">
         <BackupView uid={uid} />
-      </Section>
+      </DashCard>
     </div>
   );
 }
