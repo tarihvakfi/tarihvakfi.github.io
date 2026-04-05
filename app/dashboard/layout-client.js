@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import * as db from '../../lib/supabase';
-import BackupView from './backup';
 import { CertificateModal, MyCertificates } from './certificates';
 import { ReportArchive } from './reports';
 
