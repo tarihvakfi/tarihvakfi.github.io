@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { supabase, getPublicStats, getPublicAnnouncements, getDeptVolunteerCounts } from '../lib/supabase';
+import { supabase, getPublicStats, getPublicAnnouncements, getDeptVolunteerCounts, getPublicDashboard } from '../lib/supabase';
 
 const MO = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
 const fd = d => { const x = new Date(d); return `${x.getDate()} ${MO[x.getMonth()]} ${x.getFullYear()}`; };
@@ -40,8 +40,10 @@ export default function HomePage() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => { if (data?.session) setSession(data.session); });
     (async () => {
-      const [s, a, d] = await Promise.all([getPublicStats(), getPublicAnnouncements(), getDeptVolunteerCounts()]);
-      setStats(s.data); setAnns(a.data || []); setDeptCounts(d || {}); setLoaded(true);
+      const [s, pd, a, d] = await Promise.all([getPublicStats(), getPublicDashboard(), getPublicAnnouncements(), getDeptVolunteerCounts()]);
+      // Merge public_dashboard into stats for richer data
+      const merged = { ...(s.data || {}), ...(pd || {}) };
+      setStats(merged); setAnns(a.data || []); setDeptCounts(d || {}); setLoaded(true);
     })();
   }, []);
 
@@ -87,9 +89,9 @@ export default function HomePage() {
         <div className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { v: stats?.active_volunteers, l: 'Aktif gönüllü', c: 'text-[#059669]' },
-            { v: stats?.completed_tasks, l: 'Tamamlanan görev', c: 'text-[#6D28D9]' },
-            { v: Math.round(stats?.monthly_hours || 0), l: 'Bu ay saat', c: 'text-[#D97706]' },
-            { v: stats?.department_count, l: 'Departman', c: 'text-[#2563EB]' },
+            { v: Math.round(stats?.weekly_hours || stats?.monthly_hours || 0), l: 'Bu hafta saat', c: 'text-[#D97706]' },
+            { v: stats?.completed_this_week || stats?.completed_tasks, l: 'Tamamlanan iş', c: 'text-[#6D28D9]' },
+            { v: stats?.department_count || 8, l: 'Departman', c: 'text-[#2563EB]' },
           ].map((s, i) => (
             <div key={i} className="stat-box">
               <div className={`stat-n ${s.c}`}>{loaded ? <AnimCount target={s.v} /> : '—'}</div>

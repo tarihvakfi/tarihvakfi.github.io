@@ -95,11 +95,12 @@ export default function Dashboard({session}){
   const mw=isVol?'max-w-[440px]':isCoord?'max-w-[600px]':'max-w-[680px]';
 
   // Nav items per role
-  const volPages=[{id:'ana',l:'Ana Sayfa'},{id:'raporlarim',l:'Raporlarım'},{id:'islerim',l:'İşlerim'},{id:'belgelerim',l:'Belgelerim'}];
+  const volPages=[{id:'ana',l:'Ana Sayfa'},{id:'raporlarim',l:'Raporlarım'},{id:'islerim',l:'İşlerim'},{id:'belgelerim',l:'Belgelerim'},{id:'vakif',l:'Vakıf Durumu'}];
 
   const coordNav=[
     {section:'BENİM',items:[{id:'calisma',l:'Çalışmam'},{id:'raporlarim',l:'Raporlarım'}]},
     {section:'DEPARTMANIM',items:[{id:'onaylar',l:'Onaylar',badge:true},{id:'gonulluler',l:'Gönüllüler'},{id:'isler',l:'İşler'},{id:'duyurular',l:'Duyurular'},{id:'vardiya',l:'Vardiya'}]},
+    {section:'GENEL',items:[{id:'vakif',l:'Vakıf Durumu'}]},
   ];
 
   const adminNav=[
@@ -221,6 +222,7 @@ export default function Dashboard({session}){
             {isVol&&page==='raporlarim'&&<MyReports uid={dataUid}/>}
             {isVol&&page==='islerim'&&<MyTasks uid={dataUid} me={displayMe}/>}
             {isVol&&page==='belgelerim'&&<MyCertificates uid={dataUid} me={displayMe}/>}
+            {isVol&&page==='vakif'&&<VakifDurumu me={displayMe}/>}
 
             {/* Coord pages */}
             {isCoord&&page==='calisma'&&<VolHome uid={dataUid} me={displayMe} onModal={openModal} isManaging={isManaging} adminUid={uid}/>}
@@ -230,6 +232,7 @@ export default function Dashboard({session}){
             {isCoord&&page==='isler'&&<TasksPage uid={uid} me={me}/>}
             {isCoord&&page==='duyurular'&&<AnnouncementsPage uid={uid} me={me}/>}
             {isCoord&&page==='vardiya'&&<ShiftPage uid={uid} me={me}/>}
+            {isCoord&&page==='vakif'&&<VakifDurumu me={me} isCoord/>}
 
             {/* Admin pages */}
             {isAdmin&&page==='genel'&&<AdminOverview uid={uid} me={me} onNav={setPage}/>}
@@ -239,7 +242,7 @@ export default function Dashboard({session}){
             {isAdmin&&page==='iletisim'&&<CommPage uid={uid} me={me}/>}
             {isAdmin&&page==='raporlar'&&<ReportsPage uid={uid}/>}
             {isAdmin&&page==='belgeler'&&<BelgelerPage uid={uid} me={me}/>}
-            {isAdmin&&page==='yedekleme'&&<BackupView uid={uid}/>}
+            {isAdmin&&page==='yedekleme'&&<SimpleBackup uid={uid}/>}
           </div>
         </main>
       </div>
@@ -749,6 +752,117 @@ function HelpContent({me}){
   if(me.role==='admin')items.push({q:'Rapor nasıl oluştururum?',a:'Raporlar sayfasından dönem seç, otomatik oluşur.'});
   const[open,setOpen]=useState(null);
   return(<div>{items.map((item,i)=><div key={i} onClick={()=>setOpen(open===i?null:i)} className="cursor-pointer py-3 border-b border-[#F3F4F6] last:border-0"><div className="flex justify-between"><span className="text-[14px] font-medium">{item.q}</span><span className="text-[#C4C4C4] text-[12px]">{open===i?'−':'+'}</span></div>{open===i&&<p className="text-[13px] text-[#6B7280] mt-2 leading-relaxed">{item.a}</p>}</div>)}</div>);
+}
+
+/* ═══ VAKIF DURUMU (everyone sees) ═══ */
+function VakifDurumu({me,isCoord}){
+  const[dash,setDash]=useState(null);const[depts,setDepts]=useState([]);const[tasks,setTasks]=useState([]);
+  const[deptVols,setDeptVols]=useState([]);
+  useEffect(()=>{(async()=>{
+    const[d,dp,t]=await Promise.all([db.getPublicDashboard(),db.getPublicDeptWeekly(),db.getPublicTasksOverview()]);
+    setDash(d);setDepts(dp.data||[]);setTasks(t.data||[]);
+    if(isCoord&&me.department){const{data}=await db.getAllWorkSummaries();setDeptVols(data||[]);}
+  })();},[isCoord,me?.department]);
+  if(!dash)return<div className="space-y-3"><div className="skeleton h-6 w-1/3"/><div className="skeleton h-4 w-full"/><div className="skeleton h-4 w-2/3"/></div>;
+  const maxH=Math.max(...depts.map(d=>Number(d.weekly_hours)),1);
+  const doneTasks=tasks.filter(t=>t.status==='done');
+  const openTasks=tasks.filter(t=>t.status!=='done');
+  return(<div>
+    <div className="page-title mb-1">Vakıf durumu</div>
+    <div className="meta mb-6">{todayLabel()}</div>
+
+    <div className="grid grid-cols-3 gap-3 mb-8">
+      <div className="stat-box"><div className="stat-n text-[#059669]">{dash.active_volunteers}</div><div className="stat-l">aktif gönüllü</div></div>
+      <div className="stat-box"><div className="stat-n">{fmtH(Number(dash.weekly_hours))}</div><div className="stat-l">bu hafta</div></div>
+      <div className="stat-box"><div className="stat-n">{dash.completed_this_week}</div><div className="stat-l">tamamlanan iş</div></div>
+    </div>
+
+    {depts.length>0&&<><div className="sec-label">Departmanlar</div>
+      {depts.map(d=><div key={d.department} className="bar-row"><span className="bar-label">{DM[d.department]?.l?.split(' ')[0]||d.department}</span><div className="bar-track"><div className="bar-fill" style={{width:`${(Number(d.weekly_hours)/maxH)*100}%`,transition:'width .5s'}}/></div><span className="bar-val text-[12px] text-[#9CA3AF]">{fmtH(Number(d.weekly_hours))}</span></div>)}
+    </>}
+
+    <div className="sec-label">Bu hafta</div>
+    <div className="text-[14px] text-[#6B7280] leading-relaxed mb-1">{dash.weekly_volunteers} gönüllü çalıştı</div>
+    <div className="text-[14px] text-[#6B7280] leading-relaxed mb-1">{fmtH(Number(dash.weekly_hours))} ({fmtH(Number(dash.weekly_onsite))} vakıfta, {fmtH(Number(dash.weekly_remote))} uzaktan)</div>
+    <div className="text-[14px] text-[#6B7280] leading-relaxed">{dash.completed_this_week} iş tamamlandı</div>
+
+    {doneTasks.length>0&&<><div className="sec-label">Son tamamlanan işler</div>
+      {doneTasks.slice(0,5).map((t,i)=><div key={i} className="text-[13px] text-[#6B7280] py-1.5 border-b border-[#F5F5F5] last:border-0">{t.title} — tamamlandı</div>)}
+    </>}
+
+    {openTasks.length>0&&<><div className="sec-label">Açık işler</div>
+      {openTasks.slice(0,8).map((t,i)=><div key={i} className="py-2 border-b border-[#F5F5F5] last:border-0">
+        <div className="flex justify-between text-[13px] mb-1"><span className="text-[#374151] font-medium">{t.title}</span><span className="text-[#9CA3AF]">{Math.round(t.progress||0)}%</span></div>
+        <div className="progress-track"><div className="progress-fill" style={{width:`${t.progress||0}%`}}/></div>
+      </div>)}
+    </>}
+
+    {/* Coord extra: department detail with names */}
+    {isCoord&&me.department&&deptVols.length>0&&(<>
+      <div className="sec-label">Departmanım detay</div>
+      <div className="text-[12px] text-[#9CA3AF] mb-2">{DM[me.department]?.l}</div>
+      {deptVols.filter(v=>v.department===me.department&&Number(v.total_hours)>0).map(v=>(
+        <div key={v.id} className="flex items-center justify-between py-2 border-b border-[#F5F5F5] last:border-0 text-[13px]">
+          <span className="font-medium">{v.display_name}</span>
+          <span className="text-[#9CA3AF]">{fmtH(Number(v.week_hours))} hafta · {fmtH(Number(v.month_hours))} ay</span>
+        </div>
+      ))}
+    </>)}
+  </div>);
+}
+
+/* ═══ SIMPLE BACKUP (admin) ═══ */
+function SimpleBackup({uid}){
+  const[lastBackup,setLastBackup]=useState(null);const[loading,setLoading]=useState(false);
+  const toast=useToast();
+  useEffect(()=>{(async()=>{const{data}=await db.getBackups();if(data&&data.length>0)setLastBackup(data[0]);})();},[]);
+
+  const handleCsv=async()=>{
+    setLoading(true);
+    try{
+      const{tables}=await db.getAllDataForBackup();
+      const JSZip=(await import('jszip')).default;
+      const zip=new JSZip();
+      for(const[name,rows]of Object.entries(tables)){
+        if(!rows||rows.length===0)continue;
+        const headers=Object.keys(rows[0]);
+        const csv=[headers.join(','),...rows.map(r=>headers.map(h=>`"${String(r[h]||'').replace(/"/g,'""')}"`).join(','))].join('\n');
+        zip.file(`${name}.csv`,csv);
+      }
+      const blob=await zip.generateAsync({type:'blob'});
+      const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`tarihvakfi-backup-${today()}.zip`;a.click();URL.revokeObjectURL(url);
+      await db.createBackupRecord({type:'csv',record_count:Object.values(tables).reduce((a,t)=>a+(t?.length||0),0),created_by:uid});
+      toast.show('CSV indirildi');
+    }catch(e){toast.show('Hata: '+e.message,false);}
+    setLoading(false);
+  };
+
+  const sheetsUrl=lastBackup?.sheets_url;
+
+  return(<div><toast.Toast/>
+    <div className="page-title mb-1">Yedekleme</div>
+    <div className="meta mb-6">Verilerin otomatik ve manuel yedeklenmesi</div>
+
+    <div className="bg-white rounded-[10px] border border-[#F3F4F6] p-5 mb-4">
+      <div className="text-[14px] font-medium mb-2">Son yedek</div>
+      {lastBackup?(<>
+        <div className="text-[13px] text-[#374151]">{fdf(lastBackup.created_at)}</div>
+        <div className="text-[12px] text-[#9CA3AF]">{lastBackup.type==='sheets'?'Google Sheets':'CSV'} — {lastBackup.record_count} kayıt — Başarılı</div>
+      </>):(<div className="text-[13px] text-[#9CA3AF]">Henüz yedek alınmamış</div>)}
+    </div>
+
+    <div className="bg-[#F9FAFB] rounded-[10px] p-4 mb-4 text-[13px] text-[#6B7280]">
+      <div className="font-medium text-[#374151] mb-1">Otomatik yedekleme</div>
+      Her gece 03:00 (TR) — Google Sheets
+    </div>
+
+    <div className="flex gap-3 mb-4">
+      {sheetsUrl&&<a href={sheetsUrl} target="_blank" rel="noopener noreferrer" className="btn-outline text-[13px]">Sheets&apos;i aç</a>}
+    </div>
+
+    <div className="sec-label" style={{marginTop:16}}>Manuel indirme</div>
+    <button onClick={handleCsv} disabled={loading} className="btn-outline text-[13px] mt-2">{loading?'Hazırlanıyor...':'Tüm verileri indir (.zip)'}</button>
+  </div>);
 }
 
 /* ═══ QUICK REPORT MODAL (admin enters report on behalf of a volunteer) ═══ */
