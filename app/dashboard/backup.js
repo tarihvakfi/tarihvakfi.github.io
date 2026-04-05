@@ -183,20 +183,20 @@ export default function BackupView({ uid }) {
 
   return (
     <div className="fade-up space-y-4">
-      <h2 className="text-lg font-bold">📋 Yedekleme</h2>
+      <h2 className="text-lg font-bold">Yedekleme</h2>
 
       {/* Son yedek bilgisi */}
       {lastBackup && (
         <div className="card !p-3">
           <div className="text-xs text-gray-400">Son yedek:</div>
           <div className="text-[15px] font-semibold">{fdt(lastBackup.created_at)}</div>
-          <div className="text-xs text-gray-400">{lastBackup.type === 'sheets' ? '📊 Google Sheets' : '📥 CSV'} — {lastBackup.record_count} kayit</div>
+          <div className="text-xs text-gray-400">{lastBackup.type === 'sheets' ? 'Google Sheets' : 'CSV'} — {lastBackup.record_count} kayit</div>
         </div>
       )}
 
       {lastBackupDays !== null && lastBackupDays >= 7 && (
         <div className="card border-l-4 border-amber-400 !p-3">
-          <p className="text-xs text-amber-700 font-semibold">⚠️ {lastBackupDays > 100 ? 'Hic yedek alinmamis' : `Son yedek ${lastBackupDays} gun once`}. Yedekleme onerilir.</p>
+          <p className="text-xs text-amber-700 font-semibold">({lastBackupDays > 100 ? 'Hic yedek alinmamis' : `Son yedek ${lastBackupDays} gun once`}. Yedekleme onerilir.</p>
         </div>
       )}
 
@@ -205,7 +205,7 @@ export default function BackupView({ uid }) {
         {sheetsUrl && (
           <a href={sheetsUrl} target="_blank" rel="noopener noreferrer" className="card hover:shadow-md transition-shadow block text-left border-l-4 border-emerald-400">
             <div className="flex items-center gap-3">
-              <span className="text-2xl">📊</span>
+              <span className="text-2xl">Sheets</span>
               <div>
                 <div className="font-semibold text-[15px]">Google Sheets Yedegini Ac</div>
                 <div className="text-xs text-gray-400">Yeni sekmede acilir</div>
@@ -222,7 +222,7 @@ export default function BackupView({ uid }) {
 
         <button onClick={handleSheets} disabled={!!loading} className="card hover:shadow-md transition-shadow cursor-pointer text-left border-l-4 border-blue-300 w-full">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">🔄</span>
+            <span className="text-2xl">Guncelle</span>
             <div>
               <div className="font-semibold text-[15px]">{sheetsId ? 'Simdi Guncelle' : 'Ilk Yedegi Olustur'}</div>
               <div className="text-xs text-gray-400">{sheetsId ? 'Mevcut spreadsheet uzerine yaz' : 'Yeni spreadsheet olustur, 12 sheet'}</div>
@@ -233,7 +233,7 @@ export default function BackupView({ uid }) {
 
         <button onClick={handleCsv} disabled={!!loading} className="card hover:shadow-md transition-shadow cursor-pointer text-left w-full">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">📥</span>
+            <span className="text-2xl">CSV</span>
             <div>
               <div className="font-semibold text-[15px]">CSV Indir (ZIP)</div>
               <div className="text-xs text-gray-400">Tum tablolar ayri CSV, ZIP arsivi</div>
@@ -247,7 +247,7 @@ export default function BackupView({ uid }) {
 
       {result && (
         <div className="card border-l-4 border-emerald-400">
-          <div className="text-xs text-emerald-700 font-semibold">✅ {result.type === 'sheets' ? 'Google Sheets guncellendi' : 'CSV indirildi'}! ({result.count} kayit)</div>
+          <div className="text-xs text-emerald-700 font-semibold">{result.type === 'sheets' ? 'Google Sheets guncellendi' : 'CSV indirildi'}! ({result.count} kayit)</div>
           {result.url && (
             <div className="mt-2 flex gap-2">
               <a href={result.url} target="_blank" rel="noopener noreferrer" className="btn-primary !text-[13px] inline-block">Sheets'te Ac</a>
@@ -264,7 +264,7 @@ export default function BackupView({ uid }) {
           <div className="space-y-1.5">
             {backups.map(b => (
               <div key={b.id} className="card !p-3 flex items-center gap-3">
-                <span className="text-sm">{b.type === 'sheets' ? '📊' : '📥'}</span>
+                <span className="text-sm">{b.type === 'sheets' ? 'Sheets' : 'CSV'}</span>
                 <div className="flex-1">
                   <div className="text-xs font-semibold">{fdt(b.created_at)}</div>
                   <div className="text-xs text-gray-400">{b.type === 'sheets' ? 'Google Sheets' : 'CSV'} — {b.record_count} kayit</div>
@@ -277,7 +277,7 @@ export default function BackupView({ uid }) {
       )}
 
       <div className="card bg-amber-50 border-amber-200">
-        <h3 className="text-xs font-bold text-amber-800 mb-1">⚙️ Google Sheets Kurulumu</h3>
+        <h3 className="text-xs font-bold text-amber-800 mb-1">Google Sheets Kurulumu</h3>
         <div className="text-xs text-amber-700 space-y-1 leading-relaxed">
           <p>1. Google Cloud Console → APIs → "Google Sheets API" aktif et</p>
           <p>2. Cikis yap, Google ile tekrar giris yap (Sheets izni otomatik istenir)</p>

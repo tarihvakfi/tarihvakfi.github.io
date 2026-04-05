@@ -34,7 +34,7 @@ export default function VerifyPage() {
     <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-6">
-          <div className="text-4xl mb-2">🏛️</div>
+          <div className="text-4xl mb-2">Tarih Vakfı</div>
           <h1 className="text-xl font-bold" style={{fontFamily:"'Playfair Display',serif"}}>Tarih Vakfı</h1>
           <p className="text-sm text-gray-400">Belge Doğrulama</p>
         </div>
@@ -45,11 +45,11 @@ export default function VerifyPage() {
             <button onClick={() => verify()} disabled={loading} className="bg-emerald-600 text-white font-semibold px-5 py-3 rounded-xl">{loading ? '...' : 'Doğrula'}</button>
           </div>
 
-          {error && <div className="bg-red-50 text-red-600 text-sm rounded-xl px-4 py-3 text-center">❌ {error}</div>}
+          {error && <div className="bg-red-50 text-red-600 text-sm rounded-xl px-4 py-3 text-center">{error}</div>}
 
           {result && (
             <div className="bg-emerald-50 rounded-xl p-4 space-y-2">
-              <div className="text-center text-emerald-700 font-bold text-lg">✅ Bu belge geçerlidir</div>
+              <div className="text-center text-emerald-700 font-bold text-lg">Bu belge geçerlidir</div>
               <div className="space-y-1 text-sm">
                 <div><span className="text-gray-500">Belge No:</span> <b>{result.certificate_number}</b></div>
                 <div><span className="text-gray-500">Kişi:</span> <b>{result.profiles?.display_name}</b></div>

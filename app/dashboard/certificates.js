@@ -4,17 +4,17 @@ import { useState, useEffect } from 'react';
 import * as db from '../../lib/supabase';
 
 const TYPES = {
-  participation: { l: 'Katılım Belgesi', i: '📋' },
-  thanks: { l: 'Teşekkür Belgesi', i: '🙏' },
-  achievement: { l: 'Başarı Belgesi', i: '⭐' },
-  period: { l: 'Dönem Sertifikası', i: '📅' },
-  special: { l: 'Özel Takdir Belgesi', i: '🌟' },
+  participation: { l: 'Katılım Belgesi' },
+  thanks: { l: 'Teşekkür Belgesi' },
+  achievement: { l: 'Başarı Belgesi' },
+  period: { l: 'Dönem Sertifikası' },
+  special: { l: 'Özel Takdir Belgesi' },
 };
 
 const TEMPLATES = {
-  classic: { l: 'Klasik', i: '🏛️', bg: '#f8f6f0', border: '#8B7355', accent: '#2d5a4e' },
-  modern: { l: 'Modern', i: '🎨', bg: '#ffffff', border: '#2d5a4e', accent: '#E07A5F' },
-  ottoman: { l: 'Osmanlı', i: '📜', bg: '#f5eed5', border: '#8B6914', accent: '#8B6914' },
+  classic: { l: 'Klasik', bg: '#f8f6f0', border: '#8B7355', accent: '#2d5a4e' },
+  modern: { l: 'Modern', bg: '#ffffff', border: '#2d5a4e', accent: '#E07A5F' },
+  ottoman: { l: 'Osmanlı', bg: '#f5eed5', border: '#8B6914', accent: '#8B6914' },
 };
 
 const MO = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
@@ -53,7 +53,7 @@ function generatePdfHtml(cert, profile, template) {
   .date { font-size: 13px; color: #888; }
 </style></head><body>
 <div class="cert">
-  <div class="logo">🏛️</div>
+  <div class="logo">Tarih Vakfı</div>
   <div class="org">Tarih Vakfı</div>
   <div class="type">${TYPES[cert.type]?.l || cert.title}</div>
   <div class="recipient">Sayın ${profile.display_name}</div>
@@ -102,7 +102,7 @@ export function CertificateModal({ vol, summary, issuerId, onClose, onCreated })
       department: vol.department, issued_by: issuerId,
     });
     if (cert) {
-      await db.sendNotification(vol.id, 'system', `🏆 Yeni belgeniz: ${TYPES[type].l}`, 'Belgelerim bölümünden indirebilirsiniz.');
+      await db.sendNotification(vol.id, 'system', `Yeni belgeniz: ${TYPES[type].l}`, 'Belgelerim bölümünden indirebilirsiniz.');
       downloadPdf(cert, vol);
       onCreated?.(cert);
     }
@@ -113,8 +113,8 @@ export function CertificateModal({ vol, summary, issuerId, onClose, onCreated })
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl p-5 max-w-md w-full max-h-[90vh] overflow-y-auto space-y-3" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center">
-          <h3 className="font-bold text-lg">🏆 Belge Oluştur</h3>
-          <button onClick={onClose} className="text-gray-400">✕</button>
+          <h3 className="font-bold text-lg">Belge Oluştur</h3>
+          <button onClick={onClose} className="text-gray-400">&times;</button>
         </div>
         <div className="card !p-3 text-center">
           <div className="font-bold">{vol.display_name}</div>
@@ -139,7 +139,7 @@ export function CertificateModal({ vol, summary, issuerId, onClose, onCreated })
         )}
 
         <textarea className="input-field" rows={3} value={desc} onChange={e => setDesc(e.target.value)} />
-        <button onClick={create} disabled={saving} className="btn-primary w-full disabled:opacity-50">{saving ? '...' : '🏆 Oluştur ve İndir'}</button>
+        <button onClick={create} disabled={saving} className="btn-primary w-full disabled:opacity-50">{saving ? '...' : 'Oluştur ve İndir'}</button>
       </div>
     </div>
   );
@@ -154,10 +154,10 @@ export function MyCertificates({ uid, me }) {
 
   return (
     <div className="mt-4">
-      <h3 className="font-bold text-sm mb-2">🏆 Belgelerim</h3>
+      <h3 className="font-bold text-sm mb-2">Belgelerim</h3>
       {certs.map(c => (
         <div key={c.id} className="card mb-2 !py-3 flex items-center gap-3">
-          <span className="text-lg">{TYPES[c.type]?.i || '📋'}</span>
+          <span className="text-[13px] text-[#059669] font-medium">{TYPES[c.type]?.l || 'Belge'}</span>
           <div className="flex-1">
             <div className="font-semibold text-sm">{c.title}</div>
             <div className="text-xs text-gray-400">{fdf(c.created_at)} · {c.certificate_number}</div>

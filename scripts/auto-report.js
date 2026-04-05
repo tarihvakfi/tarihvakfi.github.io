@@ -93,24 +93,24 @@ async function main() {
 
   const lines = [];
   const typeLabel = type === 'daily' ? 'Günlük Rapor' : type === 'weekly' ? 'Haftalık Özet' : 'Aylık Rapor';
-  lines.push(`🏛️ Tarih Vakfı — ${typeLabel}`);
-  lines.push(`📅 ${fdf(period.start)}${period.start !== period.end ? ' — ' + fdf(period.end) : ''}`);
+  lines.push(`Tarih Vakfı — ${typeLabel}`);
+  lines.push(`${fdf(period.start)}${period.start !== period.end ? ' — ' + fdf(period.end) : ''}`);
   lines.push('');
 
   // Genel ozet
-  lines.push(`👥 Çalışan: ${uniqueVols} kişi`);
-  lines.push(`⏱️ Toplam: ${fmtH(totalH)} / ${totalDays} gün`);
+  lines.push(`Çalışan: ${uniqueVols} kişi`);
+  lines.push(`Toplam: ${fmtH(totalH)} / ${totalDays} gün`);
   if (totalH > 0) {
-    lines.push(`  🏛️ Vakıfta: ${fmtH(onsite)} (%${Math.round(onsite/totalH*100)})`);
-    lines.push(`  🏠 Uzaktan: ${fmtH(remote)} (%${Math.round(remote/totalH*100)})`);
+    lines.push(`  Vakıfta: ${fmtH(onsite)} (%${Math.round(onsite/totalH*100)})`);
+    lines.push(`  Uzaktan: ${fmtH(remote)} (%${Math.round(remote/totalH*100)})`);
   }
-  lines.push(`📋 Tamamlanan: ${done.length} | Devam eden: ${active.length}`);
-  if (overdue.length) lines.push(`⚠️ Gecikmiş iş: ${overdue.length}`);
-  if (pending.length) lines.push(`⏳ Onay bekleyen: ${pending.length} rapor`);
+  lines.push(`Tamamlanan: ${done.length} | Devam eden: ${active.length}`);
+  if (overdue.length) lines.push(`Gecikmiş iş: ${overdue.length}`);
+  if (pending.length) lines.push(`Onay bekleyen: ${pending.length} rapor`);
 
   // Departman
   lines.push('');
-  lines.push('🏢 Departman bazlı:');
+  lines.push('Departman bazlı:');
   for (const d of DEPTS) {
     const dr = reports.filter(r => { const p = profiles.find(p => p.id === r.user_id); return p?.department === d; });
     const dh = dr.reduce((a, r) => a + Number(r.hours || 0), 0);
@@ -122,21 +122,21 @@ async function main() {
   if (type === 'daily') {
     if (reports.length) {
       lines.push('');
-      lines.push('📝 Bugün çalışanlar:');
+      lines.push('Bugün çalışanlar:');
       for (const r of reports) {
-        const mode = r.work_mode === 'remote' ? '🏠' : '🏛️';
+        const mode = r.work_mode === 'remote' ? 'Uzaktan' : 'Vakıfta';
         lines.push(`  ${name(r.user_id)} — ${fmtH(r.hours)} ${mode} — ${r.description || ''}`);
       }
     }
     const plans = reports.filter(r => r.next_plan).map(r => `  ${name(r.user_id)}: ${r.next_plan}`);
-    if (plans.length) { lines.push(''); lines.push('📌 Yarın planı:'); lines.push(...plans); }
-    if (reports.length === 0) lines.push('\n⚠️ Bugün hiç rapor girilmedi.');
+    if (plans.length) { lines.push(''); lines.push('Yarın planı:'); lines.push(...plans); }
+    if (reports.length === 0) lines.push('\nBugün hiç rapor girilmedi.');
   }
 
   // Kisi bazli (haftalik/aylik)
   if (type === 'weekly' || type === 'monthly') {
     lines.push('');
-    lines.push('👥 Kişi bazlı:');
+    lines.push('Kişi bazlı:');
     const byPerson = {};
     for (const r of reports) {
       if (!byPerson[r.user_id]) byPerson[r.user_id] = { hours: 0, days: new Set() };
@@ -155,14 +155,14 @@ async function main() {
       const inactive = profiles.filter(p => !reports.some(r => r.user_id === p.id));
       if (inactive.length) {
         lines.push('');
-        lines.push('⚠️ Bu dönem çalışmayan:');
+        lines.push('Bu dönem çalışmayan:');
         for (const p of inactive.slice(0, 5)) lines.push(`  ${p.display_name}`);
       }
     }
 
     if (type === 'monthly') {
       const topPerson = sorted[0];
-      if (topPerson) lines.push(`\n🏆 En aktif: ${name(topPerson[0])} (${fmtH(topPerson[1].hours)})`);
+      if (topPerson) lines.push(`\nEn aktif: ${name(topPerson[0])} (${fmtH(topPerson[1].hours)})`);
     }
 
     // Aktivite durumu
@@ -170,12 +170,12 @@ async function main() {
     const actCounts = { active:0, slowing:0, inactive:0, dormant:0 };
     actProfiles.forEach(p => { actCounts[p.activity_status || 'active']++; });
     lines.push('');
-    lines.push('📊 Gönüllü Aktivite:');
-    lines.push(`  🟢 Aktif: ${actCounts.active} | 🟡 Yavaşlıyor: ${actCounts.slowing} | 🟠 Pasifleşiyor: ${actCounts.inactive} | 🔴 Hareketsiz: ${actCounts.dormant}`);
+    lines.push('Gönüllü Aktivite:');
+    lines.push(`  Aktif: ${actCounts.active} | Yavasliyor: ${actCounts.slowing} | Pasiflesiyor: ${actCounts.inactive} | Hareketsiz: ${actCounts.dormant}`);
     const slowing = actProfiles.filter(p => ['slowing','inactive','dormant'].includes(p.activity_status));
     if (slowing.length) {
       lines.push('  Dikkat:');
-      for (const s of slowing.slice(0,5)) lines.push(`    ${s.activity_status === 'slowing' ? '🟡' : s.activity_status === 'inactive' ? '🟠' : '🔴'} ${s.display_name} (skor: ${s.activity_score})`);
+      for (const s of slowing.slice(0,5)) lines.push(`    ${s.activity_status === 'slowing' ? '[!]' : s.activity_status === 'inactive' ? '[!!]' : '[!!!]'} ${s.display_name} (skor: ${s.activity_score})`);
     }
   }
 
@@ -189,7 +189,7 @@ async function main() {
   // Bildirim gonder
   const notifyRoles = type === 'daily' ? ['admin'] : ['admin', 'coord'];
   const notifyUsers = profiles.filter(p => notifyRoles.includes(p.role));
-  const shortMsg = `📊 ${typeLabel} hazır — ${uniqueVols} kişi, ${fmtH(totalH)}, ${done.length} iş tamamlandı`;
+  const shortMsg = `${typeLabel} hazır — ${uniqueVols} kişi, ${fmtH(totalH)}, ${done.length} iş tamamlandı`;
 
   for (const u of notifyUsers) {
     await sbInsert('notifications', { user_id: u.id, type: 'system', title: shortMsg, body: '' });
@@ -236,31 +236,31 @@ async function main() {
       if (volReports.some(r => r.date >= monthStart)) score += 15;
 
       const status = score >= 80 ? 'active' : score >= 50 ? 'slowing' : score >= 20 ? 'inactive' : 'dormant';
-      const statusIcon = score >= 80 ? '🟢' : score >= 50 ? '🟡' : score >= 20 ? '🟠' : '🔴';
+      const statusIcon = score >= 80 ? '[ok]' : score >= 50 ? '[!]' : score >= 20 ? '[!!]' : '[!!!]';
 
       await sbUpdate('profiles', { activity_score: score, activity_status: status, last_activity_at: lastDate.toISOString() }, `id=eq.${vol.id}`);
 
       // Kademeli hatırlatma
       if (daysSince >= 30) {
-        console.log(`  🔴 ${vol.display_name}: ${daysSince}g skor:${score} → pasife`);
+        console.log(`  [!!!] ${vol.display_name}: ${daysSince}g skor:${score} → pasife`);
         await sbUpdate('profiles', { status: 'inactive' }, `id=eq.${vol.id}`);
-        await sbInsert('notifications', { user_id: vol.id, type: 'system', title: 'Hesabınız pasife alındı', body: 'Ara vermek istersen bize bildir, döndüğünde buradayız. 🙂' });
+        await sbInsert('notifications', { user_id: vol.id, type: 'system', title: 'Hesabınız pasife alındı', body: 'Ara vermek istersen bize bildir, döndüğünde buradayız. ' });
         for (const a of admins) await sbInsert('notifications', { user_id: a.id, type: 'system', title: `${vol.display_name} otomatik pasife alındı`, body: `${daysSince} gündür raporlama yapmadı.` });
-        if (vol.telegram_id) await sendTg(vol.telegram_id, 'Hesabınız pasife alındı. Ara vermek istersen bize bildir, döndüğünde buradayız. 🙂');
-      } else if (daysSince >= 20 && !hasNotif(vol.id, '⚠️ Seni bekliyoruz')) {
-        console.log(`  🟠 ${vol.display_name}: ${daysSince}g skor:${score} → son uyari`);
-        await sbInsert('notifications', { user_id: vol.id, type: 'system', title: '⚠️ Seni bekliyoruz', body: 'Ara vermek istersen bize bildir. 10 gün içinde raporlama olmazsa hesabın pasife alınacak.' });
+        if (vol.telegram_id) await sendTg(vol.telegram_id, 'Hesabınız pasife alındı. Ara vermek istersen bize bildir, döndüğünde buradayız. ');
+      } else if (daysSince >= 20 && !hasNotif(vol.id, 'Seni bekliyoruz')) {
+        console.log(`  [!!] ${vol.display_name}: ${daysSince}g skor:${score} → son uyari`);
+        await sbInsert('notifications', { user_id: vol.id, type: 'system', title: 'Seni bekliyoruz', body: 'Ara vermek istersen bize bildir. 10 gün içinde raporlama olmazsa hesabın pasife alınacak.' });
         for (const c of coords.filter(c => c.department === vol.department)) await sbInsert('notifications', { user_id: c.id, type: 'system', title: `${vol.display_name} 20+ gündür aktif değil`, body: '' });
-        if (vol.telegram_id) await sendTg(vol.telegram_id, 'Seni bekliyoruz! Ara vermek istersen bize bildir. 🙂\n10 gün içinde raporlama olmazsa hesabın pasife alınacak.');
+        if (vol.telegram_id) await sendTg(vol.telegram_id, 'Seni bekliyoruz! Ara vermek istersen bize bildir. \n10 gün içinde raporlama olmazsa hesabın pasife alınacak.');
       } else if (daysSince >= 14 && !hasNotif(vol.id, 'Seni özledik')) {
-        console.log(`  🟠 ${vol.display_name}: ${daysSince}g skor:${score} → 14g uyari`);
-        await sbInsert('notifications', { user_id: vol.id, type: 'system', title: 'Seni özledik! 🙂', body: 'Devam etmek istersen bekliyoruz. Ara vermek istersen bize bildir.' });
+        console.log(`  [!!] ${vol.display_name}: ${daysSince}g skor:${score} → 14g uyari`);
+        await sbInsert('notifications', { user_id: vol.id, type: 'system', title: 'Seni özledik! ', body: 'Devam etmek istersen bekliyoruz. Ara vermek istersen bize bildir.' });
         for (const c of coords.filter(c => c.department === vol.department)) await sbInsert('notifications', { user_id: c.id, type: 'system', title: `${vol.display_name} 14 gündür aktif değil`, body: '' });
-        if (vol.telegram_id) await sendTg(vol.telegram_id, 'Seni özledik! Devam etmek istersen bekliyoruz. 🙂');
+        if (vol.telegram_id) await sendTg(vol.telegram_id, 'Seni özledik! Devam etmek istersen bekliyoruz. ');
       } else if (daysSince >= 7 && !hasNotif(vol.id, 'Nasılsın')) {
-        console.log(`  🟡 ${vol.display_name}: ${daysSince}g skor:${score} → 7g hatirlatma`);
-        await sbInsert('notifications', { user_id: vol.id, type: 'system', title: 'Nasılsın? 🙂', body: 'Son raporundan beri 7 gün geçti. Her şey yolunda mı?' });
-        if (vol.telegram_id) await sendTg(vol.telegram_id, 'Nasılsın? Son raporundan beri 7 gün geçti. Her şey yolunda mı? 🙂');
+        console.log(`  [!] ${vol.display_name}: ${daysSince}g skor:${score} → 7g hatirlatma`);
+        await sbInsert('notifications', { user_id: vol.id, type: 'system', title: 'Nasılsın? ', body: 'Son raporundan beri 7 gün geçti. Her şey yolunda mı?' });
+        if (vol.telegram_id) await sendTg(vol.telegram_id, 'Nasılsın? Son raporundan beri 7 gün geçti. Her şey yolunda mı? ');
       } else {
         if (score !== vol.activity_score) console.log(`  ${statusIcon} ${vol.display_name}: skor ${vol.activity_score||0}→${score}`);
       }
@@ -275,8 +275,8 @@ async function main() {
       if (t.deadline && t.deadline < todayStr) {
         const deptCoords = profiles.filter(p => p.role === 'coord' && p.department === t.department);
         for (const c of [...deptCoords, ...admins]) {
-          if (!hasNotif(c.id, `⚠️ Gecikme: ${t.title}`)) {
-            await sbInsert('notifications', { user_id: c.id, type: 'system', title: `⚠️ Gecikme: ${t.title}`, body: `Deadline ${t.deadline} idi, hâlâ tamamlanmadı.` });
+          if (!hasNotif(c.id, `Gecikme: ${t.title}`)) {
+            await sbInsert('notifications', { user_id: c.id, type: 'system', title: `Gecikme: ${t.title}`, body: `Deadline ${t.deadline} idi, hâlâ tamamlanmadı.` });
           }
         }
       }
@@ -290,7 +290,7 @@ async function main() {
         if (!hasTask) {
           const deptCoords = profiles.filter(p => p.role === 'coord' && p.department === vol.department);
           for (const c of deptCoords) {
-            await sbInsert('notifications', { user_id: c.id, type: 'system', title: `📋 ${vol.display_name} boşta`, body: 'Aktif ama atanmış işi yok. İş atamayı düşünün.' });
+            await sbInsert('notifications', { user_id: c.id, type: 'system', title: `${vol.display_name} boşta`, body: 'Aktif ama atanmış işi yok. İş atamayı düşünün.' });
           }
         }
       }

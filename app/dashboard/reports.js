@@ -47,8 +47,8 @@ function generateTextReport(type, data, period, scope) {
   const lines = [];
   const hr = '─'.repeat(40);
 
-  lines.push(`🏛️ TARİH VAKFI — ${type === 'general' ? 'GENEL ÖZET' : type === 'person' ? 'KİŞİ BAZLI' : type === 'dept' ? 'DEPARTMAN BAZLI' : type === 'tasks' ? 'İŞ RAPORU' : type === 'hours' ? 'SAAT RAPORU' : 'GÜNLÜK RAPOR'}`);
-  lines.push(`📅 ${period.label}`);
+  lines.push(`TARİH VAKFI — ${type === 'general' ? 'GENEL ÖZET' : type === 'person' ? 'KİŞİ BAZLI' : type === 'dept' ? 'DEPARTMAN BAZLI' : type === 'tasks' ? 'İŞ RAPORU' : type === 'hours' ? 'SAAT RAPORU' : 'GÜNLÜK RAPOR'}`);
+  lines.push(`${period.label}`);
   lines.push(`Oluşturulma: ${fdf(new Date())}`);
   lines.push(hr);
 
@@ -59,18 +59,18 @@ function generateTextReport(type, data, period, scope) {
   const remote = reports.filter(r => r.work_mode === 'remote');
 
   if (type === 'general' || type === 'daily') {
-    lines.push(`\n👥 Aktif Gönüllü: ${activeVols.length}`);
-    lines.push(`⏱️ Toplam Çalışma: ${totalDays} gün, ${fmtH(totalHours)}`);
-    lines.push(`  🏛️ Vakıfta: ${fmtH(onsite.reduce((a,r) => a + Number(r.hours||0), 0))}`);
-    lines.push(`  🏠 Uzaktan: ${fmtH(remote.reduce((a,r) => a + Number(r.hours||0), 0))}`);
+    lines.push(`\nAktif Gönüllü: ${activeVols.length}`);
+    lines.push(`Toplam Çalışma: ${totalDays} gün, ${fmtH(totalHours)}`);
+    lines.push(`  Vakıfta: ${fmtH(onsite.reduce((a,r) => a + Number(r.hours||0), 0))}`);
+    lines.push(`  Uzaktan: ${fmtH(remote.reduce((a,r) => a + Number(r.hours||0), 0))}`);
 
     const done = tasks.filter(t => t.status === 'done');
     const active = tasks.filter(t => ['active','review','pending'].includes(t.status));
-    lines.push(`\n📋 Tamamlanan İş: ${done.length}`);
-    lines.push(`📋 Devam Eden İş: ${active.length}`);
+    lines.push(`\nTamamlanan İş: ${done.length}`);
+    lines.push(`Devam Eden İş: ${active.length}`);
 
     lines.push(`\n${hr}`);
-    lines.push('🏢 Departman Bazlı:');
+    lines.push('Departman Bazlı:');
     for (const d of DEPTS) {
       const deptReports = reports.filter(r => r.profiles?.department === d.id);
       const deptHours = deptReports.reduce((a,r) => a + Number(r.hours||0), 0);
@@ -81,27 +81,27 @@ function generateTextReport(type, data, period, scope) {
 
   if (type === 'daily') {
     lines.push(`\n${hr}`);
-    lines.push('📝 Bugün Çalışanlar:');
+    lines.push('Bugün Çalışanlar:');
     for (const r of reports) {
-      const mode = r.work_mode === 'remote' ? '🏠' : '🏛️';
+      const mode = r.work_mode === 'remote' ? 'Uzaktan' : 'Vakıfta';
       lines.push(`  ${r.profiles?.display_name} — ${fmtH(r.hours)} ${mode} — "${r.description || ''}"`);
     }
     if (reports.length === 0) lines.push('  Bugün rapor girilmemiş.');
 
     const todayTasks = tasks.filter(t => t.status === 'done' && t.completed_at?.startsWith(period.start));
     if (todayTasks.length) {
-      lines.push(`\n✅ Bugün Tamamlanan İşler:`);
+      lines.push(`\nBugün Tamamlanan İşler:`);
       for (const t of todayTasks) lines.push(`  ${t.title}`);
     }
 
     const plans = reports.filter(r => r.next_plan).map(r => `  ${r.profiles?.display_name}: "${r.next_plan}"`);
-    if (plans.length) { lines.push(`\n📌 Yarın Planı:`); lines.push(...plans); }
+    if (plans.length) { lines.push(`\nYarın Planı:`); lines.push(...plans); }
   }
 
   if (type === 'person') {
     lines.push(`\n${hr}`);
     const sorted = [...summaries].sort((a,b) => Number(b.month_hours) - Number(a.month_hours));
-    lines.push('👥 Ad | Dept | Gün | Saat | Son Aktivite');
+    lines.push('Ad | Dept | Gün | Saat | Son Aktivite');
     lines.push('─'.repeat(50));
     for (const s of sorted) {
       if (Number(s.total_hours) > 0) {
@@ -117,7 +117,7 @@ function generateTextReport(type, data, period, scope) {
       const deptVols = summaries.filter(s => s.department === d.id);
       const deptHours = deptReports.reduce((a,r) => a + Number(r.hours||0), 0);
       if (deptVols.length > 0 || deptHours > 0) {
-        lines.push(`\n🏢 ${d.l}`);
+        lines.push(`\n${d.l}`);
         lines.push(`  Aktif gönüllü: ${deptVols.filter(v => Number(v.total_hours) > 0).length}`);
         lines.push(`  Dönem: ${fmtH(deptHours)}`);
         for (const v of deptVols.filter(v => Number(v.month_hours) > 0)) {
@@ -129,22 +129,22 @@ function generateTextReport(type, data, period, scope) {
 
   if (type === 'tasks') {
     lines.push(`\n${hr}`);
-    lines.push('📋 İş | Dept | İlerleme | Durum | Deadline');
+    lines.push('İş | Dept | İlerleme | Durum | Deadline');
     lines.push('─'.repeat(55));
     for (const t of tasks.filter(t => t.status !== 'cancelled')) {
       const deadline = t.deadline ? fdf(t.deadline) : '—';
-      const overdue = t.deadline && new Date(t.deadline) < new Date() && t.status !== 'done' ? ' ⚠️' : '';
+      const overdue = t.deadline && new Date(t.deadline) < new Date() && t.status !== 'done' ? ' ' : '';
       lines.push(`  ${t.title} | ${DM[t.department]?.l||'—'} | %${Math.round(t.progress||0)} | ${t.status} | ${deadline}${overdue}`);
     }
   }
 
   if (type === 'hours') {
     lines.push(`\n${hr}`);
-    lines.push('⏱️ Tarih | Kişi | Saat | Nerede | Açıklama | Durum');
+    lines.push('Tarih | Kişi | Saat | Nerede | Açıklama | Durum');
     lines.push('─'.repeat(60));
     for (const r of reports) {
-      const mode = r.work_mode === 'remote' ? '🏠' : '🏛️';
-      const st = r.status === 'approved' ? '✅' : r.status === 'rejected' ? '❌' : '⏳';
+      const mode = r.work_mode === 'remote' ? 'Uzaktan' : 'Vakıfta';
+      const st = r.status === 'approved' ? '+' : r.status === 'rejected' ? 'X' : '~';
       lines.push(`  ${r.date} | ${r.profiles?.display_name} | ${r.hours}s | ${mode} | ${r.description?.slice(0,30)||'—'} | ${st}`);
     }
     lines.push(`\n  Toplam: ${fmtH(totalHours)} (${reports.length} kayıt)`);
@@ -208,12 +208,12 @@ async function exportExcel(type, data, period) {
 }
 
 const TYPES = [
-  { id: 'general', l: 'Genel Özet', i: '📊' },
-  { id: 'person', l: 'Kişi Bazlı', i: '👥' },
-  { id: 'dept', l: 'Departman', i: '🏢' },
-  { id: 'tasks', l: 'İş Raporu', i: '📋' },
-  { id: 'hours', l: 'Saat Raporu', i: '⏱️' },
-  { id: 'daily', l: 'Günlük', i: '📅' },
+  { id: 'general', l: 'Genel Özet' },
+  { id: 'person', l: 'Kişi Bazlı' },
+  { id: 'dept', l: 'Departman' },
+  { id: 'tasks', l: 'İş Raporu' },
+  { id: 'hours', l: 'Saat Raporu' },
+  { id: 'daily', l: 'Günlük' },
 ];
 
 export default function ReportBuilder({ uid }) {
@@ -242,7 +242,7 @@ export default function ReportBuilder({ uid }) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold">📄 Rapor Oluştur</h2>
+      <h2 className="text-lg font-bold">Rapor Oluştur</h2>
 
       {/* Tip */}
       <div className="grid grid-cols-3 gap-2">
@@ -276,8 +276,8 @@ export default function ReportBuilder({ uid }) {
             <pre className="text-xs whitespace-pre-wrap font-mono text-gray-700 leading-relaxed">{preview}</pre>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <button onClick={copyToClipboard} className="btn-primary !text-sm">📋 Kopyala</button>
-            <button onClick={() => data && exportExcel(type, data, period)} className="btn-ghost !text-sm">📊 Excel İndir</button>
+            <button onClick={copyToClipboard} className="btn-primary !text-sm">Kopyala</button>
+            <button onClick={() => data && exportExcel(type, data, period)} className="btn-ghost !text-sm">Excel İndir</button>
           </div>
         </div>
       )}
@@ -300,11 +300,11 @@ export function ReportArchive() {
 
   useEffect(() => { db.getReportArchive(filter || null).then(({ data }) => setReports(data || [])); }, [filter]);
 
-  const typeLabel = { daily: '📅 Günlük', weekly: '📊 Haftalık', monthly: '📈 Aylık' };
+  const typeLabel = { daily: 'Günlük', weekly: 'Haftalık', monthly: 'Aylık' };
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold">📂 Rapor Arşivi</h2>
+      <h2 className="text-lg font-bold">Rapor Arşivi</h2>
       <div className="flex gap-1.5">
         {[['','Tümü'],['daily','Günlük'],['weekly','Haftalık'],['monthly','Aylık']].map(([k,l]) => (
           <button key={k} onClick={() => setFilter(k)} className={`text-sm font-semibold px-3 py-2 rounded-xl ${filter === k ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400'}`}>{l}</button>
@@ -322,7 +322,7 @@ export function ReportArchive() {
           {selected?.id === r.id && (
             <div className="mt-3 pt-3 border-t border-gray-100">
               <pre className="text-xs whitespace-pre-wrap font-mono text-gray-600 leading-relaxed max-h-60 overflow-y-auto">{r.content}</pre>
-              <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(r.content); }} className="btn-ghost !text-xs mt-2">📋 Kopyala</button>
+              <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(r.content); }} className="btn-ghost !text-xs mt-2">Kopyala</button>
             </div>
           )}
         </div>
