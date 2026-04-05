@@ -182,20 +182,20 @@ function IslerimView({ uid, me, can }) {
   const isAdmin = me.role === 'admin';
 
   const tabs = isAdmin
-    ? [['mine','Benim'],['team','Takımım'],['all','Tüm İşler'],['vols','Gönüllüler'],['shifts','Vardiya']]
+    ? [['mine','Benim'],['approvals','Onaylar'],['all','Tüm İşler'],['vols','Gönüllüler'],['shifts','Vardiya']]
     : isCoord
-    ? [['mine','Benim'],['team','Takımım'],['all','Tüm İşler']]
+    ? [['mine','Benim'],['approvals','Onaylar'],['all','Tüm İşler']]
     : [];
 
   const [subTab, setSubTab] = useState('mine');
 
-  if (!isCoord) return <VolunteerWorkView uid={uid} me={me} />;
+  if (!isCoord) return <MyWorkView uid={uid} me={me} />;
 
   return (
     <div>
       <TabBar tabs={tabs} active={subTab} onChange={setSubTab} />
-      {subTab === 'mine' && <VolunteerWorkView uid={uid} me={me} />}
-      {subTab === 'team' && <TeamView uid={uid} me={me} />}
+      {subTab === 'mine' && <MyWorkView uid={uid} me={me} />}
+      {subTab === 'approvals' && <ApprovalsView uid={uid} me={me} />}
       {subTab === 'all' && <AllTasksView uid={uid} me={me} can={can} />}
       {subTab === 'vols' && isAdmin && <VolunteersView uid={uid} me={me} />}
       {subTab === 'shifts' && isAdmin && <ShiftPlanView uid={uid} me={me} />}
@@ -203,86 +203,56 @@ function IslerimView({ uid, me, can }) {
   );
 }
 
-// ── Gönüllü İş Görünümü (Check-in/out + İşler + Geçmiş + Vardiya) ──
-function VolunteerWorkView({ uid, me }) {
-  const [active, setActive] = useState(null); // aktif check-in
-  const [lastCheckin, setLastCheckin] = useState(null);
-  const [missedCheckout, setMissedCheckout] = useState(null);
-  const [missedTime, setMissedTime] = useState('17:00');
-  const [checkoutForm, setCheckoutForm] = useState(false);
-  const [workDone, setWorkDone] = useState('');
-  const [nextPlan, setNextPlan] = useState('');
-  const [elapsed, setElapsed] = useState('');
+// ── Çalışma Raporu + İşler + Geçmiş ──
+function MyWorkView({ uid, me }) {
+  const [showForm, setShowForm] = useState(false);
+  const [editReport, setEditReport] = useState(null);
+  const [f, setF] = useState({ date: today(), h: '', m: '0', mode: 'onsite', desc: '', plan: '' });
+  const [reports, setReports] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [expandTask, setExpandTask] = useState(null);
   const [progVal, setProgVal] = useState(0);
   const [progNote, setProgNote] = useState('');
-  const [weekHistory, setWeekHistory] = useState([]);
   const [summary, setSummary] = useState(null);
   const [shifts, setShifts] = useState([]);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    const [ac, lc, t, wk, sh, ws] = await Promise.all([
-      db.getActiveCheckin(uid),
-      db.getLastCheckin(uid),
+    const [r, t, sh, ws] = await Promise.all([
+      db.getWeekReports(uid),
       db.getTasks({ assignedTo: uid }),
-      db.getWeekCheckins(uid),
       db.getShifts({ volunteerId: uid }),
       db.getWorkSummary(uid),
     ]);
-    setActive(ac.data);
-    setLastCheckin(lc.data);
+    setReports(r.data || []);
     setTasks((t.data || []).filter(t => t.status !== 'done' && t.status !== 'cancelled'));
-    setWeekHistory(wk.data || []);
     setShifts(sh.data || []);
     setSummary(ws.data);
-    // Missed checkout check
-    if (ac.data && ac.data.date !== today()) setMissedCheckout(ac.data);
-    else setMissedCheckout(null);
   }, [uid]);
   useEffect(() => { load(); }, [load]);
 
-  // Live timer
-  useEffect(() => {
-    if (!active || missedCheckout) return;
-    const tick = () => {
-      const diff = Math.floor((Date.now() - new Date(active.check_in).getTime()) / 1000);
-      const h = Math.floor(diff / 3600); const m = Math.floor((diff % 3600) / 60);
-      setElapsed(`${h}s ${String(m).padStart(2,'0')}dk`);
-    };
-    tick();
-    const id = setInterval(tick, 10000);
-    return () => clearInterval(id);
-  }, [active, missedCheckout]);
+  const resetForm = () => setF({ date: today(), h: '', m: '0', mode: 'onsite', desc: '', plan: '' });
 
-  const doCheckIn = async (mode = 'onsite') => {
+  const submit = async () => {
+    const hours = Number(f.h || 0) + Number(f.m || 0) / 60;
+    if (hours <= 0 || !f.desc.trim()) return;
     setSaving(true);
-    await db.checkIn(uid, mode);
-    setSaving(false); load();
+    if (editReport) {
+      const updates = { date: f.date, hours, work_mode: f.mode, description: f.desc, next_plan: f.plan };
+      if (editReport.status === 'approved') updates.status = 'pending';
+      await db.updateWorkReport(editReport.id, updates);
+    } else {
+      await db.createWorkReport({ user_id: uid, date: f.date, hours, work_mode: f.mode, description: f.desc, next_plan: f.plan, source: 'web' });
+    }
+    setShowForm(false); setEditReport(null); resetForm(); setSaving(false); load();
   };
 
-  const doFixMissed = async () => {
-    if (!missedCheckout) return;
-    setSaving(true);
-    const d = new Date(missedCheckout.check_in);
-    const [h, m] = missedTime.split(':');
-    d.setHours(parseInt(h), parseInt(m), 0, 0);
-    await db.fixMissedCheckout(missedCheckout.id, d.toISOString());
-    await db.updateCheckinHours(missedCheckout.id);
-    setMissedCheckout(null); setSaving(false); load();
-  };
+  const del = async (id) => { await db.deleteWorkReport(id); load(); };
 
-  const startCheckout = () => { setCheckoutForm(true); };
-
-  const doCheckOut = async () => {
-    if (!workDone.trim() || !active) return;
-    setSaving(true);
-    const now = new Date().toISOString();
-    await db.checkOut(active.id, now, workDone, nextPlan);
-    await db.updateCheckinHours(active.id);
-    setCheckoutForm(false); setWorkDone(''); setNextPlan('');
-    setSaving(false); load();
+  const startEdit = (r) => {
+    const h = Math.floor(r.hours); const m = Math.round((r.hours - h) * 60);
+    setF({ date: r.date, h: String(h), m: String(m), mode: r.work_mode || 'onsite', desc: r.description || '', plan: r.next_plan || '' });
+    setEditReport(r); setShowForm(true);
   };
 
   const updateProgress = async (task) => {
@@ -298,86 +268,65 @@ function VolunteerWorkView({ uid, me }) {
     setProgNote(''); setExpandTask(null); setSaving(false); load();
   };
 
-  const fmtTime = t => new Date(t).toLocaleTimeString('tr-TR', { hour:'2-digit', minute:'2-digit' });
   const todayDay = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
-  const weekTotal = weekHistory.reduce((a, c) => a + Number(c.hours || 0), 0);
+  const weekTotal = reports.reduce((a, r) => a + Number(r.hours || 0), 0);
+  const maxDate = today();
+  const minDate = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
 
   return (
     <div className="space-y-5">
-      {/* ═══ CHECK-IN / CHECK-OUT KARTI ═══ */}
-      {missedCheckout ? (
-        <div className="card border-l-4 border-amber-400 text-center space-y-3">
-          <div className="text-3xl">⚠️</div>
-          <div className="font-bold">Dünkü çıkışını yapmadın!</div>
-          <div className="text-sm text-gray-500">Giriş: {fmtTime(missedCheckout.check_in)} ({fd(missedCheckout.date)})</div>
-          <div className="flex items-center justify-center gap-2">
-            <span className="text-sm">Kaçta çıktın?</span>
-            <input type="time" className="input-field !w-28 !py-2 text-center" value={missedTime} onChange={e => setMissedTime(e.target.value)} />
-          </div>
-          <button onClick={doFixMissed} disabled={saving} className="btn-primary !py-3 w-full disabled:opacity-50">Çıkışı Kaydet ve Devam Et</button>
-        </div>
-      ) : !active ? (
-        <div className="card text-center space-y-3">
-          <div className="text-sm text-gray-400">Nasıl çalışacaksın?</div>
-          {lastCheckin?.next_plan && (
-            <div className="bg-amber-50 rounded-xl p-3 text-left">
-              <div className="text-xs text-amber-600 font-semibold mb-0.5">📌 Geçen seferden notun:</div>
-              <div className="text-sm text-amber-800">{lastCheckin.next_plan}</div>
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-3">
-            <button onClick={() => doCheckIn('onsite')} disabled={saving} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-lg py-5 rounded-2xl transition-all active:scale-[0.97] shadow-lg shadow-emerald-500/20 disabled:opacity-50">
-              🏛️ Vakıftayım
-            </button>
-            <button onClick={() => doCheckIn('remote')} disabled={saving} className="bg-blue-500 hover:bg-blue-600 text-white font-bold text-lg py-5 rounded-2xl transition-all active:scale-[0.97] shadow-lg shadow-blue-500/20 disabled:opacity-50">
-              🏠 Uzaktan
-            </button>
-          </div>
-          {lastCheckin && (
-            <div className="text-xs text-gray-400">Son: {fd(lastCheckin.date)}, {fmtTime(lastCheckin.check_in)}–{fmtTime(lastCheckin.check_out)} ({fmtHours(lastCheckin.hours)}) {lastCheckin.work_mode === 'remote' ? '🏠' : '🏛️'}</div>
-          )}
-        </div>
-      ) : !checkoutForm ? (
-        <div className="card text-center space-y-3 border-l-4 border-emerald-400">
-          <div className="text-sm text-emerald-600 font-semibold">{active.work_mode === 'remote' ? '🏠' : '🏛️'} Çalışıyorsun — {fmtTime(active.check_in)}'den beri {active.work_mode === 'remote' ? '(uzaktan)' : '(vakıfta)'}</div>
-          <div className="text-3xl font-bold text-emerald-600">{elapsed}</div>
-          {lastCheckin?.next_plan && (
-            <div className="bg-amber-50 rounded-xl p-3 text-left">
-              <div className="text-xs text-amber-600 font-semibold mb-0.5">📌 Planın:</div>
-              <div className="text-sm text-amber-800">{lastCheckin.next_plan}</div>
-            </div>
-          )}
-          <button onClick={startCheckout} className="bg-red-500 hover:bg-red-600 text-white font-bold text-xl py-5 px-8 rounded-2xl w-full transition-all active:scale-[0.97] shadow-lg shadow-red-500/20">
-            🔴 ÇIKIYORUM
-          </button>
-        </div>
+      {/* ═══ ÇALIŞMA RAPORLA ═══ */}
+      {!showForm ? (
+        <button onClick={() => { resetForm(); setEditReport(null); setShowForm(true); }} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-lg py-4 rounded-2xl w-full transition-all active:scale-[0.97] shadow-lg shadow-emerald-500/20">
+          📝 Çalışma Raporla
+        </button>
       ) : (
-        <div className="card border-l-4 border-blue-400 space-y-3">
-          <div className="text-center">
-            <div className="text-sm text-gray-500">✅ Bugünkü çalışman: {fmtTime(active.check_in)} — şimdi</div>
-            <div className="text-lg font-bold">{elapsed}</div>
+        <div className="card border-l-4 border-emerald-400 space-y-3">
+          <div className="flex justify-between items-center">
+            <h3 className="font-bold">{editReport ? '✏️ Raporu Düzenle' : '📝 Çalışma Raporu'}</h3>
+            <button onClick={() => { setShowForm(false); setEditReport(null); }} className="text-gray-400">✕</button>
           </div>
-          <div>
-            <label className="text-sm font-semibold text-gray-700">Bugün ne yaptın? *</label>
-            <input className="input-field mt-1" placeholder="Örn: 3. kutudaki belgeleri taradım" value={workDone} onChange={e => setWorkDone(e.target.value)} />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-gray-700">Sonraki gelişinde ne yapacaksın?</label>
-            <input className="input-field mt-1" placeholder="Örn: 4. kutuya geçeceğim" value={nextPlan} onChange={e => setNextPlan(e.target.value)} />
+          <input type="date" className="input-field" min={minDate} max={maxDate} value={f.date} onChange={e => setF({...f, date: e.target.value})} disabled={!!editReport} />
+          <div className="flex gap-2 items-end">
+            <div className="flex-1"><label className="text-xs text-gray-500">Saat</label><input type="number" min="0" max="12" className="input-field" placeholder="3" value={f.h} onChange={e => setF({...f, h: e.target.value})} /></div>
+            <div className="flex-1"><label className="text-xs text-gray-500">Dakika</label><select className="input-field" value={f.m} onChange={e => setF({...f, m: e.target.value})}><option value="0">0</option><option value="15">15</option><option value="30">30</option><option value="45">45</option></select></div>
           </div>
           <div className="flex gap-2">
-            <button onClick={doCheckOut} disabled={saving || !workDone.trim()} className="btn-primary flex-1 !py-3 disabled:opacity-50">{saving ? '...' : '✓ Kaydet'}</button>
-            <button onClick={() => setCheckoutForm(false)} className="btn-ghost !py-3">İptal</button>
+            <button onClick={() => setF({...f, mode:'onsite'})} className={`flex-1 py-2.5 rounded-xl font-semibold text-sm transition-all ${f.mode==='onsite' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-400'}`}>🏛️ Vakıfta</button>
+            <button onClick={() => setF({...f, mode:'remote'})} className={`flex-1 py-2.5 rounded-xl font-semibold text-sm transition-all ${f.mode==='remote' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}>🏠 Uzaktan</button>
           </div>
+          <div><label className="text-sm font-semibold text-gray-700">Ne yaptım? *</label><input className="input-field mt-1" placeholder="Örn: 3. kutudaki belgeleri taradım" value={f.desc} onChange={e => setF({...f, desc: e.target.value})} /></div>
+          <div><label className="text-sm font-semibold text-gray-700">Sonraki planım</label><input className="input-field mt-1" placeholder="Örn: 4. kutuya geçeceğim" value={f.plan} onChange={e => setF({...f, plan: e.target.value})} /></div>
+          <button onClick={submit} disabled={saving || !f.desc.trim() || !f.h} className="btn-primary w-full !py-3 disabled:opacity-50">{saving ? '...' : editReport ? '✓ Güncelle' : '✓ Kaydet'}</button>
+          {editReport?.status === 'approved' && <p className="text-xs text-amber-500">⚠️ Onaylanmış rapor düzenlenince tekrar onay gerekir.</p>}
         </div>
       )}
 
       {/* ═══ MİNİ ÖZET ═══ */}
       {summary && (summary.week_days > 0 || summary.month_days > 0) && (
         <div className="card !py-3 text-center text-sm text-gray-600">
-          Bu hafta <b className="text-emerald-600">{summary.week_days} gün</b>, <b className="text-emerald-600">{fmtHours(Number(summary.week_hours))}</b> çalıştın 💪
+          Bu hafta <b className="text-emerald-600">{summary.week_days} rapor</b>, <b className="text-emerald-600">{fmtHours(Number(summary.week_hours))}</b> çalıştın 💪
         </div>
       )}
+
+      {/* ═══ BU HAFTA RAPORLARIM ═══ */}
+      <div>
+        <h2 className="text-lg font-bold mb-3">📅 Bu Hafta — {reports.length} rapor, {fmtHours(weekTotal)}</h2>
+        {reports.map(r => (
+          <div key={r.id} className={`card mb-2 !py-3 cursor-pointer hover:shadow-md transition-shadow ${r.edited_at ? 'border-l-4 border-amber-300' : ''}`} onClick={() => startEdit(r)}>
+            <div className="flex items-center gap-3">
+              <span className="text-sm">{r.work_mode === 'remote' ? '🏠' : '🏛️'}</span>
+              <div className="flex-1">
+                <div className="text-sm font-semibold">{fd(r.date)} · {fmtHours(r.hours)} {r.edited_at && <span className="text-xs text-amber-500">✏️</span>} {r.source === 'telegram' && <span className="text-xs">✈️</span>}</div>
+                <div className="text-xs text-gray-400">{r.description || '—'}</div>
+              </div>
+              <span className={`text-xs font-semibold ${r.status === 'approved' ? 'text-emerald-600' : r.status === 'rejected' ? 'text-red-500' : 'text-amber-500'}`}>{r.status === 'approved' ? '✅' : r.status === 'rejected' ? '❌' : '⏳'}</span>
+            </div>
+            {r.status === 'pending' && <button onClick={(e) => { e.stopPropagation(); del(r.id); }} className="text-xs text-red-400 mt-1">🗑️ Sil</button>}
+          </div>
+        ))}
+        {reports.length === 0 && <div className="card text-center py-4"><p className="text-sm text-gray-400">Bu hafta rapor yok</p></div>}
+      </div>
 
       {/* ═══ AKTİF İŞLERİM ═══ */}
       {tasks.length > 0 && (
@@ -389,7 +338,7 @@ function VolunteerWorkView({ uid, me }) {
             return (
               <div key={t.id} className={`card mb-3 ${overdue ? 'border-l-4 border-red-400' : ''}`}>
                 <div className="flex items-start justify-between">
-                  <div className="flex-1"><div className="font-bold">{t.title}</div><div className="text-sm text-gray-400">{DM[t.department]?.i} {DM[t.department]?.l}{t.deadline && ` · ${fd(t.deadline)}`}{overdue && ' ⚠️'}</div></div>
+                  <div className="flex-1"><div className="font-bold">{t.title}</div><div className="text-sm text-gray-400">{DM[t.department]?.i}{t.deadline && ` · ${fd(t.deadline)}`}{overdue && ' ⚠️'}</div></div>
                   <span className={`text-sm font-bold ${(t.progress||0) >= 80 ? 'text-emerald-600' : 'text-gray-400'}`}>{Math.round(t.progress||0)}%</span>
                 </div>
                 <div className="mt-2 h-2.5 bg-gray-100 rounded-full overflow-hidden">
@@ -412,183 +361,68 @@ function VolunteerWorkView({ uid, me }) {
         </div>
       )}
 
-      {/* ═══ BU HAFTA GEÇMİŞİM ═══ */}
-      {/* ═══ BU HAFTA + GEÇMİŞ KAYIT ═══ */}
-      <div>
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="text-lg font-bold">📅 Bu Hafta</h2>
-          <RetroForm uid={uid} onSave={load} />
-        </div>
-        {weekHistory.map(c => (
-          <div key={c.id} className={`card mb-2 !py-3 flex items-center gap-3 ${c.is_retroactive ? 'border-l-4 border-amber-300' : ''}`}>
-            <div className="flex-1">
-              <div className="text-sm font-semibold">
-                {fd(c.date)} · {fmtTime(c.check_in)}–{c.check_out ? fmtTime(c.check_out) : '?'}
-                {c.work_mode === 'remote' ? <span className="text-xs ml-1">🏠</span> : <span className="text-xs ml-1">🏛️</span>}
-                {c.is_retroactive && <span className="text-xs text-amber-500 ml-1">⏰</span>}
-                {c.source === 'telegram' && <span className="text-xs ml-1">✈️</span>}
-              </div>
-              <div className="text-xs text-gray-400">{c.work_done || '—'}</div>
-            </div>
-            <span className="text-sm font-bold">{c.hours ? fmtHours(c.hours) : '—'}</span>
-            <span className={`text-xs font-semibold ${c.status === 'approved' ? 'text-emerald-600' : 'text-amber-500'}`}>{c.status === 'approved' ? '✓' : '⏳'}</span>
-          </div>
-        ))}
-        {weekHistory.length > 0 && <div className="text-sm text-gray-500 text-right font-semibold">Toplam: {fmtHours(weekTotal)}</div>}
-        {weekHistory.length === 0 && <div className="card text-center py-4"><p className="text-sm text-gray-400">Bu hafta kayıt yok</p></div>}
-      </div>
-
       {/* ═══ VARDİYAM ═══ */}
       {shifts.length > 0 && (
         <div>
           <h2 className="text-lg font-bold mb-3">📅 Vardiyam</h2>
-          <div className="card">
-            <table className="w-full text-sm">
-              <tbody>
-                {DAYS.filter(d => shifts.some(s => s.day_of_week === d)).map(day => {
-                  const sh = shifts.find(s => s.day_of_week === day);
-                  return (
-                    <tr key={day} className={`border-b border-gray-50 ${day === todayDay ? 'bg-emerald-50' : ''}`}>
-                      <td className="py-2 font-semibold">{day === todayDay ? `📍 ${day}` : day}</td>
-                      <td className="py-2">{sh?.start_time?.slice(0,5)}–{sh?.end_time?.slice(0,5)}</td>
-                      <td className="py-2 text-gray-400">{DM[sh?.department]?.i}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <div className="card"><table className="w-full text-sm"><tbody>
+            {DAYS.filter(d => shifts.some(s => s.day_of_week === d)).map(day => {
+              const sh = shifts.find(s => s.day_of_week === day);
+              return (<tr key={day} className={`border-b border-gray-50 ${day === todayDay ? 'bg-emerald-50' : ''}`}><td className="py-2 font-semibold">{day === todayDay ? `📍 ${day}` : day}</td><td className="py-2">{sh?.start_time?.slice(0,5)}–{sh?.end_time?.slice(0,5)}</td><td className="py-2 text-gray-400">{DM[sh?.department]?.i}</td></tr>);
+            })}
+          </tbody></table></div>
         </div>
       )}
     </div>
   );
 }
 
-// ── Geçmiş Kayıt Ekleme ──
-function RetroForm({ uid, onSave }) {
-  const [show, setShow] = useState(false);
-  const [f, setF] = useState({ date: '', checkIn: '10:00', checkOut: '15:00', workDone: '' });
-  const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  // Max 7 gün geriye
-  const minDate = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
-  const maxDate = new Date(Date.now() - 86400000).toISOString().slice(0, 10); // dünden geriye
-
-  const save = async () => {
-    setError('');
-    if (!f.date || !f.checkIn || !f.checkOut || !f.workDone.trim()) { setError('Tüm alanları doldurun'); return; }
-    if (f.checkIn >= f.checkOut) { setError('Çıkış, girişten sonra olmalı'); return; }
-    const exists = await db.hasCheckinOnDate(uid, f.date);
-    if (exists) { setError('Bu güne zaten kayıt var'); return; }
-    setSaving(true);
-    await db.addRetroactiveCheckin(uid, f.date, f.checkIn, f.checkOut, f.workDone, 'web');
-    setShow(false); setF({ date: '', checkIn: '10:00', checkOut: '15:00', workDone: '' }); setSaving(false);
-    onSave();
-  };
-
-  if (!show) return <button onClick={() => setShow(true)} className="text-sm font-semibold text-amber-600">+ Geçmiş Ekle</button>;
-
-  return (
-    <div className="card border-l-4 border-amber-300 space-y-2 mt-2 w-full">
-      <div className="flex justify-between items-center">
-        <span className="text-sm font-bold">⏰ Geçmiş Kayıt Ekle</span>
-        <button onClick={() => setShow(false)} className="text-xs text-gray-400">✕</button>
-      </div>
-      <input type="date" className="input-field" min={minDate} max={maxDate} value={f.date} onChange={e => setF({...f, date: e.target.value})} />
-      <div className="grid grid-cols-2 gap-2">
-        <div><label className="text-xs text-gray-500">Giriş</label><input type="time" className="input-field" value={f.checkIn} onChange={e => setF({...f, checkIn: e.target.value})} /></div>
-        <div><label className="text-xs text-gray-500">Çıkış</label><input type="time" className="input-field" value={f.checkOut} onChange={e => setF({...f, checkOut: e.target.value})} /></div>
-      </div>
-      <input className="input-field" placeholder="O gün ne yaptın?" value={f.workDone} onChange={e => setF({...f, workDone: e.target.value})} />
-      {error && <p className="text-xs text-red-500">{error}</p>}
-      <button onClick={save} disabled={saving} className="btn-primary w-full disabled:opacity-50">{saving ? '...' : 'Kaydet'}</button>
-      <p className="text-xs text-gray-400">Koordinatör onayı gerekir</p>
-    </div>
-  );
-}
-
-// ── Takımım (Koordinatör/Admin) ──
-function TeamView({ uid, me }) {
-  const [activeNow, setActiveNow] = useState([]);
+// ── Onaylar (Koordinatör/Admin) ──
+function ApprovalsView({ uid, me }) {
   const [pending, setPending] = useState([]);
-  const [weekTotal, setWeekTotal] = useState({ vols: 0, hours: 0 });
   const [volSummaries, setVolSummaries] = useState([]);
   const [sortBy, setSortBy] = useState('hours');
 
   const load = useCallback(async () => {
-    const [ac, pend, ws] = await Promise.all([
-      db.getActiveCheckins(),
-      db.getPendingCheckins(),
-      db.getAllWorkSummaries(),
-    ]);
-    setActiveNow(ac.data || []);
-    setPending(pend.data || []);
+    const [p, ws] = await Promise.all([db.getPendingReports(), db.getAllWorkSummaries()]);
+    setPending(p.data || []);
     setVolSummaries(ws.data || []);
-    // Week stats
-    const now = new Date();
-    const monday = new Date(now); monday.setDate(now.getDate() - ((now.getDay()+6)%7));
-    const weekPend = (pend.data || []).filter(c => new Date(c.date) >= monday);
-    const uniqueVols = new Set(weekPend.map(c => c.user_id));
-    setWeekTotal({ vols: uniqueVols.size, hours: weekPend.reduce((a,c) => a + Number(c.hours||0), 0) });
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const approve = async (id) => { await db.approveCheckin(id, uid); load(); };
-  const fmtTime = t => new Date(t).toLocaleTimeString('tr-TR', { hour:'2-digit', minute:'2-digit' });
+  const approve = async (id) => { await db.approveReport(id, uid); load(); };
+  const reject = async (id) => { await db.updateWorkReport(id, { status: 'rejected' }); load(); };
+  const approveAll = async () => { await db.approveAllReports(pending.filter(r => r.user_id !== uid).map(r => r.id), uid); load(); };
 
   return (
     <div className="space-y-5">
-      {/* Şu an burada */}
       <div>
-        <h2 className="text-lg font-bold mb-3">🟢 Şu An Çalışıyor ({activeNow.length})</h2>
-        {activeNow.length === 0 && <div className="card text-center py-4"><p className="text-sm text-gray-400">Şu an kimse yok</p></div>}
-        {activeNow.map(c => {
-          const diff = Math.floor((Date.now() - new Date(c.check_in).getTime()) / 60000);
-          const h = Math.floor(diff / 60); const m = diff % 60;
-          return (
-            <div key={c.id} className="card mb-2 !py-3 flex items-center gap-3">
-              <span className="text-sm">{c.work_mode === 'remote' ? '🏠' : '🏛️'}</span>
-              <div className="flex-1">
-                <div className="font-semibold text-sm">{c.profiles?.display_name}</div>
-                <div className="text-xs text-gray-400">{fmtTime(c.check_in)}'den beri · {DM[c.profiles?.department]?.i} · {c.work_mode === 'remote' ? 'uzaktan' : 'vakıfta'}</div>
-              </div>
-              <span className="text-sm font-bold text-emerald-600">{h}s {m}dk</span>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Onay Bekleyenler */}
-      <div>
-        <h2 className="text-lg font-bold mb-3">⏳ Onay Bekleyenler ({pending.length})</h2>
-        {pending.map(c => (
-          <div key={c.id} className="card mb-2 !py-3">
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="text-lg font-bold">⏳ Onay Bekleyen ({pending.length})</h2>
+          {pending.filter(r => r.user_id !== uid).length > 1 && <button onClick={approveAll} className="text-xs font-semibold bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg">✓ Hepsini Onayla</button>}
+        </div>
+        {pending.map(r => (
+          <div key={r.id} className={`card mb-2 !py-3 ${r.edited_at ? 'border-l-4 border-amber-300' : ''}`}>
             <div className="flex items-center gap-3">
-              <span className="text-xs">{c.source === 'telegram' ? '✈️' : '🌐'}{c.is_retroactive ? '⏰' : ''}</span>
+              <span className="text-sm">{r.work_mode === 'remote' ? '🏠' : '🏛️'}</span>
               <div className="flex-1">
-                <div className="font-semibold text-sm">{c.profiles?.display_name}</div>
-                <div className="text-xs text-gray-400">{fd(c.date)} · {fmtTime(c.check_in)}–{c.check_out ? fmtTime(c.check_out) : '?'} · {c.hours ? fmtHours(c.hours) : '—'}{c.is_retroactive ? ' · sonradan' : ''}</div>
-                {c.work_done && <div className="text-xs text-gray-500 mt-0.5">{c.work_done}</div>}
+                <div className="font-semibold text-sm">{r.profiles?.display_name}</div>
+                <div className="text-xs text-gray-400">{fd(r.date)} · {fmtHours(r.hours)} {r.edited_at && <span className="text-amber-500">✏️</span>} {r.source === 'telegram' && '✈️'}</div>
+                {r.description && <div className="text-xs text-gray-500 mt-0.5">{r.description}</div>}
               </div>
-              {c.user_id !== uid ? (
-                <button onClick={() => approve(c.id)} className="text-xs font-semibold bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg">✓ Onayla</button>
-              ) : (
-                <span className="text-xs text-gray-400">Kendi kaydın</span>
-              )}
+              {r.user_id !== uid ? (
+                <div className="flex gap-1.5">
+                  <button onClick={() => approve(r.id)} className="text-xs font-semibold bg-emerald-50 text-emerald-600 px-2.5 py-1.5 rounded-lg">✓</button>
+                  <button onClick={() => reject(r.id)} className="text-xs font-semibold bg-red-50 text-red-500 px-2.5 py-1.5 rounded-lg">✕</button>
+                </div>
+              ) : <span className="text-xs text-gray-400">Kendi</span>}
             </div>
-            {c.photo_url && <img src={c.photo_url} alt="Çalışma fotoğrafı" className="mt-2 rounded-xl max-h-40 object-cover w-full" />}
           </div>
         ))}
         {pending.length === 0 && <div className="card text-center py-4"><p className="text-sm text-gray-400">Bekleyen onay yok</p></div>}
       </div>
 
-      {/* Hafta Özet */}
-      <div className="card text-center">
-        <div className="text-sm text-gray-500">Bu hafta: <span className="font-bold text-gray-800">{weekTotal.vols} gönüllü</span>, <span className="font-bold text-emerald-600">{fmtHours(weekTotal.hours)}</span></div>
-      </div>
-
-      {/* Gönüllü Çalışma Özeti */}
+      {/* Gönüllü Özeti */}
       {volSummaries.length > 0 && (
         <div>
           <div className="flex justify-between items-center mb-3">
@@ -599,24 +433,16 @@ function TeamView({ uid, me }) {
               ))}
             </div>
           </div>
-          {[...volSummaries].sort((a, b) => sortBy === 'hours' ? Number(b.month_hours) - Number(a.month_hours) : sortBy === 'days' ? Number(b.month_days) - Number(a.month_days) : a.display_name.localeCompare(b.display_name)).map(v => {
-            const isOnline = activeNow.some(c => c.user_id === v.id);
-            return (
-              <div key={v.id} className="card mb-2 !py-3">
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-600">{(v.display_name||'?')[0]}</div>
-                    {isOnline && <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />}
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-semibold text-sm">{v.display_name} <span className="text-xs text-gray-400">{DM[v.department]?.i}</span></div>
-                    <div className="text-xs text-gray-400">Bu ay: {v.month_days}g / {fmtHours(Number(v.month_hours))} · Toplam: {v.total_days}g / {fmtHours(Number(v.total_hours))}</div>
-                  </div>
-                  {v.last_visit && <span className="text-xs text-gray-300">{v.last_visit === today() ? 'Bugün' : fd(v.last_visit)}</span>}
-                </div>
+          {[...volSummaries].sort((a, b) => sortBy === 'hours' ? Number(b.month_hours) - Number(a.month_hours) : sortBy === 'days' ? Number(b.month_days) - Number(a.month_days) : a.display_name.localeCompare(b.display_name)).map(v => (
+            <div key={v.id} className="card mb-2 !py-3 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-600">{(v.display_name||'?')[0]}</div>
+              <div className="flex-1">
+                <div className="font-semibold text-sm">{v.display_name} <span className="text-xs text-gray-400">{DM[v.department]?.i}</span></div>
+                <div className="text-xs text-gray-400">Bu ay: {v.month_days} rapor / {fmtHours(Number(v.month_hours))} · Toplam: {v.total_days} / {fmtHours(Number(v.total_hours))}</div>
               </div>
-            );
-          })}
+              {v.last_visit && <span className="text-xs text-gray-300">{v.last_visit === today() ? 'Bugün' : fd(v.last_visit)}</span>}
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -1232,8 +1058,8 @@ function HelpSection({ me }) {
   const [open, setOpen] = useState(null);
   const items = [
     { q: 'İlerleme nasıl güncellenir?', a: 'İşlerim sayfasında ilgili işe tıklayın → Güncelle → Yüzdeyi ayarlayın → Ne yaptığınızı yazın → Kaydet.' },
-    { q: 'Giriş/çıkış nasıl yapılır?', a: 'İşlerim sayfasında "GELDİM" butonuna bas. Çalışman bitince "ÇIKIYORUM" bas, ne yaptığını yaz, kaydet. Süre otomatik hesaplanır.' },
-    { q: 'Çıkış yapmayı unuttum, ne olur?', a: 'Ertesi gün "GELDİM"a bastığında "Dünkü çıkışını yapmadın" uyarısı çıkar. Çıkış saatini girersin, sonra yeni giriş başlar.' },
+    { q: 'Çalışma nasıl raporlanır?', a: '"Çalışma Raporla" butonuna bas → saat, dakika, nerede çalıştığını ve ne yaptığını yaz → Kaydet. 15 saniye.' },
+    { q: 'Raporu düzenleyebilir miyim?', a: 'Evet, rapora tıkla ve düzenle. Onaylanmış raporlar düzenlenince tekrar onay gerekir.' },
     { q: 'Vardiyamı nerede görürüm?', a: 'İşlerim sayfasının alt kısmında vardiya tablonu görürsün.' },
     { q: 'Mesaj nasıl yazarım?', a: 'Mesajlar → Sohbet sekmesinden departman sohbetine mesaj yazabilirsiniz.' },
     { q: 'İstek nasıl gönderirim?', a: 'Mesajlar sayfasının altında "İstek Gönder" butonu var. Serbest metin yazın, koordinatörünüze/yöneticiye gider.' },
@@ -1241,7 +1067,7 @@ function HelpSection({ me }) {
   ];
   if (me.role !== 'vol') {
     items.push(
-      { q: 'Giriş/çıkış kayıtlarını nasıl onaylarım?', a: 'İşlerim → "Takımım" sekmesinde bekleyen check-out kayıtlarını onaylayın. Kendi kaydınızı onaylayamazsınız. "Şu an burada" bölümünde aktif gönüllüleri görebilirsiniz.' },
+      { q: 'Raporları nasıl onaylarım?', a: 'İşlerim → "Onaylar" sekmesinde bekleyen raporları onaylayın veya reddedin. "Hepsini Onayla" ile toplu onay yapabilirsiniz. Kendi kaydınızı onaylayamazsınız.' },
       { q: 'Yeni iş nasıl oluştururum?', a: 'İşlerim → "Tüm İşler" → "+ Yeni İş" butonuna basın. Başlık, açıklama, departman, atanan kişi ve son tarih girin.' },
       { q: 'İş %100 olunca ne olur?', a: 'İş "Kontrol Bekliyor" durumuna geçer. "✓ Tamamla" butonuyla final onayı verin.' },
     );
