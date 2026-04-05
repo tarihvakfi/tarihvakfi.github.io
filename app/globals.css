@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,19 +6,37 @@
 
 @layer base {
   html { scroll-behavior: smooth; }
-  ::selection { background: rgba(16, 185, 129, 0.18); color: #0f172a; }
-  body { @apply text-gray-800 font-sans text-base leading-relaxed; font-family: 'DM Sans', system-ui, sans-serif; background: #F8F9FA; }
+  ::selection { background: rgba(5, 150, 105, 0.12); color: #111827; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    color: #111827;
+    background: #FAFAFA;
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 }
 
 @layer components {
-  .card { @apply bg-white p-[18px]; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-  .btn-primary { @apply bg-emerald-500 text-white font-semibold rounded-xl px-5 text-sm transition-all; padding-top: 14px; padding-bottom: 14px; }
-  .btn-primary:hover { @apply bg-emerald-600; }
-  .btn-primary:active { transform: scale(0.98); }
-  .btn-ghost { @apply bg-transparent text-gray-600 border border-gray-200 rounded-xl px-5 text-sm font-semibold transition-all; padding-top: 14px; padding-bottom: 14px; }
-  .btn-ghost:hover { @apply border-emerald-500 text-emerald-600; }
-  .input-field { @apply w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-base outline-none transition-all; }
-  .input-field:focus { @apply border-emerald-500 ring-2 ring-emerald-100; }
+  .section-label {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #9CA3AF;
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 8px;
 }
 
 .no-scrollbar::-webkit-scrollbar { display: none; }

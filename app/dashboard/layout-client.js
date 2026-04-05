@@ -6,42 +6,48 @@ import BackupView from './backup';
 import { CertificateModal, MyCertificates } from './certificates';
 import ReportBuilder, { ReportArchive, quickReport } from './reports';
 
+/* ═══════════════════════════════════════════════════════
+   CONSTANTS & UTILITIES
+   ═══════════════════════════════════════════════════════ */
+
 const DEPTS = [
-  { id:'arsiv', l:'Arşiv & Dokümantasyon', i:'📜' },{ id:'egitim', l:'Eğitim & Atölye', i:'📚' },
-  { id:'etkinlik', l:'Etkinlik & Organizasyon', i:'🎪' },{ id:'dijital', l:'Dijital & Sosyal Medya', i:'💻' },
-  { id:'rehber', l:'Rehberlik & Gezi', i:'🏛️' },{ id:'baski', l:'Yayın & Baskı', i:'📰' },
-  { id:'bagis', l:'Bağış & Sponsorluk', i:'💰' },{ id:'idari', l:'İdari İşler', i:'🏢' },
+  { id:'arsiv', l:'Arşiv ve Dokümantasyon' },{ id:'egitim', l:'Eğitim ve Atölye' },
+  { id:'etkinlik', l:'Etkinlik ve Organizasyon' },{ id:'dijital', l:'Dijital ve Sosyal Medya' },
+  { id:'rehber', l:'Rehberlik ve Gezi' },{ id:'baski', l:'Yayın ve Baskı' },
+  { id:'bagis', l:'Bağış ve Sponsorluk' },{ id:'idari', l:'İdari İşler' },
 ];
-const DM = Object.fromEntries(DEPTS.map(d=>[d.id,d]));
-const ROLES = { admin:{l:'Yönetici',i:'👑'}, coord:{l:'Koordinatör',i:'📋'}, vol:{l:'Gönüllü',i:'🤝'} };
-const STATUSES = { pending:'Bekliyor', active:'Devam Ediyor', done:'Tamamlandı', review:'Kontrol Bekliyor' };
+const DM = Object.fromEntries(DEPTS.map(d => [d.id, d]));
+const ROLES = { admin:'Yönetici', coord:'Koordinatör', vol:'Gönüllü' };
 const DAYS = ['Pzt','Sal','Çar','Per','Cum','Cmt','Paz'];
 const MO = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+const WDAYS = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
 const fd = d => { const x = new Date(d); return `${x.getDate()} ${MO[x.getMonth()]}`; };
 const fdf = d => { const x = new Date(d); return `${x.getDate()} ${MO[x.getMonth()]} ${x.getFullYear()}`; };
-const today = () => new Date().toISOString().slice(0,10);
-const fmtH = h => { const hrs = Math.floor(h); const mins = Math.round((h-hrs)*60); return `${hrs}s ${String(mins).padStart(2,'0')}dk`; };
-
-const getStreak = (reports) => {
-  const days = [...new Set((reports||[]).map(r=>r.date))].sort((a,b)=>b.localeCompare(a));
-  let streak = 0, cursor = today();
-  for (const d of days) { if (d===cursor) { streak++; const nd = new Date(cursor+'T12:00:00'); nd.setDate(nd.getDate()-1); cursor=nd.toISOString().slice(0,10); } else break; }
-  return streak;
+const today = () => new Date().toISOString().slice(0, 10);
+const fmtH = h => { const hrs = Math.floor(h); const mins = Math.round((h - hrs) * 60); return mins > 0 ? `${hrs}s ${mins}dk` : `${hrs}s`; };
+const todayLabel = () => { const d = new Date(); return `${d.getDate()} ${MO[d.getMonth()]} ${d.getFullYear()}, ${WDAYS[d.getDay()]}`; };
+const timeAgo = ts => {
+  const mins = Math.floor((Date.now() - new Date(ts).getTime()) / 60000);
+  if (mins < 1) return 'az önce';
+  if (mins < 60) return `${mins} dk önce`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} saat önce`;
+  return `${Math.floor(hrs / 24)} gün önce`;
 };
-const daysUntil = v => Math.round((new Date(v+'T12:00:00') - new Date(today()+'T12:00:00')) / 86400000);
 
-// ═══════════════════════════════════════════
-// ANA SHELL
-// ═══════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════
+   DASHBOARD SHELL
+   ═══════════════════════════════════════════════════════ */
+
 export default function Dashboard({ session }) {
   const uid = session.user.id;
   const [me, setMe] = useState(null);
-  const [tab, setTab] = useState('islerim');
+  const [tab, setTab] = useState(null);
   const [loading, setLoading] = useState(true);
   const [unread, setUnread] = useState(0);
   const [showNotifs, setShowNotifs] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  const [modal, setModal] = useState(null); // 'chat','help','certs','summary'
+  const [modal, setModal] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -57,190 +63,192 @@ export default function Dashboard({ session }) {
     return () => sub.unsubscribe();
   }, [uid]);
 
-  // Set default tab based on role (once)
   useEffect(() => {
     if (!me) return;
-    if (me.role === 'admin') setTab('yonetim');
+    if (me.role === 'admin') setTab('genel');
+    else if (me.role === 'coord') setTab('calisma');
   }, [me?.role]);
 
-  if (loading || !me) return <div className="flex items-center justify-center min-h-screen"><p className="text-gray-400">Yükleniyor...</p></div>;
+  if (loading || !me) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="space-y-3 w-48"><div className="skeleton h-3 w-full" /><div className="skeleton h-3 w-3/4" /><div className="skeleton h-3 w-1/2" /></div>
+    </div>
+  );
 
-  // Restricted
   const restricted = ['paused','inactive','resigned','pending','rejected','blocked'].includes(me.status);
   if (restricted) return <RestrictedShell me={me} uid={uid} />;
 
-  const isCoord = me.role === 'coord' || me.role === 'admin';
+  const isVol = me.role === 'vol';
+  const isCoord = me.role === 'coord';
   const isAdmin = me.role === 'admin';
 
-  // Gönüllü: 0 sekme, Koordinatör: 2, Admin: 2
-  const tabs = isAdmin
-    ? [['yonetim','👥','Yönetim'],['raporlar','📊','Raporlar']]
+  const navItems = isAdmin
+    ? [{ id:'genel', l:'Genel Bakış' },{ id:'rapor', l:'Raporlar' },{ id:'ayar', l:'Ayarlar', sep:true }]
     : isCoord
-    ? [['islerim','📋','İşlerim'],['takimim','👥','Takımım']]
+    ? [{ id:'calisma', l:'Çalışmam' },{ id:'takim', l:'Takım' }]
     : [];
+  const hasNav = navItems.length > 0;
+
+  const openModal = v => { setModal(v); setShowProfile(false); };
 
   return (
-    <div className={`min-h-screen ${isAdmin ? 'bg-[#F3F4F6]' : 'bg-white'} ${tabs.length ? 'pb-16' : ''}`}>
-      {/* Header */}
-      <header className="bg-white/95 backdrop-blur-sm border-b border-gray-100 px-4 py-3 sticky top-0 z-50">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <a href="/" className="text-lg font-bold" style={{fontFamily:"'Playfair Display',serif"}}>🏛️ Tarih Vakfı</a>
-          <div className="flex items-center gap-2">
-            <button onClick={() => { setShowNotifs(!showNotifs); if (!showNotifs) setUnread(0); }} className="relative w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-sm">
-              🔔{unread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">{unread}</span>}
+    <div className="min-h-screen bg-[#FAFAFA]">
+      {/* ── Header ── */}
+      <header className="sticky top-0 z-50 h-14 bg-white/80 backdrop-blur-md border-b border-[#F3F4F6]">
+        <div className="h-full max-w-[1200px] mx-auto px-4 md:px-6 flex items-center justify-between">
+          <a href="/" className="text-[15px] font-semibold text-[#111827] tracking-tight">Tarih Vakfı</a>
+          <div className="flex items-center gap-3">
+            <button onClick={() => { setShowNotifs(!showNotifs); setShowProfile(false); }} className="relative w-8 h-8 flex items-center justify-center text-[#9CA3AF] hover:text-[#111827] transition-colors duration-150">
+              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+              {unread > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-[#059669] rounded-full" />}
             </button>
-            <button onClick={() => setShowProfile(!showProfile)} className="text-sm font-semibold text-gray-600">{me.display_name?.split(' ')[0]} ▾</button>
+            <button onClick={() => { setShowProfile(!showProfile); setShowNotifs(false); }} className="flex items-center gap-2 group">
+              <div className="w-8 h-8 rounded-full bg-[#059669] flex items-center justify-center text-white text-[13px] font-semibold">{(me.display_name||'?')[0]}</div>
+              <svg className="text-[#9CA3AF] group-hover:text-[#6B7280] transition-colors" width="10" height="10" fill="none" viewBox="0 0 10 10"><path d="M2 4l3 2.5L8 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Notification dropdown */}
-      {showNotifs && <NotifDropdown uid={uid} onClose={() => { setShowNotifs(false); setUnread(0); }} />}
+      {showNotifs && <NotificationPanel uid={uid} onClose={() => { setShowNotifs(false); setUnread(0); }} />}
+      {showProfile && <ProfilePanel me={me} uid={uid} onUpdate={setMe} onModal={openModal} onClose={() => setShowProfile(false)} />}
+      {modal === 'certs' && <Modal title="Belgelerim" onClose={() => setModal(null)}><MyCertificates uid={uid} me={me} /></Modal>}
+      {modal === 'summary' && <Modal title="Çalışma Özeti" onClose={() => setModal(null)}><WorkSummary uid={uid} /></Modal>}
+      {modal === 'help' && <Modal title="Yardım" onClose={() => setModal(null)}><HelpContent me={me} /></Modal>}
 
-      {/* Profile dropdown */}
-      {showProfile && <ProfileDropdown me={me} uid={uid} onUpdate={m => setMe(m)} onModal={setModal} onClose={() => setShowProfile(false)} />}
+      <div className="flex">
+        {/* ── Sidebar (desktop) ── */}
+        {hasNav && (
+          <aside className="hidden md:flex flex-col w-[220px] min-h-[calc(100vh-56px)] border-r border-[#F3F4F6] bg-white px-3 py-6 flex-shrink-0">
+            <nav className="space-y-0.5">
+              {navItems.map(item => (
+                <div key={item.id}>
+                  {item.sep && <div className="h-px bg-[#F3F4F6] my-4" />}
+                  <button onClick={() => setTab(item.id)} className={`w-full text-left px-3 py-2 rounded-lg text-[14px] transition-all duration-150 ${tab === item.id ? 'text-[#111827] font-semibold bg-[#F3F4F6]' : 'text-[#6B7280] hover:text-[#111827] hover:bg-[#FAFAFA]'}`}>{item.l}</button>
+                </div>
+              ))}
+            </nav>
+          </aside>
+        )}
 
-      {/* Modals */}
-      {/* Sohbet modal kaldırıldı — koordinatör/admin Takımım/Yönetim içinde kullanır */}
-      {modal === 'certs' && <ModalWrap title="🏆 Belgelerim" onClose={() => setModal(null)}><MyCertificates uid={uid} me={me} /></ModalWrap>}
-      {modal === 'summary' && <ModalWrap title="📊 Çalışma Özeti" onClose={() => setModal(null)}><WorkSummaryModal uid={uid} /></ModalWrap>}
-      {modal === 'help' && <ModalWrap title="❓ Yardım" onClose={() => setModal(null)}><HelpContent me={me} /></ModalWrap>}
-
-      {/* Content */}
-      <main className={`mx-auto px-4 py-4 ${isAdmin ? 'max-w-5xl' : 'max-w-2xl'}`}>
-        {/* Gönüllü: tek ekran (sekme yok) */}
-        {me.role === 'vol' && <MyScreen uid={uid} me={me} onModal={setModal} />}
-        {/* Koordinatör */}
-        {me.role === 'coord' && tab === 'islerim' && <MyScreen uid={uid} me={me} onModal={setModal} />}
-        {me.role === 'coord' && tab === 'takimim' && <TeamScreen uid={uid} me={me} />}
-        {/* Yönetici */}
-        {isAdmin && tab === 'yonetim' && <AdminScreen uid={uid} me={me} />}
-        {isAdmin && tab === 'raporlar' && <ReportsScreen uid={uid} />}
-      </main>
-
-      {/* Bottom nav — only coord/admin */}
-      {tabs.length > 0 && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50" style={{height:56}}>
-          <div className="max-w-2xl mx-auto flex h-full">
-            {tabs.map(([id,ic,lb]) => (
-              <button key={id} onClick={() => setTab(id)} className="flex-1 flex flex-col items-center justify-center gap-0.5">
-                {tab === id && <div className="absolute top-0 left-1/4 right-1/4 h-[3px] bg-emerald-500 rounded-b" style={{position:'relative',width:'50%',margin:'0 auto'}} />}
-                <span className={`text-lg ${tab === id ? '' : 'grayscale opacity-40'}`}>{ic}</span>
-                <span className={`text-[11px] ${tab === id ? 'font-bold text-emerald-600' : 'text-gray-400'}`}>{lb}</span>
-              </button>
-            ))}
+        {/* ── Content ── */}
+        <main className={`flex-1 min-h-[calc(100vh-56px)] ${hasNav ? 'pb-14 md:pb-0' : ''}`}>
+          <div className={`mx-auto px-4 md:px-8 py-6 md:py-8 ${isVol ? 'max-w-[640px]' : 'max-w-[1200px]'}`}>
+            {isVol && <VolunteerView uid={uid} me={me} />}
+            {isCoord && tab === 'calisma' && <VolunteerView uid={uid} me={me} />}
+            {isCoord && tab === 'takim' && <TeamView uid={uid} me={me} />}
+            {isAdmin && tab === 'genel' && <OverviewView uid={uid} me={me} onNav={setTab} />}
+            {isAdmin && tab === 'rapor' && <ReportsView uid={uid} />}
+            {isAdmin && tab === 'ayar' && <SettingsView uid={uid} me={me} />}
           </div>
+        </main>
+      </div>
+
+      {/* ── Bottom tabs (mobile) ── */}
+      {hasNav && (
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 h-12 bg-white/90 backdrop-blur-md border-t border-[#F3F4F6] z-50 flex">
+          {navItems.map(item => (
+            <button key={item.id} onClick={() => setTab(item.id)} className={`flex-1 flex items-center justify-center text-[13px] font-medium transition-colors duration-150 ${tab === item.id ? 'text-[#059669]' : 'text-[#9CA3AF]'}`}>{item.l}</button>
+          ))}
         </nav>
       )}
     </div>
   );
 }
 
-// ═══════════════════════════════════════════
-// SHARED COMPONENTS
-// ═══════════════════════════════════════════
-function ModalWrap({ title, children, onClose }) {
+/* ═══════════════════════════════════════════════════════
+   SHARED UI
+   ═══════════════════════════════════════════════════════ */
+
+function Modal({ title, children, onClose, wide }) {
   return (
-    <div className="fixed inset-0 bg-black/50 z-[60] flex items-end sm:items-center justify-center" onClick={onClose}>
-      <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="sticky top-0 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
-          <span className="font-bold">{title}</span>
-          <button onClick={onClose} className="text-gray-400 text-lg">✕</button>
+    <div className="fixed inset-0 bg-black/40 z-[60] flex items-end sm:items-center justify-center" onClick={onClose}>
+      <div className={`bg-white w-full ${wide ? 'sm:max-w-2xl' : 'sm:max-w-lg'} sm:rounded-xl rounded-t-xl max-h-[90vh] overflow-y-auto`} onClick={e => e.stopPropagation()}>
+        <div className="sticky top-0 bg-white border-b border-[#F3F4F6] px-6 py-4 flex items-center justify-between z-10">
+          <h2 className="text-[17px] font-semibold text-[#111827]">{title}</h2>
+          <button onClick={onClose} className="text-[#9CA3AF] hover:text-[#111827] transition-colors text-lg leading-none">&times;</button>
         </div>
-        <div className="p-4">{children}</div>
+        <div className="px-6 py-5">{children}</div>
       </div>
     </div>
   );
 }
 
-function NotifDropdown({ uid, onClose }) {
-  const [notifs, setNotifs] = useState([]);
-  const [detail, setDetail] = useState(null);
+function NotificationPanel({ uid, onClose }) {
+  const [items, setItems] = useState([]);
+  const [sel, setSel] = useState(null);
   useEffect(() => {
-    (async () => {
-      const { data } = await db.getNotifications(uid, 15);
-      setNotifs(data || []);
-      await db.markAllRead(uid);
-    })();
+    (async () => { const { data } = await db.getNotifications(uid, 15); setItems(data || []); await db.markAllRead(uid); })();
   }, [uid]);
 
-  if (detail) return (
-    <div className="fixed top-14 right-2 bg-white rounded-2xl shadow-xl border border-gray-100 w-80 max-h-96 overflow-y-auto z-[55]">
-      <div className="p-3 border-b border-gray-50 flex items-center justify-between">
-        <button onClick={() => setDetail(null)} className="text-xs text-gray-400">← Geri</button>
-        <button onClick={onClose} className="text-gray-400">✕</button>
-      </div>
-      <div className="p-4">
-        <div className="text-lg mb-1">{detail.type === 'announcement' ? '📢' : detail.type === 'task' ? '📋' : '🔔'}</div>
-        <div className="font-bold text-sm mb-2">{detail.title}</div>
-        {detail.body && <p className="text-sm text-gray-600 leading-relaxed">{detail.body}</p>}
-        <div className="text-xs text-gray-300 mt-3">{fdf(detail.created_at)}</div>
-      </div>
-    </div>
-  );
-
   return (
-    <div className="fixed top-14 right-2 bg-white rounded-2xl shadow-xl border border-gray-100 w-80 max-h-80 overflow-y-auto z-[55]">
-      <div className="p-3 border-b border-gray-50 font-bold text-sm">🔔 Bildirimler</div>
-      {notifs.map(n => (
-        <div key={n.id} onClick={() => setDetail(n)} className={`px-3 py-2 border-b border-gray-50 cursor-pointer hover:bg-gray-50 ${!n.is_read ? 'bg-emerald-50/50' : ''}`}>
-          <div className="text-sm font-semibold">{n.title}</div>
-          {n.body && <div className="text-xs text-gray-400 truncate">{n.body}</div>}
-          <div className="text-[10px] text-gray-300 mt-0.5">{fd(n.created_at)}</div>
+    <div className="fixed top-14 right-4 bg-white rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.08)] border border-[#F3F4F6] w-80 max-h-[420px] overflow-y-auto z-[55]">
+      {!sel ? (<>
+        <div className="px-4 py-3 border-b border-[#F3F4F6]"><span className="text-[14px] font-semibold">Bildirimler</span></div>
+        {items.map(n => (
+          <div key={n.id} onClick={() => setSel(n)} className={`px-4 py-3 border-b border-[#F3F4F6] cursor-pointer hover:bg-[#FAFAFA] transition-colors ${!n.is_read ? 'bg-[#ECFDF5]/30' : ''}`}>
+            <div className="text-[14px] font-medium text-[#111827]">{n.title}</div>
+            {n.body && <div className="text-[13px] text-[#6B7280] truncate mt-0.5">{n.body}</div>}
+            <div className="text-[12px] text-[#9CA3AF] mt-1">{timeAgo(n.created_at)}</div>
+          </div>
+        ))}
+        {items.length === 0 && <div className="px-4 py-8 text-center text-[13px] text-[#9CA3AF]">Bildirim yok</div>}
+        <button onClick={onClose} className="w-full py-2.5 text-[13px] text-[#9CA3AF] hover:text-[#6B7280] border-t border-[#F3F4F6] transition-colors">Kapat</button>
+      </>) : (
+        <div className="p-4">
+          <button onClick={() => setSel(null)} className="text-[13px] text-[#9CA3AF] hover:text-[#6B7280] mb-3 transition-colors">&larr; Geri</button>
+          <div className="text-[15px] font-semibold mb-2">{sel.title}</div>
+          {sel.body && <p className="text-[14px] text-[#6B7280] leading-relaxed">{sel.body}</p>}
+          <div className="text-[12px] text-[#9CA3AF] mt-3">{fdf(sel.created_at)}</div>
         </div>
-      ))}
-      {notifs.length === 0 && <div className="p-4 text-center text-sm text-gray-400">Bildirim yok</div>}
-      <button onClick={onClose} className="w-full py-2 text-xs text-gray-400 border-t border-gray-50">Kapat</button>
+      )}
     </div>
   );
 }
 
-function ProfileDropdown({ me, uid, onUpdate, onModal, onClose }) {
+function ProfilePanel({ me, uid, onUpdate, onModal, onClose }) {
   const [editing, setEditing] = useState(false);
-  const [f, setF] = useState({ display_name: me.display_name, city: me.city||'', bio: me.bio||'' });
+  const [f, setF] = useState({ display_name: me.display_name, city: me.city || '', bio: me.bio || '' });
   const [tgCode, setTgCode] = useState(null);
   const save = async () => { const { data } = await db.updateProfile(uid, f); if (data) onUpdate(data); setEditing(false); };
   const linkTg = async () => { const code = String(Math.floor(100000 + Math.random() * 900000)); await db.updateProfile(uid, { telegram_link_code: code }); setTgCode(code); };
 
   return (
-    <div className="fixed top-14 right-2 bg-white rounded-2xl shadow-xl border border-gray-100 w-72 z-[55]">
-      <div className="p-4 text-center border-b border-gray-50">
-        <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-xl font-bold text-emerald-600 mx-auto mb-1">{(me.display_name||'?')[0]}</div>
-        <div className="font-bold">{me.display_name}</div>
-        <div className="text-xs text-gray-400">{ROLES[me.role]?.i} {ROLES[me.role]?.l} · {DM[me.department]?.l || '—'}</div>
+    <div className="fixed top-14 right-4 bg-white rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.08)] border border-[#F3F4F6] w-72 z-[55]">
+      <div className="p-5 border-b border-[#F3F4F6]">
+        <div className="text-[15px] font-semibold text-[#111827]">{me.display_name}</div>
+        <div className="text-[13px] text-[#9CA3AF] mt-0.5">{ROLES[me.role]} · {DM[me.department]?.l || '—'}</div>
       </div>
       {!editing ? (
-        <div className="p-2">
-          <button onClick={() => setEditing(true)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded-lg">✏️ Profili Düzenle</button>
+        <div className="py-1.5">
+          <PanelLink label="Profili Düzenle" onClick={() => setEditing(true)} />
           {me.telegram_id ? (
-            <div className="px-3 py-2 text-sm text-emerald-600">✈️ Telegram bağlı ✓</div>
+            <div className="px-4 py-2 text-[13px] text-[#059669] font-medium">Telegram bağlı</div>
           ) : tgCode ? (
-            <div className="px-3 py-2 space-y-2">
-              <div className="text-xs text-gray-500">1. Telegram'da <b>@tarihvakfi_bot</b>'u aç</div>
-              <div className="text-xs text-gray-500">2. Bu kodu gönder:</div>
-              <div className="flex items-center gap-2"><div className="flex-1 font-mono font-bold text-center bg-gray-50 rounded-lg py-2 text-lg tracking-widest">{tgCode}</div><button onClick={() => navigator.clipboard.writeText(`/start ${tgCode}`)} className="text-xs bg-gray-100 px-2 py-1.5 rounded-lg">Kopyala</button></div>
-              <a href={`https://t.me/tarihvakfi_bot?start=${tgCode}`} target="_blank" rel="noopener noreferrer" className="block text-center text-xs text-blue-600 font-semibold">veya buraya tıkla →</a>
-              <div className="text-[10px] text-gray-400">Kod 10 dakika geçerlidir.</div>
-              <div className="text-[10px] text-gray-400 pt-1 border-t border-gray-100">Bağlandıktan sonra:<br/>• "bugün 3 saat belge taradım"<br/>• /ozet → çalışma özetin<br/>• /yardim → tüm komutlar</div>
+            <div className="px-4 py-2 space-y-2">
+              <div className="text-[12px] text-[#6B7280]">@tarihvakfi_bot&apos;a bu kodu gönderin:</div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 font-mono font-bold text-center bg-[#FAFAFA] rounded-lg py-2 text-lg tracking-widest text-[#111827]">{tgCode}</div>
+                <button onClick={() => navigator.clipboard.writeText(`/start ${tgCode}`)} className="text-[12px] text-[#6B7280] hover:text-[#111827] px-2 py-1.5 bg-[#F3F4F6] rounded-lg transition-colors">Kopyala</button>
+              </div>
+              <a href={`https://t.me/tarihvakfi_bot?start=${tgCode}`} target="_blank" rel="noopener noreferrer" className="block text-center text-[12px] text-[#059669] font-medium hover:underline">veya doğrudan aç &rarr;</a>
             </div>
           ) : (
-            <button onClick={linkTg} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded-lg">✈️ Telegram Bağla</button>
+            <PanelLink label="Telegram Bağla" onClick={linkTg} />
           )}
-          <button onClick={() => { onModal('summary'); onClose(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded-lg">📊 Çalışma Özeti</button>
-          <button onClick={() => { onModal('certs'); onClose(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded-lg">🏆 Belgelerim</button>
-          <button onClick={() => { onModal('help'); onClose(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded-lg">❓ Yardım</button>
-          <div className="border-t border-gray-50 mt-1 pt-1">
-            <button onClick={db.signOut} className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-gray-50 rounded-lg">Çıkış</button>
-            <button onClick={async () => { if (!confirm('Tüm verileriniz kalıcı olarak silinecek. Bu işlem geri alınamaz. Emin misiniz?')) return; await db.updateProfile(uid, { display_name: 'Silinmiş Kullanıcı', email: null, phone: null, bio: '', city: '', status: 'resigned' }); db.signOut(); }} className="w-full text-left px-3 py-2 text-[11px] text-gray-300 hover:text-red-400 hover:bg-gray-50 rounded-lg">Verilerimi Sil</button>
-          </div>
+          <PanelLink label="Çalışma Özeti" onClick={() => onModal('summary')} />
+          <PanelLink label="Belgelerim" onClick={() => onModal('certs')} />
+          <PanelLink label="Yardım" onClick={() => onModal('help')} />
+          <div className="h-px bg-[#F3F4F6] my-1" />
+          <PanelLink label="Çıkış" onClick={db.signOut} danger />
         </div>
       ) : (
-        <div className="p-3 space-y-2">
-          <input className="w-full border rounded-xl px-3 py-2 text-sm" placeholder="İsim" value={f.display_name} onChange={e => setF({...f, display_name: e.target.value})} />
-          <input className="w-full border rounded-xl px-3 py-2 text-sm" placeholder="Şehir" value={f.city} onChange={e => setF({...f, city: e.target.value})} />
+        <div className="p-4 space-y-3">
+          <input className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-[14px] outline-none focus:border-[#059669] transition-colors" placeholder="İsim" value={f.display_name} onChange={e => setF({...f, display_name: e.target.value})} />
+          <input className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-[14px] outline-none focus:border-[#059669] transition-colors" placeholder="Şehir" value={f.city} onChange={e => setF({...f, city: e.target.value})} />
           <div className="flex gap-2">
-            <button onClick={save} className="flex-1 bg-emerald-600 text-white text-sm font-semibold py-2 rounded-xl">Kaydet</button>
-            <button onClick={() => setEditing(false)} className="text-sm text-gray-400 px-3">İptal</button>
+            <button onClick={save} className="flex-1 bg-[#059669] text-white text-[14px] font-semibold py-2 rounded-lg hover:bg-[#047857] transition-colors">Kaydet</button>
+            <button onClick={() => setEditing(false)} className="text-[13px] text-[#9CA3AF] px-3">İptal</button>
           </div>
         </div>
       )}
@@ -248,81 +256,250 @@ function ProfileDropdown({ me, uid, onUpdate, onModal, onClose }) {
   );
 }
 
-function WorkSummaryModal({ uid }) {
+function PanelLink({ label, onClick, danger }) {
+  return <button onClick={onClick} className={`w-full text-left px-4 py-2 text-[14px] hover:bg-[#FAFAFA] transition-colors ${danger ? 'text-[#EF4444]' : 'text-[#6B7280] hover:text-[#111827]'}`}>{label}</button>;
+}
+
+function WorkSummary({ uid }) {
   const [s, setS] = useState(null);
   useEffect(() => { db.getWorkSummary(uid).then(({ data }) => setS(data)); }, [uid]);
-  if (!s) return <p className="text-sm text-gray-400">Yükleniyor...</p>;
+  if (!s) return <div className="skeleton h-20 w-full" />;
+  const rows = [
+    ['Bu Hafta', `${s.week_days} rapor, ${fmtH(Number(s.week_hours))}`],
+    ['Bu Ay', `${s.month_days} rapor, ${fmtH(Number(s.month_hours))}`],
+    ['Toplam', `${s.total_days} rapor, ${fmtH(Number(s.total_hours))}`],
+  ];
   return (
-    <table className="w-full text-sm">
-      <tbody>
-        <tr className="border-b"><td className="py-2 text-gray-500">Bu Hafta</td><td className="py-2 font-semibold text-right">{s.week_days} rapor · {fmtH(Number(s.week_hours))}</td></tr>
-        <tr className="border-b"><td className="py-2 text-gray-500">Bu Ay</td><td className="py-2 font-semibold text-right">{s.month_days} rapor · {fmtH(Number(s.month_hours))}</td></tr>
-        <tr className="border-b"><td className="py-2 text-gray-500">Toplam</td><td className="py-2 font-bold text-emerald-600 text-right">{s.total_days} rapor · {fmtH(Number(s.total_hours))}</td></tr>
-        {(Number(s.onsite_hours)>0 || Number(s.remote_hours)>0) && <>
-          <tr className="border-b"><td className="py-2 text-gray-400 text-xs">🏛️ Vakıfta</td><td className="py-2 text-xs text-right">{fmtH(Number(s.onsite_hours))}</td></tr>
-          <tr><td className="py-2 text-gray-400 text-xs">🏠 Uzaktan</td><td className="py-2 text-xs text-right">{fmtH(Number(s.remote_hours))}</td></tr>
-        </>}
-      </tbody>
-    </table>
+    <div className="space-y-3">
+      {rows.map(([l, v], i) => (
+        <div key={i} className="flex justify-between items-center py-2 border-b border-[#F3F4F6] last:border-0">
+          <span className="text-[14px] text-[#6B7280]">{l}</span>
+          <span className={`text-[14px] font-semibold ${i === 2 ? 'text-[#059669]' : 'text-[#111827]'}`}>{v}</span>
+        </div>
+      ))}
+      {(Number(s.onsite_hours) > 0 || Number(s.remote_hours) > 0) && (
+        <div className="flex gap-6 text-[13px] text-[#9CA3AF] pt-1">
+          <span>Vakıfta: {fmtH(Number(s.onsite_hours))}</span>
+          <span>Uzaktan: {fmtH(Number(s.remote_hours))}</span>
+        </div>
+      )}
+    </div>
   );
 }
 
-// ═══════════════════════════════════════════
-// TOAST
-// ═══════════════════════════════════════════
 function useToast() {
   const [msg, setMsg] = useState('');
-  const show = (m) => { setMsg(m); setTimeout(() => setMsg(''), 3000); };
-  const Toast = () => msg ? <div className="fixed top-16 left-1/2 -translate-x-1/2 bg-emerald-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-lg z-[70] animate-pulse">{msg}</div> : null;
+  const show = m => { setMsg(m); setTimeout(() => setMsg(''), 2500); };
+  const Toast = () => msg ? <div className="fixed top-16 left-1/2 -translate-x-1/2 bg-[#111827] text-white text-[14px] font-medium px-5 py-2.5 rounded-lg shadow-lg z-[70]">{msg}</div> : null;
   return { show, Toast };
 }
 
-// ═══════════════════════════════════════════
-// 📋 İŞLERİM (herkes — tek ekran)
-// ═══════════════════════════════════════════
-function MyScreen({ uid, me, onModal }) {
+/* ═══════════════════════════════════════════════════════
+   VOLUNTEER VIEW
+   ═══════════════════════════════════════════════════════ */
+
+function VolunteerView({ uid, me }) {
   const [showForm, setShowForm] = useState(false);
   const [editR, setEditR] = useState(null);
-  const [f, setF] = useState({ h: '', desc: '', mode: 'onsite', date: today(), plan: '', taskId: '' });
-  const [errors, setErrors] = useState({});
-  const [showExtra, setShowExtra] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(null);
-  const [showGuide, setShowGuide] = useState(me.first_login);
   const [reports, setReports] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [expandTask, setExpandTask] = useState(null);
   const [progVal, setProgVal] = useState(0);
   const [progNote, setProgNote] = useState('');
   const [summary, setSummary] = useState(null);
-  const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [showGuide, setShowGuide] = useState(me.first_login);
   const toast = useToast();
 
   const load = useCallback(async () => {
-    const [r, t, ws] = await Promise.all([
-      db.getWeekReports(uid), db.getTasks({ assignedTo: uid }), db.getWorkSummary(uid),
-    ]);
+    const [r, t, s] = await Promise.all([db.getWeekReports(uid), db.getTasks({ assigned_to: uid }), db.getWorkSummary(uid)]);
     setReports(r.data || []);
-    setTasks((t.data || []).filter(t => !['done','cancelled'].includes(t.status)));
-    setSummary(ws.data);
-  }, [uid, me.department]);
+    setTasks((t.data || []).filter(t => ['active','pending','review'].includes(t.status)));
+    setSummary(s.data);
+  }, [uid]);
   useEffect(() => { load(); }, [load]);
 
-  // Smart defaults from last report
-  const lastReport = reports[0];
-  const resetForm = () => setF({
-    h: '', desc: '', mode: lastReport?.work_mode || 'onsite', date: today(), plan: '', taskId: ''
+  const weekDays = summary ? Number(summary.week_days) : 0;
+  const weekHours = summary ? Number(summary.week_hours) : 0;
+
+  const dismissGuide = async () => { setShowGuide(false); await db.updateProfile(uid, { first_login: false }); };
+  const openEdit = r => { setEditR(r); setShowForm(true); };
+  const openNew = () => { setEditR(null); setShowForm(true); };
+
+  const handleSave = async (data) => {
+    if (editR) {
+      await db.updateWorkReport(editR.id, data);
+      toast.show('Rapor güncellendi');
+    } else {
+      await db.createWorkReport({ ...data, user_id: uid, source: 'web' });
+      toast.show('Rapor kaydedildi');
+    }
+    setShowForm(false); setEditR(null); load();
+  };
+
+  const handleDelete = async id => {
+    await db.deleteWorkReport(id);
+    setConfirmDelete(null); toast.show('Rapor silindi'); load();
+  };
+
+  const updateProgress = async (taskId) => {
+    await db.updateTaskProgress(taskId, progVal);
+    if (progNote) await db.addProgressLog({ task_id: taskId, user_id: uid, progress: progVal, note: progNote });
+    if (progVal >= 100) await db.updateTask(taskId, { status: 'review' });
+    setExpandTask(null); setProgVal(0); setProgNote(''); load();
+    toast.show('İlerleme güncellendi');
+  };
+
+  return (
+    <div className="space-y-10">
+      <toast.Toast />
+
+      {/* Guide */}
+      {showGuide && (
+        <div className="bg-white rounded-xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="text-[15px] font-semibold text-[#111827] mb-1">Hoş geldin!</div>
+              <div className="text-[14px] text-[#6B7280] leading-relaxed">Çalışma raporlarını buradan girebilirsin. Her rapor koordinatör onayına gider.</div>
+            </div>
+            <button onClick={dismissGuide} className="text-[#9CA3AF] hover:text-[#6B7280] transition-colors ml-4">&times;</button>
+          </div>
+        </div>
+      )}
+
+      {/* Greeting + Stats */}
+      <div>
+        <h1 className="text-[28px] font-light text-[#111827] mb-6">Merhaba, {(me.display_name || '').split(' ')[0]}</h1>
+        <div className="flex gap-4">
+          <div className="bg-white rounded-xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)] flex-1">
+            <div className="text-[42px] font-bold text-[#111827] tracking-tight leading-none">{weekDays}</div>
+            <div className="text-[13px] text-[#9CA3AF] mt-1.5">gün bu hafta</div>
+          </div>
+          <div className="bg-white rounded-xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)] flex-1">
+            <div className="text-[42px] font-bold text-[#111827] tracking-tight leading-none">{fmtH(weekHours)}</div>
+            <div className="text-[13px] text-[#9CA3AF] mt-1.5">saat bu hafta</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Report Button */}
+      <button onClick={openNew} className="w-full bg-[#059669] hover:bg-[#047857] text-white text-[15px] font-semibold py-4 rounded-xl transition-colors duration-150 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+        Çalışma Raporu
+      </button>
+
+      {/* Tasks */}
+      <div>
+        <div className="section-label mb-4">Atanan İşler</div>
+        {tasks.length === 0 ? (
+          <div className="text-[14px] text-[#9CA3AF] leading-relaxed">
+            Henüz atanmış iş yok.<br />Çalışmanı yukarıdan raporlayabilirsin.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {tasks.map(t => (
+              <div key={t.id}>
+                <div onClick={() => { setExpandTask(expandTask === t.id ? null : t.id); setProgVal(t.progress || 0); setProgNote(''); }} className="bg-white rounded-xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)] cursor-pointer hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-shadow">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[14px] font-medium text-[#111827]">{t.title}</span>
+                    <span className="text-[13px] text-[#9CA3AF]">{Math.round(t.progress || 0)}%</span>
+                  </div>
+                  <div className="h-1 bg-[#F3F4F6] rounded-full overflow-hidden">
+                    <div className="h-full bg-[#059669] rounded-full transition-all duration-300" style={{ width: `${t.progress || 0}%` }} />
+                  </div>
+                  {t.deadline && <div className="text-[12px] text-[#9CA3AF] mt-2">{fd(t.deadline)}{t.deadline < today() ? ' · gecikmiş' : ''}</div>}
+                </div>
+                {expandTask === t.id && (
+                  <div className="bg-white rounded-xl p-4 mt-1 shadow-[0_1px_3px_rgba(0,0,0,0.06)] space-y-3">
+                    <div className="flex items-center gap-3">
+                      <input type="range" min="0" max="100" step="5" value={progVal} onChange={e => setProgVal(Number(e.target.value))} className="flex-1 accent-[#059669]" />
+                      <span className="text-[14px] font-semibold text-[#111827] w-12 text-right">{progVal}%</span>
+                    </div>
+                    <input className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-[14px] outline-none focus:border-[#059669] transition-colors" placeholder="Not (opsiyonel)" value={progNote} onChange={e => setProgNote(e.target.value)} />
+                    <button onClick={() => updateProgress(t.id)} className="bg-[#059669] text-white text-[14px] font-semibold py-2 px-4 rounded-lg hover:bg-[#047857] transition-colors">Güncelle</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* This Week */}
+      <div>
+        <div className="section-label mb-4">Bu Hafta</div>
+        {reports.length === 0 ? (
+          <div className="text-[14px] text-[#9CA3AF]">Henüz rapor yok.</div>
+        ) : (
+          <div className="space-y-1">
+            {reports.map(r => (
+              <div key={r.id}>
+                <div onClick={() => openEdit(r)} className="flex items-start gap-4 py-3 border-b border-[#F3F4F6] last:border-0 cursor-pointer hover:bg-white/50 transition-colors rounded-lg px-2 -mx-2">
+                  <div className="text-[14px] text-[#9CA3AF] w-16 flex-shrink-0 pt-0.5">{fd(r.date)}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[14px] font-medium text-[#111827]">{fmtH(r.hours)}</span>
+                      <span className="text-[13px] text-[#9CA3AF]">{r.work_mode === 'remote' ? 'Uzaktan' : 'Vakıfta'}</span>
+                    </div>
+                    {r.description && <div className="text-[13px] text-[#6B7280] mt-0.5 truncate">{r.description}</div>}
+                  </div>
+                  <div className="flex items-center gap-1.5 pt-1">
+                    {r.edited_at && <span className="text-[12px] text-[#9CA3AF]">düzenlendi</span>}
+                    {r.is_approved ? (
+                      <span className="w-2 h-2 rounded-full bg-[#059669] inline-block flex-shrink-0" title="Onaylandı" />
+                    ) : (
+                      <span className="text-[12px] text-[#F59E0B] flex-shrink-0">Bekliyor</span>
+                    )}
+                  </div>
+                </div>
+                {confirmDelete === r.id && (
+                  <div className="flex items-center gap-2 py-2 px-2">
+                    <span className="text-[13px] text-[#EF4444]">Silinsin mi?</span>
+                    <button onClick={() => handleDelete(r.id)} className="text-[13px] font-semibold text-[#EF4444] hover:underline">Evet</button>
+                    <button onClick={() => setConfirmDelete(null)} className="text-[13px] text-[#9CA3AF]">Hayır</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="pt-4 border-t border-[#F3F4F6]">
+        <div className="text-[13px] text-[#9CA3AF]">
+          Bir sorunun mu var?{' '}
+          <button onClick={async () => {
+            const { data: admins } = await db.getProfilesByRole('admin');
+            for (const a of (admins || [])) await db.sendNotification(a.id, 'system', `${me.display_name} yardım istiyor`, '');
+            toast.show('Mesajın iletildi');
+          }} className="text-[#059669] hover:underline font-medium">İletişim</button>
+        </div>
+      </div>
+
+      {/* Report Modal */}
+      {showForm && <ReportModal uid={uid} me={me} editReport={editR} tasks={tasks} onSave={handleSave} onClose={() => { setShowForm(false); setEditR(null); }} onDelete={id => setConfirmDelete(id)} />}
+    </div>
+  );
+}
+
+function ReportModal({ uid, me, editReport, tasks, onSave, onClose, onDelete }) {
+  const [f, setF] = useState({
+    h: editReport ? String(editReport.hours) : '',
+    desc: editReport ? editReport.description || '' : '',
+    mode: editReport ? editReport.work_mode || 'onsite' : 'onsite',
+    date: editReport ? editReport.date : today(),
+    plan: editReport ? editReport.next_plan || '' : '',
+    taskId: editReport ? editReport.task_id || '' : '',
   });
+  const [showExtra, setShowExtra] = useState(!!editReport);
+  const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
 
   const validate = () => {
     const e = {};
-    const hours = parseFloat(f.h);
-    if (!f.h) e.h = 'Kaç saat çalıştığını yaz';
-    else if (hours < 0.5) e.h = 'En az yarım saat olmalı';
-    else if (hours > 16) e.h = 'Bir günde 16 saatten fazla olamaz';
-    if (!f.desc.trim()) e.desc = 'Ne yaptığını kısaca yaz';
-    if (f.date > today()) e.date = 'İleri tarih seçilemez';
-    // Günlük max 5 rapor
-    if (!editR && reports.filter(r => r.date === f.date).length >= 5) e.date = 'Bugün için max 5 rapor girilebilir';
+    const h = parseFloat(f.h);
+    if (!f.h || isNaN(h) || h <= 0 || h > 24) e.h = true;
+    if (!f.desc.trim() && h > 1) e.desc = true;
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -330,432 +507,259 @@ function MyScreen({ uid, me, onModal }) {
   const submit = async () => {
     if (!validate()) return;
     setSaving(true);
-    if (editR) {
-      const upd = { hours: parseFloat(f.h), work_mode: f.mode, description: f.desc, next_plan: f.plan, date: f.date };
-      if (editR.status === 'approved') upd.status = 'pending';
-      await db.updateWorkReport(editR.id, upd);
-      toast.show(editR.status === 'approved' ? '✅ Güncellendi. Tekrar onay gerekiyor.' : '✅ Güncellendi!');
-    } else {
-      await db.createWorkReport({ user_id: uid, date: f.date, hours: parseFloat(f.h), work_mode: f.mode, description: f.desc, next_plan: f.plan, source: 'web', task_id: f.taskId || null });
-      toast.show('✅ Kaydedildi! Koordinatörün onaylayacak.');
-    }
-    setShowForm(false); setEditR(null); resetForm(); setErrors({}); setSaving(false); load();
+    const data = {
+      hours: parseFloat(f.h), description: f.desc.trim(), work_mode: f.mode, date: f.date,
+      next_plan: f.plan.trim() || null, task_id: f.taskId || null,
+    };
+    await onSave(data);
+    setSaving(false);
   };
-
-  const quickRepeat = async () => {
-    if (!lastReport) return;
-    setSaving(true);
-    await db.createWorkReport({ user_id: uid, date: today(), hours: lastReport.hours, work_mode: lastReport.work_mode, description: lastReport.description, source: 'web' });
-    toast.show('✅ Kaydedildi!');
-    setSaving(false); load();
-  };
-
-  const handleDelete = async (r) => {
-    if (!r) return;
-    const daysDiff = Math.floor((Date.now() - new Date(r.date).getTime()) / 86400000);
-    if (daysDiff > 30) { toast.show('❌ 30 günden eski raporlar silinemez'); return; }
-    if (r.status === 'approved') { setConfirmDelete(r); return; }
-    await db.deleteWorkReport(r.id);
-    toast.show('🗑️ Rapor silindi');
-    setShowForm(false); setEditR(null); load();
-  };
-
-  const confirmDeleteAction = async () => {
-    if (!confirmDelete) return;
-    await db.deleteWorkReport(confirmDelete.id);
-    toast.show('🗑️ Rapor silindi');
-    setConfirmDelete(null); setShowForm(false); setEditR(null); load();
-  };
-
-  const startEdit = (r) => {
-    setF({ h: String(r.hours), desc: r.description||'', mode: r.work_mode||'onsite', date: r.date, plan: r.next_plan||'', taskId: r.task_id||'' });
-    setEditR(r); setShowForm(true); setShowExtra(!!r.next_plan); setErrors({});
-  };
-
-  const dismissGuide = async () => {
-    setShowGuide(false);
-    await db.updateProfile(uid, { first_login: false });
-  };
-
-  const updateProgress = async (task) => {
-    if (!progNote.trim()) return;
-    setSaving(true);
-    await db.addProgressLog({ task_id: task.id, user_id: uid, previous_value: task.progress||0, new_value: progVal, note: progNote });
-    await db.updateTaskProgress(task.id, progVal);
-    toast.show('✅ İlerleme güncellendi!');
-    setProgNote(''); setExpandTask(null); setSaving(false); load();
-  };
-
-  const weekTotal = reports.reduce((a, r) => a + Number(r.hours||0), 0);
 
   return (
-    <div className="space-y-6">
-      <toast.Toast />
-
-      {/* Silme onay modal */}
-      {confirmDelete && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={() => setConfirmDelete(null)}>
-          <div className="bg-white rounded-2xl p-5 max-w-sm w-full text-center space-y-3" onClick={e => e.stopPropagation()}>
-            <div className="text-3xl">⚠️</div>
-            <p className="font-bold">Onaylanmış raporu sil?</p>
-            <p className="text-sm text-gray-500">Bu rapor onaylanmış. Silersen <b>{fmtH(confirmDelete.hours)}</b> toplam saatinden düşülecek.</p>
-            <div className="flex gap-2">
-              <button onClick={confirmDeleteAction} className="flex-1 bg-red-500 text-white font-semibold py-2.5 rounded-xl">Evet, Sil</button>
-              <button onClick={() => setConfirmDelete(null)} className="flex-1 border border-gray-200 font-semibold py-2.5 rounded-xl text-gray-500">Vazgeç</button>
-            </div>
+    <Modal title={editReport ? 'Raporu Düzenle' : 'Çalışma Raporu'} onClose={onClose}>
+      <div className="space-y-5">
+        <div>
+          <label className="text-[13px] text-[#6B7280] font-medium mb-1.5 block">Süre</label>
+          <div className={`flex items-center border rounded-lg overflow-hidden transition-colors ${errors.h ? 'border-[#EF4444]' : 'border-[#E5E7EB] focus-within:border-[#059669]'}`}>
+            <input type="number" step="0.5" min="0.5" max="24" value={f.h} onChange={e => setF({...f, h: e.target.value})} className="flex-1 px-4 py-3 text-[16px] outline-none bg-transparent" placeholder="3" />
+            <span className="text-[14px] text-[#9CA3AF] pr-4">saat</span>
           </div>
         </div>
-      )}
 
-      {/* İlk kullanım rehberi */}
-      {showGuide && (
-        <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-200">
-          <h3 className="font-bold text-emerald-800 mb-2">Hoş geldin! 🎉</h3>
-          <p className="text-sm text-emerald-700 leading-relaxed">Sistem çok basit:</p>
-          <div className="mt-2 space-y-1 text-sm text-emerald-600">
-            <p>1️⃣ <b>Çalışmanı raporla</b> → saat ve ne yaptığını yaz</p>
-            <p>2️⃣ <b>İşlerini takip et</b> → sana atanan işleri gör</p>
-            <p>3️⃣ <b>Hepsi bu kadar</b> 😊</p>
-            <p>4️⃣ <b>Telegram bağla</b> → telefonundan rapor gir (opsiyonel)</p>
-          </div>
-          <button onClick={dismissGuide} className="bg-emerald-600 text-white font-semibold text-sm py-2 px-4 rounded-xl mt-3">Anladım, başlayalım!</button>
+        <div>
+          <label className="text-[13px] text-[#6B7280] font-medium mb-1.5 block">Ne yaptın?</label>
+          <input value={f.desc} onChange={e => setF({...f, desc: e.target.value})} className={`w-full border rounded-lg px-4 py-3 text-[14px] outline-none transition-colors ${errors.desc ? 'border-[#EF4444]' : 'border-[#E5E7EB] focus:border-[#059669]'}`} placeholder="Belgeleri taradım" />
         </div>
-      )}
 
-      {/* Selamlama + Özet */}
-      <div className="card" style={{background:'linear-gradient(135deg, #ffffff 0%, #ecfdf5 100%)'}}>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-800">Merhaba {me.display_name?.split(' ')[0]} 👋</h1>
-            {summary && <p className="text-sm text-gray-500 mt-1">Bu ay: <b className="text-emerald-600">{summary.month_days} gün</b>, <b className="text-emerald-600">{fmtH(Number(summary.month_hours))}</b> çalıştın</p>}
-          </div>
-          <button onClick={() => onModal('summary')} className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center text-sm hover:bg-emerald-100 transition-colors" aria-label="Detaylı özet">📊</button>
-        </div>
-        {/* Mini stats */}
-        {(() => {
-          const todayR = reports.filter(r => r.date === today());
-          const pendingR = reports.filter(r => r.status === 'pending').length;
-          const streak = getStreak(reports);
-          const overdue = tasks.filter(t => t.deadline && daysUntil(t.deadline) < 0);
-          const tip = overdue.length ? `Geciken ${overdue.length} işi gözden geçir.`
-            : !todayR.length ? 'Bugün henüz rapor girmedin.'
-            : pendingR ? `${pendingR} rapor onay bekliyor.`
-            : 'Her şey yolunda!';
-          return (<>
-            <div className="grid grid-cols-4 gap-1.5 mt-3">
-              {[
-                { l:'Bugün', v: todayR.length ? fmtH(todayR.reduce((a,r)=>a+Number(r.hours||0),0)) : '—', c: todayR.length ? 'text-emerald-600' : 'text-gray-400' },
-                { l:'Bekleyen', v: pendingR, c: pendingR ? 'text-amber-500' : 'text-gray-400' },
-                { l:'Seri', v: `${streak}g`, c: streak > 1 ? 'text-blue-600' : 'text-gray-400' },
-                { l:'Açık iş', v: tasks.length, c: overdue.length ? 'text-red-500' : 'text-gray-400' },
-              ].map((s,i) => <div key={i} className="bg-white/70 rounded-lg px-2 py-1.5 text-center"><div className="text-[10px] text-gray-400">{s.l}</div><div className={`text-xs font-bold ${s.c}`}>{s.v}</div></div>)}
-            </div>
-            <p className="text-xs text-gray-500 mt-2 bg-white/60 rounded-lg px-3 py-2">{tip}</p>
-          </>);
-        })()}
-      </div>
-
-      {/* Raporla Butonu / Form */}
-      {!showForm ? (
-        <button onClick={() => { resetForm(); setEditR(null); setShowForm(true); setShowExtra(false); setErrors({}); }} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-lg w-full transition-all active:scale-[0.98]" style={{height:56,borderRadius:12}} aria-label="Çalışma raporla">
-          📝 Çalışma Raporu
-        </button>
-      ) : (
-        <div className="card space-y-4">
-          <div className="flex justify-between items-center">
-            <span className="font-bold text-gray-800">{editR ? 'Düzenle' : 'Çalışma Raporu'}</span>
-            <button onClick={() => { setShowForm(false); setEditR(null); setErrors({}); }} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-200 transition-colors" aria-label="Kapat">✕</button>
-          </div>
-          {/* Saat */}
-          <div>
-            <label htmlFor="hours-input" className="text-sm text-gray-500">⏱️ Kaç saat?</label>
-            <input id="hours-input" type="number" inputMode="decimal" step="0.5" min="0.5" max="16" className={`w-full border rounded-xl px-4 text-2xl font-bold mt-1 outline-none focus:border-emerald-500 text-center ${errors.h ? 'border-red-300' : 'border-gray-200'}`} style={{height:56}} placeholder={lastReport ? String(lastReport.hours) : '3'} value={f.h} onChange={e => { setF({...f, h: e.target.value}); setErrors({...errors, h: ''}); }} />
-            {errors.h && <p className="text-xs text-red-500 mt-1">{errors.h}</p>}
-          </div>
-          {/* Açıklama */}
-          <div>
-            <label htmlFor="desc-input" className="text-sm text-gray-500">📝 Ne yaptım?</label>
-            <input id="desc-input" className={`w-full border rounded-xl px-4 py-3 text-sm mt-1 outline-none focus:border-emerald-500 ${errors.desc ? 'border-red-300' : 'border-gray-200'}`} placeholder={lastReport?.description || '3. kutudaki belgeleri taradım'} value={f.desc} onChange={e => { setF({...f, desc: e.target.value}); setErrors({...errors, desc: ''}); }} />
-            {errors.desc && <p className="text-xs text-red-500 mt-1">{errors.desc}</p>}
-          </div>
-          {/* Nerede */}
-          <div className="flex gap-2">
-            <button onClick={() => setF({...f, mode:'onsite'})} className={`flex-1 rounded-xl text-sm font-semibold transition-all ${f.mode==='onsite' ? 'bg-emerald-500 text-white shadow-sm' : 'bg-white border border-gray-200 text-gray-500'}`} style={{height:44}} aria-label="Vakıfta">🏛️ Vakıfta</button>
-            <button onClick={() => setF({...f, mode:'remote'})} className={`flex-1 rounded-xl text-sm font-semibold transition-all ${f.mode==='remote' ? 'bg-blue-500 text-white shadow-sm' : 'bg-white border border-gray-200 text-gray-500'}`} style={{height:44}} aria-label="Uzaktan">🏠 Uzaktan</button>
-          </div>
-          {/* Kaydet */}
-          <button onClick={submit} disabled={saving} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold w-full rounded-xl disabled:opacity-50 transition-all" style={{height:52}} aria-label="Kaydet">{saving ? '...' : 'Kaydet'}</button>
-          {editR?.status === 'approved' && <p className="text-xs text-amber-500 text-center">⚠️ Onaylanmış rapor — tekrar onay gerekecek</p>}
-          {editR && <button onClick={() => handleDelete(editR)} className="w-full text-center text-sm text-red-400 py-2 hover:text-red-500 transition-colors">Raporu Sil</button>}
-          {/* Ekstra */}
-          {/* İlgili iş (opsiyonel) */}
-          {tasks.length > 0 && (
-            <div>
-              <label className="text-xs text-gray-400">📋 İlgili iş (opsiyonel)</label>
-              <select className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm mt-1" value={f.taskId} onChange={e => setF({...f, taskId: e.target.value})}>
-                <option value="">Bağımsız çalışma</option>
-                {tasks.map(t => <option key={t.id} value={t.id}>{t.title} ({Math.round(t.progress||0)}%)</option>)}
-              </select>
-            </div>
-          )}
-          {!showExtra && (
-            <div className="flex gap-4 text-xs text-gray-400 justify-center">
-              <button onClick={() => setShowExtra(true)}>📅 Tarih değiştir</button>
-              <button onClick={() => setShowExtra(true)}>📌 Plan ekle</button>
-            </div>
-          )}
-          {showExtra && (
-            <div className="space-y-2 pt-2 border-t border-gray-200">
-              <div className="flex gap-2 items-center"><span className="text-xs text-gray-400 w-8">📅</span><input type="date" className={`flex-1 border rounded-xl px-3 py-2 text-sm ${errors.date ? 'border-red-300' : ''}`} max={today()} value={f.date} onChange={e => setF({...f, date: e.target.value})} />{errors.date && <span className="text-xs text-red-500">{errors.date}</span>}</div>
-              <div className="flex gap-2 items-center"><span className="text-xs text-gray-400 w-8">📌</span><input className="flex-1 border rounded-xl px-3 py-2 text-sm" placeholder="Sonraki planım" value={f.plan} onChange={e => setF({...f, plan: e.target.value})} /></div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Atanan İşlerim */}
-      <div>
-        <h2 className="font-bold mb-2">📋 Atanan İşlerim</h2>
-        {tasks.length === 0 && <p className="text-sm text-gray-400 bg-gray-50 rounded-xl p-3 text-center">Sana atanmış iş yok. Ama çalışmanı yukarıdan raporlayabilirsin.</p>}
-        {tasks.length > 0 && (
-          <div>
-          {tasks.map(t => {
-            const expanded = expandTask === t.id;
-            return (
-              <div key={t.id} className="card mb-2 !p-3" style={{borderLeft: '4px solid #10B981'}}>
-                <div className="flex items-center justify-between">
-                  <div className="flex-1"><span className="font-semibold text-sm text-gray-800">{t.title}</span><span className="text-xs text-gray-400 ml-2">{Math.round(t.progress||0)}%</span></div>
-                  <button onClick={() => { setExpandTask(expanded ? null : t.id); setProgVal(t.progress||0); }} className="text-xs text-emerald-600 font-semibold">{expanded ? '✕' : 'Güncelle'}</button>
+        <div>
+          <label className="text-[13px] text-[#6B7280] font-medium mb-2 block">Konum</label>
+          <div className="flex gap-6">
+            {[['onsite', 'Vakıfta'], ['remote', 'Uzaktan']].map(([v, l]) => (
+              <label key={v} className="flex items-center gap-2 cursor-pointer">
+                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${f.mode === v ? 'border-[#059669]' : 'border-[#D1D5DB]'}`}>
+                  {f.mode === v && <div className="w-2 h-2 rounded-full bg-[#059669]" />}
                 </div>
-                <div className="mt-1.5 h-2 bg-gray-200 rounded-full overflow-hidden"><div className={`h-full rounded-full ${(t.progress||0)>=80?'bg-emerald-500':(t.progress||0)>=40?'bg-amber-400':'bg-red-400'}`} style={{width:`${t.progress||0}%`}} /></div>
-                {expanded && (
-                  <div className="mt-2 pt-2 border-t border-gray-200 space-y-2">
-                    <div className="flex items-center gap-2"><input type="range" min="0" max="100" step="5" value={progVal} onChange={e => setProgVal(Number(e.target.value))} className="flex-1 accent-emerald-600" /><span className="text-sm font-bold w-10 text-right">{progVal}%</span></div>
-                    <div className="flex gap-1.5">{[25,50,75,100].map(v => <button key={v} onClick={() => setProgVal(v)} className={`text-xs px-2.5 py-1 rounded-lg ${progVal===v?'bg-emerald-600 text-white':'bg-gray-100 text-gray-400'}`}>%{v}</button>)}</div>
-                    <input className="w-full border rounded-xl px-3 py-2 text-sm" placeholder="Ne yaptım?" value={progNote} onChange={e => setProgNote(e.target.value)} />
-                    <button onClick={() => updateProgress(t)} disabled={saving} className="bg-emerald-600 text-white text-sm font-semibold py-2 rounded-xl w-full disabled:opacity-50">Kaydet</button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                <span className="text-[14px] text-[#111827]">{l}</span>
+              </label>
+            ))}
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* Bu Hafta */}
-      <div>
-        <h2 className="font-bold mb-2">📅 Bu Hafta <span className="text-sm text-gray-400 font-normal">{reports.length} rapor, {fmtH(weekTotal)}</span></h2>
-        {reports.map(r => (
-          <div key={r.id} className="card mb-2 !p-3 flex items-center gap-2 cursor-pointer hover:shadow-md transition-shadow" onClick={() => startEdit(r)}>
-            <span className="text-sm">{r.task_id ? '📋' : '📝'}</span>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2"><span className="text-sm font-semibold">{fd(r.date)}</span><span className="text-sm text-gray-500">{fmtH(r.hours)}</span><span className="text-xs">{r.work_mode==='remote'?'🏠':'🏛️'}</span></div>
-              <div className="text-xs text-gray-400 truncate">{r.description}</div>
+        <button onClick={submit} disabled={saving} className="w-full bg-[#059669] hover:bg-[#047857] disabled:opacity-50 text-white text-[15px] font-semibold py-3 rounded-lg transition-colors">
+          {saving ? 'Kaydediliyor...' : editReport ? 'Güncelle' : 'Kaydet'}
+        </button>
+
+        {/* Extra options */}
+        <div className="flex flex-wrap gap-x-4 gap-y-1">
+          <button onClick={() => setShowExtra(!showExtra)} className="text-[13px] text-[#059669] hover:underline font-medium">
+            {showExtra ? 'Gizle' : 'Tarih değiştir · Plan ekle · İşe bağla'}
+          </button>
+          {editReport && <button onClick={() => { onClose(); onDelete(editReport.id); }} className="text-[13px] text-[#EF4444] hover:underline font-medium">Raporu sil</button>}
+        </div>
+
+        {showExtra && (
+          <div className="space-y-4 pt-2 border-t border-[#F3F4F6]">
+            <div>
+              <label className="text-[13px] text-[#6B7280] font-medium mb-1.5 block">Tarih</label>
+              <input type="date" value={f.date} onChange={e => setF({...f, date: e.target.value})} className="w-full border border-[#E5E7EB] rounded-lg px-4 py-2.5 text-[14px] outline-none focus:border-[#059669] transition-colors" />
             </div>
-            <span className={`text-xs flex-shrink-0 ${r.status==='approved'?'text-emerald-500':r.status==='rejected'?'text-red-400':'text-amber-400'}`}>{r.status==='approved'?'✅':r.status==='rejected'?'❌':'⏳'}</span>
+            <div>
+              <label className="text-[13px] text-[#6B7280] font-medium mb-1.5 block">Sonraki plan (opsiyonel)</label>
+              <input value={f.plan} onChange={e => setF({...f, plan: e.target.value})} className="w-full border border-[#E5E7EB] rounded-lg px-4 py-2.5 text-[14px] outline-none focus:border-[#059669] transition-colors" placeholder="Yarın devam edeceğim..." />
+            </div>
+            {tasks.length > 0 && (
+              <div>
+                <label className="text-[13px] text-[#6B7280] font-medium mb-1.5 block">İlgili iş (opsiyonel)</label>
+                <select value={f.taskId} onChange={e => setF({...f, taskId: e.target.value})} className="w-full border border-[#E5E7EB] rounded-lg px-4 py-2.5 text-[14px] outline-none focus:border-[#059669] transition-colors bg-white">
+                  <option value="">Bağımsız çalışma</option>
+                  {tasks.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
+                </select>
+              </div>
+            )}
           </div>
-        ))}
-        {reports.length === 0 && <p className="text-sm text-gray-400 text-center py-4">Henüz çalışma raporun yok. İlk raporunu oluşturmak için yukarıdaki butona tıkla 👆</p>}
-        {lastReport && !showForm && (
-          <button onClick={quickRepeat} disabled={saving} className="w-full text-center text-sm text-emerald-600 font-semibold py-2.5 bg-emerald-50 rounded-xl disabled:opacity-50 hover:bg-emerald-100 transition-colors" aria-label="Aynısını tekrarla">🔄 Aynısını tekrarla — {fmtH(lastReport.hours)}</button>
         )}
       </div>
-
-      {/* Destek */}
-      {me.role !== 'admin' && (
-        <SupportLink uid={uid} me={me} />
-      )}
-    </div>
+    </Modal>
   );
 }
 
-function SupportLink({ uid, me }) {
-  const [show, setShow] = useState(false);
-  const [msg, setMsg] = useState('');
-  const [sent, setSent] = useState(false);
-  const send = async () => {
-    if (!msg.trim()) return;
-    let targets = [];
-    if (me.department) { const { data } = await db.getCoordsByDept(me.department); targets = (data||[]).map(c => c.id); }
-    if (!targets.length) { const { data } = await db.getProfilesByRole('admin'); targets = (data||[]).map(a => a.id); }
-    for (const t of targets) await db.sendNotification(t, 'system', `💬 ${me.display_name}`, msg.slice(0,200));
-    setSent(true); setMsg(''); setTimeout(() => { setSent(false); setShow(false); }, 2000);
-  };
-  return (
-    <div className="text-center text-xs text-gray-400 pt-2">
-      {!show && !sent && <button onClick={() => setShow(true)}>Bir sorunun mu var? <span className="text-emerald-600 font-semibold">Mesaj gönder</span></button>}
-      {show && <div className="flex gap-2 mt-2"><input className="flex-1 border rounded-xl px-3 py-2 text-sm" placeholder="Mesajınız..." value={msg} onChange={e => setMsg(e.target.value)} /><button onClick={send} disabled={!msg.trim()} className="bg-emerald-600 text-white text-sm px-4 py-2 rounded-xl disabled:opacity-50">Gönder</button></div>}
-      {sent && <span className="text-emerald-600">✓ Gönderildi!</span>}
-    </div>
-  );
-}
+/* ═══════════════════════════════════════════════════════
+   COORDINATOR — TEAM VIEW
+   ═══════════════════════════════════════════════════════ */
 
-// ═══════════════════════════════════════════
-// 👥 TAKIMIM (koordinatör)
-// ═══════════════════════════════════════════
-function Section({ title, count, defaultOpen, children }) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div>
-      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between py-2">
-        <h2 className="font-bold">{title} {count > 0 && <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1">{count}</span>}</h2>
-        <span className="text-gray-400">{open ? '▲' : '▼'}</span>
-      </button>
-      {open && children}
-    </div>
-  );
-}
-
-function TeamScreen({ uid, me }) {
+function TeamView({ uid, me }) {
   const [pending, setPending] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [vols, setVols] = useState([]);
-  const [showNewTask, setShowNewTask] = useState(false);
-  const [tf, setTf] = useState({ title:'', description:'', department: me.department||'arsiv', assigned_to:'', deadline:'' });
-  const [showAnn, setShowAnn] = useState(false);
-  const [annF, setAnnF] = useState({ title:'', body:'' });
   const [summaries, setSummaries] = useState([]);
   const [certVol, setCertVol] = useState(null);
-  const [shifts, setShifts] = useState([]);
-  const [showShift, setShowShift] = useState(false);
-  const [sf, setSf] = useState({ volunteer_id:'', day_of_week:'Pzt', start_time:'10:00', end_time:'14:00', department: me.department||'arsiv' });
+  const [showNewTask, setShowNewTask] = useState(false);
+  const [tf, setTf] = useState({ title:'', description:'', department: me.department||'arsiv', assigned_to:'', deadline:'', materials:'', recurring:false });
+  const [showAnn, setShowAnn] = useState(false);
+  const [annF, setAnnF] = useState({ title:'', body:'' });
+  const [search, setSearch] = useState('');
+  const toast = useToast();
 
   const load = useCallback(async () => {
-    const [p, t, v, ws, sh] = await Promise.all([
-      db.getPendingReports(), db.getTasks(), db.getAllProfiles(), db.getAllWorkSummaries(), db.getShifts({}),
-    ]);
-    setPending(p.data || []);
-    setTasks(t.data || []);
+    const [p, t, v, ws] = await Promise.all([db.getPendingReports(), db.getTasks(), db.getAllProfiles(), db.getAllWorkSummaries()]);
+    setPending(p.data || []); setTasks(t.data || []);
     setVols((v.data || []).filter(v => v.status === 'active'));
     setSummaries(ws.data || []);
-    setShifts(sh.data || []);
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const approve = async (id) => { await db.approveReport(id, uid); load(); };
-  const approveAll = async () => { const ids = pending.filter(r => r.user_id !== uid).map(r => r.id); await db.approveAllReports(ids, uid); load(); };
-  const createTask = async () => { if (!tf.title) return; await db.createTask({ title: tf.title, description: tf.description, department: tf.department, deadline: tf.deadline, materials: tf.materials||'', is_recurring: tf.recurring||false, priority:'medium', assigned_to: tf.assigned_to ? [tf.assigned_to] : [], created_by: uid }); setShowNewTask(false); setTf({ title:'', description:'', department: me.department||'arsiv', assigned_to:'', deadline:'', materials:'', recurring:false }); load(); };
-  const createAnn = async () => { if (!annF.title || !annF.body) return; await db.createAnnouncement({ ...annF, department: null, is_pinned: false, is_public: false, author_id: uid }); setShowAnn(false); setAnnF({ title:'', body:'' }); };
-  const approveTask = async (id) => { await db.updateTask(id, { status: 'done', completed_at: new Date().toISOString() }); load(); };
-  const createShift = async () => { if (!sf.volunteer_id) return; await db.createShift({ ...sf, created_by: uid }); setShowShift(false); load(); };
-  const delShift = async (id) => { await db.deleteShift(id); load(); };
+  const approve = async id => { await db.approveReport(id, uid); load(); toast.show('Onaylandı'); };
+  const approveAll = async () => { const ids = pending.filter(r => r.user_id !== uid).map(r => r.id); await db.approveAllReports(ids, uid); load(); toast.show('Tümü onaylandı'); };
+  const approveTask = async id => { await db.updateTask(id, { status:'done', completed_at: new Date().toISOString() }); load(); };
+  const createTask = async () => { if (!tf.title) return; await db.createTask({ title:tf.title, description:tf.description, department:tf.department, deadline:tf.deadline, materials:tf.materials||'', is_recurring:tf.recurring||false, priority:'medium', assigned_to:tf.assigned_to ? [tf.assigned_to] : [], created_by:uid }); setShowNewTask(false); setTf({ title:'', description:'', department:me.department||'arsiv', assigned_to:'', deadline:'', materials:'', recurring:false }); load(); toast.show('İş oluşturuldu'); };
+  const createAnn = async () => { if (!annF.title || !annF.body) return; await db.createAnnouncement({ ...annF, department:null, is_pinned:false, is_public:false, author_id:uid }); setShowAnn(false); setAnnF({ title:'', body:'' }); toast.show('Duyuru yayınlandı'); };
 
   const sumMap = Object.fromEntries(summaries.map(s => [s.id, s]));
+  const weekH = summaries.reduce((a, s) => a + Number(s.week_hours || 0), 0);
+  const activeTasks = tasks.filter(t => ['active','pending','review'].includes(t.status));
+  const filteredVols = vols.filter(v => !search || v.display_name?.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="space-y-6">
-      {/* Onaylar */}
-      <Section title="⏳ Onay Bekleyen" count={pending.length} defaultOpen={true}>
-        <div>
-        <div className="flex justify-end mb-2">
-          {pending.filter(r => r.user_id !== uid).length > 1 && <button onClick={approveAll} className="text-xs bg-emerald-50 text-emerald-600 font-semibold px-3 py-1 rounded-lg">✓ Hepsini Onayla</button>}
-        </div>
-        {pending.map(r => (
-          <div key={r.id} className="bg-gray-50 rounded-xl p-3 mb-1.5 flex items-center gap-2">
-            <span className="text-sm">{r.task_id ? '📋' : '📝'}</span>
-            <div className="flex-1"><div className="text-sm font-semibold">{r.profiles?.display_name} <span className="text-xs">{r.work_mode==='remote'?'🏠':'🏛️'}</span></div><div className="text-xs text-gray-400">{fd(r.date)} · {fmtH(r.hours)} · {r.description?.slice(0,40)}{r.edited_at ? ' ✏️' : ''}{r.task_id ? ' · İşe bağlı' : ''}</div></div>
-            {r.user_id !== uid ? (<div className="flex gap-1"><button onClick={() => approve(r.id)} className="text-xs bg-emerald-50 text-emerald-600 font-semibold px-2.5 py-1.5 rounded-lg">✓</button><button onClick={async () => { await db.deleteWorkReport(r.id); load(); }} className="text-xs bg-red-50 text-red-400 px-2 py-1.5 rounded-lg">🗑️</button></div>) : <span className="text-xs text-gray-300">Kendi</span>}
-          </div>
-        ))}
-        {pending.length === 0 && <p className="text-sm text-gray-400 text-center py-3">Bekleyen yok ✓</p>}
-      </div>
-      </Section>
+    <div className="space-y-10">
+      <toast.Toast />
 
-      {/* İşler */}
-      {/* Aktivite dikkat */}
-      <ActivityOverview vols={vols} />
-
-      <Section title={`📋 İşler (${tasks.filter(t=>t.status!=='cancelled').length})`} count={0} defaultOpen={false}><div>
-        <div className="flex justify-end mb-2">
-          <button onClick={() => setShowNewTask(!showNewTask)} className="text-xs bg-emerald-600 text-white font-semibold px-3 py-1.5 rounded-lg">{showNewTask ? '✕' : '+ Yeni'}</button>
-        </div>
-        {showNewTask && (
-          <div className="bg-gray-50 rounded-xl p-3 mb-3 space-y-2">
-            <input className="w-full border rounded-xl px-3 py-2 text-sm" placeholder="İş başlığı" value={tf.title} onChange={e => setTf({...tf, title: e.target.value})} />
-            <textarea className="w-full border rounded-xl px-3 py-2 text-sm" rows={2} placeholder="Açıklama" value={tf.description} onChange={e => setTf({...tf, description: e.target.value})} />
-            <div className="grid grid-cols-2 gap-2">
-              <select className="border rounded-xl px-3 py-2 text-sm" value={tf.department} onChange={e => setTf({...tf, department: e.target.value})}>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.l}</option>)}</select>
-              <select className="border rounded-xl px-3 py-2 text-sm" value={tf.assigned_to} onChange={e => setTf({...tf, assigned_to: e.target.value})}><option value="">Atanacak</option>{vols.map(v => <option key={v.id} value={v.id}>{v.display_name}</option>)}</select>
-            </div>
-            <input type="date" className="w-full border rounded-xl px-3 py-2 text-sm" value={tf.deadline} onChange={e => setTf({...tf, deadline: e.target.value})} />
-            <input className="w-full border rounded-xl px-3 py-2 text-sm" placeholder="Gerekli malzeme (opsiyonel)" value={tf.materials||''} onChange={e => setTf({...tf, materials: e.target.value})} />
-            <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer"><input type="checkbox" checked={tf.recurring||false} onChange={e => setTf({...tf, recurring: e.target.checked})} /> 🔄 Tamamlanınca tekrarla</label>
-            <button onClick={createTask} className="bg-emerald-600 text-white text-sm font-semibold py-2 rounded-xl w-full">Oluştur</button>
-          </div>
-        )}
-        {tasks.filter(t => t.status !== 'cancelled').slice(0, 10).map(t => (
-          <div key={t.id} className="bg-gray-50 rounded-xl p-3 mb-1.5">
-            <div className="flex items-center justify-between">
-              <div className="flex-1"><span className="font-semibold text-sm">{t.title}</span> <span className="text-xs text-gray-400">{Math.round(t.progress||0)}%</span></div>
-              {t.status === 'review' && <button onClick={() => approveTask(t.id)} className="text-xs bg-emerald-50 text-emerald-600 font-semibold px-2 py-1 rounded-lg">✓ Tamamla</button>}
-              {t.status !== 'done' && t.status !== 'cancelled' && <button onClick={async () => { await db.updateTask(t.id, { status: 'cancelled' }); if (t.assigned_to) { for (const vid of t.assigned_to) await db.sendNotification(vid, 'task', `📋 ${t.title} iptal edildi`, ''); } load(); }} className="text-xs text-red-400 px-2 py-1">İptal</button>}
-            </div>
-            <div className="mt-1 h-1.5 bg-gray-200 rounded-full overflow-hidden"><div className={`h-full rounded-full ${t.status==='done'?'bg-emerald-500':t.status==='review'?'bg-blue-500':'bg-amber-400'}`} style={{width:`${t.progress||0}%`}} /></div>
-          </div>
-        ))}
-      </div></Section>
-
-      {/* Gönüllü Özeti */}
+      {/* Header */}
       <div>
-        <h2 className="font-bold mb-2">👥 Gönüllüler</h2>
-        {summaries.filter(s => Number(s.total_hours) > 0).map(v => (
-          <div key={v.id} className="bg-gray-50 rounded-xl p-3 mb-1.5 flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-600">{(v.display_name||'?')[0]}</div>
-            <div className="flex-1"><div className="text-sm font-semibold">{v.display_name}</div><div className="text-xs text-gray-400">Bu ay: {v.month_days}r / {fmtH(Number(v.month_hours))}</div></div>
-            <button onClick={() => setCertVol(vols.find(x => x.id === v.id))} className="text-xs text-amber-600">🏆</button>
+        <h1 className="text-[24px] font-semibold text-[#111827]">Departmanım</h1>
+        <div className="text-[14px] text-[#9CA3AF] mt-1">{DM[me.department]?.l || '—'}</div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { n: pending.length, l: 'Bekleyen' },
+          { n: vols.length, l: 'Gönüllü' },
+          { n: activeTasks.length, l: 'Açık iş' },
+          { n: fmtH(weekH), l: 'Haftalık' },
+        ].map((s, i) => (
+          <div key={i} className="bg-white rounded-xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+            <div className="text-[32px] font-bold text-[#111827] tracking-tight leading-none">{s.n}</div>
+            <div className="text-[12px] text-[#9CA3AF] mt-1.5">{s.l}</div>
           </div>
         ))}
       </div>
 
-      {/* Sohbet */}
+      {/* Pending Approvals */}
       <div>
-        <h2 className="font-bold mb-2">💬 Sohbet</h2>
-        <ChatSection uid={uid} me={me} />
-      </div>
-
-      {/* Duyuru */}
-      <div>
-        <div className="flex justify-between items-center mb-2">
-          <h2 className="font-bold">📢 Duyuru Yaz</h2>
-          <button onClick={() => setShowAnn(!showAnn)} className="text-xs text-emerald-600 font-semibold">{showAnn ? '✕' : '+'}</button>
+        <div className="flex items-center justify-between mb-4">
+          <div className="section-label">Onay Bekliyor</div>
+          {pending.filter(r => r.user_id !== uid).length > 1 && (
+            <button onClick={approveAll} className="text-[13px] text-[#059669] font-medium hover:underline">Tümünü Onayla &rarr;</button>
+          )}
         </div>
-        {showAnn && (
-          <div className="bg-gray-50 rounded-xl p-3 space-y-2">
-            <input className="w-full border rounded-xl px-3 py-2 text-sm" placeholder="Başlık" value={annF.title} onChange={e => setAnnF({...annF, title: e.target.value})} />
-            <textarea className="w-full border rounded-xl px-3 py-2 text-sm" rows={2} placeholder="İçerik" value={annF.body} onChange={e => setAnnF({...annF, body: e.target.value})} />
-            <button onClick={createAnn} className="bg-emerald-600 text-white text-sm font-semibold py-2 rounded-xl w-full">Yayınla</button>
-          </div>
-        )}
-      </div>
-
-      {/* Vardiya */}
-      <div>
-        <div className="flex justify-between items-center mb-2">
-          <h2 className="font-bold">📅 Vardiya Planı</h2>
-          <button onClick={() => setShowShift(!showShift)} className="text-xs text-emerald-600 font-semibold">{showShift ? '✕' : '+ Ekle'}</button>
-        </div>
-        {showShift && (
-          <div className="bg-gray-50 rounded-xl p-3 space-y-2 mb-2">
-            <select className="w-full border rounded-xl px-3 py-2 text-sm" value={sf.volunteer_id} onChange={e => setSf({...sf, volunteer_id: e.target.value})}><option value="">Gönüllü</option>{vols.map(v => <option key={v.id} value={v.id}>{v.display_name}</option>)}</select>
-            <div className="grid grid-cols-3 gap-2">
-              <select className="border rounded-xl px-3 py-2 text-sm" value={sf.day_of_week} onChange={e => setSf({...sf, day_of_week: e.target.value})}>{DAYS.map(d => <option key={d}>{d}</option>)}</select>
-              <input type="time" className="border rounded-xl px-3 py-2 text-sm" value={sf.start_time} onChange={e => setSf({...sf, start_time: e.target.value})} />
-              <input type="time" className="border rounded-xl px-3 py-2 text-sm" value={sf.end_time} onChange={e => setSf({...sf, end_time: e.target.value})} />
-            </div>
-            <button onClick={createShift} className="bg-emerald-600 text-white text-sm font-semibold py-2 rounded-xl w-full">Ekle</button>
-          </div>
-        )}
-        {DAYS.filter(d => shifts.some(s => s.day_of_week === d)).map(day => (
-          <div key={day} className="mb-1"><span className="text-xs font-bold text-gray-500">{day}</span>
-            {shifts.filter(s => s.day_of_week === day).map(sh => (
-              <div key={sh.id} className="bg-gray-50 rounded-xl p-2 mt-0.5 flex items-center gap-2 text-sm">
-                <span className="flex-1">{sh.profiles?.display_name} · {sh.start_time?.slice(0,5)}–{sh.end_time?.slice(0,5)}</span>
-                <button onClick={() => delShift(sh.id)} className="text-xs text-gray-300">✕</button>
+        {pending.length === 0 ? (
+          <div className="text-[14px] text-[#9CA3AF]">Bekleyen rapor yok.</div>
+        ) : (
+          <div className="bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+            {pending.map((r, i) => (
+              <div key={r.id} className={`flex items-center gap-4 px-5 py-3 ${i > 0 ? 'border-t border-[#F3F4F6]' : ''}`}>
+                <div className="flex-1 min-w-0">
+                  <span className="text-[14px] font-medium text-[#111827]">{r.profiles?.display_name}</span>
+                  <span className="text-[13px] text-[#9CA3AF] ml-3">{fmtH(r.hours)}</span>
+                  <span className="text-[13px] text-[#9CA3AF] ml-2">{r.description?.slice(0, 40)}</span>
+                </div>
+                {r.user_id !== uid ? (
+                  <button onClick={() => approve(r.id)} className="text-[13px] text-[#059669] font-semibold hover:underline flex-shrink-0">Onayla</button>
+                ) : (
+                  <span className="text-[12px] text-[#D1D5DB]">Kendi</span>
+                )}
               </div>
             ))}
           </div>
-        ))}
+        )}
+      </div>
+
+      {/* Volunteers */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="section-label">Gönüllüler</div>
+        </div>
+        <div className="bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+          <div className="px-5 py-3 border-b border-[#F3F4F6]">
+            <input value={search} onChange={e => setSearch(e.target.value)} className="w-full text-[14px] outline-none placeholder:text-[#D1D5DB]" placeholder="Ara..." />
+          </div>
+          <div className="divide-y divide-[#F3F4F6]">
+            <div className="grid grid-cols-[1fr_80px_80px_60px] px-5 py-2 text-[12px] text-[#9CA3AF] font-medium">
+              <span>Ad</span><span>Bu Ay</span><span>Toplam</span><span>Durum</span>
+            </div>
+            {filteredVols.map(v => {
+              const s = sumMap[v.id];
+              const status = v.activity_status || 'active';
+              const dotColor = status === 'active' ? 'bg-[#059669]' : status === 'slowing' ? 'bg-[#F59E0B]' : status === 'inactive' ? 'bg-[#F97316]' : 'bg-[#EF4444]';
+              return (
+                <div key={v.id} className="grid grid-cols-[1fr_80px_80px_60px] items-center px-5 py-3 hover:bg-[#FAFAFA] transition-colors">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-[14px] font-medium text-[#111827] truncate">{v.display_name}</span>
+                    <button onClick={() => setCertVol(v)} className="text-[12px] text-[#9CA3AF] hover:text-[#F59E0B] flex-shrink-0 transition-colors">belge</button>
+                  </div>
+                  <span className="text-[13px] text-[#6B7280]">{s ? fmtH(Number(s.month_hours)) : '—'}</span>
+                  <span className="text-[13px] text-[#6B7280]">{s ? fmtH(Number(s.total_hours)) : '—'}</span>
+                  <div className="flex items-center"><span className={`w-2 h-2 rounded-full ${dotColor} inline-block`} /></div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Tasks */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="section-label">İşler</div>
+          <button onClick={() => setShowNewTask(!showNewTask)} className="text-[13px] text-[#059669] font-medium hover:underline">{showNewTask ? 'Kapat' : '+ Yeni İş'}</button>
+        </div>
+        {showNewTask && (
+          <div className="bg-white rounded-xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)] mb-4 space-y-3">
+            <input className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2.5 text-[14px] outline-none focus:border-[#059669] transition-colors" placeholder="İş başlığı" value={tf.title} onChange={e => setTf({...tf, title: e.target.value})} />
+            <textarea className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2.5 text-[14px] outline-none focus:border-[#059669] transition-colors" rows={2} placeholder="Açıklama" value={tf.description} onChange={e => setTf({...tf, description: e.target.value})} />
+            <div className="grid grid-cols-2 gap-3">
+              <select className="border border-[#E5E7EB] rounded-lg px-3 py-2.5 text-[14px] outline-none focus:border-[#059669] bg-white" value={tf.assigned_to} onChange={e => setTf({...tf, assigned_to: e.target.value})}><option value="">Atanacak</option>{vols.map(v => <option key={v.id} value={v.id}>{v.display_name}</option>)}</select>
+              <input type="date" className="border border-[#E5E7EB] rounded-lg px-3 py-2.5 text-[14px] outline-none focus:border-[#059669]" value={tf.deadline} onChange={e => setTf({...tf, deadline: e.target.value})} />
+            </div>
+            <button onClick={createTask} className="bg-[#059669] text-white text-[14px] font-semibold py-2.5 px-5 rounded-lg hover:bg-[#047857] transition-colors">Oluştur</button>
+          </div>
+        )}
+        <div className="bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+          {tasks.filter(t => t.status !== 'cancelled').slice(0, 12).map((t, i) => {
+            const od = t.deadline && t.deadline < today();
+            return (
+              <div key={t.id} className={`flex items-center gap-4 px-5 py-3 ${i > 0 ? 'border-t border-[#F3F4F6]' : ''}`}>
+                <div className="flex-1 min-w-0">
+                  <span className="text-[14px] font-medium text-[#111827]">{t.title}</span>
+                  {od && <span className="text-[12px] text-[#EF4444] ml-2">gecikmiş</span>}
+                </div>
+                <div className="w-24 flex items-center gap-2 flex-shrink-0">
+                  <div className="flex-1 h-1 bg-[#F3F4F6] rounded-full overflow-hidden"><div className="h-full bg-[#059669] rounded-full" style={{width:`${t.progress||0}%`}} /></div>
+                  <span className="text-[12px] text-[#9CA3AF] w-8 text-right">{Math.round(t.progress||0)}%</span>
+                </div>
+                {t.deadline && <span className="text-[12px] text-[#9CA3AF] flex-shrink-0 w-14">{fd(t.deadline)}</span>}
+                {t.status === 'review' && <button onClick={() => approveTask(t.id)} className="text-[13px] text-[#059669] font-semibold hover:underline flex-shrink-0">Tamamla</button>}
+              </div>
+            );
+          })}
+          {tasks.filter(t => t.status !== 'cancelled').length === 0 && <div className="px-5 py-6 text-[14px] text-[#9CA3AF] text-center">Henüz iş yok</div>}
+        </div>
+      </div>
+
+      {/* Announcement */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="section-label">Duyuru ve Sohbet</div>
+          <button onClick={() => setShowAnn(!showAnn)} className="text-[13px] text-[#059669] font-medium hover:underline">{showAnn ? 'Kapat' : 'Duyuru Yaz'}</button>
+        </div>
+        {showAnn && (
+          <div className="bg-white rounded-xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)] mb-4 space-y-3">
+            <input className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2.5 text-[14px] outline-none focus:border-[#059669] transition-colors" placeholder="Başlık" value={annF.title} onChange={e => setAnnF({...annF, title: e.target.value})} />
+            <textarea className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2.5 text-[14px] outline-none focus:border-[#059669] transition-colors" rows={2} placeholder="İçerik" value={annF.body} onChange={e => setAnnF({...annF, body: e.target.value})} />
+            <button onClick={createAnn} className="bg-[#059669] text-white text-[14px] font-semibold py-2.5 px-5 rounded-lg hover:bg-[#047857] transition-colors">Yayınla</button>
+          </div>
+        )}
+        <ChatSection uid={uid} me={me} />
       </div>
 
       {certVol && <CertificateModal vol={certVol} summary={sumMap[certVol.id]} issuerId={uid} onClose={() => setCertVol(null)} />}
@@ -763,80 +767,17 @@ function TeamScreen({ uid, me }) {
   );
 }
 
-// ═══════════════════════════════════════════
-// 👥 YÖNETİM (admin)
-// ═══════════════════════════════════════════
-function ActivityOverview({ vols }) {
-  const [showDetail, setShowDetail] = useState(false);
-  const activeVols = vols.filter(v => v.status === 'active' && v.role === 'vol');
-  const counts = { active: 0, slowing: 0, inactive: 0, dormant: 0 };
-  activeVols.forEach(v => { counts[v.activity_status || 'active']++; });
-  const needsAttention = activeVols.filter(v => ['slowing','inactive','dormant'].includes(v.activity_status));
+/* ═══════════════════════════════════════════════════════
+   ADMIN — OVERVIEW
+   ═══════════════════════════════════════════════════════ */
 
-  if (activeVols.length === 0) return null;
-
-  return (
-    <div>
-      <button onClick={() => setShowDetail(!showDetail)} className="w-full bg-gray-50 rounded-xl p-3 text-left">
-        <div className="flex items-center justify-between">
-          <h2 className="font-bold text-sm">👥 Gönüllü Aktivite</h2>
-          <span className="text-gray-400 text-xs">{showDetail ? '▲' : '▼'}</span>
-        </div>
-        <div className="flex gap-3 mt-1.5 text-xs">
-          <span>🟢 {counts.active}</span>
-          {counts.slowing > 0 && <span className="text-amber-600">🟡 {counts.slowing}</span>}
-          {counts.inactive > 0 && <span className="text-orange-600">🟠 {counts.inactive}</span>}
-          {counts.dormant > 0 && <span className="text-red-600">🔴 {counts.dormant}</span>}
-        </div>
-      </button>
-      {showDetail && needsAttention.length > 0 && (
-        <div className="mt-2 space-y-1.5">
-          {needsAttention.sort((a,b) => (a.activity_score||0) - (b.activity_score||0)).map(v => {
-            const lastAct = v.last_activity_at ? Math.floor((Date.now() - new Date(v.last_activity_at).getTime()) / 86400000) : 999;
-            const icon = (v.activity_status === 'slowing') ? '🟡' : (v.activity_status === 'inactive') ? '🟠' : '🔴';
-            return (
-              <div key={v.id} className="bg-gray-50 rounded-xl p-3 flex items-center gap-2">
-                <span>{icon}</span>
-                <div className="flex-1">
-                  <div className="text-sm font-semibold">{v.display_name}</div>
-                  <div className="text-xs text-gray-400">{lastAct < 999 ? `${lastAct} gündür rapor yok` : 'Hiç rapor yok'} · Skor: {v.activity_score||0}</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {showDetail && needsAttention.length === 0 && <p className="text-xs text-gray-400 mt-2 text-center">Herkes aktif 🎉</p>}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════
-// ADMIN KART BİLEŞENİ
-// ═══════════════════════════════════════════
-function DashCard({ title, children, className = '', maxH = 'max-h-[340px]' }) {
-  return (
-    <div className={`bg-white rounded-2xl p-5 shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_4px_20px_rgba(0,0,0,0.12)] transition-shadow ${className}`}>
-      {title && <h3 className="font-bold text-base mb-3">{title}</h3>}
-      <div className={`${maxH} overflow-y-auto`}>{children}</div>
-    </div>
-  );
-}
-
-function AdminScreen({ uid, me }) {
+function OverviewView({ uid, me, onNav }) {
   const [pendingUsers, setPendingUsers] = useState([]);
   const [pendingReports, setPendingReports] = useState([]);
   const [vols, setVols] = useState([]);
   const [tasks, setTasks] = useState([]);
-  const [sel, setSel] = useState(null);
-  const [certVol, setCertVol] = useState(null);
   const [summaries, setSummaries] = useState({});
-  const [search, setSearch] = useState('');
-  const [showNewTask, setShowNewTask] = useState(false);
-  const [tf, setTf] = useState({ title:'', description:'', department: me.department||'arsiv', assigned_to:'', deadline:'' });
-  const [showAnn, setShowAnn] = useState(false);
-  const [annF, setAnnF] = useState({ title:'', body:'' });
-  const [commTab, setCommTab] = useState('chat');
+  const toast = useToast();
 
   const load = useCallback(async () => {
     const [p, pr, ws, t] = await Promise.all([db.getAllProfiles(), db.getPendingReports(), db.getAllWorkSummaries(), db.getTasks()]);
@@ -849,262 +790,430 @@ function AdminScreen({ uid, me }) {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const approveUser = async (id) => { await db.setUserStatus(id, 'active'); await db.sendNotification(id, 'welcome', 'Hesabınız onaylandı!', ''); load(); };
-  const rejectUser = async (id) => { await db.setUserStatus(id, 'rejected'); load(); };
-  const blockUser = async (id) => { await db.setUserStatus(id, 'blocked'); load(); };
-  const approveReport = async (id) => { await db.approveReport(id, uid); load(); };
-  const approveAllReports = async () => { const ids = pendingReports.filter(r => r.user_id !== uid).map(r => r.id); await db.approveAllReports(ids, uid); load(); };
-  const changeRole = async (id, role) => { await db.setUserRole(id, role); setVols(vols.map(v => v.id === id ? {...v, role} : v)); };
-  const changeDept = async (id, dept) => { await db.setUserDept(id, dept); setVols(vols.map(v => v.id === id ? {...v, department: dept} : v)); };
-  const createTask = async () => { if (!tf.title) return; await db.createTask({ ...tf, priority:'medium', assigned_to: tf.assigned_to ? [tf.assigned_to] : [], created_by: uid }); setShowNewTask(false); setTf({ title:'', description:'', department: me.department||'arsiv', assigned_to:'', deadline:'', materials:'' }); load(); };
-  const createAnn = async () => { if (!annF.title || !annF.body) return; await db.createAnnouncement({ ...annF, department: null, is_pinned: false, is_public: false, author_id: uid }); setShowAnn(false); setAnnF({ title:'', body:'' }); };
+  const approveUser = async id => { await db.setUserStatus(id, 'active'); await db.sendNotification(id, 'welcome', 'Hesabınız onaylandı!', ''); load(); toast.show('Onaylandı'); };
+  const rejectUser = async id => { await db.setUserStatus(id, 'rejected'); load(); };
+  const approveReport = async id => { await db.approveReport(id, uid); load(); toast.show('Onaylandı'); };
+  const approveAllReports = async () => { const ids = pendingReports.filter(r => r.user_id !== uid).map(r => r.id); await db.approveAllReports(ids, uid); load(); toast.show('Tümü onaylandı'); };
 
+  const activeVols = vols.filter(v => v.status === 'active');
   const activeTasks = tasks.filter(t => ['active','pending','review'].includes(t.status));
+  const doneTasks = tasks.filter(t => t.status === 'done');
   const overdueTasks = activeTasks.filter(t => t.deadline && t.deadline < today());
   const needsAttention = vols.filter(v => v.status === 'active' && v.role === 'vol' && ['slowing','inactive','dormant'].includes(v.activity_status));
-  const filteredVols = vols.filter(v => !search || v.display_name?.toLowerCase().includes(search.toLowerCase()) || v.email?.toLowerCase().includes(search.toLowerCase()));
-  const allGood = pendingUsers.length === 0 && pendingReports.length === 0 && overdueTasks.length === 0 && needsAttention.length === 0;
+
+  const weekH = Object.values(summaries).reduce((a, s) => a + Number(s.week_hours || 0), 0);
+
+  // Department hours
+  const deptHours = {};
+  activeVols.forEach(v => {
+    if (v.department && summaries[v.id]) {
+      deptHours[v.department] = (deptHours[v.department] || 0) + Number(summaries[v.id].week_hours || 0);
+    }
+  });
+  const maxDeptH = Math.max(...Object.values(deptHours), 1);
+  const deptSorted = Object.entries(deptHours).filter(([,h]) => h > 0).sort((a, b) => b[1] - a[1]);
+
+  // Recent activity: pending reports + pending users combined
+  const recentItems = [
+    ...pendingReports.slice(0, 5).map(r => ({ type:'report', name: r.profiles?.display_name, detail: `${fmtH(r.hours)} · ${r.description?.slice(0,30) || ''}`, time: r.created_at, id: r.id })),
+    ...pendingUsers.slice(0, 3).map(u => ({ type:'user', name: u.display_name, detail: 'Yeni kayıt', time: u.created_at, id: u.id })),
+  ].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 6);
+
+  const hasPending = pendingUsers.length > 0 || pendingReports.length > 0;
 
   return (
-    <div className="space-y-5">
-      {/* Özet kartlar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="space-y-10">
+      <toast.Toast />
+
+      {/* Header */}
+      <div>
+        <h1 className="text-[24px] font-semibold text-[#111827]">Genel Bakış</h1>
+        <div className="text-[14px] text-[#9CA3AF] mt-1">{todayLabel()}</div>
+      </div>
+
+      {/* Big Metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { n: pendingUsers.length, l: 'Yeni Kayıt', i: '🆕', bg: 'bg-blue-50', c: 'text-blue-600' },
-          { n: pendingReports.length, l: 'Onay Bekleyen', i: '⏳', bg: 'bg-amber-50', c: 'text-amber-600' },
-          { n: vols.filter(v => v.status === 'active').length, l: 'Aktif Gönüllü', i: '👥', bg: 'bg-emerald-50', c: 'text-emerald-600' },
-          { n: activeTasks.length, l: 'Açık İş', i: '📋', bg: 'bg-purple-50', c: 'text-purple-600' },
+          { n: activeVols.length, l: 'aktif gönüllü' },
+          { n: fmtH(weekH), l: 'bu hafta' },
+          { n: doneTasks.length, l: 'tamamlandı' },
+          { n: overdueTasks.length, l: 'gecikmiş', warn: overdueTasks.length > 0 },
         ].map((s, i) => (
-          <div key={i} className={`${s.bg} rounded-2xl p-4 text-center`}>
-            <div className={`text-3xl font-bold ${s.c}`}>{s.n}</div>
-            <div className="text-xs text-gray-500 mt-1">{s.i} {s.l}</div>
+          <div key={i} className="bg-white rounded-xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+            <div className={`text-[42px] font-bold tracking-tight leading-none ${s.warn ? 'text-[#EF4444]' : 'text-[#111827]'}`}>{s.n}</div>
+            <div className="text-[13px] text-[#9CA3AF] mt-2">{s.l}</div>
           </div>
         ))}
       </div>
 
-      {/* 2 Sütun Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      {/* Two columns */}
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_380px] gap-8">
 
-        {/* SOL: Bekleyen İşlemler */}
-        <DashCard title="📋 Bekleyen İşlemler">
-          {allGood ? (
-            <div className="text-center py-8"><div className="text-4xl mb-2">✅</div><p className="text-sm text-emerald-600 font-semibold">Her şey yolunda!</p></div>
-          ) : (<div className="space-y-2">
-            {pendingUsers.map(u => (
-              <div key={u.id} className="flex items-center gap-2 p-2.5 rounded-xl bg-blue-50/50">
-                <span className="text-sm">🆕</span>
-                <div className="flex-1 min-w-0"><div className="text-sm font-semibold truncate">{u.display_name}</div><div className="text-xs text-gray-400">{u.email}</div></div>
-                <button onClick={() => approveUser(u.id)} className="text-xs bg-emerald-500 text-white px-2.5 py-1 rounded-lg font-semibold">✓</button>
-                <button onClick={() => rejectUser(u.id)} className="text-xs bg-red-100 text-red-500 px-2 py-1 rounded-lg">✕</button>
-              </div>
-            ))}
-            {pendingReports.map(r => (
-              <div key={r.id} className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-50/50">
-                <span className="text-sm">{r.work_mode==='remote'?'🏠':'🏛️'}</span>
-                <div className="flex-1 min-w-0"><div className="text-sm font-semibold truncate">{r.profiles?.display_name}</div><div className="text-xs text-gray-400">{fd(r.date)} · {fmtH(r.hours)} · {r.description?.slice(0,25)}</div></div>
-                {r.user_id !== uid ? <button onClick={() => approveReport(r.id)} className="text-xs bg-emerald-500 text-white px-2.5 py-1 rounded-lg font-semibold">✓</button> : <span className="text-xs text-gray-300">Kendi</span>}
-              </div>
-            ))}
-            {pendingReports.filter(r => r.user_id !== uid).length > 1 && <button onClick={approveAllReports} className="w-full text-sm text-emerald-600 font-semibold py-2 bg-emerald-50 rounded-xl">✓ Hepsini Onayla</button>}
-          </div>)}
-        </DashCard>
+        {/* Left column */}
+        <div className="space-y-10">
 
-        {/* SAĞ: Gönüllüler */}
-        <DashCard title="👥 Gönüllüler">
-          <input className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm mb-2 outline-none focus:border-emerald-500" placeholder="🔍 Ara..." value={search} onChange={e => setSearch(e.target.value)} />
-          <div className="space-y-1">
-            {filteredVols.slice(0, 20).map(v => (
-              <div key={v.id} className={`flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors ${v.status !== 'active' ? 'opacity-40' : ''}`} onClick={() => setSel(sel === v.id ? null : v.id)}>
-                <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center text-[10px] font-bold text-emerald-600 flex-shrink-0">{(v.display_name||'?')[0]}</div>
-                <div className="flex-1 min-w-0"><div className="text-sm font-semibold truncate">{v.display_name}</div><div className="text-[11px] text-gray-400">{DM[v.department]?.l || '—'}</div></div>
-                {v.id !== uid && <select className="text-[11px] border rounded-lg px-1.5 py-1 bg-white w-12" value={v.role} onClick={e=>e.stopPropagation()} onChange={e => changeRole(v.id, e.target.value)}><option value="vol">Gön</option><option value="coord">Krd</option><option value="admin">Yön</option></select>}
-                <button onClick={e => { e.stopPropagation(); setCertVol(v); }} className="text-xs text-amber-500 flex-shrink-0">🏆</button>
+          {/* Weekly Activity */}
+          {deptSorted.length > 0 && (
+            <div>
+              <div className="section-label mb-4">Haftalık Aktivite</div>
+              <div className="space-y-3">
+                {deptSorted.map(([dept, hours]) => (
+                  <div key={dept} className="flex items-center gap-4">
+                    <span className="text-[14px] text-[#6B7280] w-32 truncate flex-shrink-0">{DM[dept]?.l || dept}</span>
+                    <div className="flex-1 h-1 bg-[#F3F4F6] rounded-full overflow-hidden">
+                      <div className="h-full bg-[#059669] rounded-full transition-all duration-500" style={{ width: `${(hours / maxDeptH) * 100}%` }} />
+                    </div>
+                    <span className="text-[14px] font-semibold text-[#111827] w-12 text-right">{fmtH(hours)}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          {sel && (() => { const v = vols.find(x=>x.id===sel); return v && v.id !== uid ? (
-            <div className="mt-2 p-3 bg-gray-50 rounded-xl text-xs text-gray-500 space-y-1.5">
-              <select className="w-full border rounded-lg px-2 py-1.5 text-sm bg-white" value={v.department||''} onChange={e => changeDept(v.id, e.target.value)}><option value="">Departman seç</option>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.l}</option>)}</select>
-              {summaries[v.id] && <div>Bu ay: {summaries[v.id].month_days}g / {fmtH(Number(summaries[v.id].month_hours))}</div>}
-              <div>Skor: {v.activity_score||0} · Son: {v.last_activity_at ? fd(v.last_activity_at) : '—'}</div>
-            </div>
-          ) : null; })()}
-        </DashCard>
-
-        {/* SOL: İşler */}
-        <DashCard title={`📋 İşler (${activeTasks.length} açık)`}>
-          <button onClick={() => setShowNewTask(!showNewTask)} className="text-xs bg-emerald-500 text-white font-semibold px-3 py-1.5 rounded-lg mb-2">{showNewTask ? '✕' : '+ Yeni İş'}</button>
-          {showNewTask && (
-            <div className="p-3 bg-gray-50 rounded-xl space-y-2 mb-2">
-              <input className="w-full border rounded-xl px-3 py-2 text-sm" placeholder="İş başlığı" value={tf.title} onChange={e => setTf({...tf, title: e.target.value})} />
-              <div className="grid grid-cols-2 gap-2">
-                <select className="border rounded-xl px-3 py-2 text-sm" value={tf.department} onChange={e => setTf({...tf, department: e.target.value})}>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.l}</option>)}</select>
-                <select className="border rounded-xl px-3 py-2 text-sm" value={tf.assigned_to} onChange={e => setTf({...tf, assigned_to: e.target.value})}><option value="">Atanacak</option>{vols.filter(v=>v.status==='active').map(v => <option key={v.id} value={v.id}>{v.display_name}</option>)}</select>
-              </div>
-              <input type="date" className="w-full border rounded-xl px-3 py-2 text-sm" value={tf.deadline} onChange={e => setTf({...tf, deadline: e.target.value})} />
-              <button onClick={createTask} className="bg-emerald-500 text-white text-sm font-semibold py-2 rounded-xl w-full">Oluştur</button>
             </div>
           )}
-          {tasks.filter(t => !['cancelled','done'].includes(t.status)).slice(0,8).map(t => {
-            const od = t.deadline && t.deadline < today();
-            return (
-              <div key={t.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50">
-                <div className="flex-1 min-w-0"><div className="text-sm font-semibold truncate">{t.title}</div></div>
-                <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden flex-shrink-0"><div className="h-full bg-emerald-400 rounded-full" style={{width:`${t.progress||0}%`}} /></div>
-                <span className="text-[11px] text-gray-400 flex-shrink-0 w-8 text-right">{Math.round(t.progress||0)}%</span>
-                {od && <span className="text-[10px] text-red-500 flex-shrink-0">⚠️</span>}
-                {t.status === 'review' && <button onClick={async () => { await db.updateTask(t.id, { status:'done', completed_at: new Date().toISOString() }); load(); }} className="text-[11px] text-emerald-600 font-semibold flex-shrink-0">✓</button>}
-              </div>
-            );
-          })}
-        </DashCard>
 
-        {/* SAĞ: İletişim */}
-        <DashCard title="💬 İletişim" maxH="max-h-[400px]">
-          <div className="flex gap-1 mb-3">
-            {[['chat','Sohbet'],['ann','Duyuru'],['shift','Vardiya']].map(([k,l]) => (
-              <button key={k} onClick={() => setCommTab(k)} className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all ${commTab===k?'bg-gray-800 text-white':'bg-gray-100 text-gray-400'}`}>{l}</button>
-            ))}
-          </div>
-          {commTab === 'chat' && <ChatSection uid={uid} me={me} />}
-          {commTab === 'ann' && (<div>
-            <button onClick={() => setShowAnn(!showAnn)} className="text-xs bg-emerald-500 text-white font-semibold px-3 py-1.5 rounded-lg mb-2">{showAnn?'✕':'+ Yeni'}</button>
-            {showAnn && (
-              <div className="p-3 bg-gray-50 rounded-xl space-y-2 mb-2">
-                <input className="w-full border rounded-xl px-3 py-2 text-sm" placeholder="Başlık" value={annF.title} onChange={e => setAnnF({...annF, title: e.target.value})} />
-                <textarea className="w-full border rounded-xl px-3 py-2 text-sm" rows={2} placeholder="İ��erik" value={annF.body} onChange={e => setAnnF({...annF, body: e.target.value})} />
-                <button onClick={createAnn} className="bg-emerald-500 text-white text-sm font-semibold py-2 rounded-xl w-full">Yayınla</button>
+          {/* Pending Actions */}
+          <div>
+            <div className="section-label mb-4">Bekleyen İşlemler</div>
+            {!hasPending ? (
+              <div className="text-[14px] text-[#9CA3AF]">Her şey yolunda.</div>
+            ) : (
+              <div className="bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+                {pendingUsers.map((u, i) => (
+                  <div key={u.id} className={`flex items-center gap-4 px-5 py-3 ${i > 0 ? 'border-t border-[#F3F4F6]' : ''}`}>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[14px] font-medium text-[#111827]">{u.display_name}</span>
+                      <span className="text-[13px] text-[#9CA3AF] ml-2">{u.email}</span>
+                    </div>
+                    <button onClick={() => approveUser(u.id)} className="text-[13px] text-[#059669] font-semibold hover:underline">Onayla</button>
+                    <button onClick={() => rejectUser(u.id)} className="text-[13px] text-[#EF4444] hover:underline">Reddet</button>
+                  </div>
+                ))}
+                {pendingReports.map((r, i) => (
+                  <div key={r.id} className={`flex items-center gap-4 px-5 py-3 border-t border-[#F3F4F6]`}>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[14px] font-medium text-[#111827]">{r.profiles?.display_name}</span>
+                      <span className="text-[13px] text-[#9CA3AF] ml-2">{fmtH(r.hours)} · {r.description?.slice(0, 30)}</span>
+                    </div>
+                    {r.user_id !== uid ? (
+                      <button onClick={() => approveReport(r.id)} className="text-[13px] text-[#059669] font-semibold hover:underline">Onayla</button>
+                    ) : <span className="text-[12px] text-[#D1D5DB]">Kendi</span>}
+                  </div>
+                ))}
+                {pendingReports.filter(r => r.user_id !== uid).length > 1 && (
+                  <div className="px-5 py-3 border-t border-[#F3F4F6]">
+                    <button onClick={approveAllReports} className="text-[13px] text-[#059669] font-medium hover:underline">Tümünü Onayla &rarr;</button>
+                  </div>
+                )}
               </div>
             )}
-          </div>)}
-          {commTab === 'shift' && <ShiftPlanView uid={uid} me={me} />}
-        </DashCard>
+          </div>
+        </div>
 
-        {/* Dikkat Gerektiren (varsa) */}
-        {needsAttention.length > 0 && (
-          <DashCard title="⚠️ Dikkat Gerektiren" className="border-l-4 border-amber-400">
-            {needsAttention.sort((a,b) => (a.activity_score||0)-(b.activity_score||0)).map(v => {
-              const days = v.last_activity_at ? Math.floor((Date.now()-new Date(v.last_activity_at).getTime())/86400000) : 999;
-              const icon = v.activity_status==='slowing'?'🟡':v.activity_status==='inactive'?'🟠':'🔴';
-              return (
-                <div key={v.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50">
-                  <span>{icon}</span>
-                  <div className="flex-1"><div className="text-sm font-semibold">{v.display_name}</div><div className="text-xs text-gray-400">{days < 999 ? `${days}g rapor yok` : 'Hiç yok'}</div></div>
-                </div>
-              );
-            })}
-          </DashCard>
-        )}
+        {/* Right column */}
+        <div className="space-y-10">
 
-        {/* Belge Oluştur */}
-        <DashCard title="🏆 Belge Oluştur">
-          <p className="text-sm text-gray-400">Gönüllüler kartında 🏆 ikonuna tıklayarak belge oluşturun.</p>
-        </DashCard>
+          {/* Recent Activity */}
+          {recentItems.length > 0 && (
+            <div>
+              <div className="section-label mb-4">Son Gelişmeler</div>
+              <div className="space-y-4">
+                {recentItems.map((item, i) => (
+                  <div key={i} className="flex gap-3">
+                    <div className="w-2 h-2 rounded-full bg-[#D1D5DB] mt-2 flex-shrink-0" />
+                    <div>
+                      <div className="text-[14px] text-[#111827]"><span className="font-medium">{item.name}</span> {item.type === 'report' ? 'rapor girdi' : ''}</div>
+                      <div className="text-[13px] text-[#9CA3AF]">{item.detail}</div>
+                      <div className="text-[12px] text-[#D1D5DB] mt-0.5">{timeAgo(item.time)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
+          {/* Attention */}
+          {needsAttention.length > 0 && (
+            <div>
+              <div className="section-label mb-4">Dikkat</div>
+              <div className="space-y-3">
+                {needsAttention.sort((a,b) => (a.activity_score||0) - (b.activity_score||0)).slice(0, 5).map(v => {
+                  const days = v.last_activity_at ? Math.floor((Date.now() - new Date(v.last_activity_at).getTime()) / 86400000) : 999;
+                  return (
+                    <div key={v.id} className="flex items-center justify-between">
+                      <div>
+                        <span className="text-[14px] font-medium text-[#111827]">{v.display_name}</span>
+                        <span className="text-[13px] text-[#9CA3AF] ml-2">{days < 999 ? `${days} gündür yok` : 'hiç rapor yok'}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {overdueTasks.length > 0 && (
+            <div>
+              <div className="text-[13px] text-[#EF4444] font-medium">Gecikmiş: {overdueTasks.length} iş</div>
+              <button onClick={() => onNav('ayar')} className="text-[13px] text-[#059669] hover:underline mt-1">görüntüle &rarr;</button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {certVol && <CertificateModal vol={certVol} summary={summaries[certVol.id]} issuerId={uid} onClose={() => setCertVol(null)} />}
+      {/* Quick actions */}
+      <div className="flex flex-wrap gap-x-8 gap-y-2 pt-4 border-t border-[#F3F4F6]">
+        <button onClick={() => onNav('ayar')} className="text-[14px] text-[#111827] font-medium hover:text-[#059669] transition-colors">Gönüllüler <span className="text-[#9CA3AF] font-normal">{activeVols.length} kişi &rarr;</span></button>
+        <button onClick={() => onNav('ayar')} className="text-[14px] text-[#111827] font-medium hover:text-[#059669] transition-colors">İşler <span className="text-[#9CA3AF] font-normal">{activeTasks.length} açık &rarr;</span></button>
+        <button onClick={() => onNav('rapor')} className="text-[14px] text-[#111827] font-medium hover:text-[#059669] transition-colors">Raporlar &rarr;</button>
+      </div>
     </div>
   );
 }
 
-// ═══════════════════════════════════════════
-// 📊 RAPORLAR (admin)
-// ═══════════════════════════════════════════
-function ReportsScreen({ uid }) {
+/* ═══════════════════════════════════════════════════════
+   ADMIN — REPORTS
+   ═══════════════════════════════════════════════════════ */
+
+function ReportsView({ uid }) {
   const [quickResult, setQuickResult] = useState('');
   const [quickLoading, setQuickLoading] = useState('');
 
-  const runQuick = async (period) => {
+  const runQuick = async period => {
     setQuickLoading(period); setQuickResult('');
     const result = await quickReport(period);
     setQuickResult(result); setQuickLoading('');
   };
 
   return (
-    <div className="space-y-5">
-      {/* Hızlı raporlar */}
-      <div className="grid grid-cols-3 gap-3">
-        {[['today','📅','Bugün'],['week','📊','Bu Hafta'],['month','📈','Bu Ay']].map(([k,ic,l]) => (
-          <button key={k} onClick={() => runQuick(k)} disabled={!!quickLoading} className={`bg-white rounded-2xl p-4 text-center shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_4px_20px_rgba(0,0,0,0.12)] transition-shadow cursor-pointer ${quickLoading===k?'opacity-50':''}`}>
-            <div className="text-2xl mb-1">{ic}</div>
-            <div className="text-sm font-semibold">{l}</div>
+    <div className="space-y-10">
+      <h1 className="text-[24px] font-semibold text-[#111827]">Raporlar</h1>
+
+      {/* Quick reports */}
+      <div className="grid grid-cols-3 gap-4">
+        {[['today','Bugün'],['week','Hafta'],['month','Ay']].map(([k,l]) => (
+          <button key={k} onClick={() => runQuick(k)} disabled={!!quickLoading} className={`bg-white rounded-xl p-5 text-center shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all cursor-pointer ${quickLoading===k ? 'opacity-50' : ''}`}>
+            <div className="text-[15px] font-semibold text-[#111827]">{l}</div>
           </button>
         ))}
       </div>
 
-      {/* Rapor Önizleme */}
+      {/* Preview */}
       {quickResult && (
-        <DashCard title="📊 Rapor Önizleme" maxH="max-h-[50vh]">
-          <pre className="text-xs whitespace-pre-wrap font-mono text-gray-600 leading-relaxed">{quickResult}</pre>
-          <div className="flex gap-2 mt-3 pt-2 border-t border-gray-100">
-            <button onClick={() => navigator.clipboard.writeText(quickResult)} className="text-xs bg-emerald-500 text-white font-semibold px-3 py-1.5 rounded-lg">📋 Kopyala</button>
+        <div className="bg-white rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+          <div className="flex items-center justify-between mb-4">
+            <div className="section-label">Rapor Önizleme</div>
+            <button onClick={() => navigator.clipboard.writeText(quickResult)} className="text-[13px] text-[#059669] font-medium hover:underline">Kopyala</button>
           </div>
-        </DashCard>
+          <pre className="text-[13px] whitespace-pre-wrap font-mono text-[#6B7280] leading-relaxed max-h-[50vh] overflow-y-auto">{quickResult}</pre>
+        </div>
       )}
 
-      {/* 2 Sütun Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <DashCard title="📄 Detaylı Rapor">
+      {/* Custom report */}
+      <div>
+        <div className="section-label mb-4">Detaylı Rapor</div>
+        <div className="bg-white rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
           <ReportBuilder uid={uid} />
-        </DashCard>
-        <DashCard title="📂 Rapor Arşivi">
-          <ReportArchive />
-        </DashCard>
+        </div>
       </div>
 
-      {/* Yedekleme — tam genişlik */}
-      <DashCard title="💾 Yedekleme" maxH="max-h-none">
-        <BackupView uid={uid} />
-      </DashCard>
+      {/* Archive */}
+      <div>
+        <div className="section-label mb-4">Arşiv</div>
+        <div className="bg-white rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+          <ReportArchive />
+        </div>
+      </div>
+
+      {/* Backup */}
+      <div>
+        <div className="section-label mb-4">Yedekleme</div>
+        <div className="bg-white rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+          <BackupView uid={uid} />
+        </div>
+      </div>
     </div>
   );
 }
 
-// ═══════════════════════════════════════════
-// SOHBET
-// ═══════════════════════════════════════════
-function ShiftPlanView({ uid, me }) {
-  const [shifts, setShifts] = useState([]);
+/* ═══════════════════════════════════════════════════════
+   ADMIN — SETTINGS (People Management)
+   ═══════════════════════════════════════════════════════ */
+
+function SettingsView({ uid, me }) {
   const [vols, setVols] = useState([]);
-  const [show, setShow] = useState(false);
-  const [f, setF] = useState({ volunteer_id:'', day_of_week:'Pzt', start_time:'10:00', end_time:'14:00', department: me.department||'arsiv' });
+  const [summaries, setSummaries] = useState({});
+  const [tasks, setTasks] = useState([]);
+  const [search, setSearch] = useState('');
+  const [expand, setExpand] = useState(null);
+  const [certVol, setCertVol] = useState(null);
+  const [showNewTask, setShowNewTask] = useState(false);
+  const [tf, setTf] = useState({ title:'', description:'', department: me.department||'arsiv', assigned_to:'', deadline:'' });
+  const [showAnn, setShowAnn] = useState(false);
+  const [annF, setAnnF] = useState({ title:'', body:'' });
+  const [commTab, setCommTab] = useState('people');
+  const toast = useToast();
+
   const load = useCallback(async () => {
-    const [s, v] = await Promise.all([db.getShifts({}), db.getAllProfiles()]);
-    setShifts(s.data || []); setVols((v.data || []).filter(v => v.status === 'active'));
+    const [p, ws, t] = await Promise.all([db.getAllProfiles(), db.getAllWorkSummaries(), db.getTasks()]);
+    setVols((p.data || []).filter(u => u.status !== 'pending'));
+    setSummaries(Object.fromEntries((ws.data || []).map(s => [s.id, s])));
+    setTasks(t.data || []);
   }, []);
   useEffect(() => { load(); }, [load]);
-  const create = async () => { if (!f.volunteer_id) return; await db.createShift({...f, created_by: uid}); setShow(false); load(); };
-  const del = async (id) => { await db.deleteShift(id); load(); };
+
+  const changeRole = async (id, role) => { await db.setUserRole(id, role); setVols(vols.map(v => v.id === id ? {...v, role} : v)); toast.show('Rol güncellendi'); };
+  const changeDept = async (id, dept) => { await db.setUserDept(id, dept); setVols(vols.map(v => v.id === id ? {...v, department: dept} : v)); toast.show('Departman güncellendi'); };
+  const changeStatus = async (id, status) => { await db.setUserStatus(id, status); load(); toast.show('Durum güncellendi'); };
+  const createTask = async () => { if (!tf.title) return; await db.createTask({ ...tf, priority:'medium', assigned_to: tf.assigned_to ? [tf.assigned_to] : [], created_by: uid }); setShowNewTask(false); setTf({ title:'', description:'', department: me.department||'arsiv', assigned_to:'', deadline:'' }); load(); toast.show('İş oluşturuldu'); };
+  const createAnn = async () => { if (!annF.title || !annF.body) return; await db.createAnnouncement({ ...annF, department:null, is_pinned:false, is_public:false, author_id:uid }); setShowAnn(false); setAnnF({ title:'', body:'' }); toast.show('Duyuru yayınlandı'); };
+
+  const filtered = vols.filter(v => !search || v.display_name?.toLowerCase().includes(search.toLowerCase()) || v.email?.toLowerCase().includes(search.toLowerCase()));
+  const activeTasks = tasks.filter(t => ['active','pending','review'].includes(t.status));
+
+  const TABS = [['people','Gönüllüler'],['tasks','İşler'],['comm','İletişim']];
+
   return (
-    <div className="space-y-2">
-      <button onClick={() => setShow(!show)} className="text-xs bg-emerald-500 text-white font-semibold px-3 py-1.5 rounded-lg">{show ? '✕' : '+ Vardiya Ata'}</button>
-      {show && (
-        <div className="card !p-3 space-y-2">
-          <select className="input-field !py-2" value={f.volunteer_id} onChange={e => setF({...f, volunteer_id: e.target.value})}><option value="">Gönüllü</option>{vols.map(v => <option key={v.id} value={v.id}>{v.display_name}</option>)}</select>
-          <div className="grid grid-cols-3 gap-2">
-            <select className="input-field !py-2" value={f.day_of_week} onChange={e => setF({...f, day_of_week: e.target.value})}>{DAYS.map(d => <option key={d}>{d}</option>)}</select>
-            <input type="time" className="input-field !py-2" value={f.start_time} onChange={e => setF({...f, start_time: e.target.value})} />
-            <input type="time" className="input-field !py-2" value={f.end_time} onChange={e => setF({...f, end_time: e.target.value})} />
+    <div className="space-y-8">
+      <toast.Toast />
+      <h1 className="text-[24px] font-semibold text-[#111827]">Ayarlar</h1>
+
+      <div className="flex gap-1 bg-[#F3F4F6] rounded-lg p-1 w-fit">
+        {TABS.map(([k,l]) => (
+          <button key={k} onClick={() => setCommTab(k)} className={`px-4 py-1.5 rounded-md text-[13px] font-medium transition-all duration-150 ${commTab === k ? 'bg-white text-[#111827] shadow-sm' : 'text-[#6B7280]'}`}>{l}</button>
+        ))}
+      </div>
+
+      {/* People tab */}
+      {commTab === 'people' && (
+        <div>
+          <div className="bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+            <div className="px-5 py-3 border-b border-[#F3F4F6]">
+              <input value={search} onChange={e => setSearch(e.target.value)} className="w-full text-[14px] outline-none placeholder:text-[#D1D5DB]" placeholder="Ara..." />
+            </div>
+            <div className="divide-y divide-[#F3F4F6]">
+              <div className="grid grid-cols-[1fr_120px_80px_60px] px-5 py-2 text-[12px] text-[#9CA3AF] font-medium">
+                <span>Ad</span><span>Departman</span><span>Bu Ay</span><span>Durum</span>
+              </div>
+              {filtered.slice(0, 30).map(v => {
+                const s = summaries[v.id];
+                const status = v.activity_status || 'active';
+                const dotColor = v.status !== 'active' ? 'bg-[#D1D5DB]' : status === 'active' ? 'bg-[#059669]' : status === 'slowing' ? 'bg-[#F59E0B]' : status === 'inactive' ? 'bg-[#F97316]' : 'bg-[#EF4444]';
+                return (
+                  <div key={v.id}>
+                    <div onClick={() => setExpand(expand === v.id ? null : v.id)} className={`grid grid-cols-[1fr_120px_80px_60px] items-center px-5 py-3 cursor-pointer hover:bg-[#FAFAFA] transition-colors ${v.status !== 'active' ? 'opacity-50' : ''}`}>
+                      <span className="text-[14px] font-medium text-[#111827] truncate">{v.display_name}</span>
+                      <span className="text-[13px] text-[#6B7280] truncate">{DM[v.department]?.l?.split(' ')[0] || '—'}</span>
+                      <span className="text-[13px] text-[#6B7280]">{s ? fmtH(Number(s.month_hours)) : '—'}</span>
+                      <span className={`w-2 h-2 rounded-full ${dotColor} inline-block`} />
+                    </div>
+                    {expand === v.id && v.id !== uid && (
+                      <div className="px-5 py-4 bg-[#FAFAFA] space-y-3 text-[13px]">
+                        <div className="text-[#6B7280]">
+                          {s && <span>Toplam: {s.total_days} gün, {fmtH(Number(s.total_hours))}</span>}
+                          {v.last_activity_at && <span className="ml-3">Son: {fd(v.last_activity_at)}</span>}
+                          {!v.last_activity_at && <span className="ml-3">Son: —</span>}
+                        </div>
+                        <div className="flex flex-wrap gap-3 items-center">
+                          <label className="text-[#9CA3AF]">Rol:</label>
+                          <select value={v.role} onChange={e => changeRole(v.id, e.target.value)} className="border border-[#E5E7EB] rounded-lg px-2 py-1 text-[13px] bg-white outline-none focus:border-[#059669]">
+                            <option value="vol">Gönüllü</option><option value="coord">Koordinatör</option><option value="admin">Yönetici</option>
+                          </select>
+                          <label className="text-[#9CA3AF] ml-2">Departman:</label>
+                          <select value={v.department || ''} onChange={e => changeDept(v.id, e.target.value)} className="border border-[#E5E7EB] rounded-lg px-2 py-1 text-[13px] bg-white outline-none focus:border-[#059669]">
+                            <option value="">—</option>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.l}</option>)}
+                          </select>
+                        </div>
+                        <div className="flex gap-3 items-center">
+                          <label className="text-[#9CA3AF]">Durum:</label>
+                          {v.status === 'active' ? (
+                            <button onClick={() => changeStatus(v.id, 'blocked')} className="text-[#EF4444] hover:underline">Engelle</button>
+                          ) : (
+                            <button onClick={() => changeStatus(v.id, 'active')} className="text-[#059669] hover:underline">Aktifleştir</button>
+                          )}
+                          <button onClick={() => setCertVol(v)} className="text-[#6B7280] hover:text-[#F59E0B] ml-2 transition-colors">Belge oluştur</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <button onClick={create} className="bg-emerald-500 text-white text-sm font-semibold py-2 rounded-xl w-full">Ekle</button>
         </div>
       )}
-      {DAYS.filter(d => shifts.some(s => s.day_of_week === d)).map(day => (
-        <div key={day}>
-          <div className="text-xs font-bold text-gray-500 mb-0.5">{day}</div>
-          {shifts.filter(s => s.day_of_week === day).map(sh => (
-            <div key={sh.id} className="card !p-2 mb-1 flex items-center gap-2 text-sm">
-              <span className="flex-1">{sh.profiles?.display_name} · {sh.start_time?.slice(0,5)}–{sh.end_time?.slice(0,5)}</span>
-              <button onClick={() => del(sh.id)} className="text-xs text-gray-300 hover:text-red-400">✕</button>
+
+      {/* Tasks tab */}
+      {commTab === 'tasks' && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-[14px] text-[#6B7280]">{activeTasks.length} açık iş</div>
+            <button onClick={() => setShowNewTask(!showNewTask)} className="text-[13px] text-[#059669] font-medium hover:underline">{showNewTask ? 'Kapat' : '+ Yeni İş'}</button>
+          </div>
+          {showNewTask && (
+            <div className="bg-white rounded-xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)] mb-4 space-y-3">
+              <input className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2.5 text-[14px] outline-none focus:border-[#059669] transition-colors" placeholder="İş başlığı" value={tf.title} onChange={e => setTf({...tf, title: e.target.value})} />
+              <div className="grid grid-cols-2 gap-3">
+                <select className="border border-[#E5E7EB] rounded-lg px-3 py-2.5 text-[14px] outline-none focus:border-[#059669] bg-white" value={tf.department} onChange={e => setTf({...tf, department: e.target.value})}>{DEPTS.map(d => <option key={d.id} value={d.id}>{d.l}</option>)}</select>
+                <select className="border border-[#E5E7EB] rounded-lg px-3 py-2.5 text-[14px] outline-none focus:border-[#059669] bg-white" value={tf.assigned_to} onChange={e => setTf({...tf, assigned_to: e.target.value})}><option value="">Atanacak</option>{vols.filter(v=>v.status==='active').map(v => <option key={v.id} value={v.id}>{v.display_name}</option>)}</select>
+              </div>
+              <input type="date" className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2.5 text-[14px] outline-none focus:border-[#059669]" value={tf.deadline} onChange={e => setTf({...tf, deadline: e.target.value})} />
+              <button onClick={createTask} className="bg-[#059669] text-white text-[14px] font-semibold py-2.5 px-5 rounded-lg hover:bg-[#047857] transition-colors">Oluştur</button>
             </div>
-          ))}
+          )}
+          <div className="bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden divide-y divide-[#F3F4F6]">
+            {tasks.filter(t => t.status !== 'cancelled').slice(0, 20).map(t => {
+              const od = t.deadline && t.deadline < today();
+              return (
+                <div key={t.id} className={`flex items-center gap-4 px-5 py-3 ${t.status === 'done' ? 'opacity-40' : ''}`}>
+                  <div className="flex-1 min-w-0"><span className="text-[14px] font-medium text-[#111827]">{t.title}</span>{od && <span className="text-[12px] text-[#EF4444] ml-2">gecikmiş</span>}</div>
+                  <div className="w-24 flex items-center gap-2 flex-shrink-0">
+                    <div className="flex-1 h-1 bg-[#F3F4F6] rounded-full overflow-hidden"><div className="h-full bg-[#059669] rounded-full" style={{width:`${t.progress||0}%`}} /></div>
+                    <span className="text-[12px] text-[#9CA3AF] w-8 text-right">{Math.round(t.progress||0)}%</span>
+                  </div>
+                  {t.status === 'review' && <button onClick={async () => { await db.updateTask(t.id, { status:'done', completed_at: new Date().toISOString() }); load(); }} className="text-[13px] text-[#059669] font-semibold hover:underline flex-shrink-0">Tamamla</button>}
+                  {!['done','cancelled'].includes(t.status) && <button onClick={async () => { await db.updateTask(t.id, { status:'cancelled' }); load(); }} className="text-[12px] text-[#9CA3AF] hover:text-[#EF4444] flex-shrink-0 transition-colors">iptal</button>}
+                </div>
+              );
+            })}
+            {tasks.filter(t => t.status !== 'cancelled').length === 0 && <div className="px-5 py-6 text-[14px] text-[#9CA3AF] text-center">Henüz iş yok</div>}
+          </div>
         </div>
-      ))}
-      {shifts.length === 0 && <p className="text-sm text-gray-400 text-center py-2">Vardiya yok</p>}
+      )}
+
+      {/* Communication tab */}
+      {commTab === 'comm' && (
+        <div className="space-y-8">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="section-label">Duyuru</div>
+              <button onClick={() => setShowAnn(!showAnn)} className="text-[13px] text-[#059669] font-medium hover:underline">{showAnn ? 'Kapat' : 'Duyuru Yaz'}</button>
+            </div>
+            {showAnn && (
+              <div className="bg-white rounded-xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)] mb-4 space-y-3">
+                <input className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2.5 text-[14px] outline-none focus:border-[#059669] transition-colors" placeholder="Başlık" value={annF.title} onChange={e => setAnnF({...annF, title: e.target.value})} />
+                <textarea className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2.5 text-[14px] outline-none focus:border-[#059669] transition-colors" rows={2} placeholder="İçerik" value={annF.body} onChange={e => setAnnF({...annF, body: e.target.value})} />
+                <button onClick={createAnn} className="bg-[#059669] text-white text-[14px] font-semibold py-2.5 px-5 rounded-lg hover:bg-[#047857] transition-colors">Yayınla</button>
+              </div>
+            )}
+          </div>
+          <div>
+            <div className="section-label mb-4">Sohbet</div>
+            <ChatSection uid={uid} me={me} />
+          </div>
+          <div>
+            <div className="section-label mb-4">Vardiya Planı</div>
+            <ShiftPlanView uid={uid} me={me} />
+          </div>
+        </div>
+      )}
+
+      {certVol && <CertificateModal vol={certVol} summary={summaries[certVol.id]} issuerId={uid} onClose={() => setCertVol(null)} />}
     </div>
   );
 }
+
+/* ═══════════════════════════════════════════════════════
+   CHAT
+   ═══════════════════════════════════════════════════════ */
 
 function ChatSection({ uid, me }) {
   const isCoordOrAdmin = me.role === 'admin' || me.role === 'coord';
@@ -1125,70 +1234,131 @@ function ChatSection({ uid, me }) {
   const send = async () => { if (!text.trim()) return; await db.sendMessage(uid, dept, text.trim()); setText(''); load(); };
 
   return (
-    <div className="space-y-2">
-      {isCoordOrAdmin && <div className="flex gap-1 flex-wrap">{DEPTS.map(d => <button key={d.id} onClick={() => setDept(d.id)} className={`text-xs px-2 py-1 rounded-lg ${dept===d.id?'bg-gray-800 text-white':'bg-gray-100 text-gray-400'}`}>{d.i}</button>)}</div>}
-      <div className="bg-gray-50 rounded-xl p-3 space-y-1.5 max-h-60 overflow-y-auto">
-        {messages.length === 0 && <p className="text-xs text-gray-300 text-center py-4">Henüz mesaj yok</p>}
+    <div className="space-y-3">
+      {isCoordOrAdmin && (
+        <div className="flex gap-1 flex-wrap">
+          {DEPTS.map(d => (
+            <button key={d.id} onClick={() => setDept(d.id)} className={`text-[12px] px-2.5 py-1 rounded-md transition-colors ${dept === d.id ? 'bg-[#111827] text-white' : 'bg-[#F3F4F6] text-[#9CA3AF] hover:text-[#6B7280]'}`}>{d.l.split(' ')[0]}</button>
+          ))}
+        </div>
+      )}
+      <div className="bg-white rounded-xl p-4 space-y-2 max-h-64 overflow-y-auto shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+        {messages.length === 0 && <p className="text-[13px] text-[#D1D5DB] text-center py-6">Henüz mesaj yok</p>}
         {messages.map((m, i) => (
-          <div key={m.id||i} className={`flex ${m.user_id===uid?'justify-end':'justify-start'}`}>
-            <div className={`max-w-[75%] rounded-2xl px-3 py-1.5 ${m.user_id===uid?'bg-emerald-600 text-white':'bg-white'}`}>
-              {m.user_id !== uid && <div className="text-xs font-bold text-emerald-600 mb-0.5">{m.profiles?.display_name}</div>}
-              <div className="text-sm">{m.content}</div>
+          <div key={m.id || i} className={`flex ${m.user_id === uid ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[75%] rounded-lg px-3 py-2 ${m.user_id === uid ? 'bg-[#059669] text-white' : 'bg-[#F3F4F6]'}`}>
+              {m.user_id !== uid && <div className="text-[12px] font-semibold text-[#059669] mb-0.5">{m.profiles?.display_name}</div>}
+              <div className="text-[14px]">{m.content}</div>
             </div>
           </div>
         ))}
       </div>
       <div className="flex gap-2">
-        <input className="flex-1 border rounded-xl px-3 py-2 text-sm" placeholder="Mesaj..." value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key==='Enter' && send()} />
-        <button onClick={send} disabled={!text.trim()} className="bg-emerald-600 text-white text-sm px-4 py-2 rounded-xl disabled:opacity-50">Gönder</button>
+        <input className="flex-1 border border-[#E5E7EB] rounded-lg px-3 py-2 text-[14px] outline-none focus:border-[#059669] transition-colors" placeholder="Mesaj..." value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()} />
+        <button onClick={send} disabled={!text.trim()} className="bg-[#059669] text-white text-[14px] font-medium px-4 py-2 rounded-lg hover:bg-[#047857] disabled:opacity-30 transition-colors">Gönder</button>
       </div>
     </div>
   );
 }
 
-// ═══════════════════════════════════════════
-// YARDIM
-// ═══════════════════════════════════════════
-function HelpContent({ me }) {
-  const items = [
-    { q: 'Nasıl çalışma raporu girerim?', a: 'Çalışma Raporu butonuna tıkla → saat yaz → ne yaptığını yaz → Vakıfta/Uzaktan seç → Kaydet. Hepsi bu.' },
-    { q: 'Raporumu nasıl düzenlerim?', a: 'Bu Hafta listesinde rapora tıkla → düzenle → Güncelle. Onaylanmış rapor düzenlenirse tekrar onay gerekir.' },
-    { q: 'Raporumu nasıl silerim?', a: 'Rapora tıkla → Raporu Sil. Onaylanmış rapor silinirken onay istenir. 30 günden eski raporlar silinemez.' },
-    { q: 'İşe bağlı rapor nedir?', a: 'Çalışma raporunda opsiyonel olarak ilgili işi seçebilirsin. Seçmesen de rapor kaydedilir — bağımsız çalışma olur.' },
-    { q: 'Bildirimlerimi nasıl görebilirim?', a: 'Sağ üstteki 🔔 ikonuna tıkla. Duyurular ve görev atamaları da popup ile açılır.' },
-    { q: 'Profilimi nasıl düzenlerim?', a: 'Sağ üstteki adına tıkla → Profili Düzenle.' },
-    { q: 'Telegram nasıl bağlanır?', a: 'Sağ üstte adınıza tıklayın → Telegram Bağla → Ekrandaki 6 haneli kodu Telegram\'da @tarihvakfi_bot\'a gönderin → "Hesabın bağlandı!" mesajı gelince hazırsınız.' },
-    { q: 'Telegram\'dan nasıl rapor girerim?', a: '"bugün 3 saat belge taradım" yazın, bot kaydeder. "dün 4 saat katalog girişi" ile geçmiş kayıt. /ozet ile çalışma özetinizi, /yardim ile tüm komutları görün.' },
-    { q: 'Belgelerimi nerede görebilirim?', a: 'Adına tıkla → Belgelerim.' },
-    { q: 'Sorun bildirmek istiyorum', a: 'Sayfanın altındaki "Sorunun mu var? Mesaj gönder" linkini kullan. Koordinatörüne gider.' },
-  ];
-  if (me.role !== 'vol') items.push(
-    { q: 'Raporları nasıl onaylarım?', a: 'Takımım → Onay Bekleyenler → Onayla veya Reddet. Hepsini Onayla ile toplu onay. Kendi raporunu onaylayamazsın.' },
-    { q: 'Nasıl iş oluştururum?', a: 'Takımım → İşler → + Yeni İş. Başlık, açıklama, atanan kişi ve son tarih gir.' },
-    { q: 'İş tamamlama onayı nedir?', a: 'İş %100 olunca Kontrol Bekliyor durumuna geçer. ✓ Tamamla ile bitirirsin.' },
-  );
-  if (me.role === 'admin') items.push(
-    { q: 'Yeni kullanıcıları nasıl onaylarım?', a: 'Yönetim → Onay Bekleyenler → Onayla/Reddet.' },
-    { q: 'Rapor nasıl oluştururum?', a: 'Raporlar sekmesi → tip ve dönem seç → Önizle → Excel veya metin olarak indir.' },
-    { q: 'Yedekleme nasıl yapılır?', a: 'Raporlar → aşağı kaydır → Yedekle → Google Sheets veya CSV.' },
-  );
-  const [open, setOpen] = useState(null);
+function ShiftPlanView({ uid, me }) {
+  const [shifts, setShifts] = useState([]);
+  const [vols, setVols] = useState([]);
+  const [show, setShow] = useState(false);
+  const [f, setF] = useState({ volunteer_id:'', day_of_week:'Pzt', start_time:'10:00', end_time:'14:00', department: me.department||'arsiv' });
+  const load = useCallback(async () => {
+    const [s, v] = await Promise.all([db.getShifts({}), db.getAllProfiles()]);
+    setShifts(s.data || []); setVols((v.data || []).filter(v => v.status === 'active'));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const create = async () => { if (!f.volunteer_id) return; await db.createShift({...f, created_by: uid}); setShow(false); load(); };
+  const del = async id => { await db.deleteShift(id); load(); };
+
   return (
-    <div className="space-y-1.5">{items.map((item, i) => (
-      <div key={i} className="card !p-3 cursor-pointer" onClick={() => setOpen(open===i?null:i)}>
-        <div className="flex justify-between items-center"><span className="text-sm font-semibold">{item.q}</span><span className="text-gray-300 text-xs">{open===i?'▲':'▼'}</span></div>
-        {open === i && <p className="text-sm text-gray-500 mt-2 leading-relaxed">{item.a}</p>}
+    <div className="space-y-3">
+      <button onClick={() => setShow(!show)} className="text-[13px] text-[#059669] font-medium hover:underline">{show ? 'Kapat' : '+ Vardiya Ekle'}</button>
+      {show && (
+        <div className="bg-white rounded-xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)] space-y-3">
+          <select className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-[14px] outline-none focus:border-[#059669] bg-white" value={f.volunteer_id} onChange={e => setF({...f, volunteer_id: e.target.value})}>
+            <option value="">Gönüllü seç</option>{vols.map(v => <option key={v.id} value={v.id}>{v.display_name}</option>)}
+          </select>
+          <div className="grid grid-cols-3 gap-2">
+            <select className="border border-[#E5E7EB] rounded-lg px-3 py-2 text-[14px] outline-none focus:border-[#059669] bg-white" value={f.day_of_week} onChange={e => setF({...f, day_of_week: e.target.value})}>{DAYS.map(d => <option key={d}>{d}</option>)}</select>
+            <input type="time" className="border border-[#E5E7EB] rounded-lg px-3 py-2 text-[14px] outline-none focus:border-[#059669]" value={f.start_time} onChange={e => setF({...f, start_time: e.target.value})} />
+            <input type="time" className="border border-[#E5E7EB] rounded-lg px-3 py-2 text-[14px] outline-none focus:border-[#059669]" value={f.end_time} onChange={e => setF({...f, end_time: e.target.value})} />
+          </div>
+          <button onClick={create} className="bg-[#059669] text-white text-[14px] font-semibold py-2 rounded-lg w-full hover:bg-[#047857] transition-colors">Ekle</button>
+        </div>
+      )}
+      <div className="bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden divide-y divide-[#F3F4F6]">
+        {DAYS.filter(d => shifts.some(s => s.day_of_week === d)).map(day => (
+          <div key={day} className="px-4 py-2.5">
+            <div className="text-[12px] font-semibold text-[#9CA3AF] mb-1">{day}</div>
+            {shifts.filter(s => s.day_of_week === day).map(sh => (
+              <div key={sh.id} className="flex items-center justify-between py-1">
+                <span className="text-[14px] text-[#111827]">{sh.profiles?.display_name} · {sh.start_time?.slice(0,5)}–{sh.end_time?.slice(0,5)}</span>
+                <button onClick={() => del(sh.id)} className="text-[#D1D5DB] hover:text-[#EF4444] text-[12px] transition-colors">&times;</button>
+              </div>
+            ))}
+          </div>
+        ))}
+        {shifts.length === 0 && <div className="px-4 py-6 text-[14px] text-[#9CA3AF] text-center">Vardiya yok</div>}
       </div>
-    ))}</div>
+    </div>
   );
 }
 
-// ═══════════════════════════════════════════
-// RESTRICTED (pending/blocked/etc)
-// ═══════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════
+   HELP
+   ═══════════════════════════════════════════════════════ */
+
+function HelpContent({ me }) {
+  const items = [
+    { q:'Nasıl çalışma raporu girerim?', a:'Çalışma Raporu butonuna tıkla, saat yaz, ne yaptığını yaz, konum seç, kaydet.' },
+    { q:'Raporumu nasıl düzenlerim?', a:'Bu Hafta listesinde rapora tıkla, düzenle, güncelle. Onaylanmış rapor düzenlenirse tekrar onay gerekir.' },
+    { q:'Raporumu nasıl silerim?', a:'Rapora tıkla, "Raporu sil" seçeneğini kullan. 30 günden eski raporlar silinemez.' },
+    { q:'İşe bağlı rapor nedir?', a:'Çalışma raporunda opsiyonel olarak ilgili işi seçebilirsin. Seçmesen de rapor kaydedilir.' },
+    { q:'Telegram nasıl bağlanır?', a:'Profil menüsünden Telegram Bağla seçeneğini kullan. Verilen kodu @tarihvakfi_bot\'a gönder.' },
+    { q:'Telegram\'dan nasıl rapor girerim?', a:'"bugün 3 saat belge taradım" yaz, bot kaydeder. /ozet ile çalışma özetini gör.' },
+  ];
+  if (me.role !== 'vol') items.push(
+    { q:'Raporları nasıl onaylarım?', a:'Takım ekranında Onay Bekleyenler listesinden onayla veya reddet.' },
+    { q:'Nasıl iş oluştururum?', a:'İşler bölümünden + Yeni İş butonuna tıkla.' },
+  );
+  if (me.role === 'admin') items.push(
+    { q:'Rapor nasıl oluştururum?', a:'Raporlar sekmesinden tip ve dönem seç, oluştur.' },
+    { q:'Yedekleme nasıl yapılır?', a:'Raporlar sekmesinin altında Yedekleme bölümünden Google Sheets veya CSV olarak yedekle.' },
+  );
+  const [open, setOpen] = useState(null);
+  return (
+    <div className="space-y-1">
+      {items.map((item, i) => (
+        <div key={i} onClick={() => setOpen(open === i ? null : i)} className="cursor-pointer py-3 border-b border-[#F3F4F6] last:border-0">
+          <div className="flex justify-between items-center">
+            <span className="text-[14px] font-medium text-[#111827]">{item.q}</span>
+            <span className="text-[#D1D5DB] text-[12px]">{open === i ? '−' : '+'}</span>
+          </div>
+          {open === i && <p className="text-[14px] text-[#6B7280] mt-2 leading-relaxed">{item.a}</p>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   RESTRICTED SHELL
+   ═══════════════════════════════════════════════════════ */
+
 function RestrictedShell({ me, uid }) {
   const [sent, setSent] = useState(false);
-  const msgs = { pending:{i:'⏳',t:'Kaydınız alındı!',d:'Yönetici onayı bekleniyor.'}, rejected:{i:'❌',t:'Başvuru reddedildi',d:'Yöneticiyle iletişime geçin.'}, blocked:{i:'🚫',t:'Hesap engellendi',d:'Yöneticiyle iletişime geçin.'}, paused:{i:'⏸️',t:'Hesap duraklatıldı',d:'Tekrar aktif olmak için talep gönderin.'}, inactive:{i:'🔒',t:'Hesap pasif',d:'30 gündür raporlama yapılmadığı için pasife alındı.'}, resigned:{i:'👋',t:'Ayrıldınız',d:'Eski verileriniz korunuyor.'} };
+  const msgs = {
+    pending: { t:'Kaydınız alındı', d:'Yönetici onayı bekleniyor.' },
+    rejected: { t:'Başvuru reddedildi', d:'Yöneticiyle iletişime geçin.' },
+    blocked: { t:'Hesap engellendi', d:'Yöneticiyle iletişime geçin.' },
+    paused: { t:'Hesap duraklatıldı', d:'Tekrar aktif olmak için talep gönderin.' },
+    inactive: { t:'Hesap pasif', d:'30 gündür raporlama yapılmadığı için pasife alındı.' },
+    resigned: { t:'Ayrıldınız', d:'Eski verileriniz korunuyor.' },
+  };
   const m = msgs[me.status] || msgs.blocked;
   const canReactivate = ['paused','inactive','resigned'].includes(me.status);
 
@@ -1199,18 +1369,17 @@ function RestrictedShell({ me, uid }) {
   };
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-4">
-      <div className="text-center space-y-4 max-w-sm">
-        <div className="text-5xl">{m.i}</div>
-        <h2 className="text-xl font-bold">{m.t}</h2>
-        <p className="text-sm text-gray-500">{m.d}</p>
+    <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-4">
+      <div className="text-center space-y-5 max-w-sm">
+        <h2 className="text-[22px] font-semibold text-[#111827]">{m.t}</h2>
+        <p className="text-[15px] text-[#6B7280]">{m.d}</p>
         {canReactivate && !sent && (
-          <button onClick={requestReactivation} className="bg-emerald-600 text-white font-semibold text-sm py-2.5 px-6 rounded-xl">
+          <button onClick={requestReactivation} className="bg-[#059669] text-white font-semibold text-[14px] py-2.5 px-6 rounded-lg hover:bg-[#047857] transition-colors">
             {me.status === 'resigned' ? 'Tekrar Katıl' : 'Tekrar Aktif Ol'}
           </button>
         )}
-        {sent && <p className="text-sm text-emerald-600">✓ Talebiniz yöneticiye iletildi!</p>}
-        <button onClick={db.signOut} className="text-sm text-gray-400 border border-gray-200 px-6 py-2 rounded-xl">Çıkış</button>
+        {sent && <p className="text-[14px] text-[#059669]">Talebiniz yöneticiye iletildi.</p>}
+        <div><button onClick={db.signOut} className="text-[14px] text-[#9CA3AF] hover:text-[#6B7280] transition-colors">Çıkış</button></div>
       </div>
     </div>
   );
