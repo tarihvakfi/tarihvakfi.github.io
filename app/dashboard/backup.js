@@ -20,7 +20,7 @@ const SHEETS_CONFIG = [
   { key: 'progress', name: 'Gorev Ilerleme', headers: ['Gorev','Guncelleyen','Onceki','Yeni','Not','Tarih'], fmt: r => [r.tasks?.title||'',r.profiles?.display_name||'',`${r.previous_value}%`,`${r.new_value}%`,r.note||'',fdate(r.created_at)] },
   { key: 'shiftNotes', name: 'Vardiya Notlari', headers: ['Yazan','Departman','Tarih','Icerik'], fmt: r => [r.profiles?.display_name||'',r.department,fdate(r.date),r.content] },
   { key: 'notifications', name: 'Bildirimler', headers: ['Kullanici','Tip','Baslik','Icerik','Okundu','Tarih'], fmt: r => [r.profiles?.display_name||'',r.type,r.title,r.body||'',r.is_read?'Evet':'Hayir',fdate(r.created_at)] },
-  { key: 'workReports', name: 'Calisma Raporlari', headers: ['Gonullu','Tarih','Saat','Nerede','Aciklama','Plan','Durum','Kaynak'], fmt: r => [r.profiles?.display_name||'',fdate(r.date),r.hours,r.work_mode==='remote'?'Uzaktan':'Vakifta',r.description||'',r.next_plan||'',r.status,r.source||'web'] },
+  { key: 'workReports', name: 'Calisma Raporlari', headers: ['Gonullu','Tarih','Saat','Nerede','Aciklama','Plan','Durum','Kaynak','Is','Duzenlendi'], fmt: r => [r.profiles?.display_name||'',fdate(r.date),r.hours,r.work_mode==='remote'?'Uzaktan':'Vakifta',r.description||'',r.next_plan||'',r.status,r.source||'web',r.task_id?'Evet':'',r.edited_at?'Evet':''] },
 ];
 
 function toCsv(headers, rows) {
