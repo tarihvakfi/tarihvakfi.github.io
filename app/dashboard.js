@@ -6,6 +6,7 @@ var ld=document.getElementById("loadingState"),tb=document.getElementById("tabBa
 function sw(n){document.querySelectorAll(".tab").forEach(function(t){t.classList.toggle("active",t.dataset.tab===n)});document.querySelectorAll(".tab-content").forEach(function(c){c.classList.toggle("hidden",c.id!=="tab-"+n)})}
 tb?.addEventListener("click",function(e){var t=e.target.closest(".tab");if(t)sw(t.dataset.tab)});
 document.getElementById("signOutBtn")?.addEventListener("click",async function(){if(auth)await signOut(auth);window.location.href="../auth/"});
+document.getElementById("deleteAccountBtn")?.addEventListener("click",async function(){if(!cu||!db)return;if(!confirm("Hesabınız kalıcı olarak silinecek. Emin misiniz?"))return;if(!confirm("Bu işlem geri alınamaz. Devam etmek istiyor musunuz?"))return;try{await deleteDoc(doc(db,"users",cu.uid));await signOut(auth);window.location.href="../auth/"}catch(err){alert("Hata: "+err.message)}});
 function pl(v){return(v||"").split("\n").map(function(l){return l.trim()}).filter(function(l){return l})}
 function td(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 function ci(file){return new Promise(function(res){var r=new FileReader();r.onload=function(e){var img=new Image();img.onload=function(){var c=document.createElement("canvas"),w=img.width,h=img.height;if(w>800){h=Math.round(h*800/w);w=800}c.width=w;c.height=h;c.getContext("2d").drawImage(img,0,0,w,h);res(c.toDataURL("image/jpeg",0.7))};img.src=e.target.result};r.readAsDataURL(file)})}
