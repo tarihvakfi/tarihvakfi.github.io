@@ -35,3 +35,11 @@
 .btn-block { background: var(--danger); color: #fff; border-color: transparent; }
 .count-badge { background: var(--danger); color: #fff; font-size: .72rem; padding: .15rem .45rem; border-radius: 999px; margin-left: .35rem; }
 @media (max-width: 700px) { .user-row { grid-template-columns: 1fr; gap: .5rem; } .tab-bar { gap: 0; } .tab { padding: .6rem .7rem; font-size: .82rem; } }
+
+.report-header { display:flex; align-items:center; justify-content:space-between; gap:.5rem; }
+.report-actions { display:flex; gap:.35rem; flex-shrink:0; }
+.report-links { display:flex; flex-direction:column; gap:.25rem; margin-top:.5rem; padding-top:.5rem; border-top:1px dashed var(--line); }
+.report-links a { color:var(--primary); font-size:.85rem; text-decoration:underline; word-break:break-all; }
+.report-images { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.5rem; padding-top:.5rem; border-top:1px dashed var(--line); }
+.report-images img { max-width:180px; max-height:120px; border-radius:8px; object-fit:cover; border:1px solid var(--line); cursor:pointer; transition:transform .15s; }
+.report-images img:hover { transform:scale(1.05); }
