@@ -98,7 +98,11 @@
           </div>
           <label>Özet <textarea id="summary" rows="3" required placeholder="Yapılan işi kısaca yazın. Detaylı açıklama ekleyebilirsiniz."></textarea></label>
           <label>Bağlantılar <textarea id="reportLinks" rows="2" placeholder="Her satıra bir URL yazın (isteğe bağlı)"></textarea></label>
-          <label>Görsel URL'leri <textarea id="reportImages" rows="2" placeholder="Her satıra bir görsel URL'si yazın (isteğe bağlı)"></textarea></label>
+          <label>Görseller
+            <input type="file" id="reportImageFiles" accept="image/*" multiple />
+            <div id="imagePreview" class="image-preview"></div>
+          </label>
+
           <div class="form-actions">
             <button type="submit" id="reportSubmitBtn" class="btn btn-primary">Rapor gönder</button>
             <span id="reportMessage" class="status-line muted"></span>
