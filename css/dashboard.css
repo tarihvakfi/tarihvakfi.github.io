@@ -21,6 +21,11 @@
 .user-edit-card .form-row{margin-bottom:.5rem}
 .user-edit-card label{font-size:.82rem}
 .user-edit-card input,.user-edit-card select{padding:.4rem .6rem;font-size:.85rem}
+.profile-card{display:flex;gap:1rem;align-items:center;padding:1rem}
+.profile-avatar{width:52px;height:52px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:700;flex-shrink:0}
+.profile-info h3{margin:0 0 .25rem;font-size:1.1rem}
+.profile-details{display:flex;gap:.75rem;flex-wrap:wrap;font-size:.88rem;color:var(--muted);margin-bottom:.4rem}
+.profile-badges{display:flex;gap:.4rem;flex-wrap:wrap}
 .task-card{padding:.9rem 1rem;border:1px solid var(--line);border-left:4px solid var(--primary);border-radius:var(--radius-sm);background:#fff}
 .task-card .task-meta{display:flex;gap:.75rem;flex-wrap:wrap;font-size:.85rem;color:var(--muted);margin-top:.35rem}
 .report-card{padding:.9rem 1rem;border:1px solid var(--line);border-left:4px solid var(--success);border-radius:var(--radius-sm);background:#fff}
@@ -53,4 +58,4 @@
 .lightbox img{max-width:90vw;max-height:90vh;border-radius:8px;object-fit:contain}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .lightbox-img{cursor:pointer}
-@media(max-width:700px){.user-row,.user-edit-card .form-row{grid-template-columns:1fr;gap:.5rem}.tab-bar{gap:0}.tab{padding:.6rem .7rem;font-size:.82rem}}
+@media(max-width:700px){.user-row,.user-edit-card .form-row{grid-template-columns:1fr;gap:.5rem}.tab-bar{gap:0}.tab{padding:.6rem .7rem;font-size:.82rem}.profile-card{flex-direction:column;text-align:center}}
