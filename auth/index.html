@@ -20,64 +20,111 @@
     </div>
   </header>
 
-  <main class="container auth-layout">
-    <section class="card">
-      <p class="eyebrow">Adım 1</p>
-      <h1>Google hesabınızla giriş yapın</h1>
-      <p class="muted">İlk girişten sonra sistem sizi profil başvurusu formuna yönlendirir.</p>
-      <button id="googleSignInBtn" class="btn btn-primary">Google ile giriş yap</button>
-      <button id="signOutBtn" class="btn btn-secondary hidden">Çıkış yap</button>
-      <p id="authStatus" class="status-line">Henüz giriş yapılmadı.</p>
-    </section>
-
-    <section class="card">
-      <p class="eyebrow">Adım 2</p>
-      <h2>Başvuru profili</h2>
-      <form id="applicationForm" class="form stack">
-        <label>
-          Ad Soyad
-          <input type="text" id="fullName" required />
-        </label>
-        <label>
-          E-posta
-          <input type="email" id="email" disabled />
-        </label>
-        <label>
-          Telefon
-          <input type="tel" id="phone" placeholder="+90 ..." />
-        </label>
-        <label>
-          Departman
-          <select id="department" required>
-            <option value="">Seçiniz</option>
-            <option>Eğitim</option>
-            <option>Arşiv</option>
-            <option>İletişim</option>
-            <option>Etkinlik</option>
-            <option>Dijital İçerik</option>
-          </select>
-        </label>
-        <label>
-          Kısa not
-          <textarea id="notes" rows="4" placeholder="İlgi alanlarınız, katkı sağlayabileceğiniz alanlar..."></textarea>
-        </label>
-        <button type="submit" class="btn btn-primary">Başvuruyu kaydet</button>
-      </form>
-      <p id="applicationMessage" class="status-line muted">Başvuru kaydı yapıldığında durumunuz varsayılan olarak pending olur.</p>
-    </section>
-
-    <section class="card">
-      <p class="eyebrow">Durum</p>
-      <h2>Yetki ve erişim</h2>
-      <div id="statePanel" class="state-panel">
-        <p>Giriş yaptıktan sonra durumunuz burada görüntülenecek.</p>
+  <main class="container auth-wrapper">
+    <div id="stepLoading" class="auth-step active">
+      <div class="card centered narrow">
+        <div class="spinner"></div>
+        <p class="muted">Oturum kontrol ediliyor...</p>
       </div>
-      <div class="actions">
-        <a class="btn btn-secondary" href="../app/">Gönüllü paneli</a>
-        <a class="btn btn-secondary" href="../admin/">Yönetici paneli</a>
+    </div>
+
+    <div id="stepSignIn" class="auth-step">
+      <div class="card centered narrow">
+        <p class="eyebrow">Hoş geldiniz</p>
+        <h1>Gönüllü Portalı</h1>
+        <p class="lead" style="margin:0 auto;">Google hesabınızla giriş yapın. İlk girişinizde başvuru formuna yönlendirileceksiniz.</p>
+        <div class="actions" style="justify-content:center;margin-top:1.5rem;">
+          <button id="googleSignInBtn" class="btn btn-primary btn-lg">
+            <svg width="20" height="20" viewBox="0 0 48 48" style="flex-shrink:0"><path fill="#4285F4" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#34A853" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.03 24.03 0 0 0 0 21.56l7.98-6.19z"/><path fill="#EA4335" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+            Google ile giriş yap
+          </button>
+        </div>
+        <p id="authStatus" class="status-line muted" style="margin-top:1rem;"></p>
       </div>
-    </section>
+    </div>
+
+    <div id="stepApplication" class="auth-step">
+      <div class="card narrow">
+        <div class="step-header">
+          <p class="eyebrow">Başvuru formu</p>
+          <button id="signOutBtn1" class="btn btn-secondary btn-sm">Çıkış yap</button>
+        </div>
+        <h2>Profilinizi tamamlayın</h2>
+        <p class="muted">Bilgilerinizi doldurup kaydedin. Yönetici onayından sonra panele erişebilirsiniz.</p>
+        <form id="applicationForm" class="form stack" style="margin-top:1.25rem;">
+          <label>
+            Ad Soyad
+            <input type="text" id="fullName" required />
+          </label>
+          <label>
+            E-posta
+            <input type="email" id="email" disabled />
+          </label>
+          <label>
+            Telefon
+            <input type="tel" id="phone" placeholder="+90 ..." />
+          </label>
+          <label>
+            Departman
+            <select id="department" required>
+              <option value="">Seçiniz</option>
+              <option>Eğitim</option>
+              <option>Arşiv</option>
+              <option>İletişim</option>
+              <option>Etkinlik</option>
+              <option>Dijital İçerik</option>
+            </select>
+          </label>
+          <label>
+            Kısa not
+            <textarea id="notes" rows="3" placeholder="İlgi alanlarınız, katkı sağlayabileceğiniz alanlar..."></textarea>
+          </label>
+          <button type="submit" class="btn btn-primary">Başvuruyu kaydet</button>
+        </form>
+        <p id="applicationMessage" class="status-line muted" style="margin-top:.75rem;"></p>
+      </div>
+    </div>
+
+    <div id="stepPending" class="auth-step">
+      <div class="card centered narrow">
+        <div class="step-header">
+          <p class="eyebrow">Başvuru durumu</p>
+          <button id="signOutBtn2" class="btn btn-secondary btn-sm">Çıkış yap</button>
+        </div>
+        <div class="status-icon pending-icon">&#9203;</div>
+        <h2>Onay bekleniyor</h2>
+        <p class="muted">Başvurunuz alındı. Yönetici incelemesinden sonra panele erişim sağlayabileceksiniz.</p>
+        <div id="pendingProfile"></div>
+        <button id="editProfileBtn" class="btn btn-secondary" style="margin-top:1rem;">Bilgilerimi düzenle</button>
+      </div>
+    </div>
+
+    <div id="stepBlocked" class="auth-step">
+      <div class="card centered narrow">
+        <div class="step-header">
+          <p class="eyebrow">Erişim engeli</p>
+          <button id="signOutBtn3" class="btn btn-secondary btn-sm">Çıkış yap</button>
+        </div>
+        <div class="status-icon blocked-icon">&#128683;</div>
+        <h2>Erişiminiz engellendi</h2>
+        <p class="muted">Hesabınız yönetici tarafından engellenmiştir. Bilgi için lütfen yöneticiyle iletişime geçin.</p>
+      </div>
+    </div>
+
+    <div id="stepRedirect" class="auth-step">
+      <div class="card centered narrow">
+        <div class="spinner"></div>
+        <h2>Yönlendiriliyorsunuz...</h2>
+        <p class="muted">Panele aktarılıyorsunuz.</p>
+      </div>
+    </div>
   </main>
+
+  <footer class="site-footer">
+    <div class="container footer-row">
+      <p>&copy; Tarih Vakfı</p>
+    </div>
+  </footer>
 
   <script src="../js/config.firebase.js"></script>
   <script type="module" src="../js/firebase-init.js"></script>
