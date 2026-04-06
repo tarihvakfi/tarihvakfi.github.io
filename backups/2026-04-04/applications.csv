@@ -1,4 +1,0 @@
-﻿"id","name","email","phone","department","motivation","experience","availability","status","reviewed_by","review_note","applied_at"
-"1fedede8-e1b2-47e5-ad5a-5bee7e27b49b","Burak Aydin","burak.aydin@test.com","+905371112233","arsiv","Tarih tutkunu bir arkeoloji ogrencisiyim.","Universitede 2 yil kutuphane arsiv staji","Hafta ici ogleden sonra","pending","","","2026-04-02T20:09:17.816408+00:00"
-"12e29489-0f4d-4564-81ce-5d57f88a5457","Selin Yildiz","selin.yildiz@test.com","+905382223344","egitim","Cocuklarla tarih egitimi konusunda deneyimliyim.","Ilkokul ogretmeni, 5 yil deneyim","Cumartesi tam gun","interview","","","2026-04-02T20:09:17.816408+00:00"
-"9fd64ffb-30bd-4649-bb5e-37bf916798a7","Can Ozdemir","can.ozdemir@test.com","+905393334455","dijital","Full-stack developer, acik kaynak projelerine katki saglamak istiyorum.","React ve Node.js, 3 yil profesyonel deneyim","Aksamlari ve hafta sonu","pending","","","2026-04-02T20:09:17.816408+00:00"
