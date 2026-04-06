@@ -36,5 +36,7 @@ export function showMessage(id, message, tone = "muted") {
 
 export function badge(status = "") {
   const normalized = String(status).toLowerCase();
-  return `<span class="badge ${normalized}">${escapeHTML(normalized || "unknown")}</span>`;
+  var labels={volunteer:"Gönüllü",coordinator:"Koordinatör",admin:"Yönetici",pending:"Beklemede",approved:"Onaylı",blocked:"Engelli"};
+  return `<span class="badge ${normalized}">${escapeHTML(labels[normalized] || normalized || "unknown")}</span>`;
+
 }
