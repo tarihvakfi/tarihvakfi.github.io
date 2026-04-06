@@ -7,28 +7,6 @@
   <meta name="description" content="Tarih Vakfı – Türkiye'de tarih bilincini geliştirmek ve tarihî mirası korumak amacıyla çalışan bağımsız sivil toplum kuruluşu." />
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="./css/main.css" />
-  <style>
-    .construction {
-      min-height: calc(100vh - 160px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 2rem 0;
-    }
-    .construction-icon {
-      font-size: 4rem;
-      margin-bottom: 1rem;
-    }
-    .construction h1 {
-      font-size: clamp(1.8rem, 4vw, 2.8rem);
-      margin-bottom: .5rem;
-    }
-    .construction .lead {
-      max-width: 50ch;
-      margin: 0 auto 2rem;
-    }
-  </style>
 </head>
 <body>
   <header class="site-header">
@@ -38,20 +16,114 @@
         <span>Tarih Vakfı</span>
       </a>
       <nav class="nav-links">
+        <a href="#hakkinda">Hakkında</a>
+        <a href="#calisma-alanlari">Çalışma Alanları</a>
+        <a href="#gonullu">Gönüllü Ol</a>
         <a class="btn btn-primary" href="./auth/">Giriş / Başvuru</a>
       </nav>
     </div>
   </header>
 
-  <main class="construction">
-    <div>
-      <div class="construction-icon">&#128679;</div>
-      <h1>Sitemiz yapım aşamasında</h1>
-      <p class="lead">Tarih Vakfı Gönüllü Takip Sistemi çok yakında hizmetinizde olacak. Gönüllü başvurusu yapmak için giriş yapabilirsiniz.</p>
-      <div class="actions" style="justify-content:center;">
-        <a class="btn btn-primary" href="./auth/">Giriş / Başvuru</a>
+  <main>
+    <section class="hero container">
+      <div>
+        <p class="eyebrow">1991'den bu yana</p>
+        <h1>Tarih bilincini toplumun her kesimine taşıyoruz</h1>
+        <p class="lead">
+          Tarih Vakfı; Türkiye'de tarih bilincini geliştirmek, tarihî mirası korumak ve toplumsal hafızayı güçlendirmek amacıyla çalışan bağımsız bir sivil toplum kuruluşudur.
+        </p>
+        <div class="actions">
+          <a class="btn btn-primary" href="#gonullu">Gönüllü ol</a>
+          <a class="btn btn-secondary" href="#hakkinda">Daha fazla bilgi</a>
+        </div>
       </div>
-    </div>
+      <div class="card stack">
+        <h2>Rakamlarla Tarih Vakfı</h2>
+        <ul class="check-list">
+          <li><strong>30+ yıllık</strong> sivil toplum deneyimi</li>
+          <li><strong>Yüzlerce</strong> yayın ve araştırma projesi</li>
+          <li><strong>Uluslararası</strong> tarih kongresi geleneği</li>
+          <li><strong>Yerel tarih</strong> çalışmaları ve sözlü tarih projeleri</li>
+          <li><strong>Eğitim programları</strong> ve atölyeler</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="hakkinda" class="container section">
+      <h2>Hakkında</h2>
+      <div class="grid-3">
+        <article class="card">
+          <h3>Misyon</h3>
+          <p>Tarih bilincinin toplumun her kesimine yayılmasını sağlamak; tarihî mirasın korunması, araştırılması ve paylaşılması için çalışmalar yürütmek.</p>
+        </article>
+        <article class="card">
+          <h3>Vizyon</h3>
+          <p>Geçmişini tanıyan, tarihsel birikimini geleceğe taşıyan, eleştirel düşünce ve demokratik değerlere sahip bir toplum inşasına katkıda bulunmak.</p>
+        </article>
+        <article class="card">
+          <h3>Değerler</h3>
+          <p>Bağımsızlık, bilimsellik, şeffaflık, katılımcılık ve toplumsal sorumluluk temel ilkelerimizdir.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="calisma-alanlari" class="container section">
+      <h2>Çalışma Alanları</h2>
+      <div class="grid-3">
+        <article class="card">
+          <h3>Yayıncılık</h3>
+          <p>Akademik kitaplar, dergiler ve popüler tarih yayınlarıyla bilgiyi geniş kitlelere ulaştırıyoruz.</p>
+        </article>
+        <article class="card">
+          <h3>Eğitim</h3>
+          <p>Tarih eğitimi atölyeleri, öğretmen seminerleri ve müfredat geliştirme çalışmalarıyla genç nesillere ulaşıyoruz.</p>
+        </article>
+        <article class="card">
+          <h3>Araştırma</h3>
+          <p>Sözlü tarih projeleri, yerel tarih çalışmaları ve arşiv araştırmalarıyla toplumsal hafızayı belgeliyoruz.</p>
+        </article>
+        <article class="card">
+          <h3>Kongreler</h3>
+          <p>Uluslararası tarih kongreleri düzenleyerek akademik dünyayı ve toplumu bir araya getiriyoruz.</p>
+        </article>
+        <article class="card">
+          <h3>Dijital Arşiv</h3>
+          <p>Tarihî belgelerin dijitalleştirilmesi ve herkesin erişimine açılması için projeler yürütüyoruz.</p>
+        </article>
+        <article class="card">
+          <h3>Toplumsal Bellek</h3>
+          <p>Toplumsal hafızanın canlı tutulması ve gelecek kuşaklara aktarılması için etkinlikler düzenliyoruz.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="gonullu" class="container section">
+      <h2>Gönüllü Ol</h2>
+      <div class="card" style="max-width: 720px;">
+        <p>Tarih Vakfı'nın çalışmalarına gönüllü olarak katkıda bulunabilirsiniz. Gönüllü başvurusu yapmak için Google hesabınızla giriş yapın, profilinizi doldurun ve onay sürecini bekleyin.</p>
+        <div class="timeline" style="margin-top: 1.5rem;">
+          <div class="timeline-item">
+            <strong>1. Giriş yapın</strong>
+            <p>Google hesabınızla sisteme giriş yapın.</p>
+          </div>
+          <div class="timeline-item">
+            <strong>2. Başvuru doldurun</strong>
+            <p>Profil bilgilerinizi ve ilgi alanlarınızı belirtin.</p>
+          </div>
+          <div class="timeline-item">
+            <strong>3. Onay bekleyin</strong>
+            <p>Yöneticilerimiz başvurunuzu inceleyip onaylasın.</p>
+          </div>
+          <div class="timeline-item">
+            <strong>4. Katkıda bulunun</strong>
+            <p>Size atanan görevleri tamamlayın ve raporlayın.</p>
+          </div>
+        </div>
+        <div class="actions" style="margin-top: 1.5rem;">
+          <a class="btn btn-primary" href="./auth/">Başvuru yap</a>
+        </div>
+      </div>
+    </section>
   </main>
 
   <footer class="site-footer">
