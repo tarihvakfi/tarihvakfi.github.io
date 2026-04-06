@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Gönüllü Paneli</title>
+  <title>Panel — Tarih Vakfı</title>
   <link rel="stylesheet" href="../css/main.css" />
-  <link rel="stylesheet" href="../css/app.css" />
+  <link rel="stylesheet" href="../css/dashboard.css" />
 </head>
 <body>
   <header class="site-header">
@@ -14,74 +14,136 @@
         <img src="../assets/logo-placeholder.svg" alt="Tarih Vakfı" />
         <span>Tarih Vakfı</span>
       </a>
-      <nav class="nav-links">
-        <a href="../auth/">Hesap</a>
-        <a href="../admin/">Yönetim</a>
-      </nav>
+      <div class="header-right">
+        <span id="headerUser" class="header-user"></span>
+        <button id="signOutBtn" class="btn btn-secondary btn-sm">Çıkış</button>
+      </div>
     </div>
   </header>
 
-  <main class="container section">
-    <section class="dashboard-grid">
-      <article class="card">
-        <p class="eyebrow">Profil</p>
-        <h1>Gönüllü paneli</h1>
-        <div id="profileCard" class="stack">
-          <p class="muted">Giriş yapan kullanıcının profil özeti burada görünür.</p>
-        </div>
-      </article>
+  <div class="container dashboard">
+    <div id="loadingState" class="centered-message">
+      <div class="spinner"></div>
+      <p class="muted">Yükleniyor...</p>
+    </div>
 
-      <article class="card">
-        <p class="eyebrow">Duyurular</p>
-        <div id="announcementsList" class="stack">
-          <p class="empty">Henüz duyuru yok.</p>
-        </div>
-      </article>
-    </section>
+    <nav id="tabBar" class="tab-bar hidden">
+      <button class="tab active" data-tab="home">Ana Sayfa</button>
+      <button class="tab" data-tab="tasks">Görevler</button>
+      <button class="tab" data-tab="reports">Raporlar</button>
+      <button class="tab" data-tab="announcements">Duyurular</button>
+      <button class="tab admin-tab hidden" data-tab="pending">Başvurular</button>
+      <button class="tab admin-tab hidden" data-tab="users">Kullanıcılar</button>
+    </nav>
 
-    <section class="dashboard-grid">
-      <article class="card">
-        <p class="eyebrow">Görevlerim</p>
-        <div id="tasksList" class="stack">
-          <p class="empty">Henüz görev bulunamadı.</p>
-        </div>
-      </article>
-
-      <article class="card">
-        <p class="eyebrow">Faaliyet raporu</p>
-        <form id="reportForm" class="form stack">
-          <label>
-            Görev
-            <input type="text" id="taskId" placeholder="Görev kimliği veya başlığı" />
-          </label>
-          <label>
-            Tarih
-            <input type="date" id="reportDate" required />
-          </label>
-          <label>
-            Saat
-            <input type="number" id="hours" min="0" step="0.5" value="1" required />
-          </label>
-          <label>
-            Özet
-            <textarea id="summary" rows="5" required placeholder="Yapılan işi kısaca yazın"></textarea>
-          </label>
-          <button type="submit" class="btn btn-primary">Rapor gönder</button>
-        </form>
-        <p id="reportMessage" class="status-line muted">Raporlar Firestore içindeki reports koleksiyonuna yazılır.</p>
-      </article>
-    </section>
-
-    <section class="card">
-      <p class="eyebrow">Geçmiş raporlar</p>
-      <div id="reportsList" class="stack">
-        <p class="empty">Henüz rapor bulunmuyor.</p>
+    <section id="tab-home" class="tab-content">
+      <div class="dashboard-grid">
+        <article class="card">
+          <p class="eyebrow">Profilim</p>
+          <div id="profileCard"></div>
+        </article>
+        <article class="card">
+          <p class="eyebrow">Son duyurular</p>
+          <div id="homeAnnouncements" class="stack"><p class="empty">Duyuru yok.</p></div>
+        </article>
       </div>
     </section>
-  </main>
+
+    <section id="tab-tasks" class="tab-content hidden">
+      <div id="adminTaskForm" class="card hidden" style="margin-bottom:1.25rem;">
+        <p class="eyebrow">Yeni görev oluştur</p>
+        <form id="taskForm" class="form compact-form">
+          <div class="form-row">
+            <label>Başlık <input id="taskTitle" type="text" required /></label>
+            <label>Departman
+              <select id="taskDepartment" required>
+                <option value="">Seçiniz</option>
+                <option>Eğitim</option><option>Arşiv</option><option>İletişim</option><option>Etkinlik</option><option>Dijital İçerik</option>
+              </select>
+            </label>
+          </div>
+          <div class="form-row">
+            <label>Atanan e-posta <input id="taskAssignedToEmail" type="email" placeholder="gonullu@ornek.com" /></label>
+            <label>Son tarih <input id="taskDueDate" type="date" /></label>
+            <label>Öncelik
+              <select id="taskPriority"><option value="low">Düşük</option><option value="medium" selected>Orta</option><option value="high">Yüksek</option></select>
+            </label>
+          </div>
+          <label>Açıklama <textarea id="taskDescription" rows="2"></textarea></label>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Görev oluştur</button>
+            <span id="taskMessage" class="status-line muted"></span>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <p class="eyebrow">Görev listesi</p>
+        <div id="tasksList" class="stack"><p class="empty">Görev bulunamadı.</p></div>
+      </div>
+    </section>
+
+    <section id="tab-reports" class="tab-content hidden">
+      <div class="card" style="margin-bottom:1.25rem;">
+        <p class="eyebrow">Rapor gönder</p>
+        <form id="reportForm" class="form compact-form">
+          <div class="form-row">
+            <label>Görev <input type="text" id="taskId" placeholder="Görev başlığı" /></label>
+            <label>Tarih <input type="date" id="reportDate" required /></label>
+            <label>Saat <input type="number" id="hours" min="0" step="0.5" value="1" required /></label>
+          </div>
+          <label>Özet <textarea id="summary" rows="2" required placeholder="Yapılan işi kısaca yazın"></textarea></label>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Rapor gönder</button>
+            <span id="reportMessage" class="status-line muted"></span>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <p class="eyebrow" id="reportsTitle">Raporlarım</p>
+        <div id="reportsList" class="stack"><p class="empty">Rapor bulunmuyor.</p></div>
+      </div>
+    </section>
+
+    <section id="tab-announcements" class="tab-content hidden">
+      <div id="adminAnnouncementForm" class="card hidden" style="margin-bottom:1.25rem;">
+        <p class="eyebrow">Yeni duyuru</p>
+        <form id="announcementForm" class="form compact-form">
+          <div class="form-row">
+            <label>Başlık <input id="announcementTitle" type="text" required /></label>
+            <label>Hedef
+              <select id="announcementAudience"><option value="all">Tümü</option><option value="volunteers">Gönüllüler</option><option value="coordinators">Koordinatörler</option></select>
+            </label>
+          </div>
+          <label>Metin <textarea id="announcementBody" rows="3" required></textarea></label>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Duyuru yayınla</button>
+            <span id="announcementMessage" class="status-line muted"></span>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <p class="eyebrow">Tüm duyurular</p>
+        <div id="announcementsList" class="stack"><p class="empty">Duyuru yok.</p></div>
+      </div>
+    </section>
+
+    <section id="tab-pending" class="tab-content hidden">
+      <div class="card">
+        <p class="eyebrow">Onay bekleyen başvurular</p>
+        <div id="pendingUsers" class="stack"><p class="empty">Bekleyen başvuru yok.</p></div>
+      </div>
+    </section>
+
+    <section id="tab-users" class="tab-content hidden">
+      <div class="card">
+        <p class="eyebrow">Tüm kullanıcılar</p>
+        <div id="userDirectory" class="stack"><p class="empty">Kullanıcı bulunamadı.</p></div>
+      </div>
+    </section>
+  </div>
 
   <script src="../js/config.firebase.js"></script>
   <script type="module" src="../js/firebase-init.js"></script>
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./dashboard.js"></script>
 </body>
 </html>
