@@ -82,18 +82,25 @@
       </div>
     </section>
 
+    <!-- REPORTS TAB -->
     <section id="tab-reports" class="tab-content hidden">
       <div class="card" style="margin-bottom:1.25rem;">
-        <p class="eyebrow">Rapor gönder</p>
+        <div class="step-header">
+          <p class="eyebrow" id="reportFormTitle">Rapor gönder</p>
+          <button type="button" id="cancelEditBtn" class="btn btn-secondary btn-sm hidden">İptal</button>
+        </div>
         <form id="reportForm" class="form compact-form">
+          <input type="hidden" id="editReportId" value="" />
           <div class="form-row">
             <label>Görev <input type="text" id="taskId" placeholder="Görev başlığı" /></label>
             <label>Tarih <input type="date" id="reportDate" required /></label>
             <label>Saat <input type="number" id="hours" min="0" step="0.5" value="1" required /></label>
           </div>
-          <label>Özet <textarea id="summary" rows="2" required placeholder="Yapılan işi kısaca yazın"></textarea></label>
+          <label>Özet <textarea id="summary" rows="3" required placeholder="Yapılan işi kısaca yazın. Detaylı açıklama ekleyebilirsiniz."></textarea></label>
+          <label>Bağlantılar <textarea id="reportLinks" rows="2" placeholder="Her satıra bir URL yazın (isteğe bağlı)"></textarea></label>
+          <label>Görsel URL'leri <textarea id="reportImages" rows="2" placeholder="Her satıra bir görsel URL'si yazın (isteğe bağlı)"></textarea></label>
           <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Rapor gönder</button>
+            <button type="submit" id="reportSubmitBtn" class="btn btn-primary">Rapor gönder</button>
             <span id="reportMessage" class="status-line muted"></span>
           </div>
         </form>
@@ -135,7 +142,6 @@
     </section>
 
     <section id="tab-users" class="tab-content hidden">
-      <div class="card">
       <div class="card" style="margin-bottom:1.25rem;">
         <p class="eyebrow">Kullanıcı ekle (ön kayıt)</p>
         <p class="muted" style="font-size:.85rem;margin-bottom:.75rem;">E-posta ile ön kayıt oluşturun. Kişi Google ile giriş yaptığında otomatik onaylanır.</p>
@@ -155,6 +161,7 @@
           </div>
         </form>
       </div>
+      <div class="card">
         <p class="eyebrow">Tüm kullanıcılar</p>
         <div id="userDirectory" class="stack"><p class="empty">Kullanıcı bulunamadı.</p></div>
       </div>
