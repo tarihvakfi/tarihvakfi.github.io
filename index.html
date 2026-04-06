@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Tarih Vakfı Gönüllü Sistemi</title>
-  <meta name="description" content="Tarih Vakfı için ücretsiz gönüllü takip ve görev yönetim sistemi." />
+  <title>Tarih Vakfı</title>
+  <meta name="description" content="Tarih Vakfı – Türkiye'de tarih bilincini geliştirmek ve tarihî mirası korumak amacıyla çalışan bağımsız sivil toplum kuruluşu." />
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="./css/main.css" />
 </head>
@@ -16,9 +16,9 @@
         <span>Tarih Vakfı</span>
       </a>
       <nav class="nav-links">
-        <a href="#about">Hakkında</a>
-        <a href="#how-it-works">Nasıl Çalışır</a>
-        <a href="#roles">Roller</a>
+        <a href="#hakkinda">Hakkında</a>
+        <a href="#calisma-alanlari">Çalışma Alanları</a>
+        <a href="#gonullu">Gönüllü Ol</a>
         <a class="btn btn-primary" href="./auth/">Giriş / Başvuru</a>
       </nav>
     </div>
@@ -27,95 +27,109 @@
   <main>
     <section class="hero container">
       <div>
-        <p class="eyebrow">Gönüllü takip sistemi</p>
-        <h1>Tarih Vakfı için sade, ücretsiz ve sürdürülebilir gönüllü yönetimi</h1>
+        <p class="eyebrow">1991'den bu yana</p>
+        <h1>Tarih bilincini toplumun her kesimine taşıyoruz</h1>
         <p class="lead">
-          Başvuru alın, gönüllüleri onaylayın, görev atayın, çalışma raporlarını toplayın ve haftalık özetleri otomatik üretin.
+          Tarih Vakfı; Türkiye'de tarih bilincini geliştirmek, tarihî mirası korumak ve toplumsal hafızayı güçlendirmek amacıyla çalışan bağımsız bir sivil toplum kuruluşudur.
         </p>
         <div class="actions">
-          <a class="btn btn-primary" href="./auth/">Google ile giriş yap</a>
-          <a class="btn btn-secondary" href="#about">Detayları gör</a>
+          <a class="btn btn-primary" href="#gonullu">Gönüllü ol</a>
+          <a class="btn btn-secondary" href="#hakkinda">Daha fazla bilgi</a>
         </div>
       </div>
       <div class="card stack">
-        <h2>Sistem hedefi</h2>
+        <h2>Rakamlarla Tarih Vakfı</h2>
         <ul class="check-list">
-          <li>Başvuru ve onay akışı</li>
-          <li>Rol bazlı erişim</li>
-          <li>Görev atama ve raporlama</li>
-          <li>Haftalık e-posta özetleri</li>
-          <li>GitHub Pages + Firebase + Apps Script mimarisi</li>
+          <li><strong>30+ yıllık</strong> sivil toplum deneyimi</li>
+          <li><strong>Yüzlerce</strong> yayın ve araştırma projesi</li>
+          <li><strong>Uluslararası</strong> tarih kongresi geleneği</li>
+          <li><strong>Yerel tarih</strong> çalışmaları ve sözlü tarih projeleri</li>
+          <li><strong>Eğitim programları</strong> ve atölyeler</li>
         </ul>
       </div>
     </section>
 
-    <section id="about" class="container section">
-      <h2>Neden bu yapı?</h2>
+    <section id="hakkinda" class="container section">
+      <h2>Hakkında</h2>
       <div class="grid-3">
         <article class="card">
-          <h3>Ücretsiz kalır</h3>
-          <p>GitHub Pages ön yüzü barındırır; Firebase Authentication ve Firestore kullanıcı ile veri tarafını yürütür.</p>
+          <h3>Misyon</h3>
+          <p>Tarih bilincinin toplumun her kesimine yayılmasını sağlamak; tarihî mirasın korunması, araştırılması ve paylaşılması için çalışmalar yürütmek.</p>
         </article>
         <article class="card">
-          <h3>Bakımı kolaydır</h3>
-          <p>Sunucu yönetimi yoktur. Küçük bir ekip tarafından sürdürülebilecek kadar basit tutulmuştur.</p>
+          <h3>Vizyon</h3>
+          <p>Geçmişini tanıyan, tarihsel birikimini geleceğe taşıyan, eleştirel düşünce ve demokratik değerlere sahip bir toplum inşasına katkıda bulunmak.</p>
         </article>
         <article class="card">
-          <h3>Roller nettir</h3>
-          <p>Gönüllü, koordinatör ve yönetici akışları ayrılır; yetki sadece arayüzde değil veri kurallarında da korunur.</p>
+          <h3>Değerler</h3>
+          <p>Bağımsızlık, bilimsellik, şeffaflık, katılımcılık ve toplumsal sorumluluk temel ilkelerimizdir.</p>
         </article>
       </div>
     </section>
 
-    <section id="how-it-works" class="container section">
-      <h2>Nasıl çalışır?</h2>
-      <div class="timeline">
-        <div class="timeline-item">
-          <strong>1. Giriş</strong>
-          <p>Kullanıcı Google hesabı ile giriş yapar.</p>
-        </div>
-        <div class="timeline-item">
-          <strong>2. Başvuru</strong>
-          <p>İlk girişte profil ve gönüllülük bilgileri doldurulur.</p>
-        </div>
-        <div class="timeline-item">
-          <strong>3. Onay</strong>
-          <p>Yönetici başvuruyu inceler ve onaylar.</p>
-        </div>
-        <div class="timeline-item">
-          <strong>4. Görev</strong>
-          <p>Koordinatör görev atar, gönüllü rapor gönderir.</p>
-        </div>
-        <div class="timeline-item">
-          <strong>5. Özet</strong>
-          <p>Apps Script haftalık yönetici özetlerini e-posta ile gönderir.</p>
-        </div>
+    <section id="calisma-alanlari" class="container section">
+      <h2>Çalışma Alanları</h2>
+      <div class="grid-3">
+        <article class="card">
+          <h3>Yayıncılık</h3>
+          <p>Akademik kitaplar, dergiler ve popüler tarih yayınlarıyla bilgiyi geniş kitlelere ulaştırıyoruz.</p>
+        </article>
+        <article class="card">
+          <h3>Eğitim</h3>
+          <p>Tarih eğitimi atölyeleri, öğretmen seminerleri ve müfredat geliştirme çalışmalarıyla genç nesillere ulaşıyoruz.</p>
+        </article>
+        <article class="card">
+          <h3>Araştırma</h3>
+          <p>Sözlü tarih projeleri, yerel tarih çalışmaları ve arşiv araştırmalarıyla toplumsal hafızayı belgeliyoruz.</p>
+        </article>
+        <article class="card">
+          <h3>Kongreler</h3>
+          <p>Uluslararası tarih kongreleri düzenleyerek akademik dünyayı ve toplumu bir araya getiriyoruz.</p>
+        </article>
+        <article class="card">
+          <h3>Dijital Arşiv</h3>
+          <p>Tarihî belgelerin dijitalleştirilmesi ve herkesin erişimine açılması için projeler yürütüyoruz.</p>
+        </article>
+        <article class="card">
+          <h3>Toplumsal Bellek</h3>
+          <p>Toplumsal hafızanın canlı tutulması ve gelecek kuşaklara aktarılması için etkinlikler düzenliyoruz.</p>
+        </article>
       </div>
     </section>
 
-    <section id="roles" class="container section">
-      <h2>Roller</h2>
-      <div class="grid-3">
-        <article class="card">
-          <h3>Gönüllü</h3>
-          <p>Kendi görevlerini, duyuruları ve rapor geçmişini görür.</p>
-        </article>
-        <article class="card">
-          <h3>Koordinatör</h3>
-          <p>Kendi departmanındaki gönüllüleri, görevleri ve raporları yönetir.</p>
-        </article>
-        <article class="card">
-          <h3>Yönetici</h3>
-          <p>Tüm departmanları, kullanıcıları ve sistem akışını yönetir.</p>
-        </article>
+    <section id="gonullu" class="container section">
+      <h2>Gönüllü Ol</h2>
+      <div class="card" style="max-width: 720px;">
+        <p>Tarih Vakfı'nın çalışmalarına gönüllü olarak katkıda bulunabilirsiniz. Gönüllü başvurusu yapmak için Google hesabınızla giriş yapın, profilinizi doldurun ve onay sürecini bekleyin.</p>
+        <div class="timeline" style="margin-top: 1.5rem;">
+          <div class="timeline-item">
+            <strong>1. Giriş yapın</strong>
+            <p>Google hesabınızla sisteme giriş yapın.</p>
+          </div>
+          <div class="timeline-item">
+            <strong>2. Başvuru doldurun</strong>
+            <p>Profil bilgilerinizi ve ilgi alanlarınızı belirtin.</p>
+          </div>
+          <div class="timeline-item">
+            <strong>3. Onay bekleyin</strong>
+            <p>Yöneticilerimiz başvurunuzu inceleyip onaylasın.</p>
+          </div>
+          <div class="timeline-item">
+            <strong>4. Katkıda bulunun</strong>
+            <p>Size atanan görevleri tamamlayın ve raporlayın.</p>
+          </div>
+        </div>
+        <div class="actions" style="margin-top: 1.5rem;">
+          <a class="btn btn-primary" href="./auth/">Başvuru yap</a>
+        </div>
       </div>
     </section>
   </main>
 
   <footer class="site-footer">
     <div class="container footer-row">
-      <p>© Tarih Vakfı – Gönüllü Takip Sistemi</p>
-      <a href="./auth/">Uygulamaya git</a>
+      <p>&copy; Tarih Vakfı</p>
+      <a href="./auth/">Gönüllü portalı</a>
     </div>
   </footer>
 </body>
