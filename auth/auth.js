@@ -3,7 +3,8 @@ import {
   doc,
   getDoc,
   setDoc,
-  updateDoc
+  updateDoc,
+  deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { showMessage } from "../js/helpers.js";
 import { renderUserCard } from "../js/ui.js";
@@ -33,17 +34,11 @@ function showStep(name) {
 }
 
 document.querySelectorAll("[id^=signOutBtn]").forEach(btn => {
-  btn.addEventListener("click", async () => {
-    if (!auth) return;
-    await signOut(auth);
-  });
+  btn.addEventListener("click", async () => { if (!auth) return; await signOut(auth); });
 });
 
 googleSignInBtn?.addEventListener("click", async () => {
-  if (!auth || !provider) {
-    alert(missingConfigMessage);
-    return;
-  }
+  if (!auth || !provider) { alert(missingConfigMessage); return; }
   try {
     googleSignInBtn.disabled = true;
     googleSignInBtn.textContent = "Giriş yapılıyor...";
@@ -58,61 +53,46 @@ googleSignInBtn?.addEventListener("click", async () => {
 
 applicationForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (!auth?.currentUser || !db) {
-    showMessage("applicationMessage", "Önce giriş yapmalısınız.", "danger");
-    return;
-  }
-
+  if (!auth?.currentUser || !db) { showMessage("applicationMessage", "Önce giriş yapmalısınız.", "danger"); return; }
   const current = auth.currentUser;
-  const userData = {
-    uid: current.uid,
-    fullName: fullNameInput.value.trim(),
-    email: current.email || "",
-    phone: phoneInput.value.trim(),
-    department: departmentInput.value,
-    role: "volunteer",
-    status: "pending",
-    notes: notesInput.value.trim(),
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    lastSeenAt: serverTimestamp()
-  };
-
   try {
     const ref = doc(db, "users", current.uid);
     const existing = await getDoc(ref);
     if (existing.exists()) {
-      await updateDoc(ref, {
-        fullName: userData.fullName,
-        phone: userData.phone,
-        department: userData.department,
-        notes: userData.notes,
-        updatedAt: serverTimestamp(),
-        lastSeenAt: serverTimestamp()
-      });
+      await updateDoc(ref, { fullName: fullNameInput.value.trim(), phone: phoneInput.value.trim(), department: departmentInput.value, notes: notesInput.value.trim(), updatedAt: serverTimestamp(), lastSeenAt: serverTimestamp() });
     } else {
-      await setDoc(ref, userData);
+      await setDoc(ref, { uid: current.uid, fullName: fullNameInput.value.trim(), email: current.email || "", phone: phoneInput.value.trim(), department: departmentInput.value, role: "volunteer", status: "pending", notes: notesInput.value.trim(), createdAt: serverTimestamp(), updatedAt: serverTimestamp(), lastSeenAt: serverTimestamp() });
     }
-
     const latest = await loadUserProfile(current);
     routeUser(latest, current);
-  } catch (error) {
-    console.error(error);
-    showMessage("applicationMessage", "Başvuru kaydedilirken hata oluştu.", "danger");
-  }
+  } catch (error) { console.error(error); showMessage("applicationMessage", "Başvuru kaydedilirken hata oluştu.", "danger"); }
 });
 
-editProfileBtn?.addEventListener("click", () => {
-  showStep("application");
-});
+editProfileBtn?.addEventListener("click", () => { showStep("application"); });
+
+async function checkPreregistration(authUser) {
+  if (!db || !authUser?.email) return null;
+  var email = authUser.email.toLowerCase();
+  var preRef = doc(db, "preregistered", email);
+  var preSnap = await getDoc(preRef);
+  if (!preSnap.exists()) return null;
+  var preData = preSnap.data();
+  var userData = { uid: authUser.uid, fullName: preData.fullName || authUser.displayName || "", email: email, phone: preData.phone || "", department: preData.department || "", role: preData.role || "volunteer", status: "approved", notes: "", createdAt: serverTimestamp(), updatedAt: serverTimestamp(), lastSeenAt: serverTimestamp() };
+  await setDoc(doc(db, "users", authUser.uid), userData);
+  await deleteDoc(preRef);
+  return userData;
+}
 
 async function loadUserProfile(authUser) {
   if (!db || !authUser) return null;
-  const ref = doc(db, "users", authUser.uid);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return null;
-
-  const data = snap.data();
+  var ref = doc(db, "users", authUser.uid);
+  var snap = await getDoc(ref);
+  if (!snap.exists()) {
+    var preData = await checkPreregistration(authUser);
+    if (preData) return preData;
+    return null;
+  }
+  var data = snap.data();
   emailInput.value = data.email || authUser.email || "";
   fullNameInput.value = data.fullName || authUser.displayName || "";
   phoneInput.value = data.phone || "";
@@ -122,48 +102,18 @@ async function loadUserProfile(authUser) {
 }
 
 function routeUser(userDoc, authUser) {
-  if (!authUser) {
-    showStep("signIn");
-    return;
-  }
-
-  if (!userDoc) {
-    emailInput.value = authUser.email || "";
-    fullNameInput.value = fullNameInput.value || authUser.displayName || "";
-    showStep("application");
-    return;
-  }
-
-  const status = userDoc.status || "pending";
-  const role = userDoc.role || "volunteer";
-
-  if (status === "blocked") {
-    showStep("blocked");
-    return;
-  }
-
-  if (status === "approved") {
-    showStep("redirect");
-    const target = (role === "admin" || role === "coordinator") ? "../admin/" : "../app/";
-    setTimeout(() => { window.location.href = target; }, 600);
-    return;
-  }
-
+  if (!authUser) { showStep("signIn"); return; }
+  if (!userDoc) { emailInput.value = authUser.email || ""; fullNameInput.value = fullNameInput.value || authUser.displayName || ""; showStep("application"); return; }
+  var status = userDoc.status || "pending";
+  if (status === "blocked") { showStep("blocked"); return; }
+  if (status === "approved") { showStep("redirect"); setTimeout(function(){ window.location.href = "../app/"; }, 600); return; }
   pendingProfile.innerHTML = renderUserCard(userDoc);
   showStep("pending");
 }
 
-if (!auth) {
-  showStep("signIn");
-  showMessage("authStatus", missingConfigMessage, "danger");
-} else {
-  onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-      showStep("signIn");
-      return;
-    }
-
-    const userDoc = await loadUserProfile(user);
-    routeUser(userDoc, user);
-  });
-}
+if (!auth) { showStep("signIn"); showMessage("authStatus", missingConfigMessage, "danger"); }
+else { onAuthStateChanged(auth, async function(user) {
+  if (!user) { showStep("signIn"); return; }
+  var userDoc = await loadUserProfile(user);
+  routeUser(userDoc, user);
+}); }

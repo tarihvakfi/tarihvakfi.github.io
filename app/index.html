@@ -136,6 +136,25 @@
 
     <section id="tab-users" class="tab-content hidden">
       <div class="card">
+      <div class="card" style="margin-bottom:1.25rem;">
+        <p class="eyebrow">Kullanıcı ekle (ön kayıt)</p>
+        <p class="muted" style="font-size:.85rem;margin-bottom:.75rem;">E-posta ile ön kayıt oluşturun. Kişi Google ile giriş yaptığında otomatik onaylanır.</p>
+        <form id="addUserForm" class="form compact-form">
+          <div class="form-row">
+            <label>E-posta <input id="addUserEmail" type="email" required placeholder="ornek@gmail.com" /></label>
+            <label>Ad Soyad <input id="addUserName" type="text" required /></label>
+          </div>
+          <div class="form-row">
+            <label>Departman <select id="addUserDepartment" required><option value="">Seçiniz</option><option>Eğitim</option><option>Arşiv</option><option>İletişim</option><option>Etkinlik</option><option>Dijital İçerik</option></select></label>
+            <label>Rol <select id="addUserRole"><option value="volunteer">Gönüllü</option><option value="coordinator">Koordinatör</option><option value="admin">Yönetici</option></select></label>
+            <label>Telefon <input id="addUserPhone" type="tel" placeholder="+90 ..." /></label>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Kullanıcı ekle</button>
+            <span id="addUserMessage" class="status-line muted"></span>
+          </div>
+        </form>
+      </div>
         <p class="eyebrow">Tüm kullanıcılar</p>
         <div id="userDirectory" class="stack"><p class="empty">Kullanıcı bulunamadı.</p></div>
       </div>
