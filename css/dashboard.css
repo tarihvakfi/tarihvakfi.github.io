@@ -40,10 +40,13 @@
 .report-images img{max-width:180px;max-height:120px;border-radius:8px;object-fit:cover;border:1px solid var(--line);cursor:pointer;transition:transform .15s}
 .report-images img:hover{transform:scale(1.05)}
 .report-review-area{margin-top:.75rem;padding-top:.75rem;border-top:1px dashed var(--line)}
-.review-text{width:100%;padding:.5rem .7rem;border:1px solid var(--line);border-radius:8px;font-size:.88rem;resize:vertical}
+.review-comment{width:100%;padding:.5rem .7rem;border:1px solid var(--line);border-radius:8px;font-size:.88rem;resize:vertical;font-family:inherit}
 .report-feedback-list{margin-top:.5rem;padding-top:.5rem;border-top:1px dashed var(--line)}
 .feedback-item{padding:.4rem .6rem;margin-top:.35rem;background:var(--surface-soft);border-radius:8px;font-size:.85rem}
 .feedback-item strong{font-size:.82rem}
+.revision-alert{margin-top:.75rem;padding:.75rem 1rem;background:#fef3cd;border:1px solid #ffc107;border-radius:8px;font-size:.88rem}
+.revision-alert p{margin:.25rem 0 .5rem;color:var(--muted)}
+.approved-alert{margin-top:.75rem;padding:.5rem 1rem;background:#d4edda;border:1px solid #28a745;border-radius:8px;font-size:.88rem;color:var(--success);font-weight:600}
 .step-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.25rem}
 .step-header .eyebrow{margin:0}
 .announce-card{padding:.9rem 1rem;border:1px solid var(--line);border-radius:var(--radius-sm);background:#fff}
