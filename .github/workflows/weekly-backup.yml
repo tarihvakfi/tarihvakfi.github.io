@@ -1,0 +1,54 @@
+name: Weekly Firestore Backup
+
+on:
+  schedule:
+    - cron: '0 21 * * 5'  # Friday 21:00 UTC (00:00 Saturday Turkey)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Firebase Admin
+        run: npm install firebase-admin
+
+      - name: Export Firestore
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          node -e "
+          const admin = require('firebase-admin');
+          const fs = require('fs');
+          const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+          admin.initializeApp({ credential: admin.credential.cert(sa) });
+          const db = admin.firestore();
+          const collections = ['users','reports','tasks','announcements','preregistered'];
+          const date = new Date().toISOString().slice(0,10);
+          const dir = 'backups/' + date;
+          fs.mkdirSync(dir, { recursive: true });
+          Promise.all(collections.map(async (col) => {
+            const snap = await db.collection(col).get();
+            const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            fs.writeFileSync(dir + '/' + col + '.json', JSON.stringify(data, null, 2));
+            console.log(col + ': ' + data.length + ' docs');
+          })).then(() => {
+            console.log('Backup complete: ' + dir);
+            process.exit(0);
+          });
+          "
+
+      - name: Commit backup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add backups/
+          git diff --staged --quiet || git commit -m "backup: $(date +%Y-%m-%d) weekly Firestore export"
+          git push
