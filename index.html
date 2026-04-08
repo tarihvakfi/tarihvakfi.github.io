@@ -7,6 +7,16 @@
   <meta name="description" content="Tarih Vakfı – Türkiye'de tarih bilincini geliştirmek ve tarihî mirası korumak amacıyla çalışan bağımsız sivil toplum kuruluşu." />
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="./css/main.css" />
+  <style>
+    .vol-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem}
+    .vol-card{text-align:center;padding:1rem;background:#fff;border:1px solid #d7d0c4;border-radius:18px;box-shadow:0 10px 35px rgba(25,28,32,.08)}
+    .vol-card strong{display:block;font-size:1rem}
+    .vol-card .vol-dept{font-size:.85rem;color:#5f6670;margin-top:.25rem}
+    .vol-card .vol-edit-area{margin-top:.5rem}
+    .vol-card input,.vol-card select{padding:.3rem .5rem;border:1px solid #d7d0c4;border-radius:6px;font-size:.85rem;margin:.15rem}
+    .vol-card .vol-save{margin-top:.35rem;padding:.3rem .7rem;background:#7c2d12;color:#fff;border:none;border-radius:999px;font-size:.82rem;cursor:pointer}
+    .vol-card .vol-edit-btn{margin-top:.5rem;padding:.25rem .6rem;background:transparent;border:1px solid #d7d0c4;border-radius:999px;font-size:.8rem;cursor:pointer}
+  </style>
 </head>
 <body>
   <header class="site-header">
@@ -18,6 +28,7 @@
       <nav class="nav-links">
         <a href="#hakkinda">Hakkında</a>
         <a href="#calisma-alanlari">Çalışma Alanları</a>
+        <a href="#gonulluler">Gönüllülerimiz</a>
         <a href="#gonullu">Gönüllü Ol</a>
         <a class="btn btn-primary" href="./auth/">Giriş / Başvuru</a>
       </nav>
@@ -97,6 +108,13 @@
       </div>
     </section>
 
+    <section id="gonulluler" class="container section">
+      <h2>Gönüllülerimiz</h2>
+      <div id="volGrid" class="vol-grid">
+        <p class="muted">Yükleniyor...</p>
+      </div>
+    </section>
+
     <section id="gonullu" class="container section">
       <h2>Gönüllü Ol</h2>
       <div class="card" style="max-width: 720px;">
@@ -132,5 +150,57 @@
       <a href="./auth/">Gönüllü portalı</a>
     </div>
   </footer>
+
+  <script src="./js/config.firebase.js"></script>
+  <script type="module">
+  import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+  import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+  import{getFirestore,collection,getDocs,doc,getDoc,updateDoc,query,orderBy,limit,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+  if(window.__FIREBASE_CONFIG__){
+    var app=initializeApp(window.__FIREBASE_CONFIG__);
+    var db=getFirestore(app);
+    var auth=getAuth(app);
+    var isAdmin=false;
+    var allVols=[];
+    var volDocs={};
+    function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+    async function loadVols(){
+      var s=await getDocs(query(collection(db,"users"),orderBy("createdAt","desc"),limit(200)));
+      var seen={};allVols=[];volDocs={};
+      s.docs.forEach(function(d){var u=d.data();if(u.status!=="approved")return;var n=u.fullName||"";if(!n||seen[n])return;seen[n]=true;allVols.push({uid:d.id,data:u});volDocs[d.id]=u});
+      allVols.sort(function(a,b){var an=(a.data.fullName||"").split(" ").pop().toLowerCase();var bn=(b.data.fullName||"").split(" ").pop().toLowerCase();return an<bn?-1:an>bn?1:0});
+      renderVols()
+    }
+    function renderVols(){
+      var el=document.getElementById("volGrid");
+      if(!allVols.length){el.innerHTML='<p class="muted">Henüz gönüllü yok.</p>';return}
+      el.innerHTML=allVols.map(function(v){
+        var d=v.data;
+        var h='<div class="vol-card" id="lv-'+v.uid+'"><strong>'+esc(d.fullName)+'</strong><div class="vol-dept">'+esc(d.department||"-")+'</div>';
+        if(isAdmin)h+='<button class="vol-edit-btn" data-lv-edit="'+v.uid+'">Düzenle</button>';
+        return h+'</div>'
+      }).join("")
+    }
+    onAuthStateChanged(auth,async function(user){
+      if(!user)return;
+      try{var snap=await getDoc(doc(db,"users",user.uid));if(snap.exists()){var ud=snap.data();if(ud.role==="admin"||ud.role==="coordinator"){isAdmin=true;renderVols()}}}catch(e){}
+    });
+    document.addEventListener("click",async function(e){
+      var eb=e.target.closest("[data-lv-edit]");
+      if(eb&&isAdmin){
+        var uid=eb.dataset.lvEdit;var card=document.getElementById("lv-"+uid);var vd=volDocs[uid];if(!vd)return;
+        var inp=card.querySelector("input");
+        if(inp){
+          var nn=card.querySelector("[data-ln]").value.trim();
+          var nd=card.querySelector("[data-ld]").value;
+          try{await updateDoc(doc(db,"users",uid),{fullName:nn||vd.fullName,department:nd||vd.department,updatedAt:serverTimestamp()});await loadVols()}catch(err){alert("Hata: "+err.message)}
+          return
+        }
+        card.innerHTML='<div class="vol-edit-area"><input data-ln value="'+esc(vd.fullName)+'" style="width:90%"/><select data-ld><option value="">Seçiniz</option><option'+(vd.department==="Eğitim"?" selected":"")+'>Eğitim</option><option'+(vd.department==="Arşiv"?" selected":"")+'>Arşiv</option><option'+(vd.department==="İletişim"?" selected":"")+'>İletişim</option><option'+(vd.department==="Etkinlik"?" selected":"")+'>Etkinlik</option><option'+(vd.department==="Dijital İçerik"?" selected":"")+'>Dijital İçerik</option></select><button class="vol-save" data-lv-edit="'+uid+'">Kaydet</button></div>'
+      }
+    });
+    await loadVols()
+  }
+  </script>
 </body>
 </html>
