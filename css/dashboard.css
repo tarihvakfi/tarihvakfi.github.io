@@ -79,4 +79,7 @@
 .notif-item.unread{background:#f0f7ff;font-weight:600}
 .notif-item .notif-date{font-size:.75rem;color:var(--muted);font-weight:400}
 .hidden{display:none!important}
+.vol-row{padding:.5rem .75rem;border:1px solid var(--line);border-radius:var(--radius-sm);background:#fff}
+.vol-info,.vol-edit{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+.vol-dept-tag{font-size:.82rem;color:var(--muted);background:var(--surface-soft);padding:.15rem .5rem;border-radius:999px}
 @media(max-width:700px){.user-row,.user-edit-card .form-row{grid-template-columns:1fr;gap:.5rem}.tab-bar{gap:0}.tab{padding:.6rem .7rem;font-size:.82rem}.profile-card{flex-direction:column;text-align:center}.notif-panel{width:calc(100vw - 2rem);right:1rem}}
