@@ -1,0 +1,42 @@
+[
+  {
+    "id": "LcBoP5bIaMUh14IKUDQj",
+    "title": "Deneme Görevi 2",
+    "description": "Deneme 1-2-3.",
+    "department": "Arşiv",
+    "assignedToUid": "tOcd7tQlPBNWVBRuXN4REBViXJ82",
+    "assignedToEmail": "arifscag@gmail.com",
+    "dueDate": "2026-04-10",
+    "priority": "medium",
+    "status": "open",
+    "createdByUid": "ekTPH3LD4QQKwyTkLS264Q44XfI2",
+    "createdAt": {
+      "_seconds": 1775561976,
+      "_nanoseconds": 416000000
+    },
+    "updatedAt": {
+      "_seconds": 1775561976,
+      "_nanoseconds": 416000000
+    }
+  },
+  {
+    "id": "oK2CFLyq9e2pY2NuBMLz",
+    "title": "Deneme Görevlendirme",
+    "description": "Bu bir deneme görevidir, dikkate almayınız.",
+    "department": "Arşiv",
+    "dueDate": "2026-04-10",
+    "priority": "medium",
+    "status": "open",
+    "createdByUid": "ekTPH3LD4QQKwyTkLS264Q44XfI2",
+    "createdAt": {
+      "_seconds": 1775557802,
+      "_nanoseconds": 122000000
+    },
+    "assignedToUid": "tOcd7tQlPBNWVBRuXN4REBViXJ82",
+    "assignedToEmail": "arifscag@gmail.com",
+    "updatedAt": {
+      "_seconds": 1775559613,
+      "_nanoseconds": 893000000
+    }
+  }
+]
