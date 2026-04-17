@@ -1,0 +1,94 @@
+[
+  {
+    "id": "ekTPH3LD4QQKwyTkLS264Q44XfI2",
+    "uid": "ekTPH3LD4QQKwyTkLS264Q44XfI2",
+    "email": "arif.solmaz@gmail.com",
+    "phone": "+905386142938",
+    "department": "Arşiv",
+    "notes": "",
+    "createdAt": {
+      "_seconds": 1775465144,
+      "_nanoseconds": 138000000
+    },
+    "lastSeenAt": {
+      "_seconds": 1775496312,
+      "_nanoseconds": 411000000
+    },
+    "role": "admin",
+    "status": "approved",
+    "fullName": "Arif Solmaz",
+    "updatedAt": {
+      "_seconds": 1775637327,
+      "_nanoseconds": 336000000
+    }
+  },
+  {
+    "id": "manual_feydaloglu@gmail.com",
+    "email": "feydaloglu@gmail.com",
+    "department": "Arşiv",
+    "role": "volunteer",
+    "phone": "",
+    "status": "approved",
+    "notes": "",
+    "uid": "manual_feydaloglu@gmail.com",
+    "lastSeenAt": {
+      "_seconds": 1775511412,
+      "_nanoseconds": 219000000
+    },
+    "createdAt": {
+      "_seconds": 1775511412,
+      "_nanoseconds": 219000000
+    },
+    "fullName": "Feyza Daloğlu",
+    "updatedAt": {
+      "_seconds": 1775637339,
+      "_nanoseconds": 965000000
+    }
+  },
+  {
+    "id": "manual_gulustaneren@gmail.com",
+    "email": "gulustaneren@gmail.com",
+    "department": "Arşiv",
+    "role": "admin",
+    "phone": "",
+    "status": "approved",
+    "notes": "",
+    "uid": "manual_gulustaneren@gmail.com",
+    "lastSeenAt": {
+      "_seconds": 1775640027,
+      "_nanoseconds": 205000000
+    },
+    "createdAt": {
+      "_seconds": 1775640027,
+      "_nanoseconds": 205000000
+    },
+    "fullName": "Gülistan Eren (Koord.)",
+    "updatedAt": {
+      "_seconds": 1775640071,
+      "_nanoseconds": 805000000
+    }
+  },
+  {
+    "id": "tOcd7tQlPBNWVBRuXN4REBViXJ82",
+    "uid": "tOcd7tQlPBNWVBRuXN4REBViXJ82",
+    "email": "arifscag@gmail.com",
+    "phone": "+905386142938",
+    "department": "Arşiv",
+    "notes": "",
+    "lastSeenAt": {
+      "_seconds": 1775465034,
+      "_nanoseconds": 875000000
+    },
+    "createdAt": {
+      "_seconds": 1775465034,
+      "_nanoseconds": 875000000
+    },
+    "status": "approved",
+    "role": "volunteer",
+    "fullName": "Arif Solmaz",
+    "updatedAt": {
+      "_seconds": 1775514316,
+      "_nanoseconds": 282000000
+    }
+  }
+]

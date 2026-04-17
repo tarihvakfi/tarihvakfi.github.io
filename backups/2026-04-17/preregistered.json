@@ -1,0 +1,30 @@
+[
+  {
+    "id": "feydaloglu@gmail.com",
+    "email": "feydaloglu@gmail.com",
+    "fullName": "Feyza Daloglu",
+    "department": "Arşiv",
+    "role": "volunteer",
+    "phone": "",
+    "status": "approved",
+    "createdByUid": "ekTPH3LD4QQKwyTkLS264Q44XfI2",
+    "createdAt": {
+      "_seconds": 1775511412,
+      "_nanoseconds": 330000000
+    }
+  },
+  {
+    "id": "gulustaneren@gmail.com",
+    "email": "gulustaneren@gmail.com",
+    "fullName": "Gülistan Eren",
+    "department": "Arşiv",
+    "role": "admin",
+    "phone": "",
+    "status": "approved",
+    "createdByUid": "ekTPH3LD4QQKwyTkLS264Q44XfI2",
+    "createdAt": {
+      "_seconds": 1775640027,
+      "_nanoseconds": 322000000
+    }
+  }
+]
