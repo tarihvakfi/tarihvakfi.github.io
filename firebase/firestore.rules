@@ -74,11 +74,6 @@ service cloud.firestore {
       allow create, update: if isAdmin();
     }
 
-    match /teamProfiles/{uid} {
-      allow read: if isApproved();
-      allow create, update, delete: if isCoordinatorOrAdmin();
-    }
-
     match /projectPeople/{personId} {
       allow read, create, update, delete: if isCoordinatorOrAdmin();
     }

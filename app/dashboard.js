@@ -25,7 +25,6 @@ let pi = [];
 let allUsers = [];
 let taskItems = [];
 let announcementItems = [];
-let teamProfiles = [];
 let archiveUnits = [];
 let archiveById = {};
 let availabilityRecords = [];
@@ -58,12 +57,6 @@ const reportStatusLabels = {
   submitted: "Gönderildi",
   revision_needed: "Düzeltme İstendi",
   approved: "Onaylandı"
-};
-
-const teamRoleLabels = {
-  volunteer: "Gönüllü",
-  coordinator: "Koordinatör",
-  admin: "Yönetici"
 };
 
 function isStaff() {
@@ -122,20 +115,6 @@ function findUserByEmail(email) {
 
 function approvedUsers() {
   return allUsers.filter((item) => item.data?.status === "approved");
-}
-
-function publicTeamProfile(uid, data = {}) {
-  return cleanData({
-    uid,
-    fullName: data.fullName || data.displayName || "",
-    department: data.department || "",
-    role: data.role || "volunteer",
-    status: data.status || "approved",
-    skillsText: data.skillsText || data.skills || "",
-    projectTags: data.projectTags || data.projects || [],
-    publicNote: data.publicNote || "",
-    updatedAt: data.updatedAt || null
-  });
 }
 
 function getSelectedValues(selectId) {
@@ -296,20 +275,16 @@ function renderHomeOverview() {
   const submittedReports = reports.filter((report) => (report.status || "submitted") === "submitted").length;
   const openTasks = taskItems.filter((item) => !["done", "cancelled", "closed"].includes(item.data?.status || "open"));
   const assignedOpenUnits = archiveUnits.filter((unit) => !["done", "blocked"].includes(unit.status || "not_started"));
-  const approvedVolunteerCount = approvedUsers().filter((user) => user.data?.role === "volunteer").length;
 
   const kpiRows = isStaff()
     ? [
-      ["İş paketi", totals.units],
       ["Atanmamış", totals.unassigned],
       ["Engelli", totals.blocked],
-      ["Kontrol bekleyen rapor", submittedReports],
-      ["Gönüllü", approvedVolunteerCount],
+      ["Rapor kontrol", submittedReports],
       ["Başvuru", pendingApplicationCount]
     ]
     : [
-      ["Atanmış arşiv işi", archiveUnits.length],
-      ["Açık iş", assignedOpenUnits.length + openTasks.length],
+      ["Açık iş", archiveUnits.length + openTasks.length],
       ["Rapor", reports.length],
       ["Duyuru", announcementItems.length]
     ];
@@ -337,48 +312,13 @@ function renderHomeOverview() {
   }
 
   const shortcuts = [
-    ["pnb", "İş Yükü", isStaff() ? "Proje paketlerini, atamaları, durumları ve engelleri yönet." : "Sana atanan arşiv işlerini ve sıradaki işi gör."],
-    ["people", "Ekip", isStaff() ? "Gönüllü, koordinatör ve yönetici havuzunu kolayca oku." : "Kimin neye baktığını ve kime danışacağını gör."],
-    ["tasks", "Görevler", isStaff() ? "Genel gönüllü işleri oluştur ve takip et." : "Sana atanmış genel işleri takip et."],
-    ["reports", "Raporlar", isStaff() ? "Gelen raporları kontrol et ve geri bildirim ver." : "Yaptığın işi günlük/haftalık raporla."],
-    ["announcements", "Duyurular", "Takımın bilmesi gereken kararları ve hatırlatmaları takip et."]
+    ["pnb", isStaff() ? "Atama yap" : "İşimi aç", isStaff() ? "Atanmamış veya engelli işleri aç." : "Sana atanmış işi gör."],
+    ["reports", isStaff() ? "Rapor kontrol" : "Rapor yaz", isStaff() ? "Gelen raporu onayla veya düzeltme iste." : "Bugünkü çalışmanı kısa yaz."],
+    ["announcements", "Duyuru", "Takım kararlarını ve hatırlatmaları gör."]
   ];
-  if (isStaff()) shortcuts.push(["management", "Yönetim", "Başvurular, kullanıcılar ve ekip bilgilerini düzenle."]);
-  if (isAdmin()) shortcuts.push(["maintenance", "Bakım", "PNB import ve veri bakım araçlarını aç."]);
+  if (isStaff()) shortcuts.push(["management", "İnsanlar", "Başvuru, kullanıcı ve kapasiteyi yönet."]);
+  if (isAdmin()) shortcuts.push(["maintenance", "Bakım", "Sadece gerektiğinde veri/import araçları."]);
   management.innerHTML = shortcuts.map(([tab, title, text]) => `<button class="ops-link-card" type="button" data-go-tab="${tab}"><strong>${escapeHTML(title)}</strong><span>${escapeHTML(text)}</span></button>`).join("");
-}
-
-function roleRank(role) {
-  return role === "admin" ? 0 : role === "coordinator" ? 1 : 2;
-}
-
-function populatePeopleFilters() {
-  const select = document.getElementById("peopleDepartmentFilter");
-  if (!select) return;
-  const current = select.value;
-  const departments = Array.from(new Set(teamProfiles.map((person) => person.department).filter(Boolean))).sort((a, b) => a.localeCompare(b, "tr"));
-  select.innerHTML = '<option value="">Tüm departmanlar</option>';
-  departments.forEach((department) => {
-    select.insertAdjacentHTML("beforeend", `<option value="${escapeHTML(department)}">${escapeHTML(department)}</option>`);
-  });
-  select.value = departments.includes(current) ? current : "";
-}
-
-function teamProfileCard(person) {
-  const tags = [
-    person.department,
-    teamRoleLabels[person.role] || person.role,
-    ...(Array.isArray(person.projectTags) ? person.projectTags : []),
-    person.skillsText
-  ].filter(Boolean);
-  return `<article class="person-card ${escapeHTML(person.role || "volunteer")}">
-    <div class="person-avatar">${escapeHTML((person.fullName || "?")[0].toUpperCase())}</div>
-    <div class="person-body">
-      <div class="person-title"><strong>${escapeHTML(person.fullName || "-")}</strong><span class="status-pill ${escapeHTML(person.role || "volunteer")}">${escapeHTML(teamRoleLabels[person.role] || person.role || "Gönüllü")}</span></div>
-      <div class="archive-meta">${tags.slice(0, 5).map((tag) => `<span class="archive-chip">${escapeHTML(tag)}</span>`).join("") || '<span class="archive-chip">Profil bilgisi bekleniyor</span>'}</div>
-      ${person.publicNote ? `<p class="muted" style="font-size:.84rem;margin:.35rem 0 0">${escapeHTML(person.publicNote)}</p>` : ""}
-    </div>
-  </article>`;
 }
 
 function renderPeopleOps() {
@@ -406,107 +346,7 @@ function renderPeopleOps() {
   const rows = [];
   if (missingSkill.length) rows.push(`<div class="ops-alert"><strong>Yetenek/ilgi eksik</strong><span>${missingSkill.map((user) => escapeHTML(userDisplayName(user))).join("<br>")}</span></div>`);
   if (missingDepartment.length) rows.push(`<div class="ops-alert"><strong>Departman eksik</strong><span>${missingDepartment.map((user) => escapeHTML(userDisplayName(user))).join("<br>")}</span></div>`);
-  if (teamProfiles.length <= 1) rows.push(`<div class="ops-alert"><strong>Gönüllü görünümü için ekip listesi boş olabilir</strong><span>Güvenli ekip listesini güncelle butonu, özel iletişim bilgisi paylaşmadan public profil üretir.</span></div>`);
   warnings.innerHTML = rows.length ? rows.join("") : htmlEmpty("Kritik eksik görünmüyor.");
-}
-
-function renderPeople() {
-  const stats = document.getElementById("peopleStats");
-  const list = document.getElementById("peopleDirectory");
-  const countLabel = document.getElementById("peopleCountLabel");
-  const message = document.getElementById("peopleMessage");
-  if (!stats || !list) return;
-
-  populatePeopleFilters();
-  const search = String(document.getElementById("peopleSearch")?.value || "").trim().toLowerCase();
-  const roleFilter = document.getElementById("peopleRoleFilter")?.value || "";
-  const departmentFilter = document.getElementById("peopleDepartmentFilter")?.value || "";
-  const approvedProfiles = teamProfiles.filter((person) => (person.status || "approved") === "approved");
-  const filtered = approvedProfiles
-    .filter((person) => !roleFilter || person.role === roleFilter)
-    .filter((person) => !departmentFilter || person.department === departmentFilter)
-    .filter((person) => {
-      if (!search) return true;
-      return [person.fullName, person.department, person.role, person.skillsText, person.publicNote, ...(person.projectTags || [])]
-        .join(" ")
-        .toLowerCase()
-        .includes(search);
-    })
-    .sort((a, b) => roleRank(a.role) - roleRank(b.role) || (a.fullName || "").localeCompare(b.fullName || "", "tr"));
-
-  const roleCounts = approvedProfiles.reduce((acc, person) => {
-    acc[person.role || "volunteer"] = (acc[person.role || "volunteer"] || 0) + 1;
-    return acc;
-  }, {});
-  const departmentCount = new Set(approvedProfiles.map((person) => person.department).filter(Boolean)).size;
-  stats.innerHTML = [
-    ["Ekip profili", approvedProfiles.length],
-    ["Gönüllü", roleCounts.volunteer || 0],
-    ["Koordinatör", roleCounts.coordinator || 0],
-    ["Yönetici", roleCounts.admin || 0],
-    ["Departman", departmentCount]
-  ].map(([label, value]) => `<div class="kpi-card"><strong>${numberText(value)}</strong><span>${escapeHTML(label)}</span></div>`).join("");
-
-  list.innerHTML = filtered.length ? filtered.map(teamProfileCard).join("") : htmlEmpty("Bu filtrede ekip profili yok.");
-  if (countLabel) countLabel.textContent = `${numberText(filtered.length)} kişi gösteriliyor`;
-  if (message) {
-    message.textContent = isStaff()
-      ? "Bu görünüm atama ve koordinasyon için özetlenmiş insan haritasıdır. Özel telefon/e-posta düzenleme Yönetim sekmesindedir."
-      : "Bu liste güvenli ekip profilidir; özel iletişim ve koordinatör notları paylaşılmaz.";
-  }
-  renderPeopleOps();
-}
-
-async function loadTeamProfiles() {
-  teamProfiles = [];
-  if (!db || !cu || !cp) return;
-  if (isStaff()) {
-    teamProfiles = approvedUsers().map((user) => publicTeamProfile(user.uid, user.data));
-    renderPeople();
-    return;
-  }
-  try {
-    const snap = await getDocs(query(collection(db, "teamProfiles"), where("status", "==", "approved"), limit(300)));
-    teamProfiles = snap.docs.map((item) => ({ id: item.id, ...item.data() }));
-  } catch (error) {
-    console.warn("Güvenli ekip profilleri yüklenemedi:", error);
-  }
-  if (!teamProfiles.length) teamProfiles = [publicTeamProfile(cu.uid, cp)];
-  renderPeople();
-}
-
-async function syncTeamProfiles() {
-  if (!isStaff()) return;
-  const button = document.querySelector("[data-sync-team]");
-  try {
-    if (button) {
-      button.disabled = true;
-      button.textContent = "Güncelleniyor...";
-    }
-    const approved = approvedUsers();
-    for (const user of approved) {
-      await setDoc(doc(db, "teamProfiles", user.uid), {
-        ...publicTeamProfile(user.uid, user.data),
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-    }
-    teamProfiles = approved.map((user) => publicTeamProfile(user.uid, user.data));
-    renderPeople();
-    await logActivity("team_profiles_synced", "teamProfiles", "all", { count: approved.length });
-    if (button) button.textContent = "Güncellendi";
-    setTimeout(() => {
-      if (button) {
-        button.textContent = "Güvenli ekip listesini güncelle";
-        button.disabled = false;
-      }
-    }, 1600);
-  } catch (error) {
-    alert(`Hata: ${error.message}`);
-    if (button) {
-      button.textContent = "Güvenli ekip listesini güncelle";
-      button.disabled = false;
-    }
-  }
 }
 
 function archiveOptions(selectedId = "", includeEmpty = true) {
@@ -829,16 +669,10 @@ function renderPnbStats() {
     return acc;
   }, { units: 0, files: 0, documents: 0, pages: 0, completedFiles: 0, completedDocs: 0, blocked: 0, done: 0, unassigned: 0 });
   hero.textContent = `${numberText(totals.units)} iş paketi · ${numberText(totals.pages)} sayfa`;
-  statsEl.innerHTML = [
-    ["İş paketi", totals.units],
-    ["Dosya", totals.files],
-    ["Belge", totals.documents],
-    ["Sayfa", totals.pages],
-    ["Tamamlanan belge", totals.completedDocs],
-    ["Tamamlandı", totals.done],
-    ["Engelli", totals.blocked],
-    ["Atanmamış", totals.unassigned]
-  ].map(([label, value]) => `<div class="kpi-card"><strong>${numberText(value)}</strong><span>${escapeHTML(label)}</span></div>`).join("");
+  const rows = isStaff()
+    ? [["Atanmamış", totals.unassigned], ["Engelli", totals.blocked], ["Tamamlandı", totals.done], ["Toplam iş", totals.units]]
+    : [["Açık iş", totals.units - totals.done], ["Tamamlandı", totals.done], ["Engelli", totals.blocked], ["Toplam iş", totals.units]];
+  statsEl.innerHTML = rows.map(([label, value]) => `<div class="kpi-card"><strong>${numberText(value)}</strong><span>${escapeHTML(label)}</span></div>`).join("");
 }
 
 function renderNextActions() {
@@ -927,7 +761,7 @@ function renderPnb() {
   renderCommunicationPlans();
   renderArchiveUnits();
   populateArchiveSelects();
-  renderPeople();
+  renderPeopleOps();
   renderHomeOverview();
 }
 
@@ -1076,11 +910,6 @@ async function commitPnbImport() {
         lastSeenAt: existingUser?.data?.lastSeenAt || serverTimestamp()
       };
       writes.push({ ref: doc(db, "users", uid), data: userData, label: `users/${uid}` });
-      writes.push({
-        ref: doc(db, "teamProfiles", uid),
-        data: { ...publicTeamProfile(uid, userData), updatedAt: serverTimestamp() },
-        label: `teamProfiles/${uid}`
-      });
     });
 
     const emailToUid = new Map();
@@ -1122,7 +951,6 @@ async function commitPnbImport() {
     });
     if (message) message.textContent = `${writes.length} kayıt Firestore'a aktarıldı.`;
     await loadAllUsers();
-    await loadTeamProfiles();
     await reloadPnb();
   } catch (error) {
     console.error(error);
@@ -1186,9 +1014,6 @@ document.getElementById("cancelEditBtn")?.addEventListener("click", rf);
 document.getElementById("refreshPnbBtn")?.addEventListener("click", reloadPnb);
 document.getElementById("pnbStatusFilter")?.addEventListener("change", renderArchiveUnits);
 document.getElementById("pnbCommitBtn")?.addEventListener("click", commitPnbImport);
-document.getElementById("peopleSearch")?.addEventListener("input", renderPeople);
-document.getElementById("peopleRoleFilter")?.addEventListener("change", renderPeople);
-document.getElementById("peopleDepartmentFilter")?.addEventListener("change", renderPeople);
 
 document.getElementById("pnbImportFile")?.addEventListener("change", async (event) => {
   const file = event.target.files?.[0];
@@ -1211,12 +1036,6 @@ document.getElementById("pnbImportFile")?.addEventListener("change", async (even
 });
 
 document.addEventListener("click", async (event) => {
-  const syncTeam = event.target.closest("[data-sync-team]");
-  if (syncTeam) {
-    await syncTeamProfiles();
-    return;
-  }
-
   const tabTarget = event.target.closest("[data-go-tab]");
   if (tabTarget) {
     sw(tabTarget.dataset.goTab);
@@ -1503,7 +1322,6 @@ document.addEventListener("click", async (event) => {
         updatedAt: serverTimestamp()
       });
       await loadAllUsers();
-      await loadTeamProfiles();
       await lp();
       const card = document.getElementById(`user-${applicationAction.dataset.uid}`);
       if (card) {
@@ -1536,17 +1354,8 @@ document.addEventListener("click", async (event) => {
         updatedAt: serverTimestamp()
       };
       await updateDoc(doc(db, "users", uid), updateData);
-      if (updateData.status === "approved") {
-        await setDoc(doc(db, "teamProfiles", uid), {
-          ...publicTeamProfile(uid, updateData),
-          updatedAt: serverTimestamp()
-        }, { merge: true });
-      } else {
-        await deleteDoc(doc(db, "teamProfiles", uid));
-      }
       saveUser.textContent = "OK";
       await loadAllUsers();
-      await loadTeamProfiles();
       renderPnb();
       setTimeout(() => {
         saveUser.textContent = "Kaydet";
@@ -1567,10 +1376,8 @@ document.addEventListener("click", async (event) => {
       deleteUser.disabled = true;
       deleteUser.textContent = "...";
       await deleteDoc(doc(db, "users", deleteUser.dataset.delUser));
-      await deleteDoc(doc(db, "teamProfiles", deleteUser.dataset.delUser));
       document.getElementById(`urow-${deleteUser.dataset.delUser}`)?.remove();
       await loadAllUsers();
-      await loadTeamProfiles();
     } catch (error) {
       alert(`Hata: ${error.message}`);
       deleteUser.disabled = false;
@@ -1708,10 +1515,6 @@ document.getElementById("addUserForm")?.addEventListener("submit", async (event)
   };
   try {
     await setDoc(doc(db, "users", `manual_${email}`), userData, { merge: true });
-    await setDoc(doc(db, "teamProfiles", `manual_${email}`), {
-      ...publicTeamProfile(`manual_${email}`, userData),
-      updatedAt: serverTimestamp()
-    }, { merge: true });
     await setDoc(doc(db, "preregistered", email), {
       email,
       fullName: userData.fullName,
@@ -1726,7 +1529,6 @@ document.getElementById("addUserForm")?.addEventListener("submit", async (event)
     document.getElementById("addUserMessage").textContent = "Kullanıcı eklendi!";
     setTimeout(() => { document.getElementById("addUserMessage").textContent = ""; }, 3000);
     await loadAllUsers();
-    await loadTeamProfiles();
     await lu();
     renderPnb();
   } catch (error) {

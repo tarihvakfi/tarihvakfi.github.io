@@ -27,11 +27,9 @@
     <div id="loadingState" class="centered-message"><div class="spinner"></div><p class="muted">Yükleniyor...</p></div>
 
     <nav id="tabBar" class="tab-bar hidden">
-      <button class="tab active" data-tab="home">Genel Bakış</button>
-      <button class="tab" data-tab="pnb">İş Yükü</button>
-      <button class="tab" data-tab="people">Ekip</button>
-      <button class="tab" data-tab="tasks">Görevler</button>
-      <button class="tab" data-tab="reports">Raporlar</button>
+      <button class="tab active" data-tab="home">Bugün</button>
+      <button class="tab" data-tab="pnb">İşler</button>
+      <button class="tab" data-tab="reports">Rapor Yaz</button>
       <button class="tab" data-tab="announcements">Duyurular</button>
       <button class="tab staff-tab hidden" data-tab="management">Yönetim</button>
       <button class="tab admin-tab hidden" data-tab="maintenance">Bakım</button>
@@ -40,13 +38,12 @@
     <section id="tab-home" class="tab-content">
       <div class="ops-hero card">
         <div>
-          <p class="eyebrow">Gönüllü operasyon merkezi</p>
-          <h1>İşler, insanlar ve raporlar tek akışta</h1>
-          <p class="muted">Buradan günlük öncelikleri görür, işi açar, rapor yazar, duyuruları takip eder ve koordinasyon araçlarına geçersiniz.</p>
+          <p class="eyebrow">Bugün</p>
+          <h1>Ne yapacağım?</h1>
+          <p class="muted">Atandığın işi aç, kısa rapor yaz, engel varsa bildir. Bu kadar.</p>
         </div>
         <div class="ops-actions">
-          <button class="btn btn-primary" type="button" data-go-tab="pnb">İş yükünü aç</button>
-          <button class="btn btn-secondary" type="button" data-go-tab="people">Ekibi gör</button>
+          <button class="btn btn-primary" type="button" data-go-tab="pnb">İşimi aç</button>
           <button class="btn btn-secondary" type="button" data-go-tab="reports">Rapor yaz</button>
           <button class="btn btn-secondary staff-only hidden" type="button" data-go-tab="management">Yönetim</button>
         </div>
@@ -81,79 +78,12 @@
       </div>
     </section>
 
-    <section id="tab-people" class="tab-content hidden">
-      <div class="ops-hero card">
-        <div>
-          <p class="eyebrow">Ekip rehberi</p>
-          <h2>Kim kimdir, kim neye bakar?</h2>
-          <p class="muted">Gönüllüler ekip yapısını ve doğru temas noktasını görür. Koordinatörler ve yöneticiler aynı yerden kapasiteyi, rolleri ve atama hazırlığını okur.</p>
-        </div>
-        <div class="ops-actions">
-          <button class="btn btn-primary staff-only hidden" type="button" data-sync-team>Güvenli ekip listesini güncelle</button>
-          <button class="btn btn-secondary staff-only hidden" type="button" data-go-tab="management">Kullanıcıları yönet</button>
-        </div>
-      </div>
-
-      <div id="peopleStats" class="kpi-grid" style="margin:1rem 0"></div>
-
-      <div class="dashboard-grid">
-        <article class="card">
-          <p class="eyebrow">Roller nasıl çalışır?</p>
-          <div class="role-guide-grid">
-            <div class="role-guide-card"><strong>Gönüllü</strong><span>Kendi görevini görür, rapor yazar, engel bildirir, ekipte kime danışacağını bulur.</span></div>
-            <div class="role-guide-card"><strong>Koordinatör</strong><span>Atama yapar, raporları izler, engelleri çözer, gönüllü kapasitesini işe bağlar.</span></div>
-            <div class="role-guide-card"><strong>Yönetici</strong><span>Sistem ayarları, import/bakım, genel yetki ve tüm iş yükü görünümünü yönetir.</span></div>
-          </div>
-        </article>
-
-        <article class="card">
-          <p class="eyebrow">Ekip filtresi</p>
-          <div class="form-row">
-            <label>Arama <input id="peopleSearch" type="search" placeholder="Ad, departman, yetenek..." /></label>
-            <label>Rol
-              <select id="peopleRoleFilter">
-                <option value="">Tüm roller</option>
-                <option value="volunteer">Gönüllü</option>
-                <option value="coordinator">Koordinatör</option>
-                <option value="admin">Yönetici</option>
-              </select>
-            </label>
-            <label>Departman
-              <select id="peopleDepartmentFilter">
-                <option value="">Tüm departmanlar</option>
-              </select>
-            </label>
-          </div>
-          <p id="peopleMessage" class="muted" style="font-size:.85rem;margin:0"></p>
-        </article>
-      </div>
-
-      <div id="peopleOpsPanel" class="dashboard-grid staff-only hidden" style="margin-top:1.25rem">
-        <article class="card">
-          <p class="eyebrow">Atama için hızlı bakış</p>
-          <div id="peopleCapacityList" class="stack"><p class="empty">Uygunluk verisi yok.</p></div>
-        </article>
-        <article class="card">
-          <p class="eyebrow">Eksik bilgi uyarıları</p>
-          <div id="peopleDataWarnings" class="stack"><p class="empty">Uyarı yok.</p></div>
-        </article>
-      </div>
-
-      <div class="card" style="margin-top:1.25rem">
-        <div class="step-header">
-          <p class="eyebrow">Ekip listesi</p>
-          <span id="peopleCountLabel" class="muted" style="font-size:.85rem"></span>
-        </div>
-        <div id="peopleDirectory" class="people-grid"><p class="empty">Ekip listesi yükleniyor.</p></div>
-      </div>
-    </section>
-
     <section id="tab-pnb" class="tab-content hidden">
       <div class="pnb-hero card">
         <div>
-          <p class="eyebrow">İş yükü panosu</p>
-          <h2>Projeler ve arşiv iş paketleri</h2>
-          <p class="muted">PNB arşivi ayrıntılı iş paketleriyle izlenir. Diğer gönüllü çalışmaları aynı ortamda görev, rapor, duyuru ve kullanıcı akışlarıyla yürür.</p>
+          <p class="eyebrow">İşler</p>
+          <h2>Atanacak ve yapılacak işler</h2>
+          <p class="muted">Koordinatör için atama ve takip; gönüllü için kendi işi ve rapor aksiyonu.</p>
         </div>
         <div id="pnbHeroStatus" class="pnb-hero-status">Veri bekleniyor</div>
       </div>
@@ -177,8 +107,8 @@
       <div class="card" style="margin-top:1.25rem">
         <div class="step-header">
           <div>
-            <p class="eyebrow">PNB arşiv iş paketleri</p>
-            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Bu bölüm PNB gibi kutu/seri/belge bazlı arşiv projeleri içindir. Atama, durum, engel ve rapor aksiyonu aynı kartın üstünden yürür.</p>
+            <p class="eyebrow">İş listesi</p>
+            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Bir kart, bir iş. Atama, durum, engel ve rapor aynı yerden.</p>
           </div>
           <label class="compact-filter">Durum
             <select id="pnbStatusFilter">
@@ -279,12 +209,12 @@
       <div class="ops-hero card">
         <div>
           <p class="eyebrow">Yönetim</p>
-          <h2>Başvurular, kullanıcılar ve ekip kapasitesi</h2>
-          <p class="muted">Koordinatörler burada yeni gönüllüleri onaylar, kullanıcı bilgilerini günceller ve iş ataması için ekip havuzunu düzenler.</p>
+          <h2>İnsanlar ve atamalar</h2>
+          <p class="muted">Gönüllüyü onayla, bilgiyi düzelt, işe ata. Günlük yönetim burada.</p>
         </div>
         <div class="ops-actions">
-          <button class="btn btn-primary" type="button" data-go-tab="tasks">Görev oluştur</button>
-          <button class="btn btn-secondary" type="button" data-go-tab="pnb">İş yüküne dön</button>
+          <button class="btn btn-primary" type="button" data-go-tab="pnb">Atama yap</button>
+          <button class="btn btn-secondary" type="button" data-go-tab="reports">Rapor kontrol</button>
         </div>
       </div>
 
@@ -327,8 +257,19 @@
         </article>
       </div>
 
+      <div class="dashboard-grid" style="margin-top:1.25rem">
+        <article class="card">
+          <p class="eyebrow">Kapasite</p>
+          <div id="peopleCapacityList" class="stack"><p class="empty">Uygunluk verisi yok.</p></div>
+        </article>
+        <article class="card">
+          <p class="eyebrow">Eksik bilgi</p>
+          <div id="peopleDataWarnings" class="stack"><p class="empty">Uyarı yok.</p></div>
+        </article>
+      </div>
+
       <div class="card" style="margin-top:1.25rem">
-        <p class="eyebrow">Tüm kullanıcılar</p>
+        <p class="eyebrow">Ekip ve kullanıcılar</p>
         <div id="userDirectory" class="stack"><p class="empty">Kullanıcı bulunamadı.</p></div>
       </div>
     </section>
