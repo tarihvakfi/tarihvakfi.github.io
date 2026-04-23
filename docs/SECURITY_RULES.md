@@ -9,6 +9,7 @@ Bu projede güvenlik sadece arayüzdeki buton gizleme ile sağlanmaz. Asıl koru
 - `blocked` kullanıcı uygulamayı kullanamaz.
 - Gönüllü kendi profilini, kendi görevlerini, kendi raporlarını, genel proje başlıklarını ve kendisine atanmış PNB arşiv birimlerini görür.
 - Gönüllü atanmış PNB biriminde yalnızca engel bildirme ve son rapor zamanını güncelleme gibi sınırlı alanları değiştirebilir.
+- Gönüllü kendi `users/{uid}` dokümanında yalnızca `userSelfEditableFields()` listesindeki alanları (ad, telefon, notlar, skills, `lastSeenAt`, `lastReportAt`, `reportCount7d`, `reportCount30d`, `counterWindowStart`, `updatedAt`) değiştirebilir. `role`, `status`, `department`, `email` gibi yetki/kimlik alanları yalnızca admin veya koordinatör tarafından değiştirilebilir. Bu sınır, rapor gönderirken aynı batch içinde aktivite sayaçlarının güvenle güncellenmesine izin verir ama rol yükseltmesine kapalıdır.
 - Koordinatör ve admin proje kayıtlarını, PNB arşiv birimlerini, uygunluk kayıtlarını, iletişim planını ve rapor incelemelerini yönetebilir.
 - Paydaş/iletişim verisi içeren `projectPeople` ve `availability` koleksiyonları gönüllülere kapalıdır.
 - Admin her şeyi yönetebilir ve PNB importunu çalıştırabilir.

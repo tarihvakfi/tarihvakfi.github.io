@@ -43,8 +43,8 @@
           <p id="homeHeroText" class="muted">Atandığın işi aç, kısa rapor yaz, engel varsa bildir. Bu kadar.</p>
         </div>
         <div id="homeHeroActions" class="ops-actions">
-          <button class="btn btn-primary" type="button" data-go-tab="pnb">İşimi aç</button>
-          <button class="btn btn-secondary" type="button" data-go-tab="reports">Rapor yaz</button>
+          <button class="btn btn-primary" type="button" data-go-tab="reports" data-focus="quickArchiveUnitSelect">Hızlı rapor</button>
+          <button class="btn btn-secondary" type="button" data-go-tab="pnb">İşimi aç</button>
           <button class="btn btn-secondary staff-only hidden" type="button" data-go-tab="management">Yönetim</button>
         </div>
       </div>
@@ -168,8 +168,50 @@
     </section>
 
     <section id="tab-reports" class="tab-content hidden">
-      <div id="reportFormCard" class="card" style="margin-bottom:1.25rem">
-        <div class="step-header"><p class="eyebrow" id="reportFormTitle">Rapor gönder</p><button type="button" id="cancelEditBtn" class="btn btn-secondary btn-sm hidden">İptal</button></div>
+      <div id="quickReportCard" class="card quick-report-card" style="margin-bottom:1rem">
+        <div class="step-header">
+          <div>
+            <p class="eyebrow">Hızlı rapor</p>
+            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">30 saniyede bitir: hangi iş, ne kadar ilerledin, bir satır not.</p>
+          </div>
+          <button type="button" id="toggleDetailedBtn" class="btn btn-secondary btn-sm">Detaylı rapora geç</button>
+        </div>
+        <form id="quickReportForm" class="form compact-form quick-form">
+          <label>Arşiv birimi
+            <select id="quickArchiveUnitSelect" required>
+              <option value="">İş seçiniz</option>
+            </select>
+          </label>
+          <div class="form-row">
+            <label>Durum
+              <select id="quickWorkStatus" required>
+                <option value="in_progress">Devam ediyor</option>
+                <option value="unit_done">Bu birimi bitirdim</option>
+                <option value="blocked">Takıldım / engel var</option>
+              </select>
+            </label>
+            <label>Bitirdiğim sayfa
+              <input id="quickPagesDone" type="number" min="0" step="1" inputmode="numeric" placeholder="0" />
+            </label>
+          </div>
+          <label>Kısa not (opsiyonel)
+            <input id="quickSummary" type="text" maxlength="240" placeholder="Tek satır: ne yaptın veya neye takıldın?" />
+          </label>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary btn-block-mobile">Gönder</button>
+            <span id="quickReportMessage" class="status-line muted"></span>
+          </div>
+        </form>
+      </div>
+
+      <div id="reportFormCard" class="card hidden" style="margin-bottom:1.25rem">
+        <div class="step-header">
+          <p class="eyebrow" id="reportFormTitle">Detaylı rapor</p>
+          <div style="display:flex;gap:.5rem">
+            <button type="button" id="cancelEditBtn" class="btn btn-secondary btn-sm hidden">İptal</button>
+            <button type="button" id="toggleQuickBtn" class="btn btn-secondary btn-sm">Hızlı rapora dön</button>
+          </div>
+        </div>
         <form id="reportForm" class="form compact-form">
           <input type="hidden" id="editReportId" value="" />
           <div id="reportUserRow" class="form-row hidden"><label>Gönüllü <select id="reportForUser"><option value="">Kendim için</option></select></label></div>
@@ -277,6 +319,28 @@
         </div>
       </details>
 
+      <details id="activityPanel" class="management-drawer">
+        <summary>Aktiflik durumu</summary>
+        <div class="management-drawer-body">
+          <p class="muted" style="font-size:.85rem;margin:.1rem 0 .9rem">Gönüllüler son rapor tarihine göre: <strong>Aktif</strong> 0–13 gün, <strong>Yavaşlayan</strong> 14–27 gün, <strong>Durmuş</strong> 28+ gün. "Hatırlatma gönder" butonu e-posta istemcinizi önceden doldurur.</p>
+          <div class="activity-controls">
+            <label>Departman
+              <select id="activityDeptFilter">
+                <option value="">Tümü</option>
+                <option>Eğitim</option>
+                <option>Arşiv</option>
+                <option>İletişim</option>
+                <option>Etkinlik</option>
+                <option>Dijital İçerik</option>
+              </select>
+            </label>
+            <button type="button" id="exportActivityBtn" class="btn btn-secondary btn-sm">CSV olarak dışa aktar</button>
+          </div>
+          <div id="activitySummary" class="activity-summary"></div>
+          <div id="activityBuckets" class="activity-buckets"><p class="empty">Veri yükleniyor.</p></div>
+        </div>
+      </details>
+
       <details id="userDirectoryPanel" class="management-drawer">
         <summary>Ekip listesi</summary>
         <div class="management-drawer-body">
@@ -301,6 +365,33 @@
       </div>
       <div id="pnbImportPreview" class="card" style="margin-top:1.25rem"><p class="empty">Henüz import dosyası seçilmedi.</p></div>
     </section>
+  </div>
+
+  <div id="unitDrillModal" class="drill-modal hidden" role="dialog" aria-modal="true" aria-labelledby="drillTitle">
+    <div class="drill-backdrop" data-drill-close></div>
+    <div class="drill-panel">
+      <header class="drill-header">
+        <div>
+          <p class="eyebrow">Arşiv birimi geçmişi</p>
+          <h2 id="drillTitle">—</h2>
+          <p id="drillSubtitle" class="muted"></p>
+        </div>
+        <div class="drill-header-actions">
+          <button type="button" id="drillExportCsv" class="btn btn-secondary btn-sm hidden">CSV</button>
+          <button type="button" class="btn btn-secondary btn-sm" data-drill-close aria-label="Kapat">Kapat</button>
+        </div>
+      </header>
+      <div id="drillStats" class="drill-stats"></div>
+      <div id="drillBlocker" class="drill-blocker"></div>
+      <div class="drill-section">
+        <p class="eyebrow">Atanan gönüllüler</p>
+        <div id="drillAssignees" class="drill-assignees"><p class="muted">-</p></div>
+      </div>
+      <div class="drill-section">
+        <p class="eyebrow">Son raporlar</p>
+        <div id="drillReports" class="drill-reports"><p class="muted">Yükleniyor...</p></div>
+      </div>
+    </div>
   </div>
 
   <script src="../js/config.firebase.js"></script>

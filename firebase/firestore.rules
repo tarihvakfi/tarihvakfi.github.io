@@ -50,6 +50,23 @@ service cloud.firestore {
       return isApproved() && hasList(data, "coworkerUids") && data.coworkerUids.hasAny([request.auth.uid]);
     }
 
+    // Kullanıcının kendi dokümanında güncelleyebileceği alanlar.
+    // role, status, department gibi yetki alanları yalnızca admin/koordinatör tarafından değiştirilebilir.
+    function userSelfEditableFields() {
+      return [
+        "fullName",
+        "phone",
+        "notes",
+        "skillsText",
+        "lastSeenAt",
+        "lastReportAt",
+        "reportCount7d",
+        "reportCount30d",
+        "counterWindowStart",
+        "updatedAt"
+      ];
+    }
+
     match /users/{uid} {
       allow create: if signedIn() && (request.auth.uid == uid || isAdmin());
       allow read: if signedIn() && (
@@ -59,7 +76,8 @@ service cloud.firestore {
       );
 
       allow update: if signedIn() && (
-        request.auth.uid == uid ||
+        (request.auth.uid == uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(userSelfEditableFields())) ||
         isAdmin() ||
         (isCoordinator() &&
           resource.data.department == currentUserData().department &&

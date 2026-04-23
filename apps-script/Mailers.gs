@@ -53,11 +53,43 @@ function sendTaskAssignedMail(email, taskTitle, dueDate) {
 }
 
 function sendInactivityReminder(email, fullName, inactiveDays) {
-  const subject = 'Gönüllü hesabınız için hatırlatma';
+  const subject = 'Tarih Vakfı gönüllü takibi: kısa hatırlatma';
   const body = `
     <p>Merhaba ${fullName || ''},</p>
-    <p>Son ${inactiveDays} gündür sistemde bir etkinlik görünmüyor.</p>
-    <p>Müsaitseniz güncel durumunuzu ve katkınızı sisteme girmenizi rica ederiz.</p>
+    <p>Son raporunun üzerinden yaklaşık ${inactiveDays} gün geçmiş.</p>
+    <p>Müsait olduğunda kısa bir rapor yazabilir veya bir engel varsa bize iletebilir misin?</p>
+    <p>Teşekkürler,<br>Tarih Vakfı koordinasyon</p>
   `;
-  enqueueMail('inactivity', email, subject, body, { inactiveDays });
+  enqueueMail('inactivity_reminder_volunteer', email, subject, body, { inactiveDays });
+}
+
+function sendCoordinatorStalledAlert(coordinatorEmail, volunteerName, volunteerEmail, inactiveDays) {
+  const subject = 'Durmuş gönüllü: koordinatör aksiyonu';
+  const body = `
+    <p>Merhaba,</p>
+    <p><strong>${volunteerName || volunteerEmail}</strong> yaklaşık ${inactiveDays} gündür rapor yazmamış.</p>
+    <p>Kişiye ulaşarak engel olup olmadığını öğrenmenizi rica ederiz. İletişim: ${volunteerEmail}</p>
+  `;
+  enqueueMail('inactivity_alert_coordinator', coordinatorEmail, subject, body, { volunteerName, volunteerEmail, inactiveDays });
+}
+
+// checkInactiveVolunteers: günlük tetikleyici için iskelet.
+// Çalışması için Firestore'a erişim gerekir (service account + REST API).
+// Kurulum adımları için docs/APPS_SCRIPT_SETUP.md bölümüne bakın.
+// TODO: FirestoreClient.gs altında listUsers() yardımcı fonksiyonu oluşturun.
+function checkInactiveVolunteers() {
+  // Aşağıdaki kod yorum satırı; gerçek kullanımda FirestoreClient.gs hazır olduğunda aktifleştirilir.
+  // const users = FirestoreClient_listApprovedVolunteers();
+  // const now = Date.now();
+  // users.forEach(function (u) {
+  //   const last = u.lastReportAt ? new Date(u.lastReportAt).getTime() : null;
+  //   const days = last ? Math.floor((now - last) / 86400000) : null;
+  //   if (days === null || days >= 28) {
+  //     const coord = FirestoreClient_findCoordinatorForDept(u.department);
+  //     if (coord && coord.email) sendCoordinatorStalledAlert(coord.email, u.fullName, u.email, days || 0);
+  //   } else if (days >= 14) {
+  //     sendInactivityReminder(u.email, u.fullName, days);
+  //   }
+  // });
+  appendLog('inactivity_check_stub', { note: 'checkInactiveVolunteers henüz Firestore erişimine bağlı değil; admin panelindeki Aktiflik durumu ekranını kullanın.' }, '');
 }

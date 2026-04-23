@@ -11,7 +11,8 @@ import {
   orderBy,
   where,
   limit,
-  updateDoc
+  updateDoc,
+  writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { escapeHTML, formatDate, badge } from "../js/helpers.js";
 
@@ -336,6 +337,14 @@ function renderManagementOverview() {
     ["Raporlar", submittedReports, "Kontrol bekleyen rapor", "reports", "", submittedReports > 0],
     ["Engeller", totals.blocked, "Çözülmesi gereken takılma", "pnb", "", totals.blocked > 0]
   ];
+  // Add a "stalled volunteers" tile if anyone is 14+ days inactive; gives admins a
+  // one-click hop to the activity panel without them having to go looking.
+  const stalledCount = volunteerPool().filter((u) => {
+    const bucket = bucketForUser(u);
+    return bucket === "slow" || bucket === "stalled";
+  }).length;
+  items.push(["Yavaşlayan / durmuş gönüllü", stalledCount, "14+ gün rapor yazmamış", "management", "activityPanel", stalledCount > 0]);
+
   actions.innerHTML = items.map(([label, value, note, tab, scrollTo, needsAttention]) => (
     `<button class="management-task${needsAttention ? " needs-attention" : ""}" type="button" data-go-tab="${tab}"${scrollTo ? ` data-scroll-to="${scrollTo}"` : ""}>
       <span class="management-task-count">${escapeHTML(String(value))}</span>
@@ -343,6 +352,7 @@ function renderManagementOverview() {
       <span class="management-task-note">${escapeHTML(note)}</span>
     </button>`
   )).join("");
+  renderActivityPanel();
 }
 
 function renderHomeOverview() {
@@ -484,14 +494,37 @@ function renderPeopleOps() {
   warnings.innerHTML = rows.length ? rows.join("") : htmlEmpty("Kritik eksik görünmüyor.");
 }
 
-function archiveOptions(selectedId = "", includeEmpty = true) {
-  const options = includeEmpty ? ['<option value="">Bağlantı yok</option>'] : [];
+function archiveOptions(selectedId = "", includeEmpty = true, emptyLabel = "Bağlantı yok") {
+  const options = includeEmpty ? [`<option value="">${escapeHTML(emptyLabel)}</option>`] : [];
   archiveUnits
     .slice()
     .sort((a, b) => archiveLabel(a).localeCompare(archiveLabel(b), "tr"))
     .forEach((unit) => {
       options.push(`<option value="${escapeHTML(unit.id)}"${unit.id === selectedId ? " selected" : ""}>${escapeHTML(archiveLabel(unit))}</option>`);
     });
+  return options.join("");
+}
+
+// For the quick report form: show only units assigned to the current volunteer,
+// newest first by latestReportAt, so the most relevant one is on top.
+function myArchiveOptions(selectedId = "") {
+  if (!cu) return '<option value="">İş seçiniz</option>';
+  const mine = archiveUnits.filter((unit) => {
+    const uids = Array.isArray(unit.assignedToUids) ? unit.assignedToUids : [];
+    const emails = Array.isArray(unit.assignedToEmails) ? unit.assignedToEmails : [];
+    return uids.includes(cu.uid) || (cu.email && emails.includes(String(cu.email).toLowerCase()));
+  });
+  const list = isStaff() && mine.length === 0 ? archiveUnits.slice() : mine;
+  list.sort((a, b) => {
+    const at = a.latestReportAt?.seconds || 0;
+    const bt = b.latestReportAt?.seconds || 0;
+    if (bt !== at) return bt - at;
+    return archiveLabel(a).localeCompare(archiveLabel(b), "tr");
+  });
+  const options = ['<option value="">İş seçiniz</option>'];
+  list.forEach((unit) => {
+    options.push(`<option value="${escapeHTML(unit.id)}"${unit.id === selectedId ? " selected" : ""}>${escapeHTML(archiveLabel(unit))}</option>`);
+  });
   return options.join("");
 }
 
@@ -528,8 +561,10 @@ function populateUserSelects() {
 function populateArchiveSelects() {
   const reportSelect = document.getElementById("archiveUnitSelect");
   const taskSelect = document.getElementById("taskArchiveUnit");
+  const quickSelect = document.getElementById("quickArchiveUnitSelect");
   if (reportSelect) reportSelect.innerHTML = archiveOptions(reportSelect.value || "");
   if (taskSelect) taskSelect.innerHTML = archiveOptions(taskSelect.value || "");
+  if (quickSelect) quickSelect.innerHTML = myArchiveOptions(quickSelect.value || "");
 }
 
 async function loadAllUsers() {
@@ -745,6 +780,331 @@ async function lp() {
 async function lu() {
   const snap = await getDocs(query(collection(db, "users"), orderBy("createdAt", "desc"), limit(150)));
   document.getElementById("userDirectory").innerHTML = snap.empty ? htmlEmpty("Kullanıcı bulunamadı.") : snap.docs.map((item) => rur(item.data(), item.id)).join("");
+  renderActivityPanel();
+}
+
+// --- Activity panel (active / slowing / stalled / never reported) ---
+
+const ACTIVITY_BUCKETS = [
+  { key: "active",  label: "Aktif (0–13 gün)",     minDays: 0,  maxDays: 13,  tone: "ok"      },
+  { key: "slow",    label: "Yavaşlayan (14–27 gün)", minDays: 14, maxDays: 27, tone: "warn"   },
+  { key: "stalled", label: "Durmuş (28+ gün)",     minDays: 28, maxDays: Infinity, tone: "danger" },
+  { key: "never",   label: "Hiç rapor yazmamış",   minDays: null, maxDays: null,    tone: "mute" }
+];
+
+function toDateFromTs(ts) {
+  if (!ts) return null;
+  if (typeof ts.toDate === "function") return ts.toDate();
+  if (typeof ts.seconds === "number") return new Date(ts.seconds * 1000);
+  if (ts instanceof Date) return ts;
+  return null;
+}
+
+function daysSince(date) {
+  if (!date) return null;
+  const ms = Date.now() - date.getTime();
+  return Math.max(0, Math.floor(ms / 86400000));
+}
+
+function bucketForUser(user) {
+  const last = toDateFromTs(user.data?.lastReportAt);
+  if (!last) return "never";
+  const d = daysSince(last);
+  if (d <= 13) return "active";
+  if (d <= 27) return "slow";
+  return "stalled";
+}
+
+function volunteerPool() {
+  // Consider anyone with role=volunteer and status=approved.
+  return allUsers.filter((u) => (u.data?.role || "volunteer") === "volunteer" && (u.data?.status || "") === "approved");
+}
+
+function renderActivityPanel() {
+  const bucketsEl = document.getElementById("activityBuckets");
+  const summaryEl = document.getElementById("activitySummary");
+  if (!bucketsEl || !summaryEl) return;
+  if (!isStaff()) { bucketsEl.innerHTML = ""; summaryEl.innerHTML = ""; return; }
+
+  const deptSelect = document.getElementById("activityDeptFilter");
+  const dept = deptSelect ? deptSelect.value : "";
+  const pool = volunteerPool().filter((u) => !dept || (u.data?.department || "") === dept);
+
+  const grouped = { active: [], slow: [], stalled: [], never: [] };
+  pool.forEach((u) => { grouped[bucketForUser(u)].push(u); });
+
+  // Sort each bucket: most recent activity first within "active/slow/stalled",
+  // alphabetical within "never".
+  ["active", "slow", "stalled"].forEach((k) => {
+    grouped[k].sort((a, b) => {
+      const ad = toDateFromTs(a.data?.lastReportAt)?.getTime() || 0;
+      const bd = toDateFromTs(b.data?.lastReportAt)?.getTime() || 0;
+      return bd - ad;
+    });
+  });
+  grouped.never.sort((a, b) => userDisplayName(a).localeCompare(userDisplayName(b), "tr"));
+
+  summaryEl.innerHTML = ACTIVITY_BUCKETS.map((b) => (
+    `<div class="activity-kpi activity-${b.tone}"><strong>${grouped[b.key].length}</strong><span>${escapeHTML(b.label)}</span></div>`
+  )).join("");
+
+  bucketsEl.innerHTML = ACTIVITY_BUCKETS.map((b) => {
+    const people = grouped[b.key];
+    if (!people.length) return "";
+    const rows = people.map((u) => renderActivityRow(u, b.key)).join("");
+    return `<section class="activity-bucket activity-${b.tone}">
+      <header><h3>${escapeHTML(b.label)}</h3><span>${people.length} kişi</span></header>
+      <div class="activity-rows">${rows}</div>
+    </section>`;
+  }).join("") || htmlEmpty("Bu filtreye uyan gönüllü yok.");
+}
+
+function renderActivityRow(user, bucketKey) {
+  const name = userDisplayName(user);
+  const email = user.data?.email || "";
+  const dept = user.data?.department || "-";
+  const last = toDateFromTs(user.data?.lastReportAt);
+  const d = last ? daysSince(last) : null;
+  const lastText = last ? `${d} gün önce · ${formatDate(last.toISOString().slice(0,10))}` : "Hiç rapor yok";
+  const needsNudge = bucketKey === "slow" || bucketKey === "stalled" || bucketKey === "never";
+  const nudgeBtn = needsNudge && email
+    ? `<button class="btn btn-secondary btn-sm" type="button" data-nudge-email="${escapeHTML(email)}" data-nudge-name="${escapeHTML(name)}" data-nudge-days="${d ?? ""}">Hatırlatma gönder</button>`
+    : "";
+  return `<div class="activity-row" data-uid="${escapeHTML(user.uid)}">
+    <div class="activity-who">
+      <strong>${escapeHTML(name)}</strong>
+      <span class="muted">${escapeHTML(dept)}${email ? ` · ${escapeHTML(email)}` : ""}</span>
+    </div>
+    <div class="activity-when">${escapeHTML(lastText)}</div>
+    <div class="activity-actions">${nudgeBtn}</div>
+  </div>`;
+}
+
+function nudgeMailtoUrl(name, days) {
+  const subject = `Tarih Vakfı gönüllü takibi: kısa hatırlatma`;
+  const inactiveLine = days == null || days === ""
+    ? "Son zamanlarda sistemde rapor görünmüyor."
+    : `Son raporun üzerinden yaklaşık ${days} gün geçmiş.`;
+  const body = [
+    `Merhaba ${name || ""},`,
+    "",
+    inactiveLine,
+    "Müsait olduğunda kısa bir rapor yazabilir veya bir engel varsa bize iletebilir misin?",
+    "",
+    "Teşekkürler,",
+    "Tarih Vakfı koordinasyon"
+  ].join("\r\n");
+  return { subject, body };
+}
+
+// --- Per-unit drill-down modal ---
+
+const workStatusLabels = {
+  in_progress: "Devam ediyor",
+  unit_done: "Birim bitti",
+  blocked: "Takıldı"
+};
+
+let drillCurrentUnitId = null;
+let drillCurrentReports = [];
+
+function openUnitDrill(unitId) {
+  // Drill-down queries reports by archiveUnitId, which is only allowed by
+  // Firestore rules for coordinators/admins. Guard client-side too so a
+  // misplaced button can't trigger a rejected query for volunteers.
+  if (!isStaff()) return;
+  const unit = archiveById[unitId];
+  const modal = document.getElementById("unitDrillModal");
+  if (!unit || !modal) return;
+  drillCurrentUnitId = unitId;
+  drillCurrentReports = [];
+
+  document.getElementById("drillTitle").textContent = archiveLabel(unit);
+  const subtitleBits = [];
+  if (unit.sourceCode) subtitleBits.push(`Kaynak: ${unit.sourceCode}`);
+  if (unit.boxNo) subtitleBits.push(`Kutu: ${unit.boxNo}`);
+  if (unit.seriesNo) subtitleBits.push(`Seri: ${unit.seriesNo}`);
+  if (unit.materialType) subtitleBits.push(unit.materialType);
+  document.getElementById("drillSubtitle").textContent = subtitleBits.join(" · ");
+
+  const progress = percent(unit.completedDocumentCount || unit.completedFileCount || 0, unit.documentCount || unit.fileCount || 0);
+  const stats = [
+    ["Durum", statusLabel(unit.status || "not_started")],
+    ["İlerleme", `${progress}%`],
+    ["Sayfa", numberText(unit.pageCount)],
+    ["Belge", `${numberText(unit.completedDocumentCount || 0)} / ${numberText(unit.documentCount || 0)}`],
+    ["Dosya", `${numberText(unit.completedFileCount || 0)} / ${numberText(unit.fileCount || 0)}`]
+  ];
+  document.getElementById("drillStats").innerHTML = stats.map(([k, v]) => (
+    `<div class="drill-stat"><span>${escapeHTML(k)}</span><strong>${escapeHTML(String(v))}</strong></div>`
+  )).join("") + `<div class="drill-progress" title="${progress}%"><span style="width:${progress}%"></span></div>`;
+
+  const blockerEl = document.getElementById("drillBlocker");
+  if (unit.blockerNote && unit.status === "blocked") {
+    blockerEl.innerHTML = `<div class="revision-alert"><strong>Engel</strong><p>${escapeHTML(unit.blockerNote)}</p></div>`;
+  } else if (unit.blockerNote) {
+    blockerEl.innerHTML = `<div class="drill-note"><strong>Not</strong><p>${escapeHTML(unit.blockerNote)}</p></div>`;
+  } else {
+    blockerEl.innerHTML = "";
+  }
+
+  // Assigned volunteers: names from allUsers where possible, fallback to stored emails.
+  const uids = Array.isArray(unit.assignedToUids) ? unit.assignedToUids : [];
+  const emails = Array.isArray(unit.assignedToEmails) ? unit.assignedToEmails : [];
+  const namesFromUids = uids.map((uid) => {
+    const u = allUsers.find((x) => x.uid === uid);
+    return u ? userDisplayName(u) : findUserName(uid) || uid;
+  });
+  const seen = new Set(namesFromUids);
+  const namesFromEmails = emails.filter((e) => {
+    const match = allUsers.find((x) => (x.data?.email || "").toLowerCase() === String(e).toLowerCase());
+    const label = match ? userDisplayName(match) : e;
+    if (seen.has(label)) return false;
+    seen.add(label);
+    return true;
+  });
+  const assignedList = [...namesFromUids, ...namesFromEmails];
+  document.getElementById("drillAssignees").innerHTML = assignedList.length
+    ? assignedList.map((n) => `<span class="drill-chip">${escapeHTML(n)}</span>`).join("")
+    : '<p class="muted">Bu birime henüz kimse atanmadı.</p>';
+
+  document.getElementById("drillExportCsv").classList.toggle("hidden", !isStaff());
+  document.getElementById("drillReports").innerHTML = '<p class="muted">Yükleniyor...</p>';
+
+  modal.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+  // Focus the close button for keyboard users.
+  setTimeout(() => modal.querySelector("[data-drill-close]")?.focus(), 50);
+
+  loadDrillReports(unitId).catch((error) => {
+    document.getElementById("drillReports").innerHTML = `<p class="muted">Raporlar yüklenemedi: ${escapeHTML(error.message)}</p>`;
+  });
+}
+
+async function loadDrillReports(unitId) {
+  const container = document.getElementById("drillReports");
+  // Security rules enforce per-user visibility server-side; we just render what comes back.
+  const snap = await getDocs(query(
+    collection(db, "reports"),
+    where("archiveUnitId", "==", unitId),
+    orderBy("createdAt", "desc"),
+    limit(50)
+  ));
+  if (drillCurrentUnitId !== unitId) return; // user closed/switched while loading
+  drillCurrentReports = snap.docs.map((item) => ({ id: item.id, ...item.data() }));
+
+  if (drillCurrentReports.length === 0) {
+    container.innerHTML = '<p class="muted">Bu birim için henüz rapor yok.</p>';
+    return;
+  }
+
+  // Cumulative pagesDone across the visible reports (chronological sum).
+  const chrono = drillCurrentReports.slice().reverse();
+  let running = 0;
+  const runningByReportId = new Map();
+  chrono.forEach((r) => {
+    const p = Number(r.pagesDone || 0);
+    running += Number.isFinite(p) ? p : 0;
+    runningByReportId.set(r.id, running);
+  });
+  const totalPages = running;
+
+  const reportRows = drillCurrentReports.map((r) => {
+    const who = r.userUid ? (findUserName(r.userUid) || r.userEmail || "—") : (r.userEmail || "—");
+    const createdAt = toDateFromTs(r.createdAt);
+    const dateStr = createdAt ? createdAt.toLocaleDateString("tr-TR") + " " + createdAt.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }) : (r.reportDate || "—");
+    const ws = r.workStatus ? `<span class="drill-tag ws-${escapeHTML(r.workStatus)}">${escapeHTML(workStatusLabels[r.workStatus] || r.workStatus)}</span>` : "";
+    const src = r.source ? `<span class="drill-tag src-${escapeHTML(r.source)}">${escapeHTML(r.source === "quick" ? "Hızlı" : "Detaylı")}</span>` : "";
+    const pages = r.pagesDone != null && r.pagesDone !== "" ? `<span class="drill-pages">${numberText(r.pagesDone)} sayfa</span>` : "";
+    const cumulative = runningByReportId.has(r.id) ? `<span class="drill-cum">Toplam: ${numberText(runningByReportId.get(r.id))}</span>` : "";
+    const summary = r.summary ? `<p class="drill-summary">${escapeHTML(r.summary)}</p>` : "";
+    const reviewStatus = r.status ? `<span class="drill-tag review-${escapeHTML(r.status)}">${escapeHTML(reportStatusLabels[r.status] || r.status)}</span>` : "";
+    return `<article class="drill-report">
+      <header>
+        <div><strong>${escapeHTML(who)}</strong><span class="muted"> · ${escapeHTML(dateStr)}</span></div>
+        <div class="drill-tags">${ws}${src}${reviewStatus}</div>
+      </header>
+      <div class="drill-numbers">${pages}${cumulative}${r.hours ? `<span class="drill-hours">${numberText(r.hours)} saat</span>` : ""}</div>
+      ${summary}
+    </article>`;
+  }).join("");
+
+  const banner = `<div class="drill-summary-banner"><strong>${numberText(drillCurrentReports.length)}</strong> rapor · <strong>${numberText(totalPages)}</strong> sayfa toplam</div>`;
+  container.innerHTML = banner + reportRows;
+}
+
+function closeUnitDrill() {
+  const modal = document.getElementById("unitDrillModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+  drillCurrentUnitId = null;
+  drillCurrentReports = [];
+}
+
+function exportDrillCsv() {
+  if (!drillCurrentUnitId || !drillCurrentReports.length) return;
+  const unit = archiveById[drillCurrentUnitId];
+  const rows = [["createdAt_iso", "volunteer", "email", "workStatus", "pagesDone", "hours", "reviewStatus", "source", "summary"]];
+  // Chronological order for analysis.
+  drillCurrentReports.slice().reverse().forEach((r) => {
+    const createdAt = toDateFromTs(r.createdAt);
+    const who = r.userUid ? (findUserName(r.userUid) || "") : "";
+    rows.push([
+      createdAt ? createdAt.toISOString() : "",
+      who,
+      r.userEmail || "",
+      r.workStatus || "",
+      r.pagesDone == null ? "" : String(r.pagesDone),
+      r.hours == null ? "" : String(r.hours),
+      r.status || "",
+      r.source || "",
+      r.summary || ""
+    ]);
+  });
+  const csv = rows.map((r) => r.map((v) => {
+    const s = String(v ?? "");
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }).join(",")).join("\r\n");
+  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const slug = (unit ? archiveLabel(unit) : drillCurrentUnitId).replace(/[^a-zA-Z0-9]+/g, "-").slice(0, 50) || drillCurrentUnitId;
+  a.href = url;
+  a.download = `arsiv-birim-${slug}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+// Build a CSV of volunteer activity for offline analysis.
+function exportActivityCsv() {
+  const pool = volunteerPool();
+  const rows = [["uid", "ad_soyad", "email", "departman", "lastReportAt_iso", "gun_once", "kova"]];
+  pool.forEach((u) => {
+    const last = toDateFromTs(u.data?.lastReportAt);
+    const d = last ? daysSince(last) : "";
+    rows.push([
+      u.uid,
+      userDisplayName(u),
+      u.data?.email || "",
+      u.data?.department || "",
+      last ? last.toISOString() : "",
+      d === "" ? "" : String(d),
+      bucketForUser(u)
+    ]);
+  });
+  const csv = rows.map((r) => r.map((v) => {
+    const s = String(v ?? "");
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }).join(",")).join("\r\n");
+  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `gonullu-aktiflik-${stamp}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 async function loadArchiveUnits() {
@@ -882,7 +1242,9 @@ function archiveCard(unit) {
           <button class="btn btn-secondary btn-sm" type="button" data-block-au="${unit.id}">Gönder</button>
         </details>
       </div>
-      <button class="btn btn-primary btn-sm" type="button" data-report-au="${unit.id}">Rapor yaz</button>
+      <div class="archive-actions">
+        <button class="btn btn-primary btn-sm" type="button" data-report-au="${unit.id}">Rapor yaz</button>
+      </div>
     </article>`;
   }
   let html = `<article id="archive-unit-${escapeHTML(unit.id)}" class="archive-card ${escapeHTML(unit.status || "not_started")}">
@@ -906,10 +1268,10 @@ function archiveCard(unit) {
       </div>
       <label>Atanan gönüllüler <select multiple data-au-assign="${unit.id}">${userOptions(unit.assignedToUids || [])}</select></label>
       <label>Engel / not <textarea rows="2" data-au-blocker="${unit.id}">${escapeHTML(unit.blockerNote || "")}</textarea></label>
-      <div class="archive-actions"><button class="btn btn-primary btn-sm" data-save-au="${unit.id}">Kaydet</button><button class="btn btn-secondary btn-sm" data-create-task-au="${unit.id}">İş oluştur</button><button class="btn btn-secondary btn-sm" data-report-au="${unit.id}">Rapor yaz</button></div>
+      <div class="archive-actions"><button class="btn btn-primary btn-sm" data-save-au="${unit.id}">Kaydet</button><button class="btn btn-secondary btn-sm" data-create-task-au="${unit.id}">İş oluştur</button><button class="btn btn-secondary btn-sm" data-report-au="${unit.id}">Rapor yaz</button><button class="btn btn-secondary btn-sm" data-drill-unit="${unit.id}">Geçmişi aç</button></div>
     </div>`;
   } else {
-    html += `<div class="archive-controls"><label>Engel bildir <textarea rows="2" data-vol-blocker="${unit.id}" placeholder="Bu işte sizi durduran sorunu yazın...">${escapeHTML(unit.blockerNote || "")}</textarea></label><div class="archive-actions"><button class="btn btn-primary btn-sm" data-report-au="${unit.id}">Rapor yaz</button><button class="btn btn-secondary btn-sm" data-block-au="${unit.id}">Engel bildir</button></div></div>`;
+    html += `<div class="archive-controls"><label>Engel bildir <textarea rows="2" data-vol-blocker="${unit.id}" placeholder="Bu işte sizi durduran sorunu yazın...">${escapeHTML(unit.blockerNote || "")}</textarea></label><div class="archive-actions"><button class="btn btn-primary btn-sm" data-report-au="${unit.id}">Rapor yaz</button><button class="btn btn-secondary btn-sm" data-block-au="${unit.id}">Engel bildir</button><button class="btn btn-secondary btn-sm" data-drill-unit="${unit.id}">Geçmişi aç</button></div></div>`;
   }
   return `${html}</article>`;
 }
@@ -974,6 +1336,9 @@ function rf() {
   if (coworkers) Array.from(coworkers.options).forEach((option) => { option.selected = false; });
   pi = [];
   uip();
+  // After reset (including cancel-edit), return to the quick form as the default view.
+  document.getElementById("reportFormCard")?.classList.add("hidden");
+  document.getElementById("quickReportCard")?.classList.remove("hidden");
 }
 
 function renderImportPreview(preview) {
@@ -1198,6 +1563,14 @@ document.getElementById("notifReadAll")?.addEventListener("click", async () => {
 document.getElementById("cancelEditBtn")?.addEventListener("click", rf);
 document.getElementById("refreshPnbBtn")?.addEventListener("click", reloadPnb);
 document.getElementById("pnbStatusFilter")?.addEventListener("change", renderArchiveUnits);
+document.getElementById("activityDeptFilter")?.addEventListener("change", renderActivityPanel);
+
+// Close the unit drill-down modal on Escape.
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  const modal = document.getElementById("unitDrillModal");
+  if (modal && !modal.classList.contains("hidden")) closeUnitDrill();
+});
 document.getElementById("pnbCommitBtn")?.addEventListener("click", commitPnbImport);
 
 document.getElementById("pnbImportFile")?.addEventListener("change", async (event) => {
@@ -1228,6 +1601,41 @@ document.addEventListener("click", async (event) => {
     const scrollTarget = tabTarget.dataset.scrollTo ? document.getElementById(tabTarget.dataset.scrollTo) : document.getElementById(`tab-${tabName}`);
     if (scrollTarget?.tagName === "DETAILS") scrollTarget.open = true;
     scrollTarget?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const focusId = tabTarget.dataset.focus;
+    if (focusId) setTimeout(() => document.getElementById(focusId)?.focus(), 150);
+    return;
+  }
+
+  // Volunteer activity nudge: opens a prefilled mailto: so the coordinator
+  // can personalize and send via their own mail client. Keeps us fully
+  // client-side (no Apps Script / Cloud Function needed).
+  const nudgeBtn = event.target.closest("[data-nudge-email]");
+  if (nudgeBtn) {
+    const email = nudgeBtn.dataset.nudgeEmail || "";
+    const name = nudgeBtn.dataset.nudgeName || "";
+    const days = nudgeBtn.dataset.nudgeDays || "";
+    const { subject, body } = nudgeMailtoUrl(name, days);
+    window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    return;
+  }
+
+  if (event.target.id === "exportActivityBtn") {
+    exportActivityCsv();
+    return;
+  }
+
+  const drillOpen = event.target.closest("[data-drill-unit]");
+  if (drillOpen) {
+    openUnitDrill(drillOpen.dataset.drillUnit);
+    return;
+  }
+  const drillClose = event.target.closest("[data-drill-close]");
+  if (drillClose) {
+    closeUnitDrill();
+    return;
+  }
+  if (event.target.id === "drillExportCsv") {
+    exportDrillCsv();
     return;
   }
 
@@ -1506,6 +1914,9 @@ document.addEventListener("click", async (event) => {
     document.getElementById("reportFormTitle").textContent = "Raporu düzenle";
     document.getElementById("reportSubmitBtn").textContent = "Güncelle";
     document.getElementById("cancelEditBtn").classList.remove("hidden");
+    // Edits always happen in the detailed form; reveal it and hide the quick card.
+    document.getElementById("reportFormCard")?.classList.remove("hidden");
+    document.getElementById("quickReportCard")?.classList.add("hidden");
     document.querySelector("#tab-reports")?.scrollIntoView({ behavior: "smooth", block: "start" });
     return;
   }
@@ -1607,6 +2018,65 @@ document.addEventListener("click", async (event) => {
   }
 });
 
+// Shared helper for creating a new report. Writes the report doc, updates
+// users/{targetUid}.lastReportAt, and (if linked) updates the archive unit's
+// status + latestReportAt — all in a single atomic batch.
+// Derives the archive unit's new status from the volunteer's workStatus when
+// provided ("unit_done" -> review, "blocked" -> blocked, else in_progress).
+async function createReportBatched(data, { targetUid, targetEmail }) {
+  const archiveUnitId = data.archiveUnitId || "";
+  const batch = writeBatch(db);
+  const reportRef = doc(collection(db, "reports"));
+  const reportDoc = {
+    ...data,
+    userUid: targetUid,
+    userEmail: targetEmail,
+    status: "submitted",
+    reviewerUid: null,
+    feedback: [],
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  };
+  batch.set(reportRef, reportDoc);
+
+  // Denormalize: keep users/{uid}.lastReportAt + lastSeenAt in sync for
+  // "active vs stalled" admin views. Only fields in userSelfEditableFields()
+  // (or admin-modifiable) are touched here.
+  if (targetUid) {
+    batch.update(doc(db, "users", targetUid), {
+      lastReportAt: serverTimestamp(),
+      lastSeenAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+  }
+
+  if (archiveUnitId) {
+    const currentStatus = archiveById[archiveUnitId]?.status;
+    let nextStatus = currentStatus || "in_progress";
+    if (data.workStatus === "unit_done") nextStatus = "review";
+    else if (data.workStatus === "blocked") nextStatus = "blocked";
+    else if (currentStatus === "not_started" || currentStatus === "assigned") nextStatus = "in_progress";
+    const unitUpdate = {
+      status: nextStatus,
+      latestReportAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
+    if (data.workStatus === "blocked" && data.summary) unitUpdate.blockerNote = data.summary;
+    batch.update(doc(db, "archiveUnits", archiveUnitId), unitUpdate);
+  }
+
+  await batch.commit();
+  return { reportId: reportRef.id, reportDoc };
+}
+
+function notifyStaffOfReport(targetUid, taskLabel) {
+  allUsers.forEach((user) => {
+    if ((user.data.role === "admin" || user.data.role === "coordinator") && user.uid !== cu.uid) {
+      createNotif(user.uid, "report_submitted", `Yeni rapor gönderildi: ${taskLabel} - ${findUserName(targetUid)}`, "reports");
+    }
+  });
+}
+
 document.getElementById("reportForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!cu || !db) return;
@@ -1623,6 +2093,9 @@ document.getElementById("reportForm")?.addEventListener("submit", async (event) 
     projectId: archiveUnitId ? PNB_PROJECT_ID : "",
     summary: document.getElementById("summary").value.trim(),
     hours: Number(document.getElementById("hours").value || 0),
+    pagesDone: null,
+    workStatus: archiveUnitId ? "in_progress" : null,
+    source: "detailed",
     reportDate: document.getElementById("reportDate").value,
     links: pl(document.getElementById("reportLinks").value),
     images: pi.slice(),
@@ -1635,26 +2108,9 @@ document.getElementById("reportForm")?.addEventListener("submit", async (event) 
       await updateDoc(doc(db, "reports", editId), data);
       document.getElementById("reportMessage").textContent = "Rapor güncellendi!";
     } else {
-      data.userUid = targetUid;
-      data.userEmail = targetEmail;
-      data.status = "submitted";
-      data.reviewerUid = null;
-      data.feedback = [];
-      data.createdAt = serverTimestamp();
-      await addDoc(collection(db, "reports"), data);
+      await createReportBatched(data, { targetUid, targetEmail });
       document.getElementById("reportMessage").textContent = "Rapor kaydedildi!";
-      allUsers.forEach((user) => {
-        if ((user.data.role === "admin" || user.data.role === "coordinator") && user.uid !== cu.uid) {
-          createNotif(user.uid, "report_submitted", `Yeni rapor gönderildi: ${data.taskId} - ${findUserName(targetUid)}`, "reports");
-        }
-      });
-    }
-    if (archiveUnitId) {
-      await updateDoc(doc(db, "archiveUnits", archiveUnitId), {
-        status: archiveById[archiveUnitId]?.status === "not_started" || archiveById[archiveUnitId]?.status === "assigned" ? "in_progress" : archiveById[archiveUnitId]?.status || "in_progress",
-        latestReportAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
+      notifyStaffOfReport(targetUid, data.taskId);
     }
     rf();
     setTimeout(() => { document.getElementById("reportMessage").textContent = ""; }, 3000);
@@ -1663,6 +2119,72 @@ document.getElementById("reportForm")?.addEventListener("submit", async (event) 
   } catch (error) {
     document.getElementById("reportMessage").textContent = `Hata: ${error.message}`;
   }
+});
+
+// Quick report form: minimal fields, mobile-first, reuses the atomic helper.
+document.getElementById("quickReportForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!cu || !db) return;
+  const messageEl = document.getElementById("quickReportMessage");
+  const archiveUnitId = document.getElementById("quickArchiveUnitSelect").value || "";
+  const workStatus = document.getElementById("quickWorkStatus").value || "in_progress";
+  const pagesDoneRaw = document.getElementById("quickPagesDone").value;
+  const pagesDone = pagesDoneRaw === "" ? null : Math.max(0, Math.floor(Number(pagesDoneRaw) || 0));
+  const summary = document.getElementById("quickSummary").value.trim();
+
+  if (!archiveUnitId) {
+    messageEl.textContent = "Lütfen bir arşiv birimi seçin.";
+    return;
+  }
+  // Require at least pagesDone OR a short note so the report has some content.
+  if (pagesDone === null && !summary && workStatus === "in_progress") {
+    messageEl.textContent = "Sayfa sayısı veya kısa bir not yazın.";
+    return;
+  }
+
+  const unitLabel = archiveById[archiveUnitId] ? archiveLabel(archiveById[archiveUnitId]) : archiveUnitId;
+  const data = {
+    taskId: unitLabel,
+    archiveUnitId,
+    projectId: PNB_PROJECT_ID,
+    summary,
+    hours: 0,
+    pagesDone,
+    workStatus,
+    source: "quick",
+    reportDate: td(),
+    links: [],
+    images: [],
+    coworkerUids: []
+  };
+
+  const submitBtn = event.target.querySelector('button[type="submit"]');
+  if (submitBtn) submitBtn.disabled = true;
+  try {
+    await createReportBatched(data, { targetUid: cu.uid, targetEmail: cu.email || "" });
+    messageEl.textContent = "Teşekkürler, rapor alındı.";
+    notifyStaffOfReport(cu.uid, unitLabel);
+    event.target.reset();
+    setTimeout(() => { messageEl.textContent = ""; }, 3000);
+    await lr();
+    await reloadPnb();
+  } catch (error) {
+    messageEl.textContent = `Hata: ${error.message}`;
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+  }
+});
+
+// Toggle between quick and detailed report forms.
+document.getElementById("toggleDetailedBtn")?.addEventListener("click", () => {
+  document.getElementById("quickReportCard")?.classList.add("hidden");
+  document.getElementById("reportFormCard")?.classList.remove("hidden");
+  document.getElementById("taskId")?.focus();
+});
+document.getElementById("toggleQuickBtn")?.addEventListener("click", () => {
+  document.getElementById("reportFormCard")?.classList.add("hidden");
+  document.getElementById("quickReportCard")?.classList.remove("hidden");
+  document.getElementById("quickArchiveUnitSelect")?.focus();
 });
 
 document.getElementById("taskForm")?.addEventListener("submit", async (event) => {

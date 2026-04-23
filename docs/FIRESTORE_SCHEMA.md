@@ -20,6 +20,10 @@ Doküman kimliği: Firebase `uid`; Excel/ön kayıt ile eklenen kişiler için g
 - `createdAt`: timestamp
 - `updatedAt`: timestamp
 - `lastSeenAt`: timestamp
+- `lastReportAt`: timestamp | null — en son rapor gönderim zamanı; gönüllü rapor oluştururken aynı batch içinde `serverTimestamp()` ile yazılır. "Aktif / yavaşlayan / durmuş" sınıflandırmasının temelidir.
+- `reportCount7d`: number — son 7 günde gönderilen rapor sayısı. Rapor yazarken client-side artırılır, pencere dışına çıktığında sıfırlanır.
+- `reportCount30d`: number — son 30 günde gönderilen rapor sayısı. Aynı mantıkla güncellenir.
+- `counterWindowStart`: timestamp | null — `reportCount7d` / `reportCount30d` pencerelerinin başlangıcı. Yedi/otuz günden eski olduğunda sayaçlar sıfırlanır.
 
 ## archiveUnits
 
@@ -104,13 +108,16 @@ Gönüllü iş raporları. PNB arşiv birimi ile ilişkilendirilebilir.
 - `taskId`: string
 - `projectId`: string
 - `archiveUnitId`: string | null
-- `summary`: string
+- `summary`: string — serbest metin notu (hibrit rapor yapısının "özgür" kısmı).
 - `hours`: number
+- `pagesDone`: number | null — bu raporla tamamlanan sayfa sayısı. Arşiv birimine bağlı hibrit raporlarda zorunlu, diğer durumlarda opsiyonel.
+- `workStatus`: `in_progress | unit_done | blocked` — gönüllünün seçtiği yapılandırılmış durum etiketi. Arşiv birimi `status`'unu güncellemek için kullanılır.
+- `source`: `quick | detailed` — formun hangi varyantından geldiği. Kullanıcı deneyimi analizi için.
 - `reportDate`: string
 - `links`: string[]
 - `images`: string[]
 - `coworkerUids`: string[]
-- `status`: `submitted | revision_needed | approved`
+- `status`: `submitted | revision_needed | approved` — koordinatör inceleme durumu (`workStatus`'tan farklıdır: bu admin tarafıdır).
 - `feedback`: map[]
 - `reviewerUid`: string | null
 - `createdAt`: timestamp
