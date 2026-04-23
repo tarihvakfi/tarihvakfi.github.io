@@ -2,6 +2,8 @@
 
 PNB Excel dosyaları doğrudan tarayıcıdan okunmaz. Önce yerel bir JSON önizleme üretilir, sonra admin panelinde kontrol edilip Firestore'a aktarılır.
 
+Bu import yalnızca PNB'yi ilk ayrıntılı proje olarak sisteme taşır. PNB dışındaki gönüllü işleri aynı yönetim ortamında genel görev/rapor/duyuru akışıyla yürümeye devam eder.
+
 ## 1. Önizleme JSON üret
 
 Repo kökünden:

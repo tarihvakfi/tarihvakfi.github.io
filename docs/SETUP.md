@@ -16,7 +16,7 @@
 ## 3. Firestore
 
 1. Cloud Firestore oluşturun.
-2. `users`, `tasks`, `reports`, `archiveUnits`, `availability`, `communicationPlans`, `projectPeople`, `announcements`, `notifications`, `preregistered`, `activityLogs` koleksiyonları için veri modelini kullanın.
+2. `projects`, `users`, `tasks`, `reports`, `archiveUnits`, `availability`, `communicationPlans`, `projectPeople`, `announcements`, `notifications`, `preregistered`, `activityLogs` koleksiyonları için veri modelini kullanın.
 3. `firebase/firestore.rules` içeriğini yayınlayın.
 
 ## 4. İstemci yapılandırması

@@ -541,8 +541,8 @@ function renderPnbStats() {
   const hero = document.getElementById("pnbHeroStatus");
   if (!statsEl || !hero) return;
   if (!archiveUnits.length) {
-    hero.textContent = "Veri bekleniyor";
-    statsEl.innerHTML = `<div class="pnb-empty-action">PNB arşiv iş paketleri henüz Firestore'a aktarılmamış. Yönetici olarak "PNB İçe Aktar" sekmesinden import JSON seçebilirsiniz.</div>`;
+    hero.textContent = "Genel çalışma ortamı";
+    statsEl.innerHTML = `<div class="pnb-empty-action">PNB arşiv iş paketleri henüz Firestore'a aktarılmamış. Diğer gönüllü işleri için Görevler, Raporlar, Duyurular ve Kullanıcılar sekmeleri kullanılabilir. Yönetici olarak PNB verisini eklemek için "PNB İçe Aktar" sekmesini açabilirsiniz.</div>`;
     return;
   }
   const totals = archiveUnits.reduce((acc, unit) => {
@@ -741,6 +741,7 @@ async function commitPnbImport() {
     const availability = pnbImportPreview.availability || [];
     const units = pnbImportPreview.archiveUnits || [];
     const plans = pnbImportPreview.communicationPlans || [];
+    const summary = pnbImportPreview.summary || {};
 
     people.forEach((person) => {
       const projectPersonData = cleanData({ ...person, importedAt: serverTimestamp(), updatedAt: serverTimestamp() });
@@ -1484,3 +1485,23 @@ if (!auth || !db) {
     loadNotifs();
   });
 }
+    writes.push({
+      ref: doc(db, "projects", PNB_PROJECT_ID),
+      data: {
+        id: PNB_PROJECT_ID,
+        title: pnbImportPreview.project?.title || PNB_PROJECT_TITLE,
+        type: "archive_digitization",
+        status: "active",
+        department: "Arşiv",
+        description: "Pertev Naili Boratav arşiv dijitalleştirme çalışması. Bu proje, genel gönüllü yönetim ortamındaki ilk ayrıntılı arşiv vaka çalışmasıdır.",
+        archiveUnitCount: summary.archiveUnits || units.length,
+        fileCount: summary.fileCount || 0,
+        documentCount: summary.documentCount || 0,
+        pageCount: summary.pageCount || 0,
+        peopleCount: summary.people || people.length,
+        availabilitySlotCount: summary.availabilitySlotCount || 0,
+        communicationPlanCount: summary.communicationPlans || plans.length,
+        importedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      }
+    });

@@ -78,6 +78,11 @@ service cloud.firestore {
       allow read, create, update, delete: if isCoordinatorOrAdmin();
     }
 
+    match /projects/{projectId} {
+      allow read: if isApproved();
+      allow create, update, delete: if isCoordinatorOrAdmin();
+    }
+
     match /availability/{availabilityId} {
       allow read, create, update, delete: if isCoordinatorOrAdmin();
     }

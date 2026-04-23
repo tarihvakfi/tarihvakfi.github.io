@@ -7,9 +7,9 @@ Bu projede güvenlik sadece arayüzdeki buton gizleme ile sağlanmaz. Asıl koru
 - Giriş yapmayan kullanıcı korumalı verilere erişemez.
 - `pending` kullanıcı operasyonel verilere erişemez.
 - `blocked` kullanıcı uygulamayı kullanamaz.
-- Gönüllü kendi profilini, kendi görevlerini, kendi raporlarını ve kendisine atanmış PNB arşiv birimlerini görür.
+- Gönüllü kendi profilini, kendi görevlerini, kendi raporlarını, genel proje başlıklarını ve kendisine atanmış PNB arşiv birimlerini görür.
 - Gönüllü atanmış PNB biriminde yalnızca engel bildirme ve son rapor zamanını güncelleme gibi sınırlı alanları değiştirebilir.
-- Koordinatör ve admin PNB arşiv birimlerini, uygunluk kayıtlarını, iletişim planını ve rapor incelemelerini yönetebilir.
+- Koordinatör ve admin proje kayıtlarını, PNB arşiv birimlerini, uygunluk kayıtlarını, iletişim planını ve rapor incelemelerini yönetebilir.
 - Paydaş/iletişim verisi içeren `projectPeople` ve `availability` koleksiyonları gönüllülere kapalıdır.
 - Admin her şeyi yönetebilir ve PNB importunu çalıştırabilir.
 

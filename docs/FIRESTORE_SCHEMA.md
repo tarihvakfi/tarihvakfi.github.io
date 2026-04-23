@@ -23,7 +23,27 @@ Doküman kimliği: Firebase `uid`; Excel/ön kayıt ile eklenen kişiler için g
 
 ## archiveUnits
 
-PNB gibi arşiv projelerinde kutu/seri/dosya düzeyindeki asıl iş paketleri.
+PNB gibi arşiv projelerinde kutu/seri/dosya düzeyindeki asıl iş paketleri. Diğer proje türleri genel `tasks` ve `reports` akışıyla yönetilebilir; arşiv benzeri yeni projeler aynı modeli `projectId` ile tekrar kullanabilir.
+
+## projects
+
+Tek yönetim ortamındaki çalışma başlıkları. PNB ilk ayrıntılı kayıt olarak `projects/pnb` dokümanına yazılır.
+
+- `id`: string
+- `title`: string
+- `type`: string, ör. `archive_digitization`, `event`, `publication`, `education`
+- `status`: `active | paused | done | archived`
+- `department`: string
+- `description`: string
+- `archiveUnitCount`: number
+- `fileCount`: number
+- `documentCount`: number
+- `pageCount`: number
+- `peopleCount`: number
+- `availabilitySlotCount`: number
+- `communicationPlanCount`: number
+- `importedAt`: timestamp
+- `updatedAt`: timestamp
 
 - `projectId`: string, PNB için `pnb`
 - `projectTitle`: string
