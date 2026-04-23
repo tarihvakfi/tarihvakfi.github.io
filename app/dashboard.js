@@ -722,9 +722,12 @@ function renderImportPreview(preview) {
 }
 
 async function commitBatchedWrites(writes) {
-  for (let index = 0; index < writes.length; index += 400) {
+  // Keep batches small because each protected write evaluates Firestore rules.
+  // Large batches can hit rules access-call limits and fail as "missing permissions".
+  const chunkSize = 10;
+  for (let index = 0; index < writes.length; index += chunkSize) {
     const batch = writeBatch(db);
-    writes.slice(index, index + 400).forEach((write) => batch.set(write.ref, write.data, { merge: true }));
+    writes.slice(index, index + chunkSize).forEach((write) => batch.set(write.ref, write.data, { merge: true }));
     await batch.commit();
   }
 }
@@ -742,6 +745,27 @@ async function commitPnbImport() {
     const units = pnbImportPreview.archiveUnits || [];
     const plans = pnbImportPreview.communicationPlans || [];
     const summary = pnbImportPreview.summary || {};
+
+    writes.push({
+      ref: doc(db, "projects", PNB_PROJECT_ID),
+      data: {
+        id: PNB_PROJECT_ID,
+        title: pnbImportPreview.project?.title || PNB_PROJECT_TITLE,
+        type: "archive_digitization",
+        status: "active",
+        department: "Arşiv",
+        description: "Pertev Naili Boratav arşiv dijitalleştirme çalışması. Bu proje, genel gönüllü yönetim ortamındaki ilk ayrıntılı arşiv vaka çalışmasıdır.",
+        archiveUnitCount: summary.archiveUnits || units.length,
+        fileCount: summary.fileCount || 0,
+        documentCount: summary.documentCount || 0,
+        pageCount: summary.pageCount || 0,
+        peopleCount: summary.people || people.length,
+        availabilitySlotCount: summary.availabilitySlotCount || 0,
+        communicationPlanCount: summary.communicationPlans || plans.length,
+        importedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      }
+    });
 
     people.forEach((person) => {
       const projectPersonData = cleanData({ ...person, importedAt: serverTimestamp(), updatedAt: serverTimestamp() });
@@ -1485,23 +1509,3 @@ if (!auth || !db) {
     loadNotifs();
   });
 }
-    writes.push({
-      ref: doc(db, "projects", PNB_PROJECT_ID),
-      data: {
-        id: PNB_PROJECT_ID,
-        title: pnbImportPreview.project?.title || PNB_PROJECT_TITLE,
-        type: "archive_digitization",
-        status: "active",
-        department: "Arşiv",
-        description: "Pertev Naili Boratav arşiv dijitalleştirme çalışması. Bu proje, genel gönüllü yönetim ortamındaki ilk ayrıntılı arşiv vaka çalışmasıdır.",
-        archiveUnitCount: summary.archiveUnits || units.length,
-        fileCount: summary.fileCount || 0,
-        documentCount: summary.documentCount || 0,
-        pageCount: summary.pageCount || 0,
-        peopleCount: summary.people || people.length,
-        availabilitySlotCount: summary.availabilitySlotCount || 0,
-        communicationPlanCount: summary.communicationPlans || plans.length,
-        importedAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      }
-    });
