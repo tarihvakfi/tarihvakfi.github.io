@@ -140,6 +140,20 @@
 .check-card ul{margin:.35rem 0 0;padding-left:1rem;color:var(--muted);font-size:.84rem}
 .pnb-empty-action{padding:.8rem 1rem;border:1px dashed var(--line);border-radius:var(--radius-sm);background:var(--surface-soft);color:var(--muted)}
 
+.staff-home .ops-hero{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;padding:2.4rem 0 1.35rem;border:none;border-bottom:1px solid #d9d1c5;background:transparent;box-shadow:none;border-radius:0}
+.staff-home .ops-hero h1{font-size:clamp(2.4rem,6vw,4.8rem);line-height:.92;letter-spacing:-.075em;max-width:760px}
+.staff-home .ops-hero .muted{max-width:680px}
+.staff-home #homeKpis{display:grid;grid-template-columns:1.4fr .8fr .8fr;gap:.8rem;margin:1rem 0!important}
+.picture-card{display:grid;gap:.35rem;padding:1rem;border:1px solid #d9d1c5;border-radius:18px;background:#fffdf8}
+.picture-card span{font-size:.74rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#7c2d12}
+.picture-card strong{font-size:clamp(1.6rem,3vw,2.4rem);letter-spacing:-.05em;line-height:1}
+.picture-card small{color:#6a6258;font-size:.84rem}
+.picture-bar{height:9px;border-radius:999px;background:#eadfd2;overflow:hidden}
+.picture-bar i{display:block;height:100%;border-radius:999px;background:#8a2f16}
+.staff-home #homeProfileCard{display:none}
+.staff-home #homeSecondaryGrid{grid-template-columns:1fr;max-width:820px}
+.staff-home #homeWorkGrid{grid-template-columns:1fr 1fr}
+
 .management-simple{display:grid;gap:.85rem;max-width:820px}
 .management-title{padding:2.4rem 0 1rem;border-bottom:1px solid #d9d1c5}
 .management-title h1{margin:.15rem 0 .35rem;font-size:clamp(2.4rem,6vw,4.8rem);line-height:.92;letter-spacing:-.075em}
@@ -218,6 +232,7 @@ body.volunteer-shell{background:#f8f5ee}
 .volunteer-shell .btn{box-shadow:none}
 .volunteer-shell .btn-secondary{background:transparent}
 @media(max-width:700px){.user-row,.user-edit-card .form-row{grid-template-columns:1fr;gap:.5rem}.tab-bar{gap:0}.tab{padding:.6rem .7rem;font-size:.82rem}.profile-card{flex-direction:column;text-align:center}.notif-panel{width:calc(100vw - 2rem);right:1rem}.ops-hero{align-items:flex-start;flex-direction:column}.ops-actions{justify-content:flex-start;width:100%}.ops-actions .btn{flex:1;min-width:130px}}
+@media(max-width:900px){.staff-home .ops-hero,.staff-home #homeWorkGrid,.staff-home #homeKpis{grid-template-columns:1fr}.staff-home .ops-actions{align-self:stretch}}
 @media(max-width:700px){.volunteer-home .ops-hero{grid-template-columns:1fr;padding-top:1.6rem}.mission-card,.simple-work-card{grid-template-columns:1fr}.mission-actions{justify-content:flex-start}.volunteer-report #reportContextRow{grid-template-columns:1fr}.volunteer-home .ops-actions{align-self:stretch}}
 @media(max-width:900px){.management-two-col{grid-template-columns:1fr}}
 @media(max-width:560px){.management-title{padding-top:1.4rem}.management-task{grid-template-columns:44px 1fr}.management-task-note{grid-column:2;text-align:left}.management-task-count{width:38px;height:38px}}

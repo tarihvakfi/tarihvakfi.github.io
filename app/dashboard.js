@@ -324,15 +324,21 @@ function renderManagementOverview() {
   const totals = archiveTotals();
   const reports = Object.values(rd || {});
   const submittedReports = reports.filter((report) => (report.status || "submitted") === "submitted").length;
+  const approvedCount = approvedUsers().length;
+  const capacityCount = availabilityRecords.filter((item) => Number(item.slotCount || 0) > 0).length;
+  const progressText = totals.units ? `${numberText(totals.done)}/${numberText(totals.units)}` : "0";
   const items = [
-    ["Başvurular", pendingApplicationCount, "Yeni gönüllü onayı", "management", "pendingPanel"],
-    ["Atanmamış işler", totals.unassigned, "Gönüllüye bağlanacak iş", "pnb", ""],
-    ["Raporlar", submittedReports, "Kontrol bekleyen rapor", "reports", ""],
-    ["Engeller", totals.blocked, "Çözülmesi gereken takılma", "pnb", ""]
+    ["İlerleme", progressText, `${percent(totals.done, totals.units)}% tamamlandı`, "pnb", "", false],
+    ["Ekip", approvedCount, "Onaylı kişi", "management", "userDirectoryPanel", false],
+    ["Kapasite", capacityCount, "Uygunluğu görünen kişi", "management", "capacityPanel", false],
+    ["Başvurular", pendingApplicationCount, "Yeni gönüllü onayı", "management", "pendingPanel", pendingApplicationCount > 0],
+    ["Atanmamış işler", totals.unassigned, "Gönüllüye bağlanacak iş", "pnb", "", totals.unassigned > 0],
+    ["Raporlar", submittedReports, "Kontrol bekleyen rapor", "reports", "", submittedReports > 0],
+    ["Engeller", totals.blocked, "Çözülmesi gereken takılma", "pnb", "", totals.blocked > 0]
   ];
-  actions.innerHTML = items.map(([label, value, note, tab, scrollTo]) => (
-    `<button class="management-task${Number(value) ? " needs-attention" : ""}" type="button" data-go-tab="${tab}"${scrollTo ? ` data-scroll-to="${scrollTo}"` : ""}>
-      <span class="management-task-count">${numberText(value)}</span>
+  actions.innerHTML = items.map(([label, value, note, tab, scrollTo, needsAttention]) => (
+    `<button class="management-task${needsAttention ? " needs-attention" : ""}" type="button" data-go-tab="${tab}"${scrollTo ? ` data-scroll-to="${scrollTo}"` : ""}>
+      <span class="management-task-count">${escapeHTML(String(value))}</span>
       <span class="management-task-main">${escapeHTML(label)}</span>
       <span class="management-task-note">${escapeHTML(note)}</span>
     </button>`
@@ -361,9 +367,10 @@ function renderHomeOverview() {
 
   const volunteerMode = !isStaff();
   homeSection?.classList.toggle("volunteer-home", volunteerMode);
+  homeSection?.classList.toggle("staff-home", !volunteerMode);
   kpis.classList.toggle("hidden", volunteerMode);
   shortcutCard?.classList.toggle("hidden", volunteerMode);
-  profileCard?.classList.toggle("hidden", volunteerMode);
+  profileCard?.classList.toggle("hidden", true);
 
   if (volunteerMode) {
     const firstUnit = assignedOpenUnits[0];
@@ -388,28 +395,35 @@ function renderHomeOverview() {
     return;
   }
 
-  if (heroTitle) heroTitle.textContent = "Ne yapacağım?";
-  if (heroText) heroText.textContent = "Atandığın işi aç, kısa rapor yaz, engel varsa bildir. Bu kadar.";
+  const approvedCount = approvedUsers().length;
+  const capacityCount = availabilityRecords.filter((item) => Number(item.slotCount || 0) > 0).length;
+  if (heroEyebrow) heroEyebrow.textContent = "Operasyon";
+  if (heroTitle) heroTitle.textContent = "Bütün resim";
+  if (heroText) heroText.textContent = `${numberText(totals.units)} iş · ${numberText(totals.done)} tamamlandı · ${numberText(approvedCount)} kişi · ${numberText(capacityCount)} uygunluk`;
   if (heroActions) {
-    heroActions.innerHTML = `<button class="btn btn-primary" type="button" data-go-tab="pnb">İşimi aç</button>
-      <button class="btn btn-secondary" type="button" data-go-tab="reports">Rapor yaz</button>
-      <button class="btn btn-secondary staff-only" type="button" data-go-tab="management">Yönetim</button>`;
+    heroActions.innerHTML = `<button class="btn btn-primary" type="button" data-go-tab="management">Yönetim</button>
+      <button class="btn btn-secondary" type="button" data-go-tab="pnb">İşler</button>
+      <button class="btn btn-secondary" type="button" data-go-tab="reports">Raporlar</button>`;
   }
 
-  const kpiRows = isStaff()
-    ? [
-      ["Atanmamış", totals.unassigned],
-      ["Engelli", totals.blocked],
-      ["Rapor kontrol", submittedReports],
-      ["Başvuru", pendingApplicationCount]
-    ]
-    : [
-      ["Açık iş", archiveUnits.length + openTasks.length],
-      ["Rapor", reports.length],
-      ["Duyuru", announcementItems.length]
-    ];
-
-  kpis.innerHTML = kpiRows.map(([label, value]) => `<div class="kpi-card"><strong>${numberText(value)}</strong><span>${escapeHTML(label)}</span></div>`).join("");
+  const progressValue = percent(totals.done, totals.units);
+  kpis.innerHTML = `
+    <div class="picture-card picture-progress">
+      <span>İlerleme</span>
+      <strong>${numberText(totals.done)} / ${numberText(totals.units)}</strong>
+      <div class="picture-bar"><i style="width:${progressValue}%"></i></div>
+      <small>${progressValue}% tamamlandı</small>
+    </div>
+    <div class="picture-card">
+      <span>Ekip</span>
+      <strong>${numberText(approvedCount)}</strong>
+      <small>${numberText(capacityCount)} kişinin uygunluğu görünüyor</small>
+    </div>
+    <div class="picture-card">
+      <span>Karar</span>
+      <strong>${numberText(totals.unassigned + totals.blocked + submittedReports + pendingApplicationCount)}</strong>
+      <small>Atama, engel, rapor veya başvuru</small>
+    </div>`;
 
   if (isStaff()) {
     const blocked = archiveUnits.filter((unit) => unit.status === "blocked").slice(0, 3);
@@ -432,11 +446,11 @@ function renderHomeOverview() {
   }
 
   const shortcuts = [
-    ["pnb", isStaff() ? "Atama yap" : "İşimi aç", isStaff() ? "Atanmamış veya engelli işleri aç." : "Sana atanmış işi gör."],
-    ["reports", isStaff() ? "Rapor kontrol" : "Rapor yaz", isStaff() ? "Gelen raporu onayla veya düzeltme iste." : "Bugünkü çalışmanı kısa yaz."],
-    ["announcements", "Duyuru", "Takım kararlarını ve hatırlatmaları gör."]
+    ["management", "Bütün liste", "İlerleme, ekip ve karar bekleyenleri tek yerde gör."],
+    ["pnb", "İşler", "Atama, durum ve engelleri yönet."],
+    ["reports", "Raporlar", "Gelen raporları kontrol et."],
+    ["announcements", "Duyurular", "Takım kararlarını yayınla veya oku."]
   ];
-  if (isStaff()) shortcuts.push(["management", "İnsanlar", "Başvuru, kullanıcı ve kapasiteyi yönet."]);
   if (isAdmin()) shortcuts.push(["maintenance", "Bakım", "Sadece gerektiğinde veri/import araçları."]);
   management.innerHTML = shortcuts.map(([tab, title, text]) => `<button class="ops-link-card" type="button" data-go-tab="${tab}"><strong>${escapeHTML(title)}</strong><span>${escapeHTML(text)}</span></button>`).join("");
   renderManagementOverview();
