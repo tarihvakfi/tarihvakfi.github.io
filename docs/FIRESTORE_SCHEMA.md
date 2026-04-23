@@ -21,6 +21,20 @@ Doküman kimliği: Firebase `uid`; Excel/ön kayıt ile eklenen kişiler için g
 - `updatedAt`: timestamp
 - `lastSeenAt`: timestamp
 
+## teamProfiles
+
+Gönüllülerin de görebildiği güvenli ekip rehberi. `users` belgelerindeki özel telefon/e-posta/koordinatör notları burada tutulmaz; yalnızca ekipte kim kimdir sorusuna yetecek alanlar kopyalanır.
+
+- `uid`: string
+- `fullName`: string
+- `department`: string
+- `role`: `volunteer | coordinator | admin`
+- `status`: `approved`
+- `skillsText`: string
+- `projectTags`: string[]
+- `publicNote`: string
+- `updatedAt`: timestamp
+
 ## archiveUnits
 
 PNB gibi arşiv projelerinde kutu/seri/dosya düzeyindeki asıl iş paketleri. Diğer proje türleri genel `tasks` ve `reports` akışıyla yönetilebilir; arşiv benzeri yeni projeler aynı modeli `projectId` ile tekrar kullanabilir.

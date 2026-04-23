@@ -11,16 +11,12 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
-    function currentUserExists() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
-    }
-
     function currentUserData() {
       return currentUserDoc().data;
     }
 
     function isApproved() {
-      return signedIn() && currentUserExists() && currentUserData().status == "approved";
+      return signedIn() && currentUserDoc().exists() && currentUserData().status == "approved";
     }
 
     function isAdmin() {
@@ -76,6 +72,11 @@ service cloud.firestore {
     match /preregistered/{email} {
       allow read, delete: if signedIn() && (request.auth.token.email == email || isAdmin());
       allow create, update: if isAdmin();
+    }
+
+    match /teamProfiles/{uid} {
+      allow read: if isApproved();
+      allow create, update, delete: if isCoordinatorOrAdmin();
     }
 
     match /projectPeople/{personId} {

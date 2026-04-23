@@ -11,8 +11,7 @@ import {
   orderBy,
   where,
   limit,
-  updateDoc,
-  writeBatch
+  updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { escapeHTML, formatDate, badge } from "../js/helpers.js";
 
@@ -26,6 +25,7 @@ let pi = [];
 let allUsers = [];
 let taskItems = [];
 let announcementItems = [];
+let teamProfiles = [];
 let archiveUnits = [];
 let archiveById = {};
 let availabilityRecords = [];
@@ -58,6 +58,12 @@ const reportStatusLabels = {
   submitted: "Gönderildi",
   revision_needed: "Düzeltme İstendi",
   approved: "Onaylandı"
+};
+
+const teamRoleLabels = {
+  volunteer: "Gönüllü",
+  coordinator: "Koordinatör",
+  admin: "Yönetici"
 };
 
 function isStaff() {
@@ -116,6 +122,20 @@ function findUserByEmail(email) {
 
 function approvedUsers() {
   return allUsers.filter((item) => item.data?.status === "approved");
+}
+
+function publicTeamProfile(uid, data = {}) {
+  return cleanData({
+    uid,
+    fullName: data.fullName || data.displayName || "",
+    department: data.department || "",
+    role: data.role || "volunteer",
+    status: data.status || "approved",
+    skillsText: data.skillsText || data.skills || "",
+    projectTags: data.projectTags || data.projects || [],
+    publicNote: data.publicNote || "",
+    updatedAt: data.updatedAt || null
+  });
 }
 
 function getSelectedValues(selectId) {
@@ -318,6 +338,7 @@ function renderHomeOverview() {
 
   const shortcuts = [
     ["pnb", "İş Yükü", isStaff() ? "Proje paketlerini, atamaları, durumları ve engelleri yönet." : "Sana atanan arşiv işlerini ve sıradaki işi gör."],
+    ["people", "Ekip", isStaff() ? "Gönüllü, koordinatör ve yönetici havuzunu kolayca oku." : "Kimin neye baktığını ve kime danışacağını gör."],
     ["tasks", "Görevler", isStaff() ? "Genel gönüllü işleri oluştur ve takip et." : "Sana atanmış genel işleri takip et."],
     ["reports", "Raporlar", isStaff() ? "Gelen raporları kontrol et ve geri bildirim ver." : "Yaptığın işi günlük/haftalık raporla."],
     ["announcements", "Duyurular", "Takımın bilmesi gereken kararları ve hatırlatmaları takip et."]
@@ -325,6 +346,167 @@ function renderHomeOverview() {
   if (isStaff()) shortcuts.push(["management", "Yönetim", "Başvurular, kullanıcılar ve ekip bilgilerini düzenle."]);
   if (isAdmin()) shortcuts.push(["maintenance", "Bakım", "PNB import ve veri bakım araçlarını aç."]);
   management.innerHTML = shortcuts.map(([tab, title, text]) => `<button class="ops-link-card" type="button" data-go-tab="${tab}"><strong>${escapeHTML(title)}</strong><span>${escapeHTML(text)}</span></button>`).join("");
+}
+
+function roleRank(role) {
+  return role === "admin" ? 0 : role === "coordinator" ? 1 : 2;
+}
+
+function populatePeopleFilters() {
+  const select = document.getElementById("peopleDepartmentFilter");
+  if (!select) return;
+  const current = select.value;
+  const departments = Array.from(new Set(teamProfiles.map((person) => person.department).filter(Boolean))).sort((a, b) => a.localeCompare(b, "tr"));
+  select.innerHTML = '<option value="">Tüm departmanlar</option>';
+  departments.forEach((department) => {
+    select.insertAdjacentHTML("beforeend", `<option value="${escapeHTML(department)}">${escapeHTML(department)}</option>`);
+  });
+  select.value = departments.includes(current) ? current : "";
+}
+
+function teamProfileCard(person) {
+  const tags = [
+    person.department,
+    teamRoleLabels[person.role] || person.role,
+    ...(Array.isArray(person.projectTags) ? person.projectTags : []),
+    person.skillsText
+  ].filter(Boolean);
+  return `<article class="person-card ${escapeHTML(person.role || "volunteer")}">
+    <div class="person-avatar">${escapeHTML((person.fullName || "?")[0].toUpperCase())}</div>
+    <div class="person-body">
+      <div class="person-title"><strong>${escapeHTML(person.fullName || "-")}</strong><span class="status-pill ${escapeHTML(person.role || "volunteer")}">${escapeHTML(teamRoleLabels[person.role] || person.role || "Gönüllü")}</span></div>
+      <div class="archive-meta">${tags.slice(0, 5).map((tag) => `<span class="archive-chip">${escapeHTML(tag)}</span>`).join("") || '<span class="archive-chip">Profil bilgisi bekleniyor</span>'}</div>
+      ${person.publicNote ? `<p class="muted" style="font-size:.84rem;margin:.35rem 0 0">${escapeHTML(person.publicNote)}</p>` : ""}
+    </div>
+  </article>`;
+}
+
+function renderPeopleOps() {
+  const capacity = document.getElementById("peopleCapacityList");
+  const warnings = document.getElementById("peopleDataWarnings");
+  if (!capacity || !warnings) return;
+
+  if (!isStaff()) {
+    capacity.innerHTML = "";
+    warnings.innerHTML = "";
+    return;
+  }
+
+  const capacityRows = availabilityRecords
+    .filter((item) => Number(item.slotCount || 0) > 0)
+    .sort((a, b) => Number(b.slotCount || 0) - Number(a.slotCount || 0))
+    .slice(0, 8);
+  capacity.innerHTML = capacityRows.length
+    ? capacityRows.map((item) => `<div class="feedback-item"><strong>${escapeHTML(item.personName || "-")}</strong><div>${numberText(item.slotCount || 0)} uygunluk slotu${item.interests ? ` · ${escapeHTML(item.interests)}` : ""}</div></div>`).join("")
+    : htmlEmpty("Uygunluk verisi yok.");
+
+  const approved = approvedUsers();
+  const missingSkill = approved.filter((user) => !String(user.data?.skillsText || "").trim()).slice(0, 6);
+  const missingDepartment = approved.filter((user) => !String(user.data?.department || "").trim()).slice(0, 6);
+  const rows = [];
+  if (missingSkill.length) rows.push(`<div class="ops-alert"><strong>Yetenek/ilgi eksik</strong><span>${missingSkill.map((user) => escapeHTML(userDisplayName(user))).join("<br>")}</span></div>`);
+  if (missingDepartment.length) rows.push(`<div class="ops-alert"><strong>Departman eksik</strong><span>${missingDepartment.map((user) => escapeHTML(userDisplayName(user))).join("<br>")}</span></div>`);
+  if (teamProfiles.length <= 1) rows.push(`<div class="ops-alert"><strong>Gönüllü görünümü için ekip listesi boş olabilir</strong><span>Güvenli ekip listesini güncelle butonu, özel iletişim bilgisi paylaşmadan public profil üretir.</span></div>`);
+  warnings.innerHTML = rows.length ? rows.join("") : htmlEmpty("Kritik eksik görünmüyor.");
+}
+
+function renderPeople() {
+  const stats = document.getElementById("peopleStats");
+  const list = document.getElementById("peopleDirectory");
+  const countLabel = document.getElementById("peopleCountLabel");
+  const message = document.getElementById("peopleMessage");
+  if (!stats || !list) return;
+
+  populatePeopleFilters();
+  const search = String(document.getElementById("peopleSearch")?.value || "").trim().toLowerCase();
+  const roleFilter = document.getElementById("peopleRoleFilter")?.value || "";
+  const departmentFilter = document.getElementById("peopleDepartmentFilter")?.value || "";
+  const approvedProfiles = teamProfiles.filter((person) => (person.status || "approved") === "approved");
+  const filtered = approvedProfiles
+    .filter((person) => !roleFilter || person.role === roleFilter)
+    .filter((person) => !departmentFilter || person.department === departmentFilter)
+    .filter((person) => {
+      if (!search) return true;
+      return [person.fullName, person.department, person.role, person.skillsText, person.publicNote, ...(person.projectTags || [])]
+        .join(" ")
+        .toLowerCase()
+        .includes(search);
+    })
+    .sort((a, b) => roleRank(a.role) - roleRank(b.role) || (a.fullName || "").localeCompare(b.fullName || "", "tr"));
+
+  const roleCounts = approvedProfiles.reduce((acc, person) => {
+    acc[person.role || "volunteer"] = (acc[person.role || "volunteer"] || 0) + 1;
+    return acc;
+  }, {});
+  const departmentCount = new Set(approvedProfiles.map((person) => person.department).filter(Boolean)).size;
+  stats.innerHTML = [
+    ["Ekip profili", approvedProfiles.length],
+    ["Gönüllü", roleCounts.volunteer || 0],
+    ["Koordinatör", roleCounts.coordinator || 0],
+    ["Yönetici", roleCounts.admin || 0],
+    ["Departman", departmentCount]
+  ].map(([label, value]) => `<div class="kpi-card"><strong>${numberText(value)}</strong><span>${escapeHTML(label)}</span></div>`).join("");
+
+  list.innerHTML = filtered.length ? filtered.map(teamProfileCard).join("") : htmlEmpty("Bu filtrede ekip profili yok.");
+  if (countLabel) countLabel.textContent = `${numberText(filtered.length)} kişi gösteriliyor`;
+  if (message) {
+    message.textContent = isStaff()
+      ? "Bu görünüm atama ve koordinasyon için özetlenmiş insan haritasıdır. Özel telefon/e-posta düzenleme Yönetim sekmesindedir."
+      : "Bu liste güvenli ekip profilidir; özel iletişim ve koordinatör notları paylaşılmaz.";
+  }
+  renderPeopleOps();
+}
+
+async function loadTeamProfiles() {
+  teamProfiles = [];
+  if (!db || !cu || !cp) return;
+  if (isStaff()) {
+    teamProfiles = approvedUsers().map((user) => publicTeamProfile(user.uid, user.data));
+    renderPeople();
+    return;
+  }
+  try {
+    const snap = await getDocs(query(collection(db, "teamProfiles"), where("status", "==", "approved"), limit(300)));
+    teamProfiles = snap.docs.map((item) => ({ id: item.id, ...item.data() }));
+  } catch (error) {
+    console.warn("Güvenli ekip profilleri yüklenemedi:", error);
+  }
+  if (!teamProfiles.length) teamProfiles = [publicTeamProfile(cu.uid, cp)];
+  renderPeople();
+}
+
+async function syncTeamProfiles() {
+  if (!isStaff()) return;
+  const button = document.querySelector("[data-sync-team]");
+  try {
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Güncelleniyor...";
+    }
+    const approved = approvedUsers();
+    for (const user of approved) {
+      await setDoc(doc(db, "teamProfiles", user.uid), {
+        ...publicTeamProfile(user.uid, user.data),
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    }
+    teamProfiles = approved.map((user) => publicTeamProfile(user.uid, user.data));
+    renderPeople();
+    await logActivity("team_profiles_synced", "teamProfiles", "all", { count: approved.length });
+    if (button) button.textContent = "Güncellendi";
+    setTimeout(() => {
+      if (button) {
+        button.textContent = "Güvenli ekip listesini güncelle";
+        button.disabled = false;
+      }
+    }, 1600);
+  } catch (error) {
+    alert(`Hata: ${error.message}`);
+    if (button) {
+      button.textContent = "Güvenli ekip listesini güncelle";
+      button.disabled = false;
+    }
+  }
 }
 
 function archiveOptions(selectedId = "", includeEmpty = true) {
@@ -745,6 +927,7 @@ function renderPnb() {
   renderCommunicationPlans();
   renderArchiveUnits();
   populateArchiveSelects();
+  renderPeople();
   renderHomeOverview();
 }
 
@@ -812,13 +995,15 @@ function renderImportPreview(preview) {
 }
 
 async function commitBatchedWrites(writes) {
-  // Keep batches small because each protected write evaluates Firestore rules.
-  // Large batches can hit rules access-call limits and fail as "missing permissions".
-  const chunkSize = 10;
-  for (let index = 0; index < writes.length; index += chunkSize) {
-    const batch = writeBatch(db);
-    writes.slice(index, index + chunkSize).forEach((write) => batch.set(write.ref, write.data, { merge: true }));
-    await batch.commit();
+  // Firestore evaluates rules per write. Sequential writes are slower but avoid
+  // batch rule access-call limits during one-time admin imports.
+  for (const write of writes) {
+    try {
+      await setDoc(write.ref, write.data, { merge: true });
+    } catch (error) {
+      const path = write.label || write.ref.path;
+      throw new Error(`${error.message} (${path})`);
+    }
   }
 }
 
@@ -854,27 +1039,29 @@ async function commitPnbImport() {
         communicationPlanCount: summary.communicationPlans || plans.length,
         importedAt: serverTimestamp(),
         updatedAt: serverTimestamp()
-      }
+      },
+      label: `projects/${PNB_PROJECT_ID}`
     });
 
     people.forEach((person) => {
       const projectPersonData = cleanData({ ...person, importedAt: serverTimestamp(), updatedAt: serverTimestamp() });
       delete projectPersonData.id;
-      writes.push({ ref: doc(db, "projectPeople", person.id), data: projectPersonData });
+      writes.push({ ref: doc(db, "projectPeople", person.id), data: projectPersonData, label: `projectPeople/${person.id}` });
 
       if (!person.email) return;
       const existingUser = findUserByEmail(person.email);
-      const uid = existingUser?.uid || `manual_${person.email}`;
+      if (!existingUser) return;
+      const uid = existingUser.uid;
       const userData = {
         uid,
         email: person.email,
-        fullName: person.fullName,
+        fullName: existingUser.data?.fullName || person.fullName,
         phone: person.phone || existingUser?.data?.phone || "",
-        department: "Arşiv",
+        department: existingUser.data?.department || "Arşiv",
         role: existingUser?.data?.role || "volunteer",
         status: existingUser?.data?.status || "approved",
         notes: existingUser?.data?.notes || "",
-        skillsText: [person.projectRole, person.profession, person.educationDepartment].filter(Boolean).join(" · "),
+        skillsText: existingUser.data?.skillsText || [person.projectRole, person.profession, person.educationDepartment].filter(Boolean).join(" · "),
         stakeholder: {
           projectId: PNB_PROJECT_ID,
           foundationRole: person.foundationRole || "",
@@ -888,21 +1075,11 @@ async function commitPnbImport() {
         updatedAt: serverTimestamp(),
         lastSeenAt: existingUser?.data?.lastSeenAt || serverTimestamp()
       };
-      if (!existingUser) userData.createdAt = serverTimestamp();
-      writes.push({ ref: doc(db, "users", uid), data: userData });
+      writes.push({ ref: doc(db, "users", uid), data: userData, label: `users/${uid}` });
       writes.push({
-        ref: doc(db, "preregistered", person.email),
-        data: {
-          email: person.email,
-          fullName: person.fullName,
-          department: "Arşiv",
-          role: "volunteer",
-          phone: person.phone || "",
-          status: "approved",
-          projectId: PNB_PROJECT_ID,
-          importedAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        }
+        ref: doc(db, "teamProfiles", uid),
+        data: { ...publicTeamProfile(uid, userData), updatedAt: serverTimestamp() },
+        label: `teamProfiles/${uid}`
       });
     });
 
@@ -911,14 +1088,10 @@ async function commitPnbImport() {
       const email = String(user.data?.email || "").toLowerCase();
       if (email) emailToUid.set(email, user.uid);
     });
-    people.forEach((person) => {
-      if (person.email && !emailToUid.has(person.email)) emailToUid.set(person.email, `manual_${person.email}`);
-    });
-
     availability.forEach((item) => {
       const data = cleanData({ ...item, userUid: item.email ? emailToUid.get(item.email) || "" : "", importedAt: serverTimestamp(), updatedAt: serverTimestamp() });
       delete data.id;
-      writes.push({ ref: doc(db, "availability", item.id), data });
+      writes.push({ ref: doc(db, "availability", item.id), data, label: `availability/${item.id}` });
     });
 
     units.forEach((unit) => {
@@ -931,13 +1104,13 @@ async function commitPnbImport() {
         createdAt: archiveById[unit.id]?.createdAt || serverTimestamp()
       });
       delete data.id;
-      writes.push({ ref: doc(db, "archiveUnits", unit.id), data });
+      writes.push({ ref: doc(db, "archiveUnits", unit.id), data, label: `archiveUnits/${unit.id}` });
     });
 
     plans.forEach((plan) => {
       const data = cleanData({ ...plan, importedAt: serverTimestamp(), updatedAt: serverTimestamp() });
       delete data.id;
-      writes.push({ ref: doc(db, "communicationPlans", plan.id), data });
+      writes.push({ ref: doc(db, "communicationPlans", plan.id), data, label: `communicationPlans/${plan.id}` });
     });
 
     await commitBatchedWrites(writes);
@@ -949,6 +1122,7 @@ async function commitPnbImport() {
     });
     if (message) message.textContent = `${writes.length} kayıt Firestore'a aktarıldı.`;
     await loadAllUsers();
+    await loadTeamProfiles();
     await reloadPnb();
   } catch (error) {
     console.error(error);
@@ -1012,6 +1186,9 @@ document.getElementById("cancelEditBtn")?.addEventListener("click", rf);
 document.getElementById("refreshPnbBtn")?.addEventListener("click", reloadPnb);
 document.getElementById("pnbStatusFilter")?.addEventListener("change", renderArchiveUnits);
 document.getElementById("pnbCommitBtn")?.addEventListener("click", commitPnbImport);
+document.getElementById("peopleSearch")?.addEventListener("input", renderPeople);
+document.getElementById("peopleRoleFilter")?.addEventListener("change", renderPeople);
+document.getElementById("peopleDepartmentFilter")?.addEventListener("change", renderPeople);
 
 document.getElementById("pnbImportFile")?.addEventListener("change", async (event) => {
   const file = event.target.files?.[0];
@@ -1034,6 +1211,12 @@ document.getElementById("pnbImportFile")?.addEventListener("change", async (even
 });
 
 document.addEventListener("click", async (event) => {
+  const syncTeam = event.target.closest("[data-sync-team]");
+  if (syncTeam) {
+    await syncTeamProfiles();
+    return;
+  }
+
   const tabTarget = event.target.closest("[data-go-tab]");
   if (tabTarget) {
     sw(tabTarget.dataset.goTab);
@@ -1319,6 +1502,9 @@ document.addEventListener("click", async (event) => {
         status: applicationAction.dataset.action === "approve" ? "approved" : "blocked",
         updatedAt: serverTimestamp()
       });
+      await loadAllUsers();
+      await loadTeamProfiles();
+      await lp();
       const card = document.getElementById(`user-${applicationAction.dataset.uid}`);
       if (card) {
         card.style.opacity = "0.4";
@@ -1338,7 +1524,7 @@ document.addEventListener("click", async (event) => {
     try {
       saveUser.disabled = true;
       saveUser.textContent = "...";
-      await updateDoc(doc(db, "users", uid), {
+      const updateData = {
         fullName: row.querySelector(`[data-fn="${uid}"]`).value.trim(),
         email: row.querySelector(`[data-em="${uid}"]`).value.trim().toLowerCase(),
         phone: row.querySelector(`[data-ph="${uid}"]`).value.trim(),
@@ -1348,9 +1534,19 @@ document.addEventListener("click", async (event) => {
         skillsText: row.querySelector(`[data-sk="${uid}"]`).value.trim(),
         coordinatorNotes: row.querySelector(`[data-cn="${uid}"]`).value.trim(),
         updatedAt: serverTimestamp()
-      });
+      };
+      await updateDoc(doc(db, "users", uid), updateData);
+      if (updateData.status === "approved") {
+        await setDoc(doc(db, "teamProfiles", uid), {
+          ...publicTeamProfile(uid, updateData),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      } else {
+        await deleteDoc(doc(db, "teamProfiles", uid));
+      }
       saveUser.textContent = "OK";
       await loadAllUsers();
+      await loadTeamProfiles();
       renderPnb();
       setTimeout(() => {
         saveUser.textContent = "Kaydet";
@@ -1371,7 +1567,10 @@ document.addEventListener("click", async (event) => {
       deleteUser.disabled = true;
       deleteUser.textContent = "...";
       await deleteDoc(doc(db, "users", deleteUser.dataset.delUser));
+      await deleteDoc(doc(db, "teamProfiles", deleteUser.dataset.delUser));
       document.getElementById(`urow-${deleteUser.dataset.delUser}`)?.remove();
+      await loadAllUsers();
+      await loadTeamProfiles();
     } catch (error) {
       alert(`Hata: ${error.message}`);
       deleteUser.disabled = false;
@@ -1509,6 +1708,10 @@ document.getElementById("addUserForm")?.addEventListener("submit", async (event)
   };
   try {
     await setDoc(doc(db, "users", `manual_${email}`), userData, { merge: true });
+    await setDoc(doc(db, "teamProfiles", `manual_${email}`), {
+      ...publicTeamProfile(`manual_${email}`, userData),
+      updatedAt: serverTimestamp()
+    }, { merge: true });
     await setDoc(doc(db, "preregistered", email), {
       email,
       fullName: userData.fullName,
@@ -1523,6 +1726,7 @@ document.getElementById("addUserForm")?.addEventListener("submit", async (event)
     document.getElementById("addUserMessage").textContent = "Kullanıcı eklendi!";
     setTimeout(() => { document.getElementById("addUserMessage").textContent = ""; }, 3000);
     await loadAllUsers();
+    await loadTeamProfiles();
     await lu();
     renderPnb();
   } catch (error) {

@@ -29,6 +29,7 @@
     <nav id="tabBar" class="tab-bar hidden">
       <button class="tab active" data-tab="home">Genel Bakış</button>
       <button class="tab" data-tab="pnb">İş Yükü</button>
+      <button class="tab" data-tab="people">Ekip</button>
       <button class="tab" data-tab="tasks">Görevler</button>
       <button class="tab" data-tab="reports">Raporlar</button>
       <button class="tab" data-tab="announcements">Duyurular</button>
@@ -45,6 +46,7 @@
         </div>
         <div class="ops-actions">
           <button class="btn btn-primary" type="button" data-go-tab="pnb">İş yükünü aç</button>
+          <button class="btn btn-secondary" type="button" data-go-tab="people">Ekibi gör</button>
           <button class="btn btn-secondary" type="button" data-go-tab="reports">Rapor yaz</button>
           <button class="btn btn-secondary staff-only hidden" type="button" data-go-tab="management">Yönetim</button>
         </div>
@@ -76,6 +78,73 @@
           </div>
           <div id="homeAnnouncements" class="stack"><p class="empty">Duyuru yok.</p></div>
         </article>
+      </div>
+    </section>
+
+    <section id="tab-people" class="tab-content hidden">
+      <div class="ops-hero card">
+        <div>
+          <p class="eyebrow">Ekip rehberi</p>
+          <h2>Kim kimdir, kim neye bakar?</h2>
+          <p class="muted">Gönüllüler ekip yapısını ve doğru temas noktasını görür. Koordinatörler ve yöneticiler aynı yerden kapasiteyi, rolleri ve atama hazırlığını okur.</p>
+        </div>
+        <div class="ops-actions">
+          <button class="btn btn-primary staff-only hidden" type="button" data-sync-team>Güvenli ekip listesini güncelle</button>
+          <button class="btn btn-secondary staff-only hidden" type="button" data-go-tab="management">Kullanıcıları yönet</button>
+        </div>
+      </div>
+
+      <div id="peopleStats" class="kpi-grid" style="margin:1rem 0"></div>
+
+      <div class="dashboard-grid">
+        <article class="card">
+          <p class="eyebrow">Roller nasıl çalışır?</p>
+          <div class="role-guide-grid">
+            <div class="role-guide-card"><strong>Gönüllü</strong><span>Kendi görevini görür, rapor yazar, engel bildirir, ekipte kime danışacağını bulur.</span></div>
+            <div class="role-guide-card"><strong>Koordinatör</strong><span>Atama yapar, raporları izler, engelleri çözer, gönüllü kapasitesini işe bağlar.</span></div>
+            <div class="role-guide-card"><strong>Yönetici</strong><span>Sistem ayarları, import/bakım, genel yetki ve tüm iş yükü görünümünü yönetir.</span></div>
+          </div>
+        </article>
+
+        <article class="card">
+          <p class="eyebrow">Ekip filtresi</p>
+          <div class="form-row">
+            <label>Arama <input id="peopleSearch" type="search" placeholder="Ad, departman, yetenek..." /></label>
+            <label>Rol
+              <select id="peopleRoleFilter">
+                <option value="">Tüm roller</option>
+                <option value="volunteer">Gönüllü</option>
+                <option value="coordinator">Koordinatör</option>
+                <option value="admin">Yönetici</option>
+              </select>
+            </label>
+            <label>Departman
+              <select id="peopleDepartmentFilter">
+                <option value="">Tüm departmanlar</option>
+              </select>
+            </label>
+          </div>
+          <p id="peopleMessage" class="muted" style="font-size:.85rem;margin:0"></p>
+        </article>
+      </div>
+
+      <div id="peopleOpsPanel" class="dashboard-grid staff-only hidden" style="margin-top:1.25rem">
+        <article class="card">
+          <p class="eyebrow">Atama için hızlı bakış</p>
+          <div id="peopleCapacityList" class="stack"><p class="empty">Uygunluk verisi yok.</p></div>
+        </article>
+        <article class="card">
+          <p class="eyebrow">Eksik bilgi uyarıları</p>
+          <div id="peopleDataWarnings" class="stack"><p class="empty">Uyarı yok.</p></div>
+        </article>
+      </div>
+
+      <div class="card" style="margin-top:1.25rem">
+        <div class="step-header">
+          <p class="eyebrow">Ekip listesi</p>
+          <span id="peopleCountLabel" class="muted" style="font-size:.85rem"></span>
+        </div>
+        <div id="peopleDirectory" class="people-grid"><p class="empty">Ekip listesi yükleniyor.</p></div>
       </div>
     </section>
 
