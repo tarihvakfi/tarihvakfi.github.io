@@ -38,16 +38,24 @@
     <section id="tab-home" class="tab-content sv-mode">
       <div class="sv-home">
         <div class="frame">
-          <div class="sv-hero">
+          <div class="sv-greet">
             <div>
-              <p class="sv-eyebrow" id="svHeroEyebrow">Pertev Naili Boratav Arşivi</p>
-              <h1 class="sv-big"><span id="svHeroPct">0</span><span class="dim">%</span></h1>
-              <p class="sv-heroline" id="svHeroLine">Yükleniyor…</p>
+              <h1 id="svGreetName">Merhaba</h1>
+              <div class="sv-greet-sub" id="svGreetSub">Tarih Vakfı</div>
             </div>
-            <div>
-              <div class="sv-spark" id="svSparkline" aria-label="Son 12 haftanın tasnif grafiği"></div>
-              <div class="sv-sparklabel">son 12 hafta</div>
-            </div>
+          </div>
+
+          <div class="wa-prog">
+            <div class="ring"></div>
+            <div class="ring2"></div>
+            <p class="lab" id="waProgEyebrow">Pertev Naili Boratav Arşivi</p>
+            <p class="num"><span id="svHeroPct">0</span><small>%</small></p>
+            <p class="sub" id="svHeroLine">Yükleniyor…</p>
+          </div>
+
+          <div class="sv-hero" aria-hidden="true">
+            <div id="svHeroEyebrow" class="sv-eyebrow hidden"></div>
+            <div id="svSparkline" class="sv-spark hidden"></div>
           </div>
 
           <div class="sv-actions">
@@ -67,6 +75,12 @@
               <span class="lab">Bu hafta</span>
               <span class="val" id="svWeekVal">0 sayfa</span>
               <span class="sub" id="svWeekSub">—</span>
+              <span class="arrow">→</span>
+            </button>
+            <button type="button" class="sv-act" id="svActTeam">
+              <span class="lab">Aktif gönüllü</span>
+              <span class="val" id="svTeamVal">0 kişi</span>
+              <span class="sub" id="svTeamSub">son 7 günde rapor yazdı</span>
               <span class="arrow">→</span>
             </button>
           </div>
@@ -95,10 +109,18 @@
             </div>
           </div>
 
-          <div class="sv-pulse">
-            <span class="plab">Şu an</span>
-            <span id="svPulse">—</span>
+          <div class="sv-work" id="svPulseCard" style="margin-top:0">
+            <div class="sv-work-h"><h3>Şu an</h3></div>
+            <div class="sv-pulse"><span id="svPulse">—</span></div>
           </div>
+
+          <button type="button" class="wa-cta" id="waCta">
+            <div class="cta-text">
+              <strong id="waCtaTitle">Sıradaki işe başla</strong>
+              <span id="waCtaSub">—</span>
+            </div>
+            <div class="cta-btn">Başla →</div>
+          </button>
         </div>
       </div>
 

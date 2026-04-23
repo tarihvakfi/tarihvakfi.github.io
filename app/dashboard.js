@@ -572,6 +572,14 @@ function renderStylishHome() {
   const setT = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
   setT("svHeroPct", String(overallPct));
   setT("svHeroEyebrow", "Pertev Naili Boratav Arşivi");
+  setT("waProgEyebrow", "Pertev Naili Boratav Arşivi");
+
+  // Greeting: "Merhaba, <first name>" + today's date in Turkish
+  const firstName = (cp?.fullName || "").split(" ")[0] || "hoş geldin";
+  setT("svGreetName", `Merhaba, ${firstName}`);
+  const today = new Date();
+  const months = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+  setT("svGreetSub", `Tarih Vakfı · ${today.getDate()} ${months[today.getMonth()]}`);
 
   const approvedCount = approvedUsers().length;
   const monthAgo = Date.now() - 30 * 86400000;
@@ -580,8 +588,21 @@ function renderStylishHome() {
   const activeVolunteers = new Set(monthReports.map((r) => r.userUid).filter(Boolean)).size;
   const heroLine = document.getElementById("svHeroLine");
   if (heroLine) {
-    heroLine.innerHTML = `${numberText(totalPages)} sayfadan <strong>${numberText(pagesDoneTotal)}</strong> tasnif edildi. Bu ay ekip <strong>${numberText(monthPages)} sayfa</strong> tamamladı · <strong>${numberText(activeVolunteers)}</strong> gönüllü aktif.`;
+    heroLine.innerHTML = `${numberText(totalPages)} sayfadan <strong>${numberText(pagesDoneTotal)}</strong> tasnif edildi · bu hafta <strong>+${numberText(0)} sayfa</strong>`;
+    // Recompute weekly for hero (same value used below for the weekly tile).
+    const nowMs = Date.now();
+    const weekMs = 7 * 86400000;
+    const thisWeek = reports.filter((r) => (toDateFromTs(r.createdAt)?.getTime() || 0) >= nowMs - weekMs);
+    const thisPages = thisWeek.reduce((acc, r) => acc + (Number(r.pagesDone) || 0), 0);
+    heroLine.innerHTML = `${numberText(totalPages)} sayfadan <strong>${numberText(pagesDoneTotal)}</strong> tasnif edildi · bu hafta <strong>+${numberText(thisPages)} sayfa</strong>`;
   }
+
+  // Fourth action tile: active volunteers in the last 7 days
+  const weekMs2 = 7 * 86400000;
+  const weekReports = reports.filter((r) => (toDateFromTs(r.createdAt)?.getTime() || 0) >= Date.now() - weekMs2);
+  const weekActive = new Set(weekReports.map((r) => r.userUid).filter(Boolean)).size;
+  setT("svTeamVal", `${numberText(weekActive)} kişi`);
+  setT("svTeamSub", `son 7 günde ${numberText(weekReports.length)} rapor yazıldı`);
 
   // Brand title reflects role
   setT("svProjectTitle", isStaff() ? "Tarih Vakfı · Yönetim panosu" : "Tarih Vakfı · Çalışma panosu");
@@ -601,6 +622,7 @@ function renderStylishHome() {
   // 1) Sıradaki iş: volunteers see next-for-them; staff see next unassigned.
   const nextUnit = pickNextQueueUnit();
   const nextBtn = document.getElementById("svActNext");
+  const waCta = document.getElementById("waCta");
   if (nextUnit) {
     setT("svNextTitle", archiveLabel(nextUnit));
     const bits = [];
@@ -609,10 +631,19 @@ function renderStylishHome() {
     if (nextUnit.priority === "high") bits.push("Yüksek öncelik");
     setT("svNextSub", bits.join(" · "));
     if (nextBtn) nextBtn.dataset.unitId = nextUnit.id;
+    // Populate the persistent "Başla →" CTA ribbon at the bottom of Bugün
+    setT("waCtaTitle", "Sıradaki işe başla");
+    const ctaBits = [archiveLabel(nextUnit)];
+    if (nextUnit.pageCount) ctaBits.push(`${numberText(nextUnit.pageCount)} sayfa`);
+    setT("waCtaSub", ctaBits.join(" · "));
+    if (waCta) { waCta.dataset.unitId = nextUnit.id; waCta.classList.remove("hidden"); }
   } else {
     setT("svNextTitle", "Uygun iş yok");
     setT("svNextSub", "Şu an boş iş paketi görünmüyor.");
     if (nextBtn) nextBtn.dataset.unitId = "";
+    setT("waCtaTitle", "Bekleyen iş yok");
+    setT("waCtaSub", "Yeni iş gelince burada görünecek.");
+    if (waCta) waCta.dataset.unitId = "";
   }
 
   // 2) Dikkat: blocked + review pending (staff view) OR my open tasks (volunteer).
@@ -723,33 +754,39 @@ function renderSvLane(containerId, units) {
   if (!units.length) { el.innerHTML = '<p class="sv-empty">Boş</p>'; return; }
   el.innerHTML = units.map((u) => {
     const status = u.status || "not_started";
-    const dotClass = status === "in_progress" ? "p" : status === "blocked" ? "b" : status === "done" ? "d" : status === "review" ? "r" : "n";
     const incomplete = archiveLabelIncomplete(u);
     const progress = percent(u.completedDocumentCount || u.completedFileCount || 0, u.documentCount || u.fileCount || 0);
     const uids = u.assignedToUids || [];
-    const assigned = uids.length > 0;
-    const avatars = uids.slice(0, 2).map((uid) => {
+
+    const stClass = status === "in_progress" ? "doing" : status === "blocked" ? "blocked" : status === "done" ? "done" : status === "review" ? "review" : "";
+    const pillText = status === "blocked" ? "Engelli"
+      : status === "in_progress" ? "Devam"
+      : status === "done" ? "Bitti"
+      : status === "review" ? "Kontrol"
+      : "Sıradaki";
+
+    // Colored initial icon per unit (first two uppercase chars of title/label)
+    const label = archiveLabel(u);
+    const initials = label.replace(/[^a-zA-ZğüşıöçĞÜŞİÖÇ]/g, "").slice(0, 2).toUpperCase() || "·";
+
+    const assignedNames = uids.slice(0, 2).map((uid) => {
       const user = allUsers.find((x) => x.uid === uid);
-      const name = user ? userDisplayName(user) : (findUserName(uid) || "?");
-      const initials = name.split(" ").map((p) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "?";
-      return `<span class="av" title="${escapeHTML(name)}">${escapeHTML(initials)}</span>`;
-    }).join("");
-    const leftHtml = assigned
-      ? `<span class="avs">${avatars}${uids.length > 2 ? ` <span style="margin-left:6px;color:#999">+${uids.length - 2}</span>` : ""}</span>`
-      : `<span><span class="dot ${dotClass}"></span>${escapeHTML(
-          status === "blocked" ? "Engelli" :
-          status === "in_progress" ? "Devam" :
-          status === "done" ? "Tamamlandı" :
-          status === "review" ? "Kontrol" : "Atanmamış"
-        )}</span>`;
-    const rightHtml = status === "blocked"
-      ? `<span class="pct" style="color:#7c2d12">Engelli</span>`
-      : status === "review"
-        ? `<span class="pct" style="color:#534AB7">Kontrol</span>`
-        : `<span class="pct">${progress}%</span>`;
-    return `<div class="sv-u" data-drill-unit="${escapeHTML(u.id)}">
-      <div class="ti${incomplete ? " incomplete" : ""}">${escapeHTML(archiveLabel(u))}</div>
-      <div class="meta">${leftHtml}${rightHtml}</div>
+      return user ? userDisplayName(user).split(" ")[0] : (findUserName(uid) || "?");
+    }).filter(Boolean);
+    const metaBits = [];
+    if (u.boxNo) metaBits.push(`Kutu ${u.boxNo}`);
+    if (assignedNames.length) metaBits.push(assignedNames.join(", "));
+    if (progress > 0) metaBits.push(`${progress}%`);
+
+    return `<div class="sv-u st-${escapeHTML(stClass)}" data-drill-unit="${escapeHTML(u.id)}" data-initials="${escapeHTML(initials)}">
+      <div>
+        <div class="ti${incomplete ? " incomplete" : ""}">${escapeHTML(label)}</div>
+        <div class="meta">${escapeHTML(metaBits.join(" · ") || "—")}</div>
+      </div>
+      <div class="sv-u-right">
+        <span class="sv-pill ${escapeHTML(stClass)}">${escapeHTML(pillText)}</span>
+        ${progress > 0 && progress < 100 ? `<div class="sv-u-bar"><span style="width:${progress}%"></span></div>` : ""}
+      </div>
     </div>`;
   }).join("");
 }
@@ -2621,6 +2658,20 @@ document.getElementById("svActAttention")?.addEventListener("click", () => {
 document.getElementById("svActWeek")?.addEventListener("click", () => {
   // Staff: review queue; Volunteer: their recent reports.
   sw("reports");
+});
+document.getElementById("svActTeam")?.addEventListener("click", () => {
+  // Jump to the team / activity section depending on role.
+  if (isStaff()) {
+    sw("management");
+    setTimeout(() => document.getElementById("activityPanel")?.setAttribute("open", ""), 60);
+  } else {
+    sw("announcements");
+  }
+});
+document.getElementById("waCta")?.addEventListener("click", () => {
+  const btn = document.getElementById("waCta");
+  const unitId = btn?.dataset.unitId || "";
+  if (unitId) openUnitChannel(unitId);
 });
 
 // Channel composer: quick actions + send
