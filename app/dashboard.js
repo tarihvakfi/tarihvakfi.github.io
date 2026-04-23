@@ -315,26 +315,26 @@ function renderVolunteerMission(nextWork, assignedUnits, openTasks) {
 }
 
 function renderManagementOverview() {
-  const pulse = document.getElementById("managementPulse");
-  if (!pulse) return;
+  const actions = document.getElementById("managementActions");
+  if (!actions) return;
   if (!isStaff()) {
-    pulse.innerHTML = "";
+    actions.innerHTML = "";
     return;
   }
   const totals = archiveTotals();
   const reports = Object.values(rd || {});
   const submittedReports = reports.filter((report) => (report.status || "submitted") === "submitted").length;
-  const cards = [
-    ["Atanmamış", totals.unassigned, "pnb", "İşe gönüllü bağla"],
-    ["Engelli", totals.blocked, "pnb", "Takılan işleri çöz"],
-    ["Rapor", submittedReports, "reports", "Kontrol bekliyor"],
-    ["Başvuru", pendingApplicationCount, "management", "Onay bekliyor"]
+  const items = [
+    ["Başvurular", pendingApplicationCount, "Yeni gönüllü onayı", "management", "pendingPanel"],
+    ["Atanmamış işler", totals.unassigned, "Gönüllüye bağlanacak iş", "pnb", ""],
+    ["Raporlar", submittedReports, "Kontrol bekleyen rapor", "reports", ""],
+    ["Engeller", totals.blocked, "Çözülmesi gereken takılma", "pnb", ""]
   ];
-  pulse.innerHTML = cards.map(([label, value, tab, note]) => (
-    `<button class="pulse-card${Number(value) ? " needs-attention" : ""}" type="button" data-go-tab="${tab}">
-      <strong>${numberText(value)}</strong>
-      <span>${escapeHTML(label)}</span>
-      <small>${escapeHTML(note)}</small>
+  actions.innerHTML = items.map(([label, value, note, tab, scrollTo]) => (
+    `<button class="management-task${Number(value) ? " needs-attention" : ""}" type="button" data-go-tab="${tab}"${scrollTo ? ` data-scroll-to="${scrollTo}"` : ""}>
+      <span class="management-task-count">${numberText(value)}</span>
+      <span class="management-task-main">${escapeHTML(label)}</span>
+      <span class="management-task-note">${escapeHTML(note)}</span>
     </button>`
   )).join("");
 }
