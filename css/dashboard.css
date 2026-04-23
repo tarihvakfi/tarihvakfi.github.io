@@ -313,6 +313,142 @@ body.modal-open{overflow:hidden}
   .activity-controls{flex-direction:column;align-items:stretch}
 }
 
+/* =================================================================
+   SITE-WIDE STYLISH UNIFICATION
+   Applies the sv aesthetic to the entire app: header, tabs, all 6 tabs.
+   Cards are thin-bordered white. Gradients removed. Typography unified.
+   Primary actions are black. Oxblood becomes a sparing accent only.
+   ================================================================= */
+
+body { background: var(--bg); }
+
+/* Header: thinner, flatter, sentence-case */
+.site-header { background: rgba(255,255,255,.88); border-bottom: 0.5px solid var(--line); }
+.header-user { color: var(--muted); font-size: .82rem; font-weight: 400; }
+.notif-btn { color: var(--muted); }
+
+/* Tabs: compact, uppercase-free, single hairline */
+.tab-bar { border-bottom: 0.5px solid var(--line); margin: .5rem 0 1.1rem; gap: 0; }
+.tab { padding: .55rem .9rem; font-size: .85rem; font-weight: 500; color: var(--muted); border-bottom-width: 2px; letter-spacing: -.005em; }
+.tab.active { color: var(--text); border-bottom-color: var(--text); }
+.tab:hover { color: var(--text); }
+.tab-bar::after { display: none; }
+
+/* Cards: unified white surface, thin border, no shadow */
+.card { background: var(--surface); border: 0.5px solid var(--line); border-radius: var(--radius); padding: 1.1rem 1.25rem; box-shadow: none; }
+
+/* Headings: 500 weight, smaller, never shouty */
+h1, h2, h3 { font-weight: 500; color: var(--text); letter-spacing: -.01em; }
+h1 { font-size: clamp(1.4rem, 2.4vw, 1.75rem); margin: 0 0 .5rem; }
+h2 { font-size: clamp(1.15rem, 1.8vw, 1.35rem); margin: 0 0 .45rem; }
+h3 { font-size: .98rem; margin: 0 0 .4rem; }
+
+/* Eyebrows: quieter, less colorful */
+.eyebrow { color: var(--mute-2); font-weight: 500; letter-spacing: .08em; font-size: .7rem; }
+
+/* Buttons: black primary (Stripe/Linear look), clean secondary */
+.btn { border-radius: var(--radius-sm); font-weight: 500; font-size: .88rem; padding: .5rem .85rem; }
+.btn-sm { padding: .35rem .7rem; font-size: .8rem; }
+.btn-primary { background: #111; color: #fff; border-color: #111; }
+.btn-primary:hover { background: #000; opacity: 1; }
+.btn-secondary { background: #fff; color: var(--text); border-color: var(--line-strong); }
+.btn-secondary:hover { background: var(--surface-soft); }
+.btn-block { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-approve { background: #2f5518; color: #fff; border-color: #2f5518; }
+
+/* Ops hero (used on Bugün legacy & pnb): kill gradient, unify */
+.ops-hero { background: #fff !important; border: 0.5px solid var(--line) !important; box-shadow: none !important; border-radius: var(--radius); padding: 1rem 1.2rem; }
+.ops-hero h1 { font-size: clamp(1.25rem, 2vw, 1.55rem); letter-spacing: -.01em; font-weight: 500; }
+
+/* İşler tab: flatten the warm gradient, unify stats */
+.pnb-hero { background: #fff !important; border: 0.5px solid var(--line) !important; box-shadow: none !important; border-radius: var(--radius); padding: 1rem 1.2rem; }
+.pnb-hero h2 { font-size: 1.3rem; font-weight: 500; letter-spacing: -.01em; }
+.pnb-hero-status { background: transparent; border: 0.5px solid var(--line); color: var(--text); font-weight: 500; font-size: .85rem; padding: .4rem .85rem; }
+
+/* KPI + picture cards in old home: match the sv aesthetic */
+.kpi-card { background: #fff; border: 0.5px solid var(--line); border-radius: var(--radius-sm); box-shadow: none; padding: .9rem 1rem; }
+.kpi-card strong { font-weight: 500; font-size: 1.3rem; }
+.kpi-card span { color: var(--muted); font-size: .78rem; }
+.picture-card { background: #fff; border: 0.5px solid var(--line); border-radius: var(--radius); padding: 1rem 1.1rem; }
+.picture-card span { color: var(--mute-2); font-weight: 500; letter-spacing: .06em; font-size: .68rem; }
+.picture-card strong { font-weight: 500; letter-spacing: -.015em; font-size: clamp(1.5rem, 2.6vw, 2rem); }
+.picture-card small { color: var(--muted); }
+.picture-bar { background: var(--line); }
+.picture-bar i { background: var(--text); }
+
+/* Compact filter + select style */
+.compact-filter { color: var(--muted); font-weight: 500; font-size: .76rem; letter-spacing: 0; }
+.compact-filter select { border: 0.5px solid var(--line); border-radius: var(--radius-sm); background: #fff; padding: .4rem .6rem; font-size: .85rem; }
+
+/* Announce / task / report cards: unified thin-border */
+.announce-card, .task-card, .report-card { background: #fff; border: 0.5px solid var(--line); border-left: 3px solid var(--line-strong); border-radius: var(--radius-sm); padding: .85rem 1rem; box-shadow: none; }
+.task-card { border-left-color: var(--text); }
+.report-approved { border-left-color: #2f5518; }
+.report-submitted { border-left-color: var(--mute-2); }
+.report-revision_needed { border-left-color: var(--accent); }
+
+/* Archive (İşler) tab: table already fine, just soften the chip row */
+.unit-chip { font-weight: 500; }
+.unit-chip.on { background: #111; color: #fff; border-color: #111; }
+.unit-chip strong { font-weight: 500; }
+.units-wrap { box-shadow: none; border-color: var(--line); }
+.units-table th { background: #fafafa; color: var(--muted); font-weight: 500; letter-spacing: .02em; }
+
+/* Status pills: already soft in my earlier pass, verify consistency */
+.status-pill { font-weight: 500; }
+
+/* Kanban surfaces: flatten */
+.kb-card { box-shadow: none; }
+
+/* Forms: clean inputs across the site */
+input, select, textarea { font-size: .9rem; border-color: var(--line); border-radius: var(--radius-sm); padding: .5rem .7rem; }
+input:focus, select:focus, textarea:focus { border-color: #111; box-shadow: 0 0 0 3px rgba(17,17,17,.08); }
+.form label, .compact-form label { font-weight: 500; color: var(--muted); font-size: .8rem; }
+
+/* Management tab: shrink the big serif masthead, unify drawer style */
+.management-title { padding: 1.2rem 0 .75rem; border-bottom: 0.5px solid var(--line); }
+.management-title h1 { font-size: clamp(1.4rem, 2.4vw, 1.75rem); letter-spacing: -.01em; font-weight: 500; line-height: 1.2; }
+.management-task { border-bottom-color: var(--line); padding: .65rem 0; }
+.management-task:hover { background: transparent; color: var(--text); }
+.management-task:hover .management-task-main { color: var(--text); }
+.management-task-count { background: #fff; border-color: var(--line-strong); font-weight: 500; font-size: .9rem; width: 32px; height: 32px; }
+.management-task.needs-attention .management-task-count { background: var(--accent); border-color: var(--accent); color: #fff; }
+.management-task-main { font-weight: 500; font-size: .95rem; }
+.management-task-note { color: var(--muted); font-size: .8rem; }
+.management-drawer { border-bottom: 0.5px solid var(--line); }
+.management-drawer summary { font-weight: 500; font-size: .92rem; padding: .75rem 0; color: var(--text); }
+.management-drawer summary::after { color: var(--mute-2); font-weight: 400; }
+
+/* Quick report card (Rapor Yaz): soft accent */
+.quick-report-card { background: #fff; border: 0.5px solid var(--line); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 1rem 1.15rem; }
+
+/* User cards + directory rows */
+.user-card, .user-edit-card, .vol-row { background: #fff; border: 0.5px solid var(--line); border-radius: var(--radius-sm); box-shadow: none; }
+
+/* Activity panel (Aktiflik durumu): soften */
+.activity-kpi { background: #fff; border: 0.5px solid var(--line); border-radius: var(--radius-sm); }
+.activity-kpi strong { font-size: 1.35rem; font-weight: 500; }
+.activity-kpi.activity-ok { background: var(--success-soft); border-color: #9abf91; }
+.activity-kpi.activity-warn { background: var(--warning-soft); border-color: #d8ae5c; }
+.activity-kpi.activity-danger { background: var(--accent-soft); border-color: var(--accent); }
+.activity-kpi.activity-mute { background: #f4f4f4; border-color: var(--line); }
+.activity-bucket { background: #fff; border: 0.5px solid var(--line); }
+
+/* Drill / channel modal: flatten shadow */
+.drill-panel { box-shadow: 0 8px 30px rgba(0,0,0,.12); background: #fff; border-color: var(--line); }
+.drill-modal .drill-header h2 { font-weight: 500; font-size: 1.15rem; }
+.drill-stat { background: #fafafa; border-color: var(--line); }
+.drill-note { border-left-color: var(--accent); background: var(--accent-soft); }
+.drill-report { background: #fff; border-color: var(--line); border-left-color: var(--line-strong); }
+
+/* Volunteer shell: keep simpler but in new palette */
+body.volunteer-shell { background: var(--bg); }
+.volunteer-shell .site-header { background: rgba(255,255,255,.88); }
+
+/* Link underline color subtle */
+a { color: inherit; }
+a:hover { color: var(--accent); }
+
 /* --- Stylish editorial home (sv-*) ---
    Scoped to the Bugün tab when it has the .sv-mode class. Minimal chrome,
    heavy typography, tiny accent, hairline borders. */
