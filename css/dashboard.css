@@ -160,5 +160,55 @@
 .check-card strong{display:block;margin-bottom:.25rem}
 .check-card ul{margin:.35rem 0 0;padding-left:1rem;color:var(--muted);font-size:.84rem}
 .pnb-empty-action{padding:.8rem 1rem;border:1px dashed var(--line);border-radius:var(--radius-sm);background:var(--surface-soft);color:var(--muted)}
+
+body.volunteer-shell{background:#f8f5ee}
+.volunteer-shell .container.dashboard{width:min(900px,calc(100% - 2rem));padding-bottom:4rem}
+.volunteer-shell .site-header{background:rgba(248,245,238,.92)}
+.volunteer-shell .tab-bar{border-bottom:1px solid #ded6c9;margin:1rem 0 1.1rem;gap:.35rem}
+.volunteer-shell .tab{padding:.75rem .85rem;font-size:.86rem;color:#6c6256;border-bottom-width:1px}
+.volunteer-shell .tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+.volunteer-shell .card{box-shadow:none}
+.volunteer-home .ops-hero{padding:.75rem 0 1rem;border:none;background:transparent;box-shadow:none;border-radius:0}
+.volunteer-home .ops-hero h1{font-size:clamp(2.2rem,6vw,4rem);letter-spacing:-.06em}
+.volunteer-home .ops-hero .muted{max-width:520px;font-size:.96rem}
+.volunteer-home .ops-actions{align-self:flex-end}
+.volunteer-home #homeWorkGrid,.volunteer-home #homeSecondaryGrid{grid-template-columns:1fr;max-width:720px}
+.volunteer-home #homeNextCard,.volunteer-home #homeAnnouncementCard{padding:0;border:none;background:transparent;box-shadow:none}
+.volunteer-home #homeNextCard>.eyebrow{display:none}
+.volunteer-home #homeAnnouncementCard{margin-top:.25rem}
+.volunteer-home #homeAnnouncementCard .step-header{margin-bottom:.65rem}
+.volunteer-home #homeAnnouncementCard .announce-card,.volunteer-shell #announcementsCard .announce-card{border-color:#ddd4c7;background:#fffdf8;border-radius:16px}
+.mission-card{display:grid;grid-template-columns:1fr auto;gap:1.25rem;align-items:end;padding:1.35rem;border:1px solid #d8cfc1;border-radius:20px;background:#fffdf8;box-shadow:none}
+.mission-copy{display:grid;gap:.42rem}
+.mission-label{width:max-content;padding:.18rem .48rem;border-radius:999px;background:#f2eadf;color:var(--primary);font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+.mission-card h2{margin:0;font-size:clamp(1.7rem,4vw,2.7rem);letter-spacing:-.05em;line-height:1}
+.mission-card p{margin:0;color:#655d53;line-height:1.45}
+.mission-note{margin-top:.35rem!important;padding:.65rem .75rem;border-radius:12px;background:#f1ece3;color:#4f4a43!important}
+.mission-actions{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:flex-end}
+.mission-actions .btn{min-width:104px}
+.mission-empty{border-style:dashed;background:transparent}
+.volunteer-work .pnb-hero,.volunteer-work #pnbStats,.volunteer-work #pnbOpsGrid,.volunteer-work .compact-filter{display:none}
+.volunteer-work #pnbArchivePanel,.volunteer-work #generalTaskPanel{max-width:720px;padding:0;border:none;background:transparent;box-shadow:none}
+.volunteer-work #pnbArchivePanel .step-header,.volunteer-work #generalTaskPanel .step-header{display:block;margin-bottom:.7rem}
+.volunteer-work #pnbArchiveTitle,.volunteer-work #generalTaskPanel .eyebrow{font-size:.72rem}
+.volunteer-work #pnbArchiveHint,.volunteer-work #generalTaskPanel .muted{font-size:.9rem!important;max-width:520px}
+.volunteer-work .archive-grid{display:grid;grid-template-columns:1fr;gap:.75rem}
+.simple-work-card{display:grid;grid-template-columns:1fr auto;gap:1rem;align-items:center;padding:1rem;border:1px solid #ddd4c7;border-radius:18px;background:#fffdf8}
+.simple-work-card h3{margin:.35rem 0 .2rem;font-size:1.25rem;letter-spacing:-.025em}
+.simple-work-card p{margin:.2rem 0;color:#655d53}
+.simple-meta{font-size:.84rem;color:#7a7166;margin-top:.25rem}
+.simple-work-card.archive-card{border-left:1px solid #ddd4c7}
+.blocker-details{margin-top:.7rem;color:#655d53}
+.blocker-details summary{cursor:pointer;width:max-content;color:var(--primary);font-weight:700;font-size:.88rem}
+.blocker-details textarea{display:block;width:100%;margin:.5rem 0;padding:.65rem .75rem;border:1px solid #d8cfc1;border-radius:12px;background:#fff;font:inherit}
+.volunteer-report #reportFormCard,.volunteer-report #reportsListCard,.volunteer-shell #announcementsCard{max-width:760px;padding:1rem;border-color:#ddd4c7;background:#fffdf8;border-radius:18px}
+.volunteer-report #reportForm{max-width:none}
+.volunteer-report #reportContextRow{grid-template-columns:repeat(2,minmax(0,1fr))}
+.volunteer-report #summary{min-height:150px;font-size:1.02rem;background:#fffdf8}
+.volunteer-report .report-extra-field{display:none}
+.volunteer-report .report-card{border-left-width:3px;background:#fff;border-radius:16px}
+.volunteer-shell .btn{box-shadow:none}
+.volunteer-shell .btn-secondary{background:transparent}
 @media(max-width:700px){.user-row,.user-edit-card .form-row{grid-template-columns:1fr;gap:.5rem}.tab-bar{gap:0}.tab{padding:.6rem .7rem;font-size:.82rem}.profile-card{flex-direction:column;text-align:center}.notif-panel{width:calc(100vw - 2rem);right:1rem}.ops-hero{align-items:flex-start;flex-direction:column}.ops-actions{justify-content:flex-start;width:100%}.ops-actions .btn{flex:1;min-width:130px}}
+@media(max-width:700px){.mission-card,.simple-work-card{grid-template-columns:1fr}.mission-actions{justify-content:flex-start}.volunteer-report #reportContextRow{grid-template-columns:1fr}.volunteer-home .ops-actions{align-self:stretch}}
 @media(max-width:700px){.pnb-hero{align-items:flex-start;flex-direction:column}.archive-grid{grid-template-columns:1fr}.archive-title{flex-direction:column}.compact-filter{width:100%}}

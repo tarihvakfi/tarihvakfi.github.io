@@ -79,18 +79,18 @@
     </section>
 
     <section id="tab-pnb" class="tab-content hidden">
-      <div class="pnb-hero card">
+      <div id="pnbHero" class="pnb-hero card">
         <div>
           <p class="eyebrow">İşler</p>
-          <h2>Atanacak ve yapılacak işler</h2>
-          <p class="muted">Koordinatör için atama ve takip; gönüllü için kendi işi ve rapor aksiyonu.</p>
+          <h2 id="pnbTitle">Atanacak ve yapılacak işler</h2>
+          <p id="pnbIntro" class="muted">Koordinatör için atama ve takip; gönüllü için kendi işi ve rapor aksiyonu.</p>
         </div>
         <div id="pnbHeroStatus" class="pnb-hero-status">Veri bekleniyor</div>
       </div>
 
       <div id="pnbStats" class="kpi-grid" style="margin:1rem 0"></div>
 
-      <div class="dashboard-grid">
+      <div id="pnbOpsGrid" class="dashboard-grid">
         <article class="card">
           <div class="step-header">
             <p class="eyebrow">Operasyon öncelikleri</p>
@@ -104,11 +104,11 @@
         </article>
       </div>
 
-      <div class="card" style="margin-top:1.25rem">
+      <div id="pnbArchivePanel" class="card" style="margin-top:1.25rem">
         <div class="step-header">
           <div>
-            <p class="eyebrow">İş listesi</p>
-            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Bir kart, bir iş. Atama, durum, engel ve rapor aynı yerden.</p>
+            <p id="pnbArchiveTitle" class="eyebrow">İş listesi</p>
+            <p id="pnbArchiveHint" class="muted" style="font-size:.85rem;margin:.15rem 0 0">Bir kart, bir iş. Atama, durum, engel ve rapor aynı yerden.</p>
           </div>
           <label class="compact-filter">Durum
             <select id="pnbStatusFilter">
@@ -168,7 +168,7 @@
     </section>
 
     <section id="tab-reports" class="tab-content hidden">
-      <div class="card" style="margin-bottom:1.25rem">
+      <div id="reportFormCard" class="card" style="margin-bottom:1.25rem">
         <div class="step-header"><p class="eyebrow" id="reportFormTitle">Rapor gönder</p><button type="button" id="cancelEditBtn" class="btn btn-secondary btn-sm hidden">İptal</button></div>
         <form id="reportForm" class="form compact-form">
           <input type="hidden" id="editReportId" value="" />
@@ -186,7 +186,7 @@
           <div class="form-actions"><button type="submit" id="reportSubmitBtn" class="btn btn-primary">Rapor gönder</button><span id="reportMessage" class="status-line muted"></span></div>
         </form>
       </div>
-      <div class="card"><p class="eyebrow" id="reportsTitle">Raporlarım</p><div id="reportsList" class="stack"><p class="empty">Rapor bulunmuyor.</p></div></div>
+      <div id="reportsListCard" class="card"><p class="eyebrow" id="reportsTitle">Raporlarım</p><div id="reportsList" class="stack"><p class="empty">Rapor bulunmuyor.</p></div></div>
     </section>
 
     <section id="tab-announcements" class="tab-content hidden">
@@ -207,7 +207,7 @@
           <div class="form-actions"><button type="submit" class="btn btn-primary">Duyuru yayınla</button><span id="announcementMessage" class="status-line muted"></span></div>
         </form>
       </div>
-      <div class="card"><p class="eyebrow">Tüm duyurular</p><div id="announcementsList" class="stack"><p class="empty">Duyuru yok.</p></div></div>
+      <div id="announcementsCard" class="card"><p class="eyebrow">Tüm duyurular</p><div id="announcementsList" class="stack"><p class="empty">Duyuru yok.</p></div></div>
     </section>
 
     <section id="tab-management" class="tab-content hidden">

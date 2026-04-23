@@ -268,23 +268,31 @@ function assignedOpenArchiveUnits() {
   return archiveUnits.filter((unit) => !["done", "blocked"].includes(unit.status || "not_started"));
 }
 
+function setRoleShell(staff) {
+  document.body.classList.toggle("volunteer-shell", !staff);
+  document.body.classList.toggle("staff-shell", staff);
+  const labels = staff
+    ? { home: "Bugün", pnb: "İşler", reports: "Rapor Yaz", announcements: "Duyurular" }
+    : { home: "Bugün", pnb: "İşim", reports: "Rapor", announcements: "Duyuru" };
+  Object.entries(labels).forEach(([tab, label]) => {
+    const button = document.querySelector(`[data-tab="${tab}"]`);
+    if (button) button.textContent = label;
+  });
+}
+
 function renderVolunteerMission(nextWork, assignedUnits, openTasks) {
   const unit = assignedUnits[0];
   if (unit) {
     nextWork.innerHTML = `<article class="mission-card">
       <div class="mission-copy">
-        <span class="mission-label">Bugünkü iş</span>
+        <span class="mission-label">Sıradaki iş</span>
         <h2>${escapeHTML(archiveLabel(unit))}</h2>
         <p>${escapeHTML(statusLabel(unit.status || "not_started"))} · ${numberText(unit.pageCount)} sayfa · ${numberText(unit.documentCount)} belge</p>
       </div>
-      <div class="mission-steps">
-        <span>1. Fiziksel/dijital çalışmanı sürdür.</span>
-        <span>2. Bitince 1 dakikalık rapor yaz.</span>
-        <span>3. Takılırsan engel bildir.</span>
-      </div>
+      ${unit.notes ? `<p class="mission-note">${escapeHTML(unit.notes)}</p>` : ""}
       <div class="mission-actions">
         <button class="btn btn-primary" type="button" data-report-au="${unit.id}">Rapor yaz</button>
-        <button class="btn btn-secondary" type="button" data-open-work="${unit.id}">İşi gör</button>
+        <button class="btn btn-secondary" type="button" data-open-work="${unit.id}">Ayrıntı</button>
         <button class="btn btn-secondary" type="button" data-open-blocker="${unit.id}">Engel bildir</button>
       </div>
     </article>`;
@@ -296,14 +304,14 @@ function renderVolunteerMission(nextWork, assignedUnits, openTasks) {
     const task = taskItem.data || {};
     nextWork.innerHTML = `<article class="mission-card">
       <div class="mission-copy">
-        <span class="mission-label">Bugünkü iş</span>
+        <span class="mission-label">Sıradaki iş</span>
         <h2>${escapeHTML(task.title || "Atanmış iş")}</h2>
         <p>${escapeHTML(task.department || "Genel")} · ${escapeHTML(statusLabel(task.status || "open"))}${task.dueDate ? ` · Son: ${formatDate(task.dueDate)}` : ""}</p>
       </div>
       ${task.description ? `<p class="mission-note">${escapeHTML(task.description)}</p>` : ""}
       <div class="mission-actions">
         <button class="btn btn-primary" type="button" data-report-task="${taskItem.id}">Rapor yaz</button>
-        <button class="btn btn-secondary" type="button" data-go-tab="pnb" data-scroll-to="generalTaskPanel">İşi gör</button>
+        <button class="btn btn-secondary" type="button" data-go-tab="pnb" data-scroll-to="generalTaskPanel">Ayrıntı</button>
       </div>
     </article>`;
     return;
@@ -313,7 +321,7 @@ function renderVolunteerMission(nextWork, assignedUnits, openTasks) {
     <div class="mission-copy">
       <span class="mission-label">Bugün</span>
       <h2>Henüz sana atanmış açık iş görünmüyor.</h2>
-      <p>Yeni iş gelene kadar duyuruları takip etmen yeterli. Ekstra arama yapmana gerek yok.</p>
+      <p>Yeni iş gelince burada görünecek. Şimdilik duyurulara bakman yeterli.</p>
     </div>
     <div class="mission-actions"><button class="btn btn-secondary" type="button" data-go-tab="announcements">Duyurulara bak</button></div>
   </article>`;
@@ -345,17 +353,17 @@ function renderHomeOverview() {
   profileCard?.classList.toggle("hidden", volunteerMode);
 
   if (volunteerMode) {
-    if (heroTitle) heroTitle.textContent = assignedOpenUnits.length || openTasks.length ? "Bugünkü işin" : "Bugün beklemede";
+    if (heroTitle) heroTitle.textContent = assignedOpenUnits.length || openTasks.length ? "Bugünkü iş" : "Bugün";
     if (heroText) heroText.textContent = assignedOpenUnits.length || openTasks.length
-      ? "İşi yap, bitince kısa rapor yaz. Takılırsan tek tuşla engel bildir."
-      : "Şimdilik sana atanmış açık iş yok. Yeni iş gelince burada görünecek.";
+      ? "Çalışmanı yap. Bitince kısa bir rapor bırak."
+      : "Sana atanmış açık iş yok. Yeni iş gelirse burada görünecek.";
     if (heroActions) {
       const firstUnit = assignedOpenUnits[0];
       const firstTask = openTasks[0];
       heroActions.innerHTML = firstUnit
-        ? `<button class="btn btn-primary" type="button" data-report-au="${firstUnit.id}">Rapor yaz</button><button class="btn btn-secondary" type="button" data-open-work="${firstUnit.id}">İşi gör</button>`
+        ? `<button class="btn btn-primary" type="button" data-report-au="${firstUnit.id}">Rapor yaz</button><button class="btn btn-secondary" type="button" data-open-work="${firstUnit.id}">Ayrıntı</button>`
         : firstTask
-          ? `<button class="btn btn-primary" type="button" data-report-task="${firstTask.id}">Rapor yaz</button><button class="btn btn-secondary" type="button" data-go-tab="pnb" data-scroll-to="generalTaskPanel">İşi gör</button>`
+          ? `<button class="btn btn-primary" type="button" data-report-task="${firstTask.id}">Rapor yaz</button><button class="btn btn-secondary" type="button" data-go-tab="pnb" data-scroll-to="generalTaskPanel">Ayrıntı</button>`
           : `<button class="btn btn-secondary" type="button" data-go-tab="announcements">Duyurular</button>`;
     }
     renderVolunteerMission(nextWork, assignedOpenUnits, openTasks);
@@ -516,6 +524,17 @@ function rt(task, id) {
   const staff = isStaff();
   const assigned = task.assignedToUid ? findUserName(task.assignedToUid) : task.assignedToEmail;
   const unit = task.archiveUnitId ? archiveById[task.archiveUnitId] : null;
+  if (!staff) {
+    return `<article class="simple-work-card">
+      <div>
+        <span class="mission-label">İş</span>
+        <h3>${escapeHTML(task.title || "-")}</h3>
+        ${task.description ? `<p>${escapeHTML(task.description)}</p>` : ""}
+        <div class="simple-meta">${escapeHTML(task.department || "Genel")}${task.dueDate ? ` · Son: ${formatDate(task.dueDate)}` : ""} · ${escapeHTML(taskStatusLabels[task.status] || task.status || "Açık")}</div>
+      </div>
+      <button class="btn btn-primary btn-sm" type="button" data-report-task="${id}">Rapor yaz</button>
+    </article>`;
+  }
   let html = `<div class="task-card"><div class="report-header"><strong>${escapeHTML(task.title || "-")}</strong>`;
   if (staff) {
     html += `<div class="report-actions"><button class="btn btn-secondary btn-sm" data-et="${id}">Düzenle</button><button class="btn btn-block btn-sm" data-dt="${id}">Sil</button></div>`;
@@ -614,7 +633,8 @@ async function lh() {
   document.getElementById("profileCard").innerHTML = rp(cp);
   const snap = await getDocs(query(collection(db, "announcements"), orderBy("createdAt", "desc"), limit(3)));
   announcementItems = snap.docs.map((item) => ({ id: item.id, data: item.data() }));
-  document.getElementById("homeAnnouncements").innerHTML = snap.empty ? htmlEmpty("Duyuru yok.") : snap.docs.map((item) => ra(item.data(), item.id)).join("");
+  const homeDocs = isStaff() ? snap.docs : snap.docs.slice(0, 1);
+  document.getElementById("homeAnnouncements").innerHTML = homeDocs.length ? homeDocs.map((item) => ra(item.data(), item.id)).join("") : htmlEmpty("Duyuru yok.");
   renderHomeOverview();
 }
 
@@ -746,6 +766,11 @@ function renderPnbStats() {
   const statsEl = document.getElementById("pnbStats");
   const hero = document.getElementById("pnbHeroStatus");
   if (!statsEl || !hero) return;
+  if (!isStaff()) {
+    hero.textContent = "";
+    statsEl.innerHTML = "";
+    return;
+  }
   if (!archiveUnits.length) {
     hero.textContent = "Genel çalışma ortamı";
     statsEl.innerHTML = `<div class="pnb-empty-action">PNB arşiv iş paketleri görünmüyor. PNB dışındaki işler aynı ekrandaki Diğer işler bölümünden yürütülebilir. Yönetici olarak veri bakım araçları için Bakım sekmesini açabilirsiniz.</div>`;
@@ -764,9 +789,7 @@ function renderPnbStats() {
     return acc;
   }, { units: 0, files: 0, documents: 0, pages: 0, completedFiles: 0, completedDocs: 0, blocked: 0, done: 0, unassigned: 0 });
   hero.textContent = `${numberText(totals.units)} iş paketi · ${numberText(totals.pages)} sayfa`;
-  const rows = isStaff()
-    ? [["Atanmamış", totals.unassigned], ["Engelli", totals.blocked], ["Tamamlandı", totals.done], ["Toplam iş", totals.units]]
-    : [["Açık iş", totals.units - totals.done], ["Tamamlandı", totals.done], ["Engelli", totals.blocked], ["Toplam iş", totals.units]];
+  const rows = [["Atanmamış", totals.unassigned], ["Engelli", totals.blocked], ["Tamamlandı", totals.done], ["Toplam iş", totals.units]];
   statsEl.innerHTML = rows.map(([label, value]) => `<div class="kpi-card"><strong>${numberText(value)}</strong><span>${escapeHTML(label)}</span></div>`).join("");
 }
 
@@ -813,6 +836,23 @@ function archiveCard(unit) {
   (unit.assignedToEmails || []).forEach((email) => {
     if (!assignedNames.includes(email)) assignedNames.push(email);
   });
+  if (!staff) {
+    return `<article id="archive-unit-${escapeHTML(unit.id)}" class="simple-work-card archive-card ${escapeHTML(unit.status || "not_started")}">
+      <div>
+        <span class="mission-label">Arşiv işi</span>
+        <h3>${escapeHTML(archiveLabel(unit))}</h3>
+        <p>${escapeHTML(statusLabel(unit.status || "not_started"))} · ${numberText(unit.pageCount)} sayfa · ${numberText(unit.documentCount)} belge</p>
+        ${unit.notes ? `<p class="mission-note">${escapeHTML(unit.notes)}</p>` : ""}
+        ${unit.blockerNote ? `<div class="revision-alert"><strong>Engel</strong><p>${escapeHTML(unit.blockerNote)}</p></div>` : ""}
+        <details class="blocker-details">
+          <summary>Engel bildir</summary>
+          <textarea rows="2" data-vol-blocker="${unit.id}" placeholder="Kısaca yazın...">${escapeHTML(unit.blockerNote || "")}</textarea>
+          <button class="btn btn-secondary btn-sm" type="button" data-block-au="${unit.id}">Gönder</button>
+        </details>
+      </div>
+      <button class="btn btn-primary btn-sm" type="button" data-report-au="${unit.id}">Rapor yaz</button>
+    </article>`;
+  }
   let html = `<article id="archive-unit-${escapeHTML(unit.id)}" class="archive-card ${escapeHTML(unit.status || "not_started")}">
     <div class="archive-title"><strong>${escapeHTML(archiveLabel(unit))}</strong><span class="status-pill ${escapeHTML(unit.status || "not_started")}">${escapeHTML(statusLabel(unit.status || "not_started"))}</span></div>
     <div class="archive-meta">
@@ -847,10 +887,27 @@ function renderArchiveUnits() {
   if (!el) return;
   const filter = document.getElementById("pnbStatusFilter")?.value || "";
   const units = filter ? archiveUnits.filter((unit) => (unit.status || "not_started") === filter) : archiveUnits;
-  el.innerHTML = units.length ? units.map(archiveCard).join("") : htmlEmpty("Bu filtrede PNB arşiv birimi yok.");
+  el.innerHTML = units.length ? units.map(archiveCard).join("") : htmlEmpty(isStaff() ? "Bu filtrede PNB arşiv birimi yok." : "Sana atanmış arşiv işi yok.");
 }
 
 function renderPnb() {
+  const volunteer = !isStaff();
+  document.getElementById("tab-pnb")?.classList.toggle("volunteer-work", volunteer);
+  const title = document.getElementById("pnbTitle");
+  const intro = document.getElementById("pnbIntro");
+  const archiveTitle = document.getElementById("pnbArchiveTitle");
+  const archiveHint = document.getElementById("pnbArchiveHint");
+  if (volunteer) {
+    if (title) title.textContent = "İşim";
+    if (intro) intro.textContent = "Sana atanan işler burada. Birini açıp rapor yazman yeterli.";
+    if (archiveTitle) archiveTitle.textContent = "İşim";
+    if (archiveHint) archiveHint.textContent = "Sadece sana atanmış işler görünür.";
+  } else {
+    if (title) title.textContent = "Atanacak ve yapılacak işler";
+    if (intro) intro.textContent = "Koordinatör için atama ve takip; gönüllü için kendi işi ve rapor aksiyonu.";
+    if (archiveTitle) archiveTitle.textContent = "İş listesi";
+    if (archiveHint) archiveHint.textContent = "Bir kart, bir iş. Atama, durum, engel ve rapor aynı yerden.";
+  }
   renderPnbStats();
   renderNextActions();
   renderCommunicationPlans();
@@ -1153,7 +1210,12 @@ document.addEventListener("click", async (event) => {
     const unitId = openBlocker.dataset.openBlocker;
     sw("pnb");
     document.getElementById(`archive-unit-${unitId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-    setTimeout(() => document.querySelector(`[data-vol-blocker="${unitId}"]`)?.focus(), 250);
+    setTimeout(() => {
+      const blockerField = document.querySelector(`[data-vol-blocker="${unitId}"]`);
+      const details = blockerField?.closest("details");
+      if (details) details.open = true;
+      blockerField?.focus();
+    }, 250);
     return;
   }
 
@@ -1711,6 +1773,7 @@ if (!auth || !db) {
     }
     cp = snap.data();
     const staff = isStaff();
+    setRoleShell(staff);
     hu.textContent = cp.fullName || user.email;
     if (staff) {
       document.querySelectorAll(".staff-tab").forEach((tab) => tab.classList.remove("hidden"));
