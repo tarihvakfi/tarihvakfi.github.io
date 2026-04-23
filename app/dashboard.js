@@ -724,11 +724,17 @@ function renderImportPreview(preview) {
 async function commitBatchedWrites(writes) {
   // Keep batches small because each protected write evaluates Firestore rules.
   // Large batches can hit rules access-call limits and fail as "missing permissions".
-  const chunkSize = 10;
+  const chunkSize = 5;
   for (let index = 0; index < writes.length; index += chunkSize) {
+    const chunk = writes.slice(index, index + chunkSize);
     const batch = writeBatch(db);
-    writes.slice(index, index + chunkSize).forEach((write) => batch.set(write.ref, write.data, { merge: true }));
-    await batch.commit();
+    chunk.forEach((write) => batch.set(write.ref, write.data, { merge: true }));
+    try {
+      await batch.commit();
+    } catch (error) {
+      const paths = chunk.map((write) => write.label || write.ref.path).join(", ");
+      throw new Error(`${error.message} (${paths})`);
+    }
   }
 }
 
@@ -745,6 +751,7 @@ async function commitPnbImport() {
     const units = pnbImportPreview.archiveUnits || [];
     const plans = pnbImportPreview.communicationPlans || [];
     const summary = pnbImportPreview.summary || {};
+    const emailToUidSeed = new Map();
 
     writes.push({
       ref: doc(db, "projects", PNB_PROJECT_ID),
@@ -764,17 +771,20 @@ async function commitPnbImport() {
         communicationPlanCount: summary.communicationPlans || plans.length,
         importedAt: serverTimestamp(),
         updatedAt: serverTimestamp()
-      }
+      },
+      label: `projects/${PNB_PROJECT_ID}`
     });
 
     people.forEach((person) => {
       const projectPersonData = cleanData({ ...person, importedAt: serverTimestamp(), updatedAt: serverTimestamp() });
       delete projectPersonData.id;
-      writes.push({ ref: doc(db, "projectPeople", person.id), data: projectPersonData });
+      writes.push({ ref: doc(db, "projectPeople", person.id), data: projectPersonData, label: `projectPeople/${person.id}` });
 
       if (!person.email) return;
       const existingUser = findUserByEmail(person.email);
       const uid = existingUser?.uid || `manual_${person.email}`;
+      emailToUidSeed.set(person.email, uid);
+      if (!existingUser) return;
       const userData = {
         uid,
         email: person.email,
@@ -799,21 +809,7 @@ async function commitPnbImport() {
         lastSeenAt: existingUser?.data?.lastSeenAt || serverTimestamp()
       };
       if (!existingUser) userData.createdAt = serverTimestamp();
-      writes.push({ ref: doc(db, "users", uid), data: userData });
-      writes.push({
-        ref: doc(db, "preregistered", person.email),
-        data: {
-          email: person.email,
-          fullName: person.fullName,
-          department: "Arşiv",
-          role: "volunteer",
-          phone: person.phone || "",
-          status: "approved",
-          projectId: PNB_PROJECT_ID,
-          importedAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        }
-      });
+      writes.push({ ref: doc(db, "users", uid), data: userData, label: `users/${uid}` });
     });
 
     const emailToUid = new Map();
@@ -822,13 +818,13 @@ async function commitPnbImport() {
       if (email) emailToUid.set(email, user.uid);
     });
     people.forEach((person) => {
-      if (person.email && !emailToUid.has(person.email)) emailToUid.set(person.email, `manual_${person.email}`);
+      if (person.email && !emailToUid.has(person.email)) emailToUid.set(person.email, emailToUidSeed.get(person.email) || "");
     });
 
     availability.forEach((item) => {
       const data = cleanData({ ...item, userUid: item.email ? emailToUid.get(item.email) || "" : "", importedAt: serverTimestamp(), updatedAt: serverTimestamp() });
       delete data.id;
-      writes.push({ ref: doc(db, "availability", item.id), data });
+      writes.push({ ref: doc(db, "availability", item.id), data, label: `availability/${item.id}` });
     });
 
     units.forEach((unit) => {
@@ -841,13 +837,13 @@ async function commitPnbImport() {
         createdAt: archiveById[unit.id]?.createdAt || serverTimestamp()
       });
       delete data.id;
-      writes.push({ ref: doc(db, "archiveUnits", unit.id), data });
+      writes.push({ ref: doc(db, "archiveUnits", unit.id), data, label: `archiveUnits/${unit.id}` });
     });
 
     plans.forEach((plan) => {
       const data = cleanData({ ...plan, importedAt: serverTimestamp(), updatedAt: serverTimestamp() });
       delete data.id;
-      writes.push({ ref: doc(db, "communicationPlans", plan.id), data });
+      writes.push({ ref: doc(db, "communicationPlans", plan.id), data, label: `communicationPlans/${plan.id}` });
     });
 
     await commitBatchedWrites(writes);
