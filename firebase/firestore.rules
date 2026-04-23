@@ -11,12 +11,16 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
+    function currentUserExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
     function currentUserData() {
       return currentUserDoc().data;
     }
 
     function isApproved() {
-      return signedIn() && currentUserDoc().exists() && currentUserData().status == "approved";
+      return signedIn() && currentUserExists() && currentUserData().status == "approved";
     }
 
     function isAdmin() {
