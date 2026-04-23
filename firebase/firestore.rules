@@ -19,10 +19,6 @@ service cloud.firestore {
       return signedIn() && currentUserDoc().exists() && currentUserData().status == "approved";
     }
 
-    function isBlocked() {
-      return !signedIn() || !currentUserDoc().exists() || currentUserData().status == "blocked";
-    }
-
     function isAdmin() {
       return isApproved() && currentUserData().role == "admin";
     }
@@ -36,11 +32,26 @@ service cloud.firestore {
     }
 
     function sameDepartment(dept) {
-      return isCoordinatorOrAdmin() && currentUserData().department == dept;
+      return isCoordinatorOrAdmin() && (isAdmin() || currentUserData().department == dept);
+    }
+
+    function hasList(data, fieldName) {
+      return data.keys().hasAny([fieldName]) && data[fieldName] is list;
+    }
+
+    function assignedToMe(data) {
+      return isApproved() && (
+        (hasList(data, "assignedToUids") && data.assignedToUids.hasAny([request.auth.uid])) ||
+        (hasList(data, "assignedToEmails") && data.assignedToEmails.hasAny([request.auth.token.email]))
+      );
+    }
+
+    function reportCoworker(data) {
+      return isApproved() && hasList(data, "coworkerUids") && data.coworkerUids.hasAny([request.auth.uid]);
     }
 
     match /users/{uid} {
-      allow create: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && (request.auth.uid == uid || isAdmin());
       allow read: if signedIn() && (
         request.auth.uid == uid ||
         isAdmin() ||
@@ -55,6 +66,39 @@ service cloud.firestore {
           request.resource.data.department == resource.data.department)
       );
 
+      allow delete: if isAdmin();
+    }
+
+    match /preregistered/{email} {
+      allow read, delete: if signedIn() && (request.auth.token.email == email || isAdmin());
+      allow create, update: if isAdmin();
+    }
+
+    match /projectPeople/{personId} {
+      allow read, create, update, delete: if isCoordinatorOrAdmin();
+    }
+
+    match /availability/{availabilityId} {
+      allow read, create, update, delete: if isCoordinatorOrAdmin();
+    }
+
+    match /communicationPlans/{planId} {
+      allow read: if isApproved();
+      allow create, update, delete: if isCoordinatorOrAdmin();
+    }
+
+    match /archiveUnits/{unitId} {
+      allow read: if isCoordinatorOrAdmin() || assignedToMe(resource.data);
+      allow create: if isCoordinatorOrAdmin();
+      allow update: if isCoordinatorOrAdmin() || (
+        assignedToMe(resource.data) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "status",
+          "blockerNote",
+          "latestReportAt",
+          "updatedAt"
+        ])
+      );
       allow delete: if isAdmin();
     }
 
@@ -78,31 +122,40 @@ service cloud.firestore {
     }
 
     match /reports/{reportId} {
-      allow create: if isApproved()
-        && request.resource.data.userUid == request.auth.uid
-        && request.resource.data.userEmail == request.auth.token.email;
+      allow create: if isApproved() && (
+        (request.resource.data.userUid == request.auth.uid &&
+          request.resource.data.userEmail == request.auth.token.email) ||
+        isCoordinatorOrAdmin()
+      );
 
       allow read: if isApproved() && (
-        isAdmin() ||
+        isCoordinatorOrAdmin() ||
         resource.data.userUid == request.auth.uid ||
-        (isCoordinator() &&
-          get(/databases/$(database)/documents/users/$(resource.data.userUid)).data.department == currentUserData().department)
+        reportCoworker(resource.data)
       );
 
       allow update: if isApproved() && (
-        isAdmin() ||
-        resource.data.userUid == request.auth.uid ||
-        (isCoordinator() &&
-          get(/databases/$(database)/documents/users/$(resource.data.userUid)).data.department == currentUserData().department)
+        isCoordinatorOrAdmin() ||
+        (resource.data.userUid == request.auth.uid &&
+          request.resource.data.userUid == resource.data.userUid &&
+          request.resource.data.status == "submitted")
       );
 
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() || resource.data.userUid == request.auth.uid;
     }
 
     match /announcements/{announcementId} {
       allow read: if isApproved();
       allow create, update: if isCoordinatorOrAdmin();
       allow delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow create: if isApproved();
+      allow read, update, delete: if isApproved() && (
+        resource.data.toUid == request.auth.uid ||
+        isAdmin()
+      );
     }
 
     match /activityLogs/{logId} {

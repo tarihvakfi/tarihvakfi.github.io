@@ -36,5 +36,6 @@ Script bu sekmeyi haftalık özet için doldurur.
 - Onay verildiğinde `sendApprovalMail`
 - Görev atandığında `sendTaskAssignedMail`
 - Pasif kullanıcılar için `sendInactivityReminder`
+- PNB için haftalık özet hazırlanırken `archiveUnits`, `reports` ve `communicationPlans` verilerinden manuel/yarı otomatik rapor üretimi
 
 Not: Bu repo, Apps Script ile Firestore arasında doğrudan entegrasyon kurmaz. İlk aşamada Apps Script daha çok hafif e-posta otomasyonu ve özetler için tasarlanmıştır.

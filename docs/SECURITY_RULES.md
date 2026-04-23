@@ -1,16 +1,22 @@
-# Firestore güvenlik mantığı
+# Firestore Güvenlik Mantığı
 
-Bu projede güvenlik sadece arayüzdeki buton gizleme ile sağlanmaz. Asıl koruma Firestore security rules içindedir.
+Bu projede güvenlik sadece arayüzdeki buton gizleme ile sağlanmaz. Asıl koruma `firebase/firestore.rules` dosyasındadır.
 
 ## Temel kurallar
 
 - Giriş yapmayan kullanıcı korumalı verilere erişemez.
 - `pending` kullanıcı operasyonel verilere erişemez.
 - `blocked` kullanıcı uygulamayı kullanamaz.
-- Gönüllü sadece kendi profilini, kendi görevlerini ve kendi raporlarını görür.
-- Koordinatör sadece kendi departmanındaki kullanıcı/görev/raporları yönetir.
-- Admin her şeyi yönetebilir.
+- Gönüllü kendi profilini, kendi görevlerini, kendi raporlarını ve kendisine atanmış PNB arşiv birimlerini görür.
+- Gönüllü atanmış PNB biriminde yalnızca engel bildirme ve son rapor zamanını güncelleme gibi sınırlı alanları değiştirebilir.
+- Koordinatör ve admin PNB arşiv birimlerini, uygunluk kayıtlarını, iletişim planını ve rapor incelemelerini yönetebilir.
+- Paydaş/iletişim verisi içeren `projectPeople` ve `availability` koleksiyonları gönüllülere kapalıdır.
+- Admin her şeyi yönetebilir ve PNB importunu çalıştırabilir.
 
-## Dikkat
+## PNB gizlilik modeli
 
-İlk admin kaydı manuel olarak atanmalıdır. Aksi halde sistemde yönetici oluşmaz.
+Gönüllüler ekipteki herkesin telefon/e-posta/uygunluk bilgisini görmez. PNB sekmesinde sadece kendi atandıkları iş paketlerini ve genel duyuruları görürler. Koordinatör ve admin rolleri operasyonel planlama için tam PNB görünümüne sahiptir.
+
+## Manuel kurulum notu
+
+İlk admin kaydı Firebase Console üzerinden manuel atanmalıdır. Aksi halde sistemde yönetici oluşmaz ve import ekranı kullanılamaz.

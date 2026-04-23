@@ -5,3 +5,5 @@ out/
 .DS_Store
 supabase/.temp/
 Codex.dmg
+imports/
+data/pnb-import-preview*.json

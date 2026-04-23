@@ -26,3 +26,6 @@
 - İlk test kullanıcılarıyla giriş denensin
 - Yetkisiz kullanıcı admin paneline giremesin
 - Pending kullanıcı app/admin verilerini göremesin
+- `tools/pnb_excel_to_import.py` ile üretilen `imports/pnb-import-preview.json` repoya commit edilmesin
+- Admin panelinde PNB import önizlemesi kontrol edilmeden Firestore aktarımı yapılmasın
+- PNB sekmesinde gönüllü hesabı yalnızca atanmış arşiv birimlerini görebilsin

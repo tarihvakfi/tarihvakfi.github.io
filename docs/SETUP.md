@@ -16,7 +16,7 @@
 ## 3. Firestore
 
 1. Cloud Firestore oluşturun.
-2. `users`, `tasks`, `reports`, `announcements`, `activityLogs` koleksiyonları için veri modelini kullanın.
+2. `users`, `tasks`, `reports`, `archiveUnits`, `availability`, `communicationPlans`, `projectPeople`, `announcements`, `notifications`, `preregistered`, `activityLogs` koleksiyonları için veri modelini kullanın.
 3. `firebase/firestore.rules` içeriğini yayınlayın.
 
 ## 4. İstemci yapılandırması
@@ -49,3 +49,16 @@
 - Yönetici olarak onay verin
 - Görev oluşturun
 - Rapor gönderin
+
+## 8. PNB import
+
+1. PNB Excel dosyalarından yerel JSON önizleme üretin:
+
+```bash
+python tools/pnb_excel_to_import.py --excel-dir "PNB Excel klasörü" --output imports/pnb-import-preview.json
+```
+
+2. `/app/` ekranına admin olarak girin.
+3. `PNB İçe Aktar` sekmesinde JSON dosyasını seçin.
+4. Eksik e-posta, eşleşmeyen uygunluk ve atanmamış iş uyarılarını kontrol edin.
+5. `Firestore'a aktar` ile veriyi canlı sisteme taşıyın.

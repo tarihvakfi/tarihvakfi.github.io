@@ -16,6 +16,16 @@ Bu repo, Tarih Vakfı için GitHub Pages üzerinde çalışacak ücretsiz gönü
 - `/app/` → gönüllü paneli
 - `/admin/` → koordinatör / yönetici paneli
 
+## PNB arşiv operasyonları
+
+Pertev Naili Boratav çalışması ilk vaka olarak desteklenir:
+
+- PNB arşiv iş paketleri `archiveUnits` koleksiyonunda tutulur.
+- Görevler ve raporlar PNB arşiv birimine bağlanabilir.
+- Gönüllüler yalnızca kendilerine atanmış arşiv birimlerini görür.
+- Koordinatör/admin rolleri iş paketlerini atar, durum günceller, engelleri takip eder ve raporları inceler.
+- Excel dosyaları doğrudan canlı veritabanına yazılmaz; önce `tools/pnb_excel_to_import.py` ile JSON önizleme üretilir, sonra `/app/` içindeki `PNB İçe Aktar` ekranından admin tarafından aktarılır.
+
 ## Roller
 
 - `volunteer`
@@ -26,6 +36,15 @@ Bu repo, Tarih Vakfı için GitHub Pages üzerinde çalışacak ücretsiz gönü
 
 - `pending`
 - `approved`
+- `blocked`
+
+PNB arşiv iş durumları:
+
+- `not_started`
+- `assigned`
+- `in_progress`
+- `review`
+- `done`
 - `blocked`
 
 ## Dosya yapısı
@@ -87,5 +106,6 @@ Detaylı kurulum için:
 - `docs/SETUP.md`
 - `docs/FIRESTORE_SCHEMA.md`
 - `docs/SECURITY_RULES.md`
+- `docs/PNB_IMPORT.md`
 - `docs/APPS_SCRIPT_SETUP.md`
 - `docs/DEPLOYMENT.md`
