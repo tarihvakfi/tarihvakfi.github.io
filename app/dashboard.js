@@ -250,7 +250,26 @@ function statusClass(status) {
 
 function archiveLabel(unit) {
   if (!unit) return "";
-  return `${unit.sourceCode || "PNB"} / ${unit.seriesNo || "-"} · Kutu ${unit.boxNo || "-"}`;
+  // Prefer the unit's own title if present; fall back to a structured identifier;
+  // last resort is "Birim #N" so the UI never shows "- / - · Kutu -".
+  if (unit.title && String(unit.title).trim()) return String(unit.title).trim();
+  const src = unit.sourceCode && String(unit.sourceCode).trim();
+  const series = unit.seriesNo && String(unit.seriesNo).trim();
+  const box = unit.boxNo && String(unit.boxNo).trim();
+  if (src && (series || box)) return `${src}${series ? " / " + series : ""}${box ? " · Kutu " + box : ""}`;
+  if (box) return `Kutu ${box}`;
+  // Deterministic short identifier based on the doc id, readable but not ugly.
+  const shortId = (unit.id || "").slice(-4).toUpperCase();
+  return shortId ? `Birim #${shortId}` : "Birim";
+}
+
+// True when a unit has no human-friendly label data — use to show a muted
+// "İsim/kaynak bilgisi eksik" hint next to the computed fallback.
+function archiveLabelIncomplete(unit) {
+  if (!unit) return false;
+  const hasTitle = unit.title && String(unit.title).trim();
+  const hasAnyId = (unit.sourceCode && String(unit.sourceCode).trim()) || (unit.boxNo && String(unit.boxNo).trim());
+  return !hasTitle && !hasAnyId;
 }
 
 function archiveTotals() {
@@ -355,6 +374,190 @@ function renderManagementOverview() {
   renderActivityPanel();
 }
 
+// --- Option B redesign: home lanes + queue CTA + stats strip ---
+
+// Render the compact stats strip under the hero. Volunteer sees their own numbers;
+// staff sees the team's numbers. Tabular nums for clean alignment.
+function renderHomeStats() {
+  const strip = document.getElementById("homeStatsStrip");
+  if (!strip) return;
+  const stats = [];
+  if (isStaff()) {
+    const totals = archiveTotals();
+    const approved = approvedUsers().length;
+    const reports = Object.values(rd || {});
+    const pagesDone = reports.reduce((acc, r) => acc + (Number(r.pagesDone) || 0), 0);
+    stats.push([numberText(totals.units), "iş paketi"]);
+    stats.push([numberText(totals.pages), "toplam sayfa"]);
+    stats.push([numberText(approved), "onaylı gönüllü"]);
+    stats.push([numberText(reports.length), "rapor"]);
+    stats.push([numberText(pagesDone), "bu ay tasnif edilen sayfa"]);
+  } else {
+    const myReports = Object.values(rd || {}).filter((r) => r.userUid === cu?.uid);
+    const monthAgo = Date.now() - 30 * 86400000;
+    const recentReports = myReports.filter((r) => {
+      const t = toDateFromTs(r.createdAt)?.getTime() || 0;
+      return t >= monthAgo;
+    });
+    const monthPages = recentReports.reduce((acc, r) => acc + (Number(r.pagesDone) || 0), 0);
+    const totalPages = myReports.reduce((acc, r) => acc + (Number(r.pagesDone) || 0), 0);
+    stats.push([numberText(recentReports.length), "son 30 gün rapor"]);
+    stats.push([numberText(monthPages), "sayfa tasnif ettin"]);
+    stats.push([numberText(myReports.length), "toplam rapor"]);
+    stats.push([numberText(totalPages), "toplam sayfa"]);
+  }
+  strip.innerHTML = stats.map((s, i) => (
+    `${i > 0 ? '<span class="sep">·</span>' : ""}<span class="stat"><strong>${escapeHTML(String(s[0]))}</strong>${escapeHTML(String(s[1]))}</span>`
+  )).join("");
+}
+
+// Show the "Bana bir iş ver" CTA only to volunteers who currently have no
+// in-progress unit. Its click handler picks the next reasonable unit.
+function renderHomeQueueCta() {
+  const cta = document.getElementById("homeQueueCta");
+  if (!cta) return;
+  if (isStaff()) { cta.classList.add("hidden"); return; }
+  const myOpen = archiveUnits.filter((unit) => {
+    const mine = (unit.assignedToUids || []).includes(cu?.uid) ||
+      (cu?.email && (unit.assignedToEmails || []).map((e) => String(e).toLowerCase()).includes(String(cu.email).toLowerCase()));
+    return mine && !["done", "blocked"].includes(unit.status || "not_started");
+  });
+  const title = document.getElementById("homeQueueTitle");
+  const sub = document.getElementById("homeQueueSub");
+  if (myOpen.length > 0) {
+    // Volunteer already has active work — surface it, no queue prompt.
+    cta.classList.remove("hidden");
+    if (title) title.textContent = "Şu an üstünde olduğun iş";
+    if (sub) sub.textContent = archiveLabel(myOpen[0]);
+    const btn = document.getElementById("homeQueueBtn");
+    if (btn) { btn.textContent = "İşe git"; btn.dataset.queueAction = "open"; btn.dataset.unitId = myOpen[0].id; }
+  } else {
+    const next = pickNextQueueUnit();
+    cta.classList.remove("hidden");
+    if (next) {
+      if (title) title.textContent = "Sıradaki iş hazır";
+      if (sub) sub.textContent = `${archiveLabel(next)} · ${numberText(next.pageCount)} sayfa${next.notes ? " · " + next.notes.slice(0, 60) : ""}`;
+      const btn = document.getElementById("homeQueueBtn");
+      if (btn) { btn.textContent = "Bu işe göz at"; btn.dataset.queueAction = "open"; btn.dataset.unitId = next.id; }
+    } else {
+      if (title) title.textContent = "Şu an sana uygun boş bir iş yok";
+      if (sub) sub.textContent = "Koordinatör yeni iş paketi eklediğinde burada görünecek.";
+      const btn = document.getElementById("homeQueueBtn");
+      if (btn) { btn.textContent = "Duyuruları aç"; btn.dataset.queueAction = "announcements"; btn.dataset.unitId = ""; }
+    }
+  }
+}
+
+// Pick the next archive unit a volunteer could reasonably pick up: unassigned,
+// not blocked or done, highest priority first, then oldest updated.
+function pickNextQueueUnit() {
+  const candidates = archiveUnits.filter((unit) => {
+    const status = unit.status || "not_started";
+    if (["done", "blocked", "review"].includes(status)) return false;
+    const hasAssignees = (unit.assignedToUids || []).length || (unit.assignedToEmails || []).length;
+    return !hasAssignees;
+  });
+  const priorityRank = { high: 3, medium: 2, low: 1 };
+  candidates.sort((a, b) => {
+    const pa = priorityRank[a.priority] || 2;
+    const pb = priorityRank[b.priority] || 2;
+    if (pa !== pb) return pb - pa;
+    const ua = toDateFromTs(a.updatedAt)?.getTime() || 0;
+    const ub = toDateFromTs(b.updatedAt)?.getTime() || 0;
+    return ua - ub; // oldest first
+  });
+  return candidates[0] || null;
+}
+
+// Lane renderer: row rendering shared by all three lanes.
+function renderLaneItem(title, hint, right, clickHandler) {
+  return `<div class="lane-item" ${clickHandler}>
+    <div class="li-main"><div class="li-title">${escapeHTML(title)}</div>${hint ? `<div class="li-hint">${escapeHTML(hint)}</div>` : ""}</div>
+    <div class="li-right">${escapeHTML(right || "")}</div>
+  </div>`;
+}
+
+function renderHomeLanes() {
+  const now = document.getElementById("laneNow");
+  const next = document.getElementById("laneNext");
+  const done = document.getElementById("laneDone");
+  const nowCount = document.getElementById("laneNowCount");
+  const nextCount = document.getElementById("laneNextCount");
+  const doneCount = document.getElementById("laneDoneCount");
+  if (!now || !next || !done) return;
+
+  let nowItems = [];
+  let nextItems = [];
+  let doneItems = [];
+
+  if (isStaff()) {
+    // Staff view: team-wide operations snapshot.
+    nowItems = archiveUnits
+      .filter((u) => ["in_progress", "review"].includes(u.status || ""))
+      .sort((a, b) => (toDateFromTs(b.latestReportAt)?.getTime() || 0) - (toDateFromTs(a.latestReportAt)?.getTime() || 0))
+      .slice(0, 5);
+    nextItems = archiveUnits
+      .filter((u) => {
+        const s = u.status || "not_started";
+        if (["done", "blocked"].includes(s)) return false;
+        return !(u.assignedToUids || []).length && !(u.assignedToEmails || []).length;
+      })
+      .slice(0, 5);
+    doneItems = archiveUnits.filter((u) => u.status === "done").slice(0, 5);
+  } else {
+    // Volunteer view: personal.
+    const uid = cu?.uid;
+    const email = (cu?.email || "").toLowerCase();
+    const isMine = (u) => (u.assignedToUids || []).includes(uid) ||
+      (email && (u.assignedToEmails || []).map((e) => String(e).toLowerCase()).includes(email));
+    nowItems = archiveUnits.filter((u) => isMine(u) && !["done", "blocked"].includes(u.status || ""));
+    // My recent quality reports for units (hints of the next step for me)
+    const next3 = archiveUnits
+      .filter((u) => !isMine(u) && !(u.assignedToUids || []).length && !(u.assignedToEmails || []).length && !["done", "blocked"].includes(u.status || ""))
+      .slice(0, 5);
+    nextItems = next3;
+    // Biten: from my reports in the last 60 days, show the unique units I completed.
+    const myReports = Object.values(rd || {}).filter((r) => r.userUid === uid);
+    const recentIds = new Set(myReports
+      .filter((r) => r.workStatus === "unit_done" || (r.archiveUnitId && archiveById[r.archiveUnitId]?.status === "done"))
+      .map((r) => r.archiveUnitId)
+      .filter(Boolean));
+    doneItems = Array.from(recentIds).map((id) => archiveById[id]).filter(Boolean).slice(0, 5);
+  }
+
+  const toRow = (u) => {
+    const label = archiveLabel(u);
+    const incomplete = archiveLabelIncomplete(u);
+    const status = statusLabel(u.status || "not_started");
+    const progress = percent(u.completedDocumentCount || u.completedFileCount || 0, u.documentCount || u.fileCount || 0);
+    const lastReport = toDateFromTs(u.latestReportAt);
+    const when = lastReport ? daysSinceLabel(daysSince(lastReport)) : (u.status === "done" ? "Tamamlandı" : "—");
+    const hint = incomplete ? "İsim/kaynak eksik" : `${status} · ${progress}%`;
+    return `<div class="lane-item" data-drill-unit="${escapeHTML(u.id)}" role="button" tabindex="0">
+      <div class="li-main"><div class="li-title">${escapeHTML(label)}</div><div class="li-hint">${escapeHTML(hint)}</div></div>
+      <div class="li-right">${escapeHTML(when)}</div>
+    </div>`;
+  };
+
+  now.innerHTML = nowItems.length ? nowItems.map(toRow).join("") : '<p class="lane-empty">Şu an aktif iş yok.</p>';
+  next.innerHTML = nextItems.length ? nextItems.map(toRow).join("") : '<p class="lane-empty">Sıradaki iş yok.</p>';
+  done.innerHTML = doneItems.length ? doneItems.map(toRow).join("") : '<p class="lane-empty">Henüz bitmiş iş yok.</p>';
+  if (nowCount) nowCount.textContent = nowItems.length;
+  if (nextCount) nextCount.textContent = nextItems.length;
+  if (doneCount) doneCount.textContent = doneItems.length;
+}
+
+// "3 gün önce" / "dün" / "bugün" in Turkish.
+function daysSinceLabel(d) {
+  if (d == null) return "—";
+  if (d === 0) return "bugün";
+  if (d === 1) return "dün";
+  if (d < 7) return `${d} gün önce`;
+  if (d < 30) return `${Math.floor(d / 7)} hafta önce`;
+  if (d < 365) return `${Math.floor(d / 30)} ay önce`;
+  return `${Math.floor(d / 365)} yıl önce`;
+}
+
 function renderHomeOverview() {
   if (!cp) return;
   const kpis = document.getElementById("homeKpis");
@@ -402,6 +605,10 @@ function renderHomeOverview() {
     }
     renderVolunteerMission(nextWork, assignedOpenUnits, openTasks);
     management.innerHTML = "";
+    // Option B: volunteers also get the stats strip, lanes, and queue CTA.
+    renderHomeStats();
+    renderHomeLanes();
+    renderHomeQueueCta();
     return;
   }
 
@@ -464,6 +671,11 @@ function renderHomeOverview() {
   if (isAdmin()) shortcuts.push(["maintenance", "Bakım", "Sadece gerektiğinde veri/import araçları."]);
   management.innerHTML = shortcuts.map(([tab, title, text]) => `<button class="ops-link-card" type="button" data-go-tab="${tab}"><strong>${escapeHTML(title)}</strong><span>${escapeHTML(text)}</span></button>`).join("");
   renderManagementOverview();
+
+  // Option B additions: stats strip + lanes + queue CTA always refreshed alongside.
+  renderHomeStats();
+  renderHomeLanes();
+  renderHomeQueueCta();
 }
 
 function renderPeopleOps() {
@@ -971,6 +1183,29 @@ function openUnitDrill(unitId) {
   document.getElementById("drillExportCsv").classList.toggle("hidden", !isStaff());
   document.getElementById("drillReports").innerHTML = '<p class="muted">Yükleniyor...</p>';
 
+  // Populate the staff-only Ayarla edit section in the drill-down.
+  const drillEdit = document.getElementById("drillEdit");
+  if (drillEdit) {
+    if (isStaff()) {
+      drillEdit.classList.remove("hidden");
+      const statusSel = document.getElementById("drillEditStatus");
+      const prioSel = document.getElementById("drillEditPriority");
+      const dueInp = document.getElementById("drillEditDue");
+      const assignSel = document.getElementById("drillEditAssign");
+      const blockerTa = document.getElementById("drillEditBlocker");
+      const msg = document.getElementById("drillEditMsg");
+      if (statusSel) statusSel.value = unit.status || "not_started";
+      if (prioSel) prioSel.value = unit.priority || "medium";
+      if (dueInp) dueInp.value = unit.dueDate || "";
+      if (blockerTa) blockerTa.value = unit.blockerNote || "";
+      if (assignSel) assignSel.innerHTML = userOptions(unit.assignedToUids || []);
+      if (msg) msg.textContent = "";
+      drillEdit.dataset.unitId = unitId;
+    } else {
+      drillEdit.classList.add("hidden");
+    }
+  }
+
   modal.classList.remove("hidden");
   document.body.classList.add("modal-open");
   // Focus the close button for keyboard users.
@@ -1276,12 +1511,119 @@ function archiveCard(unit) {
   return `${html}</article>`;
 }
 
+// Staff table row: a compact single-line summary. Clicking the row opens the
+// existing drill-down panel (reused) which shows the full report history.
+// The row is a native <tr> so keyboard+screen-reader nav works; a dedicated
+// "Düzenle" button on the side opens an edit panel for status/priority/etc.
+function archiveTableRow(unit) {
+  const progress = percent(unit.completedDocumentCount || unit.completedFileCount || 0, unit.documentCount || unit.fileCount || 0);
+  const label = archiveLabel(unit);
+  const incomplete = archiveLabelIncomplete(unit);
+  const status = unit.status || "not_started";
+  const statusText = statusLabel(status);
+  const box = unit.boxNo ? `Kutu ${unit.boxNo}` : "—";
+  const uids = unit.assignedToUids || [];
+  const emails = unit.assignedToEmails || [];
+  const avatars = [];
+  const seen = new Set();
+  uids.slice(0, 3).forEach((uid) => {
+    const u = allUsers.find((x) => x.uid === uid);
+    const name = u ? userDisplayName(u) : (findUserName(uid) || "?");
+    const initials = name.split(" ").map((p) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+    if (seen.has(initials + name)) return;
+    seen.add(initials + name);
+    avatars.push(`<span class="av" title="${escapeHTML(name)}">${escapeHTML(initials || "?")}</span>`);
+  });
+  const extraCount = (uids.length + emails.length) - avatars.length;
+  const avatarsHtml = avatars.length
+    ? `<span class="av-stack">${avatars.join("")}</span>${extraCount > 0 ? `<span class="av-more">+${extraCount}</span>` : ""}`
+    : '<span class="unit-hint" style="font-size:.8rem">Atanmamış</span>';
+  const lastReport = toDateFromTs(unit.latestReportAt);
+  const lastText = lastReport ? daysSinceLabel(daysSince(lastReport)) : "—";
+  const subHint = incomplete
+    ? '<div class="unit-hint incomplete">İsim/kaynak bilgisi eksik</div>'
+    : `<div class="unit-hint">${numberText(unit.fileCount)} dosya · ${numberText(unit.pageCount)} sayfa${unit.materialType ? ` · ${escapeHTML(unit.materialType)}` : ""}</div>`;
+  return `<tr class="clickable" id="archive-unit-${escapeHTML(unit.id)}" data-drill-unit="${escapeHTML(unit.id)}" role="button" tabindex="0">
+    <td><div class="unit-label">${escapeHTML(label)}</div>${subHint}</td>
+    <td>${escapeHTML(box)}</td>
+    <td><span class="status-pill ${escapeHTML(status)}">${escapeHTML(statusText)}</span></td>
+    <td>${avatarsHtml}</td>
+    <td><div class="unit-progress"><span style="width:${progress}%"></span></div><div class="unit-progress-label">${progress}%</div></td>
+    <td class="unit-hint">${escapeHTML(lastText)}</td>
+  </tr>`;
+}
+
+function renderArchiveUnitsTable(units) {
+  return `<div class="units-wrap">
+    <table class="units-table">
+      <colgroup><col style="width:34%"><col style="width:10%"><col style="width:13%"><col style="width:18%"><col style="width:14%"><col style="width:11%"></colgroup>
+      <thead><tr><th>Birim</th><th>Kutu</th><th>Durum</th><th>Atanan</th><th>İlerleme</th><th>Son rapor</th></tr></thead>
+      <tbody>${units.map(archiveTableRow).join("")}</tbody>
+    </table>
+  </div>`;
+}
+
+// Compute counts for the status chip filter row (admin İşler tab).
+function unitStatusCounts() {
+  const counts = { not_started: 0, assigned: 0, in_progress: 0, review: 0, done: 0, blocked: 0, unassigned: 0, total: 0 };
+  archiveUnits.forEach((u) => {
+    counts.total += 1;
+    const s = u.status || "not_started";
+    counts[s] = (counts[s] || 0) + 1;
+    if (!(u.assignedToUids || []).length && !(u.assignedToEmails || []).length) counts.unassigned += 1;
+  });
+  return counts;
+}
+
+function renderUnitsChipRow() {
+  const host = document.getElementById("unitsChipRow");
+  if (!host) return;
+  const c = unitStatusCounts();
+  const active = document.getElementById("pnbStatusFilter")?.value || "";
+  const makeChip = (value, label, count) => (
+    `<button type="button" class="unit-chip${active === value ? " on" : ""}${count > 0 && value === "blocked" ? " attn" : ""}" data-chip-status="${escapeHTML(value)}"><strong>${numberText(count)}</strong>${escapeHTML(label)}</button>`
+  );
+  host.innerHTML = [
+    makeChip("", "Tümü", c.total),
+    makeChip("not_started", "Başlamadı", c.not_started || 0),
+    makeChip("in_progress", "Devam", c.in_progress || 0),
+    makeChip("review", "Kontrol", c.review || 0),
+    makeChip("done", "Tamamlandı", c.done || 0),
+    makeChip("blocked", "Engelli", c.blocked || 0)
+  ].join("");
+}
+
 function renderArchiveUnits() {
   const el = document.getElementById("archiveUnitList");
   if (!el) return;
-  const filter = document.getElementById("pnbStatusFilter")?.value || "";
-  const units = filter ? archiveUnits.filter((unit) => (unit.status || "not_started") === filter) : archiveUnits;
-  el.innerHTML = units.length ? units.map(archiveCard).join("") : htmlEmpty(isStaff() ? "Bu filtrede PNB arşiv birimi yok." : "Sana atanmış arşiv işi yok.");
+  const filterStatus = document.getElementById("pnbStatusFilter")?.value || "";
+  const searchInput = document.getElementById("unitsSearchInput");
+  const searchText = searchInput ? searchInput.value.trim().toLocaleLowerCase("tr") : "";
+  let units = archiveUnits.slice();
+  if (filterStatus) units = units.filter((unit) => (unit.status || "not_started") === filterStatus);
+  if (searchText) {
+    units = units.filter((unit) => {
+      const hay = [
+        archiveLabel(unit),
+        unit.title || "",
+        unit.sourceCode || "",
+        unit.boxNo || "",
+        unit.seriesNo || "",
+        unit.materialType || "",
+        unit.notes || "",
+        unit.blockerNote || ""
+      ].join(" ").toLocaleLowerCase("tr");
+      return hay.includes(searchText);
+    });
+  }
+  if (isStaff()) {
+    renderUnitsChipRow();
+    el.innerHTML = units.length
+      ? renderArchiveUnitsTable(units)
+      : htmlEmpty("Bu filtrede arşiv birimi yok.");
+  } else {
+    el.innerHTML = units.length ? units.map(archiveCard).join("") : htmlEmpty("Sana atanmış arşiv işi yok.");
+  }
 }
 
 function renderPnb() {
@@ -1564,12 +1906,51 @@ document.getElementById("cancelEditBtn")?.addEventListener("click", rf);
 document.getElementById("refreshPnbBtn")?.addEventListener("click", reloadPnb);
 document.getElementById("pnbStatusFilter")?.addEventListener("change", renderArchiveUnits);
 document.getElementById("activityDeptFilter")?.addEventListener("change", renderActivityPanel);
+document.getElementById("unitsSearchInput")?.addEventListener("input", () => renderArchiveUnits());
 
 // Close the unit drill-down modal on Escape.
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   const modal = document.getElementById("unitDrillModal");
   if (modal && !modal.classList.contains("hidden")) closeUnitDrill();
+});
+
+// Save the staff-only edit section inside the drill-down modal. Mirrors the
+// legacy archiveCard edit flow but opens from the table-row click path.
+document.getElementById("drillEditSave")?.addEventListener("click", async () => {
+  if (!isStaff() || !db) return;
+  const drillEdit = document.getElementById("drillEdit");
+  const unitId = drillEdit?.dataset.unitId || drillCurrentUnitId;
+  if (!unitId) return;
+  const msg = document.getElementById("drillEditMsg");
+  const btn = document.getElementById("drillEditSave");
+  const selected = Array.from(document.getElementById("drillEditAssign")?.selectedOptions || []).map((o) => o.value);
+  const assignedEmails = selected.map((uid) => {
+    const u = allUsers.find((x) => x.uid === uid);
+    return (u?.data?.email || "").toLowerCase();
+  }).filter(Boolean);
+  const update = {
+    status: document.getElementById("drillEditStatus").value,
+    priority: document.getElementById("drillEditPriority").value,
+    dueDate: document.getElementById("drillEditDue").value || null,
+    blockerNote: document.getElementById("drillEditBlocker").value.trim(),
+    assignedToUids: selected,
+    assignedToEmails: assignedEmails,
+    updatedAt: serverTimestamp()
+  };
+  btn.disabled = true;
+  if (msg) msg.textContent = "Kaydediliyor…";
+  try {
+    await updateDoc(doc(db, "archiveUnits", unitId), update);
+    if (msg) msg.textContent = "Kaydedildi.";
+    await reloadPnb();
+    // Refresh drill-down view with updated data.
+    openUnitDrill(unitId);
+  } catch (error) {
+    if (msg) msg.textContent = `Hata: ${error.message}`;
+  } finally {
+    btn.disabled = false;
+  }
 });
 document.getElementById("pnbCommitBtn")?.addEventListener("click", commitPnbImport);
 
@@ -1636,6 +2017,32 @@ document.addEventListener("click", async (event) => {
   }
   if (event.target.id === "drillExportCsv") {
     exportDrillCsv();
+    return;
+  }
+
+  // Units status chip row (İşler): click a chip to filter.
+  const chipBtn = event.target.closest("[data-chip-status]");
+  if (chipBtn) {
+    const value = chipBtn.dataset.chipStatus || "";
+    const select = document.getElementById("pnbStatusFilter");
+    if (select) select.value = value;
+    renderArchiveUnits();
+    return;
+  }
+
+  // Home queue CTA: volunteer clicks "Bana bir iş ver" or "İşe git" →
+  // jump to the unit on the İşler tab and focus it.
+  if (event.target.id === "homeQueueBtn") {
+    const action = event.target.dataset.queueAction || "";
+    const unitId = event.target.dataset.unitId || "";
+    if (action === "announcements") {
+      sw("announcements");
+      return;
+    }
+    if (unitId) {
+      sw("pnb");
+      setTimeout(() => document.getElementById(`archive-unit-${unitId}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 80);
+    }
     return;
   }
 

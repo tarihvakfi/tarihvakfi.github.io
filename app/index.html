@@ -36,24 +36,49 @@
     </nav>
 
     <section id="tab-home" class="tab-content">
-      <div id="homeHero" class="ops-hero card">
+      <div id="homeHero" class="ops-hero">
         <div>
           <p id="homeHeroEyebrow" class="eyebrow">Bugün</p>
           <h1 id="homeHeroTitle">Ne yapacağım?</h1>
-          <p id="homeHeroText" class="muted">Atandığın işi aç, kısa rapor yaz, engel varsa bildir. Bu kadar.</p>
+          <p id="homeHeroText" class="muted">Atandığın işi aç, kısa rapor yaz, engel varsa bildir.</p>
         </div>
         <div id="homeHeroActions" class="ops-actions">
           <button class="btn btn-primary" type="button" data-go-tab="reports" data-focus="quickArchiveUnitSelect">Hızlı rapor</button>
-          <button class="btn btn-secondary" type="button" data-go-tab="pnb">İşimi aç</button>
+          <button class="btn btn-secondary" type="button" data-go-tab="pnb">İş listesi</button>
           <button class="btn btn-secondary staff-only hidden" type="button" data-go-tab="management">Yönetim</button>
         </div>
       </div>
 
-      <div id="homeKpis" class="kpi-grid" style="margin:1rem 0"></div>
+      <div id="homeStatsStrip" class="stats-strip"></div>
 
-      <div id="homeWorkGrid" class="dashboard-grid">
+      <div id="homeQueueCta" class="queue-cta hidden">
+        <div class="qc-text">
+          <strong id="homeQueueTitle">Şu an üstünde olduğun bir iş yok</strong>
+          <span id="homeQueueSub">Sıradaki iş paketini benden alabilirsin.</span>
+        </div>
+        <button class="btn btn-primary" type="button" id="homeQueueBtn">Bana bir iş ver</button>
+      </div>
+
+      <div id="homeLanes" class="lanes">
+        <article class="lane">
+          <div class="lane-head"><h3>Şimdi</h3><span class="count" id="laneNowCount">0</span></div>
+          <div class="lane-body" id="laneNow"><p class="lane-empty">Yükleniyor…</p></div>
+        </article>
+        <article class="lane">
+          <div class="lane-head"><h3>Sıradaki</h3><span class="count" id="laneNextCount">0</span></div>
+          <div class="lane-body" id="laneNext"><p class="lane-empty">Yükleniyor…</p></div>
+        </article>
+        <article class="lane">
+          <div class="lane-head"><h3>Biten</h3><span class="count" id="laneDoneCount">0</span></div>
+          <div class="lane-body" id="laneDone"><p class="lane-empty">Yükleniyor…</p></div>
+        </article>
+      </div>
+
+      <div id="homeKpis" class="kpi-grid hidden" style="margin:1rem 0"></div>
+
+      <div id="homeWorkGrid" class="dashboard-grid hidden">
         <article id="homeNextCard" class="card">
-          <p class="eyebrow">Sıradaki hareket</p>
+          <p class="eyebrow">Dikkat gereken</p>
           <div id="homeNextWork" class="stack"><p class="empty">Veriler yükleniyor.</p></div>
         </article>
         <article id="homeShortcutCard" class="card">
@@ -108,7 +133,7 @@
         <div class="step-header">
           <div>
             <p id="pnbArchiveTitle" class="eyebrow">İş listesi</p>
-            <p id="pnbArchiveHint" class="muted" style="font-size:.85rem;margin:.15rem 0 0">Bir kart, bir iş. Atama, durum, engel ve rapor aynı yerden.</p>
+            <p id="pnbArchiveHint" class="muted" style="font-size:.85rem;margin:.15rem 0 0">Bir satıra tıkla: rapor geçmişi ve ayrıntı açılır.</p>
           </div>
           <label class="compact-filter">Durum
             <select id="pnbStatusFilter">
@@ -121,6 +146,10 @@
               <option value="blocked">Engelli</option>
             </select>
           </label>
+        </div>
+        <div id="unitsChipRow" class="units-chips"></div>
+        <div class="units-toolbar">
+          <input id="unitsSearchInput" class="search" type="search" placeholder="Birim, kutu no, not ara…" />
         </div>
         <div id="archiveUnitList" class="archive-grid"><p class="empty">Arşiv birimi bulunamadı.</p></div>
       </div>
@@ -387,6 +416,33 @@
         <p class="eyebrow">Atanan gönüllüler</p>
         <div id="drillAssignees" class="drill-assignees"><p class="muted">-</p></div>
       </div>
+      <details id="drillEdit" class="drill-section drill-edit hidden">
+        <summary>Ayarla (durum, öncelik, atama, engel)</summary>
+        <div class="drill-edit-body">
+          <div class="sp-row">
+            <label>Durum <select id="drillEditStatus">
+              <option value="not_started">Başlamadı</option>
+              <option value="assigned">Atandı</option>
+              <option value="in_progress">Devam ediyor</option>
+              <option value="review">Kontrol</option>
+              <option value="done">Tamamlandı</option>
+              <option value="blocked">Engelli</option>
+            </select></label>
+            <label>Öncelik <select id="drillEditPriority">
+              <option value="low">Düşük</option>
+              <option value="medium">Orta</option>
+              <option value="high">Yüksek</option>
+            </select></label>
+          </div>
+          <label>Son tarih <input type="date" id="drillEditDue" /></label>
+          <label>Atanan gönüllüler <select id="drillEditAssign" multiple size="5"></select></label>
+          <label>Engel / not <textarea id="drillEditBlocker" rows="2"></textarea></label>
+          <div style="display:flex;gap:.4rem;justify-content:flex-end">
+            <button type="button" id="drillEditSave" class="btn btn-primary btn-sm">Kaydet</button>
+            <span id="drillEditMsg" class="status-line muted" style="font-size:.85rem"></span>
+          </div>
+        </div>
+      </details>
       <div class="drill-section">
         <p class="eyebrow">Son raporlar</p>
         <div id="drillReports" class="drill-reports"><p class="muted">Yükleniyor...</p></div>
