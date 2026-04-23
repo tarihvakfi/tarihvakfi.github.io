@@ -35,7 +35,84 @@
       <button class="tab admin-tab hidden" data-tab="maintenance">Bakım</button>
     </nav>
 
-    <section id="tab-home" class="tab-content">
+    <section id="tab-home" class="tab-content sv-mode">
+      <div class="sv-home">
+        <div class="frame">
+          <div class="sv-topbar">
+            <div class="sv-brand"><span class="logo">TV</span><span id="svProjectTitle">Tarih Vakfı · Pano</span></div>
+            <div class="sv-navset">
+              <span class="on">Pano</span>
+              <button type="button" data-go-tab="pnb">İşler</button>
+              <button type="button" data-go-tab="reports">Raporlar</button>
+              <button type="button" class="staff-only hidden" data-go-tab="management">Yönetim</button>
+              <span id="svAvatar" class="sv-ava">AS</span>
+            </div>
+          </div>
+
+          <div class="sv-hero">
+            <div>
+              <p class="sv-eyebrow" id="svHeroEyebrow">Pertev Naili Boratav Arşivi</p>
+              <h1 class="sv-big"><span id="svHeroPct">0</span><span class="dim">%</span></h1>
+              <p class="sv-heroline" id="svHeroLine">Yükleniyor…</p>
+            </div>
+            <div>
+              <div class="sv-spark" id="svSparkline" aria-label="Son 12 haftanın tasnif grafiği"></div>
+              <div class="sv-sparklabel">son 12 hafta</div>
+            </div>
+          </div>
+
+          <div class="sv-actions">
+            <button type="button" class="sv-act" id="svActNext">
+              <span class="lab">Sıradaki iş</span>
+              <span class="val" id="svNextTitle">—</span>
+              <span class="sub" id="svNextSub">—</span>
+              <span class="arrow">→</span>
+            </button>
+            <button type="button" class="sv-act" id="svActAttention">
+              <span class="lab" id="svAttnLab">Dikkat</span>
+              <span class="val" id="svAttnVal">—</span>
+              <span class="sub" id="svAttnSub">—</span>
+              <span class="arrow">→</span>
+            </button>
+            <button type="button" class="sv-act" id="svActWeek">
+              <span class="lab">Bu hafta</span>
+              <span class="val" id="svWeekVal">0 sayfa</span>
+              <span class="sub" id="svWeekSub">—</span>
+              <span class="arrow">→</span>
+            </button>
+          </div>
+
+          <div class="sv-work">
+            <div class="sv-work-h">
+              <h3>İş akışı</h3>
+              <input id="svSearch" class="sv-work-search" type="search" placeholder="Ara…" />
+            </div>
+            <div class="sv-lanes">
+              <div class="sv-lane">
+                <div class="lh"><span class="t">Sıradaki</span><span class="n" id="svLaneTodoCount">0</span></div>
+                <div id="svLaneTodo"><p class="sv-empty">Yükleniyor…</p></div>
+                <div class="sv-more" data-go-tab="pnb" data-status-filter="">Tümünü aç →</div>
+              </div>
+              <div class="sv-lane">
+                <div class="lh"><span class="t">Yapılıyor</span><span class="n" id="svLaneDoingCount">0</span></div>
+                <div id="svLaneDoing"><p class="sv-empty">Yükleniyor…</p></div>
+                <div class="sv-more" data-go-tab="pnb" data-status-filter="in_progress">Tümünü aç →</div>
+              </div>
+              <div class="sv-lane">
+                <div class="lh"><span class="t">Biten</span><span class="n" id="svLaneDoneCount">0</span></div>
+                <div id="svLaneDone"><p class="sv-empty">Yükleniyor…</p></div>
+                <div class="sv-more" data-go-tab="pnb" data-status-filter="done">Tümünü aç →</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sv-pulse">
+            <span class="plab">Şu an</span>
+            <span id="svPulse">—</span>
+          </div>
+        </div>
+      </div>
+
       <div id="homeHero" class="ops-hero">
         <div>
           <p id="homeHeroEyebrow" class="eyebrow">Bugün</p>

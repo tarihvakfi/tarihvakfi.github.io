@@ -72,6 +72,8 @@ function sw(name) {
   const target = name === "tasks" ? "pnb" : name;
   document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === target));
   document.querySelectorAll(".tab-content").forEach((section) => section.classList.toggle("hidden", section.id !== `tab-${target}`));
+  // Stylish home gets a near-white body background; other tabs revert.
+  document.body.classList.toggle("sv-active", target === "home");
 }
 
 function htmlEmpty(message) {
@@ -548,6 +550,233 @@ function renderHomeLanes() {
 }
 
 // "3 gün önce" / "dün" / "bugün" in Turkish.
+// --- Stylish editorial home (sv-*) ---
+// A single-screen command center: hero with the one number that matters,
+// three pre-decided actions, minimal three-lane work list, live activity pulse.
+// Reuses existing data. No schema changes.
+
+function renderStylishHome() {
+  const home = document.getElementById("tab-home");
+  if (!home) return;
+  // Ensure page-level body gets the near-white background while this tab is shown.
+  if (!home.classList.contains("hidden")) document.body.classList.add("sv-active");
+  else document.body.classList.remove("sv-active");
+
+  // --- Hero: project name, % done, sub-line, 12-week sparkline ---
+  const totals = archiveTotals();
+  const totalPages = totals.pages || archiveUnits.reduce((acc, u) => acc + (Number(u.pageCount) || 0), 0);
+  const reports = Object.values(rd || {});
+  const pagesDoneTotal = reports.reduce((acc, r) => acc + (Number(r.pagesDone) || 0), 0);
+  const overallPct = totalPages > 0 ? Math.max(0, Math.min(100, Math.round((pagesDoneTotal / totalPages) * 100))) : percent(totals.done, totals.units);
+
+  const setT = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+  setT("svHeroPct", String(overallPct));
+  setT("svHeroEyebrow", "Pertev Naili Boratav Arşivi");
+
+  const approvedCount = approvedUsers().length;
+  const monthAgo = Date.now() - 30 * 86400000;
+  const monthReports = reports.filter((r) => (toDateFromTs(r.createdAt)?.getTime() || 0) >= monthAgo);
+  const monthPages = monthReports.reduce((acc, r) => acc + (Number(r.pagesDone) || 0), 0);
+  const activeVolunteers = new Set(monthReports.map((r) => r.userUid).filter(Boolean)).size;
+  const heroLine = document.getElementById("svHeroLine");
+  if (heroLine) {
+    heroLine.innerHTML = `${numberText(totalPages)} sayfadan <strong>${numberText(pagesDoneTotal)}</strong> tasnif edildi. Bu ay ekip <strong>${numberText(monthPages)} sayfa</strong> tamamladı · <strong>${numberText(activeVolunteers)}</strong> gönüllü aktif.`;
+  }
+
+  // Brand title reflects role
+  setT("svProjectTitle", isStaff() ? "Tarih Vakfı · Yönetim panosu" : "Tarih Vakfı · Çalışma panosu");
+
+  // Avatar initials from current user
+  const av = document.getElementById("svAvatar");
+  if (av && cp) {
+    const name = cp.fullName || cp.email || "";
+    const initials = name.split(" ").map((p) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "·";
+    av.textContent = initials;
+  }
+
+  // --- Sparkline: pages/week for last 12 weeks (Monday-start buckets) ---
+  renderSparkline(reports);
+
+  // --- Action cards ---
+  // 1) Sıradaki iş: volunteers see next-for-them; staff see next unassigned.
+  const nextUnit = pickNextQueueUnit();
+  const nextBtn = document.getElementById("svActNext");
+  if (nextUnit) {
+    setT("svNextTitle", archiveLabel(nextUnit));
+    const bits = [];
+    if (nextUnit.boxNo) bits.push(`Kutu ${nextUnit.boxNo}`);
+    if (nextUnit.pageCount) bits.push(`${numberText(nextUnit.pageCount)} sayfa`);
+    if (nextUnit.priority === "high") bits.push("Yüksek öncelik");
+    setT("svNextSub", bits.join(" · "));
+    if (nextBtn) nextBtn.dataset.unitId = nextUnit.id;
+  } else {
+    setT("svNextTitle", "Uygun iş yok");
+    setT("svNextSub", "Şu an boş iş paketi görünmüyor.");
+    if (nextBtn) nextBtn.dataset.unitId = "";
+  }
+
+  // 2) Dikkat: blocked + review pending (staff view) OR my open tasks (volunteer).
+  const blocked = archiveUnits.filter((u) => u.status === "blocked");
+  const review = archiveUnits.filter((u) => u.status === "review");
+  const attnBtn = document.getElementById("svActAttention");
+  const attnLab = document.getElementById("svAttnLab");
+  if (isStaff()) {
+    const count = blocked.length + review.length;
+    if (attnLab) attnLab.innerHTML = count > 0 ? '<span class="dot"></span>Dikkat' : "Dikkat";
+    const parts = [];
+    if (blocked.length) parts.push(`${blocked.length} engel`);
+    if (review.length) parts.push(`${review.length} kontrol`);
+    setT("svAttnVal", count > 0 ? parts.join(" · ") : "Temiz");
+    setT("svAttnSub", count > 0 ? "Çözülmesi bekleyen" : "Şu an bekleyen iş yok.");
+    attnBtn?.classList.toggle("warn", count > 0);
+  } else {
+    const uid = cu?.uid;
+    const email = (cu?.email || "").toLowerCase();
+    const myOpen = archiveUnits.filter((u) => {
+      const mine = (u.assignedToUids || []).includes(uid) ||
+        (email && (u.assignedToEmails || []).map((e) => String(e).toLowerCase()).includes(email));
+      return mine && !["done"].includes(u.status || "not_started");
+    });
+    if (attnLab) attnLab.textContent = "Üstümdeki iş";
+    setT("svAttnVal", myOpen.length > 0 ? `${myOpen.length} iş` : "Boş");
+    setT("svAttnSub", myOpen.length > 0 ? myOpen.map((u) => archiveLabel(u)).slice(0, 2).join(" · ") : "Atanmış iş yok.");
+    attnBtn?.classList.remove("warn");
+  }
+
+  // 3) Bu hafta: pages this week vs last week, with delta.
+  const now = Date.now();
+  const weekMs = 7 * 86400000;
+  const thisWeek = reports.filter((r) => (toDateFromTs(r.createdAt)?.getTime() || 0) >= now - weekMs);
+  const lastWeek = reports.filter((r) => {
+    const t = toDateFromTs(r.createdAt)?.getTime() || 0;
+    return t >= now - 2 * weekMs && t < now - weekMs;
+  });
+  const thisPages = thisWeek.reduce((acc, r) => acc + (Number(r.pagesDone) || 0), 0);
+  const lastPages = lastWeek.reduce((acc, r) => acc + (Number(r.pagesDone) || 0), 0);
+  setT("svWeekVal", `${numberText(thisPages)} sayfa`);
+  const weekSub = document.getElementById("svWeekSub");
+  if (weekSub) {
+    if (lastPages === 0 && thisPages === 0) weekSub.textContent = "Henüz aktivite yok.";
+    else if (lastPages === 0) weekSub.innerHTML = `Başlangıç · <strong>${numberText(thisWeek.length)} rapor</strong>`;
+    else {
+      const delta = Math.round(((thisPages - lastPages) / lastPages) * 100);
+      const sign = delta >= 0 ? "+" : "";
+      weekSub.innerHTML = `Geçen haftadan <strong>${sign}${delta}%</strong> · ${numberText(thisWeek.length)} rapor`;
+    }
+  }
+
+  // --- Three lanes: top 3 per lane ---
+  const searchInput = document.getElementById("svSearch");
+  const searchText = searchInput ? searchInput.value.trim().toLocaleLowerCase("tr") : "";
+  const filterBySearch = (u) => {
+    if (!searchText) return true;
+    const hay = [archiveLabel(u), u.title, u.sourceCode, u.boxNo, u.seriesNo, u.notes, u.blockerNote]
+      .filter(Boolean).join(" ").toLocaleLowerCase("tr");
+    return hay.includes(searchText);
+  };
+  const prioRank = { high: 3, medium: 2, low: 1 };
+  const sortPrio = (a, b) => {
+    const pa = prioRank[a.priority] || 2;
+    const pb = prioRank[b.priority] || 2;
+    if (pa !== pb) return pb - pa;
+    return (toDateFromTs(b.latestReportAt)?.getTime() || 0) - (toDateFromTs(a.latestReportAt)?.getTime() || 0);
+  };
+  const units = archiveUnits.filter(filterBySearch);
+  const todoUnits = units.filter((u) => ["not_started", "assigned"].includes(u.status || "not_started")).sort(sortPrio);
+  const doingUnits = units.filter((u) => ["in_progress", "blocked"].includes(u.status || "")).sort(sortPrio);
+  const doneUnits = units.filter((u) => ["review", "done"].includes(u.status || "")).sort(sortPrio);
+
+  setT("svLaneTodoCount", todoUnits.length);
+  setT("svLaneDoingCount", doingUnits.length);
+  setT("svLaneDoneCount", doneUnits.length);
+  renderSvLane("svLaneTodo", todoUnits.slice(0, 3));
+  renderSvLane("svLaneDoing", doingUnits.slice(0, 3));
+  renderSvLane("svLaneDone", doneUnits.slice(0, 3));
+
+  // --- Pulse: last 2 activity items ---
+  const recent = reports
+    .filter((r) => r.source !== "system")
+    .sort((a, b) => (toDateFromTs(b.createdAt)?.getTime() || 0) - (toDateFromTs(a.createdAt)?.getTime() || 0))
+    .slice(0, 3);
+  const pulseEl = document.getElementById("svPulse");
+  if (pulseEl) {
+    if (recent.length === 0) {
+      pulseEl.textContent = "Henüz aktivite yok.";
+    } else {
+      pulseEl.innerHTML = recent.map((r, i) => {
+        const who = findUserName(r.userUid) || r.userEmail || "—";
+        const unit = archiveById[r.archiveUnitId];
+        const target = unit ? archiveLabel(unit) : "bir birim";
+        const when = toDateFromTs(r.createdAt);
+        const ago = when ? daysSinceLabel(daysSince(when)) : "";
+        const bit = r.pagesDone ? `${r.pagesDone} sayfa ekledi` : (r.summary ? "bir mesaj bıraktı" : "ilerleme kaydetti");
+        const sep = i > 0 ? '<span class="sep">·</span>' : "";
+        return `${sep}<span><strong>${escapeHTML(who)}</strong> ${escapeHTML(target)}'e ${escapeHTML(bit)} · ${escapeHTML(ago)}</span>`;
+      }).join(" ");
+    }
+  }
+}
+
+function renderSvLane(containerId, units) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (!units.length) { el.innerHTML = '<p class="sv-empty">Boş</p>'; return; }
+  el.innerHTML = units.map((u) => {
+    const status = u.status || "not_started";
+    const dotClass = status === "in_progress" ? "p" : status === "blocked" ? "b" : status === "done" ? "d" : status === "review" ? "r" : "n";
+    const incomplete = archiveLabelIncomplete(u);
+    const progress = percent(u.completedDocumentCount || u.completedFileCount || 0, u.documentCount || u.fileCount || 0);
+    const uids = u.assignedToUids || [];
+    const assigned = uids.length > 0;
+    const avatars = uids.slice(0, 2).map((uid) => {
+      const user = allUsers.find((x) => x.uid === uid);
+      const name = user ? userDisplayName(user) : (findUserName(uid) || "?");
+      const initials = name.split(" ").map((p) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "?";
+      return `<span class="av" title="${escapeHTML(name)}">${escapeHTML(initials)}</span>`;
+    }).join("");
+    const leftHtml = assigned
+      ? `<span class="avs">${avatars}${uids.length > 2 ? ` <span style="margin-left:6px;color:#999">+${uids.length - 2}</span>` : ""}</span>`
+      : `<span><span class="dot ${dotClass}"></span>${escapeHTML(
+          status === "blocked" ? "Engelli" :
+          status === "in_progress" ? "Devam" :
+          status === "done" ? "Tamamlandı" :
+          status === "review" ? "Kontrol" : "Atanmamış"
+        )}</span>`;
+    const rightHtml = status === "blocked"
+      ? `<span class="pct" style="color:#7c2d12">Engelli</span>`
+      : status === "review"
+        ? `<span class="pct" style="color:#534AB7">Kontrol</span>`
+        : `<span class="pct">${progress}%</span>`;
+    return `<div class="sv-u" data-drill-unit="${escapeHTML(u.id)}">
+      <div class="ti${incomplete ? " incomplete" : ""}">${escapeHTML(archiveLabel(u))}</div>
+      <div class="meta">${leftHtml}${rightHtml}</div>
+    </div>`;
+  }).join("");
+}
+
+// 12-week sparkline: pages completed per week. Last week is highlighted.
+function renderSparkline(reports) {
+  const spark = document.getElementById("svSparkline");
+  if (!spark) return;
+  const weeks = 12;
+  const weekMs = 7 * 86400000;
+  const now = Date.now();
+  const buckets = new Array(weeks).fill(0);
+  reports.forEach((r) => {
+    const t = toDateFromTs(r.createdAt)?.getTime() || 0;
+    if (!t) return;
+    const weeksAgo = Math.floor((now - t) / weekMs);
+    if (weeksAgo < 0 || weeksAgo >= weeks) return;
+    buckets[weeks - 1 - weeksAgo] += Number(r.pagesDone) || 0;
+  });
+  const max = Math.max(1, ...buckets);
+  spark.innerHTML = buckets.map((v, i) => {
+    const h = Math.max(2, Math.round((v / max) * 52));
+    const hot = i >= weeks - 2 ? " hot" : "";
+    return `<i class="${hot.trim()}" style="height:${h}px" title="${numberText(v)} sayfa"></i>`;
+  }).join("");
+}
+
 // --- Kanban board (Bugün home) ---
 // Three columns derived from archiveUnit.status:
 //   todo  = not_started + assigned (units queued or just-assigned)
@@ -1050,6 +1279,7 @@ function renderHomeOverview() {
     renderHomeLanes();
     renderHomeQueueCta();
     renderKanban();
+    renderStylishHome();
     return;
   }
 
@@ -1118,6 +1348,7 @@ function renderHomeOverview() {
   renderHomeLanes();
   renderHomeQueueCta();
   renderKanban();
+  renderStylishHome();
 }
 
 function renderPeopleOps() {
@@ -2369,6 +2600,29 @@ document.getElementById("kbMyOnly")?.addEventListener("click", () => {
   renderKanban();
 });
 
+// Stylish home search input
+document.getElementById("svSearch")?.addEventListener("input", () => renderStylishHome());
+
+// Stylish home action cards
+document.getElementById("svActNext")?.addEventListener("click", () => {
+  const btn = document.getElementById("svActNext");
+  const unitId = btn?.dataset.unitId || "";
+  if (unitId) openUnitChannel(unitId);
+  else sw("pnb");
+});
+document.getElementById("svActAttention")?.addEventListener("click", () => {
+  // Staff: jump to İşler with Engelli filter. Volunteer: just jump to İşler.
+  sw("pnb");
+  if (isStaff()) {
+    const select = document.getElementById("pnbStatusFilter");
+    if (select) { select.value = "blocked"; renderArchiveUnits(); }
+  }
+});
+document.getElementById("svActWeek")?.addEventListener("click", () => {
+  // Staff: review queue; Volunteer: their recent reports.
+  sw("reports");
+});
+
 // Channel composer: quick actions + send
 let composerMode = null; // null | "pages" | "blocker" | "done"
 function setComposerMode(mode) {
@@ -2502,6 +2756,12 @@ document.addEventListener("click", async (event) => {
   const tabTarget = event.target.closest("[data-go-tab]");
   if (tabTarget) {
     const tabName = tabTarget.dataset.goTab === "tasks" ? "pnb" : tabTarget.dataset.goTab;
+    // If the element also carries data-status-filter, apply it on the İşler tab.
+    const statusFilter = tabTarget.dataset.statusFilter;
+    if (statusFilter !== undefined) {
+      const select = document.getElementById("pnbStatusFilter");
+      if (select) { select.value = statusFilter || ""; renderArchiveUnits(); }
+    }
     sw(tabName);
     const scrollTarget = tabTarget.dataset.scrollTo ? document.getElementById(tabTarget.dataset.scrollTo) : document.getElementById(`tab-${tabName}`);
     if (scrollTarget?.tagName === "DETAILS") scrollTarget.open = true;
