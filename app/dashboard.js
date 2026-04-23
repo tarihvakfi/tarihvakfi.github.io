@@ -11,8 +11,7 @@ import {
   orderBy,
   where,
   limit,
-  updateDoc,
-  writeBatch
+  updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { escapeHTML, formatDate, badge } from "../js/helpers.js";
 
@@ -722,17 +721,13 @@ function renderImportPreview(preview) {
 }
 
 async function commitBatchedWrites(writes) {
-  // Keep batches small because each protected write evaluates Firestore rules.
-  // Large batches can hit rules access-call limits and fail as "missing permissions".
-  const chunkSize = 5;
-  for (let index = 0; index < writes.length; index += chunkSize) {
-    const chunk = writes.slice(index, index + chunkSize);
-    const batch = writeBatch(db);
-    chunk.forEach((write) => batch.set(write.ref, write.data, { merge: true }));
+  // Firestore evaluates rules per write. Sequential writes are slower but avoid
+  // batch rule access-call limits during one-time admin imports.
+  for (const write of writes) {
     try {
-      await batch.commit();
+      await setDoc(write.ref, write.data, { merge: true });
     } catch (error) {
-      const paths = chunk.map((write) => write.label || write.ref.path).join(", ");
+      const paths = write.label || write.ref.path;
       throw new Error(`${error.message} (${paths})`);
     }
   }
