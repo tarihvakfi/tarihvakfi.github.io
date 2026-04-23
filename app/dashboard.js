@@ -283,48 +283,35 @@ function setRoleShell(staff) {
 function renderVolunteerMission(nextWork, assignedUnits, openTasks) {
   const unit = assignedUnits[0];
   if (unit) {
-    nextWork.innerHTML = `<article class="mission-card">
-      <div class="mission-copy">
-        <span class="mission-label">Sıradaki iş</span>
-        <h2>${escapeHTML(archiveLabel(unit))}</h2>
-        <p>${escapeHTML(statusLabel(unit.status || "not_started"))} · ${numberText(unit.pageCount)} sayfa · ${numberText(unit.documentCount)} belge</p>
+    nextWork.innerHTML = `<div class="today-detail">
+      <div class="today-facts">
+        <span><strong>${escapeHTML(statusLabel(unit.status || "not_started"))}</strong> durum</span>
+        <span><strong>${numberText(unit.pageCount)}</strong> sayfa</span>
+        <span><strong>${numberText(unit.documentCount)}</strong> belge</span>
       </div>
-      ${unit.notes ? `<p class="mission-note">${escapeHTML(unit.notes)}</p>` : ""}
-      <div class="mission-actions">
-        <button class="btn btn-primary" type="button" data-report-au="${unit.id}">Rapor yaz</button>
-        <button class="btn btn-secondary" type="button" data-open-work="${unit.id}">Ayrıntı</button>
-        <button class="btn btn-secondary" type="button" data-open-blocker="${unit.id}">Engel bildir</button>
-      </div>
-    </article>`;
+      ${unit.notes ? `<p>${escapeHTML(unit.notes)}</p>` : `<p>Çalışmayı tamamladığında kısa bir rapor bırakman yeterli.</p>`}
+    </div>`;
     return;
   }
 
   const taskItem = openTasks[0];
   if (taskItem) {
     const task = taskItem.data || {};
-    nextWork.innerHTML = `<article class="mission-card">
-      <div class="mission-copy">
-        <span class="mission-label">Sıradaki iş</span>
-        <h2>${escapeHTML(task.title || "Atanmış iş")}</h2>
-        <p>${escapeHTML(task.department || "Genel")} · ${escapeHTML(statusLabel(task.status || "open"))}${task.dueDate ? ` · Son: ${formatDate(task.dueDate)}` : ""}</p>
+    nextWork.innerHTML = `<div class="today-detail">
+      <div class="today-facts">
+        <span><strong>${escapeHTML(statusLabel(task.status || "open"))}</strong> durum</span>
+        <span><strong>${escapeHTML(task.department || "Genel")}</strong> alan</span>
+        ${task.dueDate ? `<span><strong>${formatDate(task.dueDate)}</strong> son</span>` : ""}
       </div>
-      ${task.description ? `<p class="mission-note">${escapeHTML(task.description)}</p>` : ""}
-      <div class="mission-actions">
-        <button class="btn btn-primary" type="button" data-report-task="${taskItem.id}">Rapor yaz</button>
-        <button class="btn btn-secondary" type="button" data-go-tab="pnb" data-scroll-to="generalTaskPanel">Ayrıntı</button>
-      </div>
-    </article>`;
+      ${task.description ? `<p>${escapeHTML(task.description)}</p>` : `<p>Çalışmayı tamamladığında kısa bir rapor bırakman yeterli.</p>`}
+    </div>`;
     return;
   }
 
-  nextWork.innerHTML = `<article class="mission-card mission-empty">
-    <div class="mission-copy">
-      <span class="mission-label">Bugün</span>
-      <h2>Henüz sana atanmış açık iş görünmüyor.</h2>
-      <p>Yeni iş gelince burada görünecek. Şimdilik duyurulara bakman yeterli.</p>
-    </div>
-    <div class="mission-actions"><button class="btn btn-secondary" type="button" data-go-tab="announcements">Duyurulara bak</button></div>
-  </article>`;
+  nextWork.innerHTML = `<div class="today-detail empty">
+    <p>Yeni iş gelince burada görünecek. Şimdilik duyurulara bakman yeterli.</p>
+    <button class="btn btn-secondary" type="button" data-go-tab="announcements">Duyurulara bak</button>
+  </div>`;
 }
 
 function renderHomeOverview() {
@@ -338,6 +325,7 @@ function renderHomeOverview() {
   const heroTitle = document.getElementById("homeHeroTitle");
   const heroText = document.getElementById("homeHeroText");
   const heroActions = document.getElementById("homeHeroActions");
+  const heroEyebrow = document.getElementById("homeHeroEyebrow");
   if (!kpis || !nextWork || !management) return;
 
   const totals = archiveTotals();
@@ -353,13 +341,17 @@ function renderHomeOverview() {
   profileCard?.classList.toggle("hidden", volunteerMode);
 
   if (volunteerMode) {
-    if (heroTitle) heroTitle.textContent = assignedOpenUnits.length || openTasks.length ? "Bugünkü iş" : "Bugün";
-    if (heroText) heroText.textContent = assignedOpenUnits.length || openTasks.length
-      ? "Çalışmanı yap. Bitince kısa bir rapor bırak."
-      : "Sana atanmış açık iş yok. Yeni iş gelirse burada görünecek.";
+    const firstUnit = assignedOpenUnits[0];
+    const firstTask = openTasks[0];
+    const hasWork = Boolean(firstUnit || firstTask);
+    if (heroEyebrow) heroEyebrow.textContent = hasWork ? "Sıradaki iş" : "Bugün";
+    if (heroTitle) heroTitle.textContent = firstUnit ? archiveLabel(firstUnit) : firstTask ? (firstTask.data?.title || "Atanmış iş") : "Bugün sakin";
+    if (heroText) heroText.textContent = firstUnit
+      ? `${statusLabel(firstUnit.status || "not_started")} · ${numberText(firstUnit.pageCount)} sayfa · ${numberText(firstUnit.documentCount)} belge`
+      : firstTask
+        ? `${firstTask.data?.department || "Genel"} · ${statusLabel(firstTask.data?.status || "open")}${firstTask.data?.dueDate ? ` · Son: ${formatDate(firstTask.data.dueDate)}` : ""}`
+        : "Sana atanmış açık iş yok. Yeni iş gelirse burada görünecek.";
     if (heroActions) {
-      const firstUnit = assignedOpenUnits[0];
-      const firstTask = openTasks[0];
       heroActions.innerHTML = firstUnit
         ? `<button class="btn btn-primary" type="button" data-report-au="${firstUnit.id}">Rapor yaz</button><button class="btn btn-secondary" type="button" data-open-work="${firstUnit.id}">Ayrıntı</button>`
         : firstTask
@@ -893,6 +885,7 @@ function renderArchiveUnits() {
 function renderPnb() {
   const volunteer = !isStaff();
   document.getElementById("tab-pnb")?.classList.toggle("volunteer-work", volunteer);
+  document.getElementById("pnbArchivePanel")?.classList.toggle("hidden", volunteer && !archiveUnits.length);
   const title = document.getElementById("pnbTitle");
   const intro = document.getElementById("pnbIntro");
   const archiveTitle = document.getElementById("pnbArchiveTitle");
