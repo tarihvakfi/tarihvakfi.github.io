@@ -548,6 +548,446 @@ function renderHomeLanes() {
 }
 
 // "3 gün önce" / "dün" / "bugün" in Turkish.
+// --- Kanban board (Bugün home) ---
+// Three columns derived from archiveUnit.status:
+//   todo  = not_started + assigned (units queued or just-assigned)
+//   doing = in_progress + blocked (active work, incl. stuck)
+//   done  = review + done (awaiting review or finalized)
+// Moving a card between columns updates archiveUnit.status; a system
+// message is posted into the unit's channel automatically.
+
+const KANBAN_BUCKETS = {
+  todo: { status: "not_started", alt: ["assigned"] },
+  doing: { status: "in_progress", alt: ["blocked"] },
+  done: { status: "review", alt: ["done"] }
+};
+
+let kbShowMyOnly = false;
+
+function bucketOfUnit(unit) {
+  const s = unit.status || "not_started";
+  if (s === "not_started" || s === "assigned") return "todo";
+  if (s === "in_progress" || s === "blocked") return "doing";
+  if (s === "review" || s === "done") return "done";
+  return "todo";
+}
+
+function kanbanCard(unit) {
+  const label = archiveLabel(unit);
+  const incomplete = archiveLabelIncomplete(unit);
+  const status = unit.status || "not_started";
+  const progress = percent(unit.completedDocumentCount || unit.completedFileCount || 0, unit.documentCount || unit.fileCount || 0);
+  const hasProgress = progress > 0 || status === "in_progress" || status === "review" || status === "done";
+
+  // Avatar stack for assignees — max 3 shown.
+  const uids = unit.assignedToUids || [];
+  const avatars = [];
+  const seen = new Set();
+  uids.slice(0, 3).forEach((uid) => {
+    const u = allUsers.find((x) => x.uid === uid);
+    const name = u ? userDisplayName(u) : (findUserName(uid) || "?");
+    const initials = name.split(" ").map((p) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "?";
+    if (seen.has(initials + name)) return;
+    seen.add(initials + name);
+    avatars.push(`<span class="av" title="${escapeHTML(name)}">${escapeHTML(initials)}</span>`);
+  });
+  const extraCount = uids.length - avatars.length;
+  const avatarHtml = avatars.length
+    ? `<span class="av-stack">${avatars.join("")}</span>${extraCount > 0 ? `<span class="av-more">+${extraCount}</span>` : ""}`
+    : '<span class="hint">Atanmamış</span>';
+
+  // Last-activity hint: show new-message count if any reports since last read
+  // (we don't track read-state yet so just show total report count as a proxy).
+  const unitReports = Object.values(rd || {}).filter((r) => r.archiveUnitId === unit.id);
+  const latest = toDateFromTs(unit.latestReportAt);
+  let msgText = "Henüz mesaj yok";
+  let msgClass = "msg-quiet";
+  if (unitReports.length > 0) {
+    const days = latest ? daysSince(latest) : null;
+    if (days !== null && days <= 2) {
+      msgText = `${unitReports.length} mesaj · ${daysSinceLabel(days)}`;
+      msgClass = "msg-new";
+    } else {
+      msgText = `${unitReports.length} mesaj · ${latest ? daysSinceLabel(daysSince(latest)) : "—"}`;
+    }
+  }
+
+  const subLine = incomplete
+    ? `<div class="kb-sub incomplete">İsim/kaynak bilgisi eksik · ${numberText(unit.fileCount)} dosya</div>`
+    : `<div class="kb-sub">${unit.boxNo ? `Kutu ${escapeHTML(String(unit.boxNo))} · ` : ""}${numberText(unit.fileCount)} dosya · ${numberText(unit.pageCount)} sayfa</div>`;
+
+  return `<article class="kb-card st-${escapeHTML(status)}" draggable="true" data-kb-unit="${escapeHTML(unit.id)}" tabindex="0" role="button">
+    <button class="kb-menu" type="button" data-kb-menu="${escapeHTML(unit.id)}" aria-label="Menü">⋮</button>
+    <div class="kb-menu-list" data-kb-menu-list="${escapeHTML(unit.id)}">
+      <button type="button" data-kb-move="${escapeHTML(unit.id)}" data-move-to="not_started">Sıradakine taşı</button>
+      <button type="button" data-kb-move="${escapeHTML(unit.id)}" data-move-to="in_progress">Yapılıyor'a taşı</button>
+      <button type="button" data-kb-move="${escapeHTML(unit.id)}" data-move-to="review">Biten'e taşı</button>
+      <div class="sep"></div>
+      <button type="button" data-kb-move="${escapeHTML(unit.id)}" data-move-to="blocked">Engelli olarak işaretle</button>
+      ${unit.sheetUrl ? `<div class="sep"></div><button type="button" data-kb-sheet="${escapeHTML(unit.sheetUrl)}">📊 Sheet'i aç</button>` : ""}
+    </div>
+    <div class="kb-ti">${escapeHTML(label)}</div>
+    ${subLine}
+    ${hasProgress ? `<div class="kb-bar"><div class="bar"><span style="width:${progress}%"></span></div><span class="pct">${progress}%</span></div>` : ""}
+    <div class="kb-foot">${avatarHtml}<span class="${msgClass}">${escapeHTML(msgText)}</span></div>
+  </article>`;
+}
+
+function renderKanban() {
+  const board = document.getElementById("kbBoard");
+  if (!board) return;
+  const cols = {
+    todo: document.getElementById("kbColTodo"),
+    doing: document.getElementById("kbColDoing"),
+    done: document.getElementById("kbColDone")
+  };
+  if (!cols.todo || !cols.doing || !cols.done) return;
+
+  const searchInput = document.getElementById("kbSearchInput");
+  const searchText = searchInput ? searchInput.value.trim().toLocaleLowerCase("tr") : "";
+  const uid = cu?.uid;
+  const email = (cu?.email || "").toLowerCase();
+  const isMine = (u) => (u.assignedToUids || []).includes(uid) ||
+    (email && (u.assignedToEmails || []).map((e) => String(e).toLowerCase()).includes(email));
+
+  let units = archiveUnits.slice();
+  if (kbShowMyOnly) units = units.filter(isMine);
+  if (searchText) {
+    units = units.filter((u) => {
+      const hay = [archiveLabel(u), u.title, u.sourceCode, u.boxNo, u.seriesNo, u.materialType, u.notes, u.blockerNote]
+        .filter(Boolean).join(" ").toLocaleLowerCase("tr");
+      return hay.includes(searchText);
+    });
+  }
+
+  // Bucket units, priority-sort each column.
+  const grouped = { todo: [], doing: [], done: [] };
+  units.forEach((u) => grouped[bucketOfUnit(u)].push(u));
+  const priorityRank = { high: 3, medium: 2, low: 1 };
+  const sortWith = (a, b) => {
+    const pa = priorityRank[a.priority] || 2;
+    const pb = priorityRank[b.priority] || 2;
+    if (pa !== pb) return pb - pa;
+    const lb = toDateFromTs(b.latestReportAt)?.getTime() || 0;
+    const la = toDateFromTs(a.latestReportAt)?.getTime() || 0;
+    return lb - la;
+  };
+  Object.keys(grouped).forEach((k) => grouped[k].sort(sortWith));
+
+  cols.todo.innerHTML = grouped.todo.length ? grouped.todo.map(kanbanCard).join("") : '<p class="kb-empty">Sıradaki iş yok.</p>';
+  cols.doing.innerHTML = grouped.doing.length ? grouped.doing.map(kanbanCard).join("") : '<p class="kb-empty">Aktif iş yok.</p>';
+  cols.done.innerHTML = grouped.done.length ? grouped.done.map(kanbanCard).join("") : '<p class="kb-empty">Henüz bitmiş iş yok.</p>';
+
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set("kbCountTodo", grouped.todo.length);
+  set("kbCountDoing", grouped.doing.length);
+  set("kbCountDone", grouped.done.length);
+
+  const totals = archiveTotals();
+  set("kbProjStats", `${numberText(totals.units)} birim · ${numberText(totals.pages)} sayfa · %${percent(totals.done, totals.units)} tamamlandı`);
+  const myBtn = document.getElementById("kbMyOnly");
+  if (myBtn) {
+    myBtn.textContent = kbShowMyOnly ? "Herkes" : "Sadece benim";
+    myBtn.classList.toggle("btn-primary", kbShowMyOnly);
+    myBtn.classList.toggle("btn-secondary", !kbShowMyOnly);
+  }
+}
+
+// Move a unit to a new status. Used by drag-drop and by the card's ⋮ menu.
+async function moveUnitStatus(unitId, newStatus) {
+  if (!db) return;
+  const unit = archiveById[unitId];
+  if (!unit || unit.status === newStatus) return;
+  try {
+    await updateDoc(doc(db, "archiveUnits", unitId), {
+      status: newStatus,
+      updatedAt: serverTimestamp(),
+      latestReportAt: serverTimestamp()
+    });
+    // Post a system message into the channel so the status change is visible
+    // in the thread alongside human messages.
+    await addDoc(collection(db, "reports"), {
+      userUid: cu?.uid || "",
+      userEmail: cu?.email || "",
+      archiveUnitId: unitId,
+      projectId: unit.projectId || PNB_PROJECT_ID,
+      taskId: archiveLabel(unit),
+      summary: `Durum: ${statusLabel(newStatus)}`,
+      hours: 0,
+      pagesDone: null,
+      workStatus: newStatus === "review" || newStatus === "done" ? "unit_done" : newStatus === "blocked" ? "blocked" : "in_progress",
+      source: "system",
+      messageType: "status_change",
+      reportDate: td(),
+      links: [],
+      images: [],
+      coworkerUids: [],
+      status: "submitted",
+      reviewerUid: null,
+      feedback: [],
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    await reloadPnb();
+    await lr();
+  } catch (error) {
+    console.error("Durum güncellenemedi:", error);
+    alert(`Durum güncellenemedi: ${error.message}`);
+  }
+}
+
+// --- Drag-drop wiring (HTML5) ---
+let kbDragUnitId = null;
+
+document.addEventListener("dragstart", (event) => {
+  const card = event.target.closest?.("[data-kb-unit]");
+  if (!card) return;
+  kbDragUnitId = card.dataset.kbUnit;
+  card.classList.add("dragging");
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+});
+document.addEventListener("dragend", (event) => {
+  const card = event.target.closest?.("[data-kb-unit]");
+  if (card) card.classList.remove("dragging");
+  kbDragUnitId = null;
+  document.querySelectorAll(".kb-col.drag-over").forEach((el) => el.classList.remove("drag-over"));
+});
+document.addEventListener("dragover", (event) => {
+  const col = event.target.closest?.(".kb-col");
+  if (!col || !kbDragUnitId) return;
+  event.preventDefault();
+  col.classList.add("drag-over");
+});
+document.addEventListener("dragleave", (event) => {
+  const col = event.target.closest?.(".kb-col");
+  if (col && !col.contains(event.relatedTarget)) col.classList.remove("drag-over");
+});
+document.addEventListener("drop", async (event) => {
+  const col = event.target.closest?.(".kb-col");
+  if (!col || !kbDragUnitId) return;
+  event.preventDefault();
+  col.classList.remove("drag-over");
+  const target = col.dataset.targetStatus || "not_started";
+  const unitId = kbDragUnitId;
+  kbDragUnitId = null;
+  await moveUnitStatus(unitId, target);
+});
+
+// --- Channel rendering (drill-modal in channel mode) ---
+
+function renderChannelSide(unit) {
+  const side = document.getElementById("chSide");
+  if (!side) return;
+  const status = unit.status || "not_started";
+  const progress = percent(unit.completedDocumentCount || unit.completedFileCount || 0, unit.documentCount || unit.fileCount || 0);
+  const uids = unit.assignedToUids || [];
+  const avHtml = uids.slice(0, 5).map((uid) => {
+    const u = allUsers.find((x) => x.uid === uid);
+    const name = u ? userDisplayName(u) : (findUserName(uid) || "?");
+    const initials = name.split(" ").map((p) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "?";
+    return `<span class="av" title="${escapeHTML(name)}">${escapeHTML(initials)}</span>`;
+  }).join("") || '<span class="muted" style="font-size:.82rem">Atanmamış</span>';
+  const assignedNames = uids.map((uid) => {
+    const u = allUsers.find((x) => x.uid === uid);
+    return u ? userDisplayName(u) : findUserName(uid);
+  }).filter(Boolean).join(", ");
+  const box = unit.boxNo ? `Kutu ${unit.boxNo}` : "";
+  const subBits = [box, unit.sourceCode, unit.materialType].filter(Boolean).join(" · ");
+  side.innerHTML = `
+    <div class="ch-pinned">
+      <div>
+        <h2>${escapeHTML(archiveLabel(unit))}</h2>
+        ${subBits ? `<div class="ch-sub">${escapeHTML(subBits)}</div>` : ""}
+      </div>
+      <span class="status-pill ${escapeHTML(status)}">${escapeHTML(statusLabel(status))}</span>
+      <div class="stat-row">
+        <span class="k">İlerleme</span>
+        <span class="v">${progress}% · ${numberText(unit.completedDocumentCount || 0)}/${numberText(unit.documentCount || 0)} belge</span>
+        <div class="progress-bar"><span style="width:${progress}%"></span></div>
+      </div>
+      <div class="stat-row">
+        <span class="k">Atanan</span>
+        <div class="avs">${avHtml}</div>
+        ${assignedNames ? `<div class="ch-sub" style="margin-top:.2rem">${escapeHTML(assignedNames)}</div>` : ""}
+      </div>
+      <div class="stat-row">
+        <span class="k">Öncelik</span>
+        <span class="v">${escapeHTML({ high: "Yüksek", medium: "Orta", low: "Düşük" }[unit.priority] || "Orta")}</span>
+      </div>
+      ${unit.sheetUrl ? `
+      <div class="stat-row">
+        <span class="k">Çalışma sayfası</span>
+        <a href="${escapeHTML(unit.sheetUrl)}" target="_blank" rel="noopener" style="font-size:.85rem;color:var(--primary);word-break:break-all">📊 Sheet'i aç</a>
+      </div>` : ""}
+      ${isStaff() ? '<button type="button" class="btn btn-secondary btn-sm" id="chOpenEdit" style="margin-top:.5rem">Ayarla…</button>' : ""}
+    </div>`;
+}
+
+function formatDayKey(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function formatDayHuman(d) {
+  const today = new Date();
+  const y = new Date();
+  y.setDate(y.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return "Bugün";
+  if (d.toDateString() === y.toDateString()) return "Dün";
+  return d.toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
+}
+
+function renderChannelThread(reports) {
+  const thread = document.getElementById("chThread");
+  if (!thread) return;
+  // Chronological: oldest at top, newest at bottom (chat convention).
+  const chrono = reports.slice().reverse();
+  let lastDayKey = null;
+  const parts = [];
+  chrono.forEach((r) => {
+    const when = toDateFromTs(r.createdAt) || new Date();
+    const dayKey = formatDayKey(when);
+    if (dayKey !== lastDayKey) {
+      parts.push(`<div class="ch-day">${escapeHTML(formatDayHuman(when))}</div>`);
+      lastDayKey = dayKey;
+    }
+    const isMe = r.userUid === cu?.uid;
+    const author = r.userUid === cu?.uid ? "Sen" : (findUserName(r.userUid) || r.userEmail || "—");
+    const timeStr = when.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+
+    if (r.source === "system" || r.messageType === "status_change") {
+      parts.push(`<div class="ch-sys">${escapeHTML(author)}: ${escapeHTML(r.summary || "durumu güncelledi")}</div>`);
+      return;
+    }
+
+    const attachments = [];
+    if (r.pagesDone != null && r.pagesDone !== "") {
+      attachments.push(`<span class="at pages">+ ${numberText(r.pagesDone)} sayfa</span>`);
+    }
+    if (r.workStatus === "blocked" || r.messageType === "blocker") {
+      attachments.push(`<span class="at blocker">⚠ Engel</span>`);
+    }
+    if (r.workStatus === "unit_done") {
+      attachments.push(`<span class="at status-done">✓ Bitti işaretli</span>`);
+    }
+
+    const text = (r.summary || "").trim();
+    const hasText = text.length > 0;
+    const hasAttach = attachments.length > 0;
+    if (!hasText && !hasAttach) {
+      // Skip effectively empty reports (no content, no tags).
+      return;
+    }
+
+    parts.push(`<div class="ch-msg ${isMe ? "me" : "them"}">
+      <div class="who">${escapeHTML(author)}</div>
+      ${hasText ? `<div>${escapeHTML(text)}</div>` : ""}
+      ${attachments.join(" ")}
+      <div class="when">${escapeHTML(timeStr)}</div>
+    </div>`);
+  });
+  thread.innerHTML = parts.join("") || '<p class="muted" style="margin:auto;text-align:center">Henüz mesaj yok. İlk güncellemeyi yaz: kısa bir not, "+ Sayfa" ekle, ya da "Engel" bildir.</p>';
+  // Scroll to the bottom where the latest messages live.
+  thread.scrollTop = thread.scrollHeight;
+}
+
+// Open the drill-modal in channel mode (kanban card click path).
+async function openUnitChannel(unitId) {
+  const unit = archiveById[unitId];
+  const modal = document.getElementById("unitDrillModal");
+  if (!unit || !modal) return;
+  modal.classList.add("channel-mode");
+  drillCurrentUnitId = unitId;
+  drillCurrentReports = [];
+
+  // Populate side pane + header
+  renderChannelSide(unit);
+  const title = document.getElementById("chTitle");
+  if (title) title.textContent = `# ${archiveLabel(unit).toLocaleLowerCase("tr").replace(/\s+/g, "-").slice(0, 48)}`;
+  const sheetLink = document.getElementById("chSheetLink");
+  if (sheetLink) {
+    if (unit.sheetUrl) { sheetLink.href = unit.sheetUrl; sheetLink.classList.remove("hidden"); }
+    else sheetLink.classList.add("hidden");
+  }
+
+  // Show modal
+  modal.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+  const thread = document.getElementById("chThread");
+  if (thread) thread.innerHTML = '<p class="muted" style="margin:auto">Yükleniyor…</p>';
+
+  // Load reports for this unit
+  try {
+    const snap = await getDocs(query(
+      collection(db, "reports"),
+      where("archiveUnitId", "==", unitId),
+      orderBy("createdAt", "desc"),
+      limit(100)
+    ));
+    if (drillCurrentUnitId !== unitId) return;
+    drillCurrentReports = snap.docs.map((item) => ({ id: item.id, ...item.data() }));
+    renderChannelThread(drillCurrentReports);
+  } catch (error) {
+    if (thread) thread.innerHTML = `<p class="muted">Mesajlar yüklenemedi: ${escapeHTML(error.message)}</p>`;
+  }
+
+  // Focus composer input
+  setTimeout(() => document.getElementById("chComposeText")?.focus(), 80);
+}
+
+function closeUnitChannel() {
+  const modal = document.getElementById("unitDrillModal");
+  if (!modal) return;
+  modal.classList.remove("channel-mode");
+  closeUnitDrill();
+}
+
+// Send a channel message. Writes a new report doc; data.messageType tags the kind.
+async function sendChannelMessage({ type, text, pagesDone }) {
+  if (!cu || !db || !drillCurrentUnitId) return;
+  const unit = archiveById[drillCurrentUnitId];
+  if (!unit) return;
+
+  const trimmed = (text || "").trim();
+  let workStatus = "in_progress";
+  if (type === "blocker") workStatus = "blocked";
+  if (type === "done") workStatus = "unit_done";
+
+  const data = {
+    taskId: archiveLabel(unit),
+    archiveUnitId: drillCurrentUnitId,
+    projectId: unit.projectId || PNB_PROJECT_ID,
+    summary: trimmed,
+    hours: 0,
+    pagesDone: typeof pagesDone === "number" ? pagesDone : null,
+    workStatus,
+    source: "quick",
+    messageType: type || "note",
+    reportDate: td(),
+    links: [],
+    images: [],
+    coworkerUids: []
+  };
+
+  try {
+    await createReportBatched(data, { targetUid: cu.uid, targetEmail: cu.email || "" });
+    // Reload this channel's reports so the new message appears at the bottom.
+    const snap = await getDocs(query(
+      collection(db, "reports"),
+      where("archiveUnitId", "==", drillCurrentUnitId),
+      orderBy("createdAt", "desc"),
+      limit(100)
+    ));
+    drillCurrentReports = snap.docs.map((item) => ({ id: item.id, ...item.data() }));
+    renderChannelThread(drillCurrentReports);
+    // Refresh kanban + lanes in the background.
+    await reloadPnb();
+  } catch (error) {
+    alert(`Gönderilemedi: ${error.message}`);
+  }
+}
+
 function daysSinceLabel(d) {
   if (d == null) return "—";
   if (d === 0) return "bugün";
@@ -609,6 +1049,7 @@ function renderHomeOverview() {
     renderHomeStats();
     renderHomeLanes();
     renderHomeQueueCta();
+    renderKanban();
     return;
   }
 
@@ -676,6 +1117,7 @@ function renderHomeOverview() {
   renderHomeStats();
   renderHomeLanes();
   renderHomeQueueCta();
+  renderKanban();
 }
 
 function renderPeopleOps() {
@@ -1199,6 +1641,8 @@ function openUnitDrill(unitId) {
       if (dueInp) dueInp.value = unit.dueDate || "";
       if (blockerTa) blockerTa.value = unit.blockerNote || "";
       if (assignSel) assignSel.innerHTML = userOptions(unit.assignedToUids || []);
+      const sheetUrlInp = document.getElementById("drillEditSheetUrl");
+      if (sheetUrlInp) sheetUrlInp.value = unit.sheetUrl || "";
       if (msg) msg.textContent = "";
       drillEdit.dataset.unitId = unitId;
     } else {
@@ -1912,7 +2356,85 @@ document.getElementById("unitsSearchInput")?.addEventListener("input", () => ren
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   const modal = document.getElementById("unitDrillModal");
-  if (modal && !modal.classList.contains("hidden")) closeUnitDrill();
+  if (modal && !modal.classList.contains("hidden")) {
+    if (modal.classList.contains("channel-mode")) closeUnitChannel();
+    else closeUnitDrill();
+  }
+});
+
+// Kanban controls (search, my-only toggle)
+document.getElementById("kbSearchInput")?.addEventListener("input", () => renderKanban());
+document.getElementById("kbMyOnly")?.addEventListener("click", () => {
+  kbShowMyOnly = !kbShowMyOnly;
+  renderKanban();
+});
+
+// Channel composer: quick actions + send
+let composerMode = null; // null | "pages" | "blocker" | "done"
+function setComposerMode(mode) {
+  composerMode = mode;
+  const pagesInput = document.getElementById("chComposePages");
+  document.querySelectorAll('#chComposer [data-compose]').forEach((btn) => {
+    btn.classList.toggle("on", btn.dataset.compose === mode);
+  });
+  if (pagesInput) pagesInput.classList.toggle("hidden", mode !== "pages");
+  if (mode === "pages") setTimeout(() => pagesInput?.focus(), 40);
+}
+document.addEventListener("click", (event) => {
+  const btn = event.target.closest('#chComposer [data-compose]');
+  if (!btn) return;
+  const mode = btn.dataset.compose;
+  if (mode === "paste") {
+    const raw = prompt("Excel/Sheets'ten kopyaladığın satırları yapıştır:");
+    if (!raw) return;
+    const summary = raw.split("\n").map((r) => r.trim()).filter(Boolean).slice(0, 10).join(" · ");
+    sendChannelMessage({ type: "note", text: `Tablodan: ${summary}`, pagesDone: null });
+    return;
+  }
+  if (composerMode === mode) {
+    setComposerMode(null);
+  } else {
+    setComposerMode(mode);
+  }
+});
+document.getElementById("chComposeSend")?.addEventListener("click", async () => {
+  const textEl = document.getElementById("chComposeText");
+  const pagesEl = document.getElementById("chComposePages");
+  const text = textEl?.value || "";
+  const pagesVal = pagesEl?.value;
+  const pagesDone = composerMode === "pages" && pagesVal !== "" ? Math.max(0, Math.floor(Number(pagesVal) || 0)) : null;
+  const type = composerMode || "note";
+  if (!text.trim() && pagesDone === null && type !== "done" && type !== "blocker") {
+    textEl?.focus();
+    return;
+  }
+  await sendChannelMessage({ type, text, pagesDone });
+  if (textEl) textEl.value = "";
+  if (pagesEl) pagesEl.value = "";
+  setComposerMode(null);
+  textEl?.focus();
+});
+document.getElementById("chComposeText")?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    document.getElementById("chComposeSend")?.click();
+  }
+});
+
+// "Ayarla…" button inside the channel side pane → opens the existing drillEdit
+// details element in-place. Keeps edit UI in one place.
+document.addEventListener("click", (event) => {
+  if (event.target.id !== "chOpenEdit") return;
+  // Leave channel mode so drillEdit is visible
+  const modal = document.getElementById("unitDrillModal");
+  if (!modal) return;
+  const unitId = drillCurrentUnitId;
+  if (!unitId) return;
+  modal.classList.remove("channel-mode");
+  openUnitDrill(unitId);
+  // Auto-open the edit section
+  const edit = document.getElementById("drillEdit");
+  if (edit) edit.open = true;
 });
 
 // Save the staff-only edit section inside the drill-down modal. Mirrors the
@@ -1929,6 +2451,7 @@ document.getElementById("drillEditSave")?.addEventListener("click", async () => 
     const u = allUsers.find((x) => x.uid === uid);
     return (u?.data?.email || "").toLowerCase();
   }).filter(Boolean);
+  const sheetUrlRaw = document.getElementById("drillEditSheetUrl")?.value?.trim() || "";
   const update = {
     status: document.getElementById("drillEditStatus").value,
     priority: document.getElementById("drillEditPriority").value,
@@ -1936,6 +2459,7 @@ document.getElementById("drillEditSave")?.addEventListener("click", async () => 
     blockerNote: document.getElementById("drillEditBlocker").value.trim(),
     assignedToUids: selected,
     assignedToEmails: assignedEmails,
+    sheetUrl: sheetUrlRaw,
     updatedAt: serverTimestamp()
   };
   btn.disabled = true;
@@ -2002,6 +2526,46 @@ document.addEventListener("click", async (event) => {
 
   if (event.target.id === "exportActivityBtn") {
     exportActivityCsv();
+    return;
+  }
+
+  // Kanban card menu: toggle the ⋮ dropdown. Clicking the menu button or
+  // its items must not bubble up to the card click (which opens the channel).
+  const kbMenuBtn = event.target.closest("[data-kb-menu]");
+  if (kbMenuBtn) {
+    event.stopPropagation();
+    const id = kbMenuBtn.dataset.kbMenu;
+    const list = document.querySelector(`[data-kb-menu-list="${id}"]`);
+    document.querySelectorAll(".kb-menu-list.open").forEach((el) => { if (el !== list) el.classList.remove("open"); });
+    list?.classList.toggle("open");
+    return;
+  }
+  const kbMoveBtn = event.target.closest("[data-kb-move]");
+  if (kbMoveBtn) {
+    event.stopPropagation();
+    const id = kbMoveBtn.dataset.kbMove;
+    const to = kbMoveBtn.dataset.moveTo;
+    document.querySelectorAll(".kb-menu-list.open").forEach((el) => el.classList.remove("open"));
+    moveUnitStatus(id, to);
+    return;
+  }
+  const kbSheetBtn = event.target.closest("[data-kb-sheet]");
+  if (kbSheetBtn) {
+    event.stopPropagation();
+    const url = kbSheetBtn.dataset.kbSheet;
+    document.querySelectorAll(".kb-menu-list.open").forEach((el) => el.classList.remove("open"));
+    if (url) window.open(url, "_blank", "noopener");
+    return;
+  }
+  // Close any open kanban menus when clicking outside.
+  if (!event.target.closest(".kb-menu-list") && !event.target.closest("[data-kb-menu]")) {
+    document.querySelectorAll(".kb-menu-list.open").forEach((el) => el.classList.remove("open"));
+  }
+
+  // Kanban card click → open the channel view for that unit.
+  const kbCard = event.target.closest("[data-kb-unit]");
+  if (kbCard) {
+    openUnitChannel(kbCard.dataset.kbUnit);
     return;
   }
 

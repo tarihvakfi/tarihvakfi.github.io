@@ -51,15 +51,37 @@
 
       <div id="homeStatsStrip" class="stats-strip"></div>
 
-      <div id="homeQueueCta" class="queue-cta hidden">
-        <div class="qc-text">
-          <strong id="homeQueueTitle">Şu an üstünde olduğun bir iş yok</strong>
-          <span id="homeQueueSub">Sıradaki iş paketini benden alabilirsin.</span>
+      <div id="kbHead" class="kb-head">
+        <div>
+          <span class="kb-proj" id="kbProjName">Pertev Naili Boratav Arşivi</span>
+          <span class="kb-stats" id="kbProjStats">Yükleniyor…</span>
         </div>
-        <button class="btn btn-primary" type="button" id="homeQueueBtn">Bana bir iş ver</button>
+        <div class="kb-actions">
+          <button class="btn btn-secondary btn-sm" type="button" id="kbMyOnly">Sadece benim</button>
+          <button class="btn btn-secondary btn-sm" type="button" data-go-tab="pnb">Liste görünümü</button>
+        </div>
       </div>
 
-      <div id="homeLanes" class="lanes">
+      <div class="kb-filter">
+        <input id="kbSearchInput" class="search" type="search" placeholder="Ara: birim, kutu, not…" />
+      </div>
+
+      <div id="kbBoard" class="kb-board">
+        <section class="kb-col" data-col="todo" data-target-status="not_started">
+          <div class="kb-col-head"><h3>Sıradaki</h3><span class="kb-n" id="kbCountTodo">0</span></div>
+          <div class="kb-col-body" id="kbColTodo"><p class="kb-empty">Yükleniyor…</p></div>
+        </section>
+        <section class="kb-col" data-col="doing" data-target-status="in_progress">
+          <div class="kb-col-head"><h3>Yapılıyor</h3><span class="kb-n" id="kbCountDoing">0</span></div>
+          <div class="kb-col-body" id="kbColDoing"><p class="kb-empty">Yükleniyor…</p></div>
+        </section>
+        <section class="kb-col" data-col="done" data-target-status="review">
+          <div class="kb-col-head"><h3>Biten</h3><span class="kb-n" id="kbCountDone">0</span></div>
+          <div class="kb-col-body" id="kbColDone"><p class="kb-empty">Yükleniyor…</p></div>
+        </section>
+      </div>
+
+      <div id="homeLanes" class="lanes hidden">
         <article class="lane">
           <div class="lane-head"><h3>Şimdi</h3><span class="count" id="laneNowCount">0</span></div>
           <div class="lane-body" id="laneNow"><p class="lane-empty">Yükleniyor…</p></div>
@@ -72,6 +94,14 @@
           <div class="lane-head"><h3>Biten</h3><span class="count" id="laneDoneCount">0</span></div>
           <div class="lane-body" id="laneDone"><p class="lane-empty">Yükleniyor…</p></div>
         </article>
+      </div>
+
+      <div id="homeQueueCta" class="queue-cta hidden">
+        <div class="qc-text">
+          <strong id="homeQueueTitle">Şu an üstünde olduğun bir iş yok</strong>
+          <span id="homeQueueSub">Sıradaki iş paketini benden alabilirsin.</span>
+        </div>
+        <button class="btn btn-primary" type="button" id="homeQueueBtn">Bana bir iş ver</button>
       </div>
 
       <div id="homeKpis" class="kpi-grid hidden" style="margin:1rem 0"></div>
@@ -399,6 +429,26 @@
   <div id="unitDrillModal" class="drill-modal hidden" role="dialog" aria-modal="true" aria-labelledby="drillTitle">
     <div class="drill-backdrop" data-drill-close></div>
     <div class="drill-panel">
+      <aside id="chSide" class="ch-side hidden" aria-label="Birim bilgileri"></aside>
+      <section id="chMain" class="ch-main hidden" aria-label="Kanal">
+        <header class="ch-head">
+          <span class="ch-title" id="chTitle">—</span>
+          <div class="actions" style="display:flex;gap:.4rem">
+            <a id="chSheetLink" class="btn btn-secondary btn-sm hidden" href="#" target="_blank" rel="noopener">📊 Sheet</a>
+            <button type="button" class="btn btn-secondary btn-sm" data-drill-close>Kapat</button>
+          </div>
+        </header>
+        <div id="chThread" class="ch-thread"></div>
+        <div id="chComposer" class="ch-composer">
+          <button type="button" class="q" data-compose="pages">+ Sayfa</button>
+          <input type="number" id="chComposePages" class="pages-input hidden" min="0" step="1" placeholder="sayfa" />
+          <button type="button" class="q" data-compose="blocker">Engel</button>
+          <button type="button" class="q" data-compose="done">Bitti ↑</button>
+          <button type="button" class="q" data-compose="paste">Yapıştır</button>
+          <input type="text" id="chComposeText" placeholder="Bir şey yaz…" />
+          <button type="button" class="send" id="chComposeSend">Gönder</button>
+        </div>
+      </section>
       <header class="drill-header">
         <div>
           <p class="eyebrow">Arşiv birimi geçmişi</p>
@@ -417,7 +467,7 @@
         <div id="drillAssignees" class="drill-assignees"><p class="muted">-</p></div>
       </div>
       <details id="drillEdit" class="drill-section drill-edit hidden">
-        <summary>Ayarla (durum, öncelik, atama, engel)</summary>
+        <summary>Ayarla (durum, öncelik, atama, engel, sheet)</summary>
         <div class="drill-edit-body">
           <div class="sp-row">
             <label>Durum <select id="drillEditStatus">
@@ -437,12 +487,16 @@
           <label>Son tarih <input type="date" id="drillEditDue" /></label>
           <label>Atanan gönüllüler <select id="drillEditAssign" multiple size="5"></select></label>
           <label>Engel / not <textarea id="drillEditBlocker" rows="2"></textarea></label>
+          <label>Çalışma sayfası bağlantısı (Google Sheets / Drive URL)
+            <input type="url" id="drillEditSheetUrl" placeholder="https://docs.google.com/spreadsheets/..." />
+          </label>
           <div style="display:flex;gap:.4rem;justify-content:flex-end">
             <button type="button" id="drillEditSave" class="btn btn-primary btn-sm">Kaydet</button>
             <span id="drillEditMsg" class="status-line muted" style="font-size:.85rem"></span>
           </div>
         </div>
       </details>
+
       <div class="drill-section">
         <p class="eyebrow">Son raporlar</p>
         <div id="drillReports" class="drill-reports"><p class="muted">Yükleniyor...</p></div>

@@ -77,6 +77,7 @@ Tek yönetim ortamındaki çalışma başlıkları. PNB ilk ayrıntılı kayıt 
 - `dueDate`: string | null
 - `blockerNote`: string
 - `latestReportAt`: timestamp | null
+- `sheetUrl`: string | null — bu birime bağlı Google Sheets / LibreOffice / Excel online çalışma dosyası URL'si. Koordinatörler "Ayarla" panelinden ekleyebilir; gönüllüler karttan ve kanal görünümünden "📊 Sheet'i aç" butonuyla erişir. İleride Apps Script ile Firestore'a otomatik olarak düzenleme mesajları yazabilir (şu an manuel).
 - `createdAt`: timestamp
 - `updatedAt`: timestamp
 - `importedAt`: timestamp
