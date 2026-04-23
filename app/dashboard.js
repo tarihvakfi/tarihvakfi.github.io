@@ -11,7 +11,8 @@ import {
   orderBy,
   where,
   limit,
-  updateDoc
+  updateDoc,
+  writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { escapeHTML, formatDate, badge } from "../js/helpers.js";
 
@@ -23,11 +24,14 @@ let cp = null;
 let rd = {};
 let pi = [];
 let allUsers = [];
+let taskItems = [];
+let announcementItems = [];
 let archiveUnits = [];
 let archiveById = {};
 let availabilityRecords = [];
 let communicationPlans = [];
 let pnbImportPreview = null;
+let pendingApplicationCount = 0;
 
 const ld = document.getElementById("loadingState");
 const tb = document.getElementById("tabBar");
@@ -248,6 +252,81 @@ function archiveLabel(unit) {
   return `${unit.sourceCode || "PNB"} / ${unit.seriesNo || "-"} · Kutu ${unit.boxNo || "-"}`;
 }
 
+function archiveTotals() {
+  return archiveUnits.reduce((acc, unit) => {
+    acc.units += 1;
+    acc.pages += Number(unit.pageCount || 0);
+    acc.done += unit.status === "done" ? 1 : 0;
+    acc.blocked += unit.status === "blocked" ? 1 : 0;
+    acc.review += unit.status === "review" ? 1 : 0;
+    acc.unassigned += (unit.assignedToUids || []).length || (unit.assignedToEmails || []).length ? 0 : 1;
+    return acc;
+  }, { units: 0, pages: 0, done: 0, blocked: 0, review: 0, unassigned: 0 });
+}
+
+function renderHomeOverview() {
+  if (!cp) return;
+  const kpis = document.getElementById("homeKpis");
+  const nextWork = document.getElementById("homeNextWork");
+  const management = document.getElementById("homeManagement");
+  if (!kpis || !nextWork || !management) return;
+
+  const totals = archiveTotals();
+  const reports = Object.values(rd || {});
+  const submittedReports = reports.filter((report) => (report.status || "submitted") === "submitted").length;
+  const openTasks = taskItems.filter((item) => !["done", "cancelled", "closed"].includes(item.data?.status || "open"));
+  const assignedOpenUnits = archiveUnits.filter((unit) => !["done", "blocked"].includes(unit.status || "not_started"));
+  const approvedVolunteerCount = approvedUsers().filter((user) => user.data?.role === "volunteer").length;
+
+  const kpiRows = isStaff()
+    ? [
+      ["İş paketi", totals.units],
+      ["Atanmamış", totals.unassigned],
+      ["Engelli", totals.blocked],
+      ["Kontrol bekleyen rapor", submittedReports],
+      ["Gönüllü", approvedVolunteerCount],
+      ["Başvuru", pendingApplicationCount]
+    ]
+    : [
+      ["Atanmış arşiv işi", archiveUnits.length],
+      ["Açık iş", assignedOpenUnits.length + openTasks.length],
+      ["Rapor", reports.length],
+      ["Duyuru", announcementItems.length]
+    ];
+
+  kpis.innerHTML = kpiRows.map(([label, value]) => `<div class="kpi-card"><strong>${numberText(value)}</strong><span>${escapeHTML(label)}</span></div>`).join("");
+
+  if (isStaff()) {
+    const blocked = archiveUnits.filter((unit) => unit.status === "blocked").slice(0, 3);
+    const unassigned = archiveUnits.filter((unit) => !(unit.assignedToUids || []).length && !(unit.assignedToEmails || []).length).slice(0, 3);
+    const attention = [];
+    if (blocked.length) attention.push(`<div class="ops-alert danger"><strong>${blocked.length} engelli iş</strong><span>${blocked.map((unit) => escapeHTML(archiveLabel(unit))).join("<br>")}</span><button class="btn btn-secondary btn-sm" type="button" data-go-tab="pnb">Engelleri aç</button></div>`);
+    if (unassigned.length) attention.push(`<div class="ops-alert"><strong>${totals.unassigned} atanmamış iş</strong><span>${unassigned.map((unit) => escapeHTML(archiveLabel(unit))).join("<br>")}</span><button class="btn btn-secondary btn-sm" type="button" data-go-tab="pnb">Atama yap</button></div>`);
+    if (submittedReports) attention.push(`<div class="ops-alert"><strong>${submittedReports} rapor kontrol bekliyor</strong><span>Raporları onaylayın veya düzeltme isteyin.</span><button class="btn btn-secondary btn-sm" type="button" data-go-tab="reports">Raporları aç</button></div>`);
+    if (pendingApplicationCount) attention.push(`<div class="ops-alert"><strong>${pendingApplicationCount} başvuru bekliyor</strong><span>Yeni gönüllüleri onaylayıp uygun işe yönlendirin.</span><button class="btn btn-secondary btn-sm" type="button" data-go-tab="management">Başvuruları aç</button></div>`);
+    nextWork.innerHTML = attention.length ? attention.join("") : `<div class="ops-alert"><strong>Şu an kritik bekleyen iş yok.</strong><span>İş yükünü ve raporları düzenli kontrol etmek yeterli.</span><button class="btn btn-secondary btn-sm" type="button" data-go-tab="pnb">İş yükünü aç</button></div>`;
+  } else {
+    const items = [];
+    assignedOpenUnits.slice(0, 3).forEach((unit) => {
+      items.push(`<div class="ops-alert"><strong>${escapeHTML(archiveLabel(unit))}</strong><span>${escapeHTML(statusLabel(unit.status || "not_started"))} · ${numberText(unit.pageCount)} sayfa</span><button class="btn btn-primary btn-sm" type="button" data-report-au="${unit.id}">Rapor yaz</button></div>`);
+    });
+    openTasks.slice(0, 3).forEach((item) => {
+      items.push(`<div class="ops-alert"><strong>${escapeHTML(item.data?.title || "Görev")}</strong><span>${escapeHTML(item.data?.department || "-")} · ${escapeHTML(statusLabel(item.data?.status || "open"))}</span><button class="btn btn-secondary btn-sm" type="button" data-go-tab="tasks">Görevleri aç</button></div>`);
+    });
+    nextWork.innerHTML = items.length ? items.join("") : `<div class="ops-alert"><strong>Açık atanmış iş görünmüyor.</strong><span>Yeni görev gelene kadar duyuruları takip edebilir veya koordinatöre yazabilirsiniz.</span><button class="btn btn-secondary btn-sm" type="button" data-go-tab="announcements">Duyurular</button></div>`;
+  }
+
+  const shortcuts = [
+    ["pnb", "İş Yükü", isStaff() ? "Proje paketlerini, atamaları, durumları ve engelleri yönet." : "Sana atanan arşiv işlerini ve sıradaki işi gör."],
+    ["tasks", "Görevler", isStaff() ? "Genel gönüllü işleri oluştur ve takip et." : "Sana atanmış genel işleri takip et."],
+    ["reports", "Raporlar", isStaff() ? "Gelen raporları kontrol et ve geri bildirim ver." : "Yaptığın işi günlük/haftalık raporla."],
+    ["announcements", "Duyurular", "Takımın bilmesi gereken kararları ve hatırlatmaları takip et."]
+  ];
+  if (isStaff()) shortcuts.push(["management", "Yönetim", "Başvurular, kullanıcılar ve ekip bilgilerini düzenle."]);
+  if (isAdmin()) shortcuts.push(["maintenance", "Bakım", "PNB import ve veri bakım araçlarını aç."]);
+  management.innerHTML = shortcuts.map(([tab, title, text]) => `<button class="ops-link-card" type="button" data-go-tab="${tab}"><strong>${escapeHTML(title)}</strong><span>${escapeHTML(text)}</span></button>`).join("");
+}
+
 function archiveOptions(selectedId = "", includeEmpty = true) {
   const options = includeEmpty ? ['<option value="">Bağlantı yok</option>'] : [];
   archiveUnits
@@ -417,7 +496,9 @@ function rur(data, uid) {
 async function lh() {
   document.getElementById("profileCard").innerHTML = rp(cp);
   const snap = await getDocs(query(collection(db, "announcements"), orderBy("createdAt", "desc"), limit(3)));
+  announcementItems = snap.docs.map((item) => ({ id: item.id, data: item.data() }));
   document.getElementById("homeAnnouncements").innerHTML = snap.empty ? htmlEmpty("Duyuru yok.") : snap.docs.map((item) => ra(item.data(), item.id)).join("");
+  renderHomeOverview();
 }
 
 async function lt() {
@@ -426,13 +507,14 @@ async function lt() {
     ? query(collection(db, "tasks"), orderBy("createdAt", "desc"), limit(80))
     : query(collection(db, "tasks"), where("assignedToUid", "==", cu.uid), limit(40));
   const snap = await getDocs(taskQuery);
-  const tasks = snap.docs.map((item) => ({ id: item.id, data: item.data() }));
-  tasks.sort((a, b) => {
+  taskItems = snap.docs.map((item) => ({ id: item.id, data: item.data() }));
+  taskItems.sort((a, b) => {
     const at = a.data.createdAt?.toMillis?.() || 0;
     const bt = b.data.createdAt?.toMillis?.() || 0;
     return bt - at;
   });
-  document.getElementById("tasksList").innerHTML = tasks.length ? tasks.map((item) => rt(item.data, item.id)).join("") : htmlEmpty("Görev bulunamadı.");
+  document.getElementById("tasksList").innerHTML = taskItems.length ? taskItems.map((item) => rt(item.data, item.id)).join("") : htmlEmpty("Görev bulunamadı.");
+  renderHomeOverview();
 }
 
 async function lr() {
@@ -460,19 +542,26 @@ async function lr() {
     return bt - at;
   });
   document.getElementById("reportsList").innerHTML = ids.length ? ids.map((id) => rr(rd[id], id)).join("") : htmlEmpty("Rapor bulunmuyor.");
+  renderHomeOverview();
 }
 
 async function la() {
   const snap = await getDocs(query(collection(db, "announcements"), orderBy("createdAt", "desc"), limit(20)));
+  announcementItems = snap.docs.map((item) => ({ id: item.id, data: item.data() }));
   document.getElementById("announcementsList").innerHTML = snap.empty ? htmlEmpty("Duyuru yok.") : snap.docs.map((item) => ra(item.data(), item.id)).join("");
+  renderHomeOverview();
 }
 
 async function lp() {
   const snap = await getDocs(query(collection(db, "users"), where("status", "==", "pending"), limit(50)));
   const list = document.getElementById("pendingUsers");
-  const tab = document.querySelector('[data-tab="pending"]');
+  const tab = document.querySelector('[data-tab="management"]');
+  pendingApplicationCount = snap.size;
   if (snap.empty) {
     list.innerHTML = htmlEmpty("Bekleyen başvuru yok.");
+    const old = tab?.querySelector(".count-badge");
+    if (old) old.remove();
+    renderHomeOverview();
     return;
   }
   list.innerHTML = snap.docs.map((item) => rpu(item.data(), item.id)).join("");
@@ -481,6 +570,7 @@ async function lp() {
     if (old) old.remove();
     tab.insertAdjacentHTML("beforeend", `<span class="count-badge">${snap.size}</span>`);
   }
+  renderHomeOverview();
 }
 
 async function lu() {
@@ -541,7 +631,7 @@ function renderPnbStats() {
   if (!statsEl || !hero) return;
   if (!archiveUnits.length) {
     hero.textContent = "Genel çalışma ortamı";
-    statsEl.innerHTML = `<div class="pnb-empty-action">PNB arşiv iş paketleri henüz Firestore'a aktarılmamış. Diğer gönüllü işleri için Görevler, Raporlar, Duyurular ve Kullanıcılar sekmeleri kullanılabilir. Yönetici olarak PNB verisini eklemek için "PNB İçe Aktar" sekmesini açabilirsiniz.</div>`;
+    statsEl.innerHTML = `<div class="pnb-empty-action">PNB arşiv iş paketleri görünmüyor. Diğer gönüllü işleri için Görevler, Raporlar, Duyurular ve Yönetim alanları kullanılabilir. Yönetici olarak veri bakım araçları için Bakım sekmesini açabilirsiniz.</div>`;
     return;
   }
   const totals = archiveUnits.reduce((acc, unit) => {
@@ -655,6 +745,7 @@ function renderPnb() {
   renderCommunicationPlans();
   renderArchiveUnits();
   populateArchiveSelects();
+  renderHomeOverview();
 }
 
 async function reloadPnb() {
@@ -721,15 +812,13 @@ function renderImportPreview(preview) {
 }
 
 async function commitBatchedWrites(writes) {
-  // Firestore evaluates rules per write. Sequential writes are slower but avoid
-  // batch rule access-call limits during one-time admin imports.
-  for (const write of writes) {
-    try {
-      await setDoc(write.ref, write.data, { merge: true });
-    } catch (error) {
-      const paths = write.label || write.ref.path;
-      throw new Error(`${error.message} (${paths})`);
-    }
+  // Keep batches small because each protected write evaluates Firestore rules.
+  // Large batches can hit rules access-call limits and fail as "missing permissions".
+  const chunkSize = 10;
+  for (let index = 0; index < writes.length; index += chunkSize) {
+    const batch = writeBatch(db);
+    writes.slice(index, index + chunkSize).forEach((write) => batch.set(write.ref, write.data, { merge: true }));
+    await batch.commit();
   }
 }
 
@@ -746,7 +835,6 @@ async function commitPnbImport() {
     const units = pnbImportPreview.archiveUnits || [];
     const plans = pnbImportPreview.communicationPlans || [];
     const summary = pnbImportPreview.summary || {};
-    const emailToUidSeed = new Map();
 
     writes.push({
       ref: doc(db, "projects", PNB_PROJECT_ID),
@@ -766,20 +854,17 @@ async function commitPnbImport() {
         communicationPlanCount: summary.communicationPlans || plans.length,
         importedAt: serverTimestamp(),
         updatedAt: serverTimestamp()
-      },
-      label: `projects/${PNB_PROJECT_ID}`
+      }
     });
 
     people.forEach((person) => {
       const projectPersonData = cleanData({ ...person, importedAt: serverTimestamp(), updatedAt: serverTimestamp() });
       delete projectPersonData.id;
-      writes.push({ ref: doc(db, "projectPeople", person.id), data: projectPersonData, label: `projectPeople/${person.id}` });
+      writes.push({ ref: doc(db, "projectPeople", person.id), data: projectPersonData });
 
       if (!person.email) return;
       const existingUser = findUserByEmail(person.email);
       const uid = existingUser?.uid || `manual_${person.email}`;
-      emailToUidSeed.set(person.email, uid);
-      if (!existingUser) return;
       const userData = {
         uid,
         email: person.email,
@@ -804,7 +889,21 @@ async function commitPnbImport() {
         lastSeenAt: existingUser?.data?.lastSeenAt || serverTimestamp()
       };
       if (!existingUser) userData.createdAt = serverTimestamp();
-      writes.push({ ref: doc(db, "users", uid), data: userData, label: `users/${uid}` });
+      writes.push({ ref: doc(db, "users", uid), data: userData });
+      writes.push({
+        ref: doc(db, "preregistered", person.email),
+        data: {
+          email: person.email,
+          fullName: person.fullName,
+          department: "Arşiv",
+          role: "volunteer",
+          phone: person.phone || "",
+          status: "approved",
+          projectId: PNB_PROJECT_ID,
+          importedAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }
+      });
     });
 
     const emailToUid = new Map();
@@ -813,13 +912,13 @@ async function commitPnbImport() {
       if (email) emailToUid.set(email, user.uid);
     });
     people.forEach((person) => {
-      if (person.email && !emailToUid.has(person.email)) emailToUid.set(person.email, emailToUidSeed.get(person.email) || "");
+      if (person.email && !emailToUid.has(person.email)) emailToUid.set(person.email, `manual_${person.email}`);
     });
 
     availability.forEach((item) => {
       const data = cleanData({ ...item, userUid: item.email ? emailToUid.get(item.email) || "" : "", importedAt: serverTimestamp(), updatedAt: serverTimestamp() });
       delete data.id;
-      writes.push({ ref: doc(db, "availability", item.id), data, label: `availability/${item.id}` });
+      writes.push({ ref: doc(db, "availability", item.id), data });
     });
 
     units.forEach((unit) => {
@@ -832,13 +931,13 @@ async function commitPnbImport() {
         createdAt: archiveById[unit.id]?.createdAt || serverTimestamp()
       });
       delete data.id;
-      writes.push({ ref: doc(db, "archiveUnits", unit.id), data, label: `archiveUnits/${unit.id}` });
+      writes.push({ ref: doc(db, "archiveUnits", unit.id), data });
     });
 
     plans.forEach((plan) => {
       const data = cleanData({ ...plan, importedAt: serverTimestamp(), updatedAt: serverTimestamp() });
       delete data.id;
-      writes.push({ ref: doc(db, "communicationPlans", plan.id), data, label: `communicationPlans/${plan.id}` });
+      writes.push({ ref: doc(db, "communicationPlans", plan.id), data });
     });
 
     await commitBatchedWrites(writes);
@@ -935,6 +1034,13 @@ document.getElementById("pnbImportFile")?.addEventListener("change", async (even
 });
 
 document.addEventListener("click", async (event) => {
+  const tabTarget = event.target.closest("[data-go-tab]");
+  if (tabTarget) {
+    sw(tabTarget.dataset.goTab);
+    document.querySelector(`#tab-${tabTarget.dataset.goTab}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+
   const lightboxImage = event.target.closest(".lightbox-img");
   if (lightboxImage) {
     const lightbox = document.createElement("div");
@@ -1476,13 +1582,14 @@ if (!auth || !db) {
     const staff = isStaff();
     hu.textContent = cp.fullName || user.email;
     if (staff) {
-      document.querySelectorAll(".admin-tab").forEach((tab) => tab.classList.remove("hidden"));
+      document.querySelectorAll(".staff-tab").forEach((tab) => tab.classList.remove("hidden"));
+      document.querySelectorAll(".staff-only").forEach((item) => item.classList.remove("hidden"));
       document.getElementById("adminTaskForm")?.classList.remove("hidden");
       document.getElementById("adminAnnouncementForm")?.classList.remove("hidden");
       document.getElementById("reportUserRow")?.classList.remove("hidden");
     }
-    if (!isAdmin()) {
-      document.querySelector('[data-tab="pnb-import"]')?.classList.add("hidden");
+    if (isAdmin()) {
+      document.querySelectorAll(".admin-tab").forEach((tab) => tab.classList.remove("hidden"));
     }
     await loadAllUsers();
     await reloadPnb();
