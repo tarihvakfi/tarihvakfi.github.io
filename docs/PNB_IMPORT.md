@@ -2,7 +2,7 @@
 
 PNB Excel dosyaları doğrudan tarayıcıdan okunmaz. Önce yerel bir JSON önizleme üretilir, sonra admin panelinde kontrol edilip Firestore'a aktarılır.
 
-Bu import yalnızca PNB'yi ilk ayrıntılı proje olarak sisteme taşır. PNB dışındaki gönüllü işleri aynı yönetim ortamında genel görev/rapor/duyuru akışıyla yürümeye devam eder.
+Bu import yalnızca PNB'yi ilk ayrıntılı proje olarak sisteme taşır. PNB dışındaki gönüllü işleri aynı yönetim ortamında `İşler`, `Rapor Yaz`, `Duyurular` ve staff-only `Yönetim` akışıyla yürümeye devam eder.
 
 ## 1. Önizleme JSON üret
 
@@ -17,7 +17,7 @@ Gerekirse Python ortamına `openpyxl` kurulmalıdır.
 ## 2. Admin panelinde kontrol et
 
 1. `/app/` içine admin olarak girin.
-2. `PNB İçe Aktar` sekmesini açın.
+2. `Bakım` sekmesini açın.
 3. `imports/pnb-import-preview.json` dosyasını seçin.
 4. Özet sayılarını ve uyarıları kontrol edin.
 5. Uygunsa `Firestore'a aktar` düğmesine basın.

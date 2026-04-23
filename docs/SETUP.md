@@ -59,6 +59,6 @@ python tools/pnb_excel_to_import.py --excel-dir "PNB Excel klasörü" --output i
 ```
 
 2. `/app/` ekranına admin olarak girin.
-3. `PNB İçe Aktar` sekmesinde JSON dosyasını seçin.
+3. `Bakım` sekmesinde JSON dosyasını seçin.
 4. Eksik e-posta, eşleşmeyen uygunluk ve atanmamış iş uyarılarını kontrol edin.
 5. `Firestore'a aktar` ile veriyi canlı sisteme taşıyın.

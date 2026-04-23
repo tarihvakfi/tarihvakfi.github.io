@@ -22,11 +22,11 @@ Sistem bütün gönüllü işleri için tek yönetim ortamıdır. Pertev Naili B
 
 - Proje başlıkları `projects` koleksiyonunda tutulur.
 - PNB arşiv iş paketleri `archiveUnits` koleksiyonunda tutulur.
-- Görevler ve raporlar PNB arşiv birimine bağlanabilir.
+- İşler ve raporlar PNB arşiv birimine bağlanabilir.
 - Gönüllüler yalnızca kendilerine atanmış arşiv birimlerini görür.
 - Koordinatör/admin rolleri iş paketlerini atar, durum günceller, engelleri takip eder ve raporları inceler.
-- Excel dosyaları doğrudan canlı veritabanına yazılmaz; önce `tools/pnb_excel_to_import.py` ile JSON önizleme üretilir, sonra `/app/` içindeki `PNB İçe Aktar` ekranından admin tarafından aktarılır.
-- PNB dışındaki gönüllü işleri aynı panelde genel `Görevler`, `Raporlar`, `Duyurular` ve `Kullanıcılar` akışıyla yönetilir.
+- Excel dosyaları doğrudan canlı veritabanına yazılmaz; önce `tools/pnb_excel_to_import.py` ile JSON önizleme üretilir, sonra `/app/` içindeki admin-only `Bakım` ekranından aktarılır.
+- PNB dışındaki gönüllü işleri aynı `İşler` ekranındaki `Diğer işler`, `Rapor Yaz`, `Duyurular` ve staff-only `Yönetim` akışıyla yönetilir.
 
 ## Roller
 

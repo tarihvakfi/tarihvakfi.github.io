@@ -124,11 +124,8 @@
         </div>
         <div id="archiveUnitList" class="archive-grid"><p class="empty">Arşiv birimi bulunamadı.</p></div>
       </div>
-    </section>
-
-    <section id="tab-tasks" class="tab-content hidden">
-      <div id="adminTaskForm" class="card hidden" style="margin-bottom:1.25rem">
-        <p class="eyebrow">Yeni görev oluştur</p>
+      <div id="adminTaskForm" class="card hidden" style="margin-top:1.25rem">
+        <p class="eyebrow">Yeni iş oluştur</p>
         <form id="taskForm" class="form compact-form">
           <div class="form-row">
             <label>Başlık <input id="taskTitle" type="text" required /></label>
@@ -156,10 +153,18 @@
             </label>
           </div>
           <label>Açıklama <textarea id="taskDescription" rows="2"></textarea></label>
-          <div class="form-actions"><button type="submit" class="btn btn-primary">Görev oluştur</button><span id="taskMessage" class="status-line muted"></span></div>
+          <div class="form-actions"><button type="submit" class="btn btn-primary">İşi kaydet</button><span id="taskMessage" class="status-line muted"></span></div>
         </form>
       </div>
-      <div class="card"><p class="eyebrow">Görev listesi</p><div id="tasksList" class="stack"><p class="empty">Görev bulunamadı.</p></div></div>
+      <div id="generalTaskPanel" class="card" style="margin-top:1.25rem">
+        <div class="step-header">
+          <div>
+            <p class="eyebrow">Diğer işler</p>
+            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">PNB dışındaki gönüllü işleri burada. Gönüllüler sadece kendilerine atanmış işleri görür.</p>
+          </div>
+        </div>
+        <div id="tasksList" class="stack"><p class="empty">İş bulunamadı.</p></div>
+      </div>
     </section>
 
     <section id="tab-reports" class="tab-content hidden">
@@ -170,7 +175,7 @@
           <div id="reportUserRow" class="form-row hidden"><label>Gönüllü <select id="reportForUser"><option value="">Kendim için</option></select></label></div>
           <div class="form-row">
             <label>PNB arşiv birimi <select id="archiveUnitSelect"><option value="">Bağlantı yok</option></select></label>
-            <label>Görev <input type="text" id="taskId" placeholder="Görev başlığı" /></label>
+            <label>İş <input type="text" id="taskId" placeholder="İş başlığı" /></label>
             <label>Tarih <input type="date" id="reportDate" required /></label>
             <label>Saat <input type="number" id="hours" min="0" step="0.5" value="1" required /></label>
           </div>

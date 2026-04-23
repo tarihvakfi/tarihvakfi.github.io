@@ -68,8 +68,9 @@ function isAdmin() {
 }
 
 function sw(name) {
-  document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === name));
-  document.querySelectorAll(".tab-content").forEach((section) => section.classList.toggle("hidden", section.id !== `tab-${name}`));
+  const target = name === "tasks" ? "pnb" : name;
+  document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === target));
+  document.querySelectorAll(".tab-content").forEach((section) => section.classList.toggle("hidden", section.id !== `tab-${target}`));
 }
 
 function htmlEmpty(message) {
@@ -306,9 +307,9 @@ function renderHomeOverview() {
       items.push(`<div class="ops-alert"><strong>${escapeHTML(archiveLabel(unit))}</strong><span>${escapeHTML(statusLabel(unit.status || "not_started"))} · ${numberText(unit.pageCount)} sayfa</span><button class="btn btn-primary btn-sm" type="button" data-report-au="${unit.id}">Rapor yaz</button></div>`);
     });
     openTasks.slice(0, 3).forEach((item) => {
-      items.push(`<div class="ops-alert"><strong>${escapeHTML(item.data?.title || "Görev")}</strong><span>${escapeHTML(item.data?.department || "-")} · ${escapeHTML(statusLabel(item.data?.status || "open"))}</span><button class="btn btn-secondary btn-sm" type="button" data-go-tab="tasks">Görevleri aç</button></div>`);
+      items.push(`<div class="ops-alert"><strong>${escapeHTML(item.data?.title || "İş")}</strong><span>${escapeHTML(item.data?.department || "-")} · ${escapeHTML(statusLabel(item.data?.status || "open"))}</span><button class="btn btn-secondary btn-sm" type="button" data-go-tab="pnb" data-scroll-to="generalTaskPanel">İşi aç</button></div>`);
     });
-    nextWork.innerHTML = items.length ? items.join("") : `<div class="ops-alert"><strong>Açık atanmış iş görünmüyor.</strong><span>Yeni görev gelene kadar duyuruları takip edebilir veya koordinatöre yazabilirsiniz.</span><button class="btn btn-secondary btn-sm" type="button" data-go-tab="announcements">Duyurular</button></div>`;
+    nextWork.innerHTML = items.length ? items.join("") : `<div class="ops-alert"><strong>Açık atanmış iş görünmüyor.</strong><span>Yeni iş gelene kadar duyuruları takip edebilir veya koordinatöre yazabilirsiniz.</span><button class="btn btn-secondary btn-sm" type="button" data-go-tab="announcements">Duyurular</button></div>`;
   }
 
   const shortcuts = [
@@ -443,7 +444,7 @@ function rr(report, id) {
   const feedback = report.feedback || [];
   const status = report.status || "submitted";
   const unit = report.archiveUnitId ? archiveById[report.archiveUnitId] : null;
-  let html = `<div class="report-card report-${status}"><div class="report-header"><strong>${escapeHTML(report.taskId || "Görev belirtilmedi")}</strong><div class="report-actions">`;
+  let html = `<div class="report-card report-${status}"><div class="report-header"><strong>${escapeHTML(report.taskId || "İş belirtilmedi")}</strong><div class="report-actions">`;
   if (canEdit) html += `<button class="btn btn-secondary btn-sm" data-er="${id}">Düzenle</button><button class="btn btn-block btn-sm" data-dr="${id}">Sil</button>`;
   html += `</div></div><div style="margin-top:.35rem">${escapeHTML(report.summary || "-")}</div><div style="font-size:.85rem;color:var(--muted);margin-top:.35rem">${escapeHTML(report.hours || 0)} saat · ${formatDate(report.reportDate)} · <span class="${statusClass(status)}">${escapeHTML(reportStatusLabels[status] || status)}</span>`;
   if (report.userUid) html += ` · ${escapeHTML(findUserName(report.userUid))}`;
@@ -535,7 +536,7 @@ async function lt() {
     const bt = b.data.createdAt?.toMillis?.() || 0;
     return bt - at;
   });
-  document.getElementById("tasksList").innerHTML = taskItems.length ? taskItems.map((item) => rt(item.data, item.id)).join("") : htmlEmpty("Görev bulunamadı.");
+  document.getElementById("tasksList").innerHTML = taskItems.length ? taskItems.map((item) => rt(item.data, item.id)).join("") : htmlEmpty("İş bulunamadı.");
   renderHomeOverview();
 }
 
@@ -653,7 +654,7 @@ function renderPnbStats() {
   if (!statsEl || !hero) return;
   if (!archiveUnits.length) {
     hero.textContent = "Genel çalışma ortamı";
-    statsEl.innerHTML = `<div class="pnb-empty-action">PNB arşiv iş paketleri görünmüyor. Diğer gönüllü işleri için Görevler, Raporlar, Duyurular ve Yönetim alanları kullanılabilir. Yönetici olarak veri bakım araçları için Bakım sekmesini açabilirsiniz.</div>`;
+    statsEl.innerHTML = `<div class="pnb-empty-action">PNB arşiv iş paketleri görünmüyor. PNB dışındaki işler aynı ekrandaki Diğer işler bölümünden yürütülebilir. Yönetici olarak veri bakım araçları için Bakım sekmesini açabilirsiniz.</div>`;
     return;
   }
   const totals = archiveUnits.reduce((acc, unit) => {
@@ -739,7 +740,7 @@ function archiveCard(unit) {
       </div>
       <label>Atanan gönüllüler <select multiple data-au-assign="${unit.id}">${userOptions(unit.assignedToUids || [])}</select></label>
       <label>Engel / not <textarea rows="2" data-au-blocker="${unit.id}">${escapeHTML(unit.blockerNote || "")}</textarea></label>
-      <div class="archive-actions"><button class="btn btn-primary btn-sm" data-save-au="${unit.id}">Kaydet</button><button class="btn btn-secondary btn-sm" data-create-task-au="${unit.id}">Görev oluştur</button><button class="btn btn-secondary btn-sm" data-report-au="${unit.id}">Rapor yaz</button></div>
+      <div class="archive-actions"><button class="btn btn-primary btn-sm" data-save-au="${unit.id}">Kaydet</button><button class="btn btn-secondary btn-sm" data-create-task-au="${unit.id}">İş oluştur</button><button class="btn btn-secondary btn-sm" data-report-au="${unit.id}">Rapor yaz</button></div>
     </div>`;
   } else {
     html += `<div class="archive-controls"><label>Engel bildir <textarea rows="2" data-vol-blocker="${unit.id}" placeholder="Bu işte sizi durduran sorunu yazın...">${escapeHTML(unit.blockerNote || "")}</textarea></label><div class="archive-actions"><button class="btn btn-primary btn-sm" data-report-au="${unit.id}">Rapor yaz</button><button class="btn btn-secondary btn-sm" data-block-au="${unit.id}">Engel bildir</button></div></div>`;
@@ -1038,8 +1039,10 @@ document.getElementById("pnbImportFile")?.addEventListener("change", async (even
 document.addEventListener("click", async (event) => {
   const tabTarget = event.target.closest("[data-go-tab]");
   if (tabTarget) {
-    sw(tabTarget.dataset.goTab);
-    document.querySelector(`#tab-${tabTarget.dataset.goTab}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const tabName = tabTarget.dataset.goTab === "tasks" ? "pnb" : tabTarget.dataset.goTab;
+    sw(tabName);
+    const scrollTarget = tabTarget.dataset.scrollTo ? document.getElementById(tabTarget.dataset.scrollTo) : document.getElementById(`tab-${tabName}`);
+    scrollTarget?.scrollIntoView({ behavior: "smooth", block: "start" });
     return;
   }
 
@@ -1142,8 +1145,8 @@ document.addEventListener("click", async (event) => {
     document.getElementById("taskDepartment").value = "Arşiv";
     document.getElementById("taskDescription").value = `${unit.notes || ""}\n${numberText(unit.documentCount)} belge, ${numberText(unit.pageCount)} sayfa.`;
     document.getElementById("taskPriority").value = unit.priority || "medium";
-    sw("tasks");
-    document.querySelector("#tab-tasks")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    sw("pnb");
+    document.querySelector("#adminTaskForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
     return;
   }
 
@@ -1243,15 +1246,15 @@ document.addEventListener("click", async (event) => {
     document.getElementById("taskDueDate").value = data.dueDate || "";
     document.getElementById("taskPriority").value = data.priority || "medium";
     document.getElementById("taskForm").dataset.editId = editTask.dataset.et;
-    document.getElementById("taskMessage").textContent = "Görevi düzenliyorsunuz...";
-    sw("tasks");
-    document.querySelector("#tab-tasks")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById("taskMessage").textContent = "İşi düzenliyorsunuz...";
+    sw("pnb");
+    document.querySelector("#adminTaskForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
     return;
   }
 
   const deleteTask = event.target.closest("[data-dt]");
   if (deleteTask && db) {
-    if (!confirm("Bu görevi silmek istediğinize emin misiniz?")) return;
+    if (!confirm("Bu işi silmek istediğinize emin misiniz?")) return;
     try {
       deleteTask.disabled = true;
       deleteTask.textContent = "...";
@@ -1468,13 +1471,13 @@ document.getElementById("taskForm")?.addEventListener("submit", async (event) =>
   try {
     if (editId) {
       await updateDoc(doc(db, "tasks", editId), data);
-      document.getElementById("taskMessage").textContent = "Görev güncellendi!";
+      document.getElementById("taskMessage").textContent = "İş güncellendi!";
       delete event.target.dataset.editId;
     } else {
       data.createdByUid = cu.uid;
       data.createdAt = serverTimestamp();
       await addDoc(collection(db, "tasks"), data);
-      document.getElementById("taskMessage").textContent = "Görev oluşturuldu!";
+      document.getElementById("taskMessage").textContent = "İş oluşturuldu!";
     }
     if (archiveUnitId && assignedUid) {
       await updateDoc(doc(db, "archiveUnits", archiveUnitId), {
@@ -1486,7 +1489,7 @@ document.getElementById("taskForm")?.addEventListener("submit", async (event) =>
         updatedAt: serverTimestamp()
       });
     }
-    if (assignedUid && assignedUid !== cu.uid) createNotif(assignedUid, "task_assigned", `Size yeni görev atandı: ${data.title}`, "tasks");
+    if (assignedUid && assignedUid !== cu.uid) createNotif(assignedUid, "task_assigned", `Size yeni iş atandı: ${data.title}`, "pnb");
     event.target.reset();
     setTimeout(() => { document.getElementById("taskMessage").textContent = ""; }, 3000);
     await lt();
