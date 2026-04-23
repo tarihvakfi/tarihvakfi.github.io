@@ -314,6 +314,31 @@ function renderVolunteerMission(nextWork, assignedUnits, openTasks) {
   </div>`;
 }
 
+function renderManagementOverview() {
+  const pulse = document.getElementById("managementPulse");
+  if (!pulse) return;
+  if (!isStaff()) {
+    pulse.innerHTML = "";
+    return;
+  }
+  const totals = archiveTotals();
+  const reports = Object.values(rd || {});
+  const submittedReports = reports.filter((report) => (report.status || "submitted") === "submitted").length;
+  const cards = [
+    ["Atanmamış", totals.unassigned, "pnb", "İşe gönüllü bağla"],
+    ["Engelli", totals.blocked, "pnb", "Takılan işleri çöz"],
+    ["Rapor", submittedReports, "reports", "Kontrol bekliyor"],
+    ["Başvuru", pendingApplicationCount, "management", "Onay bekliyor"]
+  ];
+  pulse.innerHTML = cards.map(([label, value, tab, note]) => (
+    `<button class="pulse-card${Number(value) ? " needs-attention" : ""}" type="button" data-go-tab="${tab}">
+      <strong>${numberText(value)}</strong>
+      <span>${escapeHTML(label)}</span>
+      <small>${escapeHTML(note)}</small>
+    </button>`
+  )).join("");
+}
+
 function renderHomeOverview() {
   if (!cp) return;
   const kpis = document.getElementById("homeKpis");
@@ -414,6 +439,7 @@ function renderHomeOverview() {
   if (isStaff()) shortcuts.push(["management", "İnsanlar", "Başvuru, kullanıcı ve kapasiteyi yönet."]);
   if (isAdmin()) shortcuts.push(["maintenance", "Bakım", "Sadece gerektiğinde veri/import araçları."]);
   management.innerHTML = shortcuts.map(([tab, title, text]) => `<button class="ops-link-card" type="button" data-go-tab="${tab}"><strong>${escapeHTML(title)}</strong><span>${escapeHTML(text)}</span></button>`).join("");
+  renderManagementOverview();
 }
 
 function renderPeopleOps() {
@@ -1186,6 +1212,7 @@ document.addEventListener("click", async (event) => {
     const tabName = tabTarget.dataset.goTab === "tasks" ? "pnb" : tabTarget.dataset.goTab;
     sw(tabName);
     const scrollTarget = tabTarget.dataset.scrollTo ? document.getElementById(tabTarget.dataset.scrollTo) : document.getElementById(`tab-${tabName}`);
+    if (scrollTarget?.tagName === "DETAILS") scrollTarget.open = true;
     scrollTarget?.scrollIntoView({ behavior: "smooth", block: "start" });
     return;
   }

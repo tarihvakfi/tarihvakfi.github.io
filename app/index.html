@@ -211,27 +211,65 @@
     </section>
 
     <section id="tab-management" class="tab-content hidden">
-      <div class="ops-hero card">
+      <div class="management-shell">
+      <div class="management-hero">
         <div>
-          <p class="eyebrow">Yönetim</p>
-          <h2>İnsanlar ve atamalar</h2>
-          <p class="muted">Gönüllüyü onayla, bilgiyi düzelt, işe ata. Günlük yönetim burada.</p>
+          <p class="eyebrow">Koordinasyon</p>
+          <h1>Bugün neyi netleştireceğiz?</h1>
+          <p class="muted">Başvuru, atama, rapor ve ekip bilgisi. Önce karar bekleyenler, sonra ayrıntılar.</p>
         </div>
         <div class="ops-actions">
-          <button class="btn btn-primary" type="button" data-go-tab="pnb">Atama yap</button>
-          <button class="btn btn-secondary" type="button" data-go-tab="reports">Rapor kontrol</button>
+          <button class="btn btn-primary" type="button" data-go-tab="pnb">İşleri aç</button>
+          <button class="btn btn-secondary" type="button" data-go-tab="reports">Raporlar</button>
         </div>
       </div>
 
-      <div class="dashboard-grid" style="margin-top:1.25rem">
-        <article class="card">
+      <div id="managementPulse" class="management-pulse"></div>
+
+      <div class="management-grid">
+        <article class="management-panel management-panel-primary">
+          <div class="management-panel-head">
+            <div>
+              <p class="eyebrow">Karar bekleyenler</p>
+              <h2>Önce burası</h2>
+            </div>
+            <button class="btn btn-secondary btn-sm" type="button" data-go-tab="pnb">Atama yap</button>
+          </div>
           <p class="eyebrow">Onay bekleyen başvurular</p>
           <div id="pendingUsers" class="stack"><p class="empty">Bekleyen başvuru yok.</p></div>
         </article>
 
-        <article class="card">
-          <p class="eyebrow">Kullanıcı ekle (ön kayıt)</p>
-          <p class="muted" style="font-size:.85rem;margin-bottom:.75rem">E-posta ile ön kayıt oluşturun. Kişi Google ile giriş yaptığında otomatik onaylanır.</p>
+        <aside class="management-rail">
+          <button class="management-action" type="button" data-go-tab="pnb">
+            <strong>Atanmamış işleri ata</strong>
+            <span>İş paketlerini gönüllülerle eşleştir.</span>
+          </button>
+          <button class="management-action" type="button" data-go-tab="reports">
+            <strong>Rapor kontrol et</strong>
+            <span>Onayla ya da kısa geri bildirim ver.</span>
+          </button>
+          <button class="management-action" type="button" data-scroll-to="addUserPanel" data-go-tab="management">
+            <strong>Gönüllü ekle</strong>
+            <span>Ön kayıt ve rol bilgisi oluştur.</span>
+          </button>
+        </aside>
+      </div>
+
+      <div class="management-grid management-grid-soft">
+        <article class="management-panel">
+          <p class="eyebrow">Kapasite</p>
+          <div id="peopleCapacityList" class="stack"><p class="empty">Uygunluk verisi yok.</p></div>
+        </article>
+        <article class="management-panel">
+          <p class="eyebrow">Eksik bilgi</p>
+          <div id="peopleDataWarnings" class="stack"><p class="empty">Uyarı yok.</p></div>
+        </article>
+      </div>
+
+      <details id="addUserPanel" class="management-drawer">
+        <summary>Yeni gönüllü / kullanıcı ekle</summary>
+        <div class="management-drawer-body">
+          <p class="muted" style="font-size:.9rem;margin:0 0 .75rem">E-posta ile ön kayıt oluşturun. Kişi Google ile giriş yaptığında otomatik onaylanır.</p>
           <form id="addUserForm" class="form compact-form">
             <div class="form-row">
               <label>E-posta <input id="addUserEmail" type="email" required placeholder="ornek@gmail.com" /></label>
@@ -259,23 +297,18 @@
             </div>
             <div class="form-actions"><button type="submit" class="btn btn-primary">Kullanıcı ekle</button><span id="addUserMessage" class="status-line muted"></span></div>
           </form>
-        </article>
-      </div>
+        </div>
+      </details>
 
-      <div class="dashboard-grid" style="margin-top:1.25rem">
-        <article class="card">
-          <p class="eyebrow">Kapasite</p>
-          <div id="peopleCapacityList" class="stack"><p class="empty">Uygunluk verisi yok.</p></div>
-        </article>
-        <article class="card">
-          <p class="eyebrow">Eksik bilgi</p>
-          <div id="peopleDataWarnings" class="stack"><p class="empty">Uyarı yok.</p></div>
-        </article>
-      </div>
-
-      <div class="card" style="margin-top:1.25rem">
-        <p class="eyebrow">Ekip ve kullanıcılar</p>
+      <div class="management-panel management-directory">
+        <div class="management-panel-head">
+          <div>
+            <p class="eyebrow">Ekip</p>
+            <h2>Kullanıcılar</h2>
+          </div>
+        </div>
         <div id="userDirectory" class="stack"><p class="empty">Kullanıcı bulunamadı.</p></div>
+      </div>
       </div>
     </section>
 
