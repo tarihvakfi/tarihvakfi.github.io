@@ -40,6 +40,24 @@
 .ops-alert{display:grid;gap:.35rem;padding:.85rem .95rem;border:1px solid var(--line);border-left:4px solid var(--primary);border-radius:var(--radius-sm);background:#fff}
 .ops-alert.danger{border-left-color:var(--danger);background:#fff8f7}
 .ops-alert span{color:var(--muted);font-size:.86rem;line-height:1.35}
+.volunteer-home .ops-hero{padding:1.6rem;border-radius:24px;background:
+  radial-gradient(circle at top right,rgba(126,50,24,.12),transparent 30%),
+  linear-gradient(135deg,#fffaf2 0%,#f7ead9 100%)}
+.volunteer-home .ops-hero h1{font-size:clamp(1.9rem,5vw,3.1rem);letter-spacing:-.04em}
+.volunteer-home #homeWorkGrid,.volunteer-home #homeSecondaryGrid{grid-template-columns:1fr;max-width:760px}
+.volunteer-home #homeNextCard{padding:0;border:none;background:transparent;box-shadow:none}
+.volunteer-home #homeNextCard>.eyebrow{display:none}
+.volunteer-home #homeAnnouncementCard{box-shadow:0 16px 34px rgba(51,35,23,.07)}
+.mission-card{display:grid;gap:1rem;padding:1.25rem;border:1px solid #e4c9aa;border-radius:22px;background:#fff;box-shadow:0 18px 36px rgba(51,35,23,.08)}
+.mission-copy{display:grid;gap:.35rem}
+.mission-label{width:max-content;padding:.22rem .58rem;border-radius:999px;background:#fff4e5;color:var(--primary);font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+.mission-card h2{margin:0;font-size:clamp(1.35rem,3vw,2rem);letter-spacing:-.03em}
+.mission-card p{margin:0;color:var(--muted);line-height:1.45}
+.mission-note{padding:.75rem .85rem;border-radius:14px;background:var(--surface-soft)}
+.mission-steps{display:grid;gap:.4rem;padding:.85rem;border-radius:16px;background:var(--surface-soft);color:var(--muted);font-size:.9rem}
+.mission-actions{display:flex;gap:.55rem;flex-wrap:wrap}
+.mission-actions .btn{min-width:120px}
+.mission-empty{border-style:dashed;background:#fffdf9}
 .task-card{padding:.9rem 1rem;border:1px solid var(--line);border-left:4px solid var(--primary);border-radius:var(--radius-sm);background:#fff}
 .task-card .task-meta{display:flex;gap:.75rem;flex-wrap:wrap;font-size:.85rem;color:var(--muted);margin-top:.35rem}
 .report-card{padding:.9rem 1rem;border:1px solid var(--line);border-left:4px solid var(--success);border-radius:var(--radius-sm);background:#fff}
@@ -58,6 +76,9 @@
 .report-feedback-list{margin-top:.5rem;padding-top:.5rem;border-top:1px dashed var(--line)}
 .feedback-item{padding:.4rem .6rem;margin-top:.35rem;background:var(--surface-soft);border-radius:8px;font-size:.85rem}
 .feedback-item strong{font-size:.82rem}
+.volunteer-report .report-extra-field{display:none}
+.volunteer-report #reportForm{max-width:760px}
+.volunteer-report #summary{min-height:130px;font-size:1rem}
 .revision-alert{margin-top:.75rem;padding:.75rem 1rem;background:#fef3cd;border:1px solid #ffc107;border-radius:8px;font-size:.88rem}
 .revision-alert p{margin:.25rem 0 .5rem;color:var(--muted)}
 .approved-alert{margin-top:.75rem;padding:.5rem 1rem;background:#d4edda;border:1px solid #28a745;border-radius:8px;font-size:.88rem;color:var(--success);font-weight:600}

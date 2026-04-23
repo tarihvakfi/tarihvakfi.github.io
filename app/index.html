@@ -36,13 +36,13 @@
     </nav>
 
     <section id="tab-home" class="tab-content">
-      <div class="ops-hero card">
+      <div id="homeHero" class="ops-hero card">
         <div>
-          <p class="eyebrow">Bugün</p>
-          <h1>Ne yapacağım?</h1>
-          <p class="muted">Atandığın işi aç, kısa rapor yaz, engel varsa bildir. Bu kadar.</p>
+          <p id="homeHeroEyebrow" class="eyebrow">Bugün</p>
+          <h1 id="homeHeroTitle">Ne yapacağım?</h1>
+          <p id="homeHeroText" class="muted">Atandığın işi aç, kısa rapor yaz, engel varsa bildir. Bu kadar.</p>
         </div>
-        <div class="ops-actions">
+        <div id="homeHeroActions" class="ops-actions">
           <button class="btn btn-primary" type="button" data-go-tab="pnb">İşimi aç</button>
           <button class="btn btn-secondary" type="button" data-go-tab="reports">Rapor yaz</button>
           <button class="btn btn-secondary staff-only hidden" type="button" data-go-tab="management">Yönetim</button>
@@ -51,24 +51,24 @@
 
       <div id="homeKpis" class="kpi-grid" style="margin:1rem 0"></div>
 
-      <div class="dashboard-grid">
-        <article class="card">
+      <div id="homeWorkGrid" class="dashboard-grid">
+        <article id="homeNextCard" class="card">
           <p class="eyebrow">Sıradaki hareket</p>
           <div id="homeNextWork" class="stack"><p class="empty">Veriler yükleniyor.</p></div>
         </article>
-        <article class="card">
+        <article id="homeShortcutCard" class="card">
           <p class="eyebrow">Kısayollar</p>
           <div id="homeManagement" class="ops-shortcuts"><p class="empty">Kısayollar hazırlanıyor.</p></div>
         </article>
       </div>
 
-      <div class="dashboard-grid" style="margin-top:1.25rem">
-        <article class="card">
+      <div id="homeSecondaryGrid" class="dashboard-grid" style="margin-top:1.25rem">
+        <article id="homeProfileCard" class="card">
           <p class="eyebrow">Profilim</p>
           <div id="profileCard"></div>
           <button id="deleteAccountBtn" class="btn btn-block btn-sm" style="margin-top:1rem">Hesabımı Sil</button>
         </article>
-        <article class="card">
+        <article id="homeAnnouncementCard" class="card">
           <div class="step-header">
             <p class="eyebrow">Son duyurular</p>
             <button class="btn btn-secondary btn-sm" type="button" data-go-tab="announcements">Tümünü gör</button>
@@ -173,16 +173,16 @@
         <form id="reportForm" class="form compact-form">
           <input type="hidden" id="editReportId" value="" />
           <div id="reportUserRow" class="form-row hidden"><label>Gönüllü <select id="reportForUser"><option value="">Kendim için</option></select></label></div>
-          <div class="form-row">
+          <div id="reportContextRow" class="form-row report-context-row">
             <label>PNB arşiv birimi <select id="archiveUnitSelect"><option value="">Bağlantı yok</option></select></label>
             <label>İş <input type="text" id="taskId" placeholder="İş başlığı" /></label>
             <label>Tarih <input type="date" id="reportDate" required /></label>
             <label>Saat <input type="number" id="hours" min="0" step="0.5" value="1" required /></label>
           </div>
-          <label>Özet <textarea id="summary" rows="3" required placeholder="Yapılan işi kısaca yazın."></textarea></label>
-          <label>Bağlantılar <textarea id="reportLinks" rows="2" placeholder="Her satıra bir URL yazın (isteğe bağlı)"></textarea></label>
-          <div class="form-row"><label>Ekip arkadaşı ekle <select id="reportCoworker" multiple style="min-height:70px"></select></label></div>
-          <label>Görseller <input type="file" id="reportImageFiles" accept="image/*" multiple /><div id="imagePreview" class="image-preview"></div></label>
+          <label>Bugün ne yaptın? <textarea id="summary" rows="3" required placeholder="Bir iki cümle yeterli."></textarea></label>
+          <label class="report-extra-field">Bağlantılar <textarea id="reportLinks" rows="2" placeholder="Her satıra bir URL yazın (isteğe bağlı)"></textarea></label>
+          <div class="form-row report-extra-field"><label>Ekip arkadaşı ekle <select id="reportCoworker" multiple style="min-height:70px"></select></label></div>
+          <label class="report-extra-field">Görseller <input type="file" id="reportImageFiles" accept="image/*" multiple /><div id="imagePreview" class="image-preview"></div></label>
           <div class="form-actions"><button type="submit" id="reportSubmitBtn" class="btn btn-primary">Rapor gönder</button><span id="reportMessage" class="status-line muted"></span></div>
         </form>
       </div>

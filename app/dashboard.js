@@ -264,18 +264,112 @@ function archiveTotals() {
   }, { units: 0, pages: 0, done: 0, blocked: 0, review: 0, unassigned: 0 });
 }
 
+function assignedOpenArchiveUnits() {
+  return archiveUnits.filter((unit) => !["done", "blocked"].includes(unit.status || "not_started"));
+}
+
+function renderVolunteerMission(nextWork, assignedUnits, openTasks) {
+  const unit = assignedUnits[0];
+  if (unit) {
+    nextWork.innerHTML = `<article class="mission-card">
+      <div class="mission-copy">
+        <span class="mission-label">Bugünkü iş</span>
+        <h2>${escapeHTML(archiveLabel(unit))}</h2>
+        <p>${escapeHTML(statusLabel(unit.status || "not_started"))} · ${numberText(unit.pageCount)} sayfa · ${numberText(unit.documentCount)} belge</p>
+      </div>
+      <div class="mission-steps">
+        <span>1. Fiziksel/dijital çalışmanı sürdür.</span>
+        <span>2. Bitince 1 dakikalık rapor yaz.</span>
+        <span>3. Takılırsan engel bildir.</span>
+      </div>
+      <div class="mission-actions">
+        <button class="btn btn-primary" type="button" data-report-au="${unit.id}">Rapor yaz</button>
+        <button class="btn btn-secondary" type="button" data-open-work="${unit.id}">İşi gör</button>
+        <button class="btn btn-secondary" type="button" data-open-blocker="${unit.id}">Engel bildir</button>
+      </div>
+    </article>`;
+    return;
+  }
+
+  const taskItem = openTasks[0];
+  if (taskItem) {
+    const task = taskItem.data || {};
+    nextWork.innerHTML = `<article class="mission-card">
+      <div class="mission-copy">
+        <span class="mission-label">Bugünkü iş</span>
+        <h2>${escapeHTML(task.title || "Atanmış iş")}</h2>
+        <p>${escapeHTML(task.department || "Genel")} · ${escapeHTML(statusLabel(task.status || "open"))}${task.dueDate ? ` · Son: ${formatDate(task.dueDate)}` : ""}</p>
+      </div>
+      ${task.description ? `<p class="mission-note">${escapeHTML(task.description)}</p>` : ""}
+      <div class="mission-actions">
+        <button class="btn btn-primary" type="button" data-report-task="${taskItem.id}">Rapor yaz</button>
+        <button class="btn btn-secondary" type="button" data-go-tab="pnb" data-scroll-to="generalTaskPanel">İşi gör</button>
+      </div>
+    </article>`;
+    return;
+  }
+
+  nextWork.innerHTML = `<article class="mission-card mission-empty">
+    <div class="mission-copy">
+      <span class="mission-label">Bugün</span>
+      <h2>Henüz sana atanmış açık iş görünmüyor.</h2>
+      <p>Yeni iş gelene kadar duyuruları takip etmen yeterli. Ekstra arama yapmana gerek yok.</p>
+    </div>
+    <div class="mission-actions"><button class="btn btn-secondary" type="button" data-go-tab="announcements">Duyurulara bak</button></div>
+  </article>`;
+}
+
 function renderHomeOverview() {
   if (!cp) return;
   const kpis = document.getElementById("homeKpis");
   const nextWork = document.getElementById("homeNextWork");
   const management = document.getElementById("homeManagement");
+  const homeSection = document.getElementById("tab-home");
+  const shortcutCard = document.getElementById("homeShortcutCard");
+  const profileCard = document.getElementById("homeProfileCard");
+  const heroTitle = document.getElementById("homeHeroTitle");
+  const heroText = document.getElementById("homeHeroText");
+  const heroActions = document.getElementById("homeHeroActions");
   if (!kpis || !nextWork || !management) return;
 
   const totals = archiveTotals();
   const reports = Object.values(rd || {});
   const submittedReports = reports.filter((report) => (report.status || "submitted") === "submitted").length;
   const openTasks = taskItems.filter((item) => !["done", "cancelled", "closed"].includes(item.data?.status || "open"));
-  const assignedOpenUnits = archiveUnits.filter((unit) => !["done", "blocked"].includes(unit.status || "not_started"));
+  const assignedOpenUnits = assignedOpenArchiveUnits();
+
+  const volunteerMode = !isStaff();
+  homeSection?.classList.toggle("volunteer-home", volunteerMode);
+  kpis.classList.toggle("hidden", volunteerMode);
+  shortcutCard?.classList.toggle("hidden", volunteerMode);
+  profileCard?.classList.toggle("hidden", volunteerMode);
+
+  if (volunteerMode) {
+    if (heroTitle) heroTitle.textContent = assignedOpenUnits.length || openTasks.length ? "Bugünkü işin" : "Bugün beklemede";
+    if (heroText) heroText.textContent = assignedOpenUnits.length || openTasks.length
+      ? "İşi yap, bitince kısa rapor yaz. Takılırsan tek tuşla engel bildir."
+      : "Şimdilik sana atanmış açık iş yok. Yeni iş gelince burada görünecek.";
+    if (heroActions) {
+      const firstUnit = assignedOpenUnits[0];
+      const firstTask = openTasks[0];
+      heroActions.innerHTML = firstUnit
+        ? `<button class="btn btn-primary" type="button" data-report-au="${firstUnit.id}">Rapor yaz</button><button class="btn btn-secondary" type="button" data-open-work="${firstUnit.id}">İşi gör</button>`
+        : firstTask
+          ? `<button class="btn btn-primary" type="button" data-report-task="${firstTask.id}">Rapor yaz</button><button class="btn btn-secondary" type="button" data-go-tab="pnb" data-scroll-to="generalTaskPanel">İşi gör</button>`
+          : `<button class="btn btn-secondary" type="button" data-go-tab="announcements">Duyurular</button>`;
+    }
+    renderVolunteerMission(nextWork, assignedOpenUnits, openTasks);
+    management.innerHTML = "";
+    return;
+  }
+
+  if (heroTitle) heroTitle.textContent = "Ne yapacağım?";
+  if (heroText) heroText.textContent = "Atandığın işi aç, kısa rapor yaz, engel varsa bildir. Bu kadar.";
+  if (heroActions) {
+    heroActions.innerHTML = `<button class="btn btn-primary" type="button" data-go-tab="pnb">İşimi aç</button>
+      <button class="btn btn-secondary" type="button" data-go-tab="reports">Rapor yaz</button>
+      <button class="btn btn-secondary staff-only" type="button" data-go-tab="management">Yönetim</button>`;
+  }
 
   const kpiRows = isStaff()
     ? [
@@ -719,7 +813,7 @@ function archiveCard(unit) {
   (unit.assignedToEmails || []).forEach((email) => {
     if (!assignedNames.includes(email)) assignedNames.push(email);
   });
-  let html = `<article class="archive-card ${escapeHTML(unit.status || "not_started")}">
+  let html = `<article id="archive-unit-${escapeHTML(unit.id)}" class="archive-card ${escapeHTML(unit.status || "not_started")}">
     <div class="archive-title"><strong>${escapeHTML(archiveLabel(unit))}</strong><span class="status-pill ${escapeHTML(unit.status || "not_started")}">${escapeHTML(statusLabel(unit.status || "not_started"))}</span></div>
     <div class="archive-meta">
       <span class="archive-chip">${numberText(unit.fileCount)} dosya</span>
@@ -1046,6 +1140,23 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
+  const openWork = event.target.closest("[data-open-work]");
+  if (openWork) {
+    const unitId = openWork.dataset.openWork;
+    sw("pnb");
+    document.getElementById(`archive-unit-${unitId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+
+  const openBlocker = event.target.closest("[data-open-blocker]");
+  if (openBlocker) {
+    const unitId = openBlocker.dataset.openBlocker;
+    sw("pnb");
+    document.getElementById(`archive-unit-${unitId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => document.querySelector(`[data-vol-blocker="${unitId}"]`)?.focus(), 250);
+    return;
+  }
+
   const lightboxImage = event.target.closest(".lightbox-img");
   if (lightboxImage) {
     const lightbox = document.createElement("div");
@@ -1130,6 +1241,17 @@ document.addEventListener("click", async (event) => {
     const unit = archiveById[unitId];
     document.getElementById("archiveUnitSelect").value = unitId;
     document.getElementById("taskId").value = unit ? `PNB ${archiveLabel(unit)}` : "PNB Arşiv";
+    sw("reports");
+    document.querySelector("#tab-reports")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+
+  const reportTask = event.target.closest("[data-report-task]");
+  if (reportTask) {
+    const taskItem = taskItems.find((item) => item.id === reportTask.dataset.reportTask);
+    const task = taskItem?.data || {};
+    document.getElementById("archiveUnitSelect").value = task.archiveUnitId || "";
+    document.getElementById("taskId").value = task.title || "Genel iş";
     sw("reports");
     document.querySelector("#tab-reports")?.scrollIntoView({ behavior: "smooth", block: "start" });
     return;
@@ -1597,6 +1719,7 @@ if (!auth || !db) {
       document.getElementById("adminAnnouncementForm")?.classList.remove("hidden");
       document.getElementById("reportUserRow")?.classList.remove("hidden");
     }
+    document.getElementById("tab-reports")?.classList.toggle("volunteer-report", !staff);
     if (isAdmin()) {
       document.querySelectorAll(".admin-tab").forEach((tab) => tab.classList.remove("hidden"));
     }
