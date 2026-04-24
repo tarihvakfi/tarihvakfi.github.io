@@ -112,6 +112,31 @@
 .sv-greet h1 { margin: 0 0 2px; font-size: 1.5rem; font-weight: 600; letter-spacing: -.015em; }
 .sv-greet-sub { font-size: .875rem; color: var(--tblr-secondary); }
 
+/* Self-claim banner — shown above the wa-prog hero when a volunteer has no
+   active unit (or is capped at 2). Prominent, slightly warm tint. */
+.sv-selfclaim {
+  display: flex; flex-direction: column; gap: .75rem;
+  background: var(--tblr-primary-lt, #e9f0f9);
+  border: 1px solid var(--tblr-primary, #206bc4);
+  border-radius: .5rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+.sv-selfclaim.hidden { display: none; }
+.sv-selfclaim-text { display: flex; flex-direction: column; gap: 2px; }
+.sv-selfclaim-text strong { font-size: 1rem; font-weight: 600; color: var(--tblr-body-color); letter-spacing: -.005em; }
+.sv-selfclaim-text span { font-size: .85rem; color: var(--tblr-secondary); }
+.sv-selfclaim-cta { display: flex; gap: .5rem; flex-wrap: wrap; }
+.sv-selfclaim-list { display: flex; flex-direction: column; gap: .4rem; }
+.sv-selfclaim-row {
+  display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+  background: #fff;
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 6px;
+  padding: .5rem .75rem;
+}
+.sv-selfclaim-row-t { font-size: .875rem; font-weight: 500; color: var(--tblr-body-color); }
+
 /* Progress hero: dark Tabler card with big number */
 .wa-prog {
   position: relative;

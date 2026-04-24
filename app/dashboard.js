@@ -12,7 +12,9 @@ import {
   where,
   limit,
   updateDoc,
-  writeBatch
+  writeBatch,
+  arrayUnion,
+  arrayRemove
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { escapeHTML, formatDate, badge } from "../js/helpers.js";
 
@@ -413,40 +415,150 @@ function renderHomeStats() {
   )).join("");
 }
 
-// Show the "Bana bir iş ver" CTA only to volunteers who currently have no
-// in-progress unit. Its click handler picks the next reasonable unit.
+// Self-claim banner for volunteers. Renders above the wa-prog hero inside
+// the sv-home frame. Three modes driven by how many active units the
+// volunteer already has:
+//   0 open → "Bu iş paketi boş duruyor, istersen sen al" + claim button
+//   1 open → hidden (they have work)
+//   2+ open → cap reached, list each open unit with a Bırak button
 function renderHomeQueueCta() {
-  const cta = document.getElementById("homeQueueCta");
-  if (!cta) return;
-  if (isStaff()) { cta.classList.add("hidden"); return; }
-  const myOpen = archiveUnits.filter((unit) => {
-    const mine = (unit.assignedToUids || []).includes(cu?.uid) ||
-      (cu?.email && (unit.assignedToEmails || []).map((e) => String(e).toLowerCase()).includes(String(cu.email).toLowerCase()));
-    return mine && !["done", "blocked"].includes(unit.status || "not_started");
+  const oldCta = document.getElementById("homeQueueCta");
+  if (oldCta) oldCta.classList.add("hidden");
+  const banner = document.getElementById("svSelfClaim");
+  if (!banner) return;
+  if (isStaff() || !cu) { banner.classList.add("hidden"); banner.innerHTML = ""; return; }
+
+  const myEmail = String(cu.email || "").toLowerCase();
+  const isMine = (unit) => (unit.assignedToUids || []).includes(cu.uid) ||
+    (myEmail && (unit.assignedToEmails || []).map((e) => String(e).toLowerCase()).includes(myEmail));
+  const myOpen = archiveUnits.filter((unit) => isMine(unit) && !["done", "blocked"].includes(unit.status || "not_started"));
+
+  if (myOpen.length >= 2) {
+    banner.classList.remove("hidden");
+    banner.innerHTML = `
+      <div class="sv-selfclaim-text">
+        <strong>Önce birini bitir ya da bırak</strong>
+        <span>İki iş paketin birden açık. Biri kapanmadan yenisini alamazsın.</span>
+      </div>
+      <div class="sv-selfclaim-list">
+        ${myOpen.map((u) => `
+          <div class="sv-selfclaim-row">
+            <div class="sv-selfclaim-row-t">${escapeHTML(archiveLabel(u))}</div>
+            <button type="button" class="btn btn-secondary btn-sm" data-self-release="${escapeHTML(u.id)}">Bırak</button>
+          </div>`).join("")}
+      </div>`;
+    return;
+  }
+
+  if (myOpen.length === 1) {
+    banner.classList.add("hidden");
+    banner.innerHTML = "";
+    return;
+  }
+
+  const next = pickNextQueueUnit();
+  if (!next) {
+    banner.classList.remove("hidden");
+    banner.innerHTML = `
+      <div class="sv-selfclaim-text">
+        <strong>Şu an boş iş paketi yok</strong>
+        <span>Koordinatör yeni paket eklediğinde burada görünecek.</span>
+      </div>`;
+    return;
+  }
+
+  const bits = [archiveLabel(next)];
+  if (next.pageCount) bits.push(`${numberText(next.pageCount)} sayfa`);
+  if (next.priority === "high") bits.push("Yüksek öncelik");
+  banner.classList.remove("hidden");
+  banner.innerHTML = `
+    <div class="sv-selfclaim-text">
+      <strong>Bu iş paketi boş duruyor, istersen sen al</strong>
+      <span>${escapeHTML(bits.join(" · "))}</span>
+    </div>
+    <div class="sv-selfclaim-cta">
+      <button type="button" class="btn btn-primary" data-self-claim="${escapeHTML(next.id)}">Bu işi ben alayım</button>
+    </div>`;
+}
+
+// Volunteer claims an unassigned unit for themselves. Two writes: first adds
+// them to the assignee arrays (permitted by the self-claim rule), then
+// promotes the unit from not_started → assigned and touches latestReportAt
+// (permitted by the normal assigned-volunteer rule, which now sees them as
+// assigned). Logs an activity entry and opens the unit channel.
+async function handleSelfClaim(btn) {
+  if (!cu || !db || isStaff()) return;
+  const unitId = btn.dataset.selfClaim;
+  if (!unitId) return;
+  const unit = archiveById[unitId];
+  if (!unit) return;
+  const email = String(cu.email || "").toLowerCase();
+  const myEmail = email;
+  const isMine = (unit.assignedToUids || []).includes(cu.uid) ||
+    (myEmail && (unit.assignedToEmails || []).map((e) => String(e).toLowerCase()).includes(myEmail));
+  const hasAssignees = (unit.assignedToUids || []).length || (unit.assignedToEmails || []).length;
+  if (isMine || hasAssignees) return;
+
+  const myOpen = archiveUnits.filter((u) => {
+    const mine = (u.assignedToUids || []).includes(cu.uid) ||
+      (myEmail && (u.assignedToEmails || []).map((e) => String(e).toLowerCase()).includes(myEmail));
+    return mine && !["done", "blocked"].includes(u.status || "not_started");
   });
-  const title = document.getElementById("homeQueueTitle");
-  const sub = document.getElementById("homeQueueSub");
-  if (myOpen.length > 0) {
-    // Volunteer already has active work — surface it, no queue prompt.
-    cta.classList.remove("hidden");
-    if (title) title.textContent = "Şu an üstünde olduğun iş";
-    if (sub) sub.textContent = archiveLabel(myOpen[0]);
-    const btn = document.getElementById("homeQueueBtn");
-    if (btn) { btn.textContent = "İşe git"; btn.dataset.queueAction = "open"; btn.dataset.unitId = myOpen[0].id; }
-  } else {
-    const next = pickNextQueueUnit();
-    cta.classList.remove("hidden");
-    if (next) {
-      if (title) title.textContent = "Sıradaki iş hazır";
-      if (sub) sub.textContent = `${archiveLabel(next)} · ${numberText(next.pageCount)} sayfa${next.notes ? " · " + next.notes.slice(0, 60) : ""}`;
-      const btn = document.getElementById("homeQueueBtn");
-      if (btn) { btn.textContent = "Bu işe göz at"; btn.dataset.queueAction = "open"; btn.dataset.unitId = next.id; }
-    } else {
-      if (title) title.textContent = "Şu an sana uygun boş bir iş yok";
-      if (sub) sub.textContent = "Koordinatör yeni iş paketi eklediğinde burada görünecek.";
-      const btn = document.getElementById("homeQueueBtn");
-      if (btn) { btn.textContent = "Duyuruları aç"; btn.dataset.queueAction = "announcements"; btn.dataset.unitId = ""; }
-    }
+  if (myOpen.length >= 2) {
+    alert("Önce birini bitir ya da bırak. Aynı anda en fazla 2 iş paketi alabilirsin.");
+    return;
+  }
+
+  btn.disabled = true;
+  const prevLabel = btn.textContent;
+  btn.textContent = "Alınıyor…";
+  try {
+    await updateDoc(doc(db, "archiveUnits", unitId), {
+      assignedToUids: arrayUnion(cu.uid),
+      assignedToEmails: arrayUnion(email)
+    });
+    const followUp = { latestReportAt: serverTimestamp(), updatedAt: serverTimestamp() };
+    if ((unit.status || "not_started") === "not_started") followUp.status = "assigned";
+    await updateDoc(doc(db, "archiveUnits", unitId), followUp);
+    await logActivity("archive_unit_self_claimed", "archiveUnit", unitId, {
+      title: archiveLabel(unit),
+      previousStatus: unit.status || "not_started"
+    });
+    await reloadPnb();
+    openUnitChannel(unitId);
+  } catch (error) {
+    alert(`Alınamadı: ${error.message}`);
+    btn.disabled = false;
+    btn.textContent = prevLabel;
+  }
+}
+
+// Volunteer releases a unit they previously self-claimed. Removes just them
+// from assignedToUids/Emails; leaves status/notes alone (coordinator can
+// tidy up). Permitted by the self-release rule.
+async function handleSelfRelease(btn) {
+  if (!cu || !db || isStaff()) return;
+  const unitId = btn.dataset.selfRelease;
+  if (!unitId) return;
+  const unit = archiveById[unitId];
+  if (!unit) return;
+  const email = String(cu.email || "").toLowerCase();
+  btn.disabled = true;
+  const prevLabel = btn.textContent;
+  btn.textContent = "Bırakılıyor…";
+  try {
+    await updateDoc(doc(db, "archiveUnits", unitId), {
+      assignedToUids: arrayRemove(cu.uid),
+      assignedToEmails: arrayRemove(email)
+    });
+    await logActivity("archive_unit_self_released", "archiveUnit", unitId, {
+      title: archiveLabel(unit)
+    });
+    await reloadPnb();
+  } catch (error) {
+    alert(`Bırakılamadı: ${error.message}`);
+    btn.disabled = false;
+    btn.textContent = prevLabel;
   }
 }
 
@@ -2902,6 +3014,19 @@ document.addEventListener("click", async (event) => {
     const select = document.getElementById("pnbStatusFilter");
     if (select) select.value = value;
     renderArchiveUnits();
+    return;
+  }
+
+  const selfClaimBtn = event.target.closest("[data-self-claim]");
+  if (selfClaimBtn) {
+    event.preventDefault();
+    await handleSelfClaim(selfClaimBtn);
+    return;
+  }
+  const selfReleaseBtn = event.target.closest("[data-self-release]");
+  if (selfReleaseBtn) {
+    event.preventDefault();
+    await handleSelfRelease(selfReleaseBtn);
     return;
   }
 

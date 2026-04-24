@@ -50,6 +50,37 @@ service cloud.firestore {
       return isApproved() && hasList(data, "coworkerUids") && data.coworkerUids.hasAny([request.auth.uid]);
     }
 
+    // Volunteer self-claims an unassigned archive unit. Only the two
+    // assignee arrays may change; the current unit must have no assignees;
+    // the new arrays must be exactly the caller's uid and lowercased email.
+    function selfClaimArchiveUnit() {
+      return isApproved() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(["assignedToUids", "assignedToEmails"]) &&
+        (!hasList(resource.data, "assignedToUids") || resource.data.assignedToUids.size() == 0) &&
+        (!hasList(resource.data, "assignedToEmails") || resource.data.assignedToEmails.size() == 0) &&
+        hasList(request.resource.data, "assignedToUids") &&
+        request.resource.data.assignedToUids.size() == 1 &&
+        request.resource.data.assignedToUids.hasAny([request.auth.uid]) &&
+        hasList(request.resource.data, "assignedToEmails") &&
+        request.resource.data.assignedToEmails.size() == 1 &&
+        request.resource.data.assignedToEmails.hasAny([request.auth.token.email.lower()]);
+    }
+
+    // Volunteer releases a unit they had self-claimed (sole assignee).
+    // Only the two assignee arrays may change; they go from exactly
+    // [caller.uid] / [caller.email] to empty.
+    function selfReleaseArchiveUnit() {
+      return isApproved() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(["assignedToUids", "assignedToEmails"]) &&
+        hasList(resource.data, "assignedToUids") &&
+        resource.data.assignedToUids.size() == 1 &&
+        resource.data.assignedToUids.hasAny([request.auth.uid]) &&
+        hasList(request.resource.data, "assignedToUids") &&
+        request.resource.data.assignedToUids.size() == 0 &&
+        hasList(request.resource.data, "assignedToEmails") &&
+        request.resource.data.assignedToEmails.size() == 0;
+    }
+
     // Kullanıcının kendi dokümanında güncelleyebileceği alanlar.
     // role, status, department gibi yetki alanları yalnızca admin/koordinatör tarafından değiştirilebilir.
     function userSelfEditableFields() {
@@ -121,7 +152,7 @@ service cloud.firestore {
           "latestReportAt",
           "updatedAt"
         ])
-      );
+      ) || selfClaimArchiveUnit() || selfReleaseArchiveUnit();
       allow delete: if isAdmin();
     }
 
