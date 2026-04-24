@@ -577,6 +577,59 @@
 }
 .management-task-main { font-weight: 500; font-size: 13px; }
 .management-task-note { font-size: 11px; color: var(--tblr-secondary); text-align: right; }
+.management-task.management-task-accent {
+  background: var(--tblr-primary-lt);
+  border: 1px solid var(--tblr-primary-lt);
+  margin-bottom: .25rem;
+}
+.management-task.management-task-accent:hover { background: var(--tblr-primary-lt); filter: brightness(.97); }
+.management-task.management-task-accent .management-task-count {
+  background: var(--tblr-primary); color: #fff; border-color: var(--tblr-primary);
+  font-size: 1.15rem; font-weight: 600;
+}
+.management-task.management-task-accent .management-task-main { color: var(--tblr-primary); font-weight: 600; }
+
+.log-for-panel { max-width: 520px; }
+.log-for-form { display: grid; gap: .85rem; }
+.log-for-field { display: grid; gap: .3rem; }
+.log-for-field > span {
+  font-size: 12px; font-weight: 600;
+  color: var(--tblr-secondary);
+  text-transform: uppercase; letter-spacing: .03em;
+}
+.log-for-field > span em {
+  font-weight: 400; font-style: normal;
+  text-transform: none; letter-spacing: 0;
+  margin-left: .25rem;
+}
+.log-for-field select,
+.log-for-field input {
+  width: 100%; min-height: 44px;
+  font-size: 15px; padding: .6rem .75rem;
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 6px;
+  background: var(--tblr-bg-surface);
+}
+.log-for-field select:focus,
+.log-for-field input:focus {
+  outline: none; border-color: var(--tblr-primary);
+  box-shadow: 0 0 0 3px rgba(32, 107, 196, .15);
+}
+.log-for-actions {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  gap: .75rem; margin-top: .25rem;
+}
+.log-for-actions .btn { min-height: 44px; padding: .6rem 1.1rem; font-size: 15px; }
+.log-for-actions .status-line { flex: 1; font-size: 12px; }
+
+@media (max-width: 560px) {
+  .log-for-modal { padding: 0; align-items: stretch; }
+  .log-for-modal .drill-panel { max-height: 100vh; border-radius: 0; padding: 1rem; }
+  .log-for-actions { flex-direction: column-reverse; align-items: stretch; }
+  .log-for-actions .btn { width: 100%; }
+  .log-for-actions .status-line { text-align: center; }
+}
 
 .management-drawer {
   background: var(--tblr-bg-surface);

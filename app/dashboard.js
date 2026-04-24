@@ -368,7 +368,16 @@ function renderManagementOverview() {
   }).length;
   items.push(["Yavaşlayan / durmuş gönüllü", stalledCount, "14+ gün rapor yazmamış", "management", "activityPanel", stalledCount > 0]);
 
-  actions.innerHTML = items.map(([label, value, note, tab, scrollTo, needsAttention]) => (
+  // "Ekip raporu logla" opens a modal instead of switching tabs, so it gets a
+  // separate button markup (no data-go-tab) and sits on top for one-tap access
+  // when a coordinator is on the phone with a volunteer.
+  const logForCard = `<button class="management-task management-task-accent" type="button" data-open-log-for>
+      <span class="management-task-count" aria-hidden="true">＋</span>
+      <span class="management-task-main">Ekip raporu logla</span>
+      <span class="management-task-note">Telefonda / ofiste konuştuğun için</span>
+    </button>`;
+
+  actions.innerHTML = logForCard + items.map(([label, value, note, tab, scrollTo, needsAttention]) => (
     `<button class="management-task${needsAttention ? " needs-attention" : ""}" type="button" data-go-tab="${tab}"${scrollTo ? ` data-scroll-to="${scrollTo}"` : ""}>
       <span class="management-task-count">${escapeHTML(String(value))}</span>
       <span class="management-task-main">${escapeHTML(label)}</span>
@@ -1914,14 +1923,86 @@ function renderActivityRow(user, bucketKey) {
   const nudgeBtn = needsNudge && email
     ? `<button class="btn btn-secondary btn-sm" type="button" data-nudge-email="${escapeHTML(email)}" data-nudge-name="${escapeHTML(name)}" data-nudge-days="${d ?? ""}">Hatırlatma gönder</button>`
     : "";
+  const logForBtn = email
+    ? `<button class="btn btn-secondary btn-sm" type="button" data-log-for-email="${escapeHTML(email)}" data-log-for-name="${escapeHTML(name)}">Adına logla</button>`
+    : "";
   return `<div class="activity-row" data-uid="${escapeHTML(user.uid)}">
     <div class="activity-who">
       <strong>${escapeHTML(name)}</strong>
       <span class="muted">${escapeHTML(dept)}${email ? ` · ${escapeHTML(email)}` : ""}</span>
     </div>
     <div class="activity-when">${escapeHTML(lastText)}</div>
-    <div class="activity-actions">${nudgeBtn}</div>
+    <div class="activity-actions">${nudgeBtn}${logForBtn}</div>
   </div>`;
+}
+
+// --- "Ekip raporu logla": coordinator/admin logs a report on behalf of a
+// volunteer they spoke with in person or on WhatsApp. Reuses createReportBatched
+// via source="coordinator_logged"; firestore.rules already permits a
+// coordinator/admin to create a report for any userUid/userEmail.
+function openLogForModal(prefillUid = "") {
+  if (!isStaff()) return;
+  const modal = document.getElementById("logForModal");
+  if (!modal) return;
+  const form = document.getElementById("logForForm");
+  if (form) form.reset();
+  const messageEl = document.getElementById("logForMessage");
+  if (messageEl) messageEl.textContent = "";
+  populateLogForUsers(prefillUid);
+  populateLogForUnits();
+  modal.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+  // If a volunteer is prefilled, jump straight to the unit select; otherwise
+  // focus the volunteer select so the coordinator can start typing.
+  setTimeout(() => {
+    const first = prefillUid ? document.getElementById("logForUnit") : document.getElementById("logForUser");
+    first?.focus();
+  }, 50);
+}
+
+function closeLogForModal() {
+  const modal = document.getElementById("logForModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+}
+
+function populateLogForUsers(prefillUid) {
+  const sel = document.getElementById("logForUser");
+  if (!sel) return;
+  const vols = volunteerPool().slice().sort((a, b) => userDisplayName(a).localeCompare(userDisplayName(b), "tr"));
+  sel.innerHTML = '<option value="">— Gönüllü seç —</option>' +
+    vols.map((u) => `<option value="${escapeHTML(u.uid)}">${escapeHTML(userDisplayName(u))}</option>`).join("");
+  if (prefillUid && vols.some((u) => u.uid === prefillUid)) sel.value = prefillUid;
+}
+
+function populateLogForUnits() {
+  const unitSel = document.getElementById("logForUnit");
+  if (!unitSel) return;
+  const uid = document.getElementById("logForUser")?.value || "";
+  const user = uid ? allUsers.find((x) => x.uid === uid) : null;
+  const email = String(user?.data?.email || "").toLowerCase();
+  const isAssigned = (unit) => {
+    if (uid && (unit.assignedToUids || []).includes(uid)) return true;
+    if (email && (unit.assignedToEmails || []).map((e) => String(e).toLowerCase()).includes(email)) return true;
+    return false;
+  };
+  // Hide fully-completed units from the picker — logging a new report against
+  // a "done" unit would bounce it back to in_progress, which isn't what a
+  // coordinator means when recording a past conversation.
+  const pool = archiveUnits.filter((u) => (u.status || "not_started") !== "done")
+    .sort((a, b) => archiveLabel(a).localeCompare(archiveLabel(b), "tr"));
+  const assigned = pool.filter(isAssigned);
+  const others = pool.filter((u) => !isAssigned(u));
+  const makeOpt = (u) => `<option value="${escapeHTML(u.id)}">${escapeHTML(archiveLabel(u))}</option>`;
+  let html = '<option value="">— Birim seç —</option>';
+  if (uid && assigned.length) {
+    html += `<optgroup label="Bu gönüllüye atanmış">${assigned.map(makeOpt).join("")}</optgroup>`;
+    if (others.length) html += `<optgroup label="Diğer PNB birimleri">${others.map(makeOpt).join("")}</optgroup>`;
+  } else {
+    html += [...assigned, ...others].map(makeOpt).join("");
+  }
+  unitSel.innerHTML = html;
 }
 
 function nudgeMailtoUrl(name, days) {
@@ -2944,6 +3025,26 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
+  // "Ekip raporu logla" — opens the log-for-volunteer modal. Entry points:
+  //   - Management overview card (no prefill)
+  //   - Per-row button in the activity panel (prefills that volunteer)
+  const logForOpenBtn = event.target.closest("[data-open-log-for]");
+  if (logForOpenBtn) {
+    openLogForModal();
+    return;
+  }
+  const logForRowBtn = event.target.closest("[data-log-for-email]");
+  if (logForRowBtn) {
+    const target = findUserByEmail(logForRowBtn.dataset.logForEmail || "");
+    openLogForModal(target?.uid || "");
+    return;
+  }
+  const logForCloseBtn = event.target.closest("[data-log-for-close]");
+  if (logForCloseBtn) {
+    closeLogForModal();
+    return;
+  }
+
   // Volunteer activity nudge: opens a prefilled mailto: so the coordinator
   // can personalize and send via their own mail client. Keeps us fully
   // client-side (no Apps Script / Cloud Function needed).
@@ -3592,6 +3693,63 @@ document.getElementById("quickReportForm")?.addEventListener("submit", async (ev
     messageEl.textContent = `Hata: ${error.message}`;
   } finally {
     if (submitBtn) submitBtn.disabled = false;
+  }
+});
+
+// When the coordinator picks a different volunteer, re-sort the unit select so
+// that volunteer's assigned units float to the top.
+document.getElementById("logForUser")?.addEventListener("change", populateLogForUnits);
+
+document.getElementById("logForForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!cu || !db || !isStaff()) return;
+  const messageEl = document.getElementById("logForMessage");
+  const targetUid = document.getElementById("logForUser").value;
+  const archiveUnitId = document.getElementById("logForUnit").value;
+  const pagesRaw = document.getElementById("logForPages").value;
+  const note = document.getElementById("logForNote").value.trim().slice(0, 240);
+  const pagesDone = pagesRaw === "" ? null : Math.max(0, Math.floor(Number(pagesRaw) || 0));
+
+  if (!targetUid) { messageEl.textContent = "Önce bir gönüllü seç."; return; }
+  if (!archiveUnitId) { messageEl.textContent = "Hangi birim olduğunu seç."; return; }
+
+  const target = allUsers.find((u) => u.uid === targetUid);
+  const targetEmail = target?.data?.email || "";
+  const targetName = userDisplayName(target) || "gönüllü";
+  const unitLabel = archiveById[archiveUnitId] ? archiveLabel(archiveById[archiveUnitId]) : archiveUnitId;
+
+  const data = {
+    taskId: unitLabel,
+    archiveUnitId,
+    projectId: PNB_PROJECT_ID,
+    summary: note,
+    hours: 0,
+    pagesDone,
+    workStatus: "in_progress",
+    source: "coordinator_logged",
+    reportDate: td(),
+    links: [],
+    images: [],
+    coworkerUids: [],
+    loggedByUid: cu.uid,
+    loggedByEmail: cu.email || "",
+    loggedByName: cp?.fullName || cu.email || ""
+  };
+
+  const submitBtn = document.getElementById("logForSubmit");
+  const prevLabel = submitBtn?.textContent;
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Logluyor…"; }
+  try {
+    await createReportBatched(data, { targetUid, targetEmail });
+    messageEl.textContent = `Rapor ${targetName} adına loglandı — teşekkürler!`;
+    notifyStaffOfReport(targetUid, unitLabel);
+    await lr();
+    await reloadPnb();
+    setTimeout(() => { closeLogForModal(); }, 1200);
+  } catch (error) {
+    messageEl.textContent = `Hata: ${error.message}`;
+  } finally {
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = prevLabel || "Hızlıca logla"; }
   }
 });
 

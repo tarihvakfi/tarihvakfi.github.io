@@ -598,6 +598,48 @@
     </div>
   </div>
 
+  <div id="logForModal" class="drill-modal log-for-modal hidden" role="dialog" aria-modal="true" aria-labelledby="logForTitle">
+    <div class="drill-backdrop" data-log-for-close></div>
+    <div class="drill-panel log-for-panel">
+      <header class="drill-header">
+        <div>
+          <p class="eyebrow">Ekip raporu logla</p>
+          <h2 id="logForTitle">Birinin adına hızlıca logla</h2>
+          <p class="muted" id="logForSubtitle">WhatsApp'ta ya da ofiste konuştuğun gönüllü için tek seferde kaydet.</p>
+        </div>
+        <div class="drill-header-actions">
+          <button type="button" class="btn btn-secondary btn-sm" data-log-for-close aria-label="Kapat">Kapat</button>
+        </div>
+      </header>
+      <form id="logForForm" class="log-for-form" novalidate>
+        <label class="log-for-field">
+          <span>Kim adına?</span>
+          <select id="logForUser" required>
+            <option value="">— Gönüllü seç —</option>
+          </select>
+        </label>
+        <label class="log-for-field">
+          <span>Hangi arşiv birimi?</span>
+          <select id="logForUnit" required>
+            <option value="">— Önce gönüllü seç —</option>
+          </select>
+        </label>
+        <label class="log-for-field">
+          <span>Sayfa sayısı <em class="muted">(opsiyonel)</em></span>
+          <input type="number" id="logForPages" min="0" step="1" inputmode="numeric" placeholder="örn. 24" />
+        </label>
+        <label class="log-for-field">
+          <span>Kısa not <em class="muted">(opsiyonel, 240 karakter)</em></span>
+          <input type="text" id="logForNote" maxlength="240" placeholder="WhatsApp'tan iletti — iki kutu tarandı…" />
+        </label>
+        <div class="log-for-actions">
+          <span id="logForMessage" class="status-line muted"></span>
+          <button type="submit" class="btn btn-primary" id="logForSubmit">Hızlıca logla</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script src="../js/config.firebase.js"></script>
   <script type="module" src="../js/firebase-init.js"></script>
   <script type="module" src="./dashboard.js"></script>
