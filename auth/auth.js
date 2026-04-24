@@ -16,6 +16,7 @@ const fullNameInput = document.getElementById("fullName");
 const phoneInput = document.getElementById("phone");
 const departmentInput = document.getElementById("department");
 const notesInput = document.getElementById("notes");
+const rhythmInput = document.getElementById("rhythm");
 const pendingProfile = document.getElementById("pendingProfile");
 const editProfileBtn = document.getElementById("editProfileBtn");
 
@@ -58,10 +59,11 @@ applicationForm?.addEventListener("submit", async (event) => {
   try {
     const ref = doc(db, "users", current.uid);
     const existing = await getDoc(ref);
+    const rhythmValue = rhythmInput?.value ? rhythmInput.value : null;
     if (existing.exists()) {
-      await updateDoc(ref, { fullName: fullNameInput.value.trim(), phone: phoneInput.value.trim(), department: departmentInput.value, notes: notesInput.value.trim(), updatedAt: serverTimestamp(), lastSeenAt: serverTimestamp() });
+      await updateDoc(ref, { fullName: fullNameInput.value.trim(), phone: phoneInput.value.trim(), department: departmentInput.value, notes: notesInput.value.trim(), rhythm: rhythmValue, updatedAt: serverTimestamp(), lastSeenAt: serverTimestamp() });
     } else {
-      await setDoc(ref, { uid: current.uid, fullName: fullNameInput.value.trim(), email: current.email || "", phone: phoneInput.value.trim(), department: departmentInput.value, role: "volunteer", status: "pending", notes: notesInput.value.trim(), createdAt: serverTimestamp(), updatedAt: serverTimestamp(), lastSeenAt: serverTimestamp() });
+      await setDoc(ref, { uid: current.uid, fullName: fullNameInput.value.trim(), email: current.email || "", phone: phoneInput.value.trim(), department: departmentInput.value, role: "volunteer", status: "pending", notes: notesInput.value.trim(), rhythm: rhythmValue, createdAt: serverTimestamp(), updatedAt: serverTimestamp(), lastSeenAt: serverTimestamp() });
     }
     const latest = await loadUserProfile(current);
     routeUser(latest, current);
@@ -98,6 +100,7 @@ async function loadUserProfile(authUser) {
   phoneInput.value = data.phone || "";
   departmentInput.value = data.department || "";
   notesInput.value = data.notes || "";
+  if (rhythmInput) rhythmInput.value = data.rhythm || "";
   return data;
 }
 

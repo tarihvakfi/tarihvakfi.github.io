@@ -94,6 +94,7 @@ service cloud.firestore {
         "reportCount7d",
         "reportCount30d",
         "counterWindowStart",
+        "rhythm",
         "updatedAt"
       ];
     }

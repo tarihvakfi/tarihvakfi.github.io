@@ -24,6 +24,11 @@ Doküman kimliği: Firebase `uid`; Excel/ön kayıt ile eklenen kişiler için g
 - `reportCount7d`: number — son 7 günde gönderilen rapor sayısı. Rapor yazarken client-side artırılır, pencere dışına çıktığında sıfırlanır.
 - `reportCount30d`: number — son 30 günde gönderilen rapor sayısı. Aynı mantıkla güncellenir.
 - `counterWindowStart`: timestamp | null — `reportCount7d` / `reportCount30d` pencerelerinin başlangıcı. Yedi/otuz günden eski olduğunda sayaçlar sıfırlanır.
+- `rhythm`: `"regular" | "casual" | "burst" | null` — gönüllünün kendi beyan ettiği çalışma temposu. Aktiflik sınıflandırmasını (`active / slow / stalled`) bu alan belirler.
+  - `regular`: haftalık düzende çalışır; standart 14/28 günlük eşikler uygulanır.
+  - `casual`: fırsat buldukça katılır; hiçbir zaman otomatik "durmuş" olarak işaretlenmez, ayrı bir "Serbest tempo" kovasında gösterilir.
+  - `burst`: yoğun bloklar hâlinde çalışır; 30/45 günlük daha geniş eşikler uygulanır.
+  - `null`: varsayılan; `regular` gibi değerlendirilir.
 
 ## archiveUnits
 

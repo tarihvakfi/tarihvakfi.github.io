@@ -1725,6 +1725,7 @@ function rur(data, uid) {
     <div class="form-row">
       <label>Yetenek / İlgi <input data-sk="${uid}" value="${escapeHTML(data.skillsText || "")}" placeholder="Osmanlıca, dijitalleştirme..." /></label>
       <label>Koordinatör notu <input data-cn="${uid}" value="${escapeHTML(data.coordinatorNotes || "")}" /></label>
+      <label>Tempo <select data-rh="${uid}"><option value=""${!data.rhythm ? " selected" : ""}>Belirsiz</option><option value="regular"${data.rhythm === "regular" ? " selected" : ""}>Düzenli</option><option value="casual"${data.rhythm === "casual" ? " selected" : ""}>Serbest</option><option value="burst"${data.rhythm === "burst" ? " selected" : ""}>Yoğun blok</option></select></label>
     </div>
     <div class="form-actions"><button class="btn btn-primary btn-sm" data-sv="${uid}">Kaydet</button><button class="btn btn-block btn-sm" data-del-user="${uid}">Sil</button></div>
   </div>`;
@@ -1823,7 +1824,8 @@ const ACTIVITY_BUCKETS = [
   { key: "active",  label: "Aktif (0–13 gün)",     minDays: 0,  maxDays: 13,  tone: "ok"      },
   { key: "slow",    label: "Yavaşlayan (14–27 gün)", minDays: 14, maxDays: 27, tone: "warn"   },
   { key: "stalled", label: "Durmuş (28+ gün)",     minDays: 28, maxDays: Infinity, tone: "danger" },
-  { key: "never",   label: "Hiç rapor yazmamış",   minDays: null, maxDays: null,    tone: "mute" }
+  { key: "never",   label: "Hiç rapor yazmamış",   minDays: null, maxDays: null,    tone: "mute" },
+  { key: "casual",  label: "Serbest tempo",        minDays: null, maxDays: null,    tone: "mute" }
 ];
 
 function toDateFromTs(ts) {
@@ -1841,9 +1843,16 @@ function daysSince(date) {
 }
 
 function bucketForUser(user) {
+  const rhythm = user.data?.rhythm || null;
+  if (rhythm === "casual") return "casual";
   const last = toDateFromTs(user.data?.lastReportAt);
   if (!last) return "never";
   const d = daysSince(last);
+  if (rhythm === "burst") {
+    if (d < 30) return "active";
+    if (d < 45) return "slow";
+    return "stalled";
+  }
   if (d <= 13) return "active";
   if (d <= 27) return "slow";
   return "stalled";
@@ -1864,7 +1873,7 @@ function renderActivityPanel() {
   const dept = deptSelect ? deptSelect.value : "";
   const pool = volunteerPool().filter((u) => !dept || (u.data?.department || "") === dept);
 
-  const grouped = { active: [], slow: [], stalled: [], never: [] };
+  const grouped = { active: [], slow: [], stalled: [], never: [], casual: [] };
   pool.forEach((u) => { grouped[bucketForUser(u)].push(u); });
 
   // Sort each bucket: most recent activity first within "active/slow/stalled",
@@ -1877,6 +1886,7 @@ function renderActivityPanel() {
     });
   });
   grouped.never.sort((a, b) => userDisplayName(a).localeCompare(userDisplayName(b), "tr"));
+  grouped.casual.sort((a, b) => userDisplayName(a).localeCompare(userDisplayName(b), "tr"));
 
   summaryEl.innerHTML = ACTIVITY_BUCKETS.map((b) => (
     `<div class="activity-kpi activity-${b.tone}"><strong>${grouped[b.key].length}</strong><span>${escapeHTML(b.label)}</span></div>`
@@ -2942,6 +2952,8 @@ document.addEventListener("click", async (event) => {
     const email = nudgeBtn.dataset.nudgeEmail || "";
     const name = nudgeBtn.dataset.nudgeName || "";
     const days = nudgeBtn.dataset.nudgeDays || "";
+    const target = findUserByEmail(email);
+    if (target?.data?.rhythm === "casual" && !confirm("Bu kişi serbest tempo olarak işaretli. Yine de hatırlatma gönderilsin mi?")) return;
     const { subject, body } = nudgeMailtoUrl(name, days);
     window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     return;
@@ -3390,6 +3402,7 @@ document.addEventListener("click", async (event) => {
         status: row.querySelector(`[data-su="${uid}"]`).value,
         skillsText: row.querySelector(`[data-sk="${uid}"]`).value.trim(),
         coordinatorNotes: row.querySelector(`[data-cn="${uid}"]`).value.trim(),
+        rhythm: row.querySelector(`[data-rh="${uid}"]`).value || null,
         updatedAt: serverTimestamp()
       };
       await updateDoc(doc(db, "users", uid), updateData);
