@@ -73,23 +73,102 @@ function sendCoordinatorStalledAlert(coordinatorEmail, volunteerName, volunteerE
   enqueueMail('inactivity_alert_coordinator', coordinatorEmail, subject, body, { volunteerName, volunteerEmail, inactiveDays });
 }
 
-// checkInactiveVolunteers: günlük tetikleyici için iskelet.
-// Çalışması için Firestore'a erişim gerekir (service account + REST API).
-// Kurulum adımları için docs/APPS_SCRIPT_SETUP.md bölümüne bakın.
-// TODO: FirestoreClient.gs altında listUsers() yardımcı fonksiyonu oluşturun.
+// Daily inactivity sweep. Reads the users collection via FirestoreClient.gs,
+// enqueues reminder emails, and alerts coordinators for stalled volunteers.
+// Thresholds are rhythm-aware; casual helpers are never auto-flagged.
+// See docs/APPS_SCRIPT_SETUP.md for service account setup.
+
+const INACTIVITY_NUDGE_ACTIONS_ = ['inactivity_nudge_volunteer', 'inactivity_nudge_coordinator'];
+
+function wasRecentlyNudged_(volunteerEmail, withinDays) {
+  if (!volunteerEmail) return false;
+  const sheet = getSheet(SHEET_NAMES.logs);
+  const values = sheet.getDataRange().getValues();
+  if (values.length < 2) return false;
+  const cutoff = Date.now() - withinDays * 86400000;
+  const target = String(volunteerEmail).toLowerCase();
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    if (INACTIVITY_NUDGE_ACTIONS_.indexOf(row[2]) === -1) continue;
+    const ts = row[0];
+    const t = (ts instanceof Date) ? ts.getTime() : new Date(ts).getTime();
+    if (isNaN(t) || t < cutoff) continue;
+    if (String(row[1]).toLowerCase() === target) return true;
+  }
+  return false;
+}
+
 function checkInactiveVolunteers() {
-  // Aşağıdaki kod yorum satırı; gerçek kullanımda FirestoreClient.gs hazır olduğunda aktifleştirilir.
-  // const users = FirestoreClient_listApprovedVolunteers();
-  // const now = Date.now();
-  // users.forEach(function (u) {
-  //   const last = u.lastReportAt ? new Date(u.lastReportAt).getTime() : null;
-  //   const days = last ? Math.floor((now - last) / 86400000) : null;
-  //   if (days === null || days >= 28) {
-  //     const coord = FirestoreClient_findCoordinatorForDept(u.department);
-  //     if (coord && coord.email) sendCoordinatorStalledAlert(coord.email, u.fullName, u.email, days || 0);
-  //   } else if (days >= 14) {
-  //     sendInactivityReminder(u.email, u.fullName, days);
-  //   }
-  // });
-  appendLog('inactivity_check_stub', { note: 'checkInactiveVolunteers henüz Firestore erişimine bağlı değil; admin panelindeki Aktiflik durumu ekranını kullanın.' }, '');
+  const hasCreds = PropertiesService.getScriptProperties().getProperty('FIREBASE_SERVICE_ACCOUNT');
+  if (!hasCreds) {
+    appendLog('inactivity_check_skipped', { reason: 'FIREBASE_SERVICE_ACCOUNT missing' }, '');
+    return;
+  }
+
+  let volunteers;
+  try {
+    volunteers = listApprovedVolunteers();
+  } catch (err) {
+    appendLog('inactivity_check_error', { stage: 'listApprovedVolunteers', error: String(err) }, '');
+    return;
+  }
+
+  const now = Date.now();
+  const dedupeWindowDays = 7;
+  const coordinatorCache = {};
+  let reminded = 0;
+  let stalled = 0;
+
+  volunteers.forEach(function (u) {
+    if (!u.email) return;
+    if (u.rhythm === 'casual') return;
+    if (!u.lastReportAt) return;
+
+    const last = new Date(u.lastReportAt).getTime();
+    if (isNaN(last)) return;
+    const days = Math.floor((now - last) / 86400000);
+
+    const isBurst = u.rhythm === 'burst';
+    const reminderMin = isBurst ? 30 : 14;
+    const stalledMin = isBurst ? 45 : 28;
+
+    if (days < reminderMin) return;
+    if (wasRecentlyNudged_(u.email, dedupeWindowDays)) return;
+
+    if (days >= stalledMin) {
+      const dept = u.department || '';
+      if (!(dept in coordinatorCache)) {
+        try {
+          coordinatorCache[dept] = findCoordinatorsForDepartment(dept);
+        } catch (err) {
+          appendLog('inactivity_check_error', { stage: 'findCoordinatorsForDepartment', department: dept, error: String(err) }, u.email);
+          coordinatorCache[dept] = [];
+        }
+      }
+      const coords = coordinatorCache[dept].filter(function (c) { return c.email; });
+      if (!coords.length) {
+        appendLog('inactivity_no_coordinator', { department: dept, inactiveDays: days }, u.email);
+        return;
+      }
+      coords.forEach(function (c) {
+        sendCoordinatorStalledAlert(c.email, u.fullName, u.email, days);
+      });
+      appendLog('inactivity_nudge_coordinator', {
+        department: dept,
+        inactiveDays: days,
+        coordinators: coords.map(function (c) { return c.email; })
+      }, u.email);
+      stalled++;
+    } else {
+      sendInactivityReminder(u.email, u.fullName, days);
+      appendLog('inactivity_nudge_volunteer', { inactiveDays: days, rhythm: u.rhythm || null }, u.email);
+      reminded++;
+    }
+  });
+
+  appendLog('inactivity_check_done', {
+    totalVolunteers: volunteers.length,
+    remindersQueued: reminded,
+    coordinatorAlertsQueued: stalled
+  }, '');
 }

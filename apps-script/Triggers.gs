@@ -1,7 +1,8 @@
 function createTriggers() {
   const functions = [
     { name: 'processMailQueue', everyHours: 1 },
-    { name: 'generateWeeklySummary', everyDays: 7 }
+    { name: 'generateWeeklySummary', everyDays: 7 },
+    { name: 'checkInactiveVolunteers', everyDays: 1 }
   ];
 
   const existing = ScriptApp.getProjectTriggers().map(t => t.getHandlerFunction());
