@@ -594,6 +594,19 @@
     </section>
 
     <section id="tab-maintenance" class="tab-content hidden">
+      <!--
+        TODO (manual triage, post-launch): walk through the volunteer list and
+        flip `canWorkInPerson = true` for the ~5–10 people who actually show
+        up at the İstanbul archive in person. Default is false for everyone;
+        we're not running a backfill script. The toggle lives in the user
+        editor inside Yönetim → Ekip listesi.
+      -->
+      <div class="ops-alert" style="margin-bottom:1rem">
+        <div>
+          <strong>Hatırlatma: fiziksel arşiv erişimi</strong>
+          <span style="font-size:.85rem">Lansman sonrası: arşive fiziksel olarak gelen ~5–10 gönüllü için Yönetim → Ekip listesi'nden <code>İstanbul'daki arşive fiziksel olarak gelebiliyor</code> kutusunu işaretleyin. Varsayılan herkes için kapalıdır; otomatik backfill yapılmıyor.</span>
+        </div>
+      </div>
       <div class="card" id="pendingReviewCard">
         <div class="step-header">
           <div>
@@ -783,6 +796,10 @@
           <div class="rm-typeahead" id="rmTypeahead">
             <div class="rm-selected hidden" id="rmSelected"></div>
             <input type="text" id="rmUnitInput" class="rm-input" autocomplete="off" placeholder="Kutu no, seri no veya kaynak ara…" aria-autocomplete="list" aria-controls="rmResults" />
+            <label class="rm-show-all">
+              <input type="checkbox" id="rmShowAll" />
+              <span>Tüm iş paketlerini göster</span>
+            </label>
             <div id="rmResults" class="rm-results hidden" role="listbox"></div>
             <div class="rm-newunit hidden" id="rmNewUnit">
               <label class="rm-sub">Kaynak / Tanım <span class="req">*</span>

@@ -139,9 +139,10 @@ service cloud.firestore {
         isCoordinatorOrAdmin()
       );
 
-      // specialty / availabilityDays are admin-only on write. Volunteers must
-      // request changes through a coordinator, who flags an admin to apply
-      // them via the import tooling.
+      // specialty / availabilityDays / canWorkInPerson are admin-only on write.
+      // Volunteers cannot self-edit them (not in userSelfEditableFields()) and
+      // coordinators are blocked by the affectedKeys() guard below — they
+      // request changes through an admin.
       allow update: if signedIn() && (
         (request.auth.uid == uid &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(userSelfEditableFields())) ||
@@ -149,7 +150,7 @@ service cloud.firestore {
         (isCoordinator() &&
           resource.data.department == currentUserData().department &&
           request.resource.data.department == resource.data.department &&
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(["specialty", "availabilityDays"]))
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(["specialty", "availabilityDays", "canWorkInPerson"]))
       );
 
       allow delete: if isAdmin();

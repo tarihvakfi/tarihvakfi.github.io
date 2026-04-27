@@ -1104,7 +1104,11 @@ let reportModalState = {
   results: [],
   activeIndex: -1,
   searchTimer: null,
-  sharedDriveUrl: ""
+  sharedDriveUrl: "",
+  // "Tüm iş paketlerini göster" toggle — off by default. When on, the
+  // canWorkInPerson visibility filter is bypassed (still respects projectId
+  // and status filters). See scoreUnitForTypeahead.
+  showAll: false
 };
 
 let cachedSharedDriveUrl = null;
@@ -1127,10 +1131,20 @@ function volunteerProjectIds() {
   return [REPORT_PROJECT_FILTER];
 }
 
-// Match a unit against the typed needle and the volunteer's specialty/city.
+// Match a unit against the typed needle and the volunteer's specialty.
 // Returns null when filtered out, otherwise { unit, score } with higher score
-// meaning a better match. Ankara → digitized-only filter is strict; specialty
-// is a soft boost so non-matching units stay in the list at lower priority.
+// meaning a better match. Specialty is a soft boost so non-matching units stay
+// in the list at lower priority.
+//
+// Default visibility:
+//   - digitized == true             → visible to everyone
+//   - canWorkInPerson == true       → can also see physical (digitized==false) units
+//   - everyone else                 → only digitized units
+//   - "Tüm iş paketlerini göster" toggle (reportModalState.showAll) bypasses
+//     the visibility filter so remote volunteers can preview what's queued up.
+//
+// city is intentionally NOT a filter — most İstanbul-based volunteers also
+// work remotely, so city was a bad proxy for physical access.
 function scoreUnitForTypeahead(unit, needle) {
   if (!unit) return null;
   const projects = volunteerProjectIds();
@@ -1138,8 +1152,10 @@ function scoreUnitForTypeahead(unit, needle) {
   const status = unit.status || "not_started";
   if (status === "done") return null;
 
-  const myCity = String(cp?.city || "").toLowerCase();
-  if (myCity === "ankara" && unit.digitized === false) return null;
+  if (!reportModalState.showAll) {
+    const canInPerson = cp?.canWorkInPerson === true;
+    if (unit.digitized !== true && !canInPerson) return null;
+  }
 
   const haystack = trNormalize([
     unit.sourceIdentifier, unit.sourceCode, unit.seriesNo, unit.boxNo,
@@ -1189,11 +1205,17 @@ const SUITABLE_FOR_LABELS = {
 function renderTypeaheadResults() {
   const list = document.getElementById("rmResults");
   if (!list) return;
-  const showAnkaraNote = String(cp?.city || "").toLowerCase() === "ankara";
   const items = reportModalState.results || [];
   const parts = [];
-  if (showAnkaraNote) {
-    parts.push('<div class="rm-notice">Ankara\'da olduğun için yalnızca dijitalleştirilmiş kutular gösteriliyor.</div>');
+  // Remote volunteers (canWorkInPerson != true) with the toggle off and zero
+  // digitized units in the catalog get a friendly empty-state explaining the
+  // pipeline. They can flip the toggle to see what's queued up physically.
+  const isRemote = cp?.canWorkInPerson !== true;
+  if (!reportModalState.showAll && isRemote && !items.length && !reportModalState.searchTerm) {
+    const anyDigitized = archiveUnits.some((u) => u.digitized === true && (u.status || "") !== "done");
+    if (!anyDigitized) {
+      parts.push('<div class="rm-notice rm-notice-empty">Şu an dijitalleştirilmiş iş paketi yok. İstanbul\'da arşivde fiziksel olarak çalışan gönüllüler tarama yaptıkça burada görünecek. Bekleyen iş paketlerini görmek istersen yukarıdaki düğmeyi aç.</div>');
+    }
   }
   if (!items.length && reportModalState.searchTerm) {
     parts.push('<div class="rm-result"><div class="rr-main"><div class="rr-title">Eşleşen iş bulunamadı</div><div class="rr-desc">Aşağıdan yeni bir iş ekleyebilirsin.</div></div></div>');
@@ -1285,8 +1307,11 @@ async function openReportModal(prefillUnitId = "") {
   if (!modal) return;
   reportModalState = {
     unit: null, newUnit: false, effort: "", status: "", substatus: "",
-    searchTerm: "", results: [], activeIndex: -1, searchTimer: null, sharedDriveUrl: ""
+    searchTerm: "", results: [], activeIndex: -1, searchTimer: null, sharedDriveUrl: "",
+    showAll: false
   };
+  const showAllCheckbox = document.getElementById("rmShowAll");
+  if (showAllCheckbox) showAllCheckbox.checked = false;
   // Reset form widgets
   document.getElementById("rmNote").value = "";
   document.getElementById("rmUrl").value = "";
@@ -2724,6 +2749,18 @@ function rpu(data, uid) {
 }
 
 function rur(data, uid) {
+  // canWorkInPerson is admin-only on write (firestore.rules); coordinators
+  // see it as a read-only badge so they know the volunteer's mode without
+  // accidentally toggling it.
+  const adminEditable = isAdmin();
+  const canInPerson = data.canWorkInPerson === true;
+  const inPersonRow = adminEditable
+    ? `<label class="checkbox-row">
+        <input type="checkbox" data-iperson="${uid}"${canInPerson ? " checked" : ""} />
+        <span><strong>İstanbul'daki arşive fiziksel olarak gelebiliyor</strong>
+        <small>Sadece arşive fiziksel olarak gelip kutu açabilen gönüllüler için. Çoğu gönüllü uzaktan çalışır, bu kutu işaretsiz kalır.</small></span>
+      </label>`
+    : `<div class="checkbox-row read-only"><span><strong>${canInPerson ? "Fiziksel arşive gelebiliyor" : "Uzaktan"}</strong><small>Sadece admin değiştirebilir.</small></span></div>`;
   return `<div class="user-edit-card" id="urow-${uid}">
     <div class="form-row">
       <label>Ad Soyad <input data-fn="${uid}" value="${escapeHTML(data.fullName || "")}" /></label>
@@ -2740,6 +2777,7 @@ function rur(data, uid) {
       <label>Koordinatör notu <input data-cn="${uid}" value="${escapeHTML(data.coordinatorNotes || "")}" /></label>
       <label>Tempo <select data-rh="${uid}"><option value=""${!data.rhythm ? " selected" : ""}>Belirsiz</option><option value="regular"${data.rhythm === "regular" ? " selected" : ""}>Düzenli</option><option value="casual"${data.rhythm === "casual" ? " selected" : ""}>Serbest</option><option value="burst"${data.rhythm === "burst" ? " selected" : ""}>Yoğun blok</option></select></label>
     </div>
+    <div class="form-row">${inPersonRow}</div>
     <div class="form-actions"><button class="btn btn-primary btn-sm" data-sv="${uid}">Kaydet</button><button class="btn btn-block btn-sm" data-del-user="${uid}">Sil</button></div>
   </div>`;
 }
@@ -4727,6 +4765,13 @@ document.addEventListener("click", async (event) => {
         rhythm: row.querySelector(`[data-rh="${uid}"]`).value || null,
         updatedAt: serverTimestamp()
       };
+      // canWorkInPerson is admin-only on write (firestore.rules blocks
+      // coordinators from including it in the diff). Only attach the field
+      // when the admin checkbox is present and rendered.
+      const inPersonCheck = row.querySelector(`[data-iperson="${uid}"]`);
+      if (inPersonCheck && isAdmin()) {
+        updateData.canWorkInPerson = !!inPersonCheck.checked;
+      }
       await updateDoc(doc(db, "users", uid), updateData);
       saveUser.textContent = "OK";
       await loadAllUsers();
@@ -4970,6 +5015,14 @@ document.getElementById("rmUnitInput")?.addEventListener("keydown", (event) => {
   } else if (event.key === "Escape") {
     list?.classList.add("hidden");
   }
+});
+
+document.getElementById("rmShowAll")?.addEventListener("change", (event) => {
+  reportModalState.showAll = !!event.target.checked;
+  // Re-run the search with the current term so results refresh immediately.
+  reportModalState.results = searchUnitsForReport(reportModalState.searchTerm || "");
+  reportModalState.activeIndex = -1;
+  renderTypeaheadResults();
 });
 
 document.getElementById("reportModalForm")?.addEventListener("submit", submitReportFromModal);

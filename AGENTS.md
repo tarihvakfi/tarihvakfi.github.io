@@ -86,6 +86,21 @@ Volunteers can create `archiveUnits` with `status == "pending_review"` via the "
 
 All three writes flow through admin paths only (rules unchanged from Prompt C — admins can update/delete archiveUnits; coordinators cannot).
 
+### Physical-archive access (`users.canWorkInPerson`)
+
+The Rapor Ver typeahead filters which units a volunteer sees by default:
+
+- `digitized == true` units are visible to everyone.
+- `digitized == false` (physical) units are visible only when `users.{uid}.canWorkInPerson == true`.
+- A "Tüm iş paketlerini göster" toggle below the search input bypasses the filter so a remote volunteer can preview the physical pipeline.
+- A friendly empty-state message tells remote volunteers that nothing is digitized yet when both the catalog is empty and the toggle is off.
+
+`canWorkInPerson` is admin-write-only — volunteers cannot self-edit it (not in `userSelfEditableFields()`) and coordinators are blocked by the `affectedKeys().hasAny([...])` guard alongside `specialty` / `availabilityDays`. The admin user editor in Yönetim → Ekip listesi exposes a checkbox; coordinators see a read-only badge. There is no backfill — Gülistan or another coordinator flips the ~5–10 in-person volunteers manually after launch.
+
+#### Why we removed the city-based filter
+
+An earlier version of the typeahead used `users.city == "ankara"` as a proxy for "remote" and limited those volunteers to digitized units. This was wrong: most İstanbul-based volunteers also work remotely, so anyone with `city == "istanbul"` was getting physical units they couldn't actually pick up. The fix is `canWorkInPerson` (a direct boolean about physical access), not a guess derived from city. `users.city` stays on the document as display-only context for coordinators (still useful for travel logistics, slot planning, etc.) but is not consulted by any filter.
+
 ### Self-claim is deprecated but retained
 Self-claim Firestore rules (`selfClaimArchiveUnit`, `selfReleaseArchiveUnit`) and the `handleSelfClaim` / `handleSelfRelease` JS helpers are intentionally left in place. The volunteer dashboard no longer surfaces them: `renderHomeQueueCta` and the `[data-self-claim]` / `[data-self-release]` click delegation are gated behind `window.FEATURE_FLAGS.selfClaim`, initialized to `false` in `app/index.html`.
 

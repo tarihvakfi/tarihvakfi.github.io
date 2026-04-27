@@ -38,12 +38,13 @@ Aşağıdaki alanlar koordinatör/admin tarafından paydaş ve zaman çizelgesi 
 - `availabilityDays`: string[] — slot kodları: `mon-am`, `mon-pm`, `tue-am`, `tue-pm`, `wed-am`, `wed-pm`, `thu-am`, `thu-pm`, `fri-am`, `fri-pm`. Excel'deki `x` işaretli yarım günlere karşılık gelir.
 - `profession`: string — paydaş Meslek alanı.
 - `university`: string — paydaş Üniversite alanı.
-- `city`: string — yalnızca `istanbul` veya `ankara`. Başka bir değer görünürse import bunu inceleme bayrağına taşır, doğrudan yazmaz.
+- `city`: string — yalnızca `istanbul` veya `ankara`. Başka bir değer görünürse import bunu inceleme bayrağına taşır, doğrudan yazmaz. **Sadece görüntü amaçlı bir koordinatör meta-verisidir; rapor modalindeki typeahead filtresinde KULLANILMAZ.** (Eski varsayım: Ankaralılar uzaktan, İstanbullular fiziksel çalışır. Gerçek: çoğu İstanbul gönüllüsü de uzaktan çalışıyor; bu yüzden filtre kararı `canWorkInPerson`'a taşındı.)
 - `projectExpectation`: string — paydaş "Projeden Beklentisi" alanının ham metni.
+- `canWorkInPerson`: boolean — gönüllünün İstanbul'daki arşive fiziksel olarak gelip kutu açıp açamayacağını belirtir. Varsayılan `false`. `Rapor Ver` modalindeki typeahead'de fiziksel (digitized==false) iş paketlerinin görünüp görünmeyeceğini bu alan belirler. Yalnızca admin yazabilir; volunteers kendi değerlerini okuyabilir, koordinatörler tüm volunteers'ın değerini okuyabilir. **Backfill yapılmıyor**; lansman sonrası ~5–10 gönüllü için manuel olarak işaretlenir.
 
 `Gücü (1-5)`, `İlgisi (1-5)`, `Güç/ilgi seviyesi`, `Tarih vakfındaki Rolü`, `Projede Rolü` paydaş kolonları rapor-öncelikli modelle ilgisiz oldukları için içe aktarılmaz.
 
-Yazma yetkisi: `specialty` ve `availabilityDays` yalnızca admin tarafından düzenlenebilir; gönüllüler değişiklik talebini koordinatöre iletir. Okuma yetkisi: kişi kendi alanlarını, koordinatör/admin ise tüm gönüllülerin alanlarını okuyabilir (departman sınırı yoktur, çünkü uzmanlık eşleştirmesi departmanlar arası çalışır).
+Yazma yetkisi: `specialty`, `availabilityDays` ve `canWorkInPerson` yalnızca admin tarafından düzenlenebilir; gönüllüler değişiklik talebini koordinatöre iletir, koordinatör admin'e taşır. Okuma yetkisi: kişi kendi alanlarını, koordinatör/admin ise tüm gönüllülerin alanlarını okuyabilir (departman sınırı yoktur, çünkü uzmanlık eşleştirmesi departmanlar arası çalışır).
 
 ## archiveUnits
 
