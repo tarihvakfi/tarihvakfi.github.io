@@ -31,54 +31,22 @@
     <div id="loadingState" class="centered-message"><div class="spinner"></div><p class="muted">Yükleniyor...</p></div>
 
     <nav id="tabBar" class="tab-bar hidden">
-      <button class="tab active" data-tab="home">Bugün</button>
-      <button class="tab" data-tab="pano">Pano</button>
-      <button class="tab" data-tab="pnb">İşler</button>
-      <button class="tab" data-tab="reports">Rapor Yaz</button>
-      <button class="tab" data-tab="announcements">Duyurular</button>
-      <button class="tab staff-tab hidden" data-tab="management">Yönetim</button>
-      <button class="tab admin-tab hidden" data-tab="maintenance">Bakım</button>
+      <!-- Tabs are role-scoped via .volunteer-tab / .staff-tab / .admin-tab.
+           Visibility is set in CSS on body.volunteer-shell / body.staff-shell
+           and unhidden by setRoleShell() at auth time.
+           Volunteer:  Anasayfa, PNB, Duyurular
+           Coordinator: Bugün, PNB, Yönetim
+           Admin:       Bugün, PNB, Yönetim, Bakım -->
+      <button class="tab volunteer-tab" data-tab="anasayfa">Anasayfa</button>
+      <button class="tab staff-tab hidden" data-tab="bugun">Bugün</button>
+      <button class="tab" data-tab="pnb">PNB</button>
+      <button class="tab volunteer-tab" data-tab="duyurular">Duyurular</button>
+      <button class="tab staff-tab hidden" data-tab="yonetim">Yönetim</button>
+      <button class="tab admin-tab hidden" data-tab="bakim">Bakım</button>
     </nav>
 
-    <section id="tab-home" class="tab-content sv-mode">
-      <div id="staffRecentPanel" class="staff-panel staff-only hidden">
-        <div class="staff-panel-head">
-          <div>
-            <p class="eyebrow">Son raporlar</p>
-            <h2 id="staffRecentTitle">Son raporlar</h2>
-            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Bütün gönüllülerden gelen en son rapor akışı. Bir satıra tıkla → birimin geçmişini aç.</p>
-          </div>
-          <button class="btn btn-secondary btn-sm" type="button" id="staffRecentRefresh">Yenile</button>
-        </div>
-        <div id="staffRecentList" class="staff-recent-list"><p class="empty">Yükleniyor…</p></div>
-        <div class="staff-recent-foot">
-          <button class="btn btn-secondary btn-sm" type="button" id="staffRecentMoreBtn">Daha fazla göster</button>
-          <span id="staffRecentMessage" class="status-line muted"></span>
-        </div>
-      </div>
-
-      <div id="staffAttentionPanel" class="staff-panel staff-only hidden">
-        <div class="staff-panel-head">
-          <div>
-            <p class="eyebrow">Dikkat</p>
-            <h2>Çözülmesi bekleyen</h2>
-            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Engelli işler, uzun süredir dokunulmamış birimler ve sessiz gönüllüler.</p>
-          </div>
-        </div>
-        <details class="staff-attn-section" id="attnBlocked" open>
-          <summary><span>Takılanlar</span><span class="staff-attn-count" id="attnBlockedCount">0</span></summary>
-          <div id="attnBlockedList" class="stack"><p class="empty">Engelli iş yok.</p></div>
-        </details>
-        <details class="staff-attn-section" id="attnStale">
-          <summary><span>Uzun süredir dokunulmamış</span><span class="staff-attn-count" id="attnStaleCount">0</span></summary>
-          <div id="attnStaleList" class="stack"><p class="empty">Hepsi güncel.</p></div>
-        </details>
-        <details class="staff-attn-section" id="attnSilent">
-          <summary><span>Sessiz gönüllüler</span><span class="staff-attn-count" id="attnSilentCount">0</span></summary>
-          <div id="attnSilentList" class="stack"><p class="empty">Herkes son 21 gün içinde rapor yazmış.</p></div>
-        </details>
-      </div>
-
+    <!-- ====== Volunteer home (Anasayfa) ====== -->
+    <section id="tab-anasayfa" class="tab-content sv-mode hidden">
       <div class="sv-home">
         <div class="frame">
           <div class="sv-greet">
@@ -91,12 +59,10 @@
           <div id="svSelfClaim" class="sv-selfclaim hidden"></div>
 
           <div id="svReportPrimary" class="sv-report-primary hidden">
-            <!-- Inline Rapor Yaz form (Anasayfa, project-agnostic). Filled by
-                 renderInlineRaporForm({ showProjectPicker: true, fixedProjectId: null }). -->
+            <!-- Inline Rapor Yaz form (Anasayfa, project-agnostic). -->
             <div id="anasayfaInlineRapor" class="card inline-rapor-card"></div>
 
-            <!-- Son raporların — compact one-line-per-row log. Filled by
-                 renderVolunteerReportPrimary(). -->
+            <!-- Son raporların — compact log. Filled by renderVolunteerReportPrimary(). -->
             <div class="card sv-log-card">
               <h3 class="sv-log-head">Son raporların</h3>
               <div id="svRecentReports" class="sv-log-list"><p class="sv-log-empty">Henüz rapor yok.</p></div>
@@ -112,141 +78,43 @@
           </div>
         </div>
       </div>
-
-      <div id="homeHero" class="ops-hero">
-        <div>
-          <p id="homeHeroEyebrow" class="eyebrow">Bugün</p>
-          <h1 id="homeHeroTitle">Ne yapacağım?</h1>
-          <p id="homeHeroText" class="muted">Atandığın işi aç, kısa rapor yaz, engel varsa bildir.</p>
-        </div>
-        <div id="homeHeroActions" class="ops-actions">
-          <button class="btn btn-primary" type="button" data-go-tab="reports" data-focus="quickArchiveUnitSelect">Hızlı rapor</button>
-          <button class="btn btn-secondary" type="button" data-go-tab="pnb">İş listesi</button>
-          <button class="btn btn-secondary staff-only hidden" type="button" data-go-tab="management">Yönetim</button>
-        </div>
-      </div>
-
-      <div id="homeStatsStrip" class="stats-strip"></div>
-
-      <div id="kbHead" class="kb-head">
-        <div>
-          <span class="kb-proj" id="kbProjName">Pertev Naili Boratav Arşivi</span>
-          <span class="kb-stats" id="kbProjStats">Yükleniyor…</span>
-        </div>
-        <div class="kb-actions">
-          <button class="btn btn-secondary btn-sm" type="button" id="kbMyOnly">Sadece benim</button>
-          <button class="btn btn-secondary btn-sm" type="button" data-go-tab="pnb">Liste görünümü</button>
-        </div>
-      </div>
-
-      <div class="kb-filter">
-        <input id="kbSearchInput" class="search" type="search" placeholder="Ara: birim, kutu, not…" />
-      </div>
-
-      <div id="kbBoard" class="kb-board">
-        <section class="kb-col" data-col="todo" data-target-status="not_started">
-          <div class="kb-col-head"><h3>Sıradaki</h3><span class="kb-n" id="kbCountTodo">0</span></div>
-          <div class="kb-col-body" id="kbColTodo"><p class="kb-empty">Yükleniyor…</p></div>
-        </section>
-        <section class="kb-col" data-col="doing" data-target-status="in_progress">
-          <div class="kb-col-head"><h3>Yapılıyor</h3><span class="kb-n" id="kbCountDoing">0</span></div>
-          <div class="kb-col-body" id="kbColDoing"><p class="kb-empty">Yükleniyor…</p></div>
-        </section>
-        <section class="kb-col" data-col="done" data-target-status="review">
-          <div class="kb-col-head"><h3>Biten</h3><span class="kb-n" id="kbCountDone">0</span></div>
-          <div class="kb-col-body" id="kbColDone"><p class="kb-empty">Yükleniyor…</p></div>
-        </section>
-      </div>
-
-      <div id="homeLanes" class="lanes hidden">
-        <article class="lane">
-          <div class="lane-head"><h3>Şimdi</h3><span class="count" id="laneNowCount">0</span></div>
-          <div class="lane-body" id="laneNow"><p class="lane-empty">Yükleniyor…</p></div>
-        </article>
-        <article class="lane">
-          <div class="lane-head"><h3>Sıradaki</h3><span class="count" id="laneNextCount">0</span></div>
-          <div class="lane-body" id="laneNext"><p class="lane-empty">Yükleniyor…</p></div>
-        </article>
-        <article class="lane">
-          <div class="lane-head"><h3>Biten</h3><span class="count" id="laneDoneCount">0</span></div>
-          <div class="lane-body" id="laneDone"><p class="lane-empty">Yükleniyor…</p></div>
-        </article>
-      </div>
-
-      <div id="homeQueueCta" class="queue-cta hidden">
-        <div class="qc-text">
-          <strong id="homeQueueTitle">Şu an üstünde olduğun bir iş yok</strong>
-          <span id="homeQueueSub">Sıradaki iş paketini benden alabilirsin.</span>
-        </div>
-        <button class="btn btn-primary" type="button" id="homeQueueBtn">Bana bir iş ver</button>
-      </div>
-
-      <div id="homeKpis" class="kpi-grid hidden" style="margin:1rem 0"></div>
-
-      <div id="homeWorkGrid" class="dashboard-grid hidden">
-        <article id="homeNextCard" class="card">
-          <p class="eyebrow">Dikkat gereken</p>
-          <div id="homeNextWork" class="stack"><p class="empty">Veriler yükleniyor.</p></div>
-        </article>
-        <article id="homeShortcutCard" class="card">
-          <p class="eyebrow">Kısayollar</p>
-          <div id="homeManagement" class="ops-shortcuts"><p class="empty">Kısayollar hazırlanıyor.</p></div>
-        </article>
-      </div>
-
-      <div id="homeSecondaryGrid" class="dashboard-grid" style="margin-top:1.25rem">
-        <article id="homeProfileCard" class="card">
-          <p class="eyebrow">Profilim</p>
-          <div id="profileCard"></div>
-          <button id="deleteAccountBtn" class="btn btn-block btn-sm" style="margin-top:1rem">Hesabımı Sil</button>
-        </article>
-        <article id="homeAnnouncementCard" class="card">
-          <div class="step-header">
-            <p class="eyebrow">Son duyurular</p>
-            <button class="btn btn-secondary btn-sm" type="button" data-go-tab="announcements">Tümünü gör</button>
-          </div>
-          <div id="homeAnnouncements" class="stack"><p class="empty">Duyuru yok.</p></div>
-        </article>
-      </div>
     </section>
 
-    <section id="tab-pano" class="tab-content hidden">
-      <div class="pano-head">
+    <!-- ====== Coordinator/admin home (Bugün) ====== -->
+    <section id="tab-bugun" class="tab-content hidden">
+      <header class="bugun-head">
         <div>
-          <p class="eyebrow">Pano</p>
-          <h2>İş paketi durumu</h2>
-          <p class="muted">Sadece görüntüleme. Durum, gönüllülerin yazdığı raporlardan otomatik güncellenir.</p>
+          <h1 id="bugunGreetName">Merhaba</h1>
+          <p class="bugun-sub" id="bugunGreetSub">Tarih Vakfı</p>
         </div>
-        <input id="panoSearchInput" class="search" type="search" placeholder="Birim, kutu, not ara…" />
-      </div>
-      <div class="pano-grid">
-        <div class="pano-cols">
-          <section class="pano-col" data-pano-col="not_started">
-            <header><h3>Başlanmadı</h3><span class="n" id="panoCountTodo">0</span></header>
-            <div id="panoColTodo" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
-          </section>
-          <section class="pano-col" data-pano-col="in_progress">
-            <header><h3>Devam ediyor</h3><span class="n" id="panoCountDoing">0</span></header>
-            <div id="panoColDoing" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
-          </section>
-          <section class="pano-col" data-pano-col="review">
-            <header><h3>Gözden geçirme</h3><span class="n" id="panoCountReview">0</span></header>
-            <div id="panoColReview" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
-          </section>
-          <section class="pano-col" data-pano-col="done">
-            <header><h3>Tamam</h3><span class="n" id="panoCountDone">0</span></header>
-            <div id="panoColDone" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
-          </section>
-          <section class="pano-col" data-pano-col="blocked">
-            <header><h3>Takıldım</h3><span class="n" id="panoCountBlocked">0</span></header>
-            <div id="panoColBlocked" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
-          </section>
+        <div class="bugun-head-actions">
+          <button type="button" class="btn btn-secondary btn-sm" id="bugunOpenReportBtn" aria-label="Rapor yaz">+ Rapor yaz</button>
         </div>
-        <aside class="pano-pending">
-          <header><h3>Gözden geçirme bekleyen yeni işler</h3><span class="n" id="panoCountPending">0</span></header>
-          <div id="panoPendingList" class="pano-pending-list"><p class="kb-empty">Bekleyen yeni iş yok.</p></div>
-        </aside>
-      </div>
+      </header>
+
+      <!-- Card 1: Dikkat — single card with one line per attention item.
+           Lines hide entirely when count == 0. When all counts are zero,
+           a single "all clear" line is shown. Filled by renderCoordinatorDikkat(). -->
+      <article class="card dikkat-card" id="dikkatCard">
+        <h3 class="dikkat-head">Dikkat</h3>
+        <div id="dikkatList" class="dikkat-list"><p class="dikkat-loading">Yükleniyor…</p></div>
+      </article>
+
+      <!-- Card 2: Son raporlar — coordinator-wide compact log. -->
+      <article class="card sv-log-card" id="bugunRecentCard">
+        <div class="bugun-recent-head">
+          <h3 class="sv-log-head">Son raporlar</h3>
+          <button type="button" class="bugun-refresh-btn" id="bugunRecentRefresh" aria-label="Yenile" title="Yenile">↻</button>
+        </div>
+        <div id="bugunRecentList" class="sv-log-list bugun-recent-list"><p class="sv-log-empty">Yükleniyor…</p></div>
+        <div class="sv-log-foot" id="bugunRecentFooter">
+          <button class="btn btn-secondary btn-sm" type="button" id="bugunRecentMoreBtn">Tümünü göster →</button>
+        </div>
+      </article>
+
+      <!-- Future: project-volunteer summary card. Hidden until a second
+           project comes online; placeholder kept so the layout slot is
+           reserved. -->
     </section>
 
     <section id="tab-pnb" class="tab-content hidden">
@@ -318,256 +186,124 @@
         </div>
       </div>
 
-      <div id="pnbHero" class="pnb-hero card">
-        <div>
-          <p class="eyebrow">İşler</p>
-          <h2 id="pnbTitle">Atanacak ve yapılacak işler</h2>
-          <p id="pnbIntro" class="muted">Koordinatör için atama ve takip; gönüllü için kendi işi ve rapor aksiyonu.</p>
+      <!-- Coordinator/admin PNB view. Hidden for volunteers via CSS
+           (body.volunteer-shell .staff-only-block { display: none }). -->
+      <div id="staffPnbView" class="staff-pnb staff-only-block hidden">
+        <header class="staff-pnb-head">
+          <h2>Pertev Naili Boratav Arşivi</h2>
+          <p class="staff-pnb-blurb">Türk halkbilimi'nin kurucu isimlerinden Pertev Naili Boratav (1908–1998).</p>
+          <p id="staffPnbStrip" class="staff-pnb-strip muted">Yükleniyor…</p>
+        </header>
+
+        <!-- Section 1: İlerleme -->
+        <h3 class="staff-pnb-section-h">İlerleme</h3>
+        <div class="vp-pnb-prog">
+          <p class="lab">Pertev Naili Boratav Arşivi</p>
+          <p class="num"><span id="staffPnbProgPct">0</span><small>%</small></p>
+          <p class="sub" id="staffPnbProgLine">Yükleniyor…</p>
         </div>
-        <div id="pnbHeroStatus" class="pnb-hero-status">Veri bekleniyor</div>
-      </div>
 
-      <div id="pnbStats" class="kpi-grid" style="margin:1rem 0"></div>
+        <!-- Section 2: İş Akışı -->
+        <div class="staff-pnb-section-head">
+          <h3 class="staff-pnb-section-h">İş Akışı</h3>
+          <input id="staffPnbBoardSearch" class="search" type="search" placeholder="Kutu/seri ara…" />
+        </div>
+        <div class="vp-pnb-board" role="list" aria-label="İş paketi panosu">
+          <section class="pano-col" data-pano-col="not_started">
+            <header><h3>Başlanmadı</h3><span class="n" id="staffPnbCountTodo">0</span></header>
+            <div id="staffPnbColTodo" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
+          </section>
+          <section class="pano-col" data-pano-col="in_progress">
+            <header><h3>Devam ediyor</h3><span class="n" id="staffPnbCountDoing">0</span></header>
+            <div id="staffPnbColDoing" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
+          </section>
+          <section class="pano-col" data-pano-col="review">
+            <header><h3>Gözden geçirme</h3><span class="n" id="staffPnbCountReview">0</span></header>
+            <div id="staffPnbColReview" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
+          </section>
+          <section class="pano-col" data-pano-col="done">
+            <header><h3>Tamam</h3><span class="n" id="staffPnbCountDone">0</span></header>
+            <div id="staffPnbColDone" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
+          </section>
+          <section class="pano-col" data-pano-col="blocked">
+            <header><h3>Takıldım</h3><span class="n" id="staffPnbCountBlocked">0</span></header>
+            <div id="staffPnbColBlocked" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
+          </section>
+        </div>
 
-      <div id="pnbOpsGrid" class="dashboard-grid">
-        <article class="card">
-          <div class="step-header">
-            <p class="eyebrow">Operasyon öncelikleri</p>
-            <button id="refreshPnbBtn" class="btn btn-secondary btn-sm" type="button">Yenile</button>
-          </div>
-          <div id="pnbNextActions" class="stack"><p class="empty">PNB verisi yükleniyor.</p></div>
-        </article>
-        <article class="card">
-          <p class="eyebrow">İletişim planı</p>
-          <div id="communicationPlanList" class="stack"><p class="empty">İletişim planı yok.</p></div>
-        </article>
-      </div>
-
-      <div id="pnbArchivePanel" class="card" style="margin-top:1.25rem">
-        <div class="step-header">
-          <div>
-            <p id="pnbArchiveTitle" class="eyebrow">İş listesi</p>
-            <p id="pnbArchiveHint" class="muted" style="font-size:.85rem;margin:.15rem 0 0">Bir satıra tıkla: rapor geçmişi ve ayrıntı açılır.</p>
-          </div>
-          <label class="compact-filter">Durum
-            <select id="pnbStatusFilter">
-              <option value="">Tümü</option>
-              <option value="not_started">Başlamadı</option>
-              <option value="assigned">Atandı</option>
-              <option value="in_progress">Devam ediyor</option>
-              <option value="review">Kontrol</option>
-              <option value="done">Tamamlandı</option>
-              <option value="blocked">Engelli</option>
+        <!-- Section 3: Bu projedeki gönüllüler -->
+        <div class="staff-pnb-section-head">
+          <h3 class="staff-pnb-section-h">Bu projedeki gönüllüler <span class="muted" id="staffPnbVolCount">(—)</span></h3>
+          <label class="compact-filter">Sırala
+            <select id="staffPnbVolSort">
+              <option value="recent">Son aktivite</option>
+              <option value="name">Ad</option>
+              <option value="reports">Rapor sayısı</option>
             </select>
           </label>
         </div>
-        <div id="unitsChipRow" class="units-chips"></div>
-        <div class="units-toolbar">
-          <input id="unitsSearchInput" class="search" type="search" placeholder="Birim, kutu no, not ara…" />
+        <div id="staffPnbVolList" class="staff-pnb-vols"><p class="empty">Yükleniyor…</p></div>
+        <div class="staff-pnb-vols-foot">
+          <button type="button" class="btn btn-secondary btn-sm hidden" id="staffPnbVolsMore">Daha fazla</button>
+          <span id="staffPnbVolsHint" class="muted" style="font-size:.85rem"></span>
         </div>
-        <div id="archiveUnitList" class="archive-grid"><p class="empty">Arşiv birimi bulunamadı.</p></div>
-      </div>
-      <div id="adminTaskForm" class="card hidden" style="margin-top:1.25rem">
-        <p class="eyebrow">Yeni iş oluştur</p>
-        <form id="taskForm" class="form compact-form">
-          <div class="form-row">
-            <label>Başlık <input id="taskTitle" type="text" required /></label>
-            <label>Departman
-              <select id="taskDepartment" required>
-                <option value="">Seçiniz</option>
-                <option>Eğitim</option>
-                <option>Arşiv</option>
-                <option>İletişim</option>
-                <option>Etkinlik</option>
-                <option>Dijital İçerik</option>
-              </select>
-            </label>
-          </div>
-          <div class="form-row">
-            <label>PNB arşiv birimi <select id="taskArchiveUnit"><option value="">Bağlantı yok</option></select></label>
-            <label>Atanan kişi <select id="taskAssignedTo"><option value="">Seçiniz</option></select></label>
-            <label>Son tarih <input id="taskDueDate" type="date" /></label>
-            <label>Öncelik
-              <select id="taskPriority">
-                <option value="low">Düşük</option>
-                <option value="medium" selected>Orta</option>
-                <option value="high">Yüksek</option>
-              </select>
-            </label>
-          </div>
-          <label>Açıklama <textarea id="taskDescription" rows="2"></textarea></label>
-          <div class="form-actions"><button type="submit" class="btn btn-primary">İşi kaydet</button><span id="taskMessage" class="status-line muted"></span></div>
-        </form>
-      </div>
-      <div id="generalTaskPanel" class="card" style="margin-top:1.25rem">
-        <div class="step-header">
-          <div>
-            <p class="eyebrow">Diğer işler</p>
-            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">PNB dışındaki gönüllü işleri burada. Gönüllüler sadece kendilerine atanmış işleri görür.</p>
-          </div>
-        </div>
-        <div id="tasksList" class="stack"><p class="empty">İş bulunamadı.</p></div>
       </div>
     </section>
 
-    <section id="tab-reports" class="tab-content hidden">
-      <div id="quickReportCard" class="card quick-report-card" style="margin-bottom:1rem">
-        <div class="step-header">
-          <div>
-            <p class="eyebrow">Hızlı rapor</p>
-            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">30 saniyede bitir: hangi iş, ne kadar ilerledin, bir satır not.</p>
-          </div>
-          <button type="button" id="toggleDetailedBtn" class="btn btn-secondary btn-sm">Detaylı rapora geç</button>
-        </div>
-        <form id="quickReportForm" class="form compact-form quick-form">
-          <label>Arşiv birimi
-            <select id="quickArchiveUnitSelect" required>
-              <option value="">İş seçiniz</option>
-            </select>
-          </label>
-          <div class="form-row">
-            <label>Durum
-              <select id="quickWorkStatus" required>
-                <option value="in_progress">Devam ediyor</option>
-                <option value="unit_done">Bu birimi bitirdim</option>
-                <option value="blocked">Takıldım / engel var</option>
-              </select>
-            </label>
-            <label>Bitirdiğim sayfa
-              <input id="quickPagesDone" type="number" min="0" step="1" inputmode="numeric" placeholder="0" />
-            </label>
-          </div>
-          <label>Kısa not (opsiyonel)
-            <input id="quickSummary" type="text" maxlength="240" placeholder="Tek satır: ne yaptın veya neye takıldın?" />
-          </label>
-          <div class="form-actions">
-            <button type="submit" class="btn btn-primary btn-block-mobile">Gönder</button>
-            <span id="quickReportMessage" class="status-line muted"></span>
-          </div>
-        </form>
+    <!-- ====== Volunteer-only Duyurular ====== -->
+    <section id="tab-duyurular" class="tab-content hidden">
+      <div id="announcementsCard" class="card">
+        <p class="eyebrow">Duyurular</p>
+        <div id="announcementsList" class="stack"><p class="empty">Duyuru yok.</p></div>
       </div>
-
-      <div id="reportFormCard" class="card hidden" style="margin-bottom:1.25rem">
-        <div class="step-header">
-          <p class="eyebrow" id="reportFormTitle">Detaylı rapor</p>
-          <div style="display:flex;gap:.5rem">
-            <button type="button" id="cancelEditBtn" class="btn btn-secondary btn-sm hidden">İptal</button>
-            <button type="button" id="toggleQuickBtn" class="btn btn-secondary btn-sm">Hızlı rapora dön</button>
-          </div>
-        </div>
-        <form id="reportForm" class="form compact-form">
-          <input type="hidden" id="editReportId" value="" />
-          <div id="reportUserRow" class="form-row hidden"><label>Gönüllü <select id="reportForUser"><option value="">Kendim için</option></select></label></div>
-          <div id="reportContextRow" class="form-row report-context-row">
-            <label>PNB arşiv birimi <select id="archiveUnitSelect"><option value="">Bağlantı yok</option></select></label>
-            <label>İş <input type="text" id="taskId" placeholder="İş başlığı" /></label>
-            <label>Tarih <input type="date" id="reportDate" required /></label>
-            <label>Saat <input type="number" id="hours" min="0" step="0.5" value="1" required /></label>
-          </div>
-          <label>Bugün ne yaptın? <textarea id="summary" rows="3" required placeholder="Bir iki cümle yeterli."></textarea></label>
-          <label class="report-extra-field">Bağlantılar <textarea id="reportLinks" rows="2" placeholder="Her satıra bir URL yazın (isteğe bağlı)"></textarea></label>
-          <div class="form-row report-extra-field"><label>Ekip arkadaşı ekle <select id="reportCoworker" multiple style="min-height:70px"></select></label></div>
-          <label class="report-extra-field">Görseller <input type="file" id="reportImageFiles" accept="image/*" multiple /><div id="imagePreview" class="image-preview"></div></label>
-          <div class="form-actions"><button type="submit" id="reportSubmitBtn" class="btn btn-primary">Rapor gönder</button><span id="reportMessage" class="status-line muted"></span></div>
-        </form>
-      </div>
-      <div id="reportsListCard" class="card"><p class="eyebrow" id="reportsTitle">Raporlarım</p><div id="reportsList" class="stack"><p class="empty">Rapor bulunmuyor.</p></div></div>
     </section>
 
-    <section id="tab-announcements" class="tab-content hidden">
-      <div id="adminAnnouncementForm" class="card hidden" style="margin-bottom:1.25rem">
-        <p class="eyebrow">Yeni duyuru</p>
-        <form id="announcementForm" class="form compact-form">
-          <div class="form-row">
-            <label>Başlık <input id="announcementTitle" type="text" required /></label>
-            <label>Hedef
-              <select id="announcementAudience">
-                <option value="all">Tümü</option>
-                <option value="volunteers">Gönüllüler</option>
-                <option value="coordinators">Koordinatörler</option>
+    <!-- ====== Yönetim (coordinator/admin) — four sections ====== -->
+    <section id="tab-yonetim" class="tab-content hidden">
+      <header class="yonetim-head">
+        <h1>Yönetim</h1>
+        <p class="muted">Onay, ekip, duyurular ve görevler — tek yerde.</p>
+      </header>
+
+      <!-- Section 1: Onay bekleyenler. Hidden when zero by renderPendingUsers. -->
+      <article class="card" id="yonetimPendingCard">
+        <div class="step-header">
+          <div>
+            <p class="eyebrow">Onay bekleyen başvurular</p>
+            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Yeni Google girişiyle gelen üyeler — onayla, reddet veya incele.</p>
+          </div>
+          <span class="muted" id="yonetimPendingCount" style="font-size:.85rem">—</span>
+        </div>
+        <div id="pendingUsers" class="stack"><p class="empty">Bekleyen başvuru yok.</p></div>
+      </article>
+
+      <!-- Section 2: All volunteers — searchable, filterable list. -->
+      <article class="card" id="yonetimUsersCard" style="margin-top:1.25rem">
+        <div class="step-header">
+          <div>
+            <p class="eyebrow">Tüm gönüllüler</p>
+            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Aktiflik durumlarına göre filtrele, satıra bas → düzenle.</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" type="button" id="exportActivityBtn">CSV</button>
+        </div>
+        <div class="yonetim-users-controls">
+          <div class="yonetim-users-filters">
+            <button type="button" class="if-pill is-on" data-yonetim-filter="all">Hepsi</button>
+            <button type="button" class="if-pill" data-yonetim-filter="active">Aktif</button>
+            <button type="button" class="if-pill" data-yonetim-filter="slowing">Yavaşlayan</button>
+            <button type="button" class="if-pill" data-yonetim-filter="silent">Sessiz</button>
+          </div>
+          <div class="yonetim-users-toolbar">
+            <input id="yonetimUsersSearch" class="search" type="search" placeholder="İsim, e-posta, departman ara…" />
+            <label class="compact-filter">Sırala
+              <select id="yonetimUsersSort">
+                <option value="recent">Son aktivite</option>
+                <option value="name">Ad</option>
+                <option value="reports">Rapor sayısı</option>
+                <option value="department">Departman</option>
               </select>
             </label>
-          </div>
-          <label>Metin <textarea id="announcementBody" rows="3" required></textarea></label>
-          <div class="form-actions"><button type="submit" class="btn btn-primary">Duyuru yayınla</button><span id="announcementMessage" class="status-line muted"></span></div>
-        </form>
-      </div>
-      <div id="announcementsCard" class="card"><p class="eyebrow">Tüm duyurular</p><div id="announcementsList" class="stack"><p class="empty">Duyuru yok.</p></div></div>
-    </section>
-
-    <section id="tab-management" class="tab-content hidden">
-      <div class="management-simple">
-      <div class="management-title">
-        <div>
-          <p class="eyebrow">Yönetim</p>
-          <h1>Bütün resim</h1>
-          <p class="muted">İlerleme, ekip ve karar bekleyenler tek listede. Bir satıra bas, ilgili yere git.</p>
-        </div>
-      </div>
-
-      <div id="managementActions" class="management-actions-list"></div>
-
-      <details id="pendingPanel" class="management-drawer">
-        <summary>Başvurular</summary>
-        <div class="management-drawer-body">
-          <div id="pendingUsers" class="stack"><p class="empty">Bekleyen başvuru yok.</p></div>
-        </div>
-      </details>
-
-      <details id="addUserPanel" class="management-drawer">
-        <summary>Yeni gönüllü / kullanıcı ekle</summary>
-        <div class="management-drawer-body">
-          <p class="muted" style="font-size:.9rem;margin:0 0 .75rem">E-posta ile ön kayıt oluşturun. Kişi Google ile giriş yaptığında otomatik onaylanır.</p>
-          <form id="addUserForm" class="form compact-form">
-            <div class="form-row">
-              <label>E-posta <input id="addUserEmail" type="email" required placeholder="ornek@gmail.com" /></label>
-              <label>Ad Soyad <input id="addUserName" type="text" required /></label>
-            </div>
-            <div class="form-row">
-              <label>Departman
-                <select id="addUserDepartment" required>
-                  <option value="">Seçiniz</option>
-                  <option>Eğitim</option>
-                  <option>Arşiv</option>
-                  <option>İletişim</option>
-                  <option>Etkinlik</option>
-                  <option>Dijital İçerik</option>
-                </select>
-              </label>
-              <label>Rol
-                <select id="addUserRole">
-                  <option value="volunteer">Gönüllü</option>
-                  <option value="coordinator">Koordinatör</option>
-                  <option value="admin">Yönetici</option>
-                </select>
-              </label>
-              <label>Telefon <input id="addUserPhone" type="tel" placeholder="+90 ..." /></label>
-            </div>
-            <div class="form-actions"><button type="submit" class="btn btn-primary">Kullanıcı ekle</button><span id="addUserMessage" class="status-line muted"></span></div>
-          </form>
-        </div>
-      </details>
-
-      <details id="capacityPanel" class="management-drawer">
-        <summary>Kapasite ve eksik bilgi</summary>
-        <div class="management-drawer-body management-two-col">
-          <div>
-            <p class="eyebrow">Kapasite</p>
-            <div id="peopleCapacityList" class="stack"><p class="empty">Uygunluk verisi yok.</p></div>
-          </div>
-          <div>
-            <p class="eyebrow">Eksik bilgi</p>
-            <div id="peopleDataWarnings" class="stack"><p class="empty">Uyarı yok.</p></div>
-          </div>
-        </div>
-      </details>
-
-      <details id="activityPanel" class="management-drawer">
-        <summary>Aktiflik durumu</summary>
-        <div class="management-drawer-body">
-          <p class="muted" style="font-size:.85rem;margin:.1rem 0 .9rem">Gönüllüler son rapor tarihine göre: <strong>Aktif</strong> 0–13 gün, <strong>Yavaşlayan</strong> 14–27 gün, <strong>Durmuş</strong> 28+ gün. "Hatırlatma gönder" butonu e-posta istemcinizi önceden doldurur.</p>
-          <div class="activity-controls">
-            <label>Departman
+            <label class="compact-filter">Departman
               <select id="activityDeptFilter">
                 <option value="">Tümü</option>
                 <option>Eğitim</option>
@@ -577,51 +313,131 @@
                 <option>Dijital İçerik</option>
               </select>
             </label>
-            <button type="button" id="exportActivityBtn" class="btn btn-secondary btn-sm">CSV olarak dışa aktar</button>
           </div>
-          <div id="activitySummary" class="activity-summary"></div>
-          <div id="activityBuckets" class="activity-buckets"><p class="empty">Veri yükleniyor.</p></div>
         </div>
-      </details>
+        <div id="userDirectory" class="stack"><p class="empty">Kullanıcı bulunamadı.</p></div>
 
-      <details id="userDirectoryPanel" class="management-drawer">
-        <summary>Ekip listesi</summary>
-        <div class="management-drawer-body">
-          <div id="userDirectory" class="stack"><p class="empty">Kullanıcı bulunamadı.</p></div>
-        </div>
-      </details>
-      </div>
-    </section>
+        <details id="addUserPanel" class="management-drawer" style="margin-top:1rem">
+          <summary>+ Yeni gönüllü / kullanıcı ekle</summary>
+          <div class="management-drawer-body">
+            <p class="muted" style="font-size:.9rem;margin:0 0 .75rem">E-posta ile ön kayıt oluşturun. Kişi Google ile giriş yaptığında otomatik onaylanır.</p>
+            <form id="addUserForm" class="form compact-form">
+              <div class="form-row">
+                <label>E-posta <input id="addUserEmail" type="email" required placeholder="ornek@gmail.com" /></label>
+                <label>Ad Soyad <input id="addUserName" type="text" required /></label>
+              </div>
+              <div class="form-row">
+                <label>Departman
+                  <select id="addUserDepartment" required>
+                    <option value="">Seçiniz</option>
+                    <option>Eğitim</option>
+                    <option>Arşiv</option>
+                    <option>İletişim</option>
+                    <option>Etkinlik</option>
+                    <option>Dijital İçerik</option>
+                  </select>
+                </label>
+                <label>Rol
+                  <select id="addUserRole">
+                    <option value="volunteer">Gönüllü</option>
+                    <option value="coordinator">Koordinatör</option>
+                    <option value="admin">Yönetici</option>
+                  </select>
+                </label>
+                <label>Telefon <input id="addUserPhone" type="tel" placeholder="+90 ..." /></label>
+              </div>
+              <div class="form-actions"><button type="submit" class="btn btn-primary">Kullanıcı ekle</button><span id="addUserMessage" class="status-line muted"></span></div>
+            </form>
+          </div>
+        </details>
+      </article>
 
-    <section id="tab-maintenance" class="tab-content hidden">
-      <!--
-        TODO (manual triage, post-launch): walk through the volunteer list and
-        flip `canWorkInPerson = true` for the ~5–10 people who actually show
-        up at the İstanbul archive in person. Default is false for everyone;
-        we're not running a backfill script. The toggle lives in the user
-        editor inside Yönetim → Ekip listesi.
-      -->
-      <div class="ops-alert" style="margin-bottom:1rem">
-        <div>
-          <strong>Hatırlatma: fiziksel arşiv erişimi</strong>
-          <span style="font-size:.85rem">Lansman sonrası: arşive fiziksel olarak gelen ~5–10 gönüllü için Yönetim → Ekip listesi'nden <code>İstanbul'daki arşive fiziksel olarak gelebiliyor</code> kutusunu işaretleyin. Varsayılan herkes için kapalıdır; otomatik backfill yapılmıyor.</span>
-        </div>
-      </div>
-      <div class="card" id="pendingReviewCard">
+      <!-- Section 3: Duyurular (admin write + history). -->
+      <article class="card" id="yonetimAnnouncementsCard" style="margin-top:1.25rem">
         <div class="step-header">
           <div>
-            <p class="eyebrow">Yeni iş kuyruğu</p>
-            <h2 style="margin-top:0">Gözden geçirme bekleyen yeni işler</h2>
-            <p class="muted">Gönüllülerin "Liste dışı / yeni bir iş" yoluyla oluşturduğu kayıtlar burada birikir. Onaylayıp sıraya ekleyin, mevcut bir işle birleştirin veya silin.</p>
+            <p class="eyebrow">Duyurular</p>
+            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Gönüllülere yayınlanan kısa mesajlar.</p>
           </div>
-          <button class="btn btn-secondary btn-sm" type="button" id="pendingReviewRefresh">Yenile</button>
+          <button class="btn btn-secondary btn-sm" type="button" id="yonetimNewAnnouncementBtn">+ Yeni duyuru yaz</button>
         </div>
-        <div id="pendingReviewList" class="stack"><p class="empty">Yükleniyor…</p></div>
-      </div>
-      <div class="card" style="margin-top:1.25rem">
-        <p class="eyebrow">Bakım / veri araçları</p>
+        <div id="adminAnnouncementForm" class="card hidden" style="margin:.5rem 0 .75rem;background:var(--tblr-bg-surface-secondary)">
+          <p class="eyebrow">Yeni duyuru</p>
+          <form id="announcementForm" class="form compact-form">
+            <div class="form-row">
+              <label>Başlık <input id="announcementTitle" type="text" required /></label>
+              <label>Hedef
+                <select id="announcementAudience">
+                  <option value="all">Tümü</option>
+                  <option value="volunteers">Gönüllüler</option>
+                  <option value="coordinators">Koordinatörler</option>
+                </select>
+              </label>
+            </div>
+            <label>Metin <textarea id="announcementBody" rows="3" required></textarea></label>
+            <div class="form-actions"><button type="submit" class="btn btn-primary">Duyuru yayınla</button><span id="announcementMessage" class="status-line muted"></span></div>
+          </form>
+        </div>
+        <div id="yonetimAnnouncementsList" class="stack"><p class="empty">Duyuru yok.</p></div>
+      </article>
+
+      <!-- Section 4: Görevler (staff coordination tasks). -->
+      <article class="card" id="yonetimTasksCard" style="margin-top:1.25rem">
+        <div class="step-header">
+          <div>
+            <p class="eyebrow">Görevler</p>
+            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">PNB dışındaki gönüllü işleri — çeviri, gözden geçirme, koordinasyon.</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" type="button" id="yonetimNewTaskBtn">+ Yeni görev ata</button>
+        </div>
+        <div id="adminTaskForm" class="card hidden" style="margin:.5rem 0 .75rem;background:var(--tblr-bg-surface-secondary)">
+          <p class="eyebrow">Yeni iş oluştur</p>
+          <form id="taskForm" class="form compact-form">
+            <div class="form-row">
+              <label>Başlık <input id="taskTitle" type="text" required /></label>
+              <label>Departman
+                <select id="taskDepartment" required>
+                  <option value="">Seçiniz</option>
+                  <option>Eğitim</option>
+                  <option>Arşiv</option>
+                  <option>İletişim</option>
+                  <option>Etkinlik</option>
+                  <option>Dijital İçerik</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-row">
+              <label>PNB arşiv birimi <select id="taskArchiveUnit"><option value="">Bağlantı yok</option></select></label>
+              <label>Atanan kişi <select id="taskAssignedTo"><option value="">Seçiniz</option></select></label>
+              <label>Son tarih <input id="taskDueDate" type="date" /></label>
+              <label>Öncelik
+                <select id="taskPriority">
+                  <option value="low">Düşük</option>
+                  <option value="medium" selected>Orta</option>
+                  <option value="high">Yüksek</option>
+                </select>
+              </label>
+            </div>
+            <label>Açıklama <textarea id="taskDescription" rows="2"></textarea></label>
+            <div class="form-actions"><button type="submit" class="btn btn-primary">İşi kaydet</button><span id="taskMessage" class="status-line muted"></span></div>
+          </form>
+        </div>
+        <div id="tasksList" class="stack"><p class="empty">Görev yok.</p></div>
+      </article>
+    </section>
+
+    <!-- ====== Bakım (admin only) — four sections ====== -->
+    <section id="tab-bakim" class="tab-content hidden">
+      <header class="yonetim-head">
+        <h1>Bakım</h1>
+        <p class="muted">Veri araçları, ön kayıt, gözden geçirme kuyruğu ve veri sağlığı.</p>
+      </header>
+
+      <!-- Section 1: PNB import aracı -->
+      <article class="card">
+        <p class="eyebrow">Bakım · veri araçları</p>
         <h2 style="margin-top:0">PNB import aracı</h2>
-        <p class="muted">Bu ekran günlük çalışma için değil, yöneticinin gerektiğinde veriyi güvenli biçimde kontrol edip aktarması içindir. Önce <code>tools/pnb_excel_to_import.py</code> ile yerel JSON üretin. JSON kişisel iletişim bilgileri içerebilir; repo içinde <code>imports/</code> klasörü git tarafından yok sayılır.</p>
+        <p class="muted">Önce <code>tools/pnb_excel_to_import.py</code> ile yerel JSON üretin. JSON kişisel iletişim bilgileri içerebilir; repo içinde <code>imports/</code> klasörü git tarafından yok sayılır.</p>
         <div class="form-row">
           <label>Import JSON <input id="pnbImportFile" type="file" accept="application/json,.json" /></label>
         </div>
@@ -629,8 +445,45 @@
           <button id="pnbCommitBtn" class="btn btn-primary" type="button" disabled>Firestore'a aktar</button>
           <span id="pnbImportMessage" class="status-line muted"></span>
         </div>
-      </div>
-      <div id="pnbImportPreview" class="card" style="margin-top:1.25rem"><p class="empty">Henüz import dosyası seçilmedi.</p></div>
+        <div id="pnbImportPreview" style="margin-top:1rem"><p class="empty">Henüz import dosyası seçilmedi.</p></div>
+      </article>
+
+      <!-- Section 2: User enrichment import (TODO: full preview/commit flow) -->
+      <article class="card" style="margin-top:1.25rem">
+        <p class="eyebrow">Bakım · kullanıcı zenginleştirme</p>
+        <h2 style="margin-top:0">User enrichment import</h2>
+        <p class="muted">Gönüllü ve ön kayıt güncellemelerini batch olarak içe aktarır. Önce <code>tools/build_enrichment_preview.py</code> ile <code>tools/enrichment_preview_updates.json</code> ve <code>tools/enrichment_preview_prereg.json</code> üretin, sonra burada yükleyip onaylayın.</p>
+        <div class="form-row">
+          <label>Updates JSON <input id="enrichUpdatesFile" type="file" accept="application/json,.json" /></label>
+          <label>Preregistration JSON <input id="enrichPreregFile" type="file" accept="application/json,.json" /></label>
+        </div>
+        <div class="form-actions">
+          <button id="enrichCommitBtn" class="btn btn-primary" type="button" disabled>İçe aktar</button>
+          <span id="enrichImportMessage" class="status-line muted">TODO: önizleme + onay akışı eklenmeli.</span>
+        </div>
+        <div id="enrichImportPreview" style="margin-top:1rem"><p class="empty">Henüz dosya seçilmedi.</p></div>
+      </article>
+
+      <!-- Section 3: Pending review (Liste dışı queue) -->
+      <article class="card" id="pendingReviewCard" style="margin-top:1.25rem">
+        <div class="step-header">
+          <div>
+            <p class="eyebrow">Yeni iş kuyruğu</p>
+            <h2 style="margin-top:0">Gözden geçirme bekleyen yeni işler</h2>
+            <p class="muted">Gönüllülerin "Liste dışı / yeni bir iş" yoluyla oluşturduğu kayıtlar — onaylayıp sıraya ekleyin, mevcut bir işle birleştirin veya silin.</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" type="button" id="pendingReviewRefresh">Yenile</button>
+        </div>
+        <div id="pendingReviewList" class="stack"><p class="empty">Yükleniyor…</p></div>
+      </article>
+
+      <!-- Section 4: Veri sağlığı (TODO: per-collection counts + last-write timestamps) -->
+      <article class="card" style="margin-top:1.25rem">
+        <p class="eyebrow">Bakım · veri sağlığı</p>
+        <h2 style="margin-top:0">Veri sağlığı</h2>
+        <p class="muted">Koleksiyon doc sayıları, son yazma zamanları ve tutarsızlık uyarıları. <em>(TODO: implement health-check render — tools/data_health.py to drive this.)</em></p>
+        <div id="dataHealthSummary" class="stack"><p class="empty">Veri sağlığı paneli henüz yapılandırılmadı.</p></div>
+      </article>
     </section>
   </div>
 
@@ -774,6 +627,24 @@
         <p class="muted" style="font-size:.8rem;margin:0">Pending kaydın notu hedef birime not olarak eklenir, sonra pending kayıt silinir. İlgili rapor zaten hedef birim ID'si ile yeniden bağlanır.</p>
         <div class="form-actions"><button type="submit" class="btn btn-primary">Birleştir</button><span id="mergePendingMessage" class="status-line muted"></span></div>
       </form>
+    </div>
+  </div>
+
+  <!-- Coordinator "+ Rapor yaz" modal — opened from the Bugün header.
+       Hosts a fresh inline form rendered on first open via
+       ensureCoordinatorReportModal() in dashboard.js. -->
+  <div id="coordinatorReportModal" class="drill-modal hidden" role="dialog" aria-modal="true" aria-labelledby="coordinatorReportTitle">
+    <div class="drill-backdrop" data-coordinator-report-close></div>
+    <div class="drill-panel" style="max-width:560px;padding:1rem 1.25rem">
+      <header class="drill-header">
+        <div>
+          <h2 id="coordinatorReportTitle" style="font-size:1.05rem;margin:0">Rapor yaz</h2>
+        </div>
+        <div class="drill-header-actions">
+          <button type="button" class="btn btn-secondary btn-sm" data-coordinator-report-close aria-label="Kapat">✕</button>
+        </div>
+      </header>
+      <div id="coordinatorReportFormHost" class="card inline-rapor-card" style="padding:0;border:0;box-shadow:none"></div>
     </div>
   </div>
 

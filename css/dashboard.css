@@ -1570,46 +1570,191 @@ body.modal-open { overflow: hidden; }
   .wa-cta { flex-direction: column; align-items: stretch; }
 }
 
-/* ---------- Role-aware shell (Prompt H) ----------
-   Volunteers see Anasayfa / PNB / Duyurular only. Their tabs are hidden via
-   the body.volunteer-shell class. Their Bugün/PNB content is also slimmed
-   down — staff-only Bugün widgets are hidden, volunteer-only PNB content
-   shows in place of the staff operations panels. */
+/* ---------- Role-aware shell (Prompts H + N) ----------
+   Volunteers see Anasayfa / PNB / Duyurular.
+   Coordinators see Bugün / PNB / Yönetim.
+   Admins see Bugün / PNB / Yönetim / Bakım.
+   Tabs are gated by class on the tab button itself; sections are gated
+   by section id (sw() shows only the active section). */
 
-body.volunteer-shell .tab-bar [data-tab="pano"],
-body.volunteer-shell .tab-bar [data-tab="reports"] { display: none; }
+/* Tab-bar visibility per role. */
+body.volunteer-shell .tab-bar .staff-tab,
+body.volunteer-shell .tab-bar .admin-tab { display: none !important; }
+body.staff-shell .tab-bar .volunteer-tab { display: none !important; }
 
-/* Staff stays on the original Bugün — volunteer-only blocks hidden. */
+/* Staff sees staff-only blocks; volunteers see volunteer-only blocks. */
 body.staff-shell .volunteer-only-block { display: none; }
-/* Volunteers don't see the legacy Bugün clutter. */
 body.volunteer-shell .staff-only-block { display: none; }
 
-/* Volunteer Anasayfa: hide the staff Bugün hero stack. */
-body.volunteer-shell #tab-home .wa-prog,
-body.volunteer-shell #tab-home .sv-actions,
-body.volunteer-shell #tab-home .sv-work,
-body.volunteer-shell #tab-home .wa-cta,
-body.volunteer-shell #tab-home #homeHero,
-body.volunteer-shell #tab-home #homeStatsStrip,
-body.volunteer-shell #tab-home #kbHead,
-body.volunteer-shell #tab-home .kb-filter,
-body.volunteer-shell #tab-home #kbBoard,
-body.volunteer-shell #tab-home #homeLanes,
-body.volunteer-shell #tab-home #homeQueueCta,
-body.volunteer-shell #tab-home #homeWorkGrid,
-body.volunteer-shell #tab-home #homeKpis,
-body.volunteer-shell #tab-home #homeSecondaryGrid { display: none !important; }
-
-/* Volunteer PNB: hide the staff operations panels. */
-body.volunteer-shell #tab-pnb #pnbHero,
-body.volunteer-shell #tab-pnb #pnbStats,
-body.volunteer-shell #tab-pnb #pnbOpsGrid,
-body.volunteer-shell #tab-pnb #pnbArchivePanel,
-body.volunteer-shell #tab-pnb #adminTaskForm,
-body.volunteer-shell #tab-pnb #generalTaskPanel { display: none !important; }
-
-/* Hide the volunteer-only PNB block from staff. */
+/* When the staff PNB view is unhidden by the renderer, defer the hidden
+   class so volunteers don't briefly see it pre-CSS. (No-op in practice
+   thanks to the role-shell rule above, but defensive.) */
+body.volunteer-shell #staffPnbView { display: none !important; }
 body.staff-shell #volunteerPnbView { display: none !important; }
+
+/* ---------- Bugün (coordinator/admin home, Prompt N) ---------- */
+.bugun-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin: 1rem 0 1.25rem; gap: 1rem;
+}
+.bugun-head h1 { font-size: 1.4rem; margin: 0 0 .15rem; }
+.bugun-sub { color: var(--tblr-secondary); margin: 0; font-size: .9rem; }
+.bugun-head-actions { display: flex; gap: .5rem; }
+
+/* Dikkat — single card with line items, conditionally hidden when count=0,
+   replaced by a single "all clear" line when everything is zero. */
+.dikkat-card { padding: 1rem 0; margin-bottom: 1.25rem; }
+.dikkat-head {
+  font-size: 11px; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--tblr-secondary); font-weight: 600;
+  margin: 0; padding: 0 1rem .5rem;
+}
+.dikkat-list { display: flex; flex-direction: column; }
+.dikkat-loading { padding: .75rem 1rem; color: var(--tblr-secondary); margin: 0; font-size: .9rem; }
+.dikkat-row {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .75rem 1rem;
+  border-bottom: 1px solid var(--tblr-border-color);
+  font-size: 14px;
+}
+.dikkat-row:last-of-type { border-bottom: 0; }
+.dikkat-row--ok { color: var(--tblr-secondary); }
+.dikkat-icon { font-size: 16px; line-height: 1; flex-shrink: 0; color: #c89b3c; }
+.dikkat-row--ok .dikkat-icon { color: var(--tblr-success, #2fb344); }
+.dikkat-text { flex: 1 1 auto; min-width: 0; }
+.dikkat-action { flex-shrink: 0; }
+.dikkat-expand {
+  padding: .5rem 1rem .75rem 2.5rem;
+  background: rgba(0, 0, 0, .02);
+  border-bottom: 1px solid var(--tblr-border-color);
+  display: flex; flex-direction: column; gap: .35rem;
+}
+.dikkat-expand.hidden { display: none; }
+.dikkat-expand-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: .5rem;
+  font-size: 13px;
+  padding: .25rem 0;
+}
+.dikkat-expand-row[role="button"] { cursor: pointer; }
+.dikkat-expand-row[role="button"]:hover { color: var(--tblr-primary); }
+
+/* Bugün Son raporlar — extends the volunteer log row with a volunteer-name
+   column and an inline expand below the row. */
+.bugun-recent-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .9rem 1rem .35rem;
+}
+.bugun-recent-head .sv-log-head { padding: 0; }
+.bugun-refresh-btn {
+  background: transparent; border: 1px solid var(--tblr-border-color);
+  border-radius: 4px;
+  width: 30px; height: 30px;
+  font-size: 16px; line-height: 1; cursor: pointer;
+  color: var(--tblr-secondary);
+}
+.bugun-refresh-btn:hover { background: var(--tblr-bg-surface-secondary); color: var(--tblr-body-color); }
+.bugun-recent-row { flex-wrap: wrap; }
+.bugun-recent-name {
+  flex: 0 0 auto;
+  font-size: 13px; font-weight: 600;
+  color: var(--tblr-body-color);
+  margin-right: .25rem;
+  max-width: 180px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bugun-recent-expand {
+  flex-basis: 100%;
+  padding: .65rem 1rem .35rem 2.5rem;
+  font-size: 13px;
+  display: flex; flex-direction: column; gap: .35rem;
+  border-top: 1px dashed var(--tblr-border-color);
+  margin-top: .5rem;
+}
+.bugun-recent-expand.hidden { display: none; }
+.bugun-recent-fullnote { white-space: pre-wrap; }
+.bugun-recent-link a { color: var(--tblr-primary); }
+.bugun-recent-meta { font-size: 12px; }
+
+/* ---------- Staff PNB tab ---------- */
+.staff-pnb { display: flex; flex-direction: column; gap: 1rem; padding: 1rem 0; }
+.staff-pnb-head h2 { margin: 0 0 .15rem; font-size: 1.4rem; }
+.staff-pnb-blurb { font-style: italic; color: var(--tblr-secondary); margin: 0 0 .25rem; font-size: .95rem; }
+.staff-pnb-strip { font-size: .9rem; }
+.staff-pnb-section-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; margin-top: .5rem;
+}
+.staff-pnb-section-head .search { max-width: 260px; }
+.staff-pnb-section-h {
+  font-size: 11px; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--tblr-secondary); font-weight: 600;
+  margin: 0;
+}
+.staff-pnb-vols {
+  background: var(--tblr-bg-surface);
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.staff-pnb-vol-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
+  gap: .75rem; align-items: center;
+  padding: .65rem 1rem;
+  border-bottom: 1px solid var(--tblr-border-color);
+  font-size: 13px;
+}
+.staff-pnb-vol-row:last-child { border-bottom: 0; }
+.staff-pnb-vols-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-top: .5rem;
+}
+
+/* ---------- Yönetim — Tüm gönüllüler list ---------- */
+.yonetim-head { padding: 1rem 0 .5rem; }
+.yonetim-head h1 { margin: 0 0 .15rem; font-size: 1.4rem; }
+.yonetim-users-controls {
+  display: flex; flex-direction: column; gap: .5rem;
+  margin-bottom: .75rem;
+}
+.yonetim-users-filters { display: flex; gap: .35rem; flex-wrap: wrap; }
+.yonetim-users-toolbar {
+  display: flex; gap: .5rem; flex-wrap: wrap; align-items: center;
+}
+.yonetim-users-toolbar .search { flex: 1 1 220px; min-width: 200px; }
+.yonetim-user-row { border-bottom: 1px solid var(--tblr-border-color); }
+.yonetim-user-row:last-child { border-bottom: 0; }
+.yonetim-user-summary {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .65rem .25rem;
+  cursor: pointer;
+  list-style: none;
+  font-size: 13px;
+}
+.yonetim-user-summary::-webkit-details-marker { display: none; }
+.yonetim-user-summary::before {
+  content: "▸";
+  display: inline-block;
+  width: 1rem;
+  color: var(--tblr-secondary);
+  transition: transform .12s;
+}
+.yonetim-user-row[open] > .yonetim-user-summary::before { transform: rotate(90deg); }
+.yonetim-user-name { flex: 1 1 auto; min-width: 0; }
+.yonetim-user-name strong { font-weight: 600; }
+.yonetim-user-meta { font-size: 12px; }
+.yonetim-user-stats { display: flex; gap: .75rem; align-items: center; flex-shrink: 0; font-size: 12px; }
+.yonetim-user-bucket {
+  display: inline-flex; align-items: center;
+  height: 18px; padding: 0 8px;
+  border-radius: 999px;
+  font-size: 10px; font-weight: 600;
+}
+.yonetim-user-bucket--active { background: var(--tblr-success-lt, #e7f5ea); color: var(--tblr-success, #1b7a3a); }
+.yonetim-user-bucket--slowing { background: var(--tblr-warning-lt, #fdf3e6); color: var(--tblr-warning, #f59f00); }
+.yonetim-user-bucket--silent { background: var(--tblr-bg-surface-secondary); color: var(--tblr-secondary); }
+.yonetim-user-body { padding: .25rem 0 .75rem; }
 
 /* ---------- Volunteer Anasayfa (Aktif projeler) ---------- */
 .vp-anasayfa { display: flex; flex-direction: column; gap: 1.25rem; margin-top: 1rem; }

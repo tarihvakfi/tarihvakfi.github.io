@@ -43,9 +43,53 @@ Roles:
 - /app/    -> volunteer dashboard
 - /admin/  -> coordinator/admin dashboard
 
-## Volunteer dashboard tab structure (Prompt H)
+## Dashboard tab structure (Prompt N — role-scoped collapse)
 
-The volunteer-side shell is intentionally minimal: **Anasayfa**, **PNB**, **Duyurular**. The Pano top-level tab and the Rapor Yaz tab are hidden for volunteers via `body.volunteer-shell` CSS rules. The kanban moved under the PNB tab; the Rapor button replaces the Rapor Yaz tab. Staff still see Bugün / Pano / İşler / Rapor Yaz / Duyurular / Yönetim / Bakım — their dashboard is untouched.
+The dashboard now collapses to **3–4 tabs by role**:
+
+| Role         | Tabs (in order)                          | Default landing |
+|--------------|------------------------------------------|-----------------|
+| volunteer    | Anasayfa · PNB · Duyurular              | `#anasayfa`    |
+| coordinator  | Bugün · PNB · Yönetim                   | `#bugun`       |
+| admin        | Bugün · PNB · Yönetim · Bakım           | `#bugun`       |
+
+Old tabs `Pano`, `İşler`, and `Rapor Yaz` are **gone**:
+- The Pano kanban moved under the PNB tab — both volunteer and coordinator now share `#tab-pnb`, with `#volunteerPnbView` and `#staffPnbView` blocks gated by `body.volunteer-shell` / `body.staff-shell`.
+- "İşler" — the assigned-tasks-for-staff card (`#adminTaskForm` + `#tasksList`) moved into Yönetim → Görevler. The volunteer kanban view stays under PNB.
+- "Rapor Yaz" — coordinators have **no tab** for this. They use the inline `+ Rapor yaz` icon button at the top right of the Bugün header which opens `#coordinatorReportModal`, a thin modal hosting a fresh `renderInlineRaporForm({ showProjectPicker: true })` instance.
+
+Volunteers continue to see their **Anasayfa** (project-agnostic inline form + Son raporların log + Aktif projeler card). Coordinators land on **Bugün** (greeting + Dikkat single-card + Son raporlar 8-row log).
+
+### Hash routing
+Tab names are URL hashes. `sw(name)` writes the chosen tab to `location.hash` via `history.replaceState`; `syncRouteFromHash()` reads on load and on `hashchange`. `resolveTab(name)` enforces role gating — if a volunteer types `/app/#yonetim` or `#bakim`, they're redirected to their default `#anasayfa`. Coordinators on `#anasayfa` get bumped to `#bugun`. Aliases keep older anchor links working: `home` → `anasayfa` (or `bugun` for staff), `pano` → `pnb`, `reports` → `anasayfa` (or `bugun`), `announcements` → `duyurular`, `management` → `yonetim`, `maintenance` → `bakim`.
+
+### Bugün (coordinator/admin home)
+Three things live here, all in `renderBugun()`:
+
+1. **Header** — greeting `Merhaba, {firstName}` + `Bugün {date}, {weekday} · Tarih Vakfı`. Top right: a `+ Rapor yaz` button that opens `#coordinatorReportModal` (an inline form for the rare case a coordinator wants to log a report for themself).
+2. **Dikkat card** (`#dikkatCard`) — single card with one line per attention category. Lines hide entirely when the underlying count is zero. When everything is zero, a single `✓ Bugün dikkat edilecek bir şey yok.` line replaces the list. Items: pending volunteer applications, silent volunteers (≥21 days no report), blocked units, stale units (60+ days inactive, not done/pending_review), pending-review (Liste dışı queue) units. Each line has either an inline-expand action (showing a per-row sublist with action buttons like "Hatırlatma gönder") or a direct navigation action.
+3. **Son raporlar card** (`#bugunRecentCard`) — coordinator-wide compact log, 8 rows max, click-to-expand for the full note + URL. Reuses the `.sv-log-row` primitives from the volunteer side, plus a `.bugun-recent-name` column for the volunteer's name. Refresh icon-button in the header re-pulls via `loadStaffRecentReports(true)`. "Tümünü göster →" link at the bottom (TODO: full reports history view).
+4. **Future**: project-volunteer summary card — placeholder kept in the markup as a comment, hidden until a second project comes online.
+
+### PNB tab — staff view
+Coordinators / admins on `#tab-pnb` see `#staffPnbView`:
+1. **İlerleme** — same dark progress card volunteers see, but with `staff*` IDs.
+2. **İş Akışı** — read-only 5-column kanban (drag-drop is wired through the existing dragstart/drop handlers). Search input above the board (`#staffPnbBoardSearch`) Turkish-normalizes against `sourceIdentifier`, `seriesNo`, `boxNo`, `contentDescription`, etc.
+3. **Bu projedeki gönüllüler** — list of every approved volunteer who has reported on a PNB unit (or a `project_general` PNB report) at least once in the last 90 days. Sortable by recent activity / name / report count. First 20 shown; "+N daha" hint for overflow.
+
+### Yönetim — four sections, all stacked
+1. **Onay bekleyen başvurular** — pending users. Card auto-hides when count == 0 so it doesn't take up empty space.
+2. **Tüm gönüllüler** — searchable, filterable, sortable list. Filter pills: Hepsi · Aktif · Yavaşlayan · Sessiz. Search by name / email / department. Sort by name / last activity / reports / department. Each row is a `<details>` with a compact summary; clicking expands the existing `rur()` edit card so write semantics stay identical to the previous Yönetim → Ekip listesi panel. Includes a `+ Yeni gönüllü ekle` expander.
+3. **Duyurular** — `+ Yeni duyuru yaz` button reveals the existing `#announcementForm`. Below: full announcements history (`#yonetimAnnouncementsList`).
+4. **Görevler** — `+ Yeni görev ata` button reveals `#adminTaskForm`. Below: list of staff coordination tasks (`#tasksList`).
+
+### Bakım — admin only, four sections
+1. PNB import aracı (existing).
+2. **User enrichment import** (TODO: full preview + commit flow). Accepts `tools/enrichment_preview_updates.json` and `tools/enrichment_preview_prereg.json`. The UI shell is in place; the commit handler is a TODO.
+3. Pending review queue (existing — Liste dışı flow).
+4. **Veri sağlığı** (TODO: per-collection doc counts, last-write timestamps).
+
+(Earlier role-shell description from Prompt H follows below, kept as historical record of the volunteer-side simplification.)
 
 ### Anasayfa
 Project-agnostic landing page. Renders the same regardless of which projects exist. From top to bottom:

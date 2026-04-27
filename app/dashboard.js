@@ -71,12 +71,73 @@ function isAdmin() {
   return cp && cp.role === "admin";
 }
 
-function sw(name) {
-  const target = name === "tasks" ? "pnb" : name;
+// ---------- Tab routing ----------
+//
+// Tab names map 1:1 to URL hashes (#anasayfa, #bugun, #pnb, #duyurular,
+// #yonetim, #bakim) and to <section id="tab-{name}">. Role gates which
+// tabs the user can reach; an out-of-role hash redirects to the role's
+// default tab instead of 404'ing.
+
+// Legacy tab aliases — keep buttons / links that still reference the old
+// names working without rewiring every caller.
+const TAB_ALIASES = {
+  tasks: "pnb",
+  home: "anasayfa",       // resolved further by role inside resolveTab()
+  pano: "pnb",
+  reports: "anasayfa",    // legacy "Rapor Yaz" tab → anasayfa for volunteers,
+                          // bugun for staff (handled by allowedTabsForRole below)
+  announcements: "duyurular",
+  management: "yonetim",
+  maintenance: "bakim"
+};
+
+function defaultTabForRole() {
+  if (isStaff()) return "bugun";
+  return "anasayfa";
+}
+
+function allowedTabsForRole() {
+  if (isAdmin()) return ["bugun", "pnb", "yonetim", "bakim"];
+  if (isStaff()) return ["bugun", "pnb", "yonetim"];
+  return ["anasayfa", "pnb", "duyurular"];
+}
+
+function resolveTab(rawName) {
+  if (!rawName) return defaultTabForRole();
+  let name = TAB_ALIASES[rawName] || rawName;
+  // Legacy aliases collapse "home"/"reports" to "anasayfa"; for staff,
+  // remap to "bugun" so old anchor links still land on the role's home.
+  if ((rawName === "home" || rawName === "reports") && isStaff()) name = "bugun";
+  const allowed = allowedTabsForRole();
+  if (allowed.includes(name)) return name;
+  return defaultTabForRole();
+}
+
+function sw(name, opts = {}) {
+  const target = resolveTab(name);
   document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === target));
   document.querySelectorAll(".tab-content").forEach((section) => section.classList.toggle("hidden", section.id !== `tab-${target}`));
-  // Stylish home gets a near-white body background; other tabs revert.
-  document.body.classList.toggle("sv-active", target === "home");
+  // Volunteer Anasayfa gets the near-white body background; everything else
+  // reverts to the default surface color.
+  document.body.classList.toggle("sv-active", target === "anasayfa");
+  // Mirror the chosen tab in the URL hash so reload / back-forward stays put.
+  if (!opts.skipHashWrite) {
+    const wantedHash = `#${target}`;
+    if (location.hash !== wantedHash) {
+      // replaceState avoids polluting the history stack on every tab click.
+      history.replaceState(null, "", wantedHash);
+    }
+  }
+}
+
+// Sync from URL hash on load and on hashchange. If the user lands on a hash
+// they're not allowed to see (e.g. a volunteer types #yonetim), resolveTab
+// quietly redirects to their role's default home.
+function syncRouteFromHash() {
+  const raw = (location.hash || "").replace(/^#/, "");
+  const target = resolveTab(raw);
+  sw(target, { skipHashWrite: true });
+  if (target !== raw) history.replaceState(null, "", `#${target}`);
 }
 
 function htmlEmpty(message) {
@@ -2303,6 +2364,427 @@ function renderVolunteerReportLogRow(r) {
   </${tag}>`;
 }
 
+// ---------- Coordinator/admin Bugün renderers ----------
+//
+// Three responsibilities live on Bugün:
+//   1. Greeting header (name + date + "+ Rapor yaz" button).
+//   2. Dikkat — single card with one line per attention item, hidden lines
+//      when count == 0, single "all clear" line when everything's zero.
+//   3. Son raporlar — coordinator-wide compact log (8 rows, per-row volunteer
+//      name, click-to-expand inline, refresh button in the header).
+
+const TR_WEEKDAYS = ["Pazar","Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi"];
+const TR_MONTHS_LONG = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+
+function renderCoordinatorHomeHeader() {
+  const greetEl = document.getElementById("bugunGreetName");
+  const subEl = document.getElementById("bugunGreetSub");
+  if (!greetEl || !cp) return;
+  const firstName = (cp.fullName || "").split(" ")[0] || "hoş geldin";
+  greetEl.textContent = `Merhaba, ${firstName}`;
+  if (subEl) {
+    const today = new Date();
+    const dateStr = `${today.getDate()} ${TR_MONTHS_LONG[today.getMonth()]}`;
+    const dayStr = TR_WEEKDAYS[today.getDay()];
+    subEl.textContent = `Bugün ${dateStr}, ${dayStr} · Tarih Vakfı`;
+  }
+}
+
+// Per-line item shape: { key, icon, text, action: { label, onClick } | null }.
+// The Dikkat card lists only items where the underlying count > 0; if every
+// count is zero, a single "all clear" line replaces the whole list.
+function computeCoordinatorAttentionItems() {
+  const now = Date.now();
+  const items = [];
+
+  // 1. Pending volunteer applications.
+  const pendingCount = pendingApplicationCount || 0;
+  if (pendingCount > 0) {
+    items.push({
+      key: "pending-applications",
+      icon: "⚠",
+      text: `${pendingCount} yeni gönüllü onayı bekliyor`,
+      actionLabel: "İncele",
+      action: () => {
+        sw("yonetim");
+        document.getElementById("yonetimPendingCard")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
+  }
+
+  // 2. Silent volunteers (≥ 21 days without a report).
+  const silentVolunteers = (allUsers || []).filter((u) => {
+    const data = u?.data || {};
+    if (data.role !== "volunteer") return false;
+    if (data.status !== "approved") return false;
+    if (data.rhythm === "casual") return false;
+    const last = toDateFromTs(data.lastReportAt);
+    if (!last) return true;
+    return (now - last.getTime()) >= 21 * 86400000;
+  });
+  if (silentVolunteers.length > 0) {
+    items.push({
+      key: "silent-volunteers",
+      icon: "⚠",
+      text: `${silentVolunteers.length} sessiz gönüllü (≥21 gün rapor yok)`,
+      actionLabel: "Aç →",
+      expand: () => silentVolunteers.map((u) => {
+        const name = u.data?.fullName || u.data?.email || "—";
+        const days = u.data?.lastReportAt ? Math.floor((now - toDateFromTs(u.data.lastReportAt).getTime()) / 86400000) : null;
+        const ago = days != null ? `${days} gün önce` : "hiç rapor yok";
+        return `<div class="dikkat-expand-row">
+          <span>${escapeHTML(name)} · ${escapeHTML(ago)}</span>
+          <button type="button" class="btn btn-secondary btn-sm" data-nudge-email="${escapeHTML(u.data?.email || "")}" data-nudge-name="${escapeHTML(name)}" data-nudge-days="${escapeHTML(String(days || ""))}">Hatırlatma gönder</button>
+        </div>`;
+      }).join("")
+    });
+  }
+
+  // 3. Blocked archive units.
+  const blocked = (archiveUnits || []).filter((u) => (u.status || "") === "blocked");
+  if (blocked.length > 0) {
+    items.push({
+      key: "blocked-units",
+      icon: "⚠",
+      text: `${blocked.length} takılan iş`,
+      actionLabel: "Aç →",
+      expand: () => blocked.map((unit) => {
+        const reporter = unit.lastReporterName || (unit.lastReporterId ? findUserName(unit.lastReporterId) : "—");
+        const note = (unit.lastReportNotePreview || unit.blockerNote || "").trim();
+        return `<div class="dikkat-expand-row" data-drill-unit="${escapeHTML(unit.id)}" role="button" tabindex="0">
+          <span><strong>${escapeHTML(unit.sourceIdentifier || archiveLabel(unit))}</strong>${note ? ` · ${escapeHTML(note.slice(0, 60))}` : ""}</span>
+          <span class="muted" style="font-size:.85rem">${escapeHTML(reporter)}</span>
+        </div>`;
+      }).join("")
+    });
+  }
+
+  // 4. Stale units (60+ days inactivity, not done, not pending_review).
+  const staleThreshold = 60 * 86400000;
+  const stale = (archiveUnits || []).filter((u) => {
+    const status = u.status || "not_started";
+    if (status === "done" || status === "pending_review") return false;
+    const last = toDateFromTs(u.lastActivityAt || u.latestReportAt);
+    if (!last) return true; // never touched counts as stale
+    return (now - last.getTime()) >= staleThreshold;
+  });
+  if (stale.length > 0) {
+    items.push({
+      key: "stale-units",
+      icon: "⚠",
+      text: `${stale.length} uzun süredir dokunulmamış birim (60+ gün)`,
+      actionLabel: "Aç →",
+      expand: () => stale.slice(0, 30).map((unit) => {
+        const last = toDateFromTs(unit.lastActivityAt || unit.latestReportAt);
+        const ago = last ? daysSinceLabel(daysSince(last)) : "hiç rapor yok";
+        return `<div class="dikkat-expand-row" data-drill-unit="${escapeHTML(unit.id)}" role="button" tabindex="0">
+          <span>${escapeHTML(unit.sourceIdentifier || archiveLabel(unit))}</span>
+          <span class="muted" style="font-size:.85rem">${escapeHTML(ago)}</span>
+        </div>`;
+      }).join("") + (stale.length > 30 ? `<div class="dikkat-expand-row muted" style="font-size:.85rem">+${stale.length - 30} daha…</div>` : "")
+    });
+  }
+
+  // 5. Pending-review units (Liste dışı queue — deprecated path but legacy entries surface).
+  const pendingReview = (archiveUnits || []).filter((u) => (u.status || "") === "pending_review");
+  if (pendingReview.length > 0) {
+    items.push({
+      key: "pending-review",
+      icon: "⚠",
+      text: `${pendingReview.length} gözden geçirme bekleyen yeni iş paketi`,
+      actionLabel: "Aç →",
+      action: () => {
+        if (isAdmin()) {
+          sw("bakim");
+          document.getElementById("pendingReviewCard")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }
+    });
+  }
+
+  return items;
+}
+
+function renderCoordinatorDikkat() {
+  const list = document.getElementById("dikkatList");
+  if (!list) return;
+  const items = computeCoordinatorAttentionItems();
+  if (!items.length) {
+    list.innerHTML = `<div class="dikkat-row dikkat-row--ok"><span class="dikkat-icon">✓</span><span class="dikkat-text">Bugün dikkat edilecek bir şey yok.</span></div>`;
+    return;
+  }
+  list.innerHTML = items.map((item, idx) => {
+    const expandable = typeof item.expand === "function";
+    const actionAttrs = expandable
+      ? `data-dikkat-toggle="${escapeHTML(item.key)}"`
+      : `data-dikkat-action="${escapeHTML(item.key)}"`;
+    return `<div class="dikkat-row" data-dikkat-key="${escapeHTML(item.key)}">
+      <span class="dikkat-icon">${escapeHTML(item.icon)}</span>
+      <span class="dikkat-text">${escapeHTML(item.text)}</span>
+      <button type="button" class="btn btn-secondary btn-sm dikkat-action" ${actionAttrs}>${escapeHTML(item.actionLabel)}</button>
+    </div>${expandable ? `<div class="dikkat-expand hidden" data-dikkat-expand="${escapeHTML(item.key)}">${item.expand()}</div>` : ""}`;
+  }).join("");
+}
+
+// Coordinator-wide Son raporlar — same compact log as the volunteer side,
+// extended with a volunteer-name column and click-to-expand for the full
+// note. Reuses the existing rd cache (loaded via lr() / loadStaffRecentReports).
+function renderCoordinatorRecentReports() {
+  const list = document.getElementById("bugunRecentList");
+  if (!list) return;
+  // Prefer the staff paged feed if it's been loaded; fall back to the global
+  // rd cache otherwise. Both are arrays of { id, data } / dict-of-objects.
+  let docs = [];
+  if (Array.isArray(staffRecentDocs) && staffRecentDocs.length) {
+    docs = staffRecentDocs.slice(0, 8).map((d) => ({ id: d.id, ...d.data }));
+  } else {
+    docs = Object.entries(rd || {})
+      .map(([id, data]) => ({ id, ...data }))
+      .sort((a, b) => (toDateFromTs(b.createdAt)?.getTime() || 0) - (toDateFromTs(a.createdAt)?.getTime() || 0))
+      .slice(0, 8);
+  }
+  if (!docs.length) {
+    list.innerHTML = '<p class="sv-log-empty">Henüz rapor yok.</p>';
+    return;
+  }
+  list.innerHTML = docs.map((r) => renderCoordinatorReportLogRow(r)).join("");
+}
+
+function renderCoordinatorReportLogRow(r) {
+  const reportType = reportTypeOf(r);
+  const status = r.status || (r.workStatus === "unit_done" ? "done" : r.workStatus) || "in_progress";
+  const unitId = r.unitId || r.archiveUnitId || "";
+  const volId = r.volunteerId || r.userUid || "";
+  const volName = r.volunteerName || (volId ? findUserName(volId) : "") || r.userEmail || "—";
+
+  let typeKey;
+  let typeLabel;
+  let prefix = "";
+  if (reportType === "foundation_general") {
+    typeKey = "foundation";
+    typeLabel = "VAKIF";
+  } else if (reportType === "project_general") {
+    typeKey = "project";
+    typeLabel = (r.projectId || "").toUpperCase() || "PROJE";
+  } else {
+    typeKey = "unit";
+    typeLabel = (r.projectId || (archiveById[unitId]?.projectId) || "").toUpperCase() || "KUTU";
+    const unit = unitId ? archiveById[unitId] : null;
+    prefix = unit ? (unit.sourceIdentifier || archiveLabel(unit))
+      : (r.unitSnapshot?.sourceIdentifier || r.taskId || "");
+  }
+
+  const note = (r.note || r.summary || "").trim();
+  const previewLen = 60;
+  const noteSliced = note.slice(0, previewLen);
+  const text = prefix
+    ? `<span class="sv-log-prefix">${escapeHTML(prefix)}</span> · ${escapeHTML(noteSliced)}`
+    : escapeHTML(noteSliced || "—");
+
+  const when = toDateFromTs(r.createdAt);
+  const ago = relativeTimeLabel(when);
+
+  const fullNote = note || "—";
+  const url = r.url || (Array.isArray(r.links) && r.links[0]) || "";
+
+  return `<div class="sv-log-row sv-log-row--clickable bugun-recent-row" data-rtype="${escapeHTML(typeKey)}" data-status="${escapeHTML(status)}" data-bugun-row="${escapeHTML(r.id || "")}" role="button" tabindex="0">
+    <span class="sv-log-dot" aria-hidden="true"></span>
+    <span class="sv-log-type">${escapeHTML(typeLabel)}</span>
+    <span class="bugun-recent-name">${escapeHTML(volName)}</span>
+    <span class="sv-log-text">${text}</span>
+    <span class="sv-log-when">${escapeHTML(ago)}</span>
+    <div class="bugun-recent-expand hidden" data-bugun-expand="${escapeHTML(r.id || "")}">
+      ${prefix ? `<div><strong>${escapeHTML(prefix)}</strong></div>` : ""}
+      <div class="bugun-recent-fullnote">${escapeHTML(fullNote)}</div>
+      ${url ? `<div class="bugun-recent-link"><a href="${escapeHTML(url)}" target="_blank" rel="noopener" data-stop-row>${escapeHTML(url)}</a></div>` : ""}
+      <div class="bugun-recent-meta muted">Durum: ${escapeHTML(statusLabel(status))}${unitId ? ` · birime git →` : ""}</div>
+    </div>
+  </div>`;
+}
+
+// One-shot mount for the coordinator + Rapor yaz modal. Re-uses the same
+// renderInlineRaporForm factory the volunteer Anasayfa uses; resetForm() is
+// called on every modal open so a stale draft can't leak across sessions.
+let _coordReportFormHandle = null;
+function ensureCoordinatorReportModal() {
+  const host = document.getElementById("coordinatorReportFormHost");
+  if (!host) return null;
+  if (!_coordReportFormHandle) {
+    _coordReportFormHandle = renderInlineRaporForm({
+      container: host,
+      showProjectPicker: true,
+      fixedProjectId: null,
+      onSubmitSuccess: () => { closeCoordinatorReportModal(); }
+    });
+  }
+  return _coordReportFormHandle;
+}
+
+function openCoordinatorReportModal() {
+  const modal = document.getElementById("coordinatorReportModal");
+  if (!modal) return;
+  ensureCoordinatorReportModal()?.reset?.();
+  modal.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+}
+
+function closeCoordinatorReportModal() {
+  const modal = document.getElementById("coordinatorReportModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+}
+
+// Single entry point that fills every Bugün-tab card. Called after data
+// loads (lh / lr / lu / loadAllUsers / reloadPnb), and also on demand from
+// the refresh button in the Son raporlar header.
+function renderBugun() {
+  if (!isStaff()) return;
+  renderCoordinatorHomeHeader();
+  renderCoordinatorDikkat();
+  renderCoordinatorRecentReports();
+}
+
+// ---------- Staff PNB tab ----------
+//
+// Three sections: progress, kanban (with drag-drop + search), and a list
+// of volunteers active on this project. Re-uses the existing renderKanban
+// /panoCard machinery via a parallel #staffPnbBoard target — see the HTML
+// columns staffPnbCol{Todo|Doing|Review|Done|Blocked}.
+
+let _staffPnbBoardSearch = "";
+let _staffPnbVolSort = "recent";
+
+function renderStaffPnbView() {
+  const view = document.getElementById("staffPnbView");
+  if (!view) return;
+  if (!isStaff() || !cu) return;
+  view.classList.remove("hidden");
+  renderStaffPnbProgress();
+  renderStaffPnbBoard();
+  renderStaffPnbVolunteers();
+}
+
+function renderStaffPnbProgress() {
+  const totals = computeProjectStats(PNB_PROJECT_ID);
+  const pct = totals.totalPages
+    ? Math.round((totals.donePages / totals.totalPages) * 100)
+    : percent(totals.doneUnits, totals.totalUnits);
+  const pctEl = document.getElementById("staffPnbProgPct");
+  if (pctEl) pctEl.textContent = String(pct);
+  const lineEl = document.getElementById("staffPnbProgLine");
+  if (lineEl) {
+    lineEl.innerHTML = `${numberText(totals.totalPages)} sayfadan <strong>${numberText(totals.donePages)}</strong> tasnif edildi`;
+  }
+  const stripEl = document.getElementById("staffPnbStrip");
+  if (stripEl) {
+    stripEl.textContent = `${numberText(totals.totalUnits)} birim · ${numberText(totals.totalPages)} sayfa · ${pct}% tamamlandı`;
+  }
+}
+
+function renderStaffPnbBoard() {
+  const colMap = {
+    not_started: { body: "staffPnbColTodo",   count: "staffPnbCountTodo" },
+    in_progress: { body: "staffPnbColDoing",  count: "staffPnbCountDoing" },
+    review:      { body: "staffPnbColReview", count: "staffPnbCountReview" },
+    done:        { body: "staffPnbColDone",   count: "staffPnbCountDone" },
+    blocked:     { body: "staffPnbColBlocked",count: "staffPnbCountBlocked" }
+  };
+  const term = trNormalize((_staffPnbBoardSearch || "").trim());
+  const matches = (unit) => {
+    if (!term) return true;
+    const haystack = trNormalize([
+      unit.sourceIdentifier, unit.sourceCode, unit.seriesNo, unit.boxNo,
+      unit.contentDescription, unit.title, unit.notes, unit.materialType
+    ].filter(Boolean).join(" "));
+    return haystack.includes(term);
+  };
+  const buckets = { not_started: [], in_progress: [], review: [], done: [], blocked: [] };
+  archiveUnits.forEach((unit) => {
+    if ((unit.projectId || PNB_PROJECT_ID) !== PNB_PROJECT_ID) return;
+    if ((unit.status || "") === "pending_review") return;
+    if (!matches(unit)) return;
+    let key = unit.status || "not_started";
+    if (key === "assigned") key = "in_progress";
+    if (!buckets[key]) key = "not_started";
+    buckets[key].push(unit);
+  });
+  Object.entries(buckets).forEach(([key, units]) => {
+    const target = colMap[key];
+    if (!target) return;
+    units.sort((a, b) => archiveLabel(a).localeCompare(archiveLabel(b), "tr"));
+    const body = document.getElementById(target.body);
+    const count = document.getElementById(target.count);
+    if (count) count.textContent = String(units.length);
+    if (body) body.innerHTML = units.length ? units.map(panoCard).join("") : '<p class="kb-empty">Boş</p>';
+  });
+}
+
+function renderStaffPnbVolunteers() {
+  const list = document.getElementById("staffPnbVolList");
+  const countEl = document.getElementById("staffPnbVolCount");
+  const hint = document.getElementById("staffPnbVolsHint");
+  if (!list) return;
+  // "Active on PNB in last 90 days" = at least one report on a PNB unit
+  // (or a project_general PNB report) within the window.
+  const cutoff = Date.now() - 90 * 86400000;
+  const reports = Object.values(rd || {});
+  const counts = new Map();
+  const lastSeen = new Map();
+  reports.forEach((r) => {
+    const projectId = r.projectId
+      || (r.unitId && archiveById[r.unitId]?.projectId)
+      || (r.archiveUnitId && archiveById[r.archiveUnitId]?.projectId);
+    if (projectId !== PNB_PROJECT_ID) return;
+    const when = toDateFromTs(r.createdAt)?.getTime() || 0;
+    if (when < cutoff) return;
+    const uid = r.volunteerId || r.userUid;
+    if (!uid) return;
+    counts.set(uid, (counts.get(uid) || 0) + 1);
+    if (!lastSeen.has(uid) || lastSeen.get(uid) < when) lastSeen.set(uid, when);
+  });
+  const rows = Array.from(counts.entries()).map(([uid, n]) => {
+    const user = (allUsers || []).find((u) => u.uid === uid);
+    const data = user?.data || {};
+    return {
+      uid,
+      name: data.fullName || data.email || "—",
+      reports: n,
+      lastSeen: lastSeen.get(uid) || 0
+    };
+  });
+  if (_staffPnbVolSort === "name") {
+    rows.sort((a, b) => a.name.localeCompare(b.name, "tr"));
+  } else if (_staffPnbVolSort === "reports") {
+    rows.sort((a, b) => b.reports - a.reports);
+  } else {
+    rows.sort((a, b) => b.lastSeen - a.lastSeen);
+  }
+  if (countEl) countEl.textContent = `(${rows.length})`;
+  if (!rows.length) {
+    list.innerHTML = '<p class="empty">Son 90 günde PNB birimine rapor yazan gönüllü yok.</p>';
+    if (hint) hint.textContent = "";
+    return;
+  }
+  // Paginate to 20 — the user spec asks for 20 per page, but we keep the
+  // implementation simple with a single page + a hint when more exist.
+  const PAGE = 20;
+  const visible = rows.slice(0, PAGE);
+  list.innerHTML = visible.map((r) => {
+    const ago = r.lastSeen ? relativeTimeLabel(new Date(r.lastSeen)) : "—";
+    return `<div class="staff-pnb-vol-row">
+      <strong>${escapeHTML(r.name)}</strong>
+      <span class="muted">son rapor: ${escapeHTML(ago)}</span>
+      <span class="muted">${escapeHTML(String(r.reports))} rapor</span>
+    </div>`;
+  }).join("");
+  if (hint) {
+    hint.textContent = rows.length > PAGE
+      ? `İlk ${PAGE} kişi gösteriliyor — toplam ${rows.length}.`
+      : "";
+  }
+}
+
 // Pick the next archive unit a volunteer could reasonably pick up: unassigned,
 // not blocked or done, highest priority first, then oldest updated.
 function pickNextQueueUnit() {
@@ -3144,132 +3626,20 @@ function relativeTimeLabel(date) {
   return daysSinceLabel(daysSince(d));
 }
 
+// renderHomeOverview is now a thin role dispatcher. Volunteers refresh
+// their Anasayfa surface via renderVolunteerReportPrimary; coordinators and
+// admins refresh Bugün via renderBugun. Both calls are idempotent and safe
+// to invoke after every Firestore data load. The legacy staff homeHero /
+// homeKpis / homeWorkGrid widgets were removed in Prompt N — calling their
+// renderers from here would just no-op against missing DOM.
 function renderHomeOverview() {
   if (!cp) return;
-  const kpis = document.getElementById("homeKpis");
-  const nextWork = document.getElementById("homeNextWork");
-  const management = document.getElementById("homeManagement");
-  const homeSection = document.getElementById("tab-home");
-  const shortcutCard = document.getElementById("homeShortcutCard");
-  const profileCard = document.getElementById("homeProfileCard");
-  const heroTitle = document.getElementById("homeHeroTitle");
-  const heroText = document.getElementById("homeHeroText");
-  const heroActions = document.getElementById("homeHeroActions");
-  const heroEyebrow = document.getElementById("homeHeroEyebrow");
-  if (!kpis || !nextWork || !management) return;
-
-  const totals = archiveTotals();
-  const reports = Object.values(rd || {});
-  const submittedReports = reports.filter((report) => (report.status || "submitted") === "submitted").length;
-  const openTasks = taskItems.filter((item) => !["done", "cancelled", "closed"].includes(item.data?.status || "open"));
-  const assignedOpenUnits = assignedOpenArchiveUnits();
-
-  const volunteerMode = !isStaff();
-  homeSection?.classList.toggle("volunteer-home", volunteerMode);
-  homeSection?.classList.toggle("staff-home", !volunteerMode);
-  kpis.classList.toggle("hidden", volunteerMode);
-  shortcutCard?.classList.toggle("hidden", volunteerMode);
-  profileCard?.classList.toggle("hidden", true);
-
-  if (volunteerMode) {
-    const firstUnit = assignedOpenUnits[0];
-    const firstTask = openTasks[0];
-    const hasWork = Boolean(firstUnit || firstTask);
-    if (heroEyebrow) heroEyebrow.textContent = hasWork ? "Sıradaki iş" : "Bugün";
-    if (heroTitle) heroTitle.textContent = firstUnit ? archiveLabel(firstUnit) : firstTask ? (firstTask.data?.title || "Atanmış iş") : "Bugün sakin";
-    if (heroText) heroText.textContent = firstUnit
-      ? `${statusLabel(firstUnit.status || "not_started")} · ${numberText(firstUnit.pageCount)} sayfa · ${numberText(firstUnit.documentCount)} belge`
-      : firstTask
-        ? `${firstTask.data?.department || "Genel"} · ${statusLabel(firstTask.data?.status || "open")}${firstTask.data?.dueDate ? ` · Son: ${formatDate(firstTask.data.dueDate)}` : ""}`
-        : "Sana atanmış açık iş yok. Yeni iş gelirse burada görünecek.";
-    if (heroActions) {
-      heroActions.innerHTML = firstUnit
-        ? `<button class="btn btn-primary" type="button" data-report-au="${firstUnit.id}">Rapor yaz</button><button class="btn btn-secondary" type="button" data-open-work="${firstUnit.id}">Ayrıntı</button>`
-        : firstTask
-          ? `<button class="btn btn-primary" type="button" data-report-task="${firstTask.id}">Rapor yaz</button><button class="btn btn-secondary" type="button" data-go-tab="pnb" data-scroll-to="generalTaskPanel">Ayrıntı</button>`
-          : `<button class="btn btn-secondary" type="button" data-go-tab="announcements">Duyurular</button>`;
-    }
-    renderVolunteerMission(nextWork, assignedOpenUnits, openTasks);
-    management.innerHTML = "";
-    // Option B: volunteers also get the stats strip, lanes, and queue CTA.
-    renderHomeStats();
-    renderHomeLanes();
-    renderHomeQueueCta();
-    renderKanban();
-    renderStylishHome();
-    renderVolunteerReportPrimary();
-    return;
-  }
-
-  const approvedCount = approvedUsers().length;
-  const capacityCount = availabilityRecords.filter((item) => Number(item.slotCount || 0) > 0).length;
-  if (heroEyebrow) heroEyebrow.textContent = "Operasyon";
-  if (heroTitle) heroTitle.textContent = "Bütün resim";
-  if (heroText) heroText.textContent = `${numberText(totals.units)} iş · ${numberText(totals.done)} tamamlandı · ${numberText(approvedCount)} kişi · ${numberText(capacityCount)} uygunluk`;
-  if (heroActions) {
-    heroActions.innerHTML = `<button class="btn btn-primary" type="button" data-go-tab="management">Yönetim</button>
-      <button class="btn btn-secondary" type="button" data-go-tab="pnb">İşler</button>
-      <button class="btn btn-secondary" type="button" data-go-tab="reports">Raporlar</button>`;
-  }
-
-  const progressValue = percent(totals.done, totals.units);
-  kpis.innerHTML = `
-    <div class="picture-card picture-progress">
-      <span>İlerleme</span>
-      <strong>${numberText(totals.done)} / ${numberText(totals.units)}</strong>
-      <div class="picture-bar"><i style="width:${progressValue}%"></i></div>
-      <small>${progressValue}% tamamlandı</small>
-    </div>
-    <div class="picture-card">
-      <span>Ekip</span>
-      <strong>${numberText(approvedCount)}</strong>
-      <small>${numberText(capacityCount)} kişinin uygunluğu görünüyor</small>
-    </div>
-    <div class="picture-card">
-      <span>Karar</span>
-      <strong>${numberText(totals.unassigned + totals.blocked + submittedReports + pendingApplicationCount)}</strong>
-      <small>Atama, engel, rapor veya başvuru</small>
-    </div>`;
-
   if (isStaff()) {
-    const blocked = archiveUnits.filter((unit) => unit.status === "blocked").slice(0, 3);
-    const unassigned = archiveUnits.filter((unit) => !(unit.assignedToUids || []).length && !(unit.assignedToEmails || []).length).slice(0, 3);
-    const attention = [];
-    if (blocked.length) attention.push(`<div class="ops-alert danger"><strong>${blocked.length} engelli iş</strong><span>${blocked.map((unit) => escapeHTML(archiveLabel(unit))).join("<br>")}</span><button class="btn btn-secondary btn-sm" type="button" data-go-tab="pnb">Engelleri aç</button></div>`);
-    if (unassigned.length) attention.push(`<div class="ops-alert"><strong>${totals.unassigned} atanmamış iş</strong><span>${unassigned.map((unit) => escapeHTML(archiveLabel(unit))).join("<br>")}</span><button class="btn btn-secondary btn-sm" type="button" data-go-tab="pnb">Atama yap</button></div>`);
-    if (submittedReports) attention.push(`<div class="ops-alert"><strong>${submittedReports} rapor kontrol bekliyor</strong><span>Raporları onaylayın veya düzeltme isteyin.</span><button class="btn btn-secondary btn-sm" type="button" data-go-tab="reports">Raporları aç</button></div>`);
-    if (pendingApplicationCount) attention.push(`<div class="ops-alert"><strong>${pendingApplicationCount} başvuru bekliyor</strong><span>Yeni gönüllüleri onaylayıp uygun işe yönlendirin.</span><button class="btn btn-secondary btn-sm" type="button" data-go-tab="management">Başvuruları aç</button></div>`);
-    nextWork.innerHTML = attention.length ? attention.join("") : `<div class="ops-alert"><strong>Şu an kritik bekleyen iş yok.</strong><span>İş yükünü ve raporları düzenli kontrol etmek yeterli.</span><button class="btn btn-secondary btn-sm" type="button" data-go-tab="pnb">İş yükünü aç</button></div>`;
+    renderBugun();
+    renderStaffPnbView();
   } else {
-    const items = [];
-    assignedOpenUnits.slice(0, 3).forEach((unit) => {
-      items.push(`<div class="ops-alert"><strong>${escapeHTML(archiveLabel(unit))}</strong><span>${escapeHTML(statusLabel(unit.status || "not_started"))} · ${numberText(unit.pageCount)} sayfa</span><button class="btn btn-primary btn-sm" type="button" data-report-au="${unit.id}">Rapor yaz</button></div>`);
-    });
-    openTasks.slice(0, 3).forEach((item) => {
-      items.push(`<div class="ops-alert"><strong>${escapeHTML(item.data?.title || "İş")}</strong><span>${escapeHTML(item.data?.department || "-")} · ${escapeHTML(statusLabel(item.data?.status || "open"))}</span><button class="btn btn-secondary btn-sm" type="button" data-go-tab="pnb" data-scroll-to="generalTaskPanel">İşi aç</button></div>`);
-    });
-    nextWork.innerHTML = items.length ? items.join("") : `<div class="ops-alert"><strong>Açık atanmış iş görünmüyor.</strong><span>Yeni iş gelene kadar duyuruları takip edebilir veya koordinatöre yazabilirsiniz.</span><button class="btn btn-secondary btn-sm" type="button" data-go-tab="announcements">Duyurular</button></div>`;
+    renderVolunteerReportPrimary();
   }
-
-  const shortcuts = [
-    ["management", "Bütün liste", "İlerleme, ekip ve karar bekleyenleri tek yerde gör."],
-    ["pnb", "İşler", "Atama, durum ve engelleri yönet."],
-    ["reports", "Raporlar", "Gelen raporları kontrol et."],
-    ["announcements", "Duyurular", "Takım kararlarını yayınla veya oku."]
-  ];
-  if (isAdmin()) shortcuts.push(["maintenance", "Bakım", "Sadece gerektiğinde veri/import araçları."]);
-  management.innerHTML = shortcuts.map(([tab, title, text]) => `<button class="ops-link-card" type="button" data-go-tab="${tab}"><strong>${escapeHTML(title)}</strong><span>${escapeHTML(text)}</span></button>`).join("");
-  renderManagementOverview();
-
-  // Option B additions: stats strip + lanes + queue CTA always refreshed alongside.
-  renderHomeStats();
-  renderHomeLanes();
-  renderHomeQueueCta();
-  renderKanban();
-  renderStylishHome();
-  // Coordinator/admin Son Raporlar + Dikkat panels.
-  renderStaffRecentReports();
-  renderStaffAttention();
 }
 
 function renderPeopleOps() {
@@ -3517,11 +3887,18 @@ function rur(data, uid) {
 }
 
 async function lh() {
-  document.getElementById("profileCard").innerHTML = rp(cp);
+  // The legacy profileCard / homeAnnouncements elements were removed in
+  // Prompt N. Both writes are guarded so this stays a fast no-op-ish path
+  // for new sessions while keeping older shells (e.g. browser caches) safe.
+  const profile = document.getElementById("profileCard");
+  if (profile) profile.innerHTML = rp(cp);
   const snap = await getDocs(query(collection(db, "announcements"), orderBy("createdAt", "desc"), limit(3)));
   announcementItems = snap.docs.map((item) => ({ id: item.id, data: item.data() }));
-  const homeDocs = isStaff() ? snap.docs : snap.docs.slice(0, 1);
-  document.getElementById("homeAnnouncements").innerHTML = homeDocs.length ? homeDocs.map((item) => ra(item.data(), item.id)).join("") : htmlEmpty("Duyuru yok.");
+  const homeAnn = document.getElementById("homeAnnouncements");
+  if (homeAnn) {
+    const homeDocs = isStaff() ? snap.docs : snap.docs.slice(0, 1);
+    homeAnn.innerHTML = homeDocs.length ? homeDocs.map((item) => ra(item.data(), item.id)).join("") : htmlEmpty("Duyuru yok.");
+  }
   renderHomeOverview();
 }
 
@@ -3572,23 +3949,37 @@ async function lr() {
 async function la() {
   const snap = await getDocs(query(collection(db, "announcements"), orderBy("createdAt", "desc"), limit(20)));
   announcementItems = snap.docs.map((item) => ({ id: item.id, data: item.data() }));
-  document.getElementById("announcementsList").innerHTML = snap.empty ? htmlEmpty("Duyuru yok.") : snap.docs.map((item) => ra(item.data(), item.id)).join("");
+  const html = snap.empty ? htmlEmpty("Duyuru yok.") : snap.docs.map((item) => ra(item.data(), item.id)).join("");
+  // Render into both possible targets — volunteers see the standalone
+  // Duyurular tab list (#announcementsList), staff see the in-Yönetim list
+  // (#yonetimAnnouncementsList). Either may not exist for the current role.
+  const volList = document.getElementById("announcementsList");
+  if (volList) volList.innerHTML = html;
+  const staffList = document.getElementById("yonetimAnnouncementsList");
+  if (staffList) staffList.innerHTML = html;
   renderHomeOverview();
 }
 
 async function lp() {
   const snap = await getDocs(query(collection(db, "users"), where("status", "==", "pending"), limit(50)));
   const list = document.getElementById("pendingUsers");
-  const tab = document.querySelector('[data-tab="management"]');
+  const tab = document.querySelector('[data-tab="yonetim"]');
+  const card = document.getElementById("yonetimPendingCard");
+  const countLabel = document.getElementById("yonetimPendingCount");
   pendingApplicationCount = snap.size;
   if (snap.empty) {
-    list.innerHTML = htmlEmpty("Bekleyen başvuru yok.");
+    if (list) list.innerHTML = htmlEmpty("Bekleyen başvuru yok.");
+    // Hide the entire card when there are zero pending applications.
+    card?.classList.add("hidden");
+    if (countLabel) countLabel.textContent = "";
     const old = tab?.querySelector(".count-badge");
     if (old) old.remove();
     renderHomeOverview();
     return;
   }
-  list.innerHTML = snap.docs.map((item) => rpu(item.data(), item.id)).join("");
+  if (list) list.innerHTML = snap.docs.map((item) => rpu(item.data(), item.id)).join("");
+  card?.classList.remove("hidden");
+  if (countLabel) countLabel.textContent = `${snap.size} kişi`;
   if (tab) {
     const old = tab.querySelector(".count-badge");
     if (old) old.remove();
@@ -3598,9 +3989,100 @@ async function lp() {
 }
 
 async function lu() {
-  const snap = await getDocs(query(collection(db, "users"), orderBy("createdAt", "desc"), limit(150)));
-  document.getElementById("userDirectory").innerHTML = snap.empty ? htmlEmpty("Kullanıcı bulunamadı.") : snap.docs.map((item) => rur(item.data(), item.id)).join("");
+  // Pull a richer slice for the Yönetim "Tüm gönüllüler" list and refresh
+  // the in-memory cache used by the activity panel + Bugün attention card.
+  const snap = await getDocs(query(collection(db, "users"), orderBy("createdAt", "desc"), limit(300)));
+  allUsers = snap.docs.map((item) => ({ uid: item.id, data: item.data() }));
+  renderYonetimUserDirectory();
   renderActivityPanel();
+}
+
+// Filter pills + search + sort wired into the Yönetim "Tüm gönüllüler" card.
+// Each row is a <details> with a compact summary; opening it reveals the
+// existing rur() edit card so write semantics stay identical.
+function renderYonetimUserDirectory() {
+  const list = document.getElementById("userDirectory");
+  if (!list) return;
+  const filterBtn = document.querySelector("[data-yonetim-filter].is-on");
+  const filter = filterBtn?.dataset.yonetimFilter || "all";
+  const term = trNormalize((document.getElementById("yonetimUsersSearch")?.value || "").trim());
+  const sort = document.getElementById("yonetimUsersSort")?.value || "recent";
+  const dept = document.getElementById("activityDeptFilter")?.value || "";
+
+  const reports = Object.values(rd || {});
+  const reportCounts = new Map();
+  reports.forEach((r) => {
+    const uid = r.volunteerId || r.userUid;
+    if (!uid) return;
+    reportCounts.set(uid, (reportCounts.get(uid) || 0) + 1);
+  });
+
+  const now = Date.now();
+  const enriched = (allUsers || [])
+    .filter((u) => u?.data && u.data.role && u.data.status === "approved")
+    .map((u) => {
+      const data = u.data || {};
+      const lastReportMs = toDateFromTs(data.lastReportAt)?.getTime() || 0;
+      const days = lastReportMs ? Math.floor((now - lastReportMs) / 86400000) : Infinity;
+      let bucket;
+      if (days <= 13) bucket = "active";
+      else if (days <= 27) bucket = "slowing";
+      else bucket = "silent";
+      return {
+        uid: u.uid,
+        data,
+        lastReportMs,
+        days,
+        bucket,
+        reports: reportCounts.get(u.uid) || 0
+      };
+    });
+
+  let visible = enriched;
+  if (filter !== "all") visible = visible.filter((u) => u.bucket === filter);
+  if (dept) visible = visible.filter((u) => u.data.department === dept);
+  if (term) {
+    visible = visible.filter((u) => {
+      const hay = trNormalize([
+        u.data.fullName, u.data.email, u.data.department, u.data.role
+      ].filter(Boolean).join(" "));
+      return hay.includes(term);
+    });
+  }
+  if (sort === "name") {
+    visible.sort((a, b) => (a.data.fullName || a.data.email || "").localeCompare(b.data.fullName || b.data.email || "", "tr"));
+  } else if (sort === "reports") {
+    visible.sort((a, b) => b.reports - a.reports);
+  } else if (sort === "department") {
+    visible.sort((a, b) => (a.data.department || "").localeCompare(b.data.department || "", "tr"));
+  } else {
+    visible.sort((a, b) => b.lastReportMs - a.lastReportMs);
+  }
+
+  if (!visible.length) {
+    list.innerHTML = htmlEmpty("Bu filtreyle eşleşen gönüllü yok.");
+    return;
+  }
+
+  const bucketLabel = (b) => b === "active" ? "Aktif" : b === "slowing" ? "Yavaşlayan" : "Sessiz";
+  list.innerHTML = visible.map((u) => {
+    const name = escapeHTML(u.data.fullName || u.data.email || "—");
+    const role = escapeHTML(u.data.role || "—");
+    const rhythm = escapeHTML(u.data.rhythm || "—");
+    const dept = escapeHTML(u.data.department || "—");
+    const ago = u.lastReportMs ? relativeTimeLabel(new Date(u.lastReportMs)) : "Hiç rapor yok";
+    return `<details class="yonetim-user-row" data-uid="${escapeHTML(u.uid)}">
+      <summary class="yonetim-user-summary">
+        <span class="yonetim-user-name"><strong>${name}</strong> <span class="muted yonetim-user-meta">${role} · ${rhythm} · ${dept}</span></span>
+        <span class="yonetim-user-stats muted">
+          <span class="yonetim-user-bucket yonetim-user-bucket--${escapeHTML(u.bucket)}">${escapeHTML(bucketLabel(u.bucket))}</span>
+          <span>${escapeHTML(ago)}</span>
+          <span>${escapeHTML(String(u.reports))} rapor</span>
+        </span>
+      </summary>
+      <div class="yonetim-user-body">${rur(u.data, u.uid)}</div>
+    </details>`;
+  }).join("");
 }
 
 // --- Activity panel (active / slowing / stalled / never reported) ---
@@ -4880,6 +5362,72 @@ document.getElementById("pnbImportFile")?.addEventListener("change", async (even
 });
 
 document.addEventListener("click", async (event) => {
+  // ----- Bugün-tab controls (coordinator/admin home) -----
+  if (event.target.id === "bugunOpenReportBtn") {
+    openCoordinatorReportModal();
+    return;
+  }
+  if (event.target.closest("[data-coordinator-report-close]")) {
+    closeCoordinatorReportModal();
+    return;
+  }
+  if (event.target.id === "bugunRecentRefresh") {
+    if (typeof loadStaffRecentReports === "function") {
+      try { await loadStaffRecentReports(true); } catch (e) { console.warn(e); }
+    }
+    renderCoordinatorRecentReports();
+    return;
+  }
+  if (event.target.id === "bugunRecentMoreBtn") {
+    if (typeof loadStaffRecentReports === "function") {
+      try { await loadStaffRecentReports(false); } catch (e) { console.warn(e); }
+    }
+    renderCoordinatorRecentReports();
+    return;
+  }
+  // Dikkat-card row controls.
+  const dikkatToggle = event.target.closest("[data-dikkat-toggle]");
+  if (dikkatToggle) {
+    const key = dikkatToggle.dataset.dikkatToggle;
+    const expand = document.querySelector(`[data-dikkat-expand="${CSS.escape(key)}"]`);
+    expand?.classList.toggle("hidden");
+    return;
+  }
+  const dikkatAction = event.target.closest("[data-dikkat-action]");
+  if (dikkatAction) {
+    // Action handlers are stateful (they need access to the items[] array
+    // from computeCoordinatorAttentionItems). We re-derive and dispatch.
+    const items = computeCoordinatorAttentionItems();
+    const item = items.find((i) => i.key === dikkatAction.dataset.dikkatAction);
+    if (item && typeof item.action === "function") item.action();
+    return;
+  }
+  // Bugün Son raporlar row click → toggle the inline expand.
+  const bugunRow = event.target.closest("[data-bugun-row]");
+  if (bugunRow && !event.target.closest("[data-stop-row]")) {
+    const id = bugunRow.dataset.bugunRow;
+    const expand = bugunRow.querySelector(`[data-bugun-expand="${CSS.escape(id || "")}"]`);
+    expand?.classList.toggle("hidden");
+    return;
+  }
+  // Yönetim — toggle the inline "+ Yeni …" forms.
+  if (event.target.id === "yonetimNewAnnouncementBtn") {
+    document.getElementById("adminAnnouncementForm")?.classList.toggle("hidden");
+    return;
+  }
+  if (event.target.id === "yonetimNewTaskBtn") {
+    document.getElementById("adminTaskForm")?.classList.toggle("hidden");
+    return;
+  }
+  // Yönetim — Tüm gönüllüler filter pills.
+  const yonetimFilterBtn = event.target.closest("[data-yonetim-filter]");
+  if (yonetimFilterBtn) {
+    document.querySelectorAll("[data-yonetim-filter]").forEach((b) => b.classList.remove("is-on"));
+    yonetimFilterBtn.classList.add("is-on");
+    if (typeof renderYonetimUserDirectory === "function") renderYonetimUserDirectory();
+    return;
+  }
+
   const tabTarget = event.target.closest("[data-go-tab]");
   if (tabTarget) {
     const tabName = tabTarget.dataset.goTab === "tasks" ? "pnb" : tabTarget.dataset.goTab;
@@ -5679,6 +6227,25 @@ document.getElementById("panoSearchInput")?.addEventListener("input", () => {
   window.__panoSearchTimer = setTimeout(renderPano, 120);
 });
 
+// Staff PNB tab — board search + volunteer-list sort.
+document.getElementById("staffPnbBoardSearch")?.addEventListener("input", (event) => {
+  _staffPnbBoardSearch = event.target.value || "";
+  clearTimeout(window.__staffPnbBoardTimer);
+  window.__staffPnbBoardTimer = setTimeout(renderStaffPnbBoard, 120);
+});
+document.getElementById("staffPnbVolSort")?.addEventListener("change", (event) => {
+  _staffPnbVolSort = event.target.value || "recent";
+  renderStaffPnbVolunteers();
+});
+
+// Yönetim — Tüm gönüllüler search + sort + dept filter.
+document.getElementById("yonetimUsersSearch")?.addEventListener("input", () => {
+  clearTimeout(window.__yonetimUsersTimer);
+  window.__yonetimUsersTimer = setTimeout(renderYonetimUserDirectory, 120);
+});
+document.getElementById("yonetimUsersSort")?.addEventListener("change", renderYonetimUserDirectory);
+document.getElementById("activityDeptFilter")?.addEventListener("change", renderYonetimUserDirectory);
+
 document.getElementById("logForUser")?.addEventListener("change", populateLogForUnits);
 
 document.getElementById("logForForm")?.addEventListener("submit", async (event) => {
@@ -5893,17 +6460,17 @@ if (!auth || !db) {
     if (staff) {
       document.querySelectorAll(".staff-tab").forEach((tab) => tab.classList.remove("hidden"));
       document.querySelectorAll(".staff-only").forEach((item) => item.classList.remove("hidden"));
-      document.getElementById("adminTaskForm")?.classList.remove("hidden");
-      document.getElementById("adminAnnouncementForm")?.classList.remove("hidden");
+      // Note: #adminTaskForm and #adminAnnouncementForm now live inside the
+      // Yönetim tab as collapsible expanders, toggled by their respective
+      // "+ Yeni …" buttons. They start hidden and stay hidden until the
+      // coordinator opens them — so we no longer auto-unhide here.
       document.getElementById("reportUserRow")?.classList.remove("hidden");
     }
-    document.getElementById("tab-reports")?.classList.toggle("volunteer-report", !staff);
     if (isAdmin()) {
       document.querySelectorAll(".admin-tab").forEach((tab) => tab.classList.remove("hidden"));
     }
     await loadAllUsers();
     await reloadPnb();
-    document.getElementById("reportDate").value = td();
     ld.classList.add("hidden");
     tb.classList.remove("hidden");
     await lh();
@@ -5919,5 +6486,14 @@ if (!auth || !db) {
       await loadPendingReviewUnits();
     }
     loadNotifs();
+
+    // Initial tab routing: respect the URL hash if it's allowed for the
+    // current role; otherwise drop the user on their role's default tab.
+    syncRouteFromHash();
+  });
+
+  // Cross-window / back-forward hash changes — keep the active tab in sync.
+  window.addEventListener("hashchange", () => {
+    if (cp) syncRouteFromHash();
   });
 }
