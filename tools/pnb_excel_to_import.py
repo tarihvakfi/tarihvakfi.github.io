@@ -67,6 +67,112 @@ def to_number(value: Any) -> int:
         return 0
 
 
+def to_int_or_none(value: Any) -> int | None:
+    if value in (None, ""):
+        return None
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
+
+
+# Series-no helpers for priority and suitableFor classification.
+# A series cell may contain a slash-list ("120.1/110.2/..."); we use the first
+# segment for root-aware checks but keep the full string for prefix checks.
+
+def _series_first_segment(series_no: str) -> str:
+    return series_no.split("/")[0].strip() if series_no else ""
+
+
+def derive_priority(series_no: str) -> str:
+    series = clean_string(series_no)
+    first = _series_first_segment(series)
+    normalized = first.rstrip(".")
+    if first.startswith("120"):
+        return "high"
+    if normalized == "170.3":
+        return "high"
+    if first.startswith("19.1"):
+        return "medium"
+    medium_roots = ("110", "12", "13", "16", "18")
+    for root in medium_roots:
+        if normalized == root or first.startswith(root + "."):
+            return "medium"
+    return "low"
+
+
+def derive_suitable_for(series_no: str, material_type: str) -> list[str]:
+    tags: list[str] = []
+    series = clean_string(series_no)
+    material = clean_string(material_type)
+    first = _series_first_segment(series)
+    if series.startswith("170"):
+        tags.append("osmanlica")
+    if (
+        material.startswith("Dia")
+        or material.startswith("Negatif")
+        or material.startswith("I.01")
+        or series.startswith("220")
+    ):
+        tags.append("visual")
+    if material == "K" and first.startswith("120.5"):
+        tags.append("transcription")
+    if not tags:
+        tags.append("general")
+    return tags
+
+
+def _split_count(total: int | None, n: int, index: int) -> int | None:
+    if total is None:
+        return None
+    base = total // n
+    if index == n - 1:
+        return total - base * (n - 1)
+    return base
+
+
+def split_unit_if_needed(unit: dict[str, Any], threshold: int) -> list[dict[str, Any]]:
+    pages = unit.get("pageCount")
+    if pages is None or pages <= threshold:
+        return [unit]
+    n = (pages + threshold - 1) // threshold
+    description = unit.get("contentDescription") or ""
+    base_pages = unit.get("pageCount")
+    base_docs = unit.get("documentCount")
+    base_folders = unit.get("folderCount")
+    base_files = unit.get("fileCount") or 0  # legacy field, 0-default
+    box_no = unit.get("boxNo", "")
+    source_code = unit.get("sourceCode", "")
+    series_no = unit.get("seriesNo", "")
+    sub_units: list[dict[str, Any]] = []
+    for index in range(n):
+        letter = chr(ord("A") + index)
+        sub_box = f"{box_no}{letter}"
+        sub_pages = _split_count(base_pages, n, index)
+        sub_docs = _split_count(base_docs, n, index)
+        sub_folders = _split_count(base_folders, n, index)
+        # legacy fileCount: keep 0-default semantics
+        sub_files = _split_count(base_files, n, index) or 0
+        range_indicator = f"Kısım {letter} ({index + 1}/{n})"
+        sub_description = f"{description} · {range_indicator}".strip(" ·") if description else range_indicator
+        sub = dict(unit)
+        sub["id"] = f"{unit['id']}-{letter.lower()}"
+        sub["boxNo"] = sub_box
+        sub["title"] = f"PNB {source_code} / {series_no} - Kutu {sub_box}"
+        sub["pageCount"] = sub_pages
+        sub["documentCount"] = sub_docs
+        sub["folderCount"] = sub_folders
+        sub["fileCount"] = sub_files
+        sub["contentDescription"] = sub_description
+        sub["notes"] = sub_description
+        sub["sourceIdentifier"] = f"{source_code} / {series_no} / {sub_box}".strip()
+        sub["splitParentId"] = unit["id"]
+        sub["splitIndex"] = index + 1
+        sub["splitTotal"] = n
+        sub_units.append(sub)
+    return sub_units
+
+
 def to_date(value: Any) -> str | None:
     if value in (None, ""):
         return None
@@ -216,14 +322,28 @@ def build_availability(path: Path, people_by_name: dict[str, dict[str, Any]]) ->
     return availability
 
 
-def build_archive_units(path: Path, people_by_name: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+def build_archive_units(
+    path: Path,
+    people_by_name: dict[str, dict[str, Any]],
+    split_over: int = 500,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     rows = rows_as_dicts(path)
     units: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
     used_ids: Counter[str] = Counter()
     for row in rows:
         source_code = clean_string(value(row, "kaynak kodu"))
         series_no = clean_string(value(row, "seri no"))
         box_no = clean_string(value(row, "kutu no"))
+        # Footnote rows (no series AND no box) are explanatory text on the
+        # spreadsheet, not actual archive units. Drop them but record why.
+        if not series_no and not box_no:
+            skipped.append({
+                "sourceRow": row["_sourceRow"],
+                "reason": "no series and no box (footnote/comment row)",
+                "note": clean_string(value(row, "not")),
+            })
+            continue
         base_id = f"pnb-{slug(source_code, 'source')}-{slug(series_no, 'series')}-{slug(box_no, 'box')}"
         used_ids[base_id] += 1
         unit_id = base_id if used_ids[base_id] == 1 else f"{base_id}-{used_ids[base_id]}"
@@ -233,41 +353,65 @@ def build_archive_units(path: Path, people_by_name: dict[str, dict[str, Any]]) -
             person = people_by_name.get(normalize_text(name))
             if person and person.get("email"):
                 assigned_emails.append(person["email"])
-        units.append(
-            {
-                "id": unit_id,
-                "projectId": PROJECT_ID,
-                "projectTitle": PROJECT_TITLE,
-                "title": f"PNB {source_code} / {series_no} - Kutu {box_no}",
-                "sourceCode": source_code,
-                "seriesNo": series_no,
-                "boxNo": box_no,
-                "fileCount": to_number(value(row, "dosya adedi")),
-                "documentCount": to_number(value(row, "belge adedi")),
-                "pageCount": to_number(value(row, "sayfa adedi")),
-                "materialType": clean_string(value(row, "materyal türü", "materyal turu")),
-                "notes": clean_string(value(row, "not")),
-                "startDate": to_date(value(row, "başlangıç tarihi", "baslangic tarihi")),
-                "updatedDate": to_date(value(row, "güncelleme tarihi", "guncelleme tarihi")),
-                "endDate": to_date(value(row, "bitiş tarihi", "bitis tarihi")),
-                "assignedNames": assigned_names,
-                "assignedToEmails": sorted(set(assigned_emails)),
-                "assignedToUids": [],
-                "completedFileCount": to_number(value(row, "tamamlanan dosya")),
-                "completedDocumentCount": to_number(value(row, "tamamlanan belge adedi")),
-                "completedPageCount": to_number(value(row, "tamamlanan sayfa adedi")),
-                "remainingFileCount": to_number(value(row, "kalan dosya")),
-                "remainingDocumentCount": to_number(value(row, "kalan belge adedi")),
-                "remainingPageCount": to_number(value(row, "kalan sayfa adedi")),
-                "status": "assigned" if assigned_names else "not_started",
-                "priority": "medium",
-                "blockerNote": "",
-                "dueDate": None,
-                "latestReportAt": None,
-                "sourceRow": row["_sourceRow"],
-            }
+        material_type = clean_string(value(row, "materyal türü", "materyal turu"))
+        content_description = clean_string(value(row, "not"))
+        page_count = to_int_or_none(value(row, "sayfa adedi"))
+        document_count = to_int_or_none(value(row, "belge adedi"))
+        folder_count = to_int_or_none(value(row, "dosya adedi"))
+        source_identifier = " / ".join(
+            part for part in [source_code, series_no, box_no] if part
         )
-    return units
+        unit = {
+            "id": unit_id,
+            "projectId": PROJECT_ID,
+            "projectTitle": PROJECT_TITLE,
+            "title": f"PNB {source_code} / {series_no} - Kutu {box_no}",
+            "sourceCode": source_code,
+            "seriesNo": series_no,
+            "boxNo": box_no,
+            # Legacy 0-default counters (kept so existing dashboards keep summing).
+            "fileCount": to_number(value(row, "dosya adedi")),
+            "documentCount": document_count if document_count is not None else 0,
+            "pageCount": page_count if page_count is not None else 0,
+            # New null-aware counters per the report-first schema.
+            "folderCount": folder_count,
+            "materialType": material_type,
+            "notes": content_description,
+            "contentDescription": content_description,
+            "sourceIdentifier": source_identifier,
+            "priority": derive_priority(series_no),
+            "suitableFor": derive_suitable_for(series_no, material_type),
+            "city": "istanbul",
+            "digitized": False,
+            "startDate": to_date(value(row, "başlangıç tarihi", "baslangic tarihi")),
+            "updatedDate": to_date(value(row, "güncelleme tarihi", "guncelleme tarihi")),
+            "endDate": to_date(value(row, "bitiş tarihi", "bitis tarihi")),
+            "assignedNames": assigned_names,
+            "assignedToEmails": sorted(set(assigned_emails)),
+            "assignedToUids": [],
+            "completedFileCount": to_number(value(row, "tamamlanan dosya")),
+            "completedDocumentCount": to_number(value(row, "tamamlanan belge adedi")),
+            "completedPageCount": to_number(value(row, "tamamlanan sayfa adedi")),
+            "remainingFileCount": to_number(value(row, "kalan dosya")),
+            "remainingDocumentCount": to_number(value(row, "kalan belge adedi")),
+            "remainingPageCount": to_number(value(row, "kalan sayfa adedi")),
+            "status": "not_started",
+            "blockerNote": "",
+            "dueDate": None,
+            "latestReportAt": None,
+            "sourceRow": row["_sourceRow"],
+        }
+        # Preserve the new null-aware pageCount/documentCount on the unit so
+        # split logic uses the correct totals; legacy 0-default fields above
+        # are for downstream summing only.
+        unit["pageCount"] = page_count if page_count is not None else 0
+        unit["documentCount"] = document_count if document_count is not None else 0
+        if page_count is None:
+            unit["pageCount"] = None
+        if document_count is None:
+            unit["documentCount"] = None
+        units.extend(split_unit_if_needed(unit, split_over))
+    return units, skipped
 
 
 def build_communication_plans(path: Path) -> list[dict[str, Any]]:
@@ -296,7 +440,19 @@ def build_communication_plans(path: Path) -> list[dict[str, Any]]:
     return plans
 
 
-def build_preview(excel_dir: Path) -> dict[str, Any]:
+def _archive_summary(units: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "archiveUnits": len(units),
+        "fileCount": sum(unit.get("fileCount") or 0 for unit in units),
+        "documentCount": sum(unit.get("documentCount") or 0 for unit in units),
+        "pageCount": sum(unit.get("pageCount") or 0 for unit in units),
+        "completedFileCount": sum(unit.get("completedFileCount") or 0 for unit in units),
+        "completedDocumentCount": sum(unit.get("completedDocumentCount") or 0 for unit in units),
+        "completedPageCount": sum(unit.get("completedPageCount") or 0 for unit in units),
+    }
+
+
+def build_preview(excel_dir: Path, split_over: int = 500) -> dict[str, Any]:
     stakeholder_file = find_file(excel_dir, "paydas")
     availability_file = find_file(excel_dir, "gonullu", "zaman")
     work_plan_file = find_file(excel_dir, "is", "plani")
@@ -304,7 +460,7 @@ def build_preview(excel_dir: Path) -> dict[str, Any]:
 
     people, people_by_name, duplicate_names = build_people(stakeholder_file)
     availability = build_availability(availability_file, people_by_name)
-    archive_units = build_archive_units(work_plan_file, people_by_name)
+    archive_units, skipped_rows = build_archive_units(work_plan_file, people_by_name, split_over)
     communication_plans = build_communication_plans(communication_file)
 
     missing_emails = [
@@ -320,13 +476,7 @@ def build_preview(excel_dir: Path) -> dict[str, Any]:
     empty_assigned = [unit["id"] for unit in archive_units if not unit["assignedNames"]]
 
     summary = {
-        "archiveUnits": len(archive_units),
-        "fileCount": sum(unit["fileCount"] for unit in archive_units),
-        "documentCount": sum(unit["documentCount"] for unit in archive_units),
-        "pageCount": sum(unit["pageCount"] for unit in archive_units),
-        "completedFileCount": sum(unit["completedFileCount"] for unit in archive_units),
-        "completedDocumentCount": sum(unit["completedDocumentCount"] for unit in archive_units),
-        "completedPageCount": sum(unit["completedPageCount"] for unit in archive_units),
+        **_archive_summary(archive_units),
         "people": len(people),
         "peopleWithEmail": sum(1 for person in people if person["email"]),
         "availabilityRows": len(availability),
@@ -345,6 +495,7 @@ def build_preview(excel_dir: Path) -> dict[str, Any]:
             "workPlan": work_plan_file.name,
             "communication": communication_file.name,
         },
+        "splitOver": split_over,
         "summary": summary,
         "archiveUnits": archive_units,
         "people": people,
@@ -355,20 +506,126 @@ def build_preview(excel_dir: Path) -> dict[str, Any]:
             "duplicateNames": duplicate_names,
             "unmatchedAvailabilityNames": unmatched_availability,
             "emptyAssignedArchiveUnits": empty_assigned,
+            "skippedRows": skipped_rows,
         },
     }
 
 
+def build_preview_work_plan_only(workbook: Path, split_over: int = 500) -> dict[str, Any]:
+    """Single-file mode: only refresh archiveUnits.
+
+    People, availability and communication plans are emitted as empty arrays so
+    the existing Bakım flow can still consume the JSON, but the maintainer must
+    be aware that committing this preview will reset the projects/pnb counters
+    for those collections to 0 (peopleCount, availabilitySlotCount,
+    communicationPlanCount). Use the full `build_preview` when those counters
+    need to stay accurate.
+    """
+    archive_units, skipped_rows = build_archive_units(workbook, {}, split_over)
+    summary = {
+        **_archive_summary(archive_units),
+        "people": 0,
+        "peopleWithEmail": 0,
+        "availabilityRows": 0,
+        "availablePeople": 0,
+        "availabilitySlotCount": 0,
+        "communicationPlans": 0,
+    }
+    return {
+        "version": 1,
+        "generatedAt": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "project": {"id": PROJECT_ID, "title": PROJECT_TITLE},
+        "mode": "work_plan_only",
+        "sourceFiles": {"workPlan": workbook.name},
+        "splitOver": split_over,
+        "summary": summary,
+        "archiveUnits": archive_units,
+        "people": [],
+        "availability": [],
+        "communicationPlans": [],
+        "checks": {
+            "missingEmails": [],
+            "duplicateNames": [],
+            "unmatchedAvailabilityNames": [],
+            "emptyAssignedArchiveUnits": [unit["id"] for unit in archive_units if not unit["assignedNames"]],
+            "skippedRows": skipped_rows,
+        },
+    }
+
+
+def write_summary_markdown(preview: dict[str, Any], output: Path) -> None:
+    units = preview.get("archiveUnits", [])
+    skipped = preview.get("checks", {}).get("skippedRows", [])
+    split_over = preview.get("splitOver", 500)
+
+    by_priority: Counter[str] = Counter()
+    by_tag: Counter[str] = Counter()
+    by_material: Counter[str] = Counter()
+    parent_ids: set[str] = set()
+    for unit in units:
+        by_priority[unit.get("priority", "low")] += 1
+        for tag in unit.get("suitableFor") or []:
+            by_tag[tag] += 1
+        material = unit.get("materialType") or "(boş)"
+        by_material[material] += 1
+        parent = unit.get("splitParentId")
+        if parent:
+            parent_ids.add(parent)
+    split_sub_units = sum(1 for unit in units if unit.get("splitParentId"))
+
+    lines: list[str] = []
+    lines.append(f"# PNB import özeti")
+    lines.append("")
+    lines.append(f"- Üretim zamanı: {preview.get('generatedAt', '')}")
+    lines.append(f"- Kaynak dosya: `{preview.get('sourceFiles', {}).get('workPlan', '-')}`")
+    lines.append(f"- Bölme eşiği (Sayfa Adedi): {split_over}")
+    lines.append(f"- Toplam birim (bölünmüş alt-birimler dahil): **{len(units)}**")
+    lines.append(f"- Bölünen üst birim: {len(parent_ids)} → {split_sub_units} alt-birim")
+    lines.append("")
+    lines.append("## Öncelik dağılımı")
+    for level in ("high", "medium", "low"):
+        lines.append(f"- {level}: {by_priority.get(level, 0)}")
+    lines.append("")
+    lines.append("## Uygunluk etiketleri (suitableFor)")
+    for tag, count in sorted(by_tag.items(), key=lambda item: (-item[1], item[0])):
+        lines.append(f"- `{tag}`: {count}")
+    lines.append("")
+    lines.append("## Materyal türü")
+    for material, count in sorted(by_material.items(), key=lambda item: (-item[1], item[0])):
+        lines.append(f"- `{material}`: {count}")
+    lines.append("")
+    lines.append("## Atlanan satırlar")
+    if not skipped:
+        lines.append("Yok.")
+    else:
+        for entry in skipped:
+            note = entry.get("note") or ""
+            note_short = (note[:120] + "…") if len(note) > 120 else note
+            lines.append(f"- satır {entry.get('sourceRow')}: {entry.get('reason')} — {note_short}")
+    lines.append("")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text("\n".join(lines), encoding="utf-8")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate a PNB Firebase import preview JSON.")
-    parser.add_argument("--excel-dir", type=Path, default=Path(".."), help="Directory containing the four PNB Excel files.")
+    parser.add_argument("--excel-dir", type=Path, default=Path(".."), help="Directory containing the four PNB Excel files (full mode).")
+    parser.add_argument("--workbook", type=Path, default=None, help="Path to a single PNB iş planı workbook for work-plan-only mode.")
+    parser.add_argument("--split-over", type=int, default=500, help="Split any archive unit whose Sayfa Adedi exceeds this threshold into A/B/C sub-units.")
     parser.add_argument("--output", type=Path, default=Path("imports/pnb-import-preview.json"), help="Output JSON path.")
+    parser.add_argument("--summary", type=Path, default=None, help="Optional human-readable Markdown summary path.")
     args = parser.parse_args()
 
-    preview = build_preview(args.excel_dir.resolve())
+    if args.workbook:
+        preview = build_preview_work_plan_only(args.workbook.resolve(), args.split_over)
+    else:
+        preview = build_preview(args.excel_dir.resolve(), args.split_over)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(preview, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Wrote {args.output}")
+    if args.summary:
+        write_summary_markdown(preview, args.summary)
+        print(f"Wrote {args.summary}")
     print(json.dumps(preview["summary"], ensure_ascii=False, indent=2))
     checks = preview["checks"]
     print(
@@ -376,7 +633,8 @@ def main() -> None:
         f"{len(checks['missingEmails'])} missing emails, "
         f"{len(checks['duplicateNames'])} duplicate names, "
         f"{len(checks['unmatchedAvailabilityNames'])} unmatched availability rows, "
-        f"{len(checks['emptyAssignedArchiveUnits'])} unassigned archive units."
+        f"{len(checks['emptyAssignedArchiveUnits'])} unassigned archive units, "
+        f"{len(checks.get('skippedRows', []))} skipped rows."
     )
 
 

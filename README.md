@@ -16,17 +16,29 @@ Bu repo, Tarih Vakfı için GitHub Pages üzerinde çalışacak ücretsiz gönü
 - `/app/` → gönüllü paneli
 - `/admin/` → koordinatör / yönetici paneli
 
+## Gönüllü akışı (rapor-öncelikli)
+
+Sistem rapor-öncelikli (report-first) bir model kullanır. Gönüllüler sıraya alınmış işleri beklemez; üzerinde çalışmak istedikleri iş paketini kendileri seçer ve çalıştıktan sonra kısa bir rapor bırakır. Birim durumu en son rapordan otomatik türetilir.
+
+1. Gönüllü Google ile giriş yapar, başvurusu onaylanır.
+2. Panel açıldığında büyük bir **Rapor Ver** birincil butonu ve son üç raporun listesi karşılar.
+3. Modaldan iş paketini typeahead ile arar (kaynak / kutu / seri / içerik), ne yaptığını yazar, efor (Biraz / Normal / Epey) ve durum (Başladım / Devam ediyor / Gözden geçirme için hazır / Bitirdim / Takıldım) seçer, isteğe bağlı link bırakır.
+4. Kayıt tek bir Firestore batch'i ile `reports` dokümanını yazar, ilgili `archiveUnits` kaydının durum + son aktivite alanlarını günceller, gönüllünün `users.lastReportAt` damgasını tazeler.
+5. "Liste dışı / yeni bir iş" yoluyla gönüllü `pending_review` statüsüyle yeni bir kayıt da oluşturabilir; admin Bakım sekmesinde onaylar veya birleştirir.
+
 ## PNB arşiv operasyonları
 
 Sistem bütün gönüllü işleri için tek yönetim ortamıdır. Pertev Naili Boratav çalışması ilk ayrıntılı arşiv vaka çalışması olarak desteklenir:
 
 - Proje başlıkları `projects` koleksiyonunda tutulur.
-- PNB arşiv iş paketleri `archiveUnits` koleksiyonunda tutulur.
-- İşler ve raporlar PNB arşiv birimine bağlanabilir.
-- Gönüllüler yalnızca kendilerine atanmış arşiv birimlerini görür.
-- Koordinatör/admin rolleri iş paketlerini atar, durum günceller, engelleri takip eder ve raporları inceler.
+- PNB arşiv iş paketleri `archiveUnits` koleksiyonunda tutulur; her birim `sourceIdentifier`, `priority`, `suitableFor`, `city`, `digitized`, `lastActivityAt`, `lastReporterId/Name`, `lastReportNotePreview` gibi alanlar taşır.
+- Raporlar `reports` koleksiyonunda tutulur ve bir arşiv birimine bağlanır.
+- Gönüllüler `Rapor Ver` modalindeki typeahead aracılığıyla tüm PNB iş paketlerine erişir; Ankara'daki gönüllüler yalnızca `digitized == true` kutuları görür. Atanmış / atanmamış ayrımı artık akışın belirleyici unsuru değildir.
+- Koordinatör/admin rolleri operasyonel takip için **Pano** (sadece görüntüleme), **Son raporlar** akışı, **Dikkat** paneli (engelliler, uzun süredir dokunulmamış birimler, sessiz gönüllüler) ve **Yönetim** drawer'ları üzerinden çalışır.
 - Excel dosyaları doğrudan canlı veritabanına yazılmaz; önce `tools/pnb_excel_to_import.py` ile JSON önizleme üretilir, sonra `/app/` içindeki admin-only `Bakım` ekranından aktarılır.
 - PNB dışındaki gönüllü işleri aynı `İşler` ekranındaki `Diğer işler`, `Rapor Yaz`, `Duyurular` ve staff-only `Yönetim` akışıyla yönetilir.
+
+> Eski "atama-merkezli" akış (self-claim banner + sıradan iş seçimi) kod tabanında muhafaza edilmiştir ve `window.FEATURE_FLAGS.selfClaim` bayrağı ile geri açılabilir; ayrıntılar için `AGENTS.md` içindeki "Self-claim is deprecated but retained" bölümüne bakın.
 
 ## Roller
 

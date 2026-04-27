@@ -32,6 +32,7 @@
 
     <nav id="tabBar" class="tab-bar hidden">
       <button class="tab active" data-tab="home">Bugün</button>
+      <button class="tab" data-tab="pano">Pano</button>
       <button class="tab" data-tab="pnb">İşler</button>
       <button class="tab" data-tab="reports">Rapor Yaz</button>
       <button class="tab" data-tab="announcements">Duyurular</button>
@@ -40,6 +41,44 @@
     </nav>
 
     <section id="tab-home" class="tab-content sv-mode">
+      <div id="staffRecentPanel" class="staff-panel staff-only hidden">
+        <div class="staff-panel-head">
+          <div>
+            <p class="eyebrow">Son raporlar</p>
+            <h2 id="staffRecentTitle">Son raporlar</h2>
+            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Bütün gönüllülerden gelen en son rapor akışı. Bir satıra tıkla → birimin geçmişini aç.</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" type="button" id="staffRecentRefresh">Yenile</button>
+        </div>
+        <div id="staffRecentList" class="staff-recent-list"><p class="empty">Yükleniyor…</p></div>
+        <div class="staff-recent-foot">
+          <button class="btn btn-secondary btn-sm" type="button" id="staffRecentMoreBtn">Daha fazla göster</button>
+          <span id="staffRecentMessage" class="status-line muted"></span>
+        </div>
+      </div>
+
+      <div id="staffAttentionPanel" class="staff-panel staff-only hidden">
+        <div class="staff-panel-head">
+          <div>
+            <p class="eyebrow">Dikkat</p>
+            <h2>Çözülmesi bekleyen</h2>
+            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Engelli işler, uzun süredir dokunulmamış birimler ve sessiz gönüllüler.</p>
+          </div>
+        </div>
+        <details class="staff-attn-section" id="attnBlocked" open>
+          <summary><span>Takılanlar</span><span class="staff-attn-count" id="attnBlockedCount">0</span></summary>
+          <div id="attnBlockedList" class="stack"><p class="empty">Engelli iş yok.</p></div>
+        </details>
+        <details class="staff-attn-section" id="attnStale">
+          <summary><span>Uzun süredir dokunulmamış</span><span class="staff-attn-count" id="attnStaleCount">0</span></summary>
+          <div id="attnStaleList" class="stack"><p class="empty">Hepsi güncel.</p></div>
+        </details>
+        <details class="staff-attn-section" id="attnSilent">
+          <summary><span>Sessiz gönüllüler</span><span class="staff-attn-count" id="attnSilentCount">0</span></summary>
+          <div id="attnSilentList" class="stack"><p class="empty">Herkes son 21 gün içinde rapor yazmış.</p></div>
+        </details>
+      </div>
+
       <div class="sv-home">
         <div class="frame">
           <div class="sv-greet">
@@ -50,6 +89,18 @@
           </div>
 
           <div id="svSelfClaim" class="sv-selfclaim hidden"></div>
+
+          <div id="svReportPrimary" class="sv-report-primary hidden">
+            <button type="button" class="sv-report-cta" id="svReportCtaBtn">
+              <span class="ic" aria-hidden="true">＋</span>
+              <span class="lab">Rapor Ver</span>
+              <span class="sub">Ne yaptın? Tek formda kaydet.</span>
+            </button>
+            <div class="sv-recent">
+              <p class="eyebrow">Son raporların</p>
+              <div id="svRecentReports" class="sv-recent-list"><p class="sv-empty">Henüz rapor yok.</p></div>
+            </div>
+          </div>
 
           <div class="wa-prog">
             <div class="ring"></div>
@@ -224,6 +275,45 @@
           </div>
           <div id="homeAnnouncements" class="stack"><p class="empty">Duyuru yok.</p></div>
         </article>
+      </div>
+    </section>
+
+    <section id="tab-pano" class="tab-content hidden">
+      <div class="pano-head">
+        <div>
+          <p class="eyebrow">Pano</p>
+          <h2>İş paketi durumu</h2>
+          <p class="muted">Sadece görüntüleme. Durum, gönüllülerin yazdığı raporlardan otomatik güncellenir.</p>
+        </div>
+        <input id="panoSearchInput" class="search" type="search" placeholder="Birim, kutu, not ara…" />
+      </div>
+      <div class="pano-grid">
+        <div class="pano-cols">
+          <section class="pano-col" data-pano-col="not_started">
+            <header><h3>Başlanmadı</h3><span class="n" id="panoCountTodo">0</span></header>
+            <div id="panoColTodo" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
+          </section>
+          <section class="pano-col" data-pano-col="in_progress">
+            <header><h3>Devam ediyor</h3><span class="n" id="panoCountDoing">0</span></header>
+            <div id="panoColDoing" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
+          </section>
+          <section class="pano-col" data-pano-col="review">
+            <header><h3>Gözden geçirme</h3><span class="n" id="panoCountReview">0</span></header>
+            <div id="panoColReview" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
+          </section>
+          <section class="pano-col" data-pano-col="done">
+            <header><h3>Tamam</h3><span class="n" id="panoCountDone">0</span></header>
+            <div id="panoColDone" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
+          </section>
+          <section class="pano-col" data-pano-col="blocked">
+            <header><h3>Takıldım</h3><span class="n" id="panoCountBlocked">0</span></header>
+            <div id="panoColBlocked" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
+          </section>
+        </div>
+        <aside class="pano-pending">
+          <header><h3>Gözden geçirme bekleyen yeni işler</h3><span class="n" id="panoCountPending">0</span></header>
+          <div id="panoPendingList" class="pano-pending-list"><p class="kb-empty">Bekleyen yeni iş yok.</p></div>
+        </aside>
       </div>
     </section>
 
@@ -504,7 +594,18 @@
     </section>
 
     <section id="tab-maintenance" class="tab-content hidden">
-      <div class="card">
+      <div class="card" id="pendingReviewCard">
+        <div class="step-header">
+          <div>
+            <p class="eyebrow">Yeni iş kuyruğu</p>
+            <h2 style="margin-top:0">Gözden geçirme bekleyen yeni işler</h2>
+            <p class="muted">Gönüllülerin "Liste dışı / yeni bir iş" yoluyla oluşturduğu kayıtlar burada birikir. Onaylayıp sıraya ekleyin, mevcut bir işle birleştirin veya silin.</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" type="button" id="pendingReviewRefresh">Yenile</button>
+        </div>
+        <div id="pendingReviewList" class="stack"><p class="empty">Yükleniyor…</p></div>
+      </div>
+      <div class="card" style="margin-top:1.25rem">
         <p class="eyebrow">Bakım / veri araçları</p>
         <h2 style="margin-top:0">PNB import aracı</h2>
         <p class="muted">Bu ekran günlük çalışma için değil, yöneticinin gerektiğinde veriyi güvenli biçimde kontrol edip aktarması içindir. Önce <code>tools/pnb_excel_to_import.py</code> ile yerel JSON üretin. JSON kişisel iletişim bilgileri içerebilir; repo içinde <code>imports/</code> klasörü git tarafından yok sayılır.</p>
@@ -554,8 +655,16 @@
           <button type="button" class="btn btn-secondary btn-sm" data-drill-close aria-label="Kapat">Kapat</button>
         </div>
       </header>
+      <div id="drillMeta" class="drill-meta"></div>
       <div id="drillStats" class="drill-stats"></div>
       <div id="drillBlocker" class="drill-blocker"></div>
+      <div class="drill-section drill-actions-row">
+        <button type="button" id="drillReportBtn" class="btn btn-primary btn-sm">Rapor Ver (bu iş paketi için)</button>
+      </div>
+      <div class="drill-section drill-timeline-section hidden" id="drillTimelineSection">
+        <p class="eyebrow">Durum geçmişi</p>
+        <div id="drillTimeline" class="drill-timeline"></div>
+      </div>
       <div class="drill-section">
         <p class="eyebrow">Atanan gönüllüler</p>
         <div id="drillAssignees" class="drill-assignees"><p class="muted">-</p></div>
@@ -595,6 +704,144 @@
         <p class="eyebrow">Son raporlar</p>
         <div id="drillReports" class="drill-reports"><p class="muted">Yükleniyor...</p></div>
       </div>
+    </div>
+  </div>
+
+  <div id="approvePendingModal" class="drill-modal hidden" role="dialog" aria-modal="true" aria-labelledby="approvePendingTitle">
+    <div class="drill-backdrop" data-approve-pending-close></div>
+    <div class="drill-panel" style="max-width:520px">
+      <header class="drill-header">
+        <div>
+          <p class="eyebrow">Onayla ve sıraya ekle</p>
+          <h2 id="approvePendingTitle">Yeni işi onayla</h2>
+          <p class="muted" id="approvePendingSummary" style="font-size:.85rem;margin:.15rem 0 0"></p>
+        </div>
+        <div class="drill-header-actions">
+          <button type="button" class="btn btn-secondary btn-sm" data-approve-pending-close>Kapat</button>
+        </div>
+      </header>
+      <form id="approvePendingForm" class="form compact-form" novalidate>
+        <input type="hidden" id="approvePendingId" />
+        <label>Öncelik
+          <select id="approvePendingPriority">
+            <option value="low">Düşük</option>
+            <option value="medium" selected>Orta</option>
+            <option value="high">Yüksek</option>
+          </select>
+        </label>
+        <label>Uygunluk etiketleri (virgülle ayrılmış kodlar)
+          <input id="approvePendingSuitableFor" type="text" placeholder="dijitallestirme, arsivcilik" />
+          <small class="muted" style="font-size:.8rem">Boş bırakılabilir. Geçerli kodlar AGENTS.md / FIRESTORE_SCHEMA.md içindeki listededir.</small>
+        </label>
+        <div class="form-actions"><button type="submit" class="btn btn-primary">Onayla</button><span id="approvePendingMessage" class="status-line muted"></span></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="mergePendingModal" class="drill-modal hidden" role="dialog" aria-modal="true" aria-labelledby="mergePendingTitle">
+    <div class="drill-backdrop" data-merge-pending-close></div>
+    <div class="drill-panel" style="max-width:520px">
+      <header class="drill-header">
+        <div>
+          <p class="eyebrow">Birleştir</p>
+          <h2 id="mergePendingTitle">Mevcut bir iş paketine birleştir</h2>
+          <p class="muted" id="mergePendingSummary" style="font-size:.85rem;margin:.15rem 0 0"></p>
+        </div>
+        <div class="drill-header-actions">
+          <button type="button" class="btn btn-secondary btn-sm" data-merge-pending-close>Kapat</button>
+        </div>
+      </header>
+      <form id="mergePendingForm" class="form compact-form" novalidate>
+        <input type="hidden" id="mergePendingId" />
+        <label>Hedef iş paketi
+          <select id="mergePendingTarget" required>
+            <option value="">— Seç —</option>
+          </select>
+        </label>
+        <p class="muted" style="font-size:.8rem;margin:0">Pending kaydın notu hedef birime not olarak eklenir, sonra pending kayıt silinir. İlgili rapor zaten hedef birim ID'si ile yeniden bağlanır.</p>
+        <div class="form-actions"><button type="submit" class="btn btn-primary">Birleştir</button><span id="mergePendingMessage" class="status-line muted"></span></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="reportModal" class="drill-modal report-modal hidden" role="dialog" aria-modal="true" aria-labelledby="reportModalTitle">
+    <div class="drill-backdrop" data-report-modal-close></div>
+    <div class="drill-panel report-panel">
+      <header class="drill-header">
+        <div>
+          <p class="eyebrow">Rapor</p>
+          <h2 id="reportModalTitle">Bugün ne yaptın?</h2>
+          <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Tek formda işi seç, ne yaptığını yaz, ne kadar ilerlediğini ve durumunu işaretle.</p>
+        </div>
+        <div class="drill-header-actions">
+          <button type="button" class="btn btn-secondary btn-sm" data-report-modal-close aria-label="Kapat">Kapat</button>
+        </div>
+      </header>
+      <form id="reportModalForm" class="report-form" novalidate>
+        <div class="rm-field">
+          <label class="rm-label" for="rmUnitInput">Hangi iş paketi? <span class="req">*</span></label>
+          <div class="rm-typeahead" id="rmTypeahead">
+            <div class="rm-selected hidden" id="rmSelected"></div>
+            <input type="text" id="rmUnitInput" class="rm-input" autocomplete="off" placeholder="Kutu no, seri no veya kaynak ara…" aria-autocomplete="list" aria-controls="rmResults" />
+            <div id="rmResults" class="rm-results hidden" role="listbox"></div>
+            <div class="rm-newunit hidden" id="rmNewUnit">
+              <label class="rm-sub">Kaynak / Tanım <span class="req">*</span>
+                <input type="text" id="rmNewSource" placeholder="48 / 120.5 / K75 ek kutu" maxlength="160" />
+              </label>
+              <label class="rm-sub">Kısa açıklama
+                <input type="text" id="rmNewDescription" placeholder="Kutuda ne var?" maxlength="240" />
+              </label>
+              <button type="button" class="btn btn-secondary btn-sm" id="rmCancelNewUnit">Listeye dön</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="rm-field">
+          <label class="rm-label" for="rmNote">Ne yaptın? <span class="req">*</span></label>
+          <textarea id="rmNote" class="rm-textarea" rows="3" maxlength="500" required
+            placeholder="Örnek: 40 fotoğrafı taradım, Drive'a yükledim, metadatayı tablodaki şablona göre doldurdum."></textarea>
+          <div class="rm-counter" id="rmNoteCounter">0 / 500</div>
+        </div>
+
+        <div class="rm-field">
+          <span class="rm-label">Ne kadar ilerledin? <span class="req">*</span></span>
+          <div class="rm-segmented" role="radiogroup" aria-label="Efor">
+            <button type="button" class="rm-seg" data-effort="small">Biraz<small>&lt; 1 saat</small></button>
+            <button type="button" class="rm-seg" data-effort="medium">Normal<small>1–3 saat</small></button>
+            <button type="button" class="rm-seg" data-effort="large">Epey<small>3+ saat</small></button>
+          </div>
+        </div>
+
+        <div class="rm-field">
+          <span class="rm-label">Durum? <span class="req">*</span></span>
+          <div class="rm-segmented rm-status" role="radiogroup" aria-label="Durum">
+            <button type="button" class="rm-seg" data-status="in_progress" data-substatus="started">Başladım</button>
+            <button type="button" class="rm-seg" data-status="in_progress" data-substatus="ongoing">Devam ediyor</button>
+            <button type="button" class="rm-seg" data-status="review" data-substatus="review">Gözden geçirme için hazır</button>
+            <button type="button" class="rm-seg" data-status="done" data-substatus="done">Bitirdim</button>
+          </div>
+          <button type="button" class="rm-seg rm-seg-blocked" data-status="blocked" data-substatus="blocked">Takıldım</button>
+        </div>
+
+        <label class="rm-field rm-digitized hidden" id="rmDigitizedField">
+          <input type="checkbox" id="rmDigitizedCheck" />
+          <span>Bu kutunun içeriği artık tamamen taranmış ve Drive'da</span>
+        </label>
+
+        <div class="rm-field">
+          <label class="rm-label" for="rmUrl">Link <em class="muted">(opsiyonel)</em></label>
+          <input type="url" id="rmUrl" class="rm-input" placeholder="https://drive.google.com/..." />
+          <div class="rm-helper hidden" id="rmUrlHelper"></div>
+        </div>
+
+        <div class="rm-actions">
+          <span id="rmMessage" class="status-line muted"></span>
+          <button type="submit" class="btn btn-primary" id="rmSubmit">Raporu kaydet</button>
+        </div>
+        <div class="rm-footer">
+          <a href="#" id="rmMoreOptions">daha fazla seçenek</a>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -641,6 +888,17 @@
   </div>
 
   <script src="../js/config.firebase.js"></script>
+  <!--
+    Feature flags. The self-claim flow was retired with the report-first
+    rollout (Prompt C/D); the underlying code paths and Firestore rules are
+    intentionally retained so we can A/B-test them again without rewriting
+    anything. Flip this to true at runtime (or hard-code true here) to
+    re-enable the self-claim banner and the [data-self-claim]/[data-self-release]
+    UI entry points.
+  -->
+  <script>
+    window.FEATURE_FLAGS = Object.assign({ selfClaim: false }, window.FEATURE_FLAGS || {});
+  </script>
   <script type="module" src="../js/firebase-init.js"></script>
   <script type="module" src="./dashboard.js"></script>
 </body>

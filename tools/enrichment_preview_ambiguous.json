@@ -1,0 +1,29 @@
+{
+  "count": 1,
+  "items": [
+    {
+      "fullName": "Arif Solmaz",
+      "normalizedName": "arif solmaz",
+      "sources": {
+        "schedule": 22
+      },
+      "candidates": [
+        {
+          "userId": "ekTPH3LD4QQKwyTkLS264Q44XfI2",
+          "fullName": "Arif Solmaz",
+          "email": "arif.solmaz@gmail.com",
+          "department": "Arşiv",
+          "role": "admin"
+        },
+        {
+          "userId": "tOcd7tQlPBNWVBRuXN4REBViXJ82",
+          "fullName": "Arif Solmaz",
+          "email": "arifscag@gmail.com",
+          "department": "Arşiv",
+          "role": "volunteer"
+        }
+      ],
+      "reviewFlags": []
+    }
+  ]
+}

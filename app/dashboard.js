@@ -11,6 +11,7 @@ import {
   orderBy,
   where,
   limit,
+  startAfter,
   updateDoc,
   writeBatch,
   arrayUnion,
@@ -435,8 +436,20 @@ function renderHomeQueueCta() {
   if (oldCta) oldCta.classList.add("hidden");
   const banner = document.getElementById("svSelfClaim");
   if (!banner) return;
-  if (isStaff() || !cu) { banner.classList.add("hidden"); banner.innerHTML = ""; return; }
-
+  // Report-first flow: the self-claim banner is retired from the volunteer
+  // home view by default. Code path retained behind window.FEATURE_FLAGS.selfClaim
+  // (initialized in app/index.html, default false) so we can A/B-test it again
+  // without rewriting anything.
+  if (!window.FEATURE_FLAGS?.selfClaim) {
+    banner.classList.add("hidden");
+    banner.innerHTML = "";
+    return;
+  }
+  if (isStaff() || !cu) {
+    banner.classList.add("hidden");
+    banner.innerHTML = "";
+    return;
+  }
   const myEmail = String(cu.email || "").toLowerCase();
   const isMine = (unit) => (unit.assignedToUids || []).includes(cu.uid) ||
     (myEmail && (unit.assignedToEmails || []).map((e) => String(e).toLowerCase()).includes(myEmail));
@@ -569,6 +582,983 @@ async function handleSelfRelease(btn) {
     btn.disabled = false;
     btn.textContent = prevLabel;
   }
+}
+
+// ---------- Pano (read-only board) ----------
+//
+// Pano is the new home for the kanban view. It is purely a display surface:
+// volunteers and coordinators see the same five columns + a pending-review
+// side panel. Status changes flow only through the Rapor Ver modal (for
+// volunteers) or the existing admin Ayarla path (for staff).
+
+const PANO_COLUMNS = [
+  { key: "not_started", label: "Başlanmadı", body: "panoColTodo", count: "panoCountTodo" },
+  { key: "in_progress", label: "Devam ediyor", body: "panoColDoing", count: "panoCountDoing" },
+  { key: "review", label: "Gözden geçirme", body: "panoColReview", count: "panoCountReview" },
+  { key: "done", label: "Tamam", body: "panoColDone", count: "panoCountDone" },
+  { key: "blocked", label: "Takıldım", body: "panoColBlocked", count: "panoCountBlocked" }
+];
+
+function panoBucket(unit) {
+  const status = unit.status || "not_started";
+  if (status === "assigned") return "not_started";
+  if (PANO_COLUMNS.some((c) => c.key === status)) return status;
+  return "not_started";
+}
+
+function panoCard(unit) {
+  const desc = (unit.contentDescription || unit.notes || "").slice(0, 60);
+  const pills = (unit.suitableFor || []).slice(0, 3)
+    .map((tag) => `<span class="rm-pill">${escapeHTML(SUITABLE_FOR_LABELS[tag] || tag)}</span>`)
+    .join("");
+  const last = toDateFromTs(unit.lastActivityAt) || toDateFromTs(unit.latestReportAt);
+  const reporter = unit.lastReporterName || (unit.lastReporterId ? findUserName(unit.lastReporterId) : "");
+  let footer = "";
+  if (last) {
+    const ago = daysSinceLabel(daysSince(last));
+    footer = reporter ? `Son rapor: ${ago}, ${reporter}` : `Son rapor: ${ago}`;
+  } else {
+    footer = "Henüz rapor yok";
+  }
+  const prio = unit.priority || "medium";
+  return `<button type="button" class="pano-card prio-${escapeHTML(prio)}" data-drill-unit="${escapeHTML(unit.id)}">
+    <div class="pano-ti">${escapeHTML(unit.sourceIdentifier || archiveLabel(unit))}</div>
+    ${desc ? `<div class="pano-desc">${escapeHTML(desc)}</div>` : ""}
+    ${pills ? `<div class="pano-pills">${pills}</div>` : ""}
+    <div class="pano-foot">${escapeHTML(footer)}</div>
+  </button>`;
+}
+
+function renderPano() {
+  const search = document.getElementById("panoSearchInput");
+  const term = search ? trNormalize(search.value.trim()) : "";
+  const filterFn = (u) => {
+    if (!term) return true;
+    const hay = trNormalize([
+      u.sourceIdentifier, u.sourceCode, u.boxNo, u.seriesNo, u.contentDescription,
+      u.title, u.notes, u.materialType, u.lastReporterName, u.lastReportNotePreview
+    ].filter(Boolean).join(" "));
+    return hay.includes(term);
+  };
+  const visible = archiveUnits.filter((u) => (u.status || "not_started") !== "pending_review").filter(filterFn);
+  const grouped = {};
+  PANO_COLUMNS.forEach((c) => { grouped[c.key] = []; });
+  visible.forEach((u) => {
+    const bucket = panoBucket(u);
+    if (grouped[bucket]) grouped[bucket].push(u);
+  });
+  const priorityRank = { high: 3, medium: 2, low: 1 };
+  const sortFn = (a, b) => {
+    const pa = priorityRank[a.priority] || 2;
+    const pb = priorityRank[b.priority] || 2;
+    if (pa !== pb) return pb - pa;
+    const lb = toDateFromTs(b.lastActivityAt || b.latestReportAt)?.getTime() || 0;
+    const la = toDateFromTs(a.lastActivityAt || a.latestReportAt)?.getTime() || 0;
+    return lb - la;
+  };
+  PANO_COLUMNS.forEach((col) => {
+    const list = grouped[col.key].sort(sortFn);
+    const body = document.getElementById(col.body);
+    const count = document.getElementById(col.count);
+    if (count) count.textContent = list.length;
+    if (body) body.innerHTML = list.length ? list.map(panoCard).join("") : '<p class="kb-empty">Boş</p>';
+  });
+
+  // Pending side panel: show pending_review docs across all data we already have.
+  // For volunteers, this list will likely be empty (rules / queries restrict
+  // their view). Coordinators/admins see the queue.
+  const pendingFromCache = archiveUnits.filter((u) => (u.status || "") === "pending_review");
+  renderPanoPending(pendingFromCache);
+}
+
+function renderPanoPending(units) {
+  const list = document.getElementById("panoPendingList");
+  const count = document.getElementById("panoCountPending");
+  if (!list) return;
+  if (count) count.textContent = units.length;
+  if (!units.length) {
+    list.innerHTML = '<p class="kb-empty">Bekleyen yeni iş yok.</p>';
+    return;
+  }
+  units.sort((a, b) => (toDateFromTs(b.createdAt)?.getTime() || 0) - (toDateFromTs(a.createdAt)?.getTime() || 0));
+  list.innerHTML = units.slice(0, 20).map((u) => {
+    const who = u.createdByVolunteerId ? findUserName(u.createdByVolunteerId) : "—";
+    const when = toDateFromTs(u.createdAt);
+    const ago = when ? daysSinceLabel(daysSince(when)) : "";
+    const title = u.sourceIdentifier || u.title || "Birim";
+    return `<div class="pano-pending-card" data-drill-unit="${escapeHTML(u.id)}" role="button" tabindex="0">
+      <div class="ti">${escapeHTML(title)}</div>
+      <div class="meta">${escapeHTML(who)} · ${escapeHTML(ago)}</div>
+    </div>`;
+  }).join("");
+}
+
+// ---------- Coordinator Son Raporlar feed ----------
+
+let staffRecentDocs = []; // { id, data }
+let staffRecentLastDoc = null;
+let staffRecentExhausted = false;
+
+async function loadStaffRecentReports(reset = false) {
+  if (!isStaff()) return;
+  const list = document.getElementById("staffRecentList");
+  const moreBtn = document.getElementById("staffRecentMoreBtn");
+  const messageEl = document.getElementById("staffRecentMessage");
+  if (reset) {
+    staffRecentDocs = [];
+    staffRecentLastDoc = null;
+    staffRecentExhausted = false;
+    if (list) list.innerHTML = '<p class="empty">Yükleniyor…</p>';
+    if (messageEl) messageEl.textContent = "";
+  }
+  if (moreBtn) { moreBtn.disabled = true; moreBtn.textContent = "Yükleniyor…"; }
+  try {
+    let q;
+    if (staffRecentLastDoc) {
+      q = query(collection(db, "reports"), orderBy("createdAt", "desc"), startAfter(staffRecentLastDoc), limit(30));
+    } else {
+      q = query(collection(db, "reports"), orderBy("createdAt", "desc"), limit(30));
+    }
+    const snap = await getDocs(q);
+    if (snap.empty && !staffRecentDocs.length) {
+      if (list) list.innerHTML = '<p class="empty">Henüz rapor yok.</p>';
+      if (moreBtn) moreBtn.classList.add("hidden");
+      return;
+    }
+    snap.docs.forEach((d) => staffRecentDocs.push({ id: d.id, data: d.data() }));
+    if (snap.docs.length) staffRecentLastDoc = snap.docs[snap.docs.length - 1];
+    if (snap.docs.length < 30) staffRecentExhausted = true;
+    renderStaffRecentReports();
+  } catch (error) {
+    if (messageEl) messageEl.textContent = `Yüklenemedi: ${error.message}`;
+  } finally {
+    if (moreBtn) {
+      moreBtn.disabled = false;
+      moreBtn.textContent = "Daha fazla göster";
+      moreBtn.classList.toggle("hidden", staffRecentExhausted);
+    }
+  }
+}
+
+function renderStaffRecentReports() {
+  const list = document.getElementById("staffRecentList");
+  if (!list) return;
+  if (!staffRecentDocs.length) {
+    list.innerHTML = '<p class="empty">Henüz rapor yok.</p>';
+    return;
+  }
+  list.innerHTML = staffRecentDocs.map((doc) => recentReportRow(doc.id, doc.data)).join("");
+}
+
+function recentReportRow(id, r) {
+  const volId = r.volunteerId || r.userUid || "";
+  const volName = r.volunteerName || (volId ? findUserName(volId) : "") || r.userEmail || "—";
+  const volUser = volId ? allUsers.find((u) => u.uid === volId) : null;
+  const dept = volUser?.data?.department || "";
+  const unitId = r.unitId || r.archiveUnitId || "";
+  const unit = unitId ? archiveById[unitId] : null;
+  const unitTitle = unit ? (unit.sourceIdentifier || archiveLabel(unit))
+    : (r.unitSnapshot?.sourceIdentifier || r.taskId || "Birim");
+  const status = r.status || (r.workStatus === "unit_done" ? "done" : r.workStatus) || "in_progress";
+  const note = (r.note || r.summary || "").trim();
+  const when = toDateFromTs(r.createdAt);
+  const ago = when ? daysSinceLabel(daysSince(when)) : "—";
+  const url = r.url || (Array.isArray(r.links) && r.links[0]) || "";
+  const effort = r.effort ? r.effort[0].toUpperCase() : "";
+  const effortClass = r.effort ? r.effort[0] : "";
+  const linkBtn = url ? `<a class="staff-recent-link" href="${escapeHTML(url)}" target="_blank" rel="noopener" title="${escapeHTML(url)}" data-stop-row>↗</a>` : "";
+  const effortBadge = effort ? `<span class="staff-effort-badge ${escapeHTML(effortClass)}" title="Efor">${escapeHTML(effort)}</span>` : "";
+  return `<button type="button" class="staff-recent-row" data-recent-report="${escapeHTML(unitId)}" data-recent-id="${escapeHTML(id)}">
+    <div class="staff-recent-who">
+      <div class="staff-recent-name">${escapeHTML(volName)}</div>
+      ${dept ? `<div class="staff-recent-dept">${escapeHTML(dept)}</div>` : ""}
+    </div>
+    <div class="staff-recent-mid">
+      <div class="staff-recent-unit"><span class="ti">${escapeHTML(unitTitle)}</span><span class="status-pill ${escapeHTML(status)}">${escapeHTML(statusLabel(status))}</span></div>
+      ${note ? `<div class="staff-recent-note">${escapeHTML(note.slice(0, 80))}</div>` : ""}
+    </div>
+    <div class="staff-recent-tags">${effortBadge}${linkBtn}</div>
+    <div class="staff-recent-when">${escapeHTML(ago)}</div>
+  </button>`;
+}
+
+// ---------- Dikkat panel ----------
+
+function renderStaffAttention() {
+  if (!isStaff()) return;
+  const blockedList = document.getElementById("attnBlockedList");
+  const staleList = document.getElementById("attnStaleList");
+  const silentList = document.getElementById("attnSilentList");
+  const blockedCount = document.getElementById("attnBlockedCount");
+  const staleCount = document.getElementById("attnStaleCount");
+  const silentCount = document.getElementById("attnSilentCount");
+  if (!blockedList || !staleList || !silentList) return;
+
+  // a. Takılanlar
+  const blocked = archiveUnits.filter((u) => (u.status || "") === "blocked")
+    .sort((a, b) => (toDateFromTs(b.lastActivityAt || b.latestReportAt)?.getTime() || 0) - (toDateFromTs(a.lastActivityAt || a.latestReportAt)?.getTime() || 0));
+  if (blockedCount) blockedCount.textContent = blocked.length;
+  blockedList.innerHTML = blocked.length
+    ? blocked.map((u) => {
+        const reporter = u.lastReporterName || (u.lastReporterId ? findUserName(u.lastReporterId) : "—");
+        const when = toDateFromTs(u.lastActivityAt || u.latestReportAt);
+        const ago = when ? daysSinceLabel(daysSince(when)) : "";
+        const note = u.lastReportNotePreview || u.blockerNote || "";
+        return `<div class="staff-attn-row" data-drill-unit="${escapeHTML(u.id)}" role="button" tabindex="0">
+          <div>
+            <div class="ti">${escapeHTML(u.sourceIdentifier || archiveLabel(u))}</div>
+            <div class="meta">${escapeHTML(reporter)} · ${escapeHTML(ago)}</div>
+            ${note ? `<div class="note">${escapeHTML(note)}</div>` : ""}
+          </div>
+          <div class="actions"><span class="status-pill blocked">Engelli</span></div>
+        </div>`;
+      }).join("")
+    : '<p class="empty">Engelli iş yok.</p>';
+
+  // b. Uzun süredir dokunulmamış (>60 gün, status not done/pending_review)
+  const STALE_DAYS = 60;
+  const stale = archiveUnits.filter((u) => {
+    const status = u.status || "not_started";
+    if (status === "done" || status === "pending_review") return false;
+    const last = toDateFromTs(u.lastActivityAt || u.latestReportAt);
+    if (!last) return false; // No activity at all is a different problem; only show units that *had* activity but went silent
+    return daysSince(last) > STALE_DAYS;
+  }).sort((a, b) => {
+    const la = toDateFromTs(a.lastActivityAt || a.latestReportAt)?.getTime() || 0;
+    const lb = toDateFromTs(b.lastActivityAt || b.latestReportAt)?.getTime() || 0;
+    return la - lb; // oldest first
+  });
+  if (staleCount) staleCount.textContent = stale.length;
+  staleList.innerHTML = stale.length
+    ? stale.slice(0, 30).map((u) => {
+        const last = toDateFromTs(u.lastActivityAt || u.latestReportAt);
+        const days = last ? daysSince(last) : null;
+        const reporter = u.lastReporterName || (u.lastReporterId ? findUserName(u.lastReporterId) : "");
+        return `<div class="staff-attn-row" data-drill-unit="${escapeHTML(u.id)}" role="button" tabindex="0">
+          <div>
+            <div class="ti">${escapeHTML(u.sourceIdentifier || archiveLabel(u))}</div>
+            <div class="meta">Son hareket ${days != null ? `${days} gün önce` : "—"}${reporter ? ` · ${escapeHTML(reporter)}` : ""}</div>
+          </div>
+          <div class="actions"><span class="status-pill ${escapeHTML(u.status || "not_started")}">${escapeHTML(statusLabel(u.status || "not_started"))}</span></div>
+        </div>`;
+      }).join("")
+    : '<p class="empty">Hepsi son 60 gün içinde güncellendi.</p>';
+
+  // c. Sessiz gönüllüler (last report > 21 gün, rhythm != casual, status approved)
+  const SILENT_DAYS = 21;
+  const silent = volunteerPool().filter((u) => {
+    const rhythm = u.data?.rhythm || null;
+    if (rhythm === "casual") return false;
+    if ((u.data?.status || "") !== "approved") return false;
+    const last = toDateFromTs(u.data?.lastReportAt);
+    if (!last) return true; // never reported counts as silent
+    return daysSince(last) > SILENT_DAYS;
+  }).sort((a, b) => {
+    const la = toDateFromTs(a.data?.lastReportAt)?.getTime() || 0;
+    const lb = toDateFromTs(b.data?.lastReportAt)?.getTime() || 0;
+    return la - lb;
+  });
+  if (silentCount) silentCount.textContent = silent.length;
+  silentList.innerHTML = silent.length
+    ? silent.slice(0, 30).map((u) => {
+        const name = userDisplayName(u);
+        const email = u.data?.email || "";
+        const last = toDateFromTs(u.data?.lastReportAt);
+        const days = last ? daysSince(last) : null;
+        const lastText = days == null ? "Hiç rapor yok" : `${days} gün önce`;
+        const dept = u.data?.department || "";
+        const btn = email
+          ? `<button class="btn btn-secondary btn-sm" type="button" data-nudge-email="${escapeHTML(email)}" data-nudge-name="${escapeHTML(name)}" data-nudge-days="${days ?? ""}">Hatırlatma gönder</button>`
+          : "";
+        return `<div class="staff-attn-row">
+          <div>
+            <div class="ti">${escapeHTML(name)}</div>
+            <div class="meta">${escapeHTML(dept)}${email ? ` · ${escapeHTML(email)}` : ""}</div>
+            <div class="meta">${escapeHTML(lastText)}</div>
+          </div>
+          <div class="actions">${btn}</div>
+        </div>`;
+      }).join("")
+    : '<p class="empty">Herkes son 21 gün içinde rapor yazmış.</p>';
+}
+
+// ---------- Pending review (admin Bakım) ----------
+
+let pendingReviewUnits = [];
+
+async function loadPendingReviewUnits() {
+  if (!isAdmin()) { pendingReviewUnits = []; renderPendingReviewList(); return; }
+  try {
+    const snap = await getDocs(query(
+      collection(db, "archiveUnits"),
+      where("status", "==", "pending_review"),
+      limit(100)
+    ));
+    pendingReviewUnits = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch (error) {
+    console.warn("Pending kayıtlar yüklenemedi:", error);
+    pendingReviewUnits = [];
+  }
+  renderPendingReviewList();
+}
+
+function renderPendingReviewList() {
+  const list = document.getElementById("pendingReviewList");
+  if (!list) return;
+  if (!pendingReviewUnits.length) {
+    list.innerHTML = '<p class="empty">Bekleyen yeni iş yok.</p>';
+    return;
+  }
+  list.innerHTML = pendingReviewUnits.map((u) => {
+    const who = u.createdByVolunteerId ? findUserName(u.createdByVolunteerId) : "Bilinmeyen";
+    const when = toDateFromTs(u.createdAt);
+    const ago = when ? daysSinceLabel(daysSince(when)) : "";
+    const title = u.sourceIdentifier || u.title || "—";
+    const desc = u.contentDescription || u.notes || "";
+    return `<div class="ops-alert" data-pending-id="${escapeHTML(u.id)}">
+      <div>
+        <strong>${escapeHTML(title)}</strong>
+        <span class="muted" style="font-size:.85rem">${escapeHTML(who)} · ${escapeHTML(ago)}</span>
+        ${desc ? `<p style="margin:.35rem 0 .5rem;font-size:.9rem">${escapeHTML(desc)}</p>` : ""}
+      </div>
+      <div class="report-actions" style="display:flex;gap:.4rem;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" type="button" data-pending-approve="${escapeHTML(u.id)}">Onayla ve ledger'a al</button>
+        <button class="btn btn-secondary btn-sm" type="button" data-pending-merge="${escapeHTML(u.id)}">Var olan iş paketine birleştir</button>
+        <button class="btn btn-block btn-sm" type="button" data-pending-delete="${escapeHTML(u.id)}">Sil</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function openApprovePendingModal(unitId) {
+  const unit = pendingReviewUnits.find((u) => u.id === unitId);
+  if (!unit || !isAdmin()) return;
+  document.getElementById("approvePendingId").value = unitId;
+  document.getElementById("approvePendingSummary").textContent = unit.sourceIdentifier || unit.title || "Yeni iş";
+  document.getElementById("approvePendingPriority").value = unit.priority || "medium";
+  document.getElementById("approvePendingSuitableFor").value = (unit.suitableFor || []).join(", ");
+  document.getElementById("approvePendingMessage").textContent = "";
+  document.getElementById("approvePendingModal").classList.remove("hidden");
+  document.body.classList.add("modal-open");
+  setTimeout(() => document.getElementById("approvePendingPriority")?.focus(), 50);
+}
+
+function closeApprovePendingModal() {
+  document.getElementById("approvePendingModal")?.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+}
+
+async function submitApprovePending(event) {
+  event?.preventDefault();
+  if (!isAdmin()) return;
+  const id = document.getElementById("approvePendingId").value;
+  if (!id) return;
+  const messageEl = document.getElementById("approvePendingMessage");
+  const priority = document.getElementById("approvePendingPriority").value;
+  const suitableForRaw = document.getElementById("approvePendingSuitableFor").value;
+  const suitableFor = suitableForRaw.split(",").map((s) => s.trim()).filter(Boolean);
+  try {
+    await updateDoc(doc(db, "archiveUnits", id), {
+      status: "not_started",
+      priority,
+      suitableFor,
+      updatedAt: serverTimestamp()
+    });
+    await logActivity("pending_unit_approved", "archiveUnit", id, { priority, suitableFor });
+    showToast("Yeni iş sıraya alındı.");
+    closeApprovePendingModal();
+    await loadPendingReviewUnits();
+    await reloadPnb();
+  } catch (error) {
+    if (messageEl) messageEl.textContent = `Hata: ${error.message}`;
+  }
+}
+
+function openMergePendingModal(unitId) {
+  const unit = pendingReviewUnits.find((u) => u.id === unitId);
+  if (!unit || !isAdmin()) return;
+  document.getElementById("mergePendingId").value = unitId;
+  document.getElementById("mergePendingSummary").textContent = unit.sourceIdentifier || unit.title || "Yeni iş";
+  document.getElementById("mergePendingMessage").textContent = "";
+  // Populate target select with non-pending units sorted alphabetically.
+  const sel = document.getElementById("mergePendingTarget");
+  if (sel) {
+    const opts = ['<option value="">— Seç —</option>'];
+    archiveUnits
+      .filter((u) => (u.status || "") !== "pending_review" && u.id !== unitId)
+      .sort((a, b) => archiveLabel(a).localeCompare(archiveLabel(b), "tr"))
+      .forEach((u) => opts.push(`<option value="${escapeHTML(u.id)}">${escapeHTML(archiveLabel(u))}</option>`));
+    sel.innerHTML = opts.join("");
+    sel.value = "";
+  }
+  document.getElementById("mergePendingModal").classList.remove("hidden");
+  document.body.classList.add("modal-open");
+  setTimeout(() => sel?.focus(), 50);
+}
+
+function closeMergePendingModal() {
+  document.getElementById("mergePendingModal")?.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+}
+
+async function submitMergePending(event) {
+  event?.preventDefault();
+  if (!isAdmin()) return;
+  const pendingId = document.getElementById("mergePendingId").value;
+  const targetId = document.getElementById("mergePendingTarget").value;
+  const messageEl = document.getElementById("mergePendingMessage");
+  if (!pendingId || !targetId) {
+    if (messageEl) messageEl.textContent = "Hedef iş paketini seç.";
+    return;
+  }
+  const pending = pendingReviewUnits.find((u) => u.id === pendingId);
+  const target = archiveById[targetId];
+  if (!pending || !target) {
+    if (messageEl) messageEl.textContent = "Kayıt bulunamadı.";
+    return;
+  }
+  try {
+    // 1) Move any reports that referenced the pending unit to point at the
+    //    target unit (volunteerId-owned only — admin can update).
+    const reportsSnap = await getDocs(query(
+      collection(db, "reports"),
+      where("archiveUnitId", "==", pendingId),
+      limit(50)
+    ));
+    for (const r of reportsSnap.docs) {
+      await updateDoc(doc(db, "reports", r.id), {
+        archiveUnitId: targetId,
+        unitId: targetId,
+        updatedAt: serverTimestamp()
+      });
+    }
+    // 2) Append the pending note into target.notes (preserve audit trail).
+    const mergedNotes = [target.notes || "", `[Birleştirildi: ${pending.sourceIdentifier || pending.title || ""} — ${pending.contentDescription || ""}]`]
+      .filter((s) => String(s).trim())
+      .join("\n");
+    await updateDoc(doc(db, "archiveUnits", targetId), {
+      notes: mergedNotes,
+      updatedAt: serverTimestamp()
+    });
+    // 3) Delete the pending unit.
+    await deleteDoc(doc(db, "archiveUnits", pendingId));
+    await logActivity("pending_unit_merged", "archiveUnit", pendingId, { targetId, reports: reportsSnap.size });
+    showToast("Birleştirildi.");
+    closeMergePendingModal();
+    await loadPendingReviewUnits();
+    await reloadPnb();
+  } catch (error) {
+    if (messageEl) messageEl.textContent = `Hata: ${error.message}`;
+  }
+}
+
+async function deletePendingUnit(unitId) {
+  if (!isAdmin()) return;
+  const unit = pendingReviewUnits.find((u) => u.id === unitId);
+  if (!unit) return;
+  const label = unit.sourceIdentifier || unit.title || "bu pending kayıt";
+  if (!confirm(`Silinsin mi: ${label}?`)) return;
+  try {
+    await deleteDoc(doc(db, "archiveUnits", unitId));
+    await logActivity("pending_unit_deleted", "archiveUnit", unitId, { label });
+    showToast("Silindi.");
+    await loadPendingReviewUnits();
+    await reloadPnb();
+  } catch (error) {
+    alert(`Hata: ${error.message}`);
+  }
+}
+
+// ---------- Report-first flow (Rapor Ver) ----------
+//
+// The report-first volunteer flow replaces the self-claim queue with a single
+// "Rapor Ver" primary CTA. The volunteer logs what they did; status of the
+// archive unit is inferred from the latest report. Self-claim code paths above
+// are intentionally retained but no longer wired into the volunteer dashboard.
+
+const REPORT_PROJECT_FILTER = "pnb"; // narrowed today; expand to memberships later
+
+// Turkish-aware normalization for typeahead matching only. The typed input is
+// preserved as-is — we never rewrite the user's keystrokes.
+function trNormalize(value) {
+  return String(value || "")
+    .toLocaleLowerCase("tr")
+    .replace(/ı/g, "i")
+    .replace(/ş/g, "s")
+    .replace(/ç/g, "c")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ö/g, "o")
+    .replace(/â/g, "a")
+    .replace(/î/g, "i")
+    .replace(/û/g, "u");
+}
+
+let reportModalState = {
+  unit: null,
+  newUnit: false,
+  effort: "",
+  status: "",
+  substatus: "",
+  searchTerm: "",
+  results: [],
+  activeIndex: -1,
+  searchTimer: null,
+  sharedDriveUrl: ""
+};
+
+let cachedSharedDriveUrl = null;
+
+async function getSharedDriveUrl() {
+  if (cachedSharedDriveUrl !== null) return cachedSharedDriveUrl;
+  try {
+    const snap = await getDoc(doc(db, "config", "pnb"));
+    cachedSharedDriveUrl = (snap.exists() && snap.data().sharedDriveUrl) || "";
+  } catch {
+    cachedSharedDriveUrl = "";
+  }
+  return cachedSharedDriveUrl;
+}
+
+// Returns the volunteer's accessible project ids. Today: pnb only (assigned
+// + open membership). When project membership becomes data-driven we will
+// read users/{uid}.projects[] here without changing callers.
+function volunteerProjectIds() {
+  return [REPORT_PROJECT_FILTER];
+}
+
+// Match a unit against the typed needle and the volunteer's specialty/city.
+// Returns null when filtered out, otherwise { unit, score } with higher score
+// meaning a better match. Ankara → digitized-only filter is strict; specialty
+// is a soft boost so non-matching units stay in the list at lower priority.
+function scoreUnitForTypeahead(unit, needle) {
+  if (!unit) return null;
+  const projects = volunteerProjectIds();
+  if (!projects.includes(unit.projectId || PNB_PROJECT_ID)) return null;
+  const status = unit.status || "not_started";
+  if (status === "done") return null;
+
+  const myCity = String(cp?.city || "").toLowerCase();
+  if (myCity === "ankara" && unit.digitized === false) return null;
+
+  const haystack = trNormalize([
+    unit.sourceIdentifier, unit.sourceCode, unit.seriesNo, unit.boxNo,
+    unit.contentDescription, unit.title, unit.notes, unit.materialType
+  ].filter(Boolean).join(" "));
+  let score = 0;
+  if (needle) {
+    if (!haystack.includes(needle)) return null;
+    if (haystack.startsWith(needle)) score += 5;
+    score += 2;
+  }
+  // Specialty boost: any overlap between volunteer's specialty[] and unit.suitableFor[]
+  const my = Array.isArray(cp?.specialty) ? cp.specialty : [];
+  const fit = Array.isArray(unit.suitableFor) ? unit.suitableFor : [];
+  if (my.length && fit.length && my.some((s) => fit.includes(s))) score += 3;
+  // High-priority units float up so the volunteer notices them.
+  if (unit.priority === "high") score += 2;
+  return { unit, score };
+}
+
+function searchUnitsForReport(term) {
+  const needle = trNormalize(term);
+  const scored = [];
+  archiveUnits.forEach((u) => {
+    const m = scoreUnitForTypeahead(u, needle);
+    if (m) scored.push(m);
+  });
+  scored.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return archiveLabel(a.unit).localeCompare(archiveLabel(b.unit), "tr");
+  });
+  return scored.slice(0, 5).map((m) => m.unit);
+}
+
+const SUITABLE_FOR_LABELS = {
+  dijitallestirme: "Dijital",
+  osmanlica: "Osmanlıca",
+  teknik_destek: "Teknik",
+  arsivcilik: "Arşiv",
+  dokumantasyon_sistemi: "Dokümantasyon",
+  gorsel_isitsel_envanter: "Görsel-işitsel",
+  mimari_projeler_envanteri: "Mimari",
+  dijital_envanter: "Dijital envanter",
+  gecmis_envanter_ayiklama: "Eski envanter"
+};
+
+function renderTypeaheadResults() {
+  const list = document.getElementById("rmResults");
+  if (!list) return;
+  const showAnkaraNote = String(cp?.city || "").toLowerCase() === "ankara";
+  const items = reportModalState.results || [];
+  const parts = [];
+  if (showAnkaraNote) {
+    parts.push('<div class="rm-notice">Ankara\'da olduğun için yalnızca dijitalleştirilmiş kutular gösteriliyor.</div>');
+  }
+  if (!items.length && reportModalState.searchTerm) {
+    parts.push('<div class="rm-result"><div class="rr-main"><div class="rr-title">Eşleşen iş bulunamadı</div><div class="rr-desc">Aşağıdan yeni bir iş ekleyebilirsin.</div></div></div>');
+  }
+  items.forEach((unit, idx) => {
+    const desc = (unit.contentDescription || unit.notes || "").slice(0, 60);
+    const pills = [];
+    if (unit.priority) pills.push(`<span class="rm-prio ${escapeHTML(unit.priority)}" title="Öncelik: ${escapeHTML(unit.priority)}"></span>`);
+    (unit.suitableFor || []).slice(0, 2).forEach((tag) => {
+      pills.push(`<span class="rm-pill">${escapeHTML(SUITABLE_FOR_LABELS[tag] || tag)}</span>`);
+    });
+    const active = idx === reportModalState.activeIndex ? " active" : "";
+    parts.push(`<div class="rm-result${active}" role="option" data-rm-pick="${escapeHTML(unit.id)}">
+      <div class="rr-main">
+        <div class="rr-title">${escapeHTML(archiveLabel(unit))}</div>
+        ${desc ? `<div class="rr-desc">${escapeHTML(desc)}</div>` : ""}
+      </div>
+      <div class="rr-pills">${pills.join("")}</div>
+    </div>`);
+  });
+  parts.push('<div class="rm-result is-new" role="option" data-rm-new>Liste dışı / yeni bir iş</div>');
+  list.innerHTML = parts.join("");
+  list.classList.remove("hidden");
+}
+
+function setSelectedUnit(unit) {
+  reportModalState.unit = unit;
+  reportModalState.newUnit = false;
+  const sel = document.getElementById("rmSelected");
+  const input = document.getElementById("rmUnitInput");
+  const list = document.getElementById("rmResults");
+  const newPanel = document.getElementById("rmNewUnit");
+  newPanel?.classList.add("hidden");
+  if (!unit) {
+    sel?.classList.add("hidden");
+    if (sel) sel.innerHTML = "";
+    if (input) { input.classList.remove("hidden"); input.value = ""; }
+    list?.classList.add("hidden");
+    updateDigitizedField(null);
+    return;
+  }
+  if (sel) {
+    const sub = (unit.contentDescription || unit.notes || "").slice(0, 80);
+    sel.classList.remove("hidden");
+    sel.innerHTML = `<div class="rs-main">
+        <div class="rs-title">${escapeHTML(archiveLabel(unit))}</div>
+        ${sub ? `<div class="rs-sub">${escapeHTML(sub)}</div>` : ""}
+      </div>
+      <button type="button" class="rs-clear" id="rmClearUnit" aria-label="Temizle">×</button>`;
+  }
+  if (input) input.classList.add("hidden");
+  list?.classList.add("hidden");
+  updateDigitizedField(unit);
+}
+
+function updateDigitizedField(unit) {
+  const wrap = document.getElementById("rmDigitizedField");
+  const check = document.getElementById("rmDigitizedCheck");
+  if (!wrap || !check) return;
+  if (unit && unit.digitized === false) {
+    wrap.classList.remove("hidden");
+  } else {
+    wrap.classList.add("hidden");
+    check.checked = false;
+  }
+}
+
+function showNewUnitInline() {
+  reportModalState.newUnit = true;
+  reportModalState.unit = null;
+  document.getElementById("rmSelected")?.classList.add("hidden");
+  document.getElementById("rmResults")?.classList.add("hidden");
+  document.getElementById("rmUnitInput")?.classList.add("hidden");
+  document.getElementById("rmNewUnit")?.classList.remove("hidden");
+  setTimeout(() => document.getElementById("rmNewSource")?.focus(), 30);
+  updateDigitizedField(null);
+}
+
+function cancelNewUnit() {
+  reportModalState.newUnit = false;
+  document.getElementById("rmNewUnit")?.classList.add("hidden");
+  const input = document.getElementById("rmUnitInput");
+  input?.classList.remove("hidden");
+  setTimeout(() => input?.focus(), 30);
+}
+
+async function openReportModal(prefillUnitId = "") {
+  const modal = document.getElementById("reportModal");
+  if (!modal) return;
+  reportModalState = {
+    unit: null, newUnit: false, effort: "", status: "", substatus: "",
+    searchTerm: "", results: [], activeIndex: -1, searchTimer: null, sharedDriveUrl: ""
+  };
+  // Reset form widgets
+  document.getElementById("rmNote").value = "";
+  document.getElementById("rmUrl").value = "";
+  document.getElementById("rmUnitInput").value = "";
+  document.getElementById("rmNewSource").value = "";
+  document.getElementById("rmNewDescription").value = "";
+  document.getElementById("rmDigitizedCheck").checked = false;
+  document.querySelectorAll("#reportModalForm .rm-seg.is-on").forEach((b) => b.classList.remove("is-on"));
+  document.getElementById("rmMessage").textContent = "";
+  document.getElementById("rmMessage").className = "status-line muted";
+  document.getElementById("rmNoteCounter").textContent = "0 / 500";
+  document.getElementById("rmNewUnit")?.classList.add("hidden");
+  document.getElementById("rmResults")?.classList.add("hidden");
+  document.getElementById("rmSelected")?.classList.add("hidden");
+  document.getElementById("rmUnitInput")?.classList.remove("hidden");
+
+  modal.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+
+  // Optional shared Drive helper text under the URL field.
+  const helper = document.getElementById("rmUrlHelper");
+  const url = await getSharedDriveUrl();
+  if (helper) {
+    if (url) {
+      helper.classList.remove("hidden");
+      helper.innerHTML = `Ortak Drive klasörü: <a href="${escapeHTML(url)}" target="_blank" rel="noopener">${escapeHTML(url)}</a>`;
+    } else {
+      helper.classList.add("hidden");
+      helper.innerHTML = "";
+    }
+  }
+
+  if (prefillUnitId && archiveById[prefillUnitId]) {
+    setSelectedUnit(archiveById[prefillUnitId]);
+    setTimeout(() => document.getElementById("rmNote")?.focus(), 60);
+  } else {
+    setTimeout(() => document.getElementById("rmUnitInput")?.focus(), 60);
+  }
+}
+
+function closeReportModal(force = false) {
+  const note = document.getElementById("rmNote")?.value || "";
+  if (!force && note.trim().length > 0) {
+    if (!confirm("Yazdığın metin kaydedilmedi. Çıkmak istediğine emin misin?")) return;
+  }
+  const modal = document.getElementById("reportModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+}
+
+// Submit handler. Single batched write where possible. Falls back to a
+// sequential write only for the "liste dışı" path (we need the new unit's id
+// before writing the report) — which is fine because both writes are short.
+async function submitReportFromModal(event) {
+  event?.preventDefault();
+  if (!cu || !db) return;
+  const messageEl = document.getElementById("rmMessage");
+  messageEl.className = "status-line muted";
+  messageEl.textContent = "";
+
+  const note = (document.getElementById("rmNote").value || "").trim().slice(0, 500);
+  const url = (document.getElementById("rmUrl").value || "").trim();
+  const effort = reportModalState.effort;
+  const status = reportModalState.status;
+  const substatus = reportModalState.substatus;
+  const digitizedCheck = document.getElementById("rmDigitizedCheck")?.checked && !document.getElementById("rmDigitizedField").classList.contains("hidden");
+
+  if (!reportModalState.unit && !reportModalState.newUnit) {
+    messageEl.className = "status-line error"; messageEl.textContent = "Lütfen bir iş paketi seç ya da liste dışı seçeneğini kullan.";
+    return;
+  }
+  if (!note) {
+    messageEl.className = "status-line error"; messageEl.textContent = "Ne yaptığını kısa bir cümleyle yaz.";
+    return;
+  }
+  if (!effort) {
+    messageEl.className = "status-line error"; messageEl.textContent = "Ne kadar ilerlediğini seç.";
+    return;
+  }
+  if (!status) {
+    messageEl.className = "status-line error"; messageEl.textContent = "Durumu seç.";
+    return;
+  }
+  if (reportModalState.newUnit) {
+    const src = (document.getElementById("rmNewSource").value || "").trim();
+    if (!src) {
+      messageEl.className = "status-line error"; messageEl.textContent = "Yeni iş için kaynak/tanım yaz.";
+      return;
+    }
+  }
+
+  const submitBtn = document.getElementById("rmSubmit");
+  submitBtn.disabled = true;
+  const prevLabel = submitBtn.textContent;
+  submitBtn.textContent = "Kaydediliyor…";
+  try {
+    let unitId = reportModalState.unit?.id || "";
+    let unitSnapshot = reportModalState.unit
+      ? {
+          sourceIdentifier: reportModalState.unit.sourceIdentifier || archiveLabel(reportModalState.unit),
+          contentDescription: reportModalState.unit.contentDescription || ""
+        }
+      : null;
+
+    // "Liste dışı": create a new pending_review archiveUnit first, then chain
+    // the report so the new unit's id is denormalized into the report doc.
+    if (reportModalState.newUnit) {
+      const src = (document.getElementById("rmNewSource").value || "").trim();
+      const desc = (document.getElementById("rmNewDescription").value || "").trim();
+      const newUnitRef = doc(collection(db, "archiveUnits"));
+      await setDoc(newUnitRef, {
+        projectId: REPORT_PROJECT_FILTER,
+        projectTitle: PNB_PROJECT_TITLE,
+        title: src,
+        sourceIdentifier: src,
+        contentDescription: desc,
+        notes: desc,
+        status: "pending_review",
+        priority: "medium",
+        digitized: false,
+        suitableFor: [],
+        assignedToUids: [],
+        assignedToEmails: [],
+        createdByVolunteerId: cu.uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      unitId = newUnitRef.id;
+      unitSnapshot = { sourceIdentifier: src, contentDescription: desc };
+    }
+
+    const notePreview = note.slice(0, 80);
+    const volunteerName = cp?.fullName || cu.email || "";
+
+    const batch = writeBatch(db);
+    const reportRef = doc(collection(db, "reports"));
+    // Report doc — new schema fields live alongside legacy ones (userUid,
+    // archiveUnitId, summary, taskId) so existing list/feed renderers and
+    // Firestore rules continue to work without modification.
+    batch.set(reportRef, {
+      // New report-first schema
+      unitId,
+      unitSnapshot,
+      note,
+      effort,
+      status,
+      reportedSubstatus: substatus,
+      url: url || null,
+      volunteerId: cu.uid,
+      volunteerName,
+      projectId: REPORT_PROJECT_FILTER,
+      // Legacy schema for backwards compatibility with existing UIs/queries
+      userUid: cu.uid,
+      userEmail: cu.email || "",
+      archiveUnitId: unitId,
+      taskId: unitSnapshot?.sourceIdentifier || "",
+      summary: note,
+      hours: 0,
+      pagesDone: null,
+      workStatus: status === "done" || status === "review" ? "unit_done" : status === "blocked" ? "blocked" : "in_progress",
+      source: "report_first",
+      reportDate: td(),
+      links: url ? [url] : [],
+      images: [],
+      coworkerUids: [],
+      reportStatus: "submitted",
+      reviewerUid: null,
+      feedback: [],
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+
+    // Update users/{uid}.lastReportAt so the admin activity bucket logic
+    // (active / slowing / stalled) keeps working unchanged.
+    batch.update(doc(db, "users", cu.uid), {
+      lastReportAt: serverTimestamp(),
+      lastSeenAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+
+    if (unitId) {
+      const unitUpdate = {
+        status,
+        lastActivityAt: serverTimestamp(),
+        lastReporterId: cu.uid,
+        lastReporterName: volunteerName,
+        lastReportNotePreview: notePreview,
+        // Keep the legacy field updated too so kanban / lanes order remain
+        // correct without a migration.
+        latestReportAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      if (digitizedCheck) unitUpdate.digitized = true;
+      batch.update(doc(db, "archiveUnits", unitId), unitUpdate);
+    }
+
+    await batch.commit();
+
+    // Activity log — best-effort, separate write to keep the batch small.
+    await logActivity("report_submitted", "archiveUnit", unitId || "", {
+      reportId: reportRef.id,
+      unitLabel: unitSnapshot?.sourceIdentifier || "",
+      effort,
+      status,
+      reportedSubstatus: substatus
+    });
+
+    showToast("Rapor kaydedildi. Teşekkürler.");
+    closeReportModal(true);
+    await reloadPnb();
+    await lr();
+  } catch (error) {
+    messageEl.className = "status-line error";
+    messageEl.textContent = `Kaydedilemedi: ${error.message}`;
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = prevLabel;
+  }
+}
+
+// Lightweight toast — no library, no dependency.
+function showToast(message) {
+  let el = document.getElementById("appToast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "appToast";
+    el.className = "app-toast";
+    document.body.appendChild(el);
+  }
+  el.textContent = message;
+  el.classList.add("show");
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove("show"), 2400);
+}
+
+// Render the volunteer-only Rapor Ver primary CTA + Son raporların list. Hidden
+// for staff (they have their own management surfaces).
+function renderVolunteerReportPrimary() {
+  const wrap = document.getElementById("svReportPrimary");
+  if (!wrap) return;
+  if (isStaff() || !cu) {
+    wrap.classList.add("hidden");
+    return;
+  }
+  wrap.classList.remove("hidden");
+  const list = document.getElementById("svRecentReports");
+  if (!list) return;
+  const myReports = Object.values(rd || {})
+    .filter((r) => r.userUid === cu.uid || r.volunteerId === cu.uid)
+    .sort((a, b) => (toDateFromTs(b.createdAt)?.getTime() || 0) - (toDateFromTs(a.createdAt)?.getTime() || 0))
+    .slice(0, 3);
+  if (!myReports.length) {
+    list.innerHTML = '<p class="sv-empty">Henüz rapor yok. İlk raporu yazmak için yukarıdaki butona bas.</p>';
+    return;
+  }
+  list.innerHTML = myReports.map((r) => {
+    const unitId = r.unitId || r.archiveUnitId || "";
+    const unit = unitId ? archiveById[unitId] : null;
+    const title = unit ? archiveLabel(unit)
+      : (r.unitSnapshot?.sourceIdentifier || r.taskId || "Birim");
+    const note = (r.note || r.summary || "").trim();
+    const when = toDateFromTs(r.createdAt);
+    const ago = when ? daysSinceLabel(daysSince(when)) : "";
+    return `<button type="button" class="sv-recent-row" data-recent-unit="${escapeHTML(unitId)}">
+        <div class="sv-recent-main">
+          <div class="sv-recent-title">${escapeHTML(title)}</div>
+          ${note ? `<div class="sv-recent-note">${escapeHTML(note.slice(0, 80))}</div>` : ""}
+        </div>
+        <div class="sv-recent-when">${escapeHTML(ago)}</div>
+      </button>`;
+  }).join("");
 }
 
 // Pick the next archive unit a volunteer could reasonably pick up: unassigned,
@@ -1003,8 +1993,12 @@ function kanbanCard(unit) {
     ? `<div class="kb-sub incomplete">İsim/kaynak bilgisi eksik · ${numberText(unit.fileCount)} dosya</div>`
     : `<div class="kb-sub">${unit.boxNo ? `Kutu ${escapeHTML(String(unit.boxNo))} · ` : ""}${numberText(unit.fileCount)} dosya · ${numberText(unit.pageCount)} sayfa</div>`;
 
-  return `<article class="kb-card st-${escapeHTML(status)}" draggable="true" data-kb-unit="${escapeHTML(unit.id)}" tabindex="0" role="button">
-    <button class="kb-menu" type="button" data-kb-menu="${escapeHTML(unit.id)}" aria-label="Menü">⋮</button>
+  // Read-only for volunteers in the report-first model: no drag, no ⋮ menu.
+  // The card still navigates to the unit channel on click.
+  const interactive = isStaff();
+  const dragAttr = interactive ? 'draggable="true"' : "";
+  const menuHtml = interactive
+    ? `<button class="kb-menu" type="button" data-kb-menu="${escapeHTML(unit.id)}" aria-label="Menü">⋮</button>
     <div class="kb-menu-list" data-kb-menu-list="${escapeHTML(unit.id)}">
       <button type="button" data-kb-move="${escapeHTML(unit.id)}" data-move-to="not_started">Sıradakine taşı</button>
       <button type="button" data-kb-move="${escapeHTML(unit.id)}" data-move-to="in_progress">Yapılıyor'a taşı</button>
@@ -1012,7 +2006,10 @@ function kanbanCard(unit) {
       <div class="sep"></div>
       <button type="button" data-kb-move="${escapeHTML(unit.id)}" data-move-to="blocked">Engelli olarak işaretle</button>
       ${unit.sheetUrl ? `<div class="sep"></div><button type="button" data-kb-sheet="${escapeHTML(unit.sheetUrl)}">📊 Sheet'i aç</button>` : ""}
-    </div>
+    </div>`
+    : "";
+  return `<article class="kb-card st-${escapeHTML(status)}${interactive ? "" : " read-only"}" ${dragAttr} data-kb-unit="${escapeHTML(unit.id)}" tabindex="0" role="button">
+    ${menuHtml}
     <div class="kb-ti">${escapeHTML(label)}</div>
     ${subLine}
     ${hasProgress ? `<div class="kb-bar"><div class="bar"><span style="width:${progress}%"></span></div><span class="pct">${progress}%</span></div>` : ""}
@@ -1083,6 +2080,9 @@ function renderKanban() {
 // Move a unit to a new status. Used by drag-drop and by the card's ⋮ menu.
 async function moveUnitStatus(unitId, newStatus) {
   if (!db) return;
+  // Volunteers are read-only on the kanban in the report-first flow. Status
+  // is inferred from their submitted reports instead of dragged manually.
+  if (!isStaff()) return;
   const unit = archiveById[unitId];
   if (!unit || unit.status === newStatus) return;
   try {
@@ -1438,6 +2438,7 @@ function renderHomeOverview() {
     renderHomeQueueCta();
     renderKanban();
     renderStylishHome();
+    renderVolunteerReportPrimary();
     return;
   }
 
@@ -1507,6 +2508,9 @@ function renderHomeOverview() {
   renderHomeQueueCta();
   renderKanban();
   renderStylishHome();
+  // Coordinator/admin Son Raporlar + Dikkat panels.
+  renderStaffRecentReports();
+  renderStaffAttention();
 }
 
 function renderPeopleOps() {
@@ -2034,23 +3038,45 @@ let drillCurrentUnitId = null;
 let drillCurrentReports = [];
 
 function openUnitDrill(unitId) {
-  // Drill-down queries reports by archiveUnitId, which is only allowed by
-  // Firestore rules for coordinators/admins. Guard client-side too so a
-  // misplaced button can't trigger a rejected query for volunteers.
-  if (!isStaff()) return;
+  // Both staff and volunteers can open the drill. Volunteers see only their
+  // own + coworker reports for this unit (filtered from the cached `rd` map);
+  // staff get the full server-side query. Either way the unit metadata is
+  // public-within-the-app so the modal render is identical.
   const unit = archiveById[unitId];
   const modal = document.getElementById("unitDrillModal");
   if (!unit || !modal) return;
   drillCurrentUnitId = unitId;
   drillCurrentReports = [];
 
-  document.getElementById("drillTitle").textContent = archiveLabel(unit);
+  document.getElementById("drillTitle").textContent = unit.sourceIdentifier || archiveLabel(unit);
   const subtitleBits = [];
-  if (unit.sourceCode) subtitleBits.push(`Kaynak: ${unit.sourceCode}`);
+  if (unit.sourceCode && !unit.sourceIdentifier) subtitleBits.push(`Kaynak: ${unit.sourceCode}`);
   if (unit.boxNo) subtitleBits.push(`Kutu: ${unit.boxNo}`);
   if (unit.seriesNo) subtitleBits.push(`Seri: ${unit.seriesNo}`);
   if (unit.materialType) subtitleBits.push(unit.materialType);
   document.getElementById("drillSubtitle").textContent = subtitleBits.join(" · ");
+
+  // Expanded metadata section: full content description, material type,
+  // counts, priority, suitableFor pills, city, digitized flag.
+  const metaEl = document.getElementById("drillMeta");
+  if (metaEl) {
+    const priorityLabels = { high: "Yüksek", medium: "Orta", low: "Düşük" };
+    const pills = (unit.suitableFor || []).map((tag) =>
+      `<span class="rm-pill">${escapeHTML(SUITABLE_FOR_LABELS[tag] || tag)}</span>`
+    ).join("");
+    const rows = [];
+    if (unit.contentDescription) rows.push(`<div class="desc">${escapeHTML(unit.contentDescription)}</div>`);
+    const pair = (k, v) => `<dt>${escapeHTML(k)}</dt><dd>${v}</dd>`;
+    if (unit.materialType) rows.push(pair("Malzeme", escapeHTML(unit.materialType)));
+    if (unit.pageCount != null) rows.push(pair("Sayfa", numberText(unit.pageCount)));
+    if (unit.documentCount != null) rows.push(pair("Belge", numberText(unit.documentCount)));
+    if (unit.folderCount != null) rows.push(pair("Klasör", numberText(unit.folderCount)));
+    rows.push(pair("Öncelik", escapeHTML(priorityLabels[unit.priority] || unit.priority || "Orta")));
+    if (unit.city) rows.push(pair("Şehir", escapeHTML(unit.city)));
+    rows.push(pair("Dijitalleşti", unit.digitized ? "Evet" : "Hayır"));
+    if (pills) rows.push(`<dt>Uygunluk</dt><dd class="pills">${pills}</dd>`);
+    metaEl.innerHTML = rows.join("");
+  }
 
   const progress = percent(unit.completedDocumentCount || unit.completedFileCount || 0, unit.documentCount || unit.fileCount || 0);
   const stats = [
@@ -2126,6 +3152,11 @@ function openUnitDrill(unitId) {
   // Focus the close button for keyboard users.
   setTimeout(() => modal.querySelector("[data-drill-close]")?.focus(), 50);
 
+  // Show the Rapor Ver shortcut if the volunteer is logged in (button shows
+  // for staff too — they will use it to log via the modal if they want).
+  const reportBtn = document.getElementById("drillReportBtn");
+  if (reportBtn) reportBtn.dataset.unitId = unitId;
+
   loadDrillReports(unitId).catch((error) => {
     document.getElementById("drillReports").innerHTML = `<p class="muted">Raporlar yüklenemedi: ${escapeHTML(error.message)}</p>`;
   });
@@ -2133,15 +3164,27 @@ function openUnitDrill(unitId) {
 
 async function loadDrillReports(unitId) {
   const container = document.getElementById("drillReports");
-  // Security rules enforce per-user visibility server-side; we just render what comes back.
-  const snap = await getDocs(query(
-    collection(db, "reports"),
-    where("archiveUnitId", "==", unitId),
-    orderBy("createdAt", "desc"),
-    limit(50)
-  ));
-  if (drillCurrentUnitId !== unitId) return; // user closed/switched while loading
-  drillCurrentReports = snap.docs.map((item) => ({ id: item.id, ...item.data() }));
+  let reports;
+  if (isStaff()) {
+    const snap = await getDocs(query(
+      collection(db, "reports"),
+      where("archiveUnitId", "==", unitId),
+      orderBy("createdAt", "desc"),
+      limit(80)
+    ));
+    if (drillCurrentUnitId !== unitId) return; // user closed/switched while loading
+    reports = snap.docs.map((item) => ({ id: item.id, ...item.data() }));
+  } else {
+    // Volunteer view: filter the already-loaded cache to avoid a server query
+    // that would be rejected for cross-user reads.
+    reports = Object.entries(rd || {})
+      .filter(([, r]) => (r.archiveUnitId === unitId || r.unitId === unitId))
+      .map(([id, r]) => ({ id, ...r }))
+      .sort((a, b) => (toDateFromTs(b.createdAt)?.getTime() || 0) - (toDateFromTs(a.createdAt)?.getTime() || 0));
+  }
+  if (drillCurrentUnitId !== unitId) return;
+  drillCurrentReports = reports;
+  renderDrillTimeline(drillCurrentReports);
 
   if (drillCurrentReports.length === 0) {
     container.innerHTML = '<p class="muted">Bu birim için henüz rapor yok.</p>';
@@ -2159,28 +3202,76 @@ async function loadDrillReports(unitId) {
   });
   const totalPages = running;
 
+  const effortLabels = { small: "Biraz", medium: "Normal", large: "Epey" };
   const reportRows = drillCurrentReports.map((r) => {
-    const who = r.userUid ? (findUserName(r.userUid) || r.userEmail || "—") : (r.userEmail || "—");
+    const who = r.volunteerName || r.userUid ? (r.volunteerName || findUserName(r.userUid) || r.userEmail || "—") : (r.userEmail || "—");
     const createdAt = toDateFromTs(r.createdAt);
     const dateStr = createdAt ? createdAt.toLocaleDateString("tr-TR") + " " + createdAt.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }) : (r.reportDate || "—");
-    const ws = r.workStatus ? `<span class="drill-tag ws-${escapeHTML(r.workStatus)}">${escapeHTML(workStatusLabels[r.workStatus] || r.workStatus)}</span>` : "";
-    const src = r.source ? `<span class="drill-tag src-${escapeHTML(r.source)}">${escapeHTML(r.source === "quick" ? "Hızlı" : "Detaylı")}</span>` : "";
+    const reportStatus = r.status || (r.workStatus === "unit_done" ? "done" : r.workStatus) || "";
+    const statusTag = reportStatus
+      ? `<span class="drill-tag ws-${escapeHTML(reportStatus)}">${escapeHTML(statusLabel(reportStatus))}</span>`
+      : "";
+    const effortTag = r.effort
+      ? `<span class="drill-tag">${escapeHTML(effortLabels[r.effort] || r.effort)}</span>`
+      : "";
+    const src = r.source && r.source !== "report_first"
+      ? `<span class="drill-tag src-${escapeHTML(r.source)}">${escapeHTML(r.source === "quick" ? "Hızlı" : r.source === "detailed" ? "Detaylı" : r.source)}</span>`
+      : "";
     const pages = r.pagesDone != null && r.pagesDone !== "" ? `<span class="drill-pages">${numberText(r.pagesDone)} sayfa</span>` : "";
-    const cumulative = runningByReportId.has(r.id) ? `<span class="drill-cum">Toplam: ${numberText(runningByReportId.get(r.id))}</span>` : "";
-    const summary = r.summary ? `<p class="drill-summary">${escapeHTML(r.summary)}</p>` : "";
-    const reviewStatus = r.status ? `<span class="drill-tag review-${escapeHTML(r.status)}">${escapeHTML(reportStatusLabels[r.status] || r.status)}</span>` : "";
+    const cumulative = runningByReportId.has(r.id) && totalPages > 0 ? `<span class="drill-cum">Toplam: ${numberText(runningByReportId.get(r.id))}</span>` : "";
+    const note = (r.note || r.summary || "").trim();
+    const noteHtml = note ? `<p class="drill-summary">${escapeHTML(note)}</p>` : "";
+    const url = r.url || (Array.isArray(r.links) && r.links[0]) || "";
+    const urlHtml = url ? `<div class="drill-numbers"><a href="${escapeHTML(url)}" target="_blank" rel="noopener">${escapeHTML(url.length > 60 ? url.slice(0, 60) + "…" : url)}</a></div>` : "";
     return `<article class="drill-report">
       <header>
         <div><strong>${escapeHTML(who)}</strong><span class="muted"> · ${escapeHTML(dateStr)}</span></div>
-        <div class="drill-tags">${ws}${src}${reviewStatus}</div>
+        <div class="drill-tags">${statusTag}${effortTag}${src}</div>
       </header>
-      <div class="drill-numbers">${pages}${cumulative}${r.hours ? `<span class="drill-hours">${numberText(r.hours)} saat</span>` : ""}</div>
-      ${summary}
+      ${pages || cumulative ? `<div class="drill-numbers">${pages}${cumulative}</div>` : ""}
+      ${noteHtml}
+      ${urlHtml}
     </article>`;
   }).join("");
 
-  const banner = `<div class="drill-summary-banner"><strong>${numberText(drillCurrentReports.length)}</strong> rapor · <strong>${numberText(totalPages)}</strong> sayfa toplam</div>`;
+  const banner = totalPages > 0
+    ? `<div class="drill-summary-banner"><strong>${numberText(drillCurrentReports.length)}</strong> rapor · <strong>${numberText(totalPages)}</strong> sayfa toplam</div>`
+    : `<div class="drill-summary-banner"><strong>${numberText(drillCurrentReports.length)}</strong> rapor</div>`;
   container.innerHTML = banner + reportRows;
+}
+
+// Build a compact status timeline from the report stream. We use the stored
+// `status` (or workStatus mapped to a display value) on each report and only
+// show entries where the status changed compared to the previous report.
+function renderDrillTimeline(reports) {
+  const wrap = document.getElementById("drillTimelineSection");
+  const list = document.getElementById("drillTimeline");
+  if (!wrap || !list) return;
+  if (!reports || reports.length === 0) {
+    wrap.classList.add("hidden");
+    list.innerHTML = "";
+    return;
+  }
+  const chrono = reports.slice().reverse();
+  const transitions = [];
+  let last = null;
+  chrono.forEach((r) => {
+    const status = r.status || (r.workStatus === "unit_done" ? "done" : r.workStatus) || "in_progress";
+    if (status !== last) {
+      transitions.push({ status, when: toDateFromTs(r.createdAt), who: r.volunteerName || findUserName(r.volunteerId || r.userUid) || r.userEmail || "—" });
+      last = status;
+    }
+  });
+  if (transitions.length === 0) {
+    wrap.classList.add("hidden");
+    return;
+  }
+  wrap.classList.remove("hidden");
+  // Newest first
+  list.innerHTML = transitions.slice().reverse().map((t) => {
+    const when = t.when ? `${t.when.toLocaleDateString("tr-TR")} ${t.when.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}` : "";
+    return `<div class="drill-timeline-item"><strong>${escapeHTML(statusLabel(t.status))}</strong> ${escapeHTML(when)} · ${escapeHTML(t.who)}</div>`;
+  }).join("");
 }
 
 function closeUnitDrill() {
@@ -2551,7 +3642,7 @@ function renderPnb() {
   const archiveHint = document.getElementById("pnbArchiveHint");
   if (volunteer) {
     if (title) title.textContent = "İşim";
-    if (intro) intro.textContent = "Sana atanan işler burada. Birini açıp rapor yazman yeterli.";
+    if (intro) intro.textContent = "İş paketleri burada. Birini açıp rapor yazman yeterli — beklemene gerek yok.";
     if (archiveTitle) archiveTitle.textContent = "İşim";
     if (archiveHint) archiveHint.textContent = "Sadece sana atanmış işler görünür.";
   } else {
@@ -2574,6 +3665,10 @@ async function reloadPnb() {
   await loadAvailability();
   await loadCommunicationPlans();
   renderPnb();
+  // Pano + staff Dikkat panel render off the same in-memory archiveUnits
+  // cache, so a single refresh keeps everything consistent.
+  renderPano();
+  renderStaffAttention();
 }
 
 function rf() {
@@ -3045,6 +4140,127 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
+  // Drill modal Rapor Ver shortcut → close drill + open report modal pre-selected.
+  if (event.target.id === "drillReportBtn") {
+    const unitId = event.target.dataset.unitId || drillCurrentUnitId;
+    closeUnitDrill();
+    if (unitId) openReportModal(unitId);
+    return;
+  }
+
+  // Son Raporlar feed: row click opens unit detail; "Daha fazla" loads next page.
+  // Anchor (link icon) inside the row should NOT bubble up to the row click.
+  if (event.target.closest("[data-stop-row]")) {
+    return; // let the anchor handle navigation; don't open the unit drill
+  }
+  const recentRow = event.target.closest("[data-recent-report]");
+  if (recentRow) {
+    const unitId = recentRow.dataset.recentReport;
+    if (unitId) openUnitDrill(unitId);
+    return;
+  }
+  if (event.target.id === "staffRecentMoreBtn") {
+    loadStaffRecentReports(false);
+    return;
+  }
+  if (event.target.id === "staffRecentRefresh") {
+    loadStaffRecentReports(true);
+    return;
+  }
+
+  // Pending review (admin Bakım) actions.
+  if (event.target.id === "pendingReviewRefresh") {
+    loadPendingReviewUnits();
+    return;
+  }
+  const approvePending = event.target.closest("[data-pending-approve]");
+  if (approvePending) {
+    openApprovePendingModal(approvePending.dataset.pendingApprove);
+    return;
+  }
+  const mergePending = event.target.closest("[data-pending-merge]");
+  if (mergePending) {
+    openMergePendingModal(mergePending.dataset.pendingMerge);
+    return;
+  }
+  const deletePending = event.target.closest("[data-pending-delete]");
+  if (deletePending) {
+    deletePendingUnit(deletePending.dataset.pendingDelete);
+    return;
+  }
+  if (event.target.closest("[data-approve-pending-close]")) {
+    closeApprovePendingModal();
+    return;
+  }
+  if (event.target.closest("[data-merge-pending-close]")) {
+    closeMergePendingModal();
+    return;
+  }
+
+  // Report-first modal: open / close / pick a unit / new-unit toggle.
+  if (event.target.id === "svReportCtaBtn") {
+    openReportModal();
+    return;
+  }
+  const recentRow = event.target.closest("[data-recent-unit]");
+  if (recentRow) {
+    const unitId = recentRow.dataset.recentUnit;
+    // Volunteers see the expanded unit detail view (same as staff) when
+    // they jump in from "Son raporların" — consistent with the Pano spec.
+    if (unitId) openUnitDrill(unitId);
+    return;
+  }
+  const reportClose = event.target.closest("[data-report-modal-close]");
+  if (reportClose) {
+    closeReportModal();
+    return;
+  }
+  const rmPick = event.target.closest("[data-rm-pick]");
+  if (rmPick) {
+    const unit = archiveById[rmPick.dataset.rmPick];
+    if (unit) {
+      setSelectedUnit(unit);
+      setTimeout(() => document.getElementById("rmNote")?.focus(), 30);
+    }
+    return;
+  }
+  if (event.target.closest("[data-rm-new]")) {
+    showNewUnitInline();
+    return;
+  }
+  if (event.target.id === "rmCancelNewUnit") {
+    cancelNewUnit();
+    return;
+  }
+  if (event.target.id === "rmClearUnit") {
+    setSelectedUnit(null);
+    setTimeout(() => document.getElementById("rmUnitInput")?.focus(), 30);
+    return;
+  }
+  if (event.target.id === "rmMoreOptions") {
+    event.preventDefault();
+    closeReportModal(true);
+    sw("reports");
+    document.getElementById("toggleDetailedBtn")?.click();
+    return;
+  }
+  // Effort + status segmented buttons.
+  const effortBtn = event.target.closest("#reportModalForm .rm-seg[data-effort]");
+  if (effortBtn) {
+    document.querySelectorAll("#reportModalForm .rm-seg[data-effort]").forEach((b) => b.classList.remove("is-on"));
+    effortBtn.classList.add("is-on");
+    reportModalState.effort = effortBtn.dataset.effort;
+    return;
+  }
+  const statusBtn = event.target.closest("#reportModalForm .rm-seg[data-status]");
+  if (statusBtn) {
+    document.querySelectorAll("#reportModalForm .rm-seg[data-status]").forEach((b) => b.classList.remove("is-on"));
+    statusBtn.classList.add("is-on");
+    reportModalState.status = statusBtn.dataset.status;
+    reportModalState.substatus = statusBtn.dataset.substatus || "";
+    return;
+  }
+
   // Volunteer activity nudge: opens a prefilled mailto: so the coordinator
   // can personalize and send via their own mail client. Keeps us fully
   // client-side (no Apps Script / Cloud Function needed).
@@ -3130,15 +4346,20 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
+  // Self-claim entry points are gated behind window.FEATURE_FLAGS.selfClaim
+  // (default false). The flag is initialized in app/index.html. See the
+  // "Self-claim is deprecated but retained" section in AGENTS.md.
   const selfClaimBtn = event.target.closest("[data-self-claim]");
   if (selfClaimBtn) {
     event.preventDefault();
+    if (!window.FEATURE_FLAGS?.selfClaim) return;
     await handleSelfClaim(selfClaimBtn);
     return;
   }
   const selfReleaseBtn = event.target.closest("[data-self-release]");
   if (selfReleaseBtn) {
     event.preventDefault();
+    if (!window.FEATURE_FLAGS?.selfClaim) return;
     await handleSelfRelease(selfReleaseBtn);
     return;
   }
@@ -3698,6 +4919,76 @@ document.getElementById("quickReportForm")?.addEventListener("submit", async (ev
 
 // When the coordinator picks a different volunteer, re-sort the unit select so
 // that volunteer's assigned units float to the top.
+// ---------- Report-first modal wiring ----------
+
+document.getElementById("rmNote")?.addEventListener("input", (event) => {
+  const counter = document.getElementById("rmNoteCounter");
+  if (counter) counter.textContent = `${event.target.value.length} / 500`;
+});
+
+document.getElementById("rmUnitInput")?.addEventListener("input", (event) => {
+  const term = event.target.value;
+  reportModalState.searchTerm = term;
+  reportModalState.activeIndex = -1;
+  clearTimeout(reportModalState.searchTimer);
+  reportModalState.searchTimer = setTimeout(() => {
+    reportModalState.results = searchUnitsForReport(term);
+    renderTypeaheadResults();
+  }, 250);
+});
+document.getElementById("rmUnitInput")?.addEventListener("focus", () => {
+  // Show top results immediately so the volunteer sees suggestions without typing.
+  if (!reportModalState.results.length) {
+    reportModalState.results = searchUnitsForReport("");
+  }
+  renderTypeaheadResults();
+});
+document.getElementById("rmUnitInput")?.addEventListener("keydown", (event) => {
+  const list = document.getElementById("rmResults");
+  if (list?.classList.contains("hidden")) return;
+  const items = reportModalState.results || [];
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    reportModalState.activeIndex = Math.min(items.length, reportModalState.activeIndex + 1);
+    renderTypeaheadResults();
+  } else if (event.key === "ArrowUp") {
+    event.preventDefault();
+    reportModalState.activeIndex = Math.max(-1, reportModalState.activeIndex - 1);
+    renderTypeaheadResults();
+  } else if (event.key === "Enter") {
+    event.preventDefault();
+    if (reportModalState.activeIndex >= 0 && reportModalState.activeIndex < items.length) {
+      setSelectedUnit(items[reportModalState.activeIndex]);
+      setTimeout(() => document.getElementById("rmNote")?.focus(), 30);
+    } else if (items.length) {
+      // No keyboard pick yet — fall back to first result.
+      setSelectedUnit(items[0]);
+      setTimeout(() => document.getElementById("rmNote")?.focus(), 30);
+    } else {
+      showNewUnitInline();
+    }
+  } else if (event.key === "Escape") {
+    list?.classList.add("hidden");
+  }
+});
+
+document.getElementById("reportModalForm")?.addEventListener("submit", submitReportFromModal);
+
+document.getElementById("approvePendingForm")?.addEventListener("submit", submitApprovePending);
+document.getElementById("mergePendingForm")?.addEventListener("submit", submitMergePending);
+
+document.getElementById("panoSearchInput")?.addEventListener("input", () => {
+  // Lightweight debounce so each keystroke doesn't re-render the whole board.
+  clearTimeout(window.__panoSearchTimer);
+  window.__panoSearchTimer = setTimeout(renderPano, 120);
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  const modal = document.getElementById("reportModal");
+  if (modal && !modal.classList.contains("hidden")) closeReportModal();
+});
+
 document.getElementById("logForUser")?.addEventListener("change", populateLogForUnits);
 
 document.getElementById("logForForm")?.addEventListener("submit", async (event) => {
@@ -3932,6 +5223,10 @@ if (!auth || !db) {
     if (staff) {
       await lp();
       await lu();
+      await loadStaffRecentReports(true);
+    }
+    if (isAdmin()) {
+      await loadPendingReviewUnits();
     }
     loadNotifs();
   });

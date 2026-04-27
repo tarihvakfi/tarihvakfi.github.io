@@ -1,0 +1,29 @@
+{
+  "count": 1,
+  "items": [
+    {
+      "fullName": "Feyza Daloglu",
+      "normalizedName": "feyza daloglu",
+      "userId": "manual_feydaloglu@gmail.com",
+      "userEmail": "feydaloglu@gmail.com",
+      "sources": {
+        "paydas": 19,
+        "schedule": 19
+      },
+      "patch": {
+        "profession": "Doktora Öğrencisi",
+        "university": "ODTÜ",
+        "city": "istanbul",
+        "specialty": [
+          "mimari_projeler_envanteri"
+        ],
+        "availabilityDays": [
+          "fri-am",
+          "fri-pm"
+        ]
+      },
+      "patchEmpty": false,
+      "reviewFlags": []
+    }
+  ]
+}

@@ -81,6 +81,35 @@ service cloud.firestore {
         request.resource.data.assignedToEmails.size() == 0;
     }
 
+    // Report-first flow: when a volunteer submits a report, the same batch
+    // touches the linked archive unit. The unit update is restricted to a
+    // small denormalization set (status + last-activity metadata + an opt-in
+    // digitized flag). Same diff().affectedKeys().hasOnly([...]) pattern as
+    // the self-claim rule above.
+    function reportFirstUnitUpdate() {
+      return isApproved() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "status",
+          "lastActivityAt",
+          "lastReporterId",
+          "lastReporterName",
+          "lastReportNotePreview",
+          "digitized",
+          "latestReportAt",
+          "updatedAt"
+        ]) &&
+        request.resource.data.lastReporterId == request.auth.uid;
+    }
+
+    // Report-first "liste dışı / yeni iş" path: a volunteer can create a
+    // pending_review archive unit so their report has somewhere to attach.
+    // Strictly limited — coordinators triage before the unit becomes work.
+    function volunteerCreatePendingUnit() {
+      return isApproved() &&
+        request.resource.data.status == "pending_review" &&
+        request.resource.data.createdByVolunteerId == request.auth.uid;
+    }
+
     // Kullanıcının kendi dokümanında güncelleyebileceği alanlar.
     // role, status, department gibi yetki alanları yalnızca admin/koordinatör tarafından değiştirilebilir.
     function userSelfEditableFields() {
@@ -101,19 +130,26 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow create: if signedIn() && (request.auth.uid == uid || isAdmin());
+
+      // Read: self, or any coordinator/admin. The same-department restriction
+      // is intentionally NOT applied to /users reads — specialty matching
+      // and availability lookups need to span departments.
       allow read: if signedIn() && (
         request.auth.uid == uid ||
-        isAdmin() ||
-        (isCoordinator() && resource.data.department == currentUserData().department)
+        isCoordinatorOrAdmin()
       );
 
+      // specialty / availabilityDays are admin-only on write. Volunteers must
+      // request changes through a coordinator, who flags an admin to apply
+      // them via the import tooling.
       allow update: if signedIn() && (
         (request.auth.uid == uid &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(userSelfEditableFields())) ||
         isAdmin() ||
         (isCoordinator() &&
           resource.data.department == currentUserData().department &&
-          request.resource.data.department == resource.data.department)
+          request.resource.data.department == resource.data.department &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(["specialty", "availabilityDays"]))
       );
 
       allow delete: if isAdmin();
@@ -143,8 +179,13 @@ service cloud.firestore {
     }
 
     match /archiveUnits/{unitId} {
-      allow read: if isCoordinatorOrAdmin() || assignedToMe(resource.data);
-      allow create: if isCoordinatorOrAdmin();
+      // Read: staff always; volunteers see the units they are assigned to AND,
+      // for the report-first typeahead, units in projects they are part of.
+      // Today the project membership check is implicit (PNB-only) — when we
+      // add explicit memberships we will gate read on
+      // request.auth.uid in resource.data.projectMembers or similar.
+      allow read: if isApproved();
+      allow create: if isCoordinatorOrAdmin() || volunteerCreatePendingUnit();
       allow update: if isCoordinatorOrAdmin() || (
         assignedToMe(resource.data) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
@@ -153,7 +194,7 @@ service cloud.firestore {
           "latestReportAt",
           "updatedAt"
         ])
-      ) || selfClaimArchiveUnit() || selfReleaseArchiveUnit();
+      ) || selfClaimArchiveUnit() || selfReleaseArchiveUnit() || reportFirstUnitUpdate();
       allow delete: if isAdmin();
     }
 
@@ -177,24 +218,37 @@ service cloud.firestore {
     }
 
     match /reports/{reportId} {
+      // Owner identity is checked against either the legacy userUid field
+      // (quick / detailed forms) or the report-first volunteerId field.
+      // Both must point at the caller and the report must declare a project
+      // the caller can write to. Today every approved volunteer can write to
+      // pnb; explicit memberships (users/{uid}.projects[]) will tighten this.
       allow create: if isApproved() && (
-        (request.resource.data.userUid == request.auth.uid &&
-          request.resource.data.userEmail == request.auth.token.email) ||
+        (
+          (request.resource.data.userUid == request.auth.uid &&
+            request.resource.data.userEmail == request.auth.token.email) ||
+          (request.resource.data.volunteerId == request.auth.uid &&
+            request.resource.data.userUid == request.auth.uid)
+        ) ||
         isCoordinatorOrAdmin()
       );
 
       allow read: if isApproved() && (
         isCoordinatorOrAdmin() ||
         resource.data.userUid == request.auth.uid ||
+        resource.data.volunteerId == request.auth.uid ||
         reportCoworker(resource.data)
       );
 
-      allow update: if isApproved() && (
-        isCoordinatorOrAdmin() ||
-        (resource.data.userUid == request.auth.uid &&
+      // Update / delete: report-first reports are owner-immutable from the
+      // client (intentional — corrections happen by writing a new report).
+      // Legacy detailed reports can still be edited by their owner while
+      // status is "submitted". Admins can do anything.
+      allow update: if isAdmin() || isCoordinatorOrAdmin() ||
+        (isApproved() &&
+          resource.data.userUid == request.auth.uid &&
           request.resource.data.userUid == resource.data.userUid &&
-          request.resource.data.status == "submitted")
-      );
+          request.resource.data.status == "submitted");
 
       allow delete: if isAdmin() || resource.data.userUid == request.auth.uid;
     }

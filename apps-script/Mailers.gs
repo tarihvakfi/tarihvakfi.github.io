@@ -37,27 +37,30 @@ function sendApprovalMail(email, fullName) {
   const body = `
     <p>Merhaba ${fullName || ''},</p>
     <p>Tarih Vakfı gönüllü başvurunuz onaylandı.</p>
-    <p>Artık sistemde görevlerinizi ve duyuruları görüntüleyebilirsiniz.</p>
+    <p>Artık panele girerek arşiv iş paketlerini görebilir, üzerinde çalışmak istediğin paketi kendin seçip "Rapor Ver" akışını kullanabilirsin. Beklenecek bir atama yok.</p>
   `;
   enqueueMail('approved', email, subject, body, {});
 }
 
+// Used for genuinely assigned non-archive tasks (review, translate, etc.).
+// Archive iş paketleri için bu maile düşmüyoruz; oradaki akış report-first.
 function sendTaskAssignedMail(email, taskTitle, dueDate) {
-  const subject = 'Yeni görev atandı';
+  const subject = 'Yeni iş: ' + (taskTitle || 'Tarih Vakfı');
   const body = `
-    <p>Size yeni bir görev atandı:</p>
+    <p>Sana özel olarak iletilen bir iş var:</p>
     <p><strong>${taskTitle}</strong></p>
     <p>Son tarih: ${dueDate || '-'}</p>
+    <p>Çalıştıktan sonra panelden kısa bir rapor bırakman yeterli.</p>
   `;
   enqueueMail('task_assigned', email, subject, body, {});
 }
 
 function sendInactivityReminder(email, fullName, inactiveDays) {
-  const subject = 'Tarih Vakfı gönüllü takibi: kısa hatırlatma';
+  const subject = 'Tarih Vakfı: ufak bir hatırlatma';
   const body = `
     <p>Merhaba ${fullName || ''},</p>
-    <p>Son raporunun üzerinden yaklaşık ${inactiveDays} gün geçmiş.</p>
-    <p>Müsait olduğunda kısa bir rapor yazabilir veya bir engel varsa bize iletebilir misin?</p>
+    <p>Son raporundan bu yana yaklaşık ${inactiveDays} gün geçti.</p>
+    <p>Müsait olduğunda panele girip ufak bir iş paketi seçip rapor vermeye ne dersin? Hangi pakette çalışacağına sen karar veriyorsun, beklenecek bir atama yok. Bir engel varsa onu da bildirebilirsin.</p>
     <p>Teşekkürler,<br>Tarih Vakfı koordinasyon</p>
   `;
   enqueueMail('inactivity_reminder_volunteer', email, subject, body, { inactiveDays });
