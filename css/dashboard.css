@@ -838,7 +838,7 @@
 }
 .app-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
 
-/* ---------- Volunteer Rapor Ver primary CTA + recent reports ---------- */
+/* ---------- Volunteer Rapor Yaz primary CTA + recent reports ---------- */
 
 .sv-report-primary {
   display: flex; flex-direction: column; gap: 1rem;
@@ -897,11 +897,45 @@
 .sv-recent-note { font-size: 11px; color: var(--tblr-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
 .sv-recent-when { font-size: 11px; color: var(--tblr-secondary); white-space: nowrap; }
 
-/* ---------- Rapor Ver modal ---------- */
+/* ---------- Rapor Yaz modal ---------- */
 
-.report-panel { max-width: 560px; }
+/* ---------- Report (Rapor Yaz) modal — centering + sizing fix (Prompt I)
+   Bug-2 root cause: the base .drill-modal is align-items: flex-start
+   (intended for the wider unit-detail drill). With Prompt H's narrower
+   560px panel and the shorter step-1 form, the panel rendered as a small
+   strip pinned to the top of the viewport with the page beneath partially
+   visible. These rules pin the report modal to viewport center on
+   desktop, give the panel an explicit max-height with internal scroll,
+   force the backdrop to render above the page, and keep the existing
+   mobile full-screen behavior. */
+.report-modal {
+  align-items: center; /* override .drill-modal flex-start */
+}
+.report-modal .drill-backdrop {
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 0;
+}
+.report-panel {
+  max-width: 560px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  z-index: 1;
+}
+@media (max-width: 767px) {
+  .report-modal {
+    padding: 0;
+    align-items: stretch;
+  }
+  .report-modal .drill-panel.report-panel {
+    max-height: 100vh;
+    border-radius: 0;
+    padding: 1rem;
+  }
+}
 
-/* ---------- Two-step Rapor Ver modal (Prompt H) ----------
+/* ---------- Two-step Rapor Yaz modal (Prompt H) ----------
    Step 1: typeahead is the only thing visible. Step 2: typeahead collapses
    into a pill at the top and the rest of the form slides in. Selection IS
    the transition — no Next button. */
@@ -1160,8 +1194,9 @@
 .rm-footer a:hover { color: var(--tblr-primary); }
 
 @media (max-width: 600px) {
-  .report-modal { padding: 0; align-items: stretch; }
-  .report-modal .drill-panel { max-height: 100vh; border-radius: 0; padding: 1rem; }
+  /* Modal full-screen + max-height rules now live in the unified
+     "(max-width: 767px)" block above; this block keeps the form-internal
+     responsive tweaks. */
   .rm-segmented { grid-template-columns: 1fr 1fr; }
   .rm-segmented.rm-status { grid-template-columns: 1fr; }
   .rm-actions { flex-direction: column-reverse; align-items: stretch; }

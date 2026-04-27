@@ -37,7 +37,7 @@ function sendApprovalMail(email, fullName) {
   const body = `
     <p>Merhaba ${fullName || ''},</p>
     <p>Tarih Vakfı gönüllü başvurunuz onaylandı.</p>
-    <p>Artık panele girerek arşiv iş paketlerini görebilir, üzerinde çalışmak istediğin paketi kendin seçip "Rapor Ver" akışını kullanabilirsin. Beklenecek bir atama yok.</p>
+    <p>Artık panele girerek arşiv iş paketlerini görebilir, üzerinde çalışmak istediğin paketi kendin seçip "Rapor Yaz" akışını kullanabilirsin. Beklenecek bir atama yok.</p>
   `;
   enqueueMail('approved', email, subject, body, {});
 }

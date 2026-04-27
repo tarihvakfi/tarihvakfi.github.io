@@ -40,7 +40,7 @@ Aşağıdaki alanlar koordinatör/admin tarafından paydaş ve zaman çizelgesi 
 - `university`: string — paydaş Üniversite alanı.
 - `city`: string — yalnızca `istanbul` veya `ankara`. Başka bir değer görünürse import bunu inceleme bayrağına taşır, doğrudan yazmaz. **Sadece görüntü amaçlı bir koordinatör meta-verisidir; rapor modalindeki typeahead filtresinde KULLANILMAZ.** (Eski varsayım: Ankaralılar uzaktan, İstanbullular fiziksel çalışır. Gerçek: çoğu İstanbul gönüllüsü de uzaktan çalışıyor; bu yüzden filtre kararı `canWorkInPerson`'a taşındı.)
 - `projectExpectation`: string — paydaş "Projeden Beklentisi" alanının ham metni.
-- `canWorkInPerson`: boolean — gönüllünün İstanbul'daki arşive fiziksel olarak gelip kutu açıp açamayacağını belirtir. Varsayılan `false`. `Rapor Ver` modalindeki typeahead'de fiziksel (digitized==false) iş paketlerinin görünüp görünmeyeceğini bu alan belirler. Yalnızca admin yazabilir; volunteers kendi değerlerini okuyabilir, koordinatörler tüm volunteers'ın değerini okuyabilir. **Backfill yapılmıyor**; lansman sonrası ~5–10 gönüllü için manuel olarak işaretlenir.
+- `canWorkInPerson`: boolean — gönüllünün İstanbul'daki arşive fiziksel olarak gelip kutu açıp açamayacağını belirtir. Varsayılan `false`. `Rapor Yaz` modalindeki typeahead'de fiziksel (digitized==false) iş paketlerinin görünüp görünmeyeceğini bu alan belirler. Yalnızca admin yazabilir; volunteers kendi değerlerini okuyabilir, koordinatörler tüm volunteers'ın değerini okuyabilir. **Backfill yapılmıyor**; lansman sonrası ~5–10 gönüllü için manuel olarak işaretlenir.
 
 `Gücü (1-5)`, `İlgisi (1-5)`, `Güç/ilgi seviyesi`, `Tarih vakfındaki Rolü`, `Projede Rolü` paydaş kolonları rapor-öncelikli modelle ilgisiz oldukları için içe aktarılmaz.
 
@@ -152,14 +152,14 @@ Gönüllü iş raporları. PNB arşiv birimi ile ilişkilendirilebilir.
 
 #### Rapor-öncelikli akışta eklenen alanlar
 
-Aşağıdaki alanlar `Rapor Ver` modalindeki yeni şemayı tanımlar; eski alanlar listelerin/kuralların bozulmaması için doldurulmaya devam eder.
+Aşağıdaki alanlar `Rapor Yaz` modalindeki yeni şemayı tanımlar; eski alanlar listelerin/kuralların bozulmaması için doldurulmaya devam eder.
 
 - `unitId`: string — `archiveUnits/{id}` (eski `archiveUnitId` ile aynı değer).
 - `unitSnapshot`: map — `{ sourceIdentifier, contentDescription }`. Birim sonradan yeniden adlandırılır veya silinirse rapor okunabilir kalsın diye denormalize edilir.
 - `note`: string — gönüllünün serbest metin notu, ≤ 500 karakter.
 - `effort`: `small | medium | large` — segmentli buton seçimi (`< 1 saat` / `1-3 saat` / `3+ saat`).
 - `status`: `in_progress | review | done | blocked` — birim için yeni durum.
-- ~~`reportedSubstatus`~~: `started | ongoing | review | done | blocked` — **DEPRECATED (Prompt H).** Geçmişte "Başladım" ile "Devam ediyor"u ayırt etmek için kullanılıyordu. Yeni Rapor Ver modalinde bu ayrım kaldırıldı; yeni rapor dokümanları bu alanı yazmıyor. Mevcut dokümanlardaki değerler arşiv olarak duruyor.
+- ~~`reportedSubstatus`~~: `started | ongoing | review | done | blocked` — **DEPRECATED (Prompt H).** Geçmişte "Başladım" ile "Devam ediyor"u ayırt etmek için kullanılıyordu. Yeni Rapor Yaz modalinde bu ayrım kaldırıldı; yeni rapor dokümanları bu alanı yazmıyor. Mevcut dokümanlardaki değerler arşiv olarak duruyor.
 - `url`: string | null — opsiyonel link.
 - `volunteerId`: string — gönüllünün uid'i (kuralların yeni şemayla doğrulanmasını mümkün kılar).
 - `volunteerName`: string — denormalize edilmiş ad.

@@ -298,7 +298,7 @@ function setRoleShell(staff) {
   document.body.classList.toggle("staff-shell", staff);
   // Volunteers see only Anasayfa / PNB / Duyurular. Pano (top-level) and
   // Rapor Yaz tabs are hidden via CSS for volunteers — the kanban moves
-  // under PNB and the Rapor Ver button replaces the Rapor tab.
+  // under PNB and the Rapor Yaz button replaces the Rapor tab.
   const labels = staff
     ? { home: "Bugün", pano: "Pano", pnb: "İşler", reports: "Rapor Yaz", announcements: "Duyurular" }
     : { home: "Anasayfa", pnb: "PNB", announcements: "Duyurular" };
@@ -591,7 +591,7 @@ async function handleSelfRelease(btn) {
 //
 // Pano is the new home for the kanban view. It is purely a display surface:
 // volunteers and coordinators see the same five columns + a pending-review
-// side panel. Status changes flow only through the Rapor Ver modal (for
+// side panel. Status changes flow only through the Rapor Yaz modal (for
 // volunteers) or the existing admin Ayarla path (for staff).
 
 const PANO_COLUMNS = [
@@ -1072,10 +1072,10 @@ async function deletePendingUnit(unitId) {
   }
 }
 
-// ---------- Report-first flow (Rapor Ver) ----------
+// ---------- Report-first flow (Rapor Yaz) ----------
 //
 // The report-first volunteer flow replaces the self-claim queue with a single
-// "Rapor Ver" primary CTA. The volunteer logs what they did; status of the
+// "Rapor Yaz" primary CTA. The volunteer logs what they did; status of the
 // archive unit is inferred from the latest report. Self-claim code paths above
 // are intentionally retained but no longer wired into the volunteer dashboard.
 
@@ -1112,7 +1112,7 @@ let reportModalState = {
   // and status filters). See scoreUnitForTypeahead.
   showAll: false,
   // When the modal is opened from a project-scoped CTA (e.g. PNB tab's
-  // "Rapor Ver bu proje için" button), only that project's units are
+  // "Rapor Yaz bu proje için" button), only that project's units are
   // searchable AND the rmShowAll toggle is hidden.
   lockedProjectId: ""
 };
@@ -1709,7 +1709,7 @@ function showToast(message) {
   el._t = setTimeout(() => el.classList.remove("show"), 2400);
 }
 
-// Render the volunteer-only Rapor Ver primary CTA + Son raporların list. Hidden
+// Render the volunteer-only Rapor Yaz primary CTA + Son raporların list. Hidden
 // for staff (they have their own management surfaces).
 // Project tab factory — renders one project card per volunteer-accessible
 // project. Today there is only PNB; extra projects appear automatically as
@@ -3518,7 +3518,7 @@ function openUnitDrill(unitId) {
   // Focus the close button for keyboard users.
   setTimeout(() => modal.querySelector("[data-drill-close]")?.focus(), 50);
 
-  // Show the Rapor Ver shortcut if the volunteer is logged in (button shows
+  // Show the Rapor Yaz shortcut if the volunteer is logged in (button shows
   // for staff too — they will use it to log via the modal if they want).
   const reportBtn = document.getElementById("drillReportBtn");
   if (reportBtn) reportBtn.dataset.unitId = unitId;
@@ -3719,7 +3719,7 @@ async function loadArchiveUnits() {
   archiveById = {};
   if (!db || !cu || !cp) return;
   try {
-    // Both staff and volunteers load the full project list. The Rapor Ver
+    // Both staff and volunteers load the full project list. The Rapor Yaz
     // typeahead and the volunteer PNB kanban both need project-wide data,
     // and Firestore rules already permit any approved user to read
     // archiveUnits since Prompt C.
@@ -4512,7 +4512,7 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
-  // Drill modal Rapor Ver shortcut → close drill + open report modal pre-selected.
+  // Drill modal Rapor Yaz shortcut → close drill + open report modal pre-selected.
   if (event.target.id === "drillReportBtn") {
     const unitId = event.target.dataset.unitId || drillCurrentUnitId;
     closeUnitDrill();
@@ -4569,17 +4569,31 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
-  // Report-first modal: open / close / pick a unit / new-unit toggle.
-  if (event.target.id === "svReportCtaBtn") {
-    openReportModal();
+  // Single delegated entry point for opening the Rapor Yaz modal. Matches
+  // any element with data-action="open-rapor-modal". Optional data-project
+  // pre-locks the typeahead to that project (PNB tab button). Without it,
+  // the modal opens unfiltered (Anasayfa primary card).
+  //
+  // Bug-1 root cause (Prompt I): the previous handler used
+  //   if (event.target.id === "svReportCtaBtn")
+  // which only matched when the user clicked the bare button edge. The
+  // button has three child <span>s; clicks on the visible label landed on
+  // a span whose id is empty, so the handler missed entirely. Using
+  // closest() up the tree solves it for both entry points uniformly.
+  const raporOpenBtn = event.target.closest('[data-action="open-rapor-modal"]');
+  if (raporOpenBtn) {
+    const projectId = raporOpenBtn.dataset.project || "";
+    console.info("rapor modal opened", { project: projectId || "(all)" });
+    openReportModal(projectId ? { projectId, lockProject: true } : {});
     return;
   }
-  // Project-scoped Rapor Ver button (e.g. inside the volunteer PNB tab).
-  // Locks the typeahead to that project so the volunteer doesn't accidentally
-  // pick a unit from a different project.
+  // Legacy [data-open-report-project] selector — kept so anything that
+  // still uses it (e.g. dynamically rendered PNB-tab markup) continues to
+  // work. Both forms route through openReportModal.
   const projectReportBtn = event.target.closest("[data-open-report-project]");
   if (projectReportBtn) {
     const projectId = projectReportBtn.dataset.openReportProject || "";
+    console.info("rapor modal opened (legacy selector)", { project: projectId || "(all)" });
     openReportModal({ projectId, lockProject: true });
     return;
   }
@@ -5389,9 +5403,28 @@ document.getElementById("panoSearchInput")?.addEventListener("input", () => {
 });
 
 document.addEventListener("keydown", (event) => {
-  if (event.key !== "Escape") return;
   const modal = document.getElementById("reportModal");
-  if (modal && !modal.classList.contains("hidden")) closeReportModal();
+  if (!modal || modal.classList.contains("hidden")) return;
+  if (event.key === "Escape") {
+    closeReportModal();
+    return;
+  }
+  // Focus trap: Tab cycles through the modal's focusable elements only,
+  // so focus can't escape to the (partially obscured) page beneath.
+  if (event.key !== "Tab") return;
+  const focusables = Array.from(modal.querySelectorAll(
+    'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )).filter((el) => el.offsetParent !== null); // visible only
+  if (!focusables.length) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
 });
 
 document.getElementById("logForUser")?.addEventListener("change", populateLogForUnits);

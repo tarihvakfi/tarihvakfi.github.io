@@ -18,12 +18,12 @@ the listed failure modes behave correctly.
       its `status` is not `done` / `pending_review` (so the
       "Uzun süredir dokunulmamış" subsection has a row to render).
 
-## 1. End-to-end Rapor Ver against a real PNB unit
+## 1. End-to-end Rapor Yaz against a real PNB unit
 
 - [ ] Sign in as the test volunteer.
-- [ ] On Bugün, the large "Rapor Ver" primary button is the first call to
+- [ ] On Bugün, the large "Rapor Yaz" primary button is the first call to
       action; no self-claim banner is visible.
-- [ ] Click "Rapor Ver". The modal opens with the typeahead focused.
+- [ ] Click "Rapor Yaz". The modal opens with the typeahead focused.
 - [ ] Type a known PNB `sourceIdentifier` substring. Results appear within
       ~250 ms with priority dot + `suitableFor` pills.
 - [ ] Pick a unit. Selection chip replaces the input. Note textarea gets focus.
@@ -43,7 +43,7 @@ the listed failure modes behave correctly.
 
 ## 2. "Liste dışı / yeni bir iş" submission
 
-- [ ] As the test volunteer, open Rapor Ver. Click "Liste dışı / yeni bir iş".
+- [ ] As the test volunteer, open Rapor Yaz. Click "Liste dışı / yeni bir iş".
 - [ ] The two text inputs (Kaynak/Tanım, Kısa açıklama) replace the typeahead.
 - [ ] Fill both, write a note, pick effort + status, submit.
 - [ ] Submit succeeds; toast appears.
@@ -64,7 +64,7 @@ the listed failure modes behave correctly.
 
 - [ ] Open Chrome DevTools device emulation at 375×667 (iPhone SE class).
 - [ ] As the volunteer, the Bugün primary CTA fits the viewport without
-      horizontal scroll. The "Rapor Ver" button is at least 44 px tall.
+      horizontal scroll. The "Rapor Yaz" button is at least 44 px tall.
 - [ ] Open the modal: it should fill the viewport (no rounded corners on
       narrow screens), all tap targets are ≥ 44 px, and the segmented
       effort/status buttons stack into one column on width ≤ 600 px.
@@ -77,7 +77,7 @@ the listed failure modes behave correctly.
 
 - [ ] In Firestore Console, set the test volunteer's `users/{uid}.city = "ankara"`.
 - [ ] Sign in as that volunteer (sign out + back in to refresh `cp`).
-- [ ] Open Rapor Ver. The typeahead dropdown shows the notice
+- [ ] Open Rapor Yaz. The typeahead dropdown shows the notice
       "Ankara'da olduğun için yalnızca dijitalleştirilmiş kutular gösteriliyor."
 - [ ] Search results contain ONLY units with `digitized == true`. Verify by
       cross-referencing two known-non-digitized box numbers — they must NOT
@@ -112,7 +112,7 @@ the listed failure modes behave correctly.
 - [ ] Try to drag a card. It must NOT move. Right-click / long-press
       reveals no context menu specific to status changes.
 - [ ] Click a card. The unit drill modal opens with the new metadata
-      block, status timeline, and a "Rapor Ver (bu iş paketi için)"
+      block, status timeline, and a "Rapor Yaz (bu iş paketi için)"
       button. Pressing it closes the drill and opens the report modal
       with the unit pre-selected.
 - [ ] Sign in as the coordinator. Pano renders the same way. No drag,

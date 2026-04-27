@@ -91,9 +91,10 @@
           <div id="svSelfClaim" class="sv-selfclaim hidden"></div>
 
           <div id="svReportPrimary" class="sv-report-primary hidden">
-            <button type="button" class="sv-report-cta" id="svReportCtaBtn">
+            <button type="button" class="sv-report-cta" id="svReportCtaBtn"
+              data-action="open-rapor-modal" aria-label="Rapor Yaz">
               <span class="ic" aria-hidden="true">＋</span>
-              <span class="lab">Rapor Ver</span>
+              <span class="lab">Rapor Yaz</span>
               <span class="sub">Ne yaptın? Tek formda kaydet.</span>
             </button>
             <div class="sv-recent">
@@ -365,8 +366,10 @@
           </button>
         </div>
 
-        <button type="button" class="vp-pnb-cta" id="vpPnbReportBtn" data-open-report-project="pnb">
-          Rapor Ver (bu proje için)
+        <button type="button" class="vp-pnb-cta" id="vpPnbReportBtn"
+          data-action="open-rapor-modal" data-project="pnb"
+          aria-label="Rapor Yaz (bu proje için)">
+          Rapor Yaz (bu proje için)
         </button>
 
         <div class="vp-pnb-board" role="list" aria-label="İş paketi panosu">
@@ -747,7 +750,7 @@
       <div id="drillStats" class="drill-stats"></div>
       <div id="drillBlocker" class="drill-blocker"></div>
       <div class="drill-section drill-actions-row">
-        <button type="button" id="drillReportBtn" class="btn btn-primary btn-sm">Rapor Ver (bu iş paketi için)</button>
+        <button type="button" id="drillReportBtn" class="btn btn-primary btn-sm">Rapor Yaz (bu iş paketi için)</button>
       </div>
       <div class="drill-section drill-timeline-section hidden" id="drillTimelineSection">
         <p class="eyebrow">Durum geçmişi</p>
@@ -860,6 +863,9 @@
           <p class="eyebrow">Rapor</p>
           <h2 id="reportModalTitle">Bugün ne yaptın?</h2>
           <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Tek formda işi seç, ne yaptığını yaz, ne kadar ilerlediğini ve durumunu işaretle.</p>
+          <!-- Modal title above stays "Bugün ne yaptın?". The CTA buttons
+               that open this modal are labeled "Rapor Yaz" everywhere — see
+               the Anasayfa primary card and the PNB-tab button. -->
         </div>
         <div class="drill-header-actions">
           <button type="button" class="btn btn-secondary btn-sm" data-report-modal-close aria-label="Kapat">Kapat</button>
