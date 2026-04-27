@@ -860,15 +860,10 @@
     <div class="drill-panel report-panel">
       <header class="drill-header">
         <div>
-          <p class="eyebrow">Rapor</p>
-          <h2 id="reportModalTitle">Bugün ne yaptın?</h2>
-          <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Tek formda işi seç, ne yaptığını yaz, ne kadar ilerlediğini ve durumunu işaretle.</p>
-          <!-- Modal title above stays "Bugün ne yaptın?". The CTA buttons
-               that open this modal are labeled "Rapor Yaz" everywhere — see
-               the Anasayfa primary card and the PNB-tab button. -->
+          <h2 id="reportModalTitle">Rapor Yaz</h2>
         </div>
         <div class="drill-header-actions">
-          <button type="button" class="btn btn-secondary btn-sm" data-report-modal-close aria-label="Kapat">Kapat</button>
+          <button type="button" class="btn btn-secondary btn-sm rm-close" data-report-modal-close aria-label="Kapat">✕</button>
         </div>
       </header>
       <form id="reportModalForm" class="report-form" novalidate>
@@ -897,7 +892,7 @@
           </div>
         </div>
 
-        <!-- STEP 2 — pill + textarea + status + advanced expander. Hidden
+        <!-- STEP 2 — pill + textarea + status pills + url + submit. Hidden
              until a unit is picked. -->
         <div class="rm-step rm-step-2 hidden" id="rmStep2">
           <div class="rm-pill" id="rmSelectedPill" role="status" aria-live="polite">
@@ -910,7 +905,7 @@
 
           <div class="rm-field">
             <label class="rm-label" for="rmNote">Ne yaptın? <span class="req">*</span></label>
-            <textarea id="rmNote" class="rm-textarea" rows="3" maxlength="500" required
+            <textarea id="rmNote" class="rm-textarea" rows="2" maxlength="500" required
               placeholder="Örnek: 40 fotoğrafı taradım, Drive'a yükledim."></textarea>
             <div class="rm-counter" id="rmNoteCounter">0 / 500</div>
           </div>
@@ -924,39 +919,21 @@
             </div>
           </div>
 
-          <details class="rm-more" id="rmMore">
-            <summary class="rm-more-summary"><span class="rm-more-chevron" aria-hidden="true">▸</span> Daha fazla seçenek</summary>
-            <div class="rm-more-body">
-              <div class="rm-field">
-                <span class="rm-label">Ne kadar sürdü? <em class="muted">(opsiyonel)</em></span>
-                <div class="rm-segmented" role="radiogroup" aria-label="Efor">
-                  <button type="button" class="rm-seg" data-effort="small">Biraz<small>&lt; 1 saat</small></button>
-                  <button type="button" class="rm-seg" data-effort="medium">Normal<small>1–3 saat</small></button>
-                  <button type="button" class="rm-seg" data-effort="large">Epey<small>3+ saat</small></button>
-                </div>
-              </div>
+          <div class="rm-field">
+            <label class="rm-label" for="rmUrl">Link <em class="muted">(varsa)</em></label>
+            <input type="url" id="rmUrl" class="rm-input" placeholder="https://drive.google.com/..." />
+            <div class="rm-helper hidden" id="rmUrlHelper"></div>
+          </div>
 
-              <div class="rm-field">
-                <label class="rm-label" for="rmUrl">Link <em class="muted">(opsiyonel)</em></label>
-                <input type="url" id="rmUrl" class="rm-input" placeholder="https://drive.google.com/..." />
-                <div class="rm-helper hidden" id="rmUrlHelper"></div>
-              </div>
-
-              <label class="rm-field rm-digitized hidden" id="rmDigitizedField" title="Tüm içerik taranmış ve Drive'da. Uzaktan çalışan gönüllüler artık bu kutuya erişebilir.">
-                <input type="checkbox" id="rmDigitizedCheck" />
-                <span>Bu iş paketi artık tamamen dijitalleştirildi</span>
-              </label>
-            </div>
-          </details>
+          <label class="rm-field rm-digitized hidden" id="rmDigitizedField" title="Tüm içerik taranmış ve Drive'da. Uzaktan çalışan gönüllüler artık bu kutuya erişebilir.">
+            <input type="checkbox" id="rmDigitizedCheck" />
+            <span>Bu iş paketi artık tamamen dijitalleştirildi</span>
+          </label>
 
           <div class="rm-actions">
             <span id="rmMessage" class="status-line muted"></span>
             <button type="submit" class="btn btn-primary" id="rmSubmit">Gönder</button>
           </div>
-        </div>
-
-        <div class="rm-footer">
-          <a href="#" id="rmMoreOptions">Eski raporlama formu</a>
         </div>
       </form>
     </div>

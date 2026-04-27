@@ -612,7 +612,7 @@ function panoBucket(unit) {
 function panoCard(unit) {
   const desc = (unit.contentDescription || unit.notes || "").slice(0, 60);
   const pills = (unit.suitableFor || []).slice(0, 3)
-    .map((tag) => `<span class="rm-pill">${escapeHTML(SUITABLE_FOR_LABELS[tag] || tag)}</span>`)
+    .map((tag) => `<span class="rm-tag">${escapeHTML(SUITABLE_FOR_LABELS[tag] || tag)}</span>`)
     .join("");
   const last = toDateFromTs(unit.lastActivityAt) || toDateFromTs(unit.latestReportAt);
   const reporter = unit.lastReporterName || (unit.lastReporterId ? findUserName(unit.lastReporterId) : "");
@@ -1219,25 +1219,23 @@ function renderTypeaheadResults() {
   if (!list) return;
   const items = reportModalState.results || [];
   const parts = [];
+  const hasTerm = !!(reportModalState.searchTerm || "").trim();
   // Remote volunteers (canWorkInPerson != true) with the toggle off and zero
   // digitized units in the catalog get a friendly empty-state explaining the
   // pipeline. They can flip the toggle to see what's queued up physically.
   const isRemote = cp?.canWorkInPerson !== true;
-  if (!reportModalState.showAll && isRemote && !items.length && !reportModalState.searchTerm) {
+  if (!reportModalState.showAll && isRemote && !items.length && !hasTerm) {
     const anyDigitized = archiveUnits.some((u) => u.digitized === true && (u.status || "") !== "done");
     if (!anyDigitized) {
       parts.push('<div class="rm-notice rm-notice-empty">Şu an dijitalleştirilmiş iş paketi yok. İstanbul\'da arşivde fiziksel olarak çalışan gönüllüler tarama yaptıkça burada görünecek. Bekleyen iş paketlerini görmek istersen yukarıdaki düğmeyi aç.</div>');
     }
-  }
-  if (!items.length && reportModalState.searchTerm) {
-    parts.push('<div class="rm-result"><div class="rr-main"><div class="rr-title">Eşleşen iş bulunamadı</div><div class="rr-desc">Aşağıdan yeni bir iş ekleyebilirsin.</div></div></div>');
   }
   items.forEach((unit, idx) => {
     const desc = (unit.contentDescription || unit.notes || "").slice(0, 60);
     const pills = [];
     if (unit.priority) pills.push(`<span class="rm-prio ${escapeHTML(unit.priority)}" title="Öncelik: ${escapeHTML(unit.priority)}"></span>`);
     (unit.suitableFor || []).slice(0, 2).forEach((tag) => {
-      pills.push(`<span class="rm-pill">${escapeHTML(SUITABLE_FOR_LABELS[tag] || tag)}</span>`);
+      pills.push(`<span class="rm-tag">${escapeHTML(SUITABLE_FOR_LABELS[tag] || tag)}</span>`);
     });
     const active = idx === reportModalState.activeIndex ? " active" : "";
     parts.push(`<div class="rm-result${active}" role="option" data-rm-pick="${escapeHTML(unit.id)}">
@@ -1248,7 +1246,17 @@ function renderTypeaheadResults() {
       <div class="rr-pills">${pills.join("")}</div>
     </div>`);
   });
-  parts.push('<div class="rm-result is-new" role="option" data-rm-new>Liste dışı / yeni bir iş</div>');
+  // "Liste dışı" appears ONLY when the volunteer typed something AND zero
+  // archive units matched. Until then it's not in the dropdown at all.
+  if (hasTerm && !items.length) {
+    parts.push('<div class="rm-result"><div class="rr-main"><div class="rr-title">Eşleşen iş bulunamadı</div><div class="rr-desc">Yeni bir iş paketi olarak ekle:</div></div></div>');
+    parts.push('<div class="rm-result is-new" role="option" data-rm-new>Liste dışı / yeni bir iş</div>');
+  }
+  if (!parts.length) {
+    list.classList.add("hidden");
+    list.innerHTML = "";
+    return;
+  }
   list.innerHTML = parts.join("");
   list.classList.remove("hidden");
 }
@@ -1363,8 +1371,12 @@ async function openReportModal(opts = "") {
   document.getElementById("rmNewSource").value = "";
   document.getElementById("rmNewDescription").value = "";
   document.getElementById("rmDigitizedCheck").checked = false;
-  // Effort: clear any prior selection (default applied silently at submit).
-  document.querySelectorAll('#reportModalForm .rm-seg[data-effort].is-on').forEach((b) => b.classList.remove("is-on"));
+  // Reset the selected-unit pill text so a stale "Yeni iş paketi (liste dışı)"
+  // label from a previous session can't bleed across opens.
+  const pillTitleEl = document.getElementById("rmPillTitle");
+  const pillSubEl = document.getElementById("rmPillSub");
+  if (pillTitleEl) pillTitleEl.textContent = "";
+  if (pillSubEl) pillSubEl.textContent = "";
   // Status: pre-select Devam ediyor.
   document.querySelectorAll('#reportModalForm .rm-status-pill').forEach((b) => {
     b.classList.toggle("is-on", b.dataset.status === "in_progress");
@@ -1375,9 +1387,6 @@ async function openReportModal(opts = "") {
   document.getElementById("rmNewUnit")?.classList.add("hidden");
   document.getElementById("rmResults")?.classList.add("hidden");
   document.getElementById("rmUnitInput")?.classList.remove("hidden");
-  // Collapse the "Daha fazla seçenek" expander on every open.
-  const moreEl = document.getElementById("rmMore");
-  if (moreEl) moreEl.open = false;
   // Start at step 1.
   showReportStep(1);
 
@@ -3428,7 +3437,7 @@ function openUnitDrill(unitId) {
   if (metaEl) {
     const priorityLabels = { high: "Yüksek", medium: "Orta", low: "Düşük" };
     const pills = (unit.suitableFor || []).map((tag) =>
-      `<span class="rm-pill">${escapeHTML(SUITABLE_FOR_LABELS[tag] || tag)}</span>`
+      `<span class="rm-tag">${escapeHTML(SUITABLE_FOR_LABELS[tag] || tag)}</span>`
     ).join("");
     const rows = [];
     if (unit.contentDescription) rows.push(`<div class="desc">${escapeHTML(unit.contentDescription)}</div>`);
@@ -4640,21 +4649,6 @@ document.addEventListener("click", async (event) => {
     setSelectedUnit(null);
     return; // setSelectedUnit(null) already focuses rmUnitInput
   }
-  if (event.target.id === "rmMoreOptions") {
-    event.preventDefault();
-    closeReportModal(true);
-    sw("reports");
-    document.getElementById("toggleDetailedBtn")?.click();
-    return;
-  }
-  // Effort + status segmented buttons.
-  const effortBtn = event.target.closest("#reportModalForm .rm-seg[data-effort]");
-  if (effortBtn) {
-    document.querySelectorAll("#reportModalForm .rm-seg[data-effort]").forEach((b) => b.classList.remove("is-on"));
-    effortBtn.classList.add("is-on");
-    reportModalState.effort = effortBtn.dataset.effort;
-    return;
-  }
   // Status segmented pills (Devam ediyor / Bitirdim / Takıldım). Only one
   // active at a time. Default Devam ediyor is pre-selected on modal open.
   const statusBtn = event.target.closest("#reportModalForm .rm-status-pill");
@@ -5367,16 +5361,14 @@ document.getElementById("rmUnitInput")?.addEventListener("keydown", (event) => {
     reportModalState.activeIndex = Math.max(-1, reportModalState.activeIndex - 1);
     renderTypeaheadResults();
   } else if (event.key === "Enter") {
-    event.preventDefault();
+    // Only commit a selection if the volunteer actually arrowed onto a row.
+    // No silent fallback to items[0] and no auto-create of a new unit —
+    // both of those used to swap the modal into the "Yeni iş paketi
+    // (liste dışı)" state without an explicit pick.
     if (reportModalState.activeIndex >= 0 && reportModalState.activeIndex < items.length) {
+      event.preventDefault();
       setSelectedUnit(items[reportModalState.activeIndex]);
       setTimeout(() => document.getElementById("rmNote")?.focus(), 30);
-    } else if (items.length) {
-      // No keyboard pick yet — fall back to first result.
-      setSelectedUnit(items[0]);
-      setTimeout(() => document.getElementById("rmNote")?.focus(), 30);
-    } else {
-      showNewUnitInline();
     }
   } else if (event.key === "Escape") {
     list?.classList.add("hidden");
