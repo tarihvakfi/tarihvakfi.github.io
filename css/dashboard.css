@@ -872,30 +872,134 @@
 .sv-report-cta .lab { font-size: 1.15rem; font-weight: 600; letter-spacing: -.005em; }
 .sv-report-cta .sub { font-size: .85rem; opacity: .82; }
 
-.sv-recent { padding: 0; }
-.sv-recent .eyebrow {
-  font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
-  color: var(--tblr-secondary); font-weight: 600; margin: 0 0 .35rem;
+/* ---------- Son raporların — compact log ----------
+   One line per row: [status dot] [TYPE] [unit prefix · note preview] [time].
+   Replaces the old .sv-recent-row grid (which had three children but only
+   two columns, leaving the time div on a second row that read as a gray bar).
+   This rewrites the wrapper as a card so the visual weight matches the
+   inline Rapor Yaz card directly above it. */
+.sv-log-card { padding: .25rem 0; margin-top: 1rem; }
+.sv-log-head {
+  font-size: 11px;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--tblr-secondary);
+  font-weight: 600;
+  margin: 0;
+  padding: .9rem 1rem .35rem;
 }
-.sv-recent-list { display: flex; flex-direction: column; gap: 4px; }
-.sv-recent-row {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto;
-  gap: .75rem; align-items: center;
-  padding: .55rem .75rem;
-  background: var(--tblr-bg-surface);
-  border: 1px solid var(--tblr-border-color);
-  border-radius: 6px;
-  cursor: pointer;
+.sv-log-list {
+  display: flex;
+  flex-direction: column;
+}
+.sv-log-empty {
+  text-align: center;
+  font-size: 13px;
+  color: var(--tblr-secondary);
+  padding: 1rem;
+  margin: 0;
+}
+.sv-log-row {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .75rem 1rem;
+  border: 0;
+  background: transparent;
+  border-bottom: 1px solid var(--tblr-border-color);
   text-align: left;
-  transition: border-color .1s, background .1s;
   width: 100%;
-  min-height: 44px;
+  font: inherit;
+  color: inherit;
+  text-decoration: none;
 }
-.sv-recent-row:hover { border-color: var(--tblr-primary); background: var(--tblr-bg-surface-secondary); }
-.sv-recent-main { min-width: 0; }
-.sv-recent-title { font-size: 13px; font-weight: 600; color: var(--tblr-body-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sv-recent-note { font-size: 11px; color: var(--tblr-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
-.sv-recent-when { font-size: 11px; color: var(--tblr-secondary); white-space: nowrap; }
+.sv-log-row:last-child { border-bottom: 0; }
+.sv-log-row--clickable { cursor: pointer; }
+.sv-log-row--clickable:hover { background: #faf6f0; /* tv-cream-ish sand tint */ }
+@media (prefers-color-scheme: dark) {
+  .sv-log-row--clickable:hover { background: rgba(255, 255, 255, .04); }
+}
+
+/* Status dot — small filled circle on the far left. Color tracks report
+   type; "done" hollows out via inset box-shadow; legacy "blocked" warms
+   to a terracotta tone regardless of report type. */
+.sv-log-dot {
+  flex-shrink: 0;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--tblr-secondary, #6c757d);
+}
+.sv-log-row[data-rtype="unit"] .sv-log-dot,
+.sv-log-row[data-rtype="project"] .sv-log-dot {
+  background: #4a7c7e; /* --tv-teal */
+}
+.sv-log-row[data-rtype="foundation"] .sv-log-dot {
+  background: #8a8580; /* ink-soft warm gray */
+}
+.sv-log-row[data-status="done"] .sv-log-dot {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px #4a7c7e;
+}
+.sv-log-row[data-rtype="foundation"][data-status="done"] .sv-log-dot {
+  box-shadow: inset 0 0 0 2px #8a8580;
+}
+.sv-log-row[data-status="blocked"] .sv-log-dot {
+  background: #94462a; /* --tv-terracotta-deep */
+  box-shadow: none;
+}
+
+/* Type label — fixed-width uppercase tag that aligns columns across rows. */
+.sv-log-type {
+  flex: 0 0 56px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #4a7c7e; /* matches unit/project dot */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sv-log-row[data-rtype="foundation"] .sv-log-type {
+  color: #8a8580; /* ink-soft */
+}
+
+/* Note preview — the body of the row. Single line, ellipsis. The unit
+   prefix (e.g. "K48") gets a slightly faded color to read as context. */
+.sv-log-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--tblr-body-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sv-log-prefix {
+  color: var(--tblr-secondary);
+  font-weight: 500;
+}
+
+/* Right-aligned time — same ink-soft as the type label. */
+.sv-log-when {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--tblr-secondary);
+  white-space: nowrap;
+}
+
+/* Optional "Tümünü göster →" footer — hidden today (no full history view
+   exists for volunteers). The slot is in the markup so it's there if/when
+   a /reports archive page lands. */
+.sv-log-foot {
+  padding: .5rem 1rem .75rem;
+  text-align: right;
+  font-size: 12px;
+  border-top: 1px solid var(--tblr-border-color);
+}
+.sv-log-foot.hidden { display: none; }
+.sv-log-foot a { color: var(--tblr-primary); text-decoration: none; }
+.sv-log-foot a:hover { text-decoration: underline; }
 
 /* ---------- Inline Rapor Yaz card ----------
    The same card markup is used on Anasayfa (project-agnostic) and on the
@@ -1007,8 +1111,6 @@
 
 /* The volunteer's "Son raporların" row needs a tiny gap before the type
    pill (which sits before the title block). */
-.sv-recent-row { gap: .5rem; }
-.sv-recent-row > .report-type-pill { align-self: flex-start; margin-top: .15rem; }
 
 /* The selected-unit pill inside the unit picker section is hidden until a
    unit is chosen; the typeahead input occupies that slot in the meantime. */
@@ -1070,9 +1172,6 @@
   color: #fff;
   border-color: var(--tblr-primary);
 }
-.rm-status-blocked { border-color: var(--tblr-warning); }
-.rm-status-blocked:hover { background: var(--tblr-warning-lt); }
-.rm-status-blocked.is-on { background: var(--tblr-warning); color: #fff; border-color: var(--tblr-warning); }
 
 .report-form { display: flex; flex-direction: column; gap: .75rem; }
 .rm-field { display: grid; gap: .35rem; }

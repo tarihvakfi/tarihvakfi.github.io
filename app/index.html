@@ -92,12 +92,15 @@
 
           <div id="svReportPrimary" class="sv-report-primary hidden">
             <!-- Inline Rapor Yaz form (Anasayfa, project-agnostic). Filled by
-                 renderInlineRaporForm({ projectFilter: "all", showProjectToggle: true }). -->
+                 renderInlineRaporForm({ showProjectPicker: true, fixedProjectId: null }). -->
             <div id="anasayfaInlineRapor" class="card inline-rapor-card"></div>
 
-            <div class="sv-recent">
-              <p class="eyebrow">Son raporların</p>
-              <div id="svRecentReports" class="sv-recent-list"><p class="sv-empty">Henüz rapor yok.</p></div>
+            <!-- Son raporların — compact one-line-per-row log. Filled by
+                 renderVolunteerReportPrimary(). -->
+            <div class="card sv-log-card">
+              <h3 class="sv-log-head">Son raporların</h3>
+              <div id="svRecentReports" class="sv-log-list"><p class="sv-log-empty">Henüz rapor yok.</p></div>
+              <div id="svRecentReportsFooter" class="sv-log-foot hidden"></div>
             </div>
           </div>
 

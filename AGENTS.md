@@ -104,7 +104,7 @@ The drill modal's "Rapor Yaz (bu iş paketi için)" shortcut closes the drill, s
 1. **Ne yaptın?** required textarea, 500-char counter. Submit button stays disabled until the note has ≥ 3 trimmed chars.
 2. **Hangi proje için?** *(Anasayfa only, optional)* — row of project pills + a foundation pill. Pills toggle (tapping the active one clears the choice). No pill selected = same as foundation = `projectId: null`. Helper text below explains the blank state.
 3. **Hangi iş paketi?** *(optional, only visible when a real project is in scope)* — same Turkish-normalized typeahead, same `canWorkInPerson` + `digitized` filter logic, same `Tüm iş paketlerini göster` toggle. Liste dışı still appears at the bottom of the dropdown when the term has zero matches; it requires a project context (otherwise the new unit has no parent project) and is blocked with a friendly error if invoked without one.
-4. **Durum:** three pills — `Devam ediyor` (default), `Bittim`, `Takıldım`. Always rendered regardless of unit selection — for project_general / foundation_general reports the status is metadata on the report doc, not applied anywhere.
+4. **Durum:** two pills — `Devam ediyor` (default) and `Tamamlandı`. Mapped to `status: "in_progress" | "done"`. Always rendered regardless of unit selection — for project_general / foundation_general reports the status is metadata on the report doc, not applied anywhere. Note: the `blocked` status is intentionally **not** a volunteer-side choice (Prompt L) — it's coordinator-only and reaches archiveUnits via admin tooling. Existing reports with `status: "blocked"` continue to render correctly throughout the app.
 5. **Link (varsa):** optional URL input.
 6. **Gönder** submit button.
 

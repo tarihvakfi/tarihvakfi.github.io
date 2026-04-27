@@ -1322,8 +1322,7 @@ function renderInlineRaporForm({ container, showProjectPicker = false, fixedProj
         <span class="rm-label">Durum:</span>
         <div class="rm-status-pills" role="radiogroup" aria-label="Durum">
           <button type="button" class="rm-status-pill is-on" data-status="in_progress">Devam ediyor</button>
-          <button type="button" class="rm-status-pill" data-status="done">Bittim</button>
-          <button type="button" class="rm-status-pill rm-status-blocked" data-status="blocked">Takıldım</button>
+          <button type="button" class="rm-status-pill" data-status="done">Tamamlandı</button>
         </div>
       </div>
 
@@ -2242,47 +2241,66 @@ function renderVolunteerReportPrimary() {
   const myReports = Object.values(rd || {})
     .filter((r) => r.userUid === cu.uid || r.volunteerId === cu.uid)
     .sort((a, b) => (toDateFromTs(b.createdAt)?.getTime() || 0) - (toDateFromTs(a.createdAt)?.getTime() || 0))
-    .slice(0, 3);
+    .slice(0, 5);
   if (!myReports.length) {
-    list.innerHTML = '<p class="sv-empty">Henüz rapor yok. Yukarıdaki kartı kullanarak ilk raporunu yaz.</p>';
+    list.innerHTML = '<p class="sv-log-empty">Henüz rapor yok.</p>';
     return;
   }
-  list.innerHTML = myReports.map((r) => {
-    const reportType = reportTypeOf(r);
-    const unitId = r.unitId || r.archiveUnitId || "";
-    let title;
-    let typePillClass;
-    let typePillLabel;
-    if (reportType === "foundation_general") {
-      title = "Vakıf çalışması";
-      typePillClass = "foundation";
-      typePillLabel = "Vakıf";
-    } else if (reportType === "project_general") {
-      const projName = r.projectName || projectDisplayName(r.projectId);
-      title = projName ? `${projName} (genel)` : "Proje (genel)";
-      typePillClass = "project";
-      typePillLabel = "Genel";
-    } else {
-      const unit = unitId ? archiveById[unitId] : null;
-      title = unit ? archiveLabel(unit)
-        : (r.unitSnapshot?.sourceIdentifier || r.taskId || "Birim");
-      typePillClass = "unit";
-      typePillLabel = "Kutu";
-    }
-    const note = (r.note || r.summary || "").trim();
-    const when = toDateFromTs(r.createdAt);
-    const ago = when ? daysSinceLabel(daysSince(when)) : "";
-    // Foundation/project-general rows have no unit to drill into; row click
-    // still fires but the data-recent-unit lookup will return null.
-    return `<button type="button" class="sv-recent-row" data-recent-unit="${escapeHTML(unitId)}">
-        <span class="report-type-pill report-type-pill--${typePillClass}" aria-hidden="true">${escapeHTML(typePillLabel)}</span>
-        <div class="sv-recent-main">
-          <div class="sv-recent-title">${escapeHTML(title)}</div>
-          ${note ? `<div class="sv-recent-note">${escapeHTML(note.slice(0, 80))}</div>` : ""}
-        </div>
-        <div class="sv-recent-when">${escapeHTML(ago)}</div>
-      </button>`;
-  }).join("");
+  list.innerHTML = myReports.map((r) => renderVolunteerReportLogRow(r)).join("");
+}
+
+// Compact one-line-per-row log entry for "Son raporların". Renders:
+//   [status dot] [TYPE] [unit prefix · note preview]            [time ago]
+// The dot color tracks the report type; "done" gets a hollow ring; "blocked"
+// (legacy / coordinator-set) gets a warmer terracotta tone. Click semantics
+// stay the same — unit reports have a unitId for drill, the other shapes
+// don't and the click is a no-op.
+function renderVolunteerReportLogRow(r) {
+  const reportType = reportTypeOf(r);
+  const unitId = r.unitId || r.archiveUnitId || "";
+  const status = r.status || (r.workStatus === "unit_done" ? "done" : r.workStatus) || "in_progress";
+
+  let typeKey;        // unit | project | foundation — drives dot/text color
+  let typeLabel;      // "PNB" | "VAKIF" | etc.
+  let prefix = "";    // optional faded sourceIdentifier in front of the note
+  if (reportType === "foundation_general") {
+    typeKey = "foundation";
+    typeLabel = "VAKIF";
+  } else if (reportType === "project_general") {
+    typeKey = "project";
+    typeLabel = (r.projectId || "").toUpperCase() || "PROJE";
+  } else {
+    typeKey = "unit";
+    typeLabel = (r.projectId || (archiveById[unitId]?.projectId) || "").toUpperCase() || "KUTU";
+    const unit = unitId ? archiveById[unitId] : null;
+    prefix = unit ? (unit.sourceIdentifier || archiveLabel(unit))
+      : (r.unitSnapshot?.sourceIdentifier || r.taskId || "");
+  }
+
+  const note = (r.note || r.summary || "").trim();
+  const noteSliced = note.slice(0, 70);
+  const text = prefix
+    ? `<span class="sv-log-prefix">${escapeHTML(prefix)}</span> · ${escapeHTML(noteSliced)}`
+    : escapeHTML(noteSliced || "—");
+
+  const when = toDateFromTs(r.createdAt);
+  const ago = relativeTimeLabel(when);
+
+  // Use a <button> for unit rows so it's keyboard-accessible and routes
+  // through the existing data-recent-unit click delegation. Non-unit rows
+  // are rendered as a non-interactive <div> — there's no useful drill.
+  const isClickable = !!unitId;
+  const tag = isClickable ? "button" : "div";
+  const interactiveAttrs = isClickable
+    ? `type="button" data-recent-unit="${escapeHTML(unitId)}"`
+    : "";
+
+  return `<${tag} class="sv-log-row${isClickable ? " sv-log-row--clickable" : ""}" data-rtype="${escapeHTML(typeKey)}" data-status="${escapeHTML(status)}" ${interactiveAttrs}>
+    <span class="sv-log-dot" aria-hidden="true"></span>
+    <span class="sv-log-type">${escapeHTML(typeLabel)}</span>
+    <span class="sv-log-text">${text}</span>
+    <span class="sv-log-when">${escapeHTML(ago)}</span>
+  </${tag}>`;
 }
 
 // Pick the next archive unit a volunteer could reasonably pick up: unassigned,
@@ -3107,6 +3125,23 @@ function daysSinceLabel(d) {
   if (d < 30) return `${Math.floor(d / 7)} hafta önce`;
   if (d < 365) return `${Math.floor(d / 30)} ay önce`;
   return `${Math.floor(d / 365)} yıl önce`;
+}
+
+// Relative-time label with sub-day granularity, used by the volunteer's
+// Son raporların log so a fresh "5 dakika önce" is distinguishable from a
+// half-day-old "8 saat önce". Falls back to daysSinceLabel from 1 day on.
+function relativeTimeLabel(date) {
+  if (!date) return "—";
+  const d = date instanceof Date ? date : new Date(date);
+  if (isNaN(d.getTime())) return "—";
+  const diffMs = Date.now() - d.getTime();
+  if (diffMs < 0) return "az önce";
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return "az önce";
+  if (minutes < 60) return `${minutes} dk önce`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} saat önce`;
+  return daysSinceLabel(daysSince(d));
 }
 
 function renderHomeOverview() {
