@@ -49,19 +49,20 @@ The volunteer-side shell is intentionally minimal: **Anasayfa**, **PNB**, **Duyu
 
 ### Anasayfa
 Project-agnostic landing page. Renders the same regardless of which projects exist. From top to bottom:
-1. Greeting (`Merhaba, {firstName}` + faded date line).
-2. Big primary **Rapor Yaz** card (`#svReportCtaBtn`). Tapping it opens the simplified modal with no project lock — the typeahead searches across every project the volunteer has access to.
+1. Greeting (`Merhaba, {firstName}` + `Tarih Vakfı · {date}` subtitle).
+2. **Rapor Yaz** card (`#anasayfaInlineRapor`) — the inline form is rendered directly into the page; there is no "open" button. Same six elements as the old modal (typeahead, note, status pills, link, submit). The typeahead is unfiltered (all projects the volunteer can access) and the "Tüm iş paketlerini göster" toggle is shown.
 3. **Son raporların** — last 3 reports by the current volunteer.
 4. **Aktif projeler** (`#vpProjectsList`) — one card per project the volunteer can access. Each card has the project name, a one-line description (read from `projects/{projectId}.shortDescription` if present, otherwise the registry default in `PROJECT_TAB_REGISTRY`), and a "Bu projeye git →" link that switches to that project's tab. New projects appear automatically as `volunteerProjectIds()` expands.
 
-The legacy Bugün widgets (`.wa-prog`, `.sv-actions`, `.sv-work`, `.wa-cta`) stay in the HTML for staff but are hidden on `body.volunteer-shell` via CSS.
+The legacy Bugün widgets (`.wa-prog`, `.sv-actions`, `.sv-work`, `.wa-cta`) were removed from the volunteer Anasayfa in Prompt J; the staff Bugün still uses its own blocks (`#homeHero`, `#kbBoard`, `#homeWorkGrid`, `#homeAnnouncements`).
 
 ### Project tab factory (PNB and beyond)
 `renderVolunteerProjectTab(projectId)` is the single function that populates a project's tab. Today PNB is the only project; future projects need:
 
 1. An entry in `PROJECT_TAB_REGISTRY` (name, fallback description).
-2. An HTML block inside the corresponding `#tab-{tabId}` section with `vp-{projectId}-*` IDs (header, progress card, four stat tiles, Rapor Yaz button, kanban columns).
+2. An HTML block inside the corresponding `#tab-{tabId}` section with `vp-{projectId}-*` IDs (header, progress card, four stat tiles, an empty `<div id="{projectId}InlineRapor" class="card inline-rapor-card">` for the form, kanban columns).
 3. `volunteerProjectIds()` returning that project id for the user.
+4. A call to `ensureInlineRaporForm("{projectId}InlineRapor", { projectFilter: "{projectId}", showProjectToggle: false })` once the volunteer's profile loads (today this happens for `pnb` from `renderVolunteerReportPrimary()` — extend there).
 
 Staff PNB content (`#pnbHero`, `#pnbStats`, `#pnbOpsGrid`, `#pnbArchivePanel`, `#adminTaskForm`, `#generalTaskPanel`) remains untouched and is only visible on `body.staff-shell`. The volunteer block (`#volunteerPnbView`) is only visible on `body.volunteer-shell`. Both blocks live in the same `#tab-pnb` section.
 
@@ -69,53 +70,59 @@ Staff PNB content (`#pnbHero`, `#pnbStats`, `#pnbOpsGrid`, `#pnbArchivePanel`, `
 1. Header: project name, italic Boratav line, one-line description.
 2. Project progress dark card (the `wa-prog` clone, with `vpPnb*` IDs).
 3. Four stat cards (`Sıradaki iş` / `Üstümdeki iş` / `Bu hafta` / `Aktif gönüllü`) — same data sources as the staff Bugün stats but written to the PNB-namespaced IDs.
-4. **Rapor Yaz (bu proje için)** button (`data-open-report-project="pnb"`) — opens the modal with the typeahead locked to PNB. The "tüm iş paketlerini göster" toggle is hidden when locked.
+4. **Rapor Yaz (bu proje için)** inline form (`#pnbInlineRapor`) — rendered directly into the page by `renderInlineRaporForm({ projectFilter: "pnb", showProjectToggle: false })`. The typeahead is locked to PNB and the "tüm iş paketlerini göster" toggle is omitted entirely.
 5. Read-only 5-column kanban (`Başlanmadı / Devam ediyor / Gözden geçirme / Tamam / Takıldım`). No pending side panel — that stays admin-only on the staff Pano.
 
 `loadArchiveUnits` was widened in Prompt H to load all project units for volunteers (not just assigned). The Rapor Yaz typeahead and the volunteer kanban both rely on the full project list. Firestore rules already permitted this read since Prompt C; no rule change needed.
 
-## Simplified Rapor Yaz flow (Prompt H)
+## Rapor Yaz inline-form flow (Prompt J)
 
-Two-step inline progressive disclosure, max-width 560 px desktop, full-screen mobile.
+Report-first is now an **inline** flow. The volunteer never has to click a button to "open" the form — the same six-element form is rendered directly into both the Anasayfa card (`#anasayfaInlineRapor`) and the per-project tab card (e.g. `#pnbInlineRapor`), already focused and ready to type into. There is no modal, no overlay, no backdrop.
+
+### Shared component: `renderInlineRaporForm({ container, projectFilter, showProjectToggle, onSubmitSuccess })`
+A single factory in `app/dashboard.js` builds both forms — fixing a bug in one fixes both. Each call returns a handle attached to the container as `container.__inlineRaporHandle` with `{ selectUnitById, reset, refreshResults }`. State is closure-private; DOM lookups are scoped via `container.querySelector` so two instances coexist without ID collisions. Use `ensureInlineRaporForm(containerId, opts)` for idempotent mounting (won't blow away in-progress input on rerender). The drill modal's "Rapor Yaz (bu iş paketi için)" shortcut closes the drill, switches to the PNB tab, and calls `selectUnitById` on the PNB form so the volunteer lands on the form with the unit prefilled.
 
 ### Step 1 — Hangi iş paketi?
-The typeahead is the only thing visible. Same Turkish-normalized search across `sourceIdentifier`, `seriesNo`, `boxNo`, `contentDescription`. Same `canWorkInPerson` + `digitized` filter logic. Same "Tüm iş paketlerini göster" toggle (hidden when the modal is opened in project-locked mode). "Liste dışı / yeni bir iş" still bottom-of-dropdown.
+The typeahead is the only thing visible inside the card. Same Turkish-normalized search across `sourceIdentifier`, `seriesNo`, `boxNo`, `contentDescription`. Same `canWorkInPerson` + `digitized` filter logic. The "Tüm iş paketlerini göster" toggle is shown only when `showProjectToggle: true` (Anasayfa); the project-scoped form omits the toggle entirely because it's already locked. "Liste dışı / yeni bir iş" appears in the dropdown only when the volunteer typed something AND zero units matched.
 
-When a unit is picked: the typeahead collapses into a pill at the top (`#rmSelectedPill` showing `sourceIdentifier — truncated description` with an ✕), and step 2 slides in (`@keyframes rmStepIn`, 180 ms ease-out). Tapping the ✕ on the pill clears the selection and reopens the typeahead (back to step 1). **Selection is the transition — no Next button.**
+When a unit is picked: the typeahead collapses into a pill at the top (`.rm-selected-pill` showing `sourceIdentifier — truncated description` with an ✕), and step 2 slides in (`@keyframes rmStepIn`, 180 ms ease-out). Tapping the ✕ on the pill clears the selection and reopens the typeahead. **Selection is the transition — no Next button.**
 
 ### Step 2 — Ne yaptın?
-- Selected-unit pill at top.
-- `Ne yaptın?` textarea, required, 500-char counter.
-- **Status:** three pills inline — `Devam ediyor` (default selected), `Bitirdim`, `Takıldım`. Mapped to `status: "in_progress" | "done" | "blocked"`. The blocked pill is visually separated (warmer color, slight gap).
-- **Daha fazla seçenek** expander (`<details>`, collapsed by default, chevron rotates). When opened reveals:
-  - `Ne kadar sürdü?` — three segmented buttons (`Biraz / Normal / Epey`). Optional. If unselected at submit, `effort: "medium"` is written silently.
-  - `Link (opsiyonel)` URL input + Drive helper text from `config/pnb.sharedDriveUrl`.
-  - `Bu iş paketi artık tamamen dijitalleştirildi` checkbox — only visible when the selected unit currently has `digitized == false`. Tooltip explains the implication for remote volunteers.
-- Submit button: **Gönder** (terracotta, full-width on mobile).
-- Footer escape-hatch link: **Eski raporlama formu** (small, ink-soft, very bottom). Opens the legacy quick-report form for power users.
+The visible elements are exactly six:
+1. Selected-unit pill (or new-unit row if "Liste dışı" was picked).
+2. `Ne yaptın?` textarea, required, 500-char counter.
+3. **Status:** three pills inline — `Devam ediyor` (default selected), `Bitirdim`, `Takıldım`. Mapped to `status: "in_progress" | "done" | "blocked"`. All three are visually identical except for fill and the warmer outline on Takıldım.
+4. `Link (varsa)` URL input + Drive helper text from `config/pnb.sharedDriveUrl`.
+5. **Gönder** submit button.
+6. Inline success/error banner (`.if-banner`) — green for 3s on success, red until next interaction on failure.
 
-### Removed from the modal
-- **Başladım** status — collapsed into Devam ediyor.
-- **Gözden geçirme için hazır** status — removed entirely from the volunteer surface. Coordinators flag review status from their own existing tools.
-- **`reportedSubstatus`** field — deprecated. Existing report docs keep their value; new submissions don't write the field. The schema doc still lists it under `reports` for historical readers.
+The effort buttons, `dijitalleştirildi` checkbox, "Daha fazla seçenek" expander, and "Eski raporlama formu" footer link are gone. Effort defaults to `"medium"` silently at submit.
 
-### `openReportModal()` API
-Accepts either a string (legacy: prefill unit id) or an options object: `{ unitId, projectId, lockProject }`. `lockProject=true` restricts the typeahead to a single project and hides the show-all toggle. The Anasayfa CTA opens unlocked; the PNB tab CTA opens locked to PNB.
+### Submit behavior
+On success: form resets (note empties, status returns to `Devam ediyor`, search clears, link clears), green banner shows for 3s, `reloadPnb()` + `lr()` refresh in-memory caches so Son raporların and the kanban update immediately. On failure: all field values are preserved, red banner shows the error, volunteer can retry without retyping.
+
+### Removed in Prompt J
+- The entire `#reportModal` overlay, its backdrop, focus trap, and Escape-to-close handler.
+- `openReportModal()` / `closeReportModal()` / `reportModalState` / `submitReportFromModal()` and the modal-only DOM IDs (`rmUnitInput`, `rmNote`, `rmResults`, `rmStep1`, `rmStep2`, `rmSelectedPill`, `rmShowAll`, `rmShowAllWrap`, `rmNewUnit`, `rmNewSource`, `rmNewDescription`, `rmDigitizedField`, `rmDigitizedCheck`, `rmPillTitle`, `rmPillSub`, `rmPillClear`, `rmCancelNewUnit`, `rmUrl`, `rmUrlHelper`, `rmMessage`, `rmSubmit`, `rmNoteCounter`, `reportModalForm`).
+- The `data-action="open-rapor-modal"` and `data-open-report-project` click handlers.
+- The Anasayfa `#svReportCtaBtn` big blue CTA card and the PNB-tab `#vpPnbReportBtn`.
+
+Earlier removals (Prompt H, kept for reference): `Başladım` status (collapsed into Devam ediyor); `Gözden geçirme için hazır` (removed from the volunteer surface — coordinators flag review status from their own tools); `reportedSubstatus` (deprecated; existing report docs keep their value).
 
 ## Volunteer interaction model — report-first
 The primary action on the volunteer dashboard is **Rapor Yaz**. Volunteers do not pull work from a queue; they log what they did and the system infers the unit's status from the latest report.
 
 Flow:
-1. The volunteer presses the large **Rapor Yaz** primary CTA on `app/index.html` → `#tab-home`.
-2. `#reportModal` opens. Fields, in order: typeahead (archive unit) → ne yaptın? (note ≤ 500 chars) → effort (small/medium/large) → status (in_progress / review / done with `reportedSubstatus` capturing the UX nuance, plus a separated `blocked`) → optional `digitized` checkbox (only visible when `archiveUnits/{id}.digitized == false`) → optional URL.
+1. The volunteer lands on `app/index.html` → `#tab-home`. The Rapor Yaz form is **already on screen** as an inline card; no button-press is needed to "open" it. The same form is also embedded in the PNB tab (`#tab-pnb`), pre-filtered to that project.
+2. Fields, in order: typeahead (archive unit) → ne yaptın? (note ≤ 500 chars) → status (`in_progress` / `done` / `blocked`) → optional URL → submit. Effort is no longer a UI control; submissions write `effort: "medium"` silently for backwards compatibility.
 3. Submit writes a `reports/{id}` doc, denormalizes `archiveUnits/{unitId}` (status + last-activity metadata), updates `users/{uid}.lastReportAt`, and appends an `activityLogs` entry of `type: "report_submitted"`.
-4. The "liste dışı / yeni iş" path creates an `archiveUnits/{newId}` with `status == "pending_review"` and `createdByVolunteerId == auth.uid`, then chains the report to that new id.
+4. The "liste dışı / yeni iş" path creates an `archiveUnits/{newId}` with `status == "pending_review"` and `createdByVolunteerId == auth.uid`, then chains the report to that new id. This option only appears in the typeahead dropdown when the volunteer typed something AND zero units matched.
 
-Just below the CTA, **Son raporların** lists the current volunteer's last 3 reports as continuity from previous sessions. Each row opens the corresponding unit channel.
+Just below the inline form on Anasayfa, **Son raporların** lists the current volunteer's last 3 reports as continuity from previous sessions. Each row opens the corresponding unit channel.
 
-The kanban view has been moved into a dedicated **Pano** tab and is **read-only for everyone** (volunteers and coordinators). Drag-drop and the ⋮ status-change menu have been removed; status changes flow only through the volunteer's Rapor Yaz modal or the existing admin Ayarla path. Pano shows five columns — `Başlanmadı`, `Devam ediyor`, `Gözden geçirme`, `Tamam`, `Takıldım` — plus a side panel of `pending_review` units submitted via "Liste dışı". Each card shows priority via a colored left border (red/yellow/grey), `sourceIdentifier`, a 60-char `contentDescription` excerpt, `suitableFor` pills, and a "Son rapor: X gün önce, {volunteerName}" footer derived from `lastActivityAt` + `lastReporterName`.
+The kanban view has been moved into a dedicated **Pano** tab and is **read-only for everyone** (volunteers and coordinators). Drag-drop and the ⋮ status-change menu have been removed; status changes flow only through the volunteer's Rapor Yaz form or the existing admin Ayarla path. Pano shows five columns — `Başlanmadı`, `Devam ediyor`, `Gözden geçirme`, `Tamam`, `Takıldım` — plus a side panel of `pending_review` units submitted via "Liste dışı". Each card shows priority via a colored left border (red/yellow/grey), `sourceIdentifier`, a 60-char `contentDescription` excerpt, `suitableFor` pills, and a "Son rapor: X gün önce, {volunteerName}" footer derived from `lastActivityAt` + `lastReporterName`.
 
-The legacy quick / detailed forms remain reachable from the modal footer's "daha fazla seçenek" link.
+For power users, the legacy detailed Rapor Yaz form remains accessible to staff via the staff-only Rapor Yaz tab (`#tab-reports`).
 
 ## Coordinator / admin Bugün view
 
@@ -162,7 +169,7 @@ The landing page uses `<body class="landing">`. All styles in `css/landing.css` 
 
 ## Pending review flow (admin Bakım)
 
-Volunteers can create `archiveUnits` with `status == "pending_review"` via the "Liste dışı / yeni bir iş" path in the report modal. The Bakım tab now opens with a "Gözden geçirme bekleyen yeni işler" card listing every such doc, sorted newest first. Each row offers three actions:
+Volunteers can create `archiveUnits` with `status == "pending_review"` via the "Liste dışı / yeni bir iş" path in the inline Rapor Yaz form. The Bakım tab now opens with a "Gözden geçirme bekleyen yeni işler" card listing every such doc, sorted newest first. Each row offers three actions:
 
 - **Onayla ve ledger'a al** — opens a small modal that prompts for `priority` and a comma-separated `suitableFor` list, then `updateDoc` flips the unit to `status: "not_started"` with the supplied metadata. Logged as `pending_unit_approved` in `activityLogs`.
 - **Var olan iş paketine birleştir** — opens a target picker, then for each `reports` doc with `archiveUnitId == pendingId` rewrites it to point at the chosen target (`archiveUnitId` + `unitId`), appends the pending unit's `sourceIdentifier` + `contentDescription` into the target's `notes`, and deletes the pending doc. Logged as `pending_unit_merged`.
@@ -237,7 +244,7 @@ Volunteers can only update the keys whitelisted by `reportFirstUnitUpdate()` in 
 - `updatedAt`.
 
 ### `archiveUnits` — fields populated by import / used for typeahead matching
-- `sourceIdentifier`, `priority`, `suitableFor`, `city`, `contentDescription`, `materialType`, `pageCount`, `documentCount`, `folderCount`, `projectId` — populated by the PNB importer; consumed by the report modal's typeahead and pill rendering.
+- `sourceIdentifier`, `priority`, `suitableFor`, `city`, `contentDescription`, `materialType`, `pageCount`, `documentCount`, `folderCount`, `projectId` — populated by the PNB importer; consumed by the inline Rapor Yaz form's typeahead and pill rendering.
 - `createdByVolunteerId` — set when a volunteer submits a "liste dışı" pending unit; lets coordinators triage them.
 
 ### Volunteer profile fields on `users`

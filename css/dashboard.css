@@ -897,55 +897,47 @@
 .sv-recent-note { font-size: 11px; color: var(--tblr-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
 .sv-recent-when { font-size: 11px; color: var(--tblr-secondary); white-space: nowrap; }
 
-/* ---------- Rapor Yaz modal ---------- */
-
-/* Centered on viewport; the base .drill-modal is align-items: flex-start
-   (good for the wide unit-detail drill, wrong for this short form), so we
-   override to center. The panel is intentionally tight: with the trimmed
-   six-element form everything has to fit inside 480px without scrolling. */
-.report-modal {
-  align-items: center;
-  padding: 1rem;
-}
-.report-modal .drill-backdrop {
-  background: rgba(0, 0, 0, 0.4);
-  z-index: 0;
-}
-.report-panel {
-  max-width: 520px;
-  width: 100%;
-  max-height: 480px;
-  overflow: hidden; /* if it scrolls, we've added too much */
-  position: relative;
-  z-index: 1;
+/* ---------- Inline Rapor Yaz card ----------
+   The same card markup is used on Anasayfa (project-agnostic) and on the
+   PNB tab (project-locked). Visuals match the surrounding cards. The form
+   itself uses the .rm-* primitives below. */
+.inline-rapor-card {
   padding: 1rem 1.25rem;
-  display: flex;
-  flex-direction: column;
 }
-.report-panel .drill-header { margin-bottom: .5rem; }
-.report-panel .drill-header h2 { font-size: 1.05rem; }
-.report-panel .rm-close {
-  width: 36px; height: 36px; padding: 0;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-size: 18px; line-height: 1;
+.inline-rapor-card .if-head { margin-bottom: .65rem; }
+.inline-rapor-card .if-title {
+  font-size: 1rem; font-weight: 600;
+  color: var(--tblr-body-color);
+  margin: 0 0 .15rem;
 }
-.report-panel #reportModalForm { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-@media (max-width: 767px) {
-  .report-modal {
-    padding: 0;
-    align-items: stretch;
-  }
-  .report-modal .drill-panel.report-panel {
-    max-width: 100%;
-    max-height: 100vh;
-    height: 100vh;
-    border-radius: 0;
-    padding: 1rem;
-    overflow-y: auto;
-  }
+.inline-rapor-card .if-sub {
+  font-size: .8rem;
+  margin: 0;
+}
+.inline-rapor-card .inline-rapor-form {
+  display: flex; flex-direction: column;
+  gap: .75rem;
+}
+.inline-rapor-card .if-banner {
+  font-size: .85rem; font-weight: 500;
+  padding: .55rem .75rem;
+  border-radius: 6px;
+  margin-bottom: .65rem;
+  transition: opacity .15s ease-out;
+}
+.inline-rapor-card .if-banner--hidden { display: none; }
+.inline-rapor-card .if-banner--success {
+  background: var(--tblr-success-lt, #e7f5ea);
+  color: var(--tblr-success, #1b7a3a);
+  border: 1px solid var(--tblr-success, #2fb344);
+}
+.inline-rapor-card .if-banner--error {
+  background: var(--tblr-danger-lt, #fbe6e8);
+  color: var(--tblr-danger, #b03030);
+  border: 1px solid var(--tblr-danger, #d63939);
 }
 
-/* ---------- Two-step Rapor Yaz modal (Prompt H) ----------
+/* ---------- Two-step inline form (typeahead → pill+form) ----------
    Step 1: typeahead is the only thing visible. Step 2: typeahead collapses
    into a pill at the top and the rest of the form slides in. Selection IS
    the transition — no Next button. */
@@ -1015,7 +1007,7 @@
 .rm-status-blocked:hover { background: var(--tblr-warning-lt); }
 .rm-status-blocked.is-on { background: var(--tblr-warning); color: #fff; border-color: var(--tblr-warning); }
 
-.report-form { display: flex; flex-direction: column; gap: .75rem; flex: 1; min-height: 0; overflow: hidden; }
+.report-form { display: flex; flex-direction: column; gap: .75rem; }
 .rm-field { display: grid; gap: .35rem; }
 .rm-label { font-size: 13px; font-weight: 600; color: var(--tblr-body-color); }
 .rm-label .req { color: var(--tblr-danger); }

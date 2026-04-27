@@ -1097,25 +1097,13 @@ function trNormalize(value) {
     .replace(/û/g, "u");
 }
 
-let reportModalState = {
-  unit: null,
-  newUnit: false,
-  effort: "",         // optional; defaults to "medium" silently at submit
-  status: "in_progress", // Devam ediyor pre-selected per Prompt H
-  searchTerm: "",
-  results: [],
-  activeIndex: -1,
-  searchTimer: null,
-  sharedDriveUrl: "",
-  // "Tüm iş paketlerini göster" toggle — off by default. When on, the
-  // canWorkInPerson visibility filter is bypassed (still respects projectId
-  // and status filters). See scoreUnitForTypeahead.
-  showAll: false,
-  // When the modal is opened from a project-scoped CTA (e.g. PNB tab's
-  // "Rapor Yaz bu proje için" button), only that project's units are
-  // searchable AND the rmShowAll toggle is hidden.
-  lockedProjectId: ""
-};
+// ---------- Inline Rapor Yaz form (shared between Anasayfa + per-project tabs) ----------
+//
+// Both the Anasayfa card and the PNB-tab card are rendered by the same factory
+// (renderInlineRaporForm). Each instance owns its own state via closure and
+// scoped DOM lookups, so the two cards can coexist on the same page without
+// fighting over global IDs. The factory replaces the modal-based flow that
+// existed before this prompt; there is no longer any modal-open path.
 
 let cachedSharedDriveUrl = null;
 
@@ -1130,76 +1118,9 @@ async function getSharedDriveUrl() {
   return cachedSharedDriveUrl;
 }
 
-// Returns the volunteer's accessible project ids. Today: pnb only (assigned
-// + open membership). When project membership becomes data-driven we will
-// read users/{uid}.projects[] here without changing callers.
+// Returns the volunteer's accessible project ids. Today: pnb only.
 function volunteerProjectIds() {
   return [REPORT_PROJECT_FILTER];
-}
-
-// Match a unit against the typed needle and the volunteer's specialty.
-// Returns null when filtered out, otherwise { unit, score } with higher score
-// meaning a better match. Specialty is a soft boost so non-matching units stay
-// in the list at lower priority.
-//
-// Default visibility:
-//   - digitized == true             → visible to everyone
-//   - canWorkInPerson == true       → can also see physical (digitized==false) units
-//   - everyone else                 → only digitized units
-//   - "Tüm iş paketlerini göster" toggle (reportModalState.showAll) bypasses
-//     the visibility filter so remote volunteers can preview what's queued up.
-//
-// city is intentionally NOT a filter — most İstanbul-based volunteers also
-// work remotely, so city was a bad proxy for physical access.
-function scoreUnitForTypeahead(unit, needle) {
-  if (!unit) return null;
-  const unitProjectId = unit.projectId || PNB_PROJECT_ID;
-  if (reportModalState.lockedProjectId) {
-    // Project-scoped open: only this project's units are searchable.
-    if (unitProjectId !== reportModalState.lockedProjectId) return null;
-  } else {
-    const projects = volunteerProjectIds();
-    if (!projects.includes(unitProjectId)) return null;
-  }
-  const status = unit.status || "not_started";
-  if (status === "done") return null;
-
-  if (!reportModalState.showAll) {
-    const canInPerson = cp?.canWorkInPerson === true;
-    if (unit.digitized !== true && !canInPerson) return null;
-  }
-
-  const haystack = trNormalize([
-    unit.sourceIdentifier, unit.sourceCode, unit.seriesNo, unit.boxNo,
-    unit.contentDescription, unit.title, unit.notes, unit.materialType
-  ].filter(Boolean).join(" "));
-  let score = 0;
-  if (needle) {
-    if (!haystack.includes(needle)) return null;
-    if (haystack.startsWith(needle)) score += 5;
-    score += 2;
-  }
-  // Specialty boost: any overlap between volunteer's specialty[] and unit.suitableFor[]
-  const my = Array.isArray(cp?.specialty) ? cp.specialty : [];
-  const fit = Array.isArray(unit.suitableFor) ? unit.suitableFor : [];
-  if (my.length && fit.length && my.some((s) => fit.includes(s))) score += 3;
-  // High-priority units float up so the volunteer notices them.
-  if (unit.priority === "high") score += 2;
-  return { unit, score };
-}
-
-function searchUnitsForReport(term) {
-  const needle = trNormalize(term);
-  const scored = [];
-  archiveUnits.forEach((u) => {
-    const m = scoreUnitForTypeahead(u, needle);
-    if (m) scored.push(m);
-  });
-  scored.sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
-    return archiveLabel(a.unit).localeCompare(archiveLabel(b.unit), "tr");
-  });
-  return scored.slice(0, 5).map((m) => m.unit);
 }
 
 const SUITABLE_FOR_LABELS = {
@@ -1214,215 +1135,414 @@ const SUITABLE_FOR_LABELS = {
   gecmis_envanter_ayiklama: "Eski envanter"
 };
 
-function renderTypeaheadResults() {
-  const list = document.getElementById("rmResults");
-  if (!list) return;
-  const items = reportModalState.results || [];
-  const parts = [];
-  const hasTerm = !!(reportModalState.searchTerm || "").trim();
-  // Remote volunteers (canWorkInPerson != true) with the toggle off and zero
-  // digitized units in the catalog get a friendly empty-state explaining the
-  // pipeline. They can flip the toggle to see what's queued up physically.
-  const isRemote = cp?.canWorkInPerson !== true;
-  if (!reportModalState.showAll && isRemote && !items.length && !hasTerm) {
-    const anyDigitized = archiveUnits.some((u) => u.digitized === true && (u.status || "") !== "done");
-    if (!anyDigitized) {
-      parts.push('<div class="rm-notice rm-notice-empty">Şu an dijitalleştirilmiş iş paketi yok. İstanbul\'da arşivde fiziksel olarak çalışan gönüllüler tarama yaptıkça burada görünecek. Bekleyen iş paketlerini görmek istersen yukarıdaki düğmeyi aç.</div>');
-    }
-  }
-  items.forEach((unit, idx) => {
-    const desc = (unit.contentDescription || unit.notes || "").slice(0, 60);
-    const pills = [];
-    if (unit.priority) pills.push(`<span class="rm-prio ${escapeHTML(unit.priority)}" title="Öncelik: ${escapeHTML(unit.priority)}"></span>`);
-    (unit.suitableFor || []).slice(0, 2).forEach((tag) => {
-      pills.push(`<span class="rm-tag">${escapeHTML(SUITABLE_FOR_LABELS[tag] || tag)}</span>`);
-    });
-    const active = idx === reportModalState.activeIndex ? " active" : "";
-    parts.push(`<div class="rm-result${active}" role="option" data-rm-pick="${escapeHTML(unit.id)}">
-      <div class="rr-main">
-        <div class="rr-title">${escapeHTML(archiveLabel(unit))}</div>
-        ${desc ? `<div class="rr-desc">${escapeHTML(desc)}</div>` : ""}
-      </div>
-      <div class="rr-pills">${pills.join("")}</div>
-    </div>`);
-  });
-  // "Liste dışı" appears ONLY when the volunteer typed something AND zero
-  // archive units matched. Until then it's not in the dropdown at all.
-  if (hasTerm && !items.length) {
-    parts.push('<div class="rm-result"><div class="rr-main"><div class="rr-title">Eşleşen iş bulunamadı</div><div class="rr-desc">Yeni bir iş paketi olarak ekle:</div></div></div>');
-    parts.push('<div class="rm-result is-new" role="option" data-rm-new>Liste dışı / yeni bir iş</div>');
-  }
-  if (!parts.length) {
-    list.classList.add("hidden");
-    list.innerHTML = "";
-    return;
-  }
-  list.innerHTML = parts.join("");
-  list.classList.remove("hidden");
-}
-
-// Move the modal between step 1 (typeahead) and step 2 (pill + form).
-// Selection is the transition — no Next button.
-function showReportStep(stepIdx) {
-  const s1 = document.getElementById("rmStep1");
-  const s2 = document.getElementById("rmStep2");
-  if (!s1 || !s2) return;
-  s1.classList.toggle("hidden", stepIdx !== 1);
-  s2.classList.toggle("hidden", stepIdx !== 2);
-}
-
-function setSelectedUnit(unit) {
-  reportModalState.unit = unit;
-  reportModalState.newUnit = false;
-  const list = document.getElementById("rmResults");
-  const newPanel = document.getElementById("rmNewUnit");
-  newPanel?.classList.add("hidden");
-  list?.classList.add("hidden");
-  if (!unit) {
-    // Clearing selection: back to step 1, refocus input.
-    showReportStep(1);
-    const input = document.getElementById("rmUnitInput");
-    if (input) { input.value = ""; input.focus(); }
-    updateDigitizedField(null);
-    return;
-  }
-  // Populate the pill in step 2.
-  const titleEl = document.getElementById("rmPillTitle");
-  const subEl = document.getElementById("rmPillSub");
-  if (titleEl) titleEl.textContent = unit.sourceIdentifier || archiveLabel(unit);
-  if (subEl) {
-    const sub = (unit.contentDescription || unit.notes || "").slice(0, 80);
-    subEl.textContent = sub;
-  }
-  showReportStep(2);
-  updateDigitizedField(unit);
-}
-
-function updateDigitizedField(unit) {
-  const wrap = document.getElementById("rmDigitizedField");
-  const check = document.getElementById("rmDigitizedCheck");
-  if (!wrap || !check) return;
-  if (unit && unit.digitized === false) {
-    wrap.classList.remove("hidden");
+// Per-call state. Visibility:
+//   - digitized == true             → visible to everyone
+//   - canWorkInPerson == true       → can also see physical (digitized==false) units
+//   - everyone else                 → only digitized units
+//   - "Tüm iş paketlerini göster" toggle (state.showAll) bypasses the
+//     visibility filter so remote volunteers can preview what's queued up.
+function scoreUnitForTypeahead(state, unit, needle) {
+  if (!unit) return null;
+  const unitProjectId = unit.projectId || PNB_PROJECT_ID;
+  if (state.lockedProjectId) {
+    if (unitProjectId !== state.lockedProjectId) return null;
   } else {
-    wrap.classList.add("hidden");
-    check.checked = false;
+    const projects = volunteerProjectIds();
+    if (!projects.includes(unitProjectId)) return null;
   }
+  const status = unit.status || "not_started";
+  if (status === "done") return null;
+  if (!state.showAll) {
+    const canInPerson = cp?.canWorkInPerson === true;
+    if (unit.digitized !== true && !canInPerson) return null;
+  }
+  const haystack = trNormalize([
+    unit.sourceIdentifier, unit.sourceCode, unit.seriesNo, unit.boxNo,
+    unit.contentDescription, unit.title, unit.notes, unit.materialType
+  ].filter(Boolean).join(" "));
+  let score = 0;
+  if (needle) {
+    if (!haystack.includes(needle)) return null;
+    if (haystack.startsWith(needle)) score += 5;
+    score += 2;
+  }
+  const my = Array.isArray(cp?.specialty) ? cp.specialty : [];
+  const fit = Array.isArray(unit.suitableFor) ? unit.suitableFor : [];
+  if (my.length && fit.length && my.some((s) => fit.includes(s))) score += 3;
+  if (unit.priority === "high") score += 2;
+  return { unit, score };
 }
 
-function showNewUnitInline() {
-  reportModalState.newUnit = true;
-  reportModalState.unit = null;
-  document.getElementById("rmResults")?.classList.add("hidden");
-  document.getElementById("rmUnitInput")?.classList.add("hidden");
-  document.getElementById("rmNewUnit")?.classList.remove("hidden");
-  // Move into step 2 so the volunteer can type the note alongside the
-  // new-unit fields. The pill stays empty until submit (we know the
-  // identifier is whatever they're typing into rmNewSource).
-  const titleEl = document.getElementById("rmPillTitle");
-  const subEl = document.getElementById("rmPillSub");
-  if (titleEl) titleEl.textContent = "Yeni iş paketi (liste dışı)";
-  if (subEl) subEl.textContent = "Aşağıda kaynak/tanım ekle";
-  showReportStep(2);
-  setTimeout(() => document.getElementById("rmNewSource")?.focus(), 30);
-  updateDigitizedField(null);
+function searchUnitsForReport(state, term) {
+  const needle = trNormalize(term);
+  const scored = [];
+  archiveUnits.forEach((u) => {
+    const m = scoreUnitForTypeahead(state, u, needle);
+    if (m) scored.push(m);
+  });
+  scored.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return archiveLabel(a.unit).localeCompare(archiveLabel(b.unit), "tr");
+  });
+  return scored.slice(0, 5).map((m) => m.unit);
 }
 
-function cancelNewUnit() {
-  reportModalState.newUnit = false;
-  document.getElementById("rmNewUnit")?.classList.add("hidden");
-  const input = document.getElementById("rmUnitInput");
-  input?.classList.remove("hidden");
-  showReportStep(1);
-  setTimeout(() => input?.focus(), 30);
-}
+// Live registry so external callers (drill shortcut, post-data-reload refresh)
+// can address a form by container without reaching into private state.
+const _inlineRaporForms = new Set();
 
-// Open the report modal. Accepts either a string (legacy: prefill unit id)
-// or an options object: { unitId, projectId, lockProject }.
-//   - lockProject=true → restrict typeahead to projectId only and hide
-//     the "tüm iş paketlerini göster" toggle.
-//   - projectId without lockProject → no effect today (typeahead already
-//     filters to volunteerProjectIds()).
-async function openReportModal(opts = "") {
-  const modal = document.getElementById("reportModal");
-  if (!modal) return;
-  const options = typeof opts === "string"
-    ? { unitId: opts, projectId: "", lockProject: false }
-    : { unitId: opts?.unitId || "", projectId: opts?.projectId || "", lockProject: !!opts?.lockProject };
+// projectFilter:        "all" | "pnb"  (today: only "pnb" is meaningful)
+// showProjectToggle:    show the "Tüm iş paketlerini göster" checkbox
+// onSubmitSuccess:      called after a successful report write
+function renderInlineRaporForm({ container, projectFilter = "all", showProjectToggle = false, onSubmitSuccess } = {}) {
+  if (!container) return null;
 
-  reportModalState = {
-    unit: null, newUnit: false, effort: "", status: "in_progress",
-    searchTerm: "", results: [], activeIndex: -1, searchTimer: null, sharedDriveUrl: "",
+  const state = {
+    unit: null,
+    newUnit: false,
+    status: "in_progress",
+    searchTerm: "",
+    results: [],
+    activeIndex: -1,
+    searchTimer: null,
     showAll: false,
-    lockedProjectId: options.lockProject ? options.projectId : ""
+    lockedProjectId: projectFilter && projectFilter !== "all" ? projectFilter : ""
   };
-  const showAllCheckbox = document.getElementById("rmShowAll");
-  if (showAllCheckbox) showAllCheckbox.checked = false;
-  // Hide the "tüm iş paketlerini göster" toggle when the modal is locked
-  // to a single project — the visibility filter already only contains that
-  // project's units, so the toggle would be misleading.
-  const showAllWrap = document.getElementById("rmShowAllWrap");
-  if (showAllWrap) showAllWrap.classList.toggle("hidden", !!reportModalState.lockedProjectId);
 
-  // Reset form widgets
-  document.getElementById("rmNote").value = "";
-  document.getElementById("rmUrl").value = "";
-  document.getElementById("rmUnitInput").value = "";
-  document.getElementById("rmNewSource").value = "";
-  document.getElementById("rmNewDescription").value = "";
-  document.getElementById("rmDigitizedCheck").checked = false;
-  // Reset the selected-unit pill text so a stale "Yeni iş paketi (liste dışı)"
-  // label from a previous session can't bleed across opens.
-  const pillTitleEl = document.getElementById("rmPillTitle");
-  const pillSubEl = document.getElementById("rmPillSub");
-  if (pillTitleEl) pillTitleEl.textContent = "";
-  if (pillSubEl) pillSubEl.textContent = "";
-  // Status: pre-select Devam ediyor.
-  document.querySelectorAll('#reportModalForm .rm-status-pill').forEach((b) => {
-    b.classList.toggle("is-on", b.dataset.status === "in_progress");
+  const headingLabel = projectFilter === "all"
+    ? "Rapor Yaz"
+    : "Rapor Yaz (bu proje için)";
+
+  container.innerHTML = `
+    <div class="if-head">
+      <h3 class="if-title">${escapeHTML(headingLabel)}</h3>
+      <p class="if-sub muted">Hangi iş paketinde, ne yaptın? 30 saniyede bitir.</p>
+    </div>
+    <div class="if-banner if-banner--hidden" role="status" aria-live="polite"></div>
+    <form class="report-form inline-rapor-form" novalidate>
+      <div class="rm-step rm-step-1">
+        <div class="rm-field">
+          <label class="rm-label">Hangi iş paketi? <span class="req">*</span></label>
+          <div class="rm-typeahead">
+            <input type="text" class="rm-input rm-unit-input" autocomplete="off" placeholder="Kutu no, seri no veya kaynak ara…" aria-autocomplete="list" />
+            ${showProjectToggle ? `<label class="rm-show-all">
+              <input type="checkbox" class="rm-show-all-input" />
+              <span>Tüm iş paketlerini göster</span>
+            </label>` : ""}
+            <div class="rm-results hidden" role="listbox"></div>
+            <div class="rm-newunit hidden">
+              <label class="rm-sub">Kaynak / Tanım <span class="req">*</span>
+                <input type="text" class="rm-new-source" placeholder="48 / 120.5 / K75 ek kutu" maxlength="160" />
+              </label>
+              <label class="rm-sub">Kısa açıklama
+                <input type="text" class="rm-new-description" placeholder="Kutuda ne var?" maxlength="240" />
+              </label>
+              <button type="button" class="btn btn-secondary btn-sm rm-cancel-new">Listeye dön</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rm-step rm-step-2 hidden">
+        <div class="rm-pill rm-selected-pill" role="status" aria-live="polite">
+          <div class="rm-pill-main">
+            <div class="rm-pill-title"></div>
+            <div class="rm-pill-sub"></div>
+          </div>
+          <button type="button" class="rm-pill-clear" aria-label="Seçimi temizle">×</button>
+        </div>
+
+        <div class="rm-field">
+          <label class="rm-label">Ne yaptın? <span class="req">*</span></label>
+          <textarea class="rm-textarea rm-note" rows="2" maxlength="500" required placeholder="Örnek: 40 fotoğrafı taradım, Drive'a yükledim."></textarea>
+          <div class="rm-counter">0 / 500</div>
+        </div>
+
+        <div class="rm-field rm-status-row">
+          <span class="rm-label">Durum:</span>
+          <div class="rm-status-pills" role="radiogroup" aria-label="Durum">
+            <button type="button" class="rm-status-pill is-on" data-status="in_progress">Devam ediyor</button>
+            <button type="button" class="rm-status-pill" data-status="done">Bitirdim</button>
+            <button type="button" class="rm-status-pill rm-status-blocked" data-status="blocked">Takıldım</button>
+          </div>
+        </div>
+
+        <div class="rm-field">
+          <label class="rm-label">Link <em class="muted">(varsa)</em></label>
+          <input type="url" class="rm-input rm-url" placeholder="https://drive.google.com/..." />
+          <div class="rm-helper hidden rm-url-helper"></div>
+        </div>
+
+        <div class="rm-actions">
+          <span class="status-line muted rm-message"></span>
+          <button type="submit" class="btn btn-primary rm-submit">Gönder</button>
+        </div>
+      </div>
+    </form>
+  `;
+
+  const $ = (sel) => container.querySelector(sel);
+  const $all = (sel) => container.querySelectorAll(sel);
+
+  // Shared Drive URL hint under the link field. Best-effort.
+  getSharedDriveUrl().then((url) => {
+    const helper = $(".rm-url-helper");
+    if (!helper || !url) return;
+    helper.classList.remove("hidden");
+    helper.innerHTML = `Ortak Drive klasörü: <a href="${escapeHTML(url)}" target="_blank" rel="noopener">${escapeHTML(url)}</a>`;
   });
-  document.getElementById("rmMessage").textContent = "";
-  document.getElementById("rmMessage").className = "status-line muted";
-  document.getElementById("rmNoteCounter").textContent = "0 / 500";
-  document.getElementById("rmNewUnit")?.classList.add("hidden");
-  document.getElementById("rmResults")?.classList.add("hidden");
-  document.getElementById("rmUnitInput")?.classList.remove("hidden");
-  // Start at step 1.
-  showReportStep(1);
 
-  modal.classList.remove("hidden");
-  document.body.classList.add("modal-open");
+  function showStep(idx) {
+    $(".rm-step-1").classList.toggle("hidden", idx !== 1);
+    $(".rm-step-2").classList.toggle("hidden", idx !== 2);
+  }
 
-  // Optional shared Drive helper text under the URL field.
-  const helper = document.getElementById("rmUrlHelper");
-  const url = await getSharedDriveUrl();
-  if (helper) {
-    if (url) {
-      helper.classList.remove("hidden");
-      helper.innerHTML = `Ortak Drive klasörü: <a href="${escapeHTML(url)}" target="_blank" rel="noopener">${escapeHTML(url)}</a>`;
-    } else {
-      helper.classList.add("hidden");
-      helper.innerHTML = "";
+  function renderResults() {
+    const list = $(".rm-results");
+    if (!list) return;
+    const items = state.results || [];
+    const parts = [];
+    const hasTerm = !!(state.searchTerm || "").trim();
+    const isRemote = cp?.canWorkInPerson !== true;
+    if (!state.showAll && isRemote && !items.length && !hasTerm) {
+      const anyDigitized = archiveUnits.some((u) => u.digitized === true && (u.status || "") !== "done");
+      if (!anyDigitized) {
+        parts.push('<div class="rm-notice rm-notice-empty">Şu an dijitalleştirilmiş iş paketi yok. İstanbul\'da arşivde fiziksel olarak çalışan gönüllüler tarama yaptıkça burada görünecek. Bekleyen iş paketlerini görmek istersen yukarıdaki düğmeyi aç.</div>');
+      }
+    }
+    items.forEach((unit, idx) => {
+      const desc = (unit.contentDescription || unit.notes || "").slice(0, 60);
+      const tags = [];
+      if (unit.priority) tags.push(`<span class="rm-prio ${escapeHTML(unit.priority)}" title="Öncelik: ${escapeHTML(unit.priority)}"></span>`);
+      (unit.suitableFor || []).slice(0, 2).forEach((tag) => {
+        tags.push(`<span class="rm-tag">${escapeHTML(SUITABLE_FOR_LABELS[tag] || tag)}</span>`);
+      });
+      const active = idx === state.activeIndex ? " active" : "";
+      parts.push(`<div class="rm-result${active}" role="option" data-rm-pick="${escapeHTML(unit.id)}">
+        <div class="rr-main">
+          <div class="rr-title">${escapeHTML(archiveLabel(unit))}</div>
+          ${desc ? `<div class="rr-desc">${escapeHTML(desc)}</div>` : ""}
+        </div>
+        <div class="rr-pills">${tags.join("")}</div>
+      </div>`);
+    });
+    if (hasTerm && !items.length) {
+      parts.push('<div class="rm-result"><div class="rr-main"><div class="rr-title">Eşleşen iş bulunamadı</div><div class="rr-desc">Yeni bir iş paketi olarak ekle:</div></div></div>');
+      parts.push('<div class="rm-result is-new" role="option" data-rm-new>Liste dışı / yeni bir iş</div>');
+    }
+    if (!parts.length) {
+      list.classList.add("hidden");
+      list.innerHTML = "";
+      return;
+    }
+    list.innerHTML = parts.join("");
+    list.classList.remove("hidden");
+  }
+
+  function setSelectedUnit(unit) {
+    state.unit = unit;
+    state.newUnit = false;
+    $(".rm-results")?.classList.add("hidden");
+    $(".rm-newunit")?.classList.add("hidden");
+    if (!unit) {
+      showStep(1);
+      const input = $(".rm-unit-input");
+      if (input) { input.value = ""; input.classList.remove("hidden"); input.focus(); }
+      const t = $(".rm-pill-title"); if (t) t.textContent = "";
+      const s = $(".rm-pill-sub"); if (s) s.textContent = "";
+      return;
+    }
+    const t = $(".rm-pill-title"); if (t) t.textContent = unit.sourceIdentifier || archiveLabel(unit);
+    const s = $(".rm-pill-sub"); if (s) s.textContent = (unit.contentDescription || unit.notes || "").slice(0, 80);
+    showStep(2);
+  }
+
+  function showNewUnit() {
+    state.newUnit = true;
+    state.unit = null;
+    $(".rm-results")?.classList.add("hidden");
+    $(".rm-unit-input")?.classList.add("hidden");
+    $(".rm-newunit")?.classList.remove("hidden");
+    const t = $(".rm-pill-title"); if (t) t.textContent = "Yeni iş paketi (liste dışı)";
+    const s = $(".rm-pill-sub"); if (s) s.textContent = "Aşağıda kaynak/tanım ekle";
+    showStep(2);
+    setTimeout(() => $(".rm-new-source")?.focus(), 30);
+  }
+
+  function cancelNewUnit() {
+    state.newUnit = false;
+    $(".rm-newunit")?.classList.add("hidden");
+    const input = $(".rm-unit-input");
+    input?.classList.remove("hidden");
+    showStep(1);
+    setTimeout(() => input?.focus(), 30);
+  }
+
+  function showBanner(kind, message) {
+    const banner = $(".if-banner");
+    if (!banner) return;
+    banner.classList.remove("if-banner--hidden", "if-banner--success", "if-banner--error");
+    banner.classList.add(`if-banner--${kind}`);
+    banner.textContent = message;
+    if (kind === "success") {
+      clearTimeout(banner._hideTimer);
+      banner._hideTimer = setTimeout(() => {
+        banner.classList.add("if-banner--hidden");
+        banner.classList.remove("if-banner--success");
+        banner.textContent = "";
+      }, 3000);
     }
   }
 
-  if (options.unitId && archiveById[options.unitId]) {
-    setSelectedUnit(archiveById[options.unitId]);
-    setTimeout(() => document.getElementById("rmNote")?.focus(), 60);
-  } else {
-    setTimeout(() => document.getElementById("rmUnitInput")?.focus(), 60);
+  function clearError() {
+    const banner = $(".if-banner");
+    if (banner && banner.classList.contains("if-banner--error")) {
+      banner.classList.add("if-banner--hidden");
+      banner.classList.remove("if-banner--error");
+      banner.textContent = "";
+    }
   }
+
+  function resetForm() {
+    state.unit = null;
+    state.newUnit = false;
+    state.status = "in_progress";
+    state.searchTerm = "";
+    state.results = [];
+    state.activeIndex = -1;
+    state.showAll = false;
+    $(".rm-note").value = "";
+    $(".rm-url").value = "";
+    $(".rm-unit-input").value = "";
+    $(".rm-new-source").value = "";
+    $(".rm-new-description").value = "";
+    $(".rm-counter").textContent = "0 / 500";
+    const showAllInput = $(".rm-show-all-input");
+    if (showAllInput) showAllInput.checked = false;
+    $all(".rm-status-pill").forEach((b) => {
+      b.classList.toggle("is-on", b.dataset.status === "in_progress");
+    });
+    $(".rm-results")?.classList.add("hidden");
+    $(".rm-newunit")?.classList.add("hidden");
+    $(".rm-unit-input")?.classList.remove("hidden");
+    const t = $(".rm-pill-title"); if (t) t.textContent = "";
+    const s = $(".rm-pill-sub"); if (s) s.textContent = "";
+    showStep(1);
+  }
+
+  // ---- Per-instance event wiring ----
+
+  const unitInput = $(".rm-unit-input");
+  unitInput?.addEventListener("input", (event) => {
+    const term = event.target.value;
+    state.searchTerm = term;
+    state.activeIndex = -1;
+    clearTimeout(state.searchTimer);
+    state.searchTimer = setTimeout(() => {
+      state.results = searchUnitsForReport(state, term);
+      renderResults();
+    }, 250);
+  });
+  unitInput?.addEventListener("focus", () => {
+    if (!state.results.length) {
+      state.results = searchUnitsForReport(state, state.searchTerm || "");
+    }
+    renderResults();
+  });
+  unitInput?.addEventListener("keydown", (event) => {
+    const list = $(".rm-results");
+    if (list?.classList.contains("hidden")) return;
+    const items = state.results || [];
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      state.activeIndex = Math.min(items.length, state.activeIndex + 1);
+      renderResults();
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      state.activeIndex = Math.max(-1, state.activeIndex - 1);
+      renderResults();
+    } else if (event.key === "Enter") {
+      // Only commit if the volunteer arrowed onto a row.
+      if (state.activeIndex >= 0 && state.activeIndex < items.length) {
+        event.preventDefault();
+        setSelectedUnit(items[state.activeIndex]);
+        setTimeout(() => $(".rm-note")?.focus(), 30);
+      }
+    } else if (event.key === "Escape") {
+      list?.classList.add("hidden");
+    }
+  });
+
+  $(".rm-show-all-input")?.addEventListener("change", (event) => {
+    state.showAll = !!event.target.checked;
+    state.results = searchUnitsForReport(state, state.searchTerm || "");
+    state.activeIndex = -1;
+    renderResults();
+  });
+
+  $(".rm-note")?.addEventListener("input", (event) => {
+    const counter = $(".rm-counter");
+    if (counter) counter.textContent = `${event.target.value.length} / 500`;
+  });
+
+  container.addEventListener("click", (event) => {
+    const pickBtn = event.target.closest("[data-rm-pick]");
+    if (pickBtn) {
+      const unit = archiveById[pickBtn.dataset.rmPick];
+      if (unit) {
+        setSelectedUnit(unit);
+        setTimeout(() => $(".rm-note")?.focus(), 30);
+      }
+      return;
+    }
+    if (event.target.closest("[data-rm-new]")) { showNewUnit(); return; }
+    if (event.target.closest(".rm-cancel-new")) { cancelNewUnit(); return; }
+    if (event.target.closest(".rm-pill-clear")) { setSelectedUnit(null); return; }
+    const statusBtn = event.target.closest(".rm-status-pill");
+    if (statusBtn) {
+      $all(".rm-status-pill").forEach((b) => b.classList.remove("is-on"));
+      statusBtn.classList.add("is-on");
+      state.status = statusBtn.dataset.status;
+    }
+  });
+
+  $(".inline-rapor-form")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    submitInlineRapor({ container, state, $, $all, resetForm, showBanner, clearError, onSubmitSuccess });
+  });
+
+  const handle = {
+    container,
+    selectUnitById(id) {
+      const u = archiveById[id];
+      if (u) setSelectedUnit(u);
+      setTimeout(() => $(".rm-note")?.focus(), 30);
+    },
+    reset: resetForm,
+    refreshResults() {
+      // Re-run the current search after underlying data changes.
+      state.results = searchUnitsForReport(state, state.searchTerm || "");
+      if (!$(".rm-step-1").classList.contains("hidden")) renderResults();
+    }
+  };
+  container.__inlineRaporHandle = handle;
+  _inlineRaporForms.add(handle);
+  return handle;
 }
 
-function closeReportModal(force = false) {
-  const note = document.getElementById("rmNote")?.value || "";
-  if (!force && note.trim().length > 0) {
-    if (!confirm("Yazdığın metin kaydedilmedi. Çıkmak istediğine emin misin?")) return;
-  }
-  const modal = document.getElementById("reportModal");
-  if (!modal) return;
-  modal.classList.add("hidden");
-  document.body.classList.remove("modal-open");
+// Render an inline form into the given container if one isn't already there.
+// Idempotent so a rerender pass (after data reload) won't blow away in-progress
+// volunteer input.
+function ensureInlineRaporForm(containerId, opts) {
+  const el = document.getElementById(containerId);
+  if (!el) return null;
+  if (el.__inlineRaporHandle) return el.__inlineRaporHandle;
+  return renderInlineRaporForm({ container: el, ...opts });
+}
+
+// Refresh all live inline forms after data changes.
+function refreshAllInlineRaporForms() {
+  _inlineRaporForms.forEach((h) => h.refreshResults?.());
 }
 
 // ---------- Public landing denormalization ----------
@@ -1516,57 +1636,54 @@ async function publishTickerEntry({ effort, materialCategory, projectId, volunte
   }
 }
 
-// Submit handler. Single batched write where possible. Falls back to a
-// sequential write only for the "liste dışı" path (we need the new unit's id
-// before writing the report) — which is fine because both writes are short.
-async function submitReportFromModal(event) {
-  event?.preventDefault();
+// Submit a report from an inline form instance. Same writes as the original
+// modal flow: one batched write for report + user-stamp + unit-update, plus a
+// sequential pre-write for the "liste dışı" path (we need the new unit's id
+// before the report doc references it). On success, the form is reset and a
+// green banner is shown for 3s; on failure, the form is left intact and a red
+// banner is shown.
+async function submitInlineRapor({ container, state, $, $all, resetForm, showBanner, clearError, onSubmitSuccess }) {
   if (!cu || !db) return;
-  const messageEl = document.getElementById("rmMessage");
-  messageEl.className = "status-line muted";
-  messageEl.textContent = "";
+  clearError();
 
-  const note = (document.getElementById("rmNote").value || "").trim().slice(0, 500);
-  const url = (document.getElementById("rmUrl").value || "").trim();
-  // Effort is now optional — silent default "medium" when unselected.
-  const effort = reportModalState.effort || "medium";
-  const status = reportModalState.status || "in_progress";
-  const digitizedCheck = document.getElementById("rmDigitizedCheck")?.checked && !document.getElementById("rmDigitizedField").classList.contains("hidden");
+  const note = ($(".rm-note").value || "").trim().slice(0, 500);
+  const url = ($(".rm-url").value || "").trim();
+  const status = state.status || "in_progress";
 
-  if (!reportModalState.unit && !reportModalState.newUnit) {
-    messageEl.className = "status-line error"; messageEl.textContent = "Lütfen bir iş paketi seç ya da liste dışı seçeneğini kullan.";
+  if (!state.unit && !state.newUnit) {
+    showBanner("error", "Lütfen bir iş paketi seç ya da liste dışı seçeneğini kullan.");
     return;
   }
   if (!note) {
-    messageEl.className = "status-line error"; messageEl.textContent = "Ne yaptığını kısa bir cümleyle yaz.";
+    showBanner("error", "Ne yaptığını kısa bir cümleyle yaz.");
     return;
   }
-  if (reportModalState.newUnit) {
-    const src = (document.getElementById("rmNewSource").value || "").trim();
+  if (state.newUnit) {
+    const src = ($(".rm-new-source").value || "").trim();
     if (!src) {
-      messageEl.className = "status-line error"; messageEl.textContent = "Yeni iş için kaynak/tanım yaz.";
+      showBanner("error", "Yeni iş için kaynak/tanım yaz.");
       return;
     }
   }
 
-  const submitBtn = document.getElementById("rmSubmit");
+  const submitBtn = $(".rm-submit");
   submitBtn.disabled = true;
   const prevLabel = submitBtn.textContent;
   submitBtn.textContent = "Kaydediliyor…";
   try {
-    let unitId = reportModalState.unit?.id || "";
-    let unitSnapshot = reportModalState.unit
+    let unitId = state.unit?.id || "";
+    let unitSnapshot = state.unit
       ? {
-          sourceIdentifier: reportModalState.unit.sourceIdentifier || archiveLabel(reportModalState.unit),
-          contentDescription: reportModalState.unit.contentDescription || ""
+          sourceIdentifier: state.unit.sourceIdentifier || archiveLabel(state.unit),
+          contentDescription: state.unit.contentDescription || ""
         }
       : null;
 
-    // "Liste dışı": create a new pending_review archiveUnit first, then chain
-    // the report so the new unit's id is denormalized into the report doc.
-    if (reportModalState.newUnit) {
-      const src = (document.getElementById("rmNewSource").value || "").trim();
-      const desc = (document.getElementById("rmNewDescription").value || "").trim();
+    // "Liste dışı" path: create the new pending_review archiveUnit first so
+    // the report doc can reference its id.
+    if (state.newUnit) {
+      const src = ($(".rm-new-source").value || "").trim();
+      const desc = ($(".rm-new-description").value || "").trim();
       const newUnitRef = doc(collection(db, "archiveUnits"));
       await setDoc(newUnitRef, {
         projectId: REPORT_PROJECT_FILTER,
@@ -1594,23 +1711,18 @@ async function submitReportFromModal(event) {
 
     const batch = writeBatch(db);
     const reportRef = doc(collection(db, "reports"));
-    // Report doc — new schema fields live alongside legacy ones (userUid,
-    // archiveUnitId, summary, taskId) so existing list/feed renderers and
-    // Firestore rules continue to work without modification.
     batch.set(reportRef, {
-      // New report-first schema. reportedSubstatus retired in Prompt H —
-      // we no longer distinguish "Başladım" from "Devam ediyor" in the UI,
-      // so the analytics field that captured that distinction is dropped.
       unitId,
       unitSnapshot,
       note,
-      effort,
+      effort: "medium",
       status,
       url: url || null,
       volunteerId: cu.uid,
       volunteerName,
       projectId: REPORT_PROJECT_FILTER,
-      // Legacy schema for backwards compatibility with existing UIs/queries
+      // Legacy fields kept for backwards compatibility with existing
+      // renderers, queries, and Firestore rules.
       userUid: cu.uid,
       userEmail: cu.email || "",
       archiveUnitId: unitId,
@@ -1631,8 +1743,6 @@ async function submitReportFromModal(event) {
       updatedAt: serverTimestamp()
     });
 
-    // Update users/{uid}.lastReportAt so the admin activity bucket logic
-    // (active / slowing / stalled) keeps working unchanged.
     batch.update(doc(db, "users", cu.uid), {
       lastReportAt: serverTimestamp(),
       lastSeenAt: serverTimestamp(),
@@ -1640,63 +1750,56 @@ async function submitReportFromModal(event) {
     });
 
     if (unitId) {
-      const unitUpdate = {
+      batch.update(doc(db, "archiveUnits", unitId), {
         status,
         lastActivityAt: serverTimestamp(),
         lastReporterId: cu.uid,
         lastReporterName: volunteerName,
         lastReportNotePreview: notePreview,
-        // Keep the legacy field updated too so kanban / lanes order remain
-        // correct without a migration.
         latestReportAt: serverTimestamp(),
         updatedAt: serverTimestamp()
-      };
-      if (digitizedCheck) unitUpdate.digitized = true;
-      batch.update(doc(db, "archiveUnits", unitId), unitUpdate);
+      });
     }
 
     await batch.commit();
 
-    // Public landing denormalization — best-effort. We compute the new
-    // unit state locally so the stats reflect this submit, then push to
-    // /publicTicker (one row) and /publicProjectStats/{projectId} (totals).
-    // Privacy: no PII leaves this branch. See firestore.rules.
+    // Public landing denormalization — best-effort, never blocks UX.
     const submittedUnit = unitId ? archiveById[unitId] : null;
-    const seriesForCategory = reportModalState.unit?.seriesNo
-      || submittedUnit?.seriesNo
-      || "";
+    const seriesForCategory = state.unit?.seriesNo || submittedUnit?.seriesNo || "";
     const materialCategory = materialCategoryFromSeriesNo(seriesForCategory);
     const volunteerToken = await computeVolunteerToken(cu.uid);
-    // Mirror this submit into the local cache so publicProjectStats sees the
-    // new status before we recompute totals (otherwise the next report's
-    // stats would be off by one until reloadPnb finishes below).
     if (submittedUnit) {
       submittedUnit.status = status;
       submittedUnit.pageCount = Number(submittedUnit.pageCount) || 0;
     }
     publishTickerEntry({
-      effort,
+      effort: "medium",
       materialCategory,
       projectId: REPORT_PROJECT_FILTER,
       volunteerToken
     });
     publishProjectStats(REPORT_PROJECT_FILTER);
 
-    // Activity log — best-effort, separate write to keep the batch small.
     await logActivity("report_submitted", "archiveUnit", unitId || "", {
       reportId: reportRef.id,
       unitLabel: unitSnapshot?.sourceIdentifier || "",
-      effort,
+      effort: "medium",
       status
     });
 
-    showToast("Rapor kaydedildi. Teşekkürler.");
-    closeReportModal(true);
+    resetForm();
+    showBanner("success", "Rapor kaydedildi. Teşekkürler.");
+
+    // Refresh in-memory caches so the kanban + Son raporların lists pick up
+    // the new report immediately.
     await reloadPnb();
     await lr();
+
+    if (typeof onSubmitSuccess === "function") {
+      try { onSubmitSuccess({ unitId, reportId: reportRef.id }); } catch (e) { console.warn(e); }
+    }
   } catch (error) {
-    messageEl.className = "status-line error";
-    messageEl.textContent = `Kaydedilemedi: ${error.message}`;
+    showBanner("error", `Kaydedilemedi: ${error.message}`);
   } finally {
     submitBtn.disabled = false;
     submitBtn.textContent = prevLabel;
@@ -1894,6 +1997,13 @@ function renderVolunteerReportPrimary() {
     return;
   }
   wrap.classList.remove("hidden");
+  // Mount the Anasayfa and PNB-tab inline forms once. Both calls are
+  // idempotent — they short-circuit if a form is already attached, so
+  // re-running this on every Firestore data refresh won't blow away
+  // in-progress volunteer input.
+  ensureInlineRaporForm("anasayfaInlineRapor", { projectFilter: "all", showProjectToggle: true });
+  ensureInlineRaporForm("pnbInlineRapor", { projectFilter: "pnb", showProjectToggle: false });
+  refreshAllInlineRaporForms();
   renderVolunteerActiveProjects();
   const list = document.getElementById("svRecentReports");
   if (!list) return;
@@ -1902,7 +2012,7 @@ function renderVolunteerReportPrimary() {
     .sort((a, b) => (toDateFromTs(b.createdAt)?.getTime() || 0) - (toDateFromTs(a.createdAt)?.getTime() || 0))
     .slice(0, 3);
   if (!myReports.length) {
-    list.innerHTML = '<p class="sv-empty">Henüz rapor yok. İlk raporu yazmak için yukarıdaki butona bas.</p>';
+    list.innerHTML = '<p class="sv-empty">Henüz rapor yok. Yukarıdaki kartı kullanarak ilk raporunu yaz.</p>';
     return;
   }
   list.innerHTML = myReports.map((r) => {
@@ -4521,11 +4631,22 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
-  // Drill modal Rapor Yaz shortcut → close drill + open report modal pre-selected.
+  // Drill "Rapor Yaz (bu iş paketi için)" shortcut: close the drill, switch
+  // to the PNB tab (where the project-scoped inline form lives), prefill the
+  // unit, and focus the note. With the modal gone there is no overlay to
+  // open; the volunteer lands directly on the form with their unit selected.
   if (event.target.id === "drillReportBtn") {
     const unitId = event.target.dataset.unitId || drillCurrentUnitId;
     closeUnitDrill();
-    if (unitId) openReportModal(unitId);
+    if (unitId) {
+      sw("pnb");
+      setTimeout(() => {
+        const handle = document.getElementById("pnbInlineRapor")?.__inlineRaporHandle
+          || document.getElementById("anasayfaInlineRapor")?.__inlineRaporHandle;
+        handle?.selectUnitById(unitId);
+        handle?.container?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 60);
+    }
     return;
   }
 
@@ -4578,34 +4699,6 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
-  // Single delegated entry point for opening the Rapor Yaz modal. Matches
-  // any element with data-action="open-rapor-modal". Optional data-project
-  // pre-locks the typeahead to that project (PNB tab button). Without it,
-  // the modal opens unfiltered (Anasayfa primary card).
-  //
-  // Bug-1 root cause (Prompt I): the previous handler used
-  //   if (event.target.id === "svReportCtaBtn")
-  // which only matched when the user clicked the bare button edge. The
-  // button has three child <span>s; clicks on the visible label landed on
-  // a span whose id is empty, so the handler missed entirely. Using
-  // closest() up the tree solves it for both entry points uniformly.
-  const raporOpenBtn = event.target.closest('[data-action="open-rapor-modal"]');
-  if (raporOpenBtn) {
-    const projectId = raporOpenBtn.dataset.project || "";
-    console.info("rapor modal opened", { project: projectId || "(all)" });
-    openReportModal(projectId ? { projectId, lockProject: true } : {});
-    return;
-  }
-  // Legacy [data-open-report-project] selector — kept so anything that
-  // still uses it (e.g. dynamically rendered PNB-tab markup) continues to
-  // work. Both forms route through openReportModal.
-  const projectReportBtn = event.target.closest("[data-open-report-project]");
-  if (projectReportBtn) {
-    const projectId = projectReportBtn.dataset.openReportProject || "";
-    console.info("rapor modal opened (legacy selector)", { project: projectId || "(all)" });
-    openReportModal({ projectId, lockProject: true });
-    return;
-  }
   // Volunteer PNB "Sıradaki iş" tile → open the unit's drill (same UX as
   // the equivalent tile on the staff Bugün).
   if (event.target.closest("#vpPnbStatNext")) {
@@ -4623,42 +4716,6 @@ document.addEventListener("click", async (event) => {
     if (unitId) openUnitDrill(unitId);
     return;
   }
-  const reportClose = event.target.closest("[data-report-modal-close]");
-  if (reportClose) {
-    closeReportModal();
-    return;
-  }
-  const rmPick = event.target.closest("[data-rm-pick]");
-  if (rmPick) {
-    const unit = archiveById[rmPick.dataset.rmPick];
-    if (unit) {
-      setSelectedUnit(unit);
-      setTimeout(() => document.getElementById("rmNote")?.focus(), 30);
-    }
-    return;
-  }
-  if (event.target.closest("[data-rm-new]")) {
-    showNewUnitInline();
-    return;
-  }
-  if (event.target.id === "rmCancelNewUnit") {
-    cancelNewUnit();
-    return;
-  }
-  if (event.target.id === "rmPillClear" || event.target.closest("#rmPillClear")) {
-    setSelectedUnit(null);
-    return; // setSelectedUnit(null) already focuses rmUnitInput
-  }
-  // Status segmented pills (Devam ediyor / Bitirdim / Takıldım). Only one
-  // active at a time. Default Devam ediyor is pre-selected on modal open.
-  const statusBtn = event.target.closest("#reportModalForm .rm-status-pill");
-  if (statusBtn) {
-    document.querySelectorAll("#reportModalForm .rm-status-pill").forEach((b) => b.classList.remove("is-on"));
-    statusBtn.classList.add("is-on");
-    reportModalState.status = statusBtn.dataset.status;
-    return;
-  }
-
   // Volunteer activity nudge: opens a prefilled mailto: so the coordinator
   // can personalize and send via their own mail client. Keeps us fully
   // client-side (no Apps Script / Cloud Function needed).
@@ -5322,68 +5379,9 @@ document.getElementById("quickReportForm")?.addEventListener("submit", async (ev
   }
 });
 
-// When the coordinator picks a different volunteer, re-sort the unit select so
-// that volunteer's assigned units float to the top.
-// ---------- Report-first modal wiring ----------
-
-document.getElementById("rmNote")?.addEventListener("input", (event) => {
-  const counter = document.getElementById("rmNoteCounter");
-  if (counter) counter.textContent = `${event.target.value.length} / 500`;
-});
-
-document.getElementById("rmUnitInput")?.addEventListener("input", (event) => {
-  const term = event.target.value;
-  reportModalState.searchTerm = term;
-  reportModalState.activeIndex = -1;
-  clearTimeout(reportModalState.searchTimer);
-  reportModalState.searchTimer = setTimeout(() => {
-    reportModalState.results = searchUnitsForReport(term);
-    renderTypeaheadResults();
-  }, 250);
-});
-document.getElementById("rmUnitInput")?.addEventListener("focus", () => {
-  // Show top results immediately so the volunteer sees suggestions without typing.
-  if (!reportModalState.results.length) {
-    reportModalState.results = searchUnitsForReport("");
-  }
-  renderTypeaheadResults();
-});
-document.getElementById("rmUnitInput")?.addEventListener("keydown", (event) => {
-  const list = document.getElementById("rmResults");
-  if (list?.classList.contains("hidden")) return;
-  const items = reportModalState.results || [];
-  if (event.key === "ArrowDown") {
-    event.preventDefault();
-    reportModalState.activeIndex = Math.min(items.length, reportModalState.activeIndex + 1);
-    renderTypeaheadResults();
-  } else if (event.key === "ArrowUp") {
-    event.preventDefault();
-    reportModalState.activeIndex = Math.max(-1, reportModalState.activeIndex - 1);
-    renderTypeaheadResults();
-  } else if (event.key === "Enter") {
-    // Only commit a selection if the volunteer actually arrowed onto a row.
-    // No silent fallback to items[0] and no auto-create of a new unit —
-    // both of those used to swap the modal into the "Yeni iş paketi
-    // (liste dışı)" state without an explicit pick.
-    if (reportModalState.activeIndex >= 0 && reportModalState.activeIndex < items.length) {
-      event.preventDefault();
-      setSelectedUnit(items[reportModalState.activeIndex]);
-      setTimeout(() => document.getElementById("rmNote")?.focus(), 30);
-    }
-  } else if (event.key === "Escape") {
-    list?.classList.add("hidden");
-  }
-});
-
-document.getElementById("rmShowAll")?.addEventListener("change", (event) => {
-  reportModalState.showAll = !!event.target.checked;
-  // Re-run the search with the current term so results refresh immediately.
-  reportModalState.results = searchUnitsForReport(reportModalState.searchTerm || "");
-  reportModalState.activeIndex = -1;
-  renderTypeaheadResults();
-});
-
-document.getElementById("reportModalForm")?.addEventListener("submit", submitReportFromModal);
+// Inline Rapor Yaz form listeners are wired per-instance inside
+// renderInlineRaporForm (closure-scoped). The two top-level form submits
+// below are unrelated to the report flow.
 
 document.getElementById("approvePendingForm")?.addEventListener("submit", submitApprovePending);
 document.getElementById("mergePendingForm")?.addEventListener("submit", submitMergePending);
@@ -5392,31 +5390,6 @@ document.getElementById("panoSearchInput")?.addEventListener("input", () => {
   // Lightweight debounce so each keystroke doesn't re-render the whole board.
   clearTimeout(window.__panoSearchTimer);
   window.__panoSearchTimer = setTimeout(renderPano, 120);
-});
-
-document.addEventListener("keydown", (event) => {
-  const modal = document.getElementById("reportModal");
-  if (!modal || modal.classList.contains("hidden")) return;
-  if (event.key === "Escape") {
-    closeReportModal();
-    return;
-  }
-  // Focus trap: Tab cycles through the modal's focusable elements only,
-  // so focus can't escape to the (partially obscured) page beneath.
-  if (event.key !== "Tab") return;
-  const focusables = Array.from(modal.querySelectorAll(
-    'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-  )).filter((el) => el.offsetParent !== null); // visible only
-  if (!focusables.length) return;
-  const first = focusables[0];
-  const last = focusables[focusables.length - 1];
-  if (event.shiftKey && document.activeElement === first) {
-    event.preventDefault();
-    last.focus();
-  } else if (!event.shiftKey && document.activeElement === last) {
-    event.preventDefault();
-    first.focus();
-  }
 });
 
 document.getElementById("logForUser")?.addEventListener("change", populateLogForUnits);

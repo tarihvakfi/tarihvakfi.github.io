@@ -91,12 +91,10 @@
           <div id="svSelfClaim" class="sv-selfclaim hidden"></div>
 
           <div id="svReportPrimary" class="sv-report-primary hidden">
-            <button type="button" class="sv-report-cta" id="svReportCtaBtn"
-              data-action="open-rapor-modal" aria-label="Rapor Yaz">
-              <span class="ic" aria-hidden="true">＋</span>
-              <span class="lab">Rapor Yaz</span>
-              <span class="sub">Ne yaptın? Tek formda kaydet.</span>
-            </button>
+            <!-- Inline Rapor Yaz form (Anasayfa, project-agnostic). Filled by
+                 renderInlineRaporForm({ projectFilter: "all", showProjectToggle: true }). -->
+            <div id="anasayfaInlineRapor" class="card inline-rapor-card"></div>
+
             <div class="sv-recent">
               <p class="eyebrow">Son raporların</p>
               <div id="svRecentReports" class="sv-recent-list"><p class="sv-empty">Henüz rapor yok.</p></div>
@@ -109,83 +107,6 @@
               <div id="vpProjectsList" class="vp-projects-list"></div>
             </div>
           </div>
-
-          <div class="wa-prog">
-            <div class="ring"></div>
-            <div class="ring2"></div>
-            <p class="lab" id="waProgEyebrow">Pertev Naili Boratav Arşivi</p>
-            <p class="num"><span id="svHeroPct">0</span><small>%</small></p>
-            <p class="sub" id="svHeroLine">Yükleniyor…</p>
-          </div>
-
-          <div class="sv-hero" aria-hidden="true">
-            <div id="svHeroEyebrow" class="sv-eyebrow hidden"></div>
-            <div id="svSparkline" class="sv-spark hidden"></div>
-          </div>
-
-          <div class="sv-actions">
-            <button type="button" class="sv-act" id="svActNext">
-              <span class="lab">Sıradaki iş</span>
-              <span class="val" id="svNextTitle">—</span>
-              <span class="sub" id="svNextSub">—</span>
-              <span class="arrow">→</span>
-            </button>
-            <button type="button" class="sv-act" id="svActAttention">
-              <span class="lab" id="svAttnLab">Dikkat</span>
-              <span class="val" id="svAttnVal">—</span>
-              <span class="sub" id="svAttnSub">—</span>
-              <span class="arrow">→</span>
-            </button>
-            <button type="button" class="sv-act" id="svActWeek">
-              <span class="lab">Bu hafta</span>
-              <span class="val" id="svWeekVal">0 sayfa</span>
-              <span class="sub" id="svWeekSub">—</span>
-              <span class="arrow">→</span>
-            </button>
-            <button type="button" class="sv-act" id="svActTeam">
-              <span class="lab">Aktif gönüllü</span>
-              <span class="val" id="svTeamVal">0 kişi</span>
-              <span class="sub" id="svTeamSub">son 7 günde rapor yazdı</span>
-              <span class="arrow">→</span>
-            </button>
-          </div>
-
-          <div class="sv-work">
-            <div class="sv-work-h">
-              <h3>İş akışı</h3>
-              <input id="svSearch" class="sv-work-search" type="search" placeholder="Ara…" />
-            </div>
-            <div class="sv-lanes">
-              <div class="sv-lane">
-                <div class="lh"><span class="t">Sıradaki</span><span class="n" id="svLaneTodoCount">0</span></div>
-                <div id="svLaneTodo"><p class="sv-empty">Yükleniyor…</p></div>
-                <div class="sv-more" data-go-tab="pnb" data-status-filter="">Tümünü aç →</div>
-              </div>
-              <div class="sv-lane">
-                <div class="lh"><span class="t">Yapılıyor</span><span class="n" id="svLaneDoingCount">0</span></div>
-                <div id="svLaneDoing"><p class="sv-empty">Yükleniyor…</p></div>
-                <div class="sv-more" data-go-tab="pnb" data-status-filter="in_progress">Tümünü aç →</div>
-              </div>
-              <div class="sv-lane">
-                <div class="lh"><span class="t">Biten</span><span class="n" id="svLaneDoneCount">0</span></div>
-                <div id="svLaneDone"><p class="sv-empty">Yükleniyor…</p></div>
-                <div class="sv-more" data-go-tab="pnb" data-status-filter="done">Tümünü aç →</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="sv-work" id="svPulseCard" style="margin-top:0">
-            <div class="sv-work-h"><h3>Şu an</h3></div>
-            <div class="sv-pulse"><span id="svPulse">—</span></div>
-          </div>
-
-          <button type="button" class="wa-cta" id="waCta">
-            <div class="cta-text">
-              <strong id="waCtaTitle">Sıradaki işe başla</strong>
-              <span id="waCtaSub">—</span>
-            </div>
-            <div class="cta-btn">Başla →</div>
-          </button>
         </div>
       </div>
 
@@ -366,11 +287,9 @@
           </button>
         </div>
 
-        <button type="button" class="vp-pnb-cta" id="vpPnbReportBtn"
-          data-action="open-rapor-modal" data-project="pnb"
-          aria-label="Rapor Yaz (bu proje için)">
-          Rapor Yaz (bu proje için)
-        </button>
+        <!-- Inline Rapor Yaz form (PNB-scoped). Filled by
+             renderInlineRaporForm({ projectFilter: "pnb", showProjectToggle: false }). -->
+        <div id="pnbInlineRapor" class="card inline-rapor-card"></div>
 
         <div class="vp-pnb-board" role="list" aria-label="İş paketi panosu">
           <section class="pano-col" data-pano-col="not_started">
@@ -851,90 +770,6 @@
         </label>
         <p class="muted" style="font-size:.8rem;margin:0">Pending kaydın notu hedef birime not olarak eklenir, sonra pending kayıt silinir. İlgili rapor zaten hedef birim ID'si ile yeniden bağlanır.</p>
         <div class="form-actions"><button type="submit" class="btn btn-primary">Birleştir</button><span id="mergePendingMessage" class="status-line muted"></span></div>
-      </form>
-    </div>
-  </div>
-
-  <div id="reportModal" class="drill-modal report-modal hidden" role="dialog" aria-modal="true" aria-labelledby="reportModalTitle">
-    <div class="drill-backdrop" data-report-modal-close></div>
-    <div class="drill-panel report-panel">
-      <header class="drill-header">
-        <div>
-          <h2 id="reportModalTitle">Rapor Yaz</h2>
-        </div>
-        <div class="drill-header-actions">
-          <button type="button" class="btn btn-secondary btn-sm rm-close" data-report-modal-close aria-label="Kapat">✕</button>
-        </div>
-      </header>
-      <form id="reportModalForm" class="report-form" novalidate>
-        <!-- STEP 1 — typeahead front and center. Visible until a unit is
-             picked; collapses into a pill at the top of step 2. -->
-        <div class="rm-step rm-step-1" id="rmStep1">
-          <div class="rm-field">
-            <label class="rm-label" for="rmUnitInput">Hangi iş paketi? <span class="req">*</span></label>
-            <div class="rm-typeahead" id="rmTypeahead">
-              <input type="text" id="rmUnitInput" class="rm-input" autocomplete="off" placeholder="Kutu no, seri no veya kaynak ara…" aria-autocomplete="list" aria-controls="rmResults" />
-              <label class="rm-show-all" id="rmShowAllWrap">
-                <input type="checkbox" id="rmShowAll" />
-                <span>Tüm iş paketlerini göster</span>
-              </label>
-              <div id="rmResults" class="rm-results hidden" role="listbox"></div>
-              <div class="rm-newunit hidden" id="rmNewUnit">
-                <label class="rm-sub">Kaynak / Tanım <span class="req">*</span>
-                  <input type="text" id="rmNewSource" placeholder="48 / 120.5 / K75 ek kutu" maxlength="160" />
-                </label>
-                <label class="rm-sub">Kısa açıklama
-                  <input type="text" id="rmNewDescription" placeholder="Kutuda ne var?" maxlength="240" />
-                </label>
-                <button type="button" class="btn btn-secondary btn-sm" id="rmCancelNewUnit">Listeye dön</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- STEP 2 — pill + textarea + status pills + url + submit. Hidden
-             until a unit is picked. -->
-        <div class="rm-step rm-step-2 hidden" id="rmStep2">
-          <div class="rm-pill" id="rmSelectedPill" role="status" aria-live="polite">
-            <div class="rm-pill-main">
-              <div class="rm-pill-title" id="rmPillTitle"></div>
-              <div class="rm-pill-sub" id="rmPillSub"></div>
-            </div>
-            <button type="button" class="rm-pill-clear" id="rmPillClear" aria-label="Seçimi temizle">×</button>
-          </div>
-
-          <div class="rm-field">
-            <label class="rm-label" for="rmNote">Ne yaptın? <span class="req">*</span></label>
-            <textarea id="rmNote" class="rm-textarea" rows="2" maxlength="500" required
-              placeholder="Örnek: 40 fotoğrafı taradım, Drive'a yükledim."></textarea>
-            <div class="rm-counter" id="rmNoteCounter">0 / 500</div>
-          </div>
-
-          <div class="rm-field rm-status-row">
-            <span class="rm-label">Durum:</span>
-            <div class="rm-status-pills" role="radiogroup" aria-label="Durum">
-              <button type="button" class="rm-status-pill is-on" data-status="in_progress">Devam ediyor</button>
-              <button type="button" class="rm-status-pill" data-status="done">Bitirdim</button>
-              <button type="button" class="rm-status-pill rm-status-blocked" data-status="blocked">Takıldım</button>
-            </div>
-          </div>
-
-          <div class="rm-field">
-            <label class="rm-label" for="rmUrl">Link <em class="muted">(varsa)</em></label>
-            <input type="url" id="rmUrl" class="rm-input" placeholder="https://drive.google.com/..." />
-            <div class="rm-helper hidden" id="rmUrlHelper"></div>
-          </div>
-
-          <label class="rm-field rm-digitized hidden" id="rmDigitizedField" title="Tüm içerik taranmış ve Drive'da. Uzaktan çalışan gönüllüler artık bu kutuya erişebilir.">
-            <input type="checkbox" id="rmDigitizedCheck" />
-            <span>Bu iş paketi artık tamamen dijitalleştirildi</span>
-          </label>
-
-          <div class="rm-actions">
-            <span id="rmMessage" class="status-line muted"></span>
-            <button type="submit" class="btn btn-primary" id="rmSubmit">Gönder</button>
-          </div>
-        </div>
       </form>
     </div>
   </div>
