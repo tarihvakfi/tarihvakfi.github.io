@@ -159,7 +159,7 @@ Aşağıdaki alanlar `Rapor Ver` modalindeki yeni şemayı tanımlar; eski alanl
 - `note`: string — gönüllünün serbest metin notu, ≤ 500 karakter.
 - `effort`: `small | medium | large` — segmentli buton seçimi (`< 1 saat` / `1-3 saat` / `3+ saat`).
 - `status`: `in_progress | review | done | blocked` — birim için yeni durum.
-- `reportedSubstatus`: `started | ongoing | review | done | blocked` — UX nüansı: "Başladım" ve "Devam ediyor" aynı `status: "in_progress"`'e gider ama burada ayırt edilir; analitik için kullanılır.
+- ~~`reportedSubstatus`~~: `started | ongoing | review | done | blocked` — **DEPRECATED (Prompt H).** Geçmişte "Başladım" ile "Devam ediyor"u ayırt etmek için kullanılıyordu. Yeni Rapor Ver modalinde bu ayrım kaldırıldı; yeni rapor dokümanları bu alanı yazmıyor. Mevcut dokümanlardaki değerler arşiv olarak duruyor.
 - `url`: string | null — opsiyonel link.
 - `volunteerId`: string — gönüllünün uid'i (kuralların yeni şemayla doğrulanmasını mümkün kılar).
 - `volunteerName`: string — denormalize edilmiş ad.

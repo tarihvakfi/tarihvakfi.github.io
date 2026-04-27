@@ -43,6 +43,65 @@ Roles:
 - /app/    -> volunteer dashboard
 - /admin/  -> coordinator/admin dashboard
 
+## Volunteer dashboard tab structure (Prompt H)
+
+The volunteer-side shell is intentionally minimal: **Anasayfa**, **PNB**, **Duyurular**. The Pano top-level tab and the Rapor Yaz tab are hidden for volunteers via `body.volunteer-shell` CSS rules. The kanban moved under the PNB tab; the Rapor button replaces the Rapor Yaz tab. Staff still see Bugün / Pano / İşler / Rapor Yaz / Duyurular / Yönetim / Bakım — their dashboard is untouched.
+
+### Anasayfa
+Project-agnostic landing page. Renders the same regardless of which projects exist. From top to bottom:
+1. Greeting (`Merhaba, {firstName}` + faded date line).
+2. Big primary **Rapor Ver** card (`#svReportCtaBtn`). Tapping it opens the simplified modal with no project lock — the typeahead searches across every project the volunteer has access to.
+3. **Son raporların** — last 3 reports by the current volunteer.
+4. **Aktif projeler** (`#vpProjectsList`) — one card per project the volunteer can access. Each card has the project name, a one-line description (read from `projects/{projectId}.shortDescription` if present, otherwise the registry default in `PROJECT_TAB_REGISTRY`), and a "Bu projeye git →" link that switches to that project's tab. New projects appear automatically as `volunteerProjectIds()` expands.
+
+The legacy Bugün widgets (`.wa-prog`, `.sv-actions`, `.sv-work`, `.wa-cta`) stay in the HTML for staff but are hidden on `body.volunteer-shell` via CSS.
+
+### Project tab factory (PNB and beyond)
+`renderVolunteerProjectTab(projectId)` is the single function that populates a project's tab. Today PNB is the only project; future projects need:
+
+1. An entry in `PROJECT_TAB_REGISTRY` (name, fallback description).
+2. An HTML block inside the corresponding `#tab-{tabId}` section with `vp-{projectId}-*` IDs (header, progress card, four stat tiles, Rapor Ver button, kanban columns).
+3. `volunteerProjectIds()` returning that project id for the user.
+
+Staff PNB content (`#pnbHero`, `#pnbStats`, `#pnbOpsGrid`, `#pnbArchivePanel`, `#adminTaskForm`, `#generalTaskPanel`) remains untouched and is only visible on `body.staff-shell`. The volunteer block (`#volunteerPnbView`) is only visible on `body.volunteer-shell`. Both blocks live in the same `#tab-pnb` section.
+
+### Volunteer PNB tab content
+1. Header: project name, italic Boratav line, one-line description.
+2. Project progress dark card (the `wa-prog` clone, with `vpPnb*` IDs).
+3. Four stat cards (`Sıradaki iş` / `Üstümdeki iş` / `Bu hafta` / `Aktif gönüllü`) — same data sources as the staff Bugün stats but written to the PNB-namespaced IDs.
+4. **Rapor Ver (bu proje için)** button (`data-open-report-project="pnb"`) — opens the modal with the typeahead locked to PNB. The "tüm iş paketlerini göster" toggle is hidden when locked.
+5. Read-only 5-column kanban (`Başlanmadı / Devam ediyor / Gözden geçirme / Tamam / Takıldım`). No pending side panel — that stays admin-only on the staff Pano.
+
+`loadArchiveUnits` was widened in Prompt H to load all project units for volunteers (not just assigned). The Rapor Ver typeahead and the volunteer kanban both rely on the full project list. Firestore rules already permitted this read since Prompt C; no rule change needed.
+
+## Simplified Rapor Ver flow (Prompt H)
+
+Two-step inline progressive disclosure, max-width 560 px desktop, full-screen mobile.
+
+### Step 1 — Hangi iş paketi?
+The typeahead is the only thing visible. Same Turkish-normalized search across `sourceIdentifier`, `seriesNo`, `boxNo`, `contentDescription`. Same `canWorkInPerson` + `digitized` filter logic. Same "Tüm iş paketlerini göster" toggle (hidden when the modal is opened in project-locked mode). "Liste dışı / yeni bir iş" still bottom-of-dropdown.
+
+When a unit is picked: the typeahead collapses into a pill at the top (`#rmSelectedPill` showing `sourceIdentifier — truncated description` with an ✕), and step 2 slides in (`@keyframes rmStepIn`, 180 ms ease-out). Tapping the ✕ on the pill clears the selection and reopens the typeahead (back to step 1). **Selection is the transition — no Next button.**
+
+### Step 2 — Ne yaptın?
+- Selected-unit pill at top.
+- `Ne yaptın?` textarea, required, 500-char counter.
+- **Status:** three pills inline — `Devam ediyor` (default selected), `Bitirdim`, `Takıldım`. Mapped to `status: "in_progress" | "done" | "blocked"`. The blocked pill is visually separated (warmer color, slight gap).
+- **Daha fazla seçenek** expander (`<details>`, collapsed by default, chevron rotates). When opened reveals:
+  - `Ne kadar sürdü?` — three segmented buttons (`Biraz / Normal / Epey`). Optional. If unselected at submit, `effort: "medium"` is written silently.
+  - `Link (opsiyonel)` URL input + Drive helper text from `config/pnb.sharedDriveUrl`.
+  - `Bu iş paketi artık tamamen dijitalleştirildi` checkbox — only visible when the selected unit currently has `digitized == false`. Tooltip explains the implication for remote volunteers.
+- Submit button: **Gönder** (terracotta, full-width on mobile).
+- Footer escape-hatch link: **Eski raporlama formu** (small, ink-soft, very bottom). Opens the legacy quick-report form for power users.
+
+### Removed from the modal
+- **Başladım** status — collapsed into Devam ediyor.
+- **Gözden geçirme için hazır** status — removed entirely from the volunteer surface. Coordinators flag review status from their own existing tools.
+- **`reportedSubstatus`** field — deprecated. Existing report docs keep their value; new submissions don't write the field. The schema doc still lists it under `reports` for historical readers.
+
+### `openReportModal()` API
+Accepts either a string (legacy: prefill unit id) or an options object: `{ unitId, projectId, lockProject }`. `lockProject=true` restricts the typeahead to a single project and hides the show-all toggle. The Anasayfa CTA opens unlocked; the PNB tab CTA opens locked to PNB.
+
 ## Volunteer interaction model — report-first
 The primary action on the volunteer dashboard is **Rapor Ver**. Volunteers do not pull work from a queue; they log what they did and the system infers the unit's status from the latest report.
 

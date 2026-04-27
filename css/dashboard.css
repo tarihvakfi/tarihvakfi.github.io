@@ -899,7 +899,99 @@
 
 /* ---------- Rapor Ver modal ---------- */
 
-.report-panel { max-width: 600px; }
+.report-panel { max-width: 560px; }
+
+/* ---------- Two-step Rapor Ver modal (Prompt H) ----------
+   Step 1: typeahead is the only thing visible. Step 2: typeahead collapses
+   into a pill at the top and the rest of the form slides in. Selection IS
+   the transition — no Next button. */
+.rm-step.hidden { display: none; }
+.rm-step-2 { animation: rmStepIn 180ms ease-out; }
+@keyframes rmStepIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.rm-pill {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: .6rem;
+  padding: .55rem .8rem;
+  background: var(--tblr-primary-lt, #e9f0f9);
+  border: 1px solid var(--tblr-primary, #206bc4);
+  border-radius: 8px;
+}
+.rm-pill-main { display: grid; gap: 2px; min-width: 0; }
+.rm-pill-title {
+  font-size: 13px; font-weight: 600; color: var(--tblr-body-color);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.rm-pill-sub {
+  font-size: 11px; color: var(--tblr-secondary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.rm-pill-clear {
+  background: transparent; border: none; cursor: pointer;
+  font-size: 22px; line-height: 1;
+  color: var(--tblr-secondary);
+  padding: 4px 10px; border-radius: 4px;
+  flex-shrink: 0;
+}
+.rm-pill-clear:hover { background: rgba(0,0,0,.06); color: var(--tblr-body-color); }
+
+/* Status row: label + three pills inline. The blocked pill has a small
+   gap before it and a warmer color. */
+.rm-status-row {
+  display: flex; flex-direction: column; gap: .4rem;
+}
+.rm-status-pills {
+  display: flex; gap: .4rem; flex-wrap: wrap;
+}
+.rm-status-pill {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 40px; padding: 0 .9rem;
+  background: var(--tblr-bg-surface);
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 999px;
+  font-size: 13px; font-weight: 500;
+  color: var(--tblr-body-color);
+  cursor: pointer;
+  transition: background .1s, border-color .1s, color .1s;
+}
+.rm-status-pill:hover { background: var(--tblr-bg-surface-secondary); }
+.rm-status-pill.is-on {
+  background: var(--tblr-primary);
+  color: #fff;
+  border-color: var(--tblr-primary);
+}
+.rm-status-blocked { margin-left: .35rem; background: var(--tblr-warning-lt); border-color: var(--tblr-warning); }
+.rm-status-blocked.is-on { background: var(--tblr-warning); color: #fff; border-color: var(--tblr-warning); }
+
+/* Advanced expander */
+.rm-more { padding: .25rem 0 0; }
+.rm-more-summary {
+  list-style: none;
+  cursor: pointer;
+  font-size: 12px; color: var(--tblr-secondary);
+  padding: .5rem 0;
+}
+.rm-more-summary::-webkit-details-marker { display: none; }
+.rm-more-summary .rm-more-chevron {
+  display: inline-block;
+  transition: transform .15s;
+  margin-right: 2px;
+}
+.rm-more[open] .rm-more-summary .rm-more-chevron {
+  transform: rotate(90deg);
+}
+.rm-more-body {
+  display: flex; flex-direction: column; gap: 1rem;
+  padding: .25rem 0 .25rem;
+  animation: rmStepIn 160ms ease-out;
+}
+
+.rm-footer { text-align: center; padding-top: .65rem; border-top: 1px solid var(--tblr-border-color); margin-top: .5rem; }
+.rm-footer a { font-size: 11px; color: var(--tblr-secondary); text-decoration: underline; }
+.rm-footer a:hover { color: var(--tblr-body-color); }
+
 .report-form { display: grid; gap: 1rem; }
 .rm-field { display: grid; gap: .35rem; }
 .rm-label { font-size: 13px; font-weight: 600; color: var(--tblr-body-color); }
@@ -1329,4 +1421,134 @@ body.modal-open { overflow: hidden; }
   .units-table { font-size: 12px; }
   .units-table th, .units-table td { padding: .5rem .75rem; }
   .wa-cta { flex-direction: column; align-items: stretch; }
+}
+
+/* ---------- Role-aware shell (Prompt H) ----------
+   Volunteers see Anasayfa / PNB / Duyurular only. Their tabs are hidden via
+   the body.volunteer-shell class. Their Bugün/PNB content is also slimmed
+   down — staff-only Bugün widgets are hidden, volunteer-only PNB content
+   shows in place of the staff operations panels. */
+
+body.volunteer-shell .tab-bar [data-tab="pano"],
+body.volunteer-shell .tab-bar [data-tab="reports"] { display: none; }
+
+/* Staff stays on the original Bugün — volunteer-only blocks hidden. */
+body.staff-shell .volunteer-only-block { display: none; }
+/* Volunteers don't see the legacy Bugün clutter. */
+body.volunteer-shell .staff-only-block { display: none; }
+
+/* Volunteer Anasayfa: hide the staff Bugün hero stack. */
+body.volunteer-shell #tab-home .wa-prog,
+body.volunteer-shell #tab-home .sv-actions,
+body.volunteer-shell #tab-home .sv-work,
+body.volunteer-shell #tab-home .wa-cta,
+body.volunteer-shell #tab-home #homeHero,
+body.volunteer-shell #tab-home #homeStatsStrip,
+body.volunteer-shell #tab-home #kbHead,
+body.volunteer-shell #tab-home .kb-filter,
+body.volunteer-shell #tab-home #kbBoard,
+body.volunteer-shell #tab-home #homeLanes,
+body.volunteer-shell #tab-home #homeQueueCta,
+body.volunteer-shell #tab-home #homeWorkGrid,
+body.volunteer-shell #tab-home #homeKpis,
+body.volunteer-shell #tab-home #homeSecondaryGrid { display: none !important; }
+
+/* Volunteer PNB: hide the staff operations panels. */
+body.volunteer-shell #tab-pnb #pnbHero,
+body.volunteer-shell #tab-pnb #pnbStats,
+body.volunteer-shell #tab-pnb #pnbOpsGrid,
+body.volunteer-shell #tab-pnb #pnbArchivePanel,
+body.volunteer-shell #tab-pnb #adminTaskForm,
+body.volunteer-shell #tab-pnb #generalTaskPanel { display: none !important; }
+
+/* Hide the volunteer-only PNB block from staff. */
+body.staff-shell #volunteerPnbView { display: none !important; }
+
+/* ---------- Volunteer Anasayfa (Aktif projeler) ---------- */
+.vp-anasayfa { display: flex; flex-direction: column; gap: 1.25rem; margin-top: 1rem; }
+.vp-section-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--tblr-secondary); margin: 0 0 .5rem; }
+.vp-projects-list { display: grid; grid-template-columns: 1fr; gap: .75rem; }
+.vp-project-card {
+  display: grid; grid-template-columns: 1fr auto;
+  gap: .75rem; align-items: center;
+  padding: .9rem 1.1rem;
+  background: var(--tblr-bg-surface);
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 8px;
+  transition: border-color .12s, box-shadow .12s;
+}
+.vp-project-card:hover { border-color: var(--tblr-primary); }
+.vp-project-card .vp-pname { font-size: 14px; font-weight: 600; color: var(--tblr-body-color); margin: 0 0 2px; }
+.vp-project-card .vp-pdesc { font-size: 12px; color: var(--tblr-secondary); margin: 0; }
+.vp-project-card .vp-go { font-size: 13px; font-weight: 500; color: var(--tblr-primary); white-space: nowrap; }
+.vp-project-card .vp-go:hover { text-decoration: underline; }
+
+/* ---------- Volunteer PNB tab ---------- */
+.vp-pnb { display: flex; flex-direction: column; gap: 1rem; padding: .25rem 0 1rem; }
+.vp-pnb-head h2 { font-size: 1.4rem; font-weight: 600; margin: 0 0 .25rem; letter-spacing: -.005em; }
+.vp-pnb-head .vp-pnb-blurb { font-size: 13px; color: var(--tblr-secondary); font-style: italic; margin: 0 0 .35rem; }
+.vp-pnb-head .vp-pnb-desc { font-size: 14px; color: var(--tblr-body-color); margin: 0; max-width: 65ch; }
+
+.vp-pnb-prog {
+  position: relative;
+  background: var(--tblr-dark, #1d273b);
+  color: #fff;
+  border-radius: .5rem;
+  padding: 1.5rem;
+}
+.vp-pnb-prog .lab { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; opacity: .65; margin: 0 0 8px; font-weight: 500; }
+.vp-pnb-prog .num { font-size: 2.5rem; font-weight: 600; letter-spacing: -.025em; line-height: 1; margin: 0; font-variant-numeric: tabular-nums; }
+.vp-pnb-prog .num small { font-size: 1.25rem; opacity: .65; font-weight: 500; margin-left: 4px; }
+.vp-pnb-prog .sub { margin: .75rem 0 0; font-size: .875rem; opacity: .85; }
+.vp-pnb-prog .sub strong { color: #fff; opacity: 1; font-weight: 600; }
+
+.vp-pnb-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: .75rem;
+}
+.vp-pnb-stat {
+  position: relative;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 1rem;
+  background: var(--tblr-bg-surface, #fff);
+  border: 1px solid var(--tblr-border-color);
+  border-radius: .5rem;
+  text-align: left;
+  min-height: 90px;
+}
+.vp-pnb-stat .lab { font-size: 11px; font-weight: 500; color: var(--tblr-secondary); }
+.vp-pnb-stat .val { font-size: .95rem; font-weight: 600; color: var(--tblr-body-color); letter-spacing: -.005em; line-height: 1.25; }
+.vp-pnb-stat .sub { font-size: 11px; color: var(--tblr-secondary); margin-top: auto; }
+.vp-pnb-stat .sub strong { color: var(--tblr-body-color); font-weight: 600; }
+.vp-pnb-stat.warn .val { color: var(--tblr-danger); }
+.vp-pnb-stat.warn .lab .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--tblr-danger); display: inline-block; margin-right: 4px; vertical-align: middle; }
+
+.vp-pnb-cta {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: .5rem;
+  width: 100%;
+  min-height: 56px;
+  padding: 0 1.25rem;
+  background: var(--tblr-primary, #206bc4);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px; font-weight: 600;
+  cursor: pointer;
+  letter-spacing: -.005em;
+}
+.vp-pnb-cta:hover { background: #1a5aa8; }
+.vp-pnb-cta:active { transform: scale(.998); }
+
+/* Volunteer PNB kanban — same look as Pano but with -pnb suffixed IDs. */
+.vp-pnb-board { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .5rem; }
+.vp-pnb-board > .pano-col { min-height: 220px; }
+
+@media (max-width: 1100px) {
+  .vp-pnb-board { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 700px) {
+  .vp-pnb-stats { grid-template-columns: 1fr 1fr; }
+  .vp-pnb-board { grid-template-columns: 1fr; }
 }

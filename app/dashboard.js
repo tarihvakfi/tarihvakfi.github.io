@@ -296,9 +296,12 @@ function assignedOpenArchiveUnits() {
 function setRoleShell(staff) {
   document.body.classList.toggle("volunteer-shell", !staff);
   document.body.classList.toggle("staff-shell", staff);
+  // Volunteers see only Anasayfa / PNB / Duyurular. Pano (top-level) and
+  // Rapor Yaz tabs are hidden via CSS for volunteers — the kanban moves
+  // under PNB and the Rapor Ver button replaces the Rapor tab.
   const labels = staff
-    ? { home: "Bugün", pnb: "İşler", reports: "Rapor Yaz", announcements: "Duyurular" }
-    : { home: "Bugün", pnb: "İşim", reports: "Rapor", announcements: "Duyuru" };
+    ? { home: "Bugün", pano: "Pano", pnb: "İşler", reports: "Rapor Yaz", announcements: "Duyurular" }
+    : { home: "Anasayfa", pnb: "PNB", announcements: "Duyurular" };
   Object.entries(labels).forEach(([tab, label]) => {
     const button = document.querySelector(`[data-tab="${tab}"]`);
     if (button) button.textContent = label;
@@ -1097,9 +1100,8 @@ function trNormalize(value) {
 let reportModalState = {
   unit: null,
   newUnit: false,
-  effort: "",
-  status: "",
-  substatus: "",
+  effort: "",         // optional; defaults to "medium" silently at submit
+  status: "in_progress", // Devam ediyor pre-selected per Prompt H
   searchTerm: "",
   results: [],
   activeIndex: -1,
@@ -1108,7 +1110,11 @@ let reportModalState = {
   // "Tüm iş paketlerini göster" toggle — off by default. When on, the
   // canWorkInPerson visibility filter is bypassed (still respects projectId
   // and status filters). See scoreUnitForTypeahead.
-  showAll: false
+  showAll: false,
+  // When the modal is opened from a project-scoped CTA (e.g. PNB tab's
+  // "Rapor Ver bu proje için" button), only that project's units are
+  // searchable AND the rmShowAll toggle is hidden.
+  lockedProjectId: ""
 };
 
 let cachedSharedDriveUrl = null;
@@ -1147,8 +1153,14 @@ function volunteerProjectIds() {
 // work remotely, so city was a bad proxy for physical access.
 function scoreUnitForTypeahead(unit, needle) {
   if (!unit) return null;
-  const projects = volunteerProjectIds();
-  if (!projects.includes(unit.projectId || PNB_PROJECT_ID)) return null;
+  const unitProjectId = unit.projectId || PNB_PROJECT_ID;
+  if (reportModalState.lockedProjectId) {
+    // Project-scoped open: only this project's units are searchable.
+    if (unitProjectId !== reportModalState.lockedProjectId) return null;
+  } else {
+    const projects = volunteerProjectIds();
+    if (!projects.includes(unitProjectId)) return null;
+  }
   const status = unit.status || "not_started";
   if (status === "done") return null;
 
@@ -1241,33 +1253,40 @@ function renderTypeaheadResults() {
   list.classList.remove("hidden");
 }
 
+// Move the modal between step 1 (typeahead) and step 2 (pill + form).
+// Selection is the transition — no Next button.
+function showReportStep(stepIdx) {
+  const s1 = document.getElementById("rmStep1");
+  const s2 = document.getElementById("rmStep2");
+  if (!s1 || !s2) return;
+  s1.classList.toggle("hidden", stepIdx !== 1);
+  s2.classList.toggle("hidden", stepIdx !== 2);
+}
+
 function setSelectedUnit(unit) {
   reportModalState.unit = unit;
   reportModalState.newUnit = false;
-  const sel = document.getElementById("rmSelected");
-  const input = document.getElementById("rmUnitInput");
   const list = document.getElementById("rmResults");
   const newPanel = document.getElementById("rmNewUnit");
   newPanel?.classList.add("hidden");
+  list?.classList.add("hidden");
   if (!unit) {
-    sel?.classList.add("hidden");
-    if (sel) sel.innerHTML = "";
-    if (input) { input.classList.remove("hidden"); input.value = ""; }
-    list?.classList.add("hidden");
+    // Clearing selection: back to step 1, refocus input.
+    showReportStep(1);
+    const input = document.getElementById("rmUnitInput");
+    if (input) { input.value = ""; input.focus(); }
     updateDigitizedField(null);
     return;
   }
-  if (sel) {
+  // Populate the pill in step 2.
+  const titleEl = document.getElementById("rmPillTitle");
+  const subEl = document.getElementById("rmPillSub");
+  if (titleEl) titleEl.textContent = unit.sourceIdentifier || archiveLabel(unit);
+  if (subEl) {
     const sub = (unit.contentDescription || unit.notes || "").slice(0, 80);
-    sel.classList.remove("hidden");
-    sel.innerHTML = `<div class="rs-main">
-        <div class="rs-title">${escapeHTML(archiveLabel(unit))}</div>
-        ${sub ? `<div class="rs-sub">${escapeHTML(sub)}</div>` : ""}
-      </div>
-      <button type="button" class="rs-clear" id="rmClearUnit" aria-label="Temizle">×</button>`;
+    subEl.textContent = sub;
   }
-  if (input) input.classList.add("hidden");
-  list?.classList.add("hidden");
+  showReportStep(2);
   updateDigitizedField(unit);
 }
 
@@ -1286,10 +1305,17 @@ function updateDigitizedField(unit) {
 function showNewUnitInline() {
   reportModalState.newUnit = true;
   reportModalState.unit = null;
-  document.getElementById("rmSelected")?.classList.add("hidden");
   document.getElementById("rmResults")?.classList.add("hidden");
   document.getElementById("rmUnitInput")?.classList.add("hidden");
   document.getElementById("rmNewUnit")?.classList.remove("hidden");
+  // Move into step 2 so the volunteer can type the note alongside the
+  // new-unit fields. The pill stays empty until submit (we know the
+  // identifier is whatever they're typing into rmNewSource).
+  const titleEl = document.getElementById("rmPillTitle");
+  const subEl = document.getElementById("rmPillSub");
+  if (titleEl) titleEl.textContent = "Yeni iş paketi (liste dışı)";
+  if (subEl) subEl.textContent = "Aşağıda kaynak/tanım ekle";
+  showReportStep(2);
   setTimeout(() => document.getElementById("rmNewSource")?.focus(), 30);
   updateDigitizedField(null);
 }
@@ -1299,19 +1325,37 @@ function cancelNewUnit() {
   document.getElementById("rmNewUnit")?.classList.add("hidden");
   const input = document.getElementById("rmUnitInput");
   input?.classList.remove("hidden");
+  showReportStep(1);
   setTimeout(() => input?.focus(), 30);
 }
 
-async function openReportModal(prefillUnitId = "") {
+// Open the report modal. Accepts either a string (legacy: prefill unit id)
+// or an options object: { unitId, projectId, lockProject }.
+//   - lockProject=true → restrict typeahead to projectId only and hide
+//     the "tüm iş paketlerini göster" toggle.
+//   - projectId without lockProject → no effect today (typeahead already
+//     filters to volunteerProjectIds()).
+async function openReportModal(opts = "") {
   const modal = document.getElementById("reportModal");
   if (!modal) return;
+  const options = typeof opts === "string"
+    ? { unitId: opts, projectId: "", lockProject: false }
+    : { unitId: opts?.unitId || "", projectId: opts?.projectId || "", lockProject: !!opts?.lockProject };
+
   reportModalState = {
-    unit: null, newUnit: false, effort: "", status: "", substatus: "",
+    unit: null, newUnit: false, effort: "", status: "in_progress",
     searchTerm: "", results: [], activeIndex: -1, searchTimer: null, sharedDriveUrl: "",
-    showAll: false
+    showAll: false,
+    lockedProjectId: options.lockProject ? options.projectId : ""
   };
   const showAllCheckbox = document.getElementById("rmShowAll");
   if (showAllCheckbox) showAllCheckbox.checked = false;
+  // Hide the "tüm iş paketlerini göster" toggle when the modal is locked
+  // to a single project — the visibility filter already only contains that
+  // project's units, so the toggle would be misleading.
+  const showAllWrap = document.getElementById("rmShowAllWrap");
+  if (showAllWrap) showAllWrap.classList.toggle("hidden", !!reportModalState.lockedProjectId);
+
   // Reset form widgets
   document.getElementById("rmNote").value = "";
   document.getElementById("rmUrl").value = "";
@@ -1319,14 +1363,23 @@ async function openReportModal(prefillUnitId = "") {
   document.getElementById("rmNewSource").value = "";
   document.getElementById("rmNewDescription").value = "";
   document.getElementById("rmDigitizedCheck").checked = false;
-  document.querySelectorAll("#reportModalForm .rm-seg.is-on").forEach((b) => b.classList.remove("is-on"));
+  // Effort: clear any prior selection (default applied silently at submit).
+  document.querySelectorAll('#reportModalForm .rm-seg[data-effort].is-on').forEach((b) => b.classList.remove("is-on"));
+  // Status: pre-select Devam ediyor.
+  document.querySelectorAll('#reportModalForm .rm-status-pill').forEach((b) => {
+    b.classList.toggle("is-on", b.dataset.status === "in_progress");
+  });
   document.getElementById("rmMessage").textContent = "";
   document.getElementById("rmMessage").className = "status-line muted";
   document.getElementById("rmNoteCounter").textContent = "0 / 500";
   document.getElementById("rmNewUnit")?.classList.add("hidden");
   document.getElementById("rmResults")?.classList.add("hidden");
-  document.getElementById("rmSelected")?.classList.add("hidden");
   document.getElementById("rmUnitInput")?.classList.remove("hidden");
+  // Collapse the "Daha fazla seçenek" expander on every open.
+  const moreEl = document.getElementById("rmMore");
+  if (moreEl) moreEl.open = false;
+  // Start at step 1.
+  showReportStep(1);
 
   modal.classList.remove("hidden");
   document.body.classList.add("modal-open");
@@ -1344,8 +1397,8 @@ async function openReportModal(prefillUnitId = "") {
     }
   }
 
-  if (prefillUnitId && archiveById[prefillUnitId]) {
-    setSelectedUnit(archiveById[prefillUnitId]);
+  if (options.unitId && archiveById[options.unitId]) {
+    setSelectedUnit(archiveById[options.unitId]);
     setTimeout(() => document.getElementById("rmNote")?.focus(), 60);
   } else {
     setTimeout(() => document.getElementById("rmUnitInput")?.focus(), 60);
@@ -1466,9 +1519,9 @@ async function submitReportFromModal(event) {
 
   const note = (document.getElementById("rmNote").value || "").trim().slice(0, 500);
   const url = (document.getElementById("rmUrl").value || "").trim();
-  const effort = reportModalState.effort;
-  const status = reportModalState.status;
-  const substatus = reportModalState.substatus;
+  // Effort is now optional — silent default "medium" when unselected.
+  const effort = reportModalState.effort || "medium";
+  const status = reportModalState.status || "in_progress";
   const digitizedCheck = document.getElementById("rmDigitizedCheck")?.checked && !document.getElementById("rmDigitizedField").classList.contains("hidden");
 
   if (!reportModalState.unit && !reportModalState.newUnit) {
@@ -1477,14 +1530,6 @@ async function submitReportFromModal(event) {
   }
   if (!note) {
     messageEl.className = "status-line error"; messageEl.textContent = "Ne yaptığını kısa bir cümleyle yaz.";
-    return;
-  }
-  if (!effort) {
-    messageEl.className = "status-line error"; messageEl.textContent = "Ne kadar ilerlediğini seç.";
-    return;
-  }
-  if (!status) {
-    messageEl.className = "status-line error"; messageEl.textContent = "Durumu seç.";
     return;
   }
   if (reportModalState.newUnit) {
@@ -1544,13 +1589,14 @@ async function submitReportFromModal(event) {
     // archiveUnitId, summary, taskId) so existing list/feed renderers and
     // Firestore rules continue to work without modification.
     batch.set(reportRef, {
-      // New report-first schema
+      // New report-first schema. reportedSubstatus retired in Prompt H —
+      // we no longer distinguish "Başladım" from "Devam ediyor" in the UI,
+      // so the analytics field that captured that distinction is dropped.
       unitId,
       unitSnapshot,
       note,
       effort,
       status,
-      reportedSubstatus: substatus,
       url: url || null,
       volunteerId: cu.uid,
       volunteerName,
@@ -1632,8 +1678,7 @@ async function submitReportFromModal(event) {
       reportId: reportRef.id,
       unitLabel: unitSnapshot?.sourceIdentifier || "",
       effort,
-      status,
-      reportedSubstatus: substatus
+      status
     });
 
     showToast("Rapor kaydedildi. Teşekkürler.");
@@ -1666,6 +1711,172 @@ function showToast(message) {
 
 // Render the volunteer-only Rapor Ver primary CTA + Son raporların list. Hidden
 // for staff (they have their own management surfaces).
+// Project tab factory — renders one project card per volunteer-accessible
+// project. Today there is only PNB; extra projects appear automatically as
+// volunteerProjectIds() expands. Each card jumps to that project's tab.
+const PROJECT_TAB_REGISTRY = {
+  pnb: {
+    tab: "pnb",
+    name: "Pertev Naili Boratav Arşivi",
+    fallbackDescription: "Boratav'ın özel arşivinden mektuplar, fotoğraflar, ders notları ve halk hikâyelerini sayfa sayfa dijitalleştiriyoruz."
+  }
+};
+
+function renderVolunteerActiveProjects() {
+  const list = document.getElementById("vpProjectsList");
+  if (!list || isStaff() || !cu) return;
+  const projectIds = volunteerProjectIds();
+  if (!projectIds.length) {
+    list.innerHTML = '<p class="sv-empty">Şu an erişimin olan aktif proje yok.</p>';
+    return;
+  }
+  list.innerHTML = projectIds.map((projectId) => {
+    const meta = PROJECT_TAB_REGISTRY[projectId] || { tab: projectId, name: projectId, fallbackDescription: "" };
+    // Optional shortDescription from projects/{projectId} could be wired in
+    // here once that field is populated; for now we use the registry default.
+    const desc = meta.fallbackDescription;
+    return `<button type="button" class="vp-project-card" data-go-tab="${escapeHTML(meta.tab)}">
+      <div>
+        <p class="vp-pname">${escapeHTML(meta.name)}</p>
+        ${desc ? `<p class="vp-pdesc">${escapeHTML(desc)}</p>` : ""}
+      </div>
+      <span class="vp-go" aria-hidden="true">Bu projeye git →</span>
+    </button>`;
+  }).join("");
+}
+
+// Project-tab factory. Renders header + progress + four stats + kanban for a
+// single project. Today this is wired to projectId="pnb"; once a second
+// project comes online the same function will populate that project's tab
+// without changes — just add its registry entry and an HTML block with
+// vp-{projectId}-* IDs.
+function renderVolunteerProjectTab(projectId) {
+  if (isStaff() || !cu) return;
+  if (projectId !== PNB_PROJECT_ID) return; // future projects: extend here
+  const view = document.getElementById("volunteerPnbView");
+  if (!view) return;
+  const setT = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+
+  const projectUnits = archiveUnits.filter((u) =>
+    (u.projectId || PNB_PROJECT_ID) === projectId
+    && (u.status || "") !== "pending_review"
+  );
+
+  // --- Progress hero ---
+  const totalPages = projectUnits.reduce((acc, u) => acc + (Number(u.pageCount) || 0), 0);
+  const reports = Object.values(rd || {});
+  const projectReports = reports.filter((r) => (r.projectId || PNB_PROJECT_ID) === projectId);
+  const pagesDoneTotal = projectReports.reduce((acc, r) => acc + (Number(r.pagesDone) || 0), 0);
+  const overallPct = totalPages > 0
+    ? Math.max(0, Math.min(100, Math.round((pagesDoneTotal / totalPages) * 100)))
+    : 0;
+  setT("vpPnbProgPct", String(overallPct));
+  const meta = PROJECT_TAB_REGISTRY[projectId] || { name: projectId };
+  setT("vpPnbProgEyebrow", meta.name);
+  const progLine = document.getElementById("vpPnbProgLine");
+  if (progLine) {
+    const nowMs = Date.now();
+    const weekMs = 7 * 86400000;
+    const thisWeek = projectReports.filter((r) => (toDateFromTs(r.createdAt)?.getTime() || 0) >= nowMs - weekMs);
+    const thisPages = thisWeek.reduce((acc, r) => acc + (Number(r.pagesDone) || 0), 0);
+    progLine.innerHTML = `${numberText(totalPages)} sayfadan <strong>${numberText(pagesDoneTotal)}</strong> tasnif edildi · bu hafta <strong>+${numberText(thisPages)} sayfa</strong>`;
+  }
+
+  // --- Sıradaki iş tile ---
+  const nextUnit = pickNextQueueUnit();
+  if (nextUnit) {
+    setT("vpPnbNextTitle", archiveLabel(nextUnit));
+    const bits = [];
+    if (nextUnit.boxNo) bits.push(`Kutu ${nextUnit.boxNo}`);
+    if (nextUnit.pageCount) bits.push(`${numberText(nextUnit.pageCount)} sayfa`);
+    if (nextUnit.priority === "high") bits.push("Yüksek öncelik");
+    setT("vpPnbNextSub", bits.join(" · "));
+    const btn = document.getElementById("vpPnbStatNext");
+    if (btn) btn.dataset.unitId = nextUnit.id;
+  } else {
+    setT("vpPnbNextTitle", "Uygun iş yok");
+    setT("vpPnbNextSub", "Şu an boş iş paketi görünmüyor.");
+  }
+
+  // --- Üstümdeki iş tile ---
+  const uid = cu?.uid;
+  const email = (cu?.email || "").toLowerCase();
+  const myOpen = projectUnits.filter((u) => {
+    const mine = (u.assignedToUids || []).includes(uid) ||
+      (email && (u.assignedToEmails || []).map((e) => String(e).toLowerCase()).includes(email));
+    return mine && !["done"].includes(u.status || "not_started");
+  });
+  const attnLab = document.getElementById("vpPnbAttnLab");
+  if (attnLab) attnLab.textContent = "Üstümdeki iş";
+  setT("vpPnbAttnVal", myOpen.length > 0 ? `${myOpen.length} iş` : "Boş");
+  setT("vpPnbAttnSub", myOpen.length > 0
+    ? myOpen.map((u) => archiveLabel(u)).slice(0, 2).join(" · ")
+    : "Atanmış iş yok.");
+
+  // --- Bu hafta tile ---
+  const now = Date.now();
+  const weekMs = 7 * 86400000;
+  const thisWeek = projectReports.filter((r) => (toDateFromTs(r.createdAt)?.getTime() || 0) >= now - weekMs);
+  const lastWeek = projectReports.filter((r) => {
+    const t = toDateFromTs(r.createdAt)?.getTime() || 0;
+    return t >= now - 2 * weekMs && t < now - weekMs;
+  });
+  const thisPages = thisWeek.reduce((acc, r) => acc + (Number(r.pagesDone) || 0), 0);
+  const lastPages = lastWeek.reduce((acc, r) => acc + (Number(r.pagesDone) || 0), 0);
+  setT("vpPnbWeekVal", `${numberText(thisPages)} sayfa`);
+  const weekSub = document.getElementById("vpPnbWeekSub");
+  if (weekSub) {
+    if (lastPages === 0 && thisPages === 0) {
+      weekSub.textContent = "Henüz aktivite yok.";
+    } else if (lastPages === 0) {
+      weekSub.innerHTML = `Başlangıç · <strong>${numberText(thisWeek.length)} rapor</strong>`;
+    } else {
+      const delta = Math.round(((thisPages - lastPages) / lastPages) * 100);
+      const sign = delta >= 0 ? "+" : "";
+      weekSub.innerHTML = `Geçen haftadan <strong>${sign}${delta}%</strong> · ${numberText(thisWeek.length)} rapor`;
+    }
+  }
+
+  // --- Aktif gönüllü tile ---
+  const weekReports = projectReports.filter((r) => (toDateFromTs(r.createdAt)?.getTime() || 0) >= now - weekMs);
+  const weekActive = new Set(weekReports.map((r) => r.userUid || r.volunteerId).filter(Boolean)).size;
+  setT("vpPnbTeamVal", `${numberText(weekActive)} kişi`);
+  setT("vpPnbTeamSub", `son 7 günde ${numberText(weekReports.length)} rapor yazıldı`);
+
+  // --- Read-only kanban (5 columns; no pending side panel for volunteers) ---
+  const buckets = { not_started: [], in_progress: [], review: [], done: [], blocked: [] };
+  projectUnits.forEach((u) => {
+    const s = u.status || "not_started";
+    const key = s === "assigned" ? "not_started" : (buckets[s] ? s : "not_started");
+    buckets[key].push(u);
+  });
+  const priorityRank = { high: 3, medium: 2, low: 1 };
+  const sortFn = (a, b) => {
+    const pa = priorityRank[a.priority] || 2;
+    const pb = priorityRank[b.priority] || 2;
+    if (pa !== pb) return pb - pa;
+    const lb = toDateFromTs(b.lastActivityAt || b.latestReportAt)?.getTime() || 0;
+    const la = toDateFromTs(a.lastActivityAt || a.latestReportAt)?.getTime() || 0;
+    return lb - la;
+  };
+  const colMap = {
+    not_started: { body: "vpPnbColTodo", count: "vpPnbCountTodo" },
+    in_progress: { body: "vpPnbColDoing", count: "vpPnbCountDoing" },
+    review:      { body: "vpPnbColReview", count: "vpPnbCountReview" },
+    done:        { body: "vpPnbColDone", count: "vpPnbCountDone" },
+    blocked:     { body: "vpPnbColBlocked", count: "vpPnbCountBlocked" }
+  };
+  Object.entries(buckets).forEach(([key, list]) => {
+    const sorted = list.sort(sortFn);
+    const target = colMap[key];
+    if (!target) return;
+    const body = document.getElementById(target.body);
+    const count = document.getElementById(target.count);
+    if (count) count.textContent = sorted.length;
+    if (body) body.innerHTML = sorted.length ? sorted.map(panoCard).join("") : '<p class="kb-empty">Boş</p>';
+  });
+}
+
 function renderVolunteerReportPrimary() {
   const wrap = document.getElementById("svReportPrimary");
   if (!wrap) return;
@@ -1674,6 +1885,7 @@ function renderVolunteerReportPrimary() {
     return;
   }
   wrap.classList.remove("hidden");
+  renderVolunteerActiveProjects();
   const list = document.getElementById("svRecentReports");
   if (!list) return;
   const myReports = Object.values(rd || {})
@@ -3507,24 +3719,24 @@ async function loadArchiveUnits() {
   archiveById = {};
   if (!db || !cu || !cp) return;
   try {
-    if (isStaff()) {
-      const snap = await getDocs(query(collection(db, "archiveUnits"), where("projectId", "==", PNB_PROJECT_ID), limit(250)));
-      archiveUnits = snap.docs.map((item) => ({ id: item.id, ...item.data() }));
-    } else {
-      const byId = {};
-      const byUid = await getDocs(query(collection(db, "archiveUnits"), where("assignedToUids", "array-contains", cu.uid), limit(120)));
-      byUid.docs.forEach((item) => { byId[item.id] = { id: item.id, ...item.data() }; });
-      if (cu.email) {
-        const byEmail = await getDocs(query(collection(db, "archiveUnits"), where("assignedToEmails", "array-contains", cu.email.toLowerCase()), limit(120)));
-        byEmail.docs.forEach((item) => { byId[item.id] = { id: item.id, ...item.data() }; });
-      }
-      archiveUnits = Object.values(byId);
-    }
+    // Both staff and volunteers load the full project list. The Rapor Ver
+    // typeahead and the volunteer PNB kanban both need project-wide data,
+    // and Firestore rules already permit any approved user to read
+    // archiveUnits since Prompt C.
+    const snap = await getDocs(query(
+      collection(db, "archiveUnits"),
+      where("projectId", "==", PNB_PROJECT_ID),
+      limit(250)
+    ));
+    archiveUnits = snap.docs.map((item) => ({ id: item.id, ...item.data() }));
     archiveUnits.sort((a, b) => archiveLabel(a).localeCompare(archiveLabel(b), "tr", { numeric: true }));
     archiveById = Object.fromEntries(archiveUnits.map((unit) => [unit.id, unit]));
   } catch (error) {
     console.error("PNB arşiv birimleri yüklenemedi:", error);
-    document.getElementById("archiveUnitList").innerHTML = `<div class="pnb-empty-action">PNB arşiv verisi yüklenemedi: ${escapeHTML(error.message)}</div>`;
+    const listEl = document.getElementById("archiveUnitList");
+    if (listEl) {
+      listEl.innerHTML = `<div class="pnb-empty-action">PNB arşiv verisi yüklenemedi: ${escapeHTML(error.message)}</div>`;
+    }
   }
 }
 
@@ -3823,6 +4035,8 @@ async function reloadPnb() {
   // cache, so a single refresh keeps everything consistent.
   renderPano();
   renderStaffAttention();
+  // Volunteer PNB tab — same source data, different DOM IDs.
+  if (!isStaff()) volunteerProjectIds().forEach(renderVolunteerProjectTab);
 }
 
 function rf() {
@@ -4360,6 +4574,24 @@ document.addEventListener("click", async (event) => {
     openReportModal();
     return;
   }
+  // Project-scoped Rapor Ver button (e.g. inside the volunteer PNB tab).
+  // Locks the typeahead to that project so the volunteer doesn't accidentally
+  // pick a unit from a different project.
+  const projectReportBtn = event.target.closest("[data-open-report-project]");
+  if (projectReportBtn) {
+    const projectId = projectReportBtn.dataset.openReportProject || "";
+    openReportModal({ projectId, lockProject: true });
+    return;
+  }
+  // Volunteer PNB "Sıradaki iş" tile → open the unit's drill (same UX as
+  // the equivalent tile on the staff Bugün).
+  if (event.target.closest("#vpPnbStatNext")) {
+    const btn = document.getElementById("vpPnbStatNext");
+    const unitId = btn?.dataset.unitId || "";
+    if (unitId) openUnitDrill(unitId);
+    else sw("pnb");
+    return;
+  }
   const volunteerRecentRow = event.target.closest("[data-recent-unit]");
   if (volunteerRecentRow) {
     const unitId = volunteerRecentRow.dataset.recentUnit;
@@ -4390,10 +4622,9 @@ document.addEventListener("click", async (event) => {
     cancelNewUnit();
     return;
   }
-  if (event.target.id === "rmClearUnit") {
+  if (event.target.id === "rmPillClear" || event.target.closest("#rmPillClear")) {
     setSelectedUnit(null);
-    setTimeout(() => document.getElementById("rmUnitInput")?.focus(), 30);
-    return;
+    return; // setSelectedUnit(null) already focuses rmUnitInput
   }
   if (event.target.id === "rmMoreOptions") {
     event.preventDefault();
@@ -4410,12 +4641,13 @@ document.addEventListener("click", async (event) => {
     reportModalState.effort = effortBtn.dataset.effort;
     return;
   }
-  const statusBtn = event.target.closest("#reportModalForm .rm-seg[data-status]");
+  // Status segmented pills (Devam ediyor / Bitirdim / Takıldım). Only one
+  // active at a time. Default Devam ediyor is pre-selected on modal open.
+  const statusBtn = event.target.closest("#reportModalForm .rm-status-pill");
   if (statusBtn) {
-    document.querySelectorAll("#reportModalForm .rm-seg[data-status]").forEach((b) => b.classList.remove("is-on"));
+    document.querySelectorAll("#reportModalForm .rm-status-pill").forEach((b) => b.classList.remove("is-on"));
     statusBtn.classList.add("is-on");
     reportModalState.status = statusBtn.dataset.status;
-    reportModalState.substatus = statusBtn.dataset.substatus || "";
     return;
   }
 
