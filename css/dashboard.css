@@ -937,16 +937,83 @@
   border: 1px solid var(--tblr-danger, #d63939);
 }
 
-/* ---------- Two-step inline form (typeahead → pill+form) ----------
-   Step 1: typeahead is the only thing visible. Step 2: typeahead collapses
-   into a pill at the top and the rest of the form slides in. Selection IS
-   the transition — no Next button. */
-.rm-step.hidden { display: none; }
-.rm-step-2 { animation: rmStepIn 180ms ease-out; }
+/* ---------- Project pills (Anasayfa) ----------
+   Horizontal row of pills, one per accessible project plus a foundation
+   pill. Compact (36px tall) so they don't dominate the form. */
+.if-project-pills {
+  display: flex; gap: .4rem; flex-wrap: wrap;
+}
+.if-pill {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 36px; padding: 0 .9rem;
+  background: var(--tblr-bg-surface);
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 999px;
+  font-size: 13px; font-weight: 500; line-height: 1;
+  color: var(--tblr-body-color);
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background .1s, border-color .1s, color .1s;
+}
+.if-pill:hover { background: var(--tblr-bg-surface-secondary); }
+.if-pill.is-on {
+  background: var(--tblr-primary);
+  color: #fff;
+  border-color: var(--tblr-primary);
+}
+.if-pill-foundation { font-style: italic; }
+
+/* Helper text under the project pills + unit picker. Small, muted. */
+.if-helper {
+  font-size: 12px;
+  margin: .15rem 0 0;
+  color: var(--tblr-secondary);
+  line-height: 1.35;
+}
+
+/* ---------- Unit section reveal ----------
+   The unit picker is hidden on Anasayfa until a real project is picked.
+   Animates in via the existing rmStepIn keyframe (opacity + small slide). */
+.if-unit-section.if-hidden { display: none; }
+.if-unit-section { animation: rmStepIn 200ms ease-out; }
 @keyframes rmStepIn {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* ---------- Report-type pill ----------
+   Tiny colored chip on the left of each Son raporların / Son raporlar row,
+   indicating which of the three shapes the report is. */
+.report-type-pill {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 18px; padding: 0 8px;
+  border-radius: 999px;
+  font-size: 10px; font-weight: 600; letter-spacing: .02em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.report-type-pill--unit {
+  background: var(--tblr-primary-lt, #e9f0f9);
+  color: var(--tblr-primary, #206bc4);
+}
+.report-type-pill--project {
+  background: var(--tblr-warning-lt, #fdf3e6);
+  color: var(--tblr-warning, #f59f00);
+}
+.report-type-pill--foundation {
+  background: var(--tblr-bg-surface-secondary, #eef0f2);
+  color: var(--tblr-secondary, #667085);
+}
+
+/* The volunteer's "Son raporların" row needs a tiny gap before the type
+   pill (which sits before the title block). */
+.sv-recent-row { gap: .5rem; }
+.sv-recent-row > .report-type-pill { align-self: flex-start; margin-top: .15rem; }
+
+/* The selected-unit pill inside the unit picker section is hidden until a
+   unit is chosen; the typeahead input occupies that slot in the meantime. */
+.rm-selected-pill.hidden { display: none !important; }
+
 .rm-pill {
   display: flex; align-items: center; justify-content: space-between;
   gap: .6rem;

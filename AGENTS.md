@@ -75,39 +75,68 @@ Staff PNB content (`#pnbHero`, `#pnbStats`, `#pnbOpsGrid`, `#pnbArchivePanel`, `
 
 `loadArchiveUnits` was widened in Prompt H to load all project units for volunteers (not just assigned). The Rapor Yaz typeahead and the volunteer kanban both rely on the full project list. Firestore rules already permitted this read since Prompt C; no rule change needed.
 
-## Rapor Yaz inline-form flow (Prompt J)
+## Rapor Yaz inline-form flow (Prompts J + K)
 
-Report-first is now an **inline** flow. The volunteer never has to click a button to "open" the form — the same six-element form is rendered directly into both the Anasayfa card (`#anasayfaInlineRapor`) and the per-project tab card (e.g. `#pnbInlineRapor`), already focused and ready to type into. There is no modal, no overlay, no backdrop.
+Report-first is an **inline** flow — no modal, no overlay, no backdrop. The same form is rendered into both the Anasayfa card (`#anasayfaInlineRapor`) and per-project tab cards (e.g. `#pnbInlineRapor`), already on screen and ready to type into.
 
-### Shared component: `renderInlineRaporForm({ container, projectFilter, showProjectToggle, onSubmitSuccess })`
-A single factory in `app/dashboard.js` builds both forms — fixing a bug in one fixes both. Each call returns a handle attached to the container as `container.__inlineRaporHandle` with `{ selectUnitById, reset, refreshResults }`. State is closure-private; DOM lookups are scoped via `container.querySelector` so two instances coexist without ID collisions. Use `ensureInlineRaporForm(containerId, opts)` for idempotent mounting (won't blow away in-progress input on rerender). The drill modal's "Rapor Yaz (bu iş paketi için)" shortcut closes the drill, switches to the PNB tab, and calls `selectUnitById` on the PNB form so the volunteer lands on the form with the unit prefilled.
+### Three report shapes (Prompt K)
+Every report falls into exactly one of these. The shape is computed at submit time from which fields are set, then stored on the report doc as `reportType`:
 
-### Step 1 — Hangi iş paketi?
-The typeahead is the only thing visible inside the card. Same Turkish-normalized search across `sourceIdentifier`, `seriesNo`, `boxNo`, `contentDescription`. Same `canWorkInPerson` + `digitized` filter logic. The "Tüm iş paketlerini göster" toggle is shown only when `showProjectToggle: true` (Anasayfa); the project-scoped form omits the toggle entirely because it's already locked. "Liste dışı / yeni bir iş" appears in the dropdown only when the volunteer typed something AND zero units matched.
+| `reportType`            | when                                  | side effects |
+|-------------------------|---------------------------------------|--------------|
+| `unit`                  | `unitId` set                          | updates `archiveUnits/{unitId}` (status + last-activity metadata), publishes a `publicTicker` entry with `materialCategory` derived from the unit's `seriesNo`, refreshes `publicProjectStats/{projectId}`, logs `report_submitted` |
+| `project_general`       | `projectId` set, `unitId` null        | does NOT touch any archiveUnit, publishes a `publicTicker` entry with `materialCategory: "genel"`, does NOT refresh `publicProjectStats` (project totals are unit-driven), logs `project_general_report_submitted` |
+| `foundation_general`    | both null                             | does NOT touch any archiveUnit, does NOT publish to `publicTicker` (the ticker is project-themed), logs `foundation_general_report_submitted` |
 
-When a unit is picked: the typeahead collapses into a pill at the top (`.rm-selected-pill` showing `sourceIdentifier — truncated description` with an ✕), and step 2 slides in (`@keyframes rmStepIn`, 180 ms ease-out). Tapping the ✕ on the pill clears the selection and reopens the typeahead. **Selection is the transition — no Next button.**
+**Why these three.** Within a project, valid work doesn't always attach to a specific archive unit — meetings, reviews, coordination, volunteer onboarding, Drive folder cleanup, etc. The `project_general` shape captures that. And general foundation work (website, translation, foundation events) doesn't belong to any project at all — the `foundation_general` shape captures that, and is intentionally excluded from the public ticker since the ticker is project-themed.
 
-### Step 2 — Ne yaptın?
-The visible elements are exactly six:
-1. Selected-unit pill (or new-unit row if "Liste dışı" was picked).
-2. `Ne yaptın?` textarea, required, 500-char counter.
-3. **Status:** three pills inline — `Devam ediyor` (default selected), `Bitirdim`, `Takıldım`. Mapped to `status: "in_progress" | "done" | "blocked"`. All three are visually identical except for fill and the warmer outline on Takıldım.
-4. `Link (varsa)` URL input + Drive helper text from `config/pnb.sharedDriveUrl`.
-5. **Gönder** submit button.
-6. Inline success/error banner (`.if-banner`) — green for 3s on success, red until next interaction on failure.
+`reportTypeOf(reportDoc)` derives the shape for legacy docs (pre-Prompt K) that don't have the field, falling back to `unit` if `archiveUnitId` is set, else `project_general` if `projectId` is set, else `foundation_general`.
 
-The effort buttons, `dijitalleştirildi` checkbox, "Daha fazla seçenek" expander, and "Eski raporlama formu" footer link are gone. Effort defaults to `"medium"` silently at submit.
+### Shared component: `renderInlineRaporForm({ container, showProjectPicker, fixedProjectId, onSubmitSuccess })`
+A single factory in `app/dashboard.js` builds every form instance — fixing a bug in one fixes them all. State is closure-private; DOM lookups are scoped via `container.querySelector` so two instances coexist without ID collisions. Each call returns a handle attached to the container as `container.__inlineRaporHandle` with `{ selectUnitById, reset, refreshResults }`. Use `ensureInlineRaporForm(containerId, opts)` for idempotent mounting (won't blow away in-progress input on rerender).
+
+- `showProjectPicker: true` (Anasayfa) — render a row of pills, one per accessible project (today: just `Pertev Naili Boratav`) plus a `Genel vakıf çalışması` pill. The unit picker stays hidden until a real project pill is picked.
+- `fixedProjectId: "pnb"` (PNB tab) — no project pills; the unit picker is shown immediately, filtered to that project. `state.projectPick` is fixed to the project id and reset to it on every form reset.
+
+The drill modal's "Rapor Yaz (bu iş paketi için)" shortcut closes the drill, switches to the PNB tab, and calls `selectUnitById(unitId)` on that form. `selectUnitById` auto-selects the unit's project first (so the section is visible) then the unit itself.
+
+### Field order
+1. **Ne yaptın?** required textarea, 500-char counter. Submit button stays disabled until the note has ≥ 3 trimmed chars.
+2. **Hangi proje için?** *(Anasayfa only, optional)* — row of project pills + a foundation pill. Pills toggle (tapping the active one clears the choice). No pill selected = same as foundation = `projectId: null`. Helper text below explains the blank state.
+3. **Hangi iş paketi?** *(optional, only visible when a real project is in scope)* — same Turkish-normalized typeahead, same `canWorkInPerson` + `digitized` filter logic, same `Tüm iş paketlerini göster` toggle. Liste dışı still appears at the bottom of the dropdown when the term has zero matches; it requires a project context (otherwise the new unit has no parent project) and is blocked with a friendly error if invoked without one.
+4. **Durum:** three pills — `Devam ediyor` (default), `Bittim`, `Takıldım`. Always rendered regardless of unit selection — for project_general / foundation_general reports the status is metadata on the report doc, not applied anywhere.
+5. **Link (varsa):** optional URL input.
+6. **Gönder** submit button.
+
+The success/error banner sits between the heading and the form body. Green banner auto-clears after 3s; red banner stays until the next interaction.
+
+### Validation
+- Note required, ≥ 3 chars (submit button disabled below the threshold).
+- Liste dışı path additionally requires a non-empty `Kaynak / Tanım` AND a project context (otherwise we don't know which project the new pending_review unit belongs to).
+- No other field is required. Project pill optional (Anasayfa). Unit picker always optional, even when visible.
 
 ### Submit behavior
-On success: form resets (note empties, status returns to `Devam ediyor`, search clears, link clears), green banner shows for 3s, `reloadPnb()` + `lr()` refresh in-memory caches so Son raporların and the kanban update immediately. On failure: all field values are preserved, red banner shows the error, volunteer can retry without retyping.
+On success: form resets fully (note empties, status returns to `Devam ediyor`, search clears, link clears, project pill clears on Anasayfa, unit section re-hides on Anasayfa), green banner shows for 3s, `reloadPnb()` + `lr()` refresh in-memory caches so Son raporların and the kanban pick up the new report immediately. The success callback receives `{ unitId, reportId, reportType }`.
 
-### Removed in Prompt J
-- The entire `#reportModal` overlay, its backdrop, focus trap, and Escape-to-close handler.
-- `openReportModal()` / `closeReportModal()` / `reportModalState` / `submitReportFromModal()` and the modal-only DOM IDs (`rmUnitInput`, `rmNote`, `rmResults`, `rmStep1`, `rmStep2`, `rmSelectedPill`, `rmShowAll`, `rmShowAllWrap`, `rmNewUnit`, `rmNewSource`, `rmNewDescription`, `rmDigitizedField`, `rmDigitizedCheck`, `rmPillTitle`, `rmPillSub`, `rmPillClear`, `rmCancelNewUnit`, `rmUrl`, `rmUrlHelper`, `rmMessage`, `rmSubmit`, `rmNoteCounter`, `reportModalForm`).
-- The `data-action="open-rapor-modal"` and `data-open-report-project` click handlers.
-- The Anasayfa `#svReportCtaBtn` big blue CTA card and the PNB-tab `#vpPnbReportBtn`.
+On failure: all field values are preserved, red banner shows the error, the volunteer can retry without retyping.
 
-Earlier removals (Prompt H, kept for reference): `Başladım` status (collapsed into Devam ediyor); `Gözden geçirme için hazır` (removed from the volunteer surface — coordinators flag review status from their own tools); `reportedSubstatus` (deprecated; existing report docs keep their value).
+### Notice scoping
+The "Şu an dijitalleştirilmiş iş paketi yok…" empty-state is rendered **only inside the typeahead dropdown** when (a) the dropdown is open, (b) the volunteer has no `canWorkInPerson` and the show-all toggle is off, and (c) the catalog has zero digitized non-done units. The dropdown auto-hides on input blur (180 ms grace for click events on dropdown items), so the notice never sits on the page outside the picker. The "Tüm iş paketlerini göster" toggle similarly lives inside the unit picker, not floating on the page.
+
+### Display of the three shapes
+In both the volunteer's "Son raporların" and the coordinator "Son raporlar" feed, each row gets a small colored type pill on the left:
+
+| `reportType`         | row title                          | pill |
+|----------------------|------------------------------------|------|
+| `unit`               | unit identifier                    | `Kutu` (primary blue) |
+| `project_general`    | `{ProjectName} (genel)`            | `Genel` (warm amber) |
+| `foundation_general` | `Vakıf çalışması`                  | `Vakıf` (muted gray) |
+
+Row clicks on unit reports open the drill; clicks on the other two shapes are no-ops today (no useful drill view exists for those).
+
+### Earlier history (kept for context)
+- Prompt J — replaced the `#reportModal` overlay with the inline card.
+- Prompt H — removed the `Başladım` status (collapsed into Devam ediyor), the `Gözden geçirme için hazır` status (removed from the volunteer surface), and deprecated the `reportedSubstatus` field.
 
 ## Volunteer interaction model — report-first
 The primary action on the volunteer dashboard is **Rapor Yaz**. Volunteers do not pull work from a queue; they log what they did and the system infers the unit's status from the latest report.
@@ -220,17 +249,22 @@ Both new and legacy fields are written so existing list/feed renderers and Fires
 
 | Field | Notes |
 | --- | --- |
-| `unitId` | new — points to `archiveUnits/{id}` |
-| `unitSnapshot` | new — `{ sourceIdentifier, contentDescription }`, denormalized so the report stays readable if the unit is renamed/deleted |
-| `note` | new — free-text note, ≤ 500 chars |
-| `effort` | new — `small | medium | large` |
-| `status` | new — derived from the volunteer's button choice (`in_progress | review | done | blocked`) |
-| `reportedSubstatus` | new — UX nuance: `started | ongoing | review | done | blocked` |
+| `reportType` | new (Prompt K) — `"unit" \| "project_general" \| "foundation_general"`. Derived at write time from which fields are set; stored on the doc for clean querying. Pre-Prompt K docs lack the field; `reportTypeOf(doc)` infers it from `archiveUnitId` / `projectId` for backwards compatibility. |
+| `projectId` | nullable — set on `unit` and `project_general` reports; `null` on `foundation_general`. |
+| `projectName` | new (Prompt K) — denormalized display name so old reports stay readable if a project is renamed. |
+| `unitId` | nullable — points to `archiveUnits/{id}` for `unit` reports, `null` otherwise. |
+| `unitSnapshot` | nullable — `{ sourceIdentifier, contentDescription }`, denormalized so the report stays readable if the unit is renamed/deleted. `null` for `project_general` and `foundation_general`. |
+| `note` | new — free-text note, ≤ 500 chars (≥ 3 enforced client-side) |
+| `effort` | new — written as `"medium"` for every report (the effort UI was retired in Prompt J). |
+| `status` | new — derived from the volunteer's button choice (`in_progress \| done \| blocked`). On non-unit reports it's metadata only — no archiveUnit is updated. |
 | `url` | new — optional link, or `null` |
 | `volunteerId`, `volunteerName` | new — owner identity |
-| `projectId` | unchanged |
 | `userUid`, `userEmail`, `archiveUnitId`, `taskId`, `summary`, `workStatus`, `source = "report_first"` | legacy fields, kept for backwards compatibility with quick/detailed flows and the existing rules path |
 | `createdAt`, `updatedAt` | server timestamps |
+
+**`publicTicker` materialCategory.** `unit` reports use `materialCategoryFromSeriesNo(unit.seriesNo)` (e.g. `mektuplar`, `kitap metinleri`, `belgeler`). `project_general` reports use the literal `"genel"` so the public landing renderer can distinguish "general project work" from a specific archive category. `foundation_general` reports skip `publicTicker` entirely (the ticker is project-themed). The Firestore rule on `publicTicker` only requires `materialCategory` to be a string, so `"genel"` is accepted without a rule change.
+
+**`publicProjectStats`.** Refreshed only on `unit` reports (since project totals are unit-driven). `project_general` and `foundation_general` reports don't move project totals.
 
 ### `archiveUnits` — fields written by the report-first flow
 Volunteers can only update the keys whitelisted by `reportFirstUnitUpdate()` in `firestore.rules`:

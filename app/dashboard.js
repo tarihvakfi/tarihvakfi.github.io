@@ -758,10 +758,27 @@ function recentReportRow(id, r) {
   const volName = r.volunteerName || (volId ? findUserName(volId) : "") || r.userEmail || "—";
   const volUser = volId ? allUsers.find((u) => u.uid === volId) : null;
   const dept = volUser?.data?.department || "";
+  const reportType = reportTypeOf(r);
   const unitId = r.unitId || r.archiveUnitId || "";
-  const unit = unitId ? archiveById[unitId] : null;
-  const unitTitle = unit ? (unit.sourceIdentifier || archiveLabel(unit))
-    : (r.unitSnapshot?.sourceIdentifier || r.taskId || "Birim");
+  let rowTitle;
+  let typePillClass;
+  let typePillLabel;
+  if (reportType === "foundation_general") {
+    rowTitle = "Vakıf çalışması";
+    typePillClass = "foundation";
+    typePillLabel = "Vakıf";
+  } else if (reportType === "project_general") {
+    const projName = r.projectName || projectDisplayName(r.projectId);
+    rowTitle = projName ? `${projName} (genel)` : "Proje (genel)";
+    typePillClass = "project";
+    typePillLabel = "Genel";
+  } else {
+    const unit = unitId ? archiveById[unitId] : null;
+    rowTitle = unit ? (unit.sourceIdentifier || archiveLabel(unit))
+      : (r.unitSnapshot?.sourceIdentifier || r.taskId || "Birim");
+    typePillClass = "unit";
+    typePillLabel = "Kutu";
+  }
   const status = r.status || (r.workStatus === "unit_done" ? "done" : r.workStatus) || "in_progress";
   const note = (r.note || r.summary || "").trim();
   const when = toDateFromTs(r.createdAt);
@@ -771,13 +788,19 @@ function recentReportRow(id, r) {
   const effortClass = r.effort ? r.effort[0] : "";
   const linkBtn = url ? `<a class="staff-recent-link" href="${escapeHTML(url)}" target="_blank" rel="noopener" title="${escapeHTML(url)}" data-stop-row>↗</a>` : "";
   const effortBadge = effort ? `<span class="staff-effort-badge ${escapeHTML(effortClass)}" title="Efor">${escapeHTML(effort)}</span>` : "";
+  // Status pill is meaningful even on project_general / foundation_general
+  // reports (it's the volunteer's self-reported state for that item of work).
   return `<button type="button" class="staff-recent-row" data-recent-report="${escapeHTML(unitId)}" data-recent-id="${escapeHTML(id)}">
     <div class="staff-recent-who">
       <div class="staff-recent-name">${escapeHTML(volName)}</div>
       ${dept ? `<div class="staff-recent-dept">${escapeHTML(dept)}</div>` : ""}
     </div>
     <div class="staff-recent-mid">
-      <div class="staff-recent-unit"><span class="ti">${escapeHTML(unitTitle)}</span><span class="status-pill ${escapeHTML(status)}">${escapeHTML(statusLabel(status))}</span></div>
+      <div class="staff-recent-unit">
+        <span class="report-type-pill report-type-pill--${typePillClass}" aria-hidden="true">${escapeHTML(typePillLabel)}</span>
+        <span class="ti">${escapeHTML(rowTitle)}</span>
+        <span class="status-pill ${escapeHTML(status)}">${escapeHTML(statusLabel(status))}</span>
+      </div>
       ${note ? `<div class="staff-recent-note">${escapeHTML(note.slice(0, 80))}</div>` : ""}
     </div>
     <div class="staff-recent-tags">${effortBadge}${linkBtn}</div>
@@ -1144,12 +1167,11 @@ const SUITABLE_FOR_LABELS = {
 function scoreUnitForTypeahead(state, unit, needle) {
   if (!unit) return null;
   const unitProjectId = unit.projectId || PNB_PROJECT_ID;
-  if (state.lockedProjectId) {
-    if (unitProjectId !== state.lockedProjectId) return null;
-  } else {
-    const projects = volunteerProjectIds();
-    if (!projects.includes(unitProjectId)) return null;
-  }
+  // The unit picker is only meaningful when a real project is in scope.
+  // state.projectPick may be null (no pick) or "foundation" (general work) —
+  // in either case we have no project to filter against, so no units match.
+  if (!state.projectPick || state.projectPick === "foundation") return null;
+  if (unitProjectId !== state.projectPick) return null;
   const status = unit.status || "not_started";
   if (status === "done") return null;
   if (!state.showAll) {
@@ -1191,10 +1213,19 @@ function searchUnitsForReport(state, term) {
 // can address a form by container without reaching into private state.
 const _inlineRaporForms = new Set();
 
-// projectFilter:        "all" | "pnb"  (today: only "pnb" is meaningful)
-// showProjectToggle:    show the "Tüm iş paketlerini göster" checkbox
-// onSubmitSuccess:      called after a successful report write
-function renderInlineRaporForm({ container, projectFilter = "all", showProjectToggle = false, onSubmitSuccess } = {}) {
+// Build an inline Rapor Yaz form. Three report shapes are supported:
+//   1. unit              — projectId + unitId + unitSnapshot
+//   2. project_general   — projectId set, unitId null (meetings, reviews,
+//                          coordination — no specific archive unit)
+//   3. foundation_general — both null (cross-foundation work)
+//
+// showProjectPicker — true on Anasayfa: render a row of project pills + a
+//                     "Genel vakıf çalışması" pill. The unit picker only
+//                     appears once a real project is picked.
+// fixedProjectId    — set on per-project tabs (e.g. "pnb"): no pills, the
+//                     unit picker is shown immediately filtered to that
+//                     project. Unit selection is still optional.
+function renderInlineRaporForm({ container, showProjectPicker = false, fixedProjectId = null, onSubmitSuccess } = {}) {
   if (!container) return null;
 
   const state = {
@@ -1206,77 +1237,105 @@ function renderInlineRaporForm({ container, projectFilter = "all", showProjectTo
     activeIndex: -1,
     searchTimer: null,
     showAll: false,
-    lockedProjectId: projectFilter && projectFilter !== "all" ? projectFilter : ""
+    // null (no choice yet) | "foundation" | <projectId>. Drives both the unit
+    // picker visibility and the typeahead's project filter at search time.
+    projectPick: fixedProjectId || null
   };
 
-  const headingLabel = projectFilter === "all"
-    ? "Rapor Yaz"
-    : "Rapor Yaz (bu proje için)";
+  const headingLabel = fixedProjectId
+    ? "Rapor Yaz (bu proje için)"
+    : "Rapor Yaz";
+
+  // Anasayfa shows one pill per accessible project plus a foundation pill.
+  // Per-project tabs render no pills (the project is fixed by fixedProjectId).
+  const availableProjects = showProjectPicker
+    ? volunteerProjectIds().map((id) => ({ id, label: projectPillName(id) }))
+    : [];
+
+  const unitHelperText = fixedProjectId
+    ? "Bu çalışma belirli bir kutuyla ilgiliyse seç. Toplantı, koordinasyon, gözden geçirme gibi genel proje işleri için boş bırak."
+    : "İşin belirli bir kutuya bağlıysa seç. Yoksa boş bırak (toplantı, gözden geçirme, koordinasyon gibi).";
+
+  const projectHelperText = "Bir proje seçersen alttaki kutu seçimi açılır. Boş bırakırsan genel vakıf çalışması olarak kaydedilir.";
+
+  // Unit section starts hidden on Anasayfa (no project picked yet) and visible
+  // on per-project tabs (project is fixed).
+  const unitSectionStartsHidden = !state.projectPick;
 
   container.innerHTML = `
     <div class="if-head">
       <h3 class="if-title">${escapeHTML(headingLabel)}</h3>
-      <p class="if-sub muted">Hangi iş paketinde, ne yaptın? 30 saniyede bitir.</p>
     </div>
     <div class="if-banner if-banner--hidden" role="status" aria-live="polite"></div>
     <form class="report-form inline-rapor-form" novalidate>
-      <div class="rm-step rm-step-1">
-        <div class="rm-field">
-          <label class="rm-label">Hangi iş paketi? <span class="req">*</span></label>
-          <div class="rm-typeahead">
-            <input type="text" class="rm-input rm-unit-input" autocomplete="off" placeholder="Kutu no, seri no veya kaynak ara…" aria-autocomplete="list" />
-            ${showProjectToggle ? `<label class="rm-show-all">
-              <input type="checkbox" class="rm-show-all-input" />
-              <span>Tüm iş paketlerini göster</span>
-            </label>` : ""}
-            <div class="rm-results hidden" role="listbox"></div>
-            <div class="rm-newunit hidden">
-              <label class="rm-sub">Kaynak / Tanım <span class="req">*</span>
-                <input type="text" class="rm-new-source" placeholder="48 / 120.5 / K75 ek kutu" maxlength="160" />
-              </label>
-              <label class="rm-sub">Kısa açıklama
-                <input type="text" class="rm-new-description" placeholder="Kutuda ne var?" maxlength="240" />
-              </label>
-              <button type="button" class="btn btn-secondary btn-sm rm-cancel-new">Listeye dön</button>
-            </div>
+
+      <div class="rm-field">
+        <label class="rm-label">Ne yaptın? <span class="req">*</span></label>
+        <textarea class="rm-textarea rm-note" rows="2" maxlength="500" required
+          placeholder="Örnek: ekiple haftalık toplantı yaptık, K48'i taradım, Drive klasörünü düzenledim."></textarea>
+        <div class="rm-counter">0 / 500</div>
+      </div>
+
+      ${showProjectPicker ? `
+      <div class="rm-field if-project-section">
+        <label class="rm-label">Hangi proje için? <em class="muted">(opsiyonel)</em></label>
+        <div class="if-project-pills" role="radiogroup" aria-label="Proje">
+          ${availableProjects.map((p) => `
+            <button type="button" class="if-pill" data-project-pick="${escapeHTML(p.id)}">${escapeHTML(p.label)}</button>
+          `).join("")}
+          <button type="button" class="if-pill if-pill-foundation" data-project-pick="foundation">Genel vakıf çalışması</button>
+        </div>
+        <p class="if-helper muted">${escapeHTML(projectHelperText)}</p>
+      </div>
+      ` : ""}
+
+      <div class="rm-field if-unit-section${unitSectionStartsHidden ? " if-hidden" : ""}">
+        <label class="rm-label">Hangi iş paketi? <em class="muted">(opsiyonel)</em></label>
+        <div class="rm-typeahead">
+          <input type="text" class="rm-input rm-unit-input" autocomplete="off" placeholder="Kutu no, seri no veya kaynak ara…" aria-autocomplete="list" />
+          <label class="rm-show-all">
+            <input type="checkbox" class="rm-show-all-input" />
+            <span>Tüm iş paketlerini göster</span>
+          </label>
+          <div class="rm-results hidden" role="listbox"></div>
+          <div class="rm-newunit hidden">
+            <label class="rm-sub">Kaynak / Tanım <span class="req">*</span>
+              <input type="text" class="rm-new-source" placeholder="48 / 120.5 / K75 ek kutu" maxlength="160" />
+            </label>
+            <label class="rm-sub">Kısa açıklama
+              <input type="text" class="rm-new-description" placeholder="Kutuda ne var?" maxlength="240" />
+            </label>
+            <button type="button" class="btn btn-secondary btn-sm rm-cancel-new">Listeye dön</button>
           </div>
+          <div class="rm-pill rm-selected-pill hidden">
+            <div class="rm-pill-main">
+              <div class="rm-pill-title"></div>
+              <div class="rm-pill-sub"></div>
+            </div>
+            <button type="button" class="rm-pill-clear" aria-label="Seçimi temizle">×</button>
+          </div>
+        </div>
+        <p class="if-helper muted">${escapeHTML(unitHelperText)}</p>
+      </div>
+
+      <div class="rm-field rm-status-row">
+        <span class="rm-label">Durum:</span>
+        <div class="rm-status-pills" role="radiogroup" aria-label="Durum">
+          <button type="button" class="rm-status-pill is-on" data-status="in_progress">Devam ediyor</button>
+          <button type="button" class="rm-status-pill" data-status="done">Bittim</button>
+          <button type="button" class="rm-status-pill rm-status-blocked" data-status="blocked">Takıldım</button>
         </div>
       </div>
 
-      <div class="rm-step rm-step-2 hidden">
-        <div class="rm-pill rm-selected-pill" role="status" aria-live="polite">
-          <div class="rm-pill-main">
-            <div class="rm-pill-title"></div>
-            <div class="rm-pill-sub"></div>
-          </div>
-          <button type="button" class="rm-pill-clear" aria-label="Seçimi temizle">×</button>
-        </div>
+      <div class="rm-field">
+        <label class="rm-label">Link <em class="muted">(varsa)</em></label>
+        <input type="url" class="rm-input rm-url" placeholder="https://drive.google.com/..." />
+        <div class="rm-helper hidden rm-url-helper"></div>
+      </div>
 
-        <div class="rm-field">
-          <label class="rm-label">Ne yaptın? <span class="req">*</span></label>
-          <textarea class="rm-textarea rm-note" rows="2" maxlength="500" required placeholder="Örnek: 40 fotoğrafı taradım, Drive'a yükledim."></textarea>
-          <div class="rm-counter">0 / 500</div>
-        </div>
-
-        <div class="rm-field rm-status-row">
-          <span class="rm-label">Durum:</span>
-          <div class="rm-status-pills" role="radiogroup" aria-label="Durum">
-            <button type="button" class="rm-status-pill is-on" data-status="in_progress">Devam ediyor</button>
-            <button type="button" class="rm-status-pill" data-status="done">Bitirdim</button>
-            <button type="button" class="rm-status-pill rm-status-blocked" data-status="blocked">Takıldım</button>
-          </div>
-        </div>
-
-        <div class="rm-field">
-          <label class="rm-label">Link <em class="muted">(varsa)</em></label>
-          <input type="url" class="rm-input rm-url" placeholder="https://drive.google.com/..." />
-          <div class="rm-helper hidden rm-url-helper"></div>
-        </div>
-
-        <div class="rm-actions">
-          <span class="status-line muted rm-message"></span>
-          <button type="submit" class="btn btn-primary rm-submit">Gönder</button>
-        </div>
+      <div class="rm-actions">
+        <span class="status-line muted rm-message"></span>
+        <button type="submit" class="btn btn-primary rm-submit" disabled>Gönder</button>
       </div>
     </form>
   `;
@@ -1292,9 +1351,46 @@ function renderInlineRaporForm({ container, projectFilter = "all", showProjectTo
     helper.innerHTML = `Ortak Drive klasörü: <a href="${escapeHTML(url)}" target="_blank" rel="noopener">${escapeHTML(url)}</a>`;
   });
 
-  function showStep(idx) {
-    $(".rm-step-1").classList.toggle("hidden", idx !== 1);
-    $(".rm-step-2").classList.toggle("hidden", idx !== 2);
+  function unitSectionVisible() {
+    return !!state.projectPick && state.projectPick !== "foundation";
+  }
+
+  function setProjectPick(value) {
+    // Toggle: tapping the active pill clears the choice.
+    const next = state.projectPick === value ? null : value;
+    state.projectPick = next;
+
+    // Update pill highlighting (no pill selected when next === null).
+    $all("[data-project-pick]").forEach((b) => {
+      b.classList.toggle("is-on", b.dataset.projectPick === next);
+    });
+
+    // Show/hide the unit section. Switching project also clears any unit
+    // already picked, since that unit may not belong to the new project.
+    const unitSection = $(".if-unit-section");
+    const willShow = unitSectionVisible();
+    if (unitSection) unitSection.classList.toggle("if-hidden", !willShow);
+    if (!willShow) {
+      // Reset unit selection silently — no focus side effect.
+      state.unit = null;
+      state.newUnit = false;
+      state.searchTerm = "";
+      state.results = [];
+      state.activeIndex = -1;
+      $(".rm-results")?.classList.add("hidden");
+      $(".rm-newunit")?.classList.add("hidden");
+      $(".rm-selected-pill")?.classList.add("hidden");
+      const input = $(".rm-unit-input");
+      if (input) { input.value = ""; input.classList.remove("hidden"); }
+      const t = $(".rm-pill-title"); if (t) t.textContent = "";
+      const s = $(".rm-pill-sub"); if (s) s.textContent = "";
+    } else {
+      // Switched into a real project — clear any stale results so the next
+      // focus re-runs the search against the new project filter.
+      state.results = [];
+      state.activeIndex = -1;
+      $(".rm-results")?.classList.add("hidden");
+    }
   }
 
   function renderResults() {
@@ -1345,36 +1441,48 @@ function renderInlineRaporForm({ container, projectFilter = "all", showProjectTo
     $(".rm-results")?.classList.add("hidden");
     $(".rm-newunit")?.classList.add("hidden");
     if (!unit) {
-      showStep(1);
+      // Cleared — show the typeahead input again, hide the pill.
       const input = $(".rm-unit-input");
       if (input) { input.value = ""; input.classList.remove("hidden"); input.focus(); }
+      $(".rm-selected-pill")?.classList.add("hidden");
       const t = $(".rm-pill-title"); if (t) t.textContent = "";
       const s = $(".rm-pill-sub"); if (s) s.textContent = "";
+      state.searchTerm = "";
+      state.results = [];
+      state.activeIndex = -1;
       return;
     }
+    // Picked — collapse the typeahead input into a pill.
+    $(".rm-unit-input")?.classList.add("hidden");
+    $(".rm-selected-pill")?.classList.remove("hidden");
     const t = $(".rm-pill-title"); if (t) t.textContent = unit.sourceIdentifier || archiveLabel(unit);
     const s = $(".rm-pill-sub"); if (s) s.textContent = (unit.contentDescription || unit.notes || "").slice(0, 80);
-    showStep(2);
   }
 
   function showNewUnit() {
+    // Liste dışı path needs a project context — without it we don't know
+    // which project the new unit belongs to. Anasayfa users must pick a
+    // project pill first; fixedProjectId tabs always satisfy this.
+    if (!unitSectionVisible()) return;
     state.newUnit = true;
     state.unit = null;
     $(".rm-results")?.classList.add("hidden");
     $(".rm-unit-input")?.classList.add("hidden");
     $(".rm-newunit")?.classList.remove("hidden");
+    $(".rm-selected-pill")?.classList.remove("hidden");
     const t = $(".rm-pill-title"); if (t) t.textContent = "Yeni iş paketi (liste dışı)";
     const s = $(".rm-pill-sub"); if (s) s.textContent = "Aşağıda kaynak/tanım ekle";
-    showStep(2);
     setTimeout(() => $(".rm-new-source")?.focus(), 30);
   }
 
   function cancelNewUnit() {
     state.newUnit = false;
     $(".rm-newunit")?.classList.add("hidden");
+    $(".rm-selected-pill")?.classList.add("hidden");
+    const t = $(".rm-pill-title"); if (t) t.textContent = "";
+    const s = $(".rm-pill-sub"); if (s) s.textContent = "";
     const input = $(".rm-unit-input");
     input?.classList.remove("hidden");
-    showStep(1);
     setTimeout(() => input?.focus(), 30);
   }
 
@@ -1403,6 +1511,13 @@ function renderInlineRaporForm({ container, projectFilter = "all", showProjectTo
     }
   }
 
+  function refreshSubmitEnabled() {
+    const submit = $(".rm-submit");
+    if (!submit) return;
+    const noteLen = ($(".rm-note")?.value || "").trim().length;
+    submit.disabled = noteLen < 3;
+  }
+
   function resetForm() {
     state.unit = null;
     state.newUnit = false;
@@ -1411,6 +1526,9 @@ function renderInlineRaporForm({ container, projectFilter = "all", showProjectTo
     state.results = [];
     state.activeIndex = -1;
     state.showAll = false;
+    // Project pick: clear on Anasayfa (back to "no choice"); pinned to
+    // fixedProjectId on per-project tabs.
+    state.projectPick = fixedProjectId || null;
     $(".rm-note").value = "";
     $(".rm-url").value = "";
     $(".rm-unit-input").value = "";
@@ -1422,12 +1540,18 @@ function renderInlineRaporForm({ container, projectFilter = "all", showProjectTo
     $all(".rm-status-pill").forEach((b) => {
       b.classList.toggle("is-on", b.dataset.status === "in_progress");
     });
+    $all("[data-project-pick]").forEach((b) => {
+      b.classList.toggle("is-on", b.dataset.projectPick === state.projectPick);
+    });
     $(".rm-results")?.classList.add("hidden");
     $(".rm-newunit")?.classList.add("hidden");
+    $(".rm-selected-pill")?.classList.add("hidden");
     $(".rm-unit-input")?.classList.remove("hidden");
     const t = $(".rm-pill-title"); if (t) t.textContent = "";
     const s = $(".rm-pill-sub"); if (s) s.textContent = "";
-    showStep(1);
+    const unitSection = $(".if-unit-section");
+    if (unitSection) unitSection.classList.toggle("if-hidden", !unitSectionVisible());
+    refreshSubmitEnabled();
   }
 
   // ---- Per-instance event wiring ----
@@ -1449,6 +1573,16 @@ function renderInlineRaporForm({ container, projectFilter = "all", showProjectTo
     }
     renderResults();
   });
+  unitInput?.addEventListener("blur", () => {
+    // Hide the dropdown after the input loses focus so the digitization
+    // empty-state notice can never sit on the page outside the picker. The
+    // delay lets click events on dropdown items fire before we hide.
+    setTimeout(() => {
+      if (document.activeElement !== unitInput) {
+        $(".rm-results")?.classList.add("hidden");
+      }
+    }, 180);
+  });
   unitInput?.addEventListener("keydown", (event) => {
     const list = $(".rm-results");
     if (list?.classList.contains("hidden")) return;
@@ -1466,7 +1600,6 @@ function renderInlineRaporForm({ container, projectFilter = "all", showProjectTo
       if (state.activeIndex >= 0 && state.activeIndex < items.length) {
         event.preventDefault();
         setSelectedUnit(items[state.activeIndex]);
-        setTimeout(() => $(".rm-note")?.focus(), 30);
       }
     } else if (event.key === "Escape") {
       list?.classList.add("hidden");
@@ -1483,21 +1616,34 @@ function renderInlineRaporForm({ container, projectFilter = "all", showProjectTo
   $(".rm-note")?.addEventListener("input", (event) => {
     const counter = $(".rm-counter");
     if (counter) counter.textContent = `${event.target.value.length} / 500`;
+    refreshSubmitEnabled();
   });
 
   container.addEventListener("click", (event) => {
+    const projectPillBtn = event.target.closest("[data-project-pick]");
+    if (projectPillBtn) {
+      setProjectPick(projectPillBtn.dataset.projectPick);
+      return;
+    }
     const pickBtn = event.target.closest("[data-rm-pick]");
     if (pickBtn) {
       const unit = archiveById[pickBtn.dataset.rmPick];
-      if (unit) {
-        setSelectedUnit(unit);
-        setTimeout(() => $(".rm-note")?.focus(), 30);
-      }
+      if (unit) setSelectedUnit(unit);
       return;
     }
     if (event.target.closest("[data-rm-new]")) { showNewUnit(); return; }
     if (event.target.closest(".rm-cancel-new")) { cancelNewUnit(); return; }
-    if (event.target.closest(".rm-pill-clear")) { setSelectedUnit(null); return; }
+    if (event.target.closest(".rm-pill-clear")) {
+      // Clearing the unit pill returns to the typeahead. Distinguish from
+      // the "Yeni iş paketi" pseudo-pill, which needs the new-unit panel
+      // restored to clean state too.
+      if (state.newUnit) {
+        cancelNewUnit();
+      } else {
+        setSelectedUnit(null);
+      }
+      return;
+    }
     const statusBtn = event.target.closest(".rm-status-pill");
     if (statusBtn) {
       $all(".rm-status-pill").forEach((b) => b.classList.remove("is-on"));
@@ -1508,21 +1654,30 @@ function renderInlineRaporForm({ container, projectFilter = "all", showProjectTo
 
   $(".inline-rapor-form")?.addEventListener("submit", (event) => {
     event.preventDefault();
-    submitInlineRapor({ container, state, $, $all, resetForm, showBanner, clearError, onSubmitSuccess });
+    submitInlineRapor({ container, state, $, $all, resetForm, showBanner, clearError, refreshSubmitEnabled, fixedProjectId, onSubmitSuccess });
   });
 
   const handle = {
     container,
     selectUnitById(id) {
       const u = archiveById[id];
-      if (u) setSelectedUnit(u);
+      if (!u) return;
+      // Selecting a unit externally (e.g. from the drill shortcut) needs a
+      // matching project context, otherwise the unit picker would be hidden.
+      if (!unitSectionVisible()) {
+        const projectId = u.projectId || PNB_PROJECT_ID;
+        setProjectPick(projectId);
+      }
+      setSelectedUnit(u);
       setTimeout(() => $(".rm-note")?.focus(), 30);
     },
     reset: resetForm,
     refreshResults() {
-      // Re-run the current search after underlying data changes.
+      // Re-run the current search after underlying data changes (e.g. a
+      // fresh archiveUnits load). Only repaints if results are visible.
       state.results = searchUnitsForReport(state, state.searchTerm || "");
-      if (!$(".rm-step-1").classList.contains("hidden")) renderResults();
+      const list = $(".rm-results");
+      if (list && !list.classList.contains("hidden")) renderResults();
     }
   };
   container.__inlineRaporHandle = handle;
@@ -1642,7 +1797,7 @@ async function publishTickerEntry({ effort, materialCategory, projectId, volunte
 // before the report doc references it). On success, the form is reset and a
 // green banner is shown for 3s; on failure, the form is left intact and a red
 // banner is shown.
-async function submitInlineRapor({ container, state, $, $all, resetForm, showBanner, clearError, onSubmitSuccess }) {
+async function submitInlineRapor({ container, state, $, $all, resetForm, showBanner, clearError, refreshSubmitEnabled, fixedProjectId, onSubmitSuccess }) {
   if (!cu || !db) return;
   clearError();
 
@@ -1650,12 +1805,21 @@ async function submitInlineRapor({ container, state, $, $all, resetForm, showBan
   const url = ($(".rm-url").value || "").trim();
   const status = state.status || "in_progress";
 
-  if (!state.unit && !state.newUnit) {
-    showBanner("error", "Lütfen bir iş paketi seç ya da liste dışı seçeneğini kullan.");
+  if (note.length < 3) {
+    showBanner("error", "Ne yaptığını kısa bir cümleyle yaz.");
     return;
   }
-  if (!note) {
-    showBanner("error", "Ne yaptığını kısa bir cümleyle yaz.");
+
+  // Resolve the project context. "foundation" pill or no pick → null.
+  // fixedProjectId tabs always have a concrete project here.
+  const projectId = state.projectPick && state.projectPick !== "foundation"
+    ? state.projectPick
+    : null;
+
+  // Liste dışı creates a new archiveUnit, which only makes sense in a project
+  // context. Without one we can't decide where the unit lives.
+  if (state.newUnit && !projectId) {
+    showBanner("error", "Yeni iş paketi eklemek için önce bir proje seç.");
     return;
   }
   if (state.newUnit) {
@@ -1679,15 +1843,16 @@ async function submitInlineRapor({ container, state, $, $all, resetForm, showBan
         }
       : null;
 
-    // "Liste dışı" path: create the new pending_review archiveUnit first so
-    // the report doc can reference its id.
     if (state.newUnit) {
       const src = ($(".rm-new-source").value || "").trim();
       const desc = ($(".rm-new-description").value || "").trim();
       const newUnitRef = doc(collection(db, "archiveUnits"));
+      const projectTitleForNew = projectId === PNB_PROJECT_ID
+        ? PNB_PROJECT_TITLE
+        : projectDisplayName(projectId);
       await setDoc(newUnitRef, {
-        projectId: REPORT_PROJECT_FILTER,
-        projectTitle: PNB_PROJECT_TITLE,
+        projectId,
+        projectTitle: projectTitleForNew,
         title: src,
         sourceIdentifier: src,
         contentDescription: desc,
@@ -1706,13 +1871,24 @@ async function submitInlineRapor({ container, state, $, $all, resetForm, showBan
       unitSnapshot = { sourceIdentifier: src, contentDescription: desc };
     }
 
+    // The three report shapes. unit takes precedence; project_general means
+    // a project was picked but no unit; foundation_general means neither.
+    const reportType = unitId
+      ? "unit"
+      : (projectId ? "project_general" : "foundation_general");
+
     const notePreview = note.slice(0, 80);
     const volunteerName = cp?.fullName || cu.email || "";
+    const projectName = projectId ? projectDisplayName(projectId) : "";
 
     const batch = writeBatch(db);
     const reportRef = doc(collection(db, "reports"));
     batch.set(reportRef, {
-      unitId,
+      // Project-first / unit-optional schema (Prompt K).
+      reportType,
+      projectId: projectId || null,
+      projectName: projectName || null,
+      unitId: unitId || null,
       unitSnapshot,
       note,
       effort: "medium",
@@ -1720,12 +1896,12 @@ async function submitInlineRapor({ container, state, $, $all, resetForm, showBan
       url: url || null,
       volunteerId: cu.uid,
       volunteerName,
-      projectId: REPORT_PROJECT_FILTER,
-      // Legacy fields kept for backwards compatibility with existing
-      // renderers, queries, and Firestore rules.
+      // Legacy fields kept for backwards compatibility with older renderers,
+      // queries, and Firestore rules. The new schema fields above are the
+      // canonical ones for new code.
       userUid: cu.uid,
       userEmail: cu.email || "",
-      archiveUnitId: unitId,
+      archiveUnitId: unitId || "",
       taskId: unitSnapshot?.sourceIdentifier || "",
       summary: note,
       hours: 0,
@@ -1749,7 +1925,9 @@ async function submitInlineRapor({ container, state, $, $all, resetForm, showBan
       updatedAt: serverTimestamp()
     });
 
-    if (unitId) {
+    // Only unit reports touch an archiveUnit. project_general and
+    // foundation_general have no unit to update.
+    if (reportType === "unit" && unitId) {
       batch.update(doc(db, "archiveUnits", unitId), {
         status,
         lastActivityAt: serverTimestamp(),
@@ -1763,29 +1941,58 @@ async function submitInlineRapor({ container, state, $, $all, resetForm, showBan
 
     await batch.commit();
 
-    // Public landing denormalization — best-effort, never blocks UX.
-    const submittedUnit = unitId ? archiveById[unitId] : null;
-    const seriesForCategory = state.unit?.seriesNo || submittedUnit?.seriesNo || "";
-    const materialCategory = materialCategoryFromSeriesNo(seriesForCategory);
-    const volunteerToken = await computeVolunteerToken(cu.uid);
-    if (submittedUnit) {
-      submittedUnit.status = status;
-      submittedUnit.pageCount = Number(submittedUnit.pageCount) || 0;
+    // Branched post-write side effects.
+    if (reportType === "unit") {
+      // Public landing denormalization — best-effort, never blocks UX.
+      const submittedUnit = unitId ? archiveById[unitId] : null;
+      const seriesForCategory = state.unit?.seriesNo || submittedUnit?.seriesNo || "";
+      const materialCategory = materialCategoryFromSeriesNo(seriesForCategory);
+      const volunteerToken = await computeVolunteerToken(cu.uid);
+      if (submittedUnit) {
+        submittedUnit.status = status;
+        submittedUnit.pageCount = Number(submittedUnit.pageCount) || 0;
+      }
+      publishTickerEntry({
+        effort: "medium",
+        materialCategory,
+        projectId,
+        volunteerToken
+      });
+      publishProjectStats(projectId);
+      await logActivity("report_submitted", "archiveUnit", unitId, {
+        reportId: reportRef.id,
+        unitLabel: unitSnapshot?.sourceIdentifier || "",
+        effort: "medium",
+        status
+      });
+    } else if (reportType === "project_general") {
+      // Project-themed but no specific unit. Ticker uses materialCategory:
+      // "genel" so the public landing line reads as general project work.
+      const volunteerToken = await computeVolunteerToken(cu.uid);
+      publishTickerEntry({
+        effort: "medium",
+        materialCategory: "genel",
+        projectId,
+        volunteerToken
+      });
+      // No publishProjectStats — project totals are unit-driven and nothing
+      // unit-level changed.
+      await logActivity("project_general_report_submitted", "project", projectId, {
+        reportId: reportRef.id,
+        notePreview,
+        effort: "medium",
+        status
+      });
+    } else {
+      // Foundation-general: ticker stays project-themed, so we skip it
+      // entirely. Only the activity log records the work.
+      await logActivity("foundation_general_report_submitted", "foundation", "", {
+        reportId: reportRef.id,
+        notePreview,
+        effort: "medium",
+        status
+      });
     }
-    publishTickerEntry({
-      effort: "medium",
-      materialCategory,
-      projectId: REPORT_PROJECT_FILTER,
-      volunteerToken
-    });
-    publishProjectStats(REPORT_PROJECT_FILTER);
-
-    await logActivity("report_submitted", "archiveUnit", unitId || "", {
-      reportId: reportRef.id,
-      unitLabel: unitSnapshot?.sourceIdentifier || "",
-      effort: "medium",
-      status
-    });
 
     resetForm();
     showBanner("success", "Rapor kaydedildi. Teşekkürler.");
@@ -1796,13 +2003,13 @@ async function submitInlineRapor({ container, state, $, $all, resetForm, showBan
     await lr();
 
     if (typeof onSubmitSuccess === "function") {
-      try { onSubmitSuccess({ unitId, reportId: reportRef.id }); } catch (e) { console.warn(e); }
+      try { onSubmitSuccess({ unitId: unitId || null, reportId: reportRef.id, reportType }); } catch (e) { console.warn(e); }
     }
   } catch (error) {
     showBanner("error", `Kaydedilemedi: ${error.message}`);
   } finally {
-    submitBtn.disabled = false;
     submitBtn.textContent = prevLabel;
+    refreshSubmitEnabled?.();
   }
 }
 
@@ -1830,9 +2037,32 @@ const PROJECT_TAB_REGISTRY = {
   pnb: {
     tab: "pnb",
     name: "Pertev Naili Boratav Arşivi",
+    shortName: "Pertev Naili Boratav",
     fallbackDescription: "Boratav'ın özel arşivinden mektuplar, fotoğraflar, ders notları ve halk hikâyelerini sayfa sayfa dijitalleştiriyoruz."
   }
 };
+
+// Display name helpers — use the long name in feed rows / headings, the short
+// name in compact pills. Falls back gracefully for unregistered project ids.
+function projectDisplayName(projectId) {
+  return PROJECT_TAB_REGISTRY[projectId]?.name || projectId || "";
+}
+function projectPillName(projectId) {
+  return PROJECT_TAB_REGISTRY[projectId]?.shortName
+    || PROJECT_TAB_REGISTRY[projectId]?.name
+    || projectId
+    || "";
+}
+
+// Derive reportType from a stored report doc. New writes set the field
+// directly; older docs (pre-Prompt K) didn't have it, so we infer from the
+// presence of unitId / projectId for backwards compatibility.
+function reportTypeOf(r) {
+  if (r?.reportType) return r.reportType;
+  if (r?.unitId || r?.archiveUnitId) return "unit";
+  if (r?.projectId) return "project_general";
+  return "foundation_general";
+}
 
 function renderVolunteerActiveProjects() {
   const list = document.getElementById("vpProjectsList");
@@ -2001,8 +2231,10 @@ function renderVolunteerReportPrimary() {
   // idempotent — they short-circuit if a form is already attached, so
   // re-running this on every Firestore data refresh won't blow away
   // in-progress volunteer input.
-  ensureInlineRaporForm("anasayfaInlineRapor", { projectFilter: "all", showProjectToggle: true });
-  ensureInlineRaporForm("pnbInlineRapor", { projectFilter: "pnb", showProjectToggle: false });
+  //   Anasayfa: project-agnostic — show project pills, no fixed project.
+  //   PNB tab:  project-locked — no pills, unit picker filters to "pnb".
+  ensureInlineRaporForm("anasayfaInlineRapor", { showProjectPicker: true, fixedProjectId: null });
+  ensureInlineRaporForm("pnbInlineRapor", { showProjectPicker: false, fixedProjectId: "pnb" });
   refreshAllInlineRaporForms();
   renderVolunteerActiveProjects();
   const list = document.getElementById("svRecentReports");
@@ -2016,14 +2248,34 @@ function renderVolunteerReportPrimary() {
     return;
   }
   list.innerHTML = myReports.map((r) => {
+    const reportType = reportTypeOf(r);
     const unitId = r.unitId || r.archiveUnitId || "";
-    const unit = unitId ? archiveById[unitId] : null;
-    const title = unit ? archiveLabel(unit)
-      : (r.unitSnapshot?.sourceIdentifier || r.taskId || "Birim");
+    let title;
+    let typePillClass;
+    let typePillLabel;
+    if (reportType === "foundation_general") {
+      title = "Vakıf çalışması";
+      typePillClass = "foundation";
+      typePillLabel = "Vakıf";
+    } else if (reportType === "project_general") {
+      const projName = r.projectName || projectDisplayName(r.projectId);
+      title = projName ? `${projName} (genel)` : "Proje (genel)";
+      typePillClass = "project";
+      typePillLabel = "Genel";
+    } else {
+      const unit = unitId ? archiveById[unitId] : null;
+      title = unit ? archiveLabel(unit)
+        : (r.unitSnapshot?.sourceIdentifier || r.taskId || "Birim");
+      typePillClass = "unit";
+      typePillLabel = "Kutu";
+    }
     const note = (r.note || r.summary || "").trim();
     const when = toDateFromTs(r.createdAt);
     const ago = when ? daysSinceLabel(daysSince(when)) : "";
+    // Foundation/project-general rows have no unit to drill into; row click
+    // still fires but the data-recent-unit lookup will return null.
     return `<button type="button" class="sv-recent-row" data-recent-unit="${escapeHTML(unitId)}">
+        <span class="report-type-pill report-type-pill--${typePillClass}" aria-hidden="true">${escapeHTML(typePillLabel)}</span>
         <div class="sv-recent-main">
           <div class="sv-recent-title">${escapeHTML(title)}</div>
           ${note ? `<div class="sv-recent-note">${escapeHTML(note.slice(0, 80))}</div>` : ""}
