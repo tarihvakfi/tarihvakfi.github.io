@@ -3,204 +3,513 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Tarih Vakfı</title>
-  <meta name="description" content="Tarih Vakfı – Türkiye'de tarih bilincini geliştirmek ve tarihî mirası korumak amacıyla çalışan bağımsız sivil toplum kuruluşu." />
+  <title>Tarih Vakfı — Geçmişin sesini birlikte koruyoruz</title>
+  <meta name="description" content="Tarih Vakfı arşivleri, gönüllü emeğiyle gün yüzüne çıkıyor. Pertev Naili Boratav arşivinden başlayarak kültürel hafızayı erişilebilir kılıyoruz." />
+  <meta property="og:title" content="Tarih Vakfı — Geçmişin sesini birlikte koruyoruz" />
+  <meta property="og:description" content="Tarih Vakfı arşivleri, gönüllü emeğiyle gün yüzüne çıkıyor." />
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="./css/main.css" />
+
+  <!-- Fonts: Lora (serif headings) + Inter (sans body). Loaded with display=swap. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&amp;family=Lora:wght@500;600&amp;display=swap" />
+
+  <!-- Critical above-the-fold styles inlined for first paint. The full
+       landing.css follows for everything below. -->
   <style>
-    .vol-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem}
-    .vol-card{text-align:center;padding:1rem;background:#fff;border:1px solid #d7d0c4;border-radius:18px;box-shadow:0 10px 35px rgba(25,28,32,.08)}
-    .vol-card strong{display:block;font-size:1rem}
-    .vol-card .vol-dept{font-size:.85rem;color:#5f6670;margin-top:.25rem}
-    .vol-card .vol-edit-area{margin-top:.5rem}
-    .vol-card input,.vol-card select{padding:.3rem .5rem;border:1px solid #d7d0c4;border-radius:6px;font-size:.85rem;margin:.15rem}
-    .vol-card .vol-save{margin-top:.35rem;padding:.3rem .7rem;background:#7c2d12;color:#fff;border:none;border-radius:999px;font-size:.82rem;cursor:pointer}
-    .vol-card .vol-edit-btn{margin-top:.5rem;padding:.25rem .6rem;background:transparent;border:1px solid #d7d0c4;border-radius:999px;font-size:.8rem;cursor:pointer}
+    :root {
+      --tv-cream: #faf6f0;
+      --tv-paper: #ffffff;
+      --tv-ink: #2b2018;
+      --tv-ink-soft: #6b5d50;          /* 5.95:1 on --tv-cream — WCAG AA */
+      --tv-terracotta: #b85c3a;        /* button background; white text → 4.5:1 */
+      --tv-terracotta-deep: #94462a;   /* darker variant for small text on cream — 5.7:1 */
+      --tv-teal: #4a7c7e;
+      --tv-sand: #e8dfd2;
+      --tv-gold: #c89b3c;
+      --tv-shadow: 0 1px 3px rgba(43, 32, 24, 0.06);
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body.landing {
+      margin: 0;
+      background: var(--tv-cream);
+      color: var(--tv-ink);
+      font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-size: 17px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    body.landing h1, body.landing h2, body.landing h3 {
+      font-family: "Lora", Georgia, "Times New Roman", serif;
+      font-weight: 600;
+      line-height: 1.25;
+      color: var(--tv-ink);
+      margin: 0 0 .6rem;
+    }
+    body.landing a { color: inherit; text-decoration: none; }
+    body.landing a:focus-visible,
+    body.landing button:focus-visible,
+    body.landing summary:focus-visible {
+      outline: 2px solid var(--tv-terracotta);
+      outline-offset: 3px;
+      border-radius: 4px;
+    }
+    .lp-container { width: min(1100px, calc(100% - 2.5rem)); margin: 0 auto; }
+    .lp-nav-wrap {
+      position: sticky; top: 0; z-index: 30;
+      background: rgba(250, 246, 240, 0.85);
+      transition: background .2s, box-shadow .2s, backdrop-filter .2s;
+    }
+    .lp-nav-wrap.scrolled {
+      background: rgba(250, 246, 240, 0.92);
+      backdrop-filter: saturate(180%) blur(12px);
+      -webkit-backdrop-filter: saturate(180%) blur(12px);
+      box-shadow: var(--tv-shadow);
+    }
+    .lp-nav {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1rem; min-height: 68px;
+    }
+    .lp-brand {
+      display: inline-flex; align-items: center; gap: .65rem;
+      font-family: "Lora", Georgia, serif;
+      font-weight: 600; font-size: 1.1rem; color: var(--tv-ink);
+      letter-spacing: -.005em;
+    }
+    .lp-brand img { width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0; }
+    .lp-nav-links { display: flex; align-items: center; gap: 1.75rem; }
+    .lp-nav-links a {
+      font-size: 14px; color: var(--tv-ink-soft);
+      transition: color .15s;
+    }
+    .lp-nav-links a:hover { color: var(--tv-ink); }
+    .lp-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: .4rem;
+      min-height: 42px; padding: 0 1.1rem;
+      font-size: 14px; font-weight: 500;
+      border-radius: 8px;
+      border: 1.5px solid transparent;
+      cursor: pointer;
+      transition: background .15s, color .15s, border-color .15s, transform .05s;
+      white-space: nowrap;
+    }
+    .lp-btn-primary {
+      background: var(--tv-terracotta);
+      color: #fff;
+      border-color: var(--tv-terracotta);
+    }
+    .lp-btn-primary:hover { background: #a04e30; border-color: #a04e30; }
+    .lp-btn-primary:active { transform: scale(.98); }
+    .lp-btn-secondary {
+      background: transparent;
+      color: var(--tv-ink);
+      border-color: var(--tv-ink);
+    }
+    .lp-btn-secondary:hover { background: var(--tv-ink); color: var(--tv-cream); }
+    .lp-nav-toggle {
+      display: none;
+      width: 42px; height: 42px;
+      background: transparent;
+      border: 1.5px solid var(--tv-sand);
+      border-radius: 8px;
+      cursor: pointer;
+      align-items: center; justify-content: center;
+    }
+    .lp-nav-toggle svg { width: 20px; height: 20px; stroke: var(--tv-ink); }
+
+    /* Hero */
+    .lp-hero { padding: 80px 0 64px; }
+    .lp-hero-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 3rem;
+      align-items: center;
+    }
+    .lp-eyebrow {
+      display: inline-block;
+      font-size: 12px; font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--tv-terracotta-deep);
+      margin: 0 0 1rem;
+    }
+    .lp-hero h1 {
+      font-size: clamp(2.1rem, 4.2vw, 3.1rem);
+      font-weight: 600;
+      letter-spacing: -.012em;
+      margin: 0 0 1.1rem;
+      max-width: 16ch;
+    }
+    .lp-hero-sub {
+      font-size: 1.0625rem;
+      color: var(--tv-ink-soft);
+      max-width: 52ch;
+      margin: 0 0 1.75rem;
+    }
+    .lp-hero-actions { display: flex; gap: .75rem; flex-wrap: wrap; }
+    .lp-hero-figure {
+      display: flex; justify-content: center; align-items: center;
+    }
+    .lp-illustration {
+      width: 100%; max-width: 240px; height: auto; opacity: .4;
+      color: var(--tv-ink-soft);
+    }
+
+    @media (max-width: 860px) {
+      .lp-nav-links { display: none; }
+      .lp-nav-toggle { display: inline-flex; }
+      body.landing { font-size: 16px; }
+      .lp-hero { padding: 56px 0 40px; }
+      .lp-hero-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+      .lp-hero-figure { order: -1; }
+      .lp-illustration { max-width: 180px; max-height: 180px; }
+      .lp-hero h1 { font-size: 2rem; }
+    }
   </style>
+
+  <link rel="stylesheet" href="./css/landing.css" />
 </head>
-<body>
-  <header class="site-header">
-    <div class="container nav">
-      <a class="brand" href="./">
-        <img src="./assets/logo-placeholder.svg" alt="Tarih Vakfı" />
+<body class="landing">
+
+  <!-- ============ Top navigation ============ -->
+  <div class="lp-nav-wrap" id="lpNavWrap">
+    <div class="lp-container lp-nav">
+      <a class="lp-brand" href="./" aria-label="Tarih Vakfı ana sayfa">
+        <img src="./assets/logo-placeholder.svg" alt="" />
         <span>Tarih Vakfı</span>
       </a>
-      <nav class="nav-links">
+      <nav class="lp-nav-links" aria-label="Bölümler">
+        <a href="#projeler">Çalışma Alanları</a>
+        <a href="#ilerleme">Gönüllülerimiz</a>
         <a href="#hakkinda">Hakkında</a>
-        <a href="#calisma-alanlari">Çalışma Alanları</a>
-        <a href="#gonulluler">Gönüllülerimiz</a>
-        <a href="#gonullu">Gönüllü Ol</a>
-        <a class="btn btn-primary" href="./auth/">Giriş / Başvuru</a>
+        <a href="#sss">SSS</a>
+        <a class="lp-btn lp-btn-primary" href="./auth/">Giriş / Başvuru</a>
       </nav>
+      <button class="lp-nav-toggle" id="lpNavToggle" aria-label="Menüyü aç" aria-expanded="false" aria-controls="lpMobileNav">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+      </button>
     </div>
-  </header>
+  </div>
+
+  <div class="lp-mobile-nav" id="lpMobileNav" hidden>
+    <button class="lp-mobile-close" id="lpMobileClose" aria-label="Menüyü kapat">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
+    </button>
+    <nav aria-label="Mobil menü">
+      <a href="#projeler" data-mn-link>Çalışma Alanları</a>
+      <a href="#ilerleme" data-mn-link>Gönüllülerimiz</a>
+      <a href="#hakkinda" data-mn-link>Hakkında</a>
+      <a href="#sss" data-mn-link>SSS</a>
+      <a class="lp-btn lp-btn-primary" href="./auth/">Giriş / Başvuru</a>
+    </nav>
+  </div>
 
   <main>
-    <section class="hero container">
-      <div>
-        <p class="eyebrow">1991'den bu yana</p>
-        <h1>Tarih bilincini toplumun her kesimine taşıyoruz</h1>
-        <p class="lead">
-          Tarih Vakfı; Türkiye'de tarih bilincini geliştirmek, tarihî mirası korumak ve toplumsal hafızayı güçlendirmek amacıyla çalışan bağımsız bir sivil toplum kuruluşudur.
-        </p>
-        <div class="actions">
-          <a class="btn btn-primary" href="#gonullu">Gönüllü ol</a>
-          <a class="btn btn-secondary" href="#hakkinda">Daha fazla bilgi</a>
-        </div>
-      </div>
-      <div class="card stack">
-        <h2>Rakamlarla Tarih Vakfı</h2>
-        <ul class="check-list">
-          <li><strong>30+ yıllık</strong> sivil toplum deneyimi</li>
-          <li><strong>Yüzlerce</strong> yayın ve araştırma projesi</li>
-          <li><strong>Uluslararası</strong> tarih kongresi geleneği</li>
-          <li><strong>Yerel tarih</strong> çalışmaları ve sözlü tarih projeleri</li>
-          <li><strong>Eğitim programları</strong> ve atölyeler</li>
-        </ul>
-      </div>
-    </section>
-
-    <section id="hakkinda" class="container section">
-      <h2>Hakkında</h2>
-      <div class="grid-3">
-        <article class="card">
-          <h3>Misyon</h3>
-          <p>Tarih bilincinin toplumun her kesimine yayılmasını sağlamak; tarihî mirasın korunması, araştırılması ve paylaşılması için çalışmalar yürütmek.</p>
-        </article>
-        <article class="card">
-          <h3>Vizyon</h3>
-          <p>Geçmişini tanıyan, tarihsel birikimini geleceğe taşıyan, eleştirel düşünce ve demokratik değerlere sahip bir toplum inşasına katkıda bulunmak.</p>
-        </article>
-        <article class="card">
-          <h3>Değerler</h3>
-          <p>Bağımsızlık, bilimsellik, şeffaflık, katılımcılık ve toplumsal sorumluluk temel ilkelerimizdir.</p>
-        </article>
-      </div>
-    </section>
-
-    <section id="calisma-alanlari" class="container section">
-      <h2>Çalışma Alanları</h2>
-      <div class="grid-3">
-        <article class="card">
-          <h3>Yayıncılık</h3>
-          <p>Akademik kitaplar, dergiler ve popüler tarih yayınlarıyla bilgiyi geniş kitlelere ulaştırıyoruz.</p>
-        </article>
-        <article class="card">
-          <h3>Eğitim</h3>
-          <p>Tarih eğitimi atölyeleri, öğretmen seminerleri ve müfredat geliştirme çalışmalarıyla genç nesillere ulaşıyoruz.</p>
-        </article>
-        <article class="card">
-          <h3>Araştırma</h3>
-          <p>Sözlü tarih projeleri, yerel tarih çalışmaları ve arşiv araştırmalarıyla toplumsal hafızayı belgeliyoruz.</p>
-        </article>
-        <article class="card">
-          <h3>Kongreler</h3>
-          <p>Uluslararası tarih kongreleri düzenleyerek akademik dünyayı ve toplumu bir araya getiriyoruz.</p>
-        </article>
-        <article class="card">
-          <h3>Dijital Arşiv</h3>
-          <p>Tarihî belgelerin dijitalleştirilmesi ve herkesin erişimine açılması için projeler yürütüyoruz.</p>
-        </article>
-        <article class="card">
-          <h3>Toplumsal Bellek</h3>
-          <p>Toplumsal hafızanın canlı tutulması ve gelecek kuşaklara aktarılması için etkinlikler düzenliyoruz.</p>
-        </article>
-      </div>
-    </section>
-
-    <section id="gonulluler" class="container section">
-      <h2>Gönüllülerimiz</h2>
-      <div id="volGrid" class="vol-grid">
-        <p class="muted">Yükleniyor...</p>
-      </div>
-    </section>
-
-    <section id="gonullu" class="container section">
-      <h2>Gönüllü Ol</h2>
-      <div class="card" style="max-width: 720px;">
-        <p>Tarih Vakfı'nın çalışmalarına gönüllü olarak katkıda bulunabilirsiniz. Hangi iş paketinin üzerinde çalışacağınıza siz karar verirsiniz; bekleyecek bir atama yok.</p>
-        <div class="timeline" style="margin-top: 1.5rem;">
-          <div class="timeline-item">
-            <strong>1. Kaydol ve onay bekle</strong>
-            <p>Google hesabınızla başvurun, kısaca kendinizi anlatın. Yöneticilerimiz hesabınızı onaylasın.</p>
-          </div>
-          <div class="timeline-item">
-            <strong>2. Giriş yap, arşiv iş paketlerini gör</strong>
-            <p>Onaylandıktan sonra panele girin. Hangi kutular, hangi seriler hazır — hepsi orada listelenir.</p>
-          </div>
-          <div class="timeline-item">
-            <strong>3. Bir iş paketi seç ve başla</strong>
-            <p>Hangi iş paketi üzerinde çalışmak istersen onu seç ve başla. Kimseyi beklemene gerek yok.</p>
-          </div>
-          <div class="timeline-item">
-            <strong>4. Kısa bir rapor bırak</strong>
-            <p>Çalıştıktan sonra "Rapor Ver" butonuna bas. Ne yaptığını bir iki cümle yazman yeterli.</p>
+    <!-- ============ Hero ============ -->
+    <section class="lp-hero">
+      <div class="lp-container lp-hero-grid">
+        <div>
+          <p class="lp-eyebrow">Tarih Vakfı arşiv projeleri</p>
+          <h1>Geçmişin sesini birlikte koruyoruz.</h1>
+          <p class="lp-hero-sub">Tarih Vakfı arşivleri, gönüllü emeğiyle gün yüzüne çıkıyor. Pertev Naili Boratav'ın 80 binden fazla sayfalık özel arşivinden başlayarak, kültürel hafızayı erişilebilir kılıyoruz.</p>
+          <div class="lp-hero-actions">
+            <a class="lp-btn lp-btn-primary" href="#projeler">Çalışmalarımızı keşfet</a>
+            <a class="lp-btn lp-btn-secondary" href="./auth/">Gönüllü ol</a>
           </div>
         </div>
-        <div class="actions" style="margin-top: 1.5rem;">
-          <a class="btn btn-primary" href="./auth/">Başvuru yap</a>
+        <figure class="lp-hero-figure" aria-hidden="true">
+          <!-- PLACEHOLDER — replace with commissioned illustration: hands turning the page of an old book -->
+          <svg class="lp-illustration" viewBox="0 0 240 220" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <!-- open book base -->
+            <path d="M30 150 Q120 130 210 150 L210 175 Q120 158 30 175 Z" />
+            <path d="M120 145 L120 175" />
+            <!-- left page (static) -->
+            <path d="M40 148 Q90 132 118 142 L118 100 Q90 92 40 102 Z" />
+            <line x1="55" y1="115" x2="105" y2="110" />
+            <line x1="55" y1="125" x2="100" y2="120" />
+            <line x1="55" y1="135" x2="95" y2="130" />
+            <!-- turning page (curved) -->
+            <path d="M122 142 Q150 80 198 78 Q186 110 178 142" />
+            <line x1="138" y1="116" x2="180" y2="110" />
+            <line x1="142" y1="126" x2="178" y2="122" />
+            <!-- right hand fingertips, gentle, on the turning page -->
+            <path d="M178 78 Q188 64 195 70 Q200 76 196 86" />
+            <path d="M186 70 Q190 60 196 64" />
+            <path d="M192 70 Q196 58 202 62" />
+            <!-- left hand fingertips supporting the spine -->
+            <path d="M44 148 Q34 142 30 132 Q26 124 32 120" />
+            <path d="M36 134 Q28 130 28 122" />
+          </svg>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ============ About strip ============ -->
+    <section class="lp-section lp-about" id="hakkinda">
+      <div class="lp-container">
+        <p class="lp-eyebrow">Hakkında</p>
+        <h2>1991'den bu yana, bağımsız bir hafıza çalışması.</h2>
+        <p class="lp-prose">Tarih Vakfı, Türkiye'de tarih bilincini geliştirmek ve tarihî mirası korumak için kurulmuş bağımsız bir sivil toplum kuruluşudur. Yayıncılık, eğitim, sözlü tarih ve arşiv dijitalleştirme alanlarında çalışıyoruz. Bu sayfa, gönüllülerin elinden geçen güncel arşiv emeğine açılan bir penceredir.</p>
+      </div>
+    </section>
+
+    <!-- ============ Live archive progress ============ -->
+    <section class="lp-section lp-progress" id="ilerleme">
+      <div class="lp-container">
+        <p class="lp-eyebrow">Şu an</p>
+        <h2>Şu an arşivde olan biten</h2>
+        <p class="lp-prose">Gönüllülerimiz her hafta yeni belgeleri gün yüzüne çıkarıyor. İşte güncel durum:</p>
+
+        <div class="lp-stats" id="lpStats" aria-live="polite">
+          <article class="lp-stat lp-stat-skeleton" data-stat="progress">
+            <p class="lp-stat-label">PNB arşivi ilerleme</p>
+            <p class="lp-stat-num"><span class="lp-skel" aria-hidden="true"></span></p>
+            <div class="lp-progress-bar"><span></span></div>
+            <p class="lp-stat-foot"><span class="lp-skel lp-skel-line" aria-hidden="true"></span></p>
+          </article>
+          <article class="lp-stat lp-stat-skeleton" data-stat="month">
+            <p class="lp-stat-label">Bu ay katkıda bulunan gönüllü</p>
+            <p class="lp-stat-num"><span class="lp-skel" aria-hidden="true"></span></p>
+            <p class="lp-stat-foot"><span class="lp-skel lp-skel-line" aria-hidden="true"></span></p>
+          </article>
+          <article class="lp-stat lp-stat-skeleton" data-stat="day">
+            <p class="lp-stat-label">Son 24 saat</p>
+            <p class="lp-stat-num"><span class="lp-skel" aria-hidden="true"></span></p>
+            <p class="lp-stat-foot"><span class="lp-skel lp-skel-line" aria-hidden="true"></span></p>
+          </article>
         </div>
+      </div>
+    </section>
+
+    <!-- ============ How it works ============ -->
+    <section class="lp-section lp-how" id="nasil">
+      <div class="lp-container">
+        <p class="lp-eyebrow">Akış</p>
+        <h2>Gönüllü olmak nasıl bir şey?</h2>
+        <p class="lp-prose">Atanan görevler yok, deadline yok, baskı yok. Vaktin olduğunda gir, bir iş paketi seç, birkaç saat çalış, ne yaptığını yaz. Hepsi bu.</p>
+
+        <ol class="lp-steps">
+          <li class="lp-step">
+            <figure class="lp-step-figure" aria-hidden="true">
+              <!-- PLACEHOLDER — replace with commissioned illustration: pen filling out a form -->
+              <svg class="lp-illustration" viewBox="0 0 200 160" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="30" y="20" width="110" height="130" rx="4" />
+                <line x1="48" y1="50" x2="120" y2="50" />
+                <line x1="48" y1="64" x2="120" y2="64" />
+                <line x1="48" y1="78" x2="100" y2="78" />
+                <line x1="48" y1="100" x2="120" y2="100" />
+                <line x1="48" y1="114" x2="110" y2="114" />
+                <!-- pen -->
+                <path d="M150 130 L170 110 L182 122 L162 142 Z" />
+                <line x1="155" y1="135" x2="170" y2="120" />
+                <path d="M148 132 L142 152 L162 144" />
+              </svg>
+            </figure>
+            <h3>Kaydol, kabul edilmeyi bekle</h3>
+            <p>Gönüllü Ol bağlantısından kısa bir form dolduruyorsun. Hangi konularda çalışmak istediğini, haftada ne kadar zaman ayırabileceğini soruyoruz. Birkaç gün içinde koordinatörlerimiz başvurunu inceleyip seni ekibe alıyor.</p>
+          </li>
+          <li class="lp-step">
+            <figure class="lp-step-figure" aria-hidden="true">
+              <!-- PLACEHOLDER — replace with commissioned illustration: stack of archive folders / boxes -->
+              <svg class="lp-illustration" viewBox="0 0 200 160" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <!-- box 1 -->
+                <rect x="30" y="40" width="60" height="70" rx="2" />
+                <line x1="30" y1="52" x2="90" y2="52" />
+                <line x1="50" y1="40" x2="50" y2="48" />
+                <line x1="70" y1="40" x2="70" y2="48" />
+                <!-- box 2 -->
+                <rect x="100" y="60" width="60" height="70" rx="2" />
+                <line x1="100" y1="72" x2="160" y2="72" />
+                <line x1="120" y1="60" x2="120" y2="68" />
+                <line x1="140" y1="60" x2="140" y2="68" />
+                <!-- folder peeking out -->
+                <path d="M40 30 L74 30 L80 36 L96 36 L96 44 L40 44 Z" />
+                <line x1="48" y1="38" x2="86" y2="38" />
+              </svg>
+            </figure>
+            <h3>İçinden gelen bir iş paketini seç</h3>
+            <p>Pano sana açık olduğunda "Rapor Ver" diyerek arşivdeki tüm iş paketlerini tarayabiliyorsun. Mektuplar, fotoğraflar, kitap metinleri, ders notları... Hangisinde çalışmak istersen onu seç. Kimse bekleme listesinde değil.</p>
+          </li>
+          <li class="lp-step">
+            <figure class="lp-step-figure" aria-hidden="true">
+              <!-- PLACEHOLDER — replace with commissioned illustration: open notebook with a short note being written -->
+              <svg class="lp-illustration" viewBox="0 0 200 160" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <!-- notebook -->
+                <path d="M28 30 Q30 26 34 26 L96 26 L100 30 L100 132 Q98 136 94 136 L34 136 Q30 136 28 132 Z" />
+                <path d="M100 30 L162 30 Q166 30 168 34 L168 136 Q166 140 162 140 L100 132" />
+                <line x1="100" y1="30" x2="100" y2="132" />
+                <!-- ruled lines -->
+                <line x1="42" y1="56" x2="92" y2="56" />
+                <line x1="42" y1="70" x2="86" y2="70" />
+                <line x1="108" y1="56" x2="158" y2="56" />
+                <line x1="108" y1="70" x2="152" y2="70" />
+                <line x1="108" y1="84" x2="140" y2="84" />
+                <!-- pen tip -->
+                <path d="M118 96 L150 64 L156 70 L124 102 Z" />
+                <line x1="120" y1="100" x2="118" y2="108" />
+              </svg>
+            </figure>
+            <h3>Çalış, kısa bir not bırak</h3>
+            <p>İstediğin kadar çalış: bir saat de olur, üç saat de. Bittiğinde bir iki cümle ne yaptığını yaz, varsa Drive linkini ekle, gönder. Sonra sıradaki sefere kadar hayatına geri dönüyorsun.</p>
+          </li>
+        </ol>
+
+        <p class="lp-soft-note">Çoğu gönüllümüz uzaktan çalışıyor. İstanbul'daki arşive fiziksel olarak gelmek isteyen birkaç kişi de var, ama büyük çoğunluğun katkısı evden bilgisayar başında oluyor.</p>
+      </div>
+    </section>
+
+    <!-- ============ Current projects ============ -->
+    <section class="lp-section lp-projects" id="projeler">
+      <div class="lp-container">
+        <p class="lp-eyebrow">Projeler</p>
+        <h2>Şu an üzerinde çalıştığımız arşivler</h2>
+
+        <article class="lp-project-card lp-project-feature">
+          <header class="lp-project-head">
+            <div>
+              <h3>Pertev Naili Boratav Arşivi</h3>
+              <p class="lp-project-people">Türk halkbilimi'nin kurucu isimlerinden Pertev Naili Boratav (1908–1998).</p>
+            </div>
+            <span class="lp-pill lp-pill-active">Devam ediyor</span>
+          </header>
+          <p class="lp-project-body">Boratav'ın özel kitaplığı, makaleleri, mektupları, ders notları, fotoğrafları ve halk hikâyesi derlemeleri Tarih Vakfı'na bağışlandı. Bu malzeme şu an gönüllülerimizin elinde sayfa sayfa dijital ortama aktarılıyor; her belge tek tek tasniflenip Drive'a yükleniyor, metadatası tablolara işleniyor.</p>
+          <dl class="lp-project-facts">
+            <div><dt>Kutu</dt><dd>104</dd></div>
+            <div><dt>Belge</dt><dd>14.099</dd></div>
+            <div><dt>Sayfa</dt><dd>80.378</dd></div>
+            <div><dt>Gönüllü</dt><dd>50+</dd></div>
+          </dl>
+          <div class="lp-project-progress" id="lpProjectProgress" aria-hidden="true">
+            <div class="lp-progress-bar"><span style="width:0%"></span></div>
+            <p class="lp-project-progress-text">Yükleniyor…</p>
+          </div>
+        </article>
+
+        <article class="lp-project-card lp-project-soon">
+          <header class="lp-project-head">
+            <div>
+              <h3>Yeni projeler hazırlanıyor</h3>
+              <p class="lp-project-people">Tarih Vakfı'nın kendi kurum arşivi ve diğer paydaş koleksiyonları sırada. Detaylar yakında.</p>
+            </div>
+            <span class="lp-pill lp-pill-soon">Yakında</span>
+          </header>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============ Recent activity ticker ============ -->
+    <section class="lp-section lp-activity" id="aktivite" hidden>
+      <div class="lp-container">
+        <p class="lp-eyebrow">Akan iş</p>
+        <h2>Son hareketler</h2>
+        <p class="lp-prose">Gönüllülerimizin son çalışmalarından anonimleştirilmiş özetler:</p>
+        <ol class="lp-ticker" id="lpTicker"></ol>
+        <p class="lp-soft-note lp-soft-note-tight">Bu liste sadece son hareketleri gösterir. Daha fazlası için bağışçı raporlarına bakabilirsiniz.</p>
+      </div>
+    </section>
+
+    <!-- ============ FAQ ============ -->
+    <section class="lp-section lp-faq" id="sss">
+      <div class="lp-container lp-faq-container">
+        <p class="lp-eyebrow">Sıkça sorulanlar</p>
+        <h2>Aklında olabilecek sorular</h2>
+
+        <details>
+          <summary>Gönüllü olmak için hangi yetkinliklere ihtiyacım var?</summary>
+          <p>Çoğu iş paketi için bilgisayar kullanabiliyor olmak ve dikkatli okuma yetisi yeterli. Belge tasniflerken sabırlı olmak fark yaratıyor. Osmanlıca okuyabilen, fotoğraf tasnifinde deneyimi olan veya akademik geçmişi olan gönüllüler için daha özel iş paketleri de var.</p>
+        </details>
+
+        <details>
+          <summary>Haftada ne kadar zaman ayırmam gerekiyor?</summary>
+          <p>Sabit bir taahhüt yok. Bazı gönüllülerimiz haftada iki saat ayırıyor, bazıları bir akşam dört saat çalışıp bir hafta dönmüyor. Sistem, "şu kadar yapacaksın" mantığıyla kurulmadı; vaktin olduğunda bir iş paketi seçip onu bitiriyorsun.</p>
+        </details>
+
+        <details>
+          <summary>Uzaktan çalışabilir miyim?</summary>
+          <p>Evet. Aslında çoğu gönüllümüz uzaktan çalışıyor. Dijitalleştirilmiş belgeler Google Drive üzerinden paylaşılıyor; tasnifleme tabloları da çevrim içi. Yalnızca arşive fiziksel olarak gelip kutu açan birkaç kişi İstanbul'da; geri kalan büyük çoğunluk evden katkı veriyor.</p>
+        </details>
+
+        <details>
+          <summary>Osmanlıca biliyorum, nasıl katkıda bulunabilirim?</summary>
+          <p>Boratav arşivinde Osmanlıca el yazmaları, eski mektuplar ve ders notları var. Profilinde Osmanlıca yazdığını belirtirsen, "Rapor Ver" akışındaki iş paketi listesinde bu malzemeler önce sana gösteriliyor. Az sayıda Osmanlıca okur olan ekiplerimiz için bu çok değerli.</p>
+        </details>
+
+        <details>
+          <summary>Lise öğrencisiyim, başvurabilir miyim?</summary>
+          <p>Tabii ki. Yaş sınırımız yok. Lise öğrencisi gönüllülerimizin tarihsel belgelere erken yaşta dokunması bizim için de değerli. Velinin kısa bir onay e-postası göndermesini istiyoruz, o kadar.</p>
+        </details>
+
+        <details>
+          <summary>İstanbul dışında yaşıyorum, sorun olur mu?</summary>
+          <p>Hayır, sorun değil. Türkiye'nin her şehrinden ve yurt dışından gönüllülerimiz var. Çalışma uzaktan yapıldığı için coğrafya bir kısıt değil. Yalnızca fiziksel arşive gelmek isteyenler için İstanbul randevusu gerekiyor.</p>
+        </details>
+
+        <details>
+          <summary>Çalıştığım belgeler nereye yükleniyor?</summary>
+          <p>Tarih Vakfı'nın ortak Drive klasörüne. Her iş paketinin kendi alt klasörü var; "Rapor Ver" ekranında o pakete özel bir bağlantı gösteriliyor. Yüklediğin dosyalar koordinatörler tarafından kontrol edildikten sonra arşivin kalıcı dijital koleksiyonuna ekleniyor.</p>
+        </details>
+
+        <details>
+          <summary>Belgelerle ilgili telif hakkı durumu nedir?</summary>
+          <p>Çalıştığın belgelerin telif hakları Tarih Vakfı veya bağışçı kurumlara aittir; gönüllü olarak senin emek katkın açıkça takdir edilir, fakat dijitalleştirilen materyalin yayın haklarına sahip olmazsın. Akademik atıfta bulunmak isteyen gönüllülerimiz için ayrı bir kullanım izni süreci var.</p>
+        </details>
+
+        <details>
+          <summary>Sertifika veriyor musunuz?</summary>
+          <p>Talep eden gönüllülere yıl sonunda Tarih Vakfı imzalı bir katkı belgesi düzenliyoruz. Üzerinde toplam çalışma saatin ve katkıda bulunduğun arşiv adı yazıyor. CV / başvuru dosyalarına eklemek isteyenler için pratik.</p>
+        </details>
+
+        <details>
+          <summary>Tarih Vakfı'na nasıl bağışta bulunabilirim?</summary>
+          <p>Bağış yapmak isteyenler için ayrı bir sayfamız var (yakında bu siteye taşınacak). Şimdilik <a href="mailto:bilgi@tarihvakfi.org.tr">bilgi@tarihvakfi.org.tr</a> adresine e-posta atarak bağış kanallarını ve dekont sürecini öğrenebilirsiniz. Aynî bağışlar (eski belge, fotoğraf, kitap) için de aynı adres geçerli.</p>
+        </details>
       </div>
     </section>
   </main>
 
-  <footer class="site-footer">
-    <div class="container footer-row">
-      <p>&copy; Tarih Vakfı</p>
-      <a href="./auth/">Gönüllü portalı</a>
+  <!-- ============ Footer ============ -->
+  <footer class="lp-footer">
+    <div class="lp-container lp-footer-grid">
+      <div class="lp-footer-col">
+        <p class="lp-footer-brand">
+          <img src="./assets/logo-placeholder.svg" alt="" width="32" height="32" />
+          <span>Tarih Vakfı</span>
+        </p>
+        <p>1991'den bu yana, tarih bilincini topluma yayan bağımsız bir sivil toplum kuruluşu.</p>
+        <p>Valikonağı Cad. Birlik Apt. 77 / 4<br>Nişantaşı, İstanbul</p>
+        <p><a href="mailto:bilgi@tarihvakfi.org.tr">bilgi@tarihvakfi.org.tr</a></p>
+      </div>
+      <div class="lp-footer-col">
+        <h4>Hızlı linkler</h4>
+        <ul>
+          <li><a href="#hakkinda">Hakkında</a></li>
+          <li><a href="#projeler">Çalışma Alanları</a></li>
+          <li><a href="./auth/">Gönüllü ol</a></li>
+          <li><a href="mailto:bilgi@tarihvakfi.org.tr?subject=Ba%C4%9F%C4%B1%C5%9F">Bağış yap</a></li>
+          <li><a href="#sss">SSS</a></li>
+        </ul>
+      </div>
+      <div class="lp-footer-col">
+        <h4>Bizi takip et</h4>
+        <ul class="lp-footer-social">
+          <li><a href="https://twitter.com/tarihvakfi" target="_blank" rel="noopener">X / Twitter</a></li>
+          <li><a href="https://www.instagram.com/tarihvakfi" target="_blank" rel="noopener">Instagram</a></li>
+          <li><a href="https://www.facebook.com/tarihvakfi" target="_blank" rel="noopener">Facebook</a></li>
+        </ul>
+        <ul style="margin-top:1rem">
+          <li><a href="#">KVKK ve gizlilik</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="lp-footer-bottom">
+      <p>© Tarih Vakfı, 1991–2026. Bağımsız sivil toplum kuruluşu.</p>
     </div>
   </footer>
 
   <script src="./js/config.firebase.js"></script>
-  <script type="module">
-  import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-  import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-  import{getFirestore,collection,getDocs,doc,getDoc,updateDoc,query,orderBy,limit,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-  if(window.__FIREBASE_CONFIG__){
-    var app=initializeApp(window.__FIREBASE_CONFIG__);
-    var db=getFirestore(app);
-    var auth=getAuth(app);
-    var isAdmin=false;
-    var allVols=[];
-    var volDocs={};
-    function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
-    async function loadVols(){
-      var s=await getDocs(query(collection(db,"users"),orderBy("createdAt","desc"),limit(200)));
-      var seen={};allVols=[];volDocs={};
-      s.docs.forEach(function(d){var u=d.data();if(u.status!=="approved")return;var n=u.fullName||"";if(!n||seen[n])return;seen[n]=true;allVols.push({uid:d.id,data:u});volDocs[d.id]=u});
-      allVols.sort(function(a,b){var an=(a.data.fullName||"").split(" ").pop().toLowerCase();var bn=(b.data.fullName||"").split(" ").pop().toLowerCase();return an<bn?-1:an>bn?1:0});
-      renderVols()
-    }
-    function renderVols(){
-      var el=document.getElementById("volGrid");
-      if(!allVols.length){el.innerHTML='<p class="muted">Henüz gönüllü yok.</p>';return}
-      el.innerHTML=allVols.map(function(v){
-        var d=v.data;
-        var h='<div class="vol-card" id="lv-'+v.uid+'"><strong>'+esc(d.fullName)+'</strong><div class="vol-dept">'+esc(d.department||"-")+'</div>';
-        if(isAdmin)h+='<button class="vol-edit-btn" data-lv-edit="'+v.uid+'">Düzenle</button>';
-        return h+'</div>'
-      }).join("")
-    }
-    onAuthStateChanged(auth,async function(user){
-      if(!user)return;
-      try{var snap=await getDoc(doc(db,"users",user.uid));if(snap.exists()){var ud=snap.data();if(ud.role==="admin"||ud.role==="coordinator"){isAdmin=true;renderVols()}}}catch(e){}
-    });
-    document.addEventListener("click",async function(e){
-      var eb=e.target.closest("[data-lv-edit]");
-      if(eb&&isAdmin){
-        var uid=eb.dataset.lvEdit;var card=document.getElementById("lv-"+uid);var vd=volDocs[uid];if(!vd)return;
-        var inp=card.querySelector("input");
-        if(inp){
-          var nn=card.querySelector("[data-ln]").value.trim();
-          var nd=card.querySelector("[data-ld]").value;
-          try{await updateDoc(doc(db,"users",uid),{fullName:nn||vd.fullName,department:nd||vd.department,updatedAt:serverTimestamp()});await loadVols()}catch(err){alert("Hata: "+err.message)}
-          return
-        }
-        card.innerHTML='<div class="vol-edit-area"><input data-ln value="'+esc(vd.fullName)+'" style="width:90%"/><select data-ld><option value="">Seçiniz</option><option'+(vd.department==="Eğitim"?" selected":"")+'>Eğitim</option><option'+(vd.department==="Arşiv"?" selected":"")+'>Arşiv</option><option'+(vd.department==="İletişim"?" selected":"")+'>İletişim</option><option'+(vd.department==="Etkinlik"?" selected":"")+'>Etkinlik</option><option'+(vd.department==="Dijital İçerik"?" selected":"")+'>Dijital İçerik</option></select><button class="vol-save" data-lv-edit="'+uid+'">Kaydet</button></div>'
-      }
-    });
-    await loadVols()
-  }
-  </script>
+  <script type="module" src="./js/landing.js"></script>
 </body>
 </html>

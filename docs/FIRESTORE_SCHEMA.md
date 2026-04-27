@@ -260,3 +260,29 @@ Proje iletişim matrisinden gelen toplantı/rapor rutinleri.
 - `targetId`: string
 - `metadata`: map
 - `createdAt`: timestamp
+
+## publicProjectStats
+
+Genel ağa açık özet sayılar. Kamuya açık `index.html` (kök) sayfası bu dokümanı **giriş yapmadan** okur. Her proje için bir doküman; doküman kimliği `projectId`'dir (PNB için `pnb`).
+
+- `totalPages`: number — projeye ait `archiveUnits` içindeki toplam sayfa sayısı (yalnızca `pending_review` olmayan birimler).
+- `donePages`: number — `status == "done"` birimlerin sayfa toplamı.
+- `totalUnits`: number — yine `pending_review` hariç toplam birim sayısı.
+- `doneUnits`: number — tamamlanmış birim sayısı.
+- `updatedAt`: timestamp — son refresh.
+
+`app/dashboard.js → publishProjectStats()` rapor kaydedildikten sonra ve PNB import commit'inde bu dokümanı yeniden yazar. Kurallar: herkes okuyabilir; yazmaya yalnızca `isApproved()` kullanıcı yetkilidir ve `affectedKeys` yalnızca yukarıdaki listeyi içerebilir (admin silebilir).
+
+## publicTicker
+
+Genel ağa açık, ekleyerek-büyüyen kısa rapor akışı. Yalnızca PII içermeyen, denormalize edilmiş alanları taşır. Kamuya açık landing sayfasının "Son hareketler" listesini bu koleksiyon besler.
+
+- `createdAt`: timestamp — server timestamp.
+- `effort`: `"small" | "medium" | "large"` — gönüllünün rapor modalindeki efor seçimi.
+- `materialCategory`: string — birimin `seriesNo` alanından `materialCategoryFromSeriesNo()` ile türetilen Türkçe kategori (`mektuplar`, `kitap metinleri`, `ders notları`, `fotoğraflar`, vb.). Lookup tablosu ihtiyaç doğdukça genişletilir.
+- `projectId`: string — bağlı proje (`pnb`).
+- `volunteerToken`: string — `SHA-256(uid | YYYY-MM | "tarih-vakfi-public-ticker")` çıktısının ilk 16 hex karakteri (64 bit). Aynı gönüllü için takvim ayı boyunca sabit, ay sonunda yenilenir. Halka açık okuyucu farklı `volunteerToken` sayarak son 30 günde **kaç ayrı gönüllü** rapor verdiğini sayabilir; ama token'dan gönüllü kimliğine geri dönüş mümkün değildir ve aylar arasında uzun vadeli takip yapılamaz.
+
+Yazmaya yalnızca `isApproved()` kullanıcı yetkilidir. Kurallar `affectedKeys.hasOnly([...])` ile şemayı kilitler; yani saldırgan/komprümize bir istemci `volunteerName`, `note`, `url` veya başka bir alanı bu koleksiyona kaçıramaz. Update/delete admin'e ayrılmıştır.
+
+> Bu iki koleksiyon, Firestore'un alan-bazlı (field-level) okuma yetkisi vermemesi nedeniyle **ayrı** tutulur. `reports` veya `archiveUnits` doğrudan halka açılırsa `volunteerName`, `note`, `lastReporterName`, `lastReportNotePreview` gibi PII alanları sızar. Denormalizasyon, gizliliği koruyabilmek için zorunlu bir tasarım kararıdır.

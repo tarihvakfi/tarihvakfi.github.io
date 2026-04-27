@@ -1363,6 +1363,97 @@ function closeReportModal(force = false) {
   document.body.classList.remove("modal-open");
 }
 
+// ---------- Public landing denormalization ----------
+//
+// The public landing page (root index.html) reads aggregate numbers and a
+// privacy-safe recent-activity ticker from /publicProjectStats and
+// /publicTicker. These two collections exist BECAUSE Firestore rules can't
+// expose only specific fields — to keep volunteer names and note text private,
+// we mirror only public-safe fields into separate docs at report-submit time.
+//
+// See firestore.rules for the read/write rules.
+
+// Map a unit's seriesNo (Pertev Naili Boratav archive numbering convention)
+// to a coarse human-readable category for the public ticker. Falls back to
+// "belgeler" for anything we don't have a rule for. The page never sees the
+// raw seriesNo or the unit identifier — only this category string.
+function materialCategoryFromSeriesNo(seriesNo) {
+  const s = String(seriesNo || "").trim();
+  if (!s) return "belgeler";
+  if (s.startsWith("170")) return "mektuplar";
+  if (s === "120.5" || s.startsWith("120.5")) return "kitap metinleri";
+  if (s.startsWith("120")) return "yayın metinleri";
+  if (s.startsWith("110")) return "ders notları";
+  if (s.startsWith("130")) return "makaleler";
+  if (s.startsWith("140")) return "halk hikâyeleri";
+  if (s.startsWith("150")) return "halkbilim derlemeleri";
+  if (s.startsWith("210")) return "ses kayıtları";
+  if (s.startsWith("220") || /^I\.?0?1/i.test(s)) return "fotoğraflar";
+  if (s.startsWith("230")) return "görseller";
+  return "belgeler";
+}
+
+// 16-hex-char token. Public reader can count distinct contributors over a
+// 30-day window but cannot reverse-map a token to a volunteer. Token is
+// stable within a calendar month so the count is meaningful; rotates each
+// month so long-term tracking is impossible.
+async function computeVolunteerToken(uid) {
+  if (!uid || !globalThis.crypto?.subtle) return "";
+  const monthSalt = new Date().toISOString().slice(0, 7); // YYYY-MM
+  const data = new TextEncoder().encode(`${uid}|${monthSalt}|tarih-vakfi-public-ticker`);
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  const arr = Array.from(new Uint8Array(hash));
+  return arr.map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
+}
+
+// Compute totals over the local archiveUnits cache. Cheap (in-memory).
+function computeProjectStats(projectId) {
+  const units = archiveUnits.filter((u) => (u.projectId || PNB_PROJECT_ID) === projectId
+    && (u.status || "") !== "pending_review");
+  const stats = units.reduce((acc, u) => {
+    const pages = Number(u.pageCount) || 0;
+    acc.totalPages += pages;
+    acc.totalUnits += 1;
+    if ((u.status || "") === "done") {
+      acc.donePages += pages;
+      acc.doneUnits += 1;
+    }
+    return acc;
+  }, { totalPages: 0, donePages: 0, totalUnits: 0, doneUnits: 0 });
+  return stats;
+}
+
+// Refresh the public aggregate doc from the local cache. Best-effort — we
+// never block the report submit on this. If the write fails (e.g. rules
+// reject because the volunteer's status flipped), we just log and continue.
+async function publishProjectStats(projectId) {
+  try {
+    const stats = computeProjectStats(projectId);
+    await setDoc(doc(db, "publicProjectStats", projectId), {
+      ...stats,
+      updatedAt: serverTimestamp()
+    });
+  } catch (error) {
+    console.warn("publicProjectStats güncellenemedi:", error?.message || error);
+  }
+}
+
+// Append a denormalized public ticker entry. No PII — just createdAt, effort,
+// materialCategory, projectId, and an opaque per-month volunteerToken.
+async function publishTickerEntry({ effort, materialCategory, projectId, volunteerToken }) {
+  try {
+    await addDoc(collection(db, "publicTicker"), {
+      createdAt: serverTimestamp(),
+      effort: effort || "medium",
+      materialCategory: materialCategory || "belgeler",
+      projectId: projectId || PNB_PROJECT_ID,
+      volunteerToken: volunteerToken || ""
+    });
+  } catch (error) {
+    console.warn("publicTicker yazılamadı:", error?.message || error);
+  }
+}
+
 // Submit handler. Single batched write where possible. Falls back to a
 // sequential write only for the "liste dışı" path (we need the new unit's id
 // before writing the report) — which is fine because both writes are short.
@@ -1510,6 +1601,31 @@ async function submitReportFromModal(event) {
     }
 
     await batch.commit();
+
+    // Public landing denormalization — best-effort. We compute the new
+    // unit state locally so the stats reflect this submit, then push to
+    // /publicTicker (one row) and /publicProjectStats/{projectId} (totals).
+    // Privacy: no PII leaves this branch. See firestore.rules.
+    const submittedUnit = unitId ? archiveById[unitId] : null;
+    const seriesForCategory = reportModalState.unit?.seriesNo
+      || submittedUnit?.seriesNo
+      || "";
+    const materialCategory = materialCategoryFromSeriesNo(seriesForCategory);
+    const volunteerToken = await computeVolunteerToken(cu.uid);
+    // Mirror this submit into the local cache so publicProjectStats sees the
+    // new status before we recompute totals (otherwise the next report's
+    // stats would be off by one until reloadPnb finishes below).
+    if (submittedUnit) {
+      submittedUnit.status = status;
+      submittedUnit.pageCount = Number(submittedUnit.pageCount) || 0;
+    }
+    publishTickerEntry({
+      effort,
+      materialCategory,
+      projectId: REPORT_PROJECT_FILTER,
+      volunteerToken
+    });
+    publishProjectStats(REPORT_PROJECT_FILTER);
 
     // Activity log — best-effort, separate write to keep the batch small.
     await logActivity("report_submitted", "archiveUnit", unitId || "", {
@@ -3892,6 +4008,10 @@ async function commitPnbImport() {
     if (message) message.textContent = `${writes.length} kayıt Firestore'a aktarıldı.`;
     await loadAllUsers();
     await reloadPnb();
+    // Seed the public landing aggregate so the % progress tile has data
+    // before any volunteer submits a report. publishProjectStats is a no-op
+    // if archiveUnits is empty, so it's safe to call unconditionally.
+    publishProjectStats(PNB_PROJECT_ID);
   } catch (error) {
     console.error(error);
     if (message) message.textContent = `Hata: ${error.message}`;
@@ -4191,9 +4311,9 @@ document.addEventListener("click", async (event) => {
   if (event.target.closest("[data-stop-row]")) {
     return; // let the anchor handle navigation; don't open the unit drill
   }
-  const recentRow = event.target.closest("[data-recent-report]");
-  if (recentRow) {
-    const unitId = recentRow.dataset.recentReport;
+  const staffFeedRow = event.target.closest("[data-recent-report]");
+  if (staffFeedRow) {
+    const unitId = staffFeedRow.dataset.recentReport;
     if (unitId) openUnitDrill(unitId);
     return;
   }
@@ -4240,9 +4360,9 @@ document.addEventListener("click", async (event) => {
     openReportModal();
     return;
   }
-  const recentRow = event.target.closest("[data-recent-unit]");
-  if (recentRow) {
-    const unitId = recentRow.dataset.recentUnit;
+  const volunteerRecentRow = event.target.closest("[data-recent-unit]");
+  if (volunteerRecentRow) {
+    const unitId = volunteerRecentRow.dataset.recentUnit;
     // Volunteers see the expanded unit detail view (same as staff) when
     // they jump in from "Son raporların" — consistent with the Pano spec.
     if (unitId) openUnitDrill(unitId);

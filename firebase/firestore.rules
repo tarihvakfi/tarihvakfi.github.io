@@ -273,5 +273,60 @@ service cloud.firestore {
       allow create: if isApproved();
       allow update, delete: if isAdmin();
     }
+
+    // Public landing page surfaces. These two collections exist purely to
+    // expose privacy-safe aggregates and a denormalized recent-activity
+    // ticker to unauthenticated visitors of the public site. They are
+    // populated by the authenticated dashboard at report-submit time.
+    //
+    // Why a separate collection: Firestore rules grant read at the document
+    // level, not the field level. Exposing /reports publicly would leak
+    // volunteerName, note text, and links. So we denormalize ONLY the public-
+    // safe shape into /publicTicker and /publicProjectStats and keep
+    // /reports + /archiveUnits locked.
+
+    match /publicTicker/{entryId} {
+      // Anyone can read. Each entry contains createdAt + effort +
+      // materialCategory + projectId + volunteerToken (a per-month hash of
+      // the volunteer's uid that lets the page count distinct contributors
+      // without revealing identity).
+      allow read: if true;
+
+      // Approved volunteers create their own ticker entry alongside their
+      // report. Schema is locked so a malicious / compromised client cannot
+      // smuggle volunteer names or note text in.
+      allow create: if isApproved() &&
+        request.resource.data.keys().hasOnly([
+          "createdAt", "effort", "materialCategory", "projectId", "volunteerToken"
+        ]) &&
+        request.resource.data.effort in ["small", "medium", "large"] &&
+        request.resource.data.volunteerToken is string &&
+        request.resource.data.volunteerToken.size() <= 64 &&
+        request.resource.data.materialCategory is string &&
+        request.resource.data.projectId is string;
+
+      // Admins can prune / fix old entries; nobody else can edit them.
+      allow update, delete: if isAdmin();
+    }
+
+    match /publicProjectStats/{projectId} {
+      // Aggregate doc per project — totalPages, donePages, totalUnits,
+      // doneUnits, updatedAt. Numbers only; no identifiers.
+      allow read: if true;
+
+      // Approved volunteers and the importer (admin) can refresh the
+      // aggregate. Schema locked to prevent extraneous fields from being
+      // smuggled into a public read.
+      allow create, update: if isApproved() &&
+        request.resource.data.keys().hasOnly([
+          "totalPages", "donePages", "totalUnits", "doneUnits", "updatedAt"
+        ]) &&
+        request.resource.data.totalPages is number &&
+        request.resource.data.donePages is number &&
+        request.resource.data.totalUnits is number &&
+        request.resource.data.doneUnits is number;
+
+      allow delete: if isAdmin();
+    }
   }
 }

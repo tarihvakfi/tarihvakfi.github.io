@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(git *)",
-      "Bash(node --check app/dashboard.js)"
+      "Bash(node --check app/dashboard.js)",
+      "Bash(node *)"
     ]
   }
 }

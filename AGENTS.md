@@ -76,6 +76,31 @@ Three collapsible subsections, each with a count in the header:
 
 These panels read entirely from the in-memory `archiveUnits` and `allUsers` caches that `reloadPnb()` and `loadAllUsers()` already maintain — no extra Firestore read costs beyond the staff `Son raporlar` paged feed.
 
+## Public landing page (root `index.html`)
+
+The public site at `/` is informational. It does not require Firebase Auth and reads only from two purpose-built collections that contain no PII:
+
+- **`publicProjectStats/{projectId}`** — one doc per project. Aggregate numbers only: `totalPages`, `donePages`, `totalUnits`, `doneUnits`, `updatedAt`. Refreshed by `publishProjectStats()` in `app/dashboard.js` after each report-submit batch commits, and seeded by the PNB importer.
+- **`publicTicker/{entryId}`** — append-only stream. Each entry has exactly five fields: `createdAt`, `effort` (∈ `small|medium|large`), `materialCategory` (a coarse category derived from the unit's `seriesNo` — see `materialCategoryFromSeriesNo()`), `projectId`, `volunteerToken`. Schema is enforced by Firestore rules so a compromised client cannot smuggle volunteer names or note text in.
+
+### Why two extra collections instead of opening `reports`
+Firestore rules grant read at the document level, not the field level. Exposing `reports` publicly would leak `volunteerName`, `note`, and `url` along with `createdAt`/`effort`. A separate denormalized surface is the only way to honor "public read of these fields, private read of these other fields" in the same collection's docs.
+
+### `volunteerToken` privacy property
+`volunteerToken = SHA-256(volunteerId | YYYY-MM | "tarih-vakfi-public-ticker").slice(0, 16)`. It lets the landing page compute "X distinct contributors in the last 30 days" by counting unique tokens — but a public reader cannot reverse the hash to a volunteerId, and the token rotates each calendar month so long-term cross-month tracking of any one volunteer is not possible. The full 32-byte hash is truncated to 16 hex chars (64 bits) — collision risk across the foundation's entire volunteer pool is negligible.
+
+### `materialCategory` derivation
+The lookup map in `materialCategoryFromSeriesNo()` (in `app/dashboard.js`) maps Boratav archive series-number prefixes to coarse Turkish category labels: `170` → `mektuplar`, `120.5` → `kitap metinleri`, `110` → `ders notları`, `220`/`I.01` → `fotoğraflar`, etc. Anything unmapped falls through to `belgeler`. Update the map when new series numbers come online.
+
+### What is NOT exposed to the public page
+- `reports` (entire collection) — closed.
+- `archiveUnits` — closed (carries `lastReporterName` + `lastReportNotePreview`, both private).
+- `users`, `projectPeople`, `availability`, `activityLogs` — all closed.
+- The landing's `js/landing.js` reads only `publicProjectStats/pnb` and the `publicTicker` collection. If either query fails or returns nothing, the relevant section is hidden gracefully — there is never a "0%" placeholder or an error message rendered to the visitor.
+
+### Stylesheet scoping
+The landing page uses `<body class="landing">`. All styles in `css/landing.css` are prefixed with `body.landing` (or with the unique `.lp-*` namespace) so they don't bleed into `/app/`, which is still rendered on top of Tabler.
+
 ## Pending review flow (admin Bakım)
 
 Volunteers can create `archiveUnits` with `status == "pending_review"` via the "Liste dışı / yeni bir iş" path in the report modal. The Bakım tab now opens with a "Gözden geçirme bekleyen yeni işler" card listing every such doc, sorted newest first. Each row offers three actions:
