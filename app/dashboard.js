@@ -5719,6 +5719,19 @@ async function generateTelegramCode() {
   const card = document.getElementById("tgLinkCard");
   if (!card) return;
   card.innerHTML = '<p class="empty">Kod oluşturuluyor…</p>';
+  // Diagnostic: probe an admin-only collection to verify isAdmin() resolves.
+  // telegramSessions has `allow read: if isAdmin();` — a successful read here
+  // means the rule's role check works for this user. Standalone try/catch
+  // so a denial does not abort the code-generate flow.
+  try {
+    const testRead = await getDocs(query(
+      collection(db, "telegramSessions"),
+      limit(1)
+    ));
+    console.log("[telegram-section] admin test read succeeded, docs:", testRead.size);
+  } catch (err) {
+    console.error("[telegram-section] admin test read FAILED:", err?.message, err?.code);
+  }
   try {
     let code = "";
     let placed = false;
