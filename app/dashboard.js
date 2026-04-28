@@ -5727,14 +5727,25 @@ async function generateTelegramCode() {
     // defensive, not a hot path.
     for (let attempt = 0; attempt < 10; attempt += 1) {
       code = String(Math.floor(100000 + Math.random() * 900000));
-      const existing = await getDoc(doc(db, "telegramLinkCodes", code));
+      let existing;
+      try {
+        existing = await getDoc(doc(db, "telegramLinkCodes", code));
+      } catch (err) {
+        console.error("[telegram-section] getDoc failed:", err?.message, err?.code, err?.stack);
+        throw err;
+      }
       if (existing.exists()) continue;
       const now = new Date();
-      await setDoc(doc(db, "telegramLinkCodes", code), {
-        uid: cu.uid,
-        createdAt: now.toISOString(),
-        expiresAt: new Date(now.getTime() + 600 * 1000).toISOString()
-      });
+      try {
+        await setDoc(doc(db, "telegramLinkCodes", code), {
+          uid: cu.uid,
+          createdAt: now.toISOString(),
+          expiresAt: new Date(now.getTime() + 600 * 1000).toISOString()
+        });
+      } catch (err) {
+        console.error("[telegram-section] setDoc failed:", err?.message, err?.code, err?.stack);
+        throw err;
+      }
       placed = true;
       break;
     }
