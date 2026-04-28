@@ -5744,6 +5744,7 @@ async function generateTelegramCode() {
     }
     showTelegramCode(code);
   } catch (error) {
+    console.error("[telegram-section] code generate failed:", error?.message, error?.code, error?.stack);
     card.innerHTML = `<p class="empty">Hata: ${escapeHTML(error.message || "")}</p>`;
   }
 }
@@ -5795,6 +5796,7 @@ async function unlinkTelegram() {
     }
     renderTelegramCard();
   } catch (error) {
+    console.error("[telegram-section] unlink failed:", error?.message, error?.code, error?.stack);
     alert(`Bağlantı kaldırılamadı: ${error.message}`);
   }
 }
