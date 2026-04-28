@@ -43,15 +43,19 @@ Roles:
 - /app/    -> volunteer dashboard
 - /admin/  -> coordinator/admin dashboard
 
-## Dashboard tab structure (Prompt N — role-scoped collapse)
+## Dashboard tab structure (Prompt P — assignment surfaces removed, staff PNB tab dropped)
 
-The dashboard now collapses to **3–4 tabs by role**:
+The dashboard collapses to **2–4 tabs by role**:
 
 | Role         | Tabs (in order)                          | Default landing |
 |--------------|------------------------------------------|-----------------|
 | volunteer    | Anasayfa · PNB · Duyurular              | `#anasayfa`    |
-| coordinator  | Bugün · PNB · Yönetim                   | `#bugun`       |
-| admin        | Bugün · PNB · Yönetim · Bakım           | `#bugun`       |
+| coordinator  | Bugün · Yönetim                          | `#bugun`       |
+| admin        | Bugün · Yönetim · Bakım                  | `#bugun`       |
+
+**Coordinator/admin no longer have a PNB tab.** The kanban view is no longer a primary management surface — staff read the report stream on Bugün to see what's happening. Volunteers still have PNB as their project workspace. A coordinator who manually navigates to `/app/#pnb` is redirected to `#bugun` by `resolveTab()`.
+
+**Assignment surfaces are removed across coordinator/admin views (Prompt P).** The data model still carries `assignedToUids` / `assignedToEmails` on `archiveUnits` and the rules' `selfClaimArchiveUnit` / `selfReleaseArchiveUnit` paths stay in `firestore.rules` as a hedge against future revival, but no UI displays them: removed in this prompt are the unit drill modal's "Atanan gönüllüler" panel and the in-edit assign select (kept hidden for the legacy save path), the channel-side stat row labelled "Atanan", the staff archive-card "Atanan: …" chip + assign select, the table-header "Atanan" column, the `Atanmamış arşiv birimi` warning text, and the side-effect in the task-create handler that used to write back into `archiveUnit.assignedToUids`. Tasks (the `tasks` collection) keep their own `assignedToUid` field and surface it as "→ {name}" inside the Yönetim feed — tasks are explicit one-off coordination items, not archive-unit assignments.
 
 Old tabs `Pano`, `İşler`, and `Rapor Yaz` are **gone**:
 - The Pano kanban moved under the PNB tab — both volunteer and coordinator now share `#tab-pnb`, with `#volunteerPnbView` and `#staffPnbView` blocks gated by `body.volunteer-shell` / `body.staff-shell`.

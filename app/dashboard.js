@@ -83,9 +83,9 @@ function isAdmin() {
 const TAB_ALIASES = {
   tasks: "pnb",
   home: "anasayfa",       // resolved further by role inside resolveTab()
-  pano: "pnb",
+  pano: "pnb",            // legacy alias; volunteers land on PNB tab
   reports: "anasayfa",    // legacy "Rapor Yaz" tab → anasayfa for volunteers,
-                          // bugun for staff (handled by allowedTabsForRole below)
+                          // bugun for staff (handled inside resolveTab)
   announcements: "duyurular",
   management: "yonetim",
   maintenance: "bakim"
@@ -96,9 +96,10 @@ function defaultTabForRole() {
   return "anasayfa";
 }
 
+// Coordinator/admin tab set narrowed in Prompt P — PNB is volunteer-only now.
 function allowedTabsForRole() {
-  if (isAdmin()) return ["bugun", "pnb", "yonetim", "bakim"];
-  if (isStaff()) return ["bugun", "pnb", "yonetim"];
+  if (isAdmin()) return ["bugun", "yonetim", "bakim"];
+  if (isStaff()) return ["bugun", "yonetim"];
   return ["anasayfa", "pnb", "duyurular"];
 }
 
@@ -108,6 +109,10 @@ function resolveTab(rawName) {
   // Legacy aliases collapse "home"/"reports" to "anasayfa"; for staff,
   // remap to "bugun" so old anchor links still land on the role's home.
   if ((rawName === "home" || rawName === "reports") && isStaff()) name = "bugun";
+  // Coordinator/admin manually navigating to #pnb (or "pano" via the alias
+  // above) ends up here — there's no staff PNB tab anymore, so bounce them
+  // to the report stream on Bugün.
+  if (name === "pnb" && isStaff()) name = "bugun";
   const allowed = allowedTabsForRole();
   if (allowed.includes(name)) return name;
   return defaultTabForRole();
@@ -2390,30 +2395,57 @@ function renderCoordinatorHomeHeader() {
   }
 }
 
-// Per-line item shape: { key, icon, text, action: { label, onClick } | null }.
-// The Dikkat card lists only items where the underlying count > 0; if every
-// count is zero, a single "all clear" line replaces the whole list.
-function computeCoordinatorAttentionItems() {
-  const now = Date.now();
-  const items = [];
-
-  // 1. Pending volunteer applications.
-  const pendingCount = pendingApplicationCount || 0;
-  if (pendingCount > 0) {
-    items.push({
-      key: "pending-applications",
-      icon: "⚠",
-      text: `${pendingCount} yeni gönüllü onayı bekliyor`,
-      actionLabel: "İncele",
-      action: () => {
-        sw("yonetim");
-        document.getElementById("yonetimPendingCard")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    });
+// ---- Bugün — bekleyen onaylar ----
+//
+// Pending users surface as inline approve/reject rows at the top of Bugün.
+// The whole section auto-hides when there are no pending users.
+function renderBugunPendingApprovals() {
+  const section = document.getElementById("bugunPendingSection");
+  const list = document.getElementById("bugunPendingList");
+  const countEl = document.getElementById("bugunPendingCount");
+  if (!section || !list) return;
+  const pending = (allUsers || []).filter((u) => u?.data?.status === "pending");
+  if (!pending.length) {
+    section.classList.add("hidden");
+    list.innerHTML = "";
+    if (countEl) countEl.textContent = "";
+    return;
   }
+  section.classList.remove("hidden");
+  if (countEl) countEl.textContent = `(${pending.length})`;
+  pending.sort((a, b) => (toDateFromTs(b.data?.createdAt)?.getTime() || 0) - (toDateFromTs(a.data?.createdAt)?.getTime() || 0));
+  list.innerHTML = pending.map((u) => {
+    const name = u.data?.fullName || u.data?.email || "—";
+    const email = u.data?.email || "";
+    const created = toDateFromTs(u.data?.createdAt);
+    const ago = created ? relativeTimeLabel(created) : "—";
+    return `<div class="bugun-pending-row" data-uid="${escapeHTML(u.uid)}">
+      <div class="bugun-pending-main">
+        <strong>${escapeHTML(name)}</strong>
+        <span class="muted">${escapeHTML(email)} · kayıt: ${escapeHTML(ago)}</span>
+      </div>
+      <div class="bugun-pending-actions">
+        <button type="button" class="btn btn-primary btn-sm" data-bugun-approve="${escapeHTML(u.uid)}">Onayla</button>
+        <button type="button" class="btn btn-secondary btn-sm" data-bugun-reject="${escapeHTML(u.uid)}">Reddet</button>
+      </div>
+    </div>`;
+  }).join("");
+}
 
-  // 2. Silent volunteers (≥ 21 days without a report).
-  const silentVolunteers = (allUsers || []).filter((u) => {
+// ---- Bugün — one-line warnings ----
+//
+// Only conditions with count > 0 render. When all three are zero, the parent
+// section is hidden — no "everything's fine" reassurance line.
+function renderBugunWarnings() {
+  const section = document.getElementById("bugunWarningsSection");
+  const list = document.getElementById("bugunWarnings");
+  if (!section || !list) return;
+
+  const now = Date.now();
+  const lines = [];
+
+  // Silent volunteers (regular cadence, ≥ 21 days no report).
+  const silent = (allUsers || []).filter((u) => {
     const data = u?.data || {};
     if (data.role !== "volunteer") return false;
     if (data.status !== "approved") return false;
@@ -2422,132 +2454,112 @@ function computeCoordinatorAttentionItems() {
     if (!last) return true;
     return (now - last.getTime()) >= 21 * 86400000;
   });
-  if (silentVolunteers.length > 0) {
-    items.push({
-      key: "silent-volunteers",
-      icon: "⚠",
-      text: `${silentVolunteers.length} sessiz gönüllü (≥21 gün rapor yok)`,
-      actionLabel: "Aç →",
-      expand: () => silentVolunteers.map((u) => {
-        const name = u.data?.fullName || u.data?.email || "—";
-        const days = u.data?.lastReportAt ? Math.floor((now - toDateFromTs(u.data.lastReportAt).getTime()) / 86400000) : null;
-        const ago = days != null ? `${days} gün önce` : "hiç rapor yok";
-        return `<div class="dikkat-expand-row">
-          <span>${escapeHTML(name)} · ${escapeHTML(ago)}</span>
-          <button type="button" class="btn btn-secondary btn-sm" data-nudge-email="${escapeHTML(u.data?.email || "")}" data-nudge-name="${escapeHTML(name)}" data-nudge-days="${escapeHTML(String(days || ""))}">Hatırlatma gönder</button>
-        </div>`;
-      }).join("")
+  if (silent.length) {
+    lines.push({
+      key: "silent",
+      text: `${silent.length} sessiz gönüllü (≥21 gün rapor yok).`,
+      action: () => {
+        sw("yonetim");
+        // Pre-set the Yönetim filter to "silent" so the user lands on the right slice.
+        document.querySelectorAll("[data-yonetim-filter]").forEach((b) => b.classList.toggle("is-on", b.dataset.yonetimFilter === "silent"));
+        if (typeof renderYonetimUserDirectory === "function") renderYonetimUserDirectory();
+        document.getElementById("yonetimUsersCard")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
     });
   }
 
-  // 3. Blocked archive units.
-  const blocked = (archiveUnits || []).filter((u) => (u.status || "") === "blocked");
-  if (blocked.length > 0) {
-    items.push({
-      key: "blocked-units",
-      icon: "⚠",
-      text: `${blocked.length} takılan iş`,
-      actionLabel: "Aç →",
-      expand: () => blocked.map((unit) => {
-        const reporter = unit.lastReporterName || (unit.lastReporterId ? findUserName(unit.lastReporterId) : "—");
-        const note = (unit.lastReportNotePreview || unit.blockerNote || "").trim();
-        return `<div class="dikkat-expand-row" data-drill-unit="${escapeHTML(unit.id)}" role="button" tabindex="0">
-          <span><strong>${escapeHTML(unit.sourceIdentifier || archiveLabel(unit))}</strong>${note ? ` · ${escapeHTML(note.slice(0, 60))}` : ""}</span>
-          <span class="muted" style="font-size:.85rem">${escapeHTML(reporter)}</span>
-        </div>`;
-      }).join("")
+  // Blocked archive units.
+  const blocked = (archiveUnits || []).filter((u) => (u.status || "") === "blocked").length;
+  if (blocked) {
+    lines.push({
+      key: "blocked",
+      text: `${blocked} takılan iş paketi.`,
+      action: null  // no useful staff destination after PNB tab removed
     });
   }
 
-  // 4. Stale units (60+ days inactivity, not done, not pending_review).
+  // Stale units (60+ days inactivity, not done/pending_review).
   const staleThreshold = 60 * 86400000;
   const stale = (archiveUnits || []).filter((u) => {
     const status = u.status || "not_started";
     if (status === "done" || status === "pending_review") return false;
     const last = toDateFromTs(u.lastActivityAt || u.latestReportAt);
-    if (!last) return true; // never touched counts as stale
+    if (!last) return true;
     return (now - last.getTime()) >= staleThreshold;
-  });
-  if (stale.length > 0) {
-    items.push({
-      key: "stale-units",
-      icon: "⚠",
-      text: `${stale.length} uzun süredir dokunulmamış birim (60+ gün)`,
-      actionLabel: "Aç →",
-      expand: () => stale.slice(0, 30).map((unit) => {
-        const last = toDateFromTs(unit.lastActivityAt || unit.latestReportAt);
-        const ago = last ? daysSinceLabel(daysSince(last)) : "hiç rapor yok";
-        return `<div class="dikkat-expand-row" data-drill-unit="${escapeHTML(unit.id)}" role="button" tabindex="0">
-          <span>${escapeHTML(unit.sourceIdentifier || archiveLabel(unit))}</span>
-          <span class="muted" style="font-size:.85rem">${escapeHTML(ago)}</span>
-        </div>`;
-      }).join("") + (stale.length > 30 ? `<div class="dikkat-expand-row muted" style="font-size:.85rem">+${stale.length - 30} daha…</div>` : "")
+  }).length;
+  if (stale) {
+    lines.push({
+      key: "stale",
+      text: `${stale} uzun süredir dokunulmamış birim.`,
+      action: null
     });
   }
 
-  // 5. Pending-review units (Liste dışı queue — deprecated path but legacy entries surface).
-  const pendingReview = (archiveUnits || []).filter((u) => (u.status || "") === "pending_review");
-  if (pendingReview.length > 0) {
-    items.push({
-      key: "pending-review",
-      icon: "⚠",
-      text: `${pendingReview.length} gözden geçirme bekleyen yeni iş paketi`,
-      actionLabel: "Aç →",
-      action: () => {
-        if (isAdmin()) {
-          sw("bakim");
-          document.getElementById("pendingReviewCard")?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
-      }
-    });
-  }
-
-  return items;
-}
-
-function renderCoordinatorDikkat() {
-  const list = document.getElementById("dikkatList");
-  if (!list) return;
-  const items = computeCoordinatorAttentionItems();
-  if (!items.length) {
-    list.innerHTML = `<div class="dikkat-row dikkat-row--ok"><span class="dikkat-icon">✓</span><span class="dikkat-text">Bugün dikkat edilecek bir şey yok.</span></div>`;
+  if (!lines.length) {
+    section.classList.add("hidden");
+    list.innerHTML = "";
     return;
   }
-  list.innerHTML = items.map((item, idx) => {
-    const expandable = typeof item.expand === "function";
-    const actionAttrs = expandable
-      ? `data-dikkat-toggle="${escapeHTML(item.key)}"`
-      : `data-dikkat-action="${escapeHTML(item.key)}"`;
-    return `<div class="dikkat-row" data-dikkat-key="${escapeHTML(item.key)}">
-      <span class="dikkat-icon">${escapeHTML(item.icon)}</span>
-      <span class="dikkat-text">${escapeHTML(item.text)}</span>
-      <button type="button" class="btn btn-secondary btn-sm dikkat-action" ${actionAttrs}>${escapeHTML(item.actionLabel)}</button>
-    </div>${expandable ? `<div class="dikkat-expand hidden" data-dikkat-expand="${escapeHTML(item.key)}">${item.expand()}</div>` : ""}`;
+  section.classList.remove("hidden");
+  list.innerHTML = lines.map((line) => {
+    const actionBtn = line.action
+      ? `<button type="button" class="btn btn-secondary btn-sm" data-bugun-warn-action="${escapeHTML(line.key)}">Aç →</button>`
+      : "";
+    return `<div class="bugun-warning-row" data-bugun-warn="${escapeHTML(line.key)}">
+      <span class="bugun-warning-icon">⚠</span>
+      <span class="bugun-warning-text">${escapeHTML(line.text)}</span>
+      ${actionBtn}
+    </div>`;
   }).join("");
 }
 
-// Coordinator-wide Son raporlar — same compact log as the volunteer side,
-// extended with a volunteer-name column and click-to-expand for the full
-// note. Reuses the existing rd cache (loaded via lr() / loadStaffRecentReports).
+// Bekleyen-onay action dispatcher. Kept module-scoped so the click delegation
+// can call it without re-running render to find the right item.
+const bugunWarningActions = {
+  silent: () => {
+    sw("yonetim");
+    document.querySelectorAll("[data-yonetim-filter]").forEach((b) => b.classList.toggle("is-on", b.dataset.yonetimFilter === "silent"));
+    if (typeof renderYonetimUserDirectory === "function") renderYonetimUserDirectory();
+    document.getElementById("yonetimUsersCard")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+};
+
+// ---- Bugün — Son raporlar (the coordinator's main workspace) ----
+//
+// Renders every loaded report (full staffRecentDocs, not just the first 8).
+// Pagination is via the existing "Daha fazla yükle" button which calls
+// loadStaffRecentReports(false). Click a row to expand inline; click again
+// to collapse.
 function renderCoordinatorRecentReports() {
   const list = document.getElementById("bugunRecentList");
+  const moreHint = document.getElementById("bugunRecentMoreHint");
+  const moreBtn = document.getElementById("bugunRecentMoreBtn");
   if (!list) return;
-  // Prefer the staff paged feed if it's been loaded; fall back to the global
-  // rd cache otherwise. Both are arrays of { id, data } / dict-of-objects.
-  let docs = [];
+
+  // Prefer the staff paged feed; fall back to the global rd cache so a fresh
+  // session (where loadStaffRecentReports hasn't completed yet) still shows
+  // something instead of "Henüz rapor yok".
+  let docs;
   if (Array.isArray(staffRecentDocs) && staffRecentDocs.length) {
-    docs = staffRecentDocs.slice(0, 8).map((d) => ({ id: d.id, ...d.data }));
+    docs = staffRecentDocs.map((d) => ({ id: d.id, ...d.data }));
   } else {
     docs = Object.entries(rd || {})
       .map(([id, data]) => ({ id, ...data }))
-      .sort((a, b) => (toDateFromTs(b.createdAt)?.getTime() || 0) - (toDateFromTs(a.createdAt)?.getTime() || 0))
-      .slice(0, 8);
+      .sort((a, b) => (toDateFromTs(b.createdAt)?.getTime() || 0) - (toDateFromTs(a.createdAt)?.getTime() || 0));
   }
+
   if (!docs.length) {
     list.innerHTML = '<p class="sv-log-empty">Henüz rapor yok.</p>';
+    if (moreHint) moreHint.textContent = "";
+    if (moreBtn) moreBtn.classList.add("hidden");
     return;
   }
   list.innerHTML = docs.map((r) => renderCoordinatorReportLogRow(r)).join("");
+  if (moreHint) moreHint.textContent = `${docs.length} rapor gösteriliyor.`;
+  if (moreBtn) {
+    // staffRecentExhausted is set true when the last page returned < 30 docs.
+    moreBtn.classList.toggle("hidden", staffRecentExhausted === true || !Array.isArray(staffRecentDocs) || !staffRecentDocs.length);
+  }
 }
 
 function renderCoordinatorReportLogRow(r) {
@@ -2635,155 +2647,22 @@ function closeCoordinatorReportModal() {
   document.body.classList.remove("modal-open");
 }
 
-// Single entry point that fills every Bugün-tab card. Called after data
-// loads (lh / lr / lu / loadAllUsers / reloadPnb), and also on demand from
-// the refresh button in the Son raporlar header.
+// Single entry point that fills every Bugün-tab section. Called from
+// renderHomeOverview after each data-load stage finishes, and on demand
+// from the refresh button in the Son raporlar header.
 function renderBugun() {
   if (!isStaff()) return;
   renderCoordinatorHomeHeader();
-  renderCoordinatorDikkat();
+  renderBugunPendingApprovals();
+  renderBugunWarnings();
   renderCoordinatorRecentReports();
 }
 
-// ---------- Staff PNB tab ----------
-//
-// Three sections: progress, kanban (with drag-drop + search), and a list
-// of volunteers active on this project. Re-uses the existing renderKanban
-// /panoCard machinery via a parallel #staffPnbBoard target — see the HTML
-// columns staffPnbCol{Todo|Doing|Review|Done|Blocked}.
-
-let _staffPnbBoardSearch = "";
-let _staffPnbVolSort = "recent";
-
-function renderStaffPnbView() {
-  const view = document.getElementById("staffPnbView");
-  if (!view) return;
-  if (!isStaff() || !cu) return;
-  view.classList.remove("hidden");
-  renderStaffPnbProgress();
-  renderStaffPnbBoard();
-  renderStaffPnbVolunteers();
-}
-
-function renderStaffPnbProgress() {
-  const totals = computeProjectStats(PNB_PROJECT_ID);
-  const pct = totals.totalPages
-    ? Math.round((totals.donePages / totals.totalPages) * 100)
-    : percent(totals.doneUnits, totals.totalUnits);
-  const pctEl = document.getElementById("staffPnbProgPct");
-  if (pctEl) pctEl.textContent = String(pct);
-  const lineEl = document.getElementById("staffPnbProgLine");
-  if (lineEl) {
-    lineEl.innerHTML = `${numberText(totals.totalPages)} sayfadan <strong>${numberText(totals.donePages)}</strong> tasnif edildi`;
-  }
-  const stripEl = document.getElementById("staffPnbStrip");
-  if (stripEl) {
-    stripEl.textContent = `${numberText(totals.totalUnits)} birim · ${numberText(totals.totalPages)} sayfa · ${pct}% tamamlandı`;
-  }
-}
-
-function renderStaffPnbBoard() {
-  const colMap = {
-    not_started: { body: "staffPnbColTodo",   count: "staffPnbCountTodo" },
-    in_progress: { body: "staffPnbColDoing",  count: "staffPnbCountDoing" },
-    review:      { body: "staffPnbColReview", count: "staffPnbCountReview" },
-    done:        { body: "staffPnbColDone",   count: "staffPnbCountDone" },
-    blocked:     { body: "staffPnbColBlocked",count: "staffPnbCountBlocked" }
-  };
-  const term = trNormalize((_staffPnbBoardSearch || "").trim());
-  const matches = (unit) => {
-    if (!term) return true;
-    const haystack = trNormalize([
-      unit.sourceIdentifier, unit.sourceCode, unit.seriesNo, unit.boxNo,
-      unit.contentDescription, unit.title, unit.notes, unit.materialType
-    ].filter(Boolean).join(" "));
-    return haystack.includes(term);
-  };
-  const buckets = { not_started: [], in_progress: [], review: [], done: [], blocked: [] };
-  archiveUnits.forEach((unit) => {
-    if ((unit.projectId || PNB_PROJECT_ID) !== PNB_PROJECT_ID) return;
-    if ((unit.status || "") === "pending_review") return;
-    if (!matches(unit)) return;
-    let key = unit.status || "not_started";
-    if (key === "assigned") key = "in_progress";
-    if (!buckets[key]) key = "not_started";
-    buckets[key].push(unit);
-  });
-  Object.entries(buckets).forEach(([key, units]) => {
-    const target = colMap[key];
-    if (!target) return;
-    units.sort((a, b) => archiveLabel(a).localeCompare(archiveLabel(b), "tr"));
-    const body = document.getElementById(target.body);
-    const count = document.getElementById(target.count);
-    if (count) count.textContent = String(units.length);
-    if (body) body.innerHTML = units.length ? units.map(panoCard).join("") : '<p class="kb-empty">Boş</p>';
-  });
-}
-
-function renderStaffPnbVolunteers() {
-  const list = document.getElementById("staffPnbVolList");
-  const countEl = document.getElementById("staffPnbVolCount");
-  const hint = document.getElementById("staffPnbVolsHint");
-  if (!list) return;
-  // "Active on PNB in last 90 days" = at least one report on a PNB unit
-  // (or a project_general PNB report) within the window.
-  const cutoff = Date.now() - 90 * 86400000;
-  const reports = Object.values(rd || {});
-  const counts = new Map();
-  const lastSeen = new Map();
-  reports.forEach((r) => {
-    const projectId = r.projectId
-      || (r.unitId && archiveById[r.unitId]?.projectId)
-      || (r.archiveUnitId && archiveById[r.archiveUnitId]?.projectId);
-    if (projectId !== PNB_PROJECT_ID) return;
-    const when = toDateFromTs(r.createdAt)?.getTime() || 0;
-    if (when < cutoff) return;
-    const uid = r.volunteerId || r.userUid;
-    if (!uid) return;
-    counts.set(uid, (counts.get(uid) || 0) + 1);
-    if (!lastSeen.has(uid) || lastSeen.get(uid) < when) lastSeen.set(uid, when);
-  });
-  const rows = Array.from(counts.entries()).map(([uid, n]) => {
-    const user = (allUsers || []).find((u) => u.uid === uid);
-    const data = user?.data || {};
-    return {
-      uid,
-      name: data.fullName || data.email || "—",
-      reports: n,
-      lastSeen: lastSeen.get(uid) || 0
-    };
-  });
-  if (_staffPnbVolSort === "name") {
-    rows.sort((a, b) => a.name.localeCompare(b.name, "tr"));
-  } else if (_staffPnbVolSort === "reports") {
-    rows.sort((a, b) => b.reports - a.reports);
-  } else {
-    rows.sort((a, b) => b.lastSeen - a.lastSeen);
-  }
-  if (countEl) countEl.textContent = `(${rows.length})`;
-  if (!rows.length) {
-    list.innerHTML = '<p class="empty">Son 90 günde PNB birimine rapor yazan gönüllü yok.</p>';
-    if (hint) hint.textContent = "";
-    return;
-  }
-  // Paginate to 20 — the user spec asks for 20 per page, but we keep the
-  // implementation simple with a single page + a hint when more exist.
-  const PAGE = 20;
-  const visible = rows.slice(0, PAGE);
-  list.innerHTML = visible.map((r) => {
-    const ago = r.lastSeen ? relativeTimeLabel(new Date(r.lastSeen)) : "—";
-    return `<div class="staff-pnb-vol-row">
-      <strong>${escapeHTML(r.name)}</strong>
-      <span class="muted">son rapor: ${escapeHTML(ago)}</span>
-      <span class="muted">${escapeHTML(String(r.reports))} rapor</span>
-    </div>`;
-  }).join("");
-  if (hint) {
-    hint.textContent = rows.length > PAGE
-      ? `İlk ${PAGE} kişi gösteriliyor — toplam ${rows.length}.`
-      : "";
-  }
-}
+// Staff PNB tab renderers were removed in Prompt P. The coordinator/admin
+// PNB tab is gone — coordinators read the report stream on Bugün instead.
+// renderStaffPnbView is kept as a shim so existing callers (e.g. the old
+// renderHomeOverview dispatcher) stay safe.
+function renderStaffPnbView() { /* no-op since Prompt P */ }
 
 // Pick the next archive unit a volunteer could reasonably pick up: unassigned,
 // not blocked or done, highest priority first, then oldest updated.
@@ -3416,11 +3295,9 @@ function renderChannelSide(unit) {
         <span class="v">${progress}% · ${numberText(unit.completedDocumentCount || 0)}/${numberText(unit.documentCount || 0)} belge</span>
         <div class="progress-bar"><span style="width:${progress}%"></span></div>
       </div>
-      <div class="stat-row">
-        <span class="k">Atanan</span>
-        <div class="avs">${avHtml}</div>
-        ${assignedNames ? `<div class="ch-sub" style="margin-top:.2rem">${escapeHTML(assignedNames)}</div>` : ""}
-      </div>
+      <!-- "Atanan" stat-row removed in Prompt P (assignment surfaces hidden
+           from coordinator/admin views). The avHtml/assignedNames variables
+           are still computed above for legacy code paths. -->
       <div class="stat-row">
         <span class="k">Öncelik</span>
         <span class="v">${escapeHTML({ high: "Yüksek", medium: "Orta", low: "Düşük" }[unit.priority] || "Orta")}</span>
@@ -3636,10 +3513,19 @@ function renderHomeOverview() {
   if (!cp) return;
   if (isStaff()) {
     renderBugun();
-    renderStaffPnbView();
+    renderYonetim();
   } else {
     renderVolunteerReportPrimary();
   }
+}
+
+// Top-level Yönetim repaint — keeps the user list, the combined
+// announcements/tasks feed, and any pending-count badges in sync after
+// each data load.
+function renderYonetim() {
+  if (!isStaff()) return;
+  if (typeof renderYonetimUserDirectory === "function") renderYonetimUserDirectory();
+  if (typeof renderYonetimFeed === "function") renderYonetimFeed();
 }
 
 function renderPeopleOps() {
@@ -3924,7 +3810,6 @@ async function lr() {
   if (staff) {
     const snap = await getDocs(query(collection(db, "reports"), orderBy("createdAt", "desc"), limit(80)));
     snap.docs.forEach((item) => { rd[item.id] = item.data(); });
-    document.getElementById("reportsTitle").textContent = "Tüm raporlar";
   } else {
     const own = await getDocs(query(collection(db, "reports"), where("userUid", "==", cu.uid), limit(40)));
     own.docs.forEach((item) => { rd[item.id] = item.data(); });
@@ -3934,7 +3819,6 @@ async function lr() {
     } catch (error) {
       console.warn("Ekip arkadaşı raporları yüklenemedi:", error);
     }
-    document.getElementById("reportsTitle").textContent = "Raporlarım";
   }
   const ids = Object.keys(rd);
   ids.sort((a, b) => {
@@ -3942,7 +3826,14 @@ async function lr() {
     const bt = rd[b].createdAt?.toMillis?.() || 0;
     return bt - at;
   });
-  document.getElementById("reportsList").innerHTML = ids.length ? ids.map((id) => rr(rd[id], id)).join("") : htmlEmpty("Rapor bulunmuyor.");
+  // Legacy #reportsTitle / #reportsList lived inside the deleted #tab-reports
+  // block (Prompt N). Both writes are now guarded so an absent element no
+  // longer throws and kills the rest of the auth-chain awaits (this is the
+  // root cause flagged in tools/data_audit.md, fixed in Prompt P).
+  const reportsTitle = document.getElementById("reportsTitle");
+  if (reportsTitle) reportsTitle.textContent = staff ? "Tüm raporlar" : "Raporlarım";
+  const reportsList = document.getElementById("reportsList");
+  if (reportsList) reportsList.innerHTML = ids.length ? ids.map((id) => rr(rd[id], id)).join("") : htmlEmpty("Rapor bulunmuyor.");
   renderHomeOverview();
 }
 
@@ -3998,8 +3889,10 @@ async function lu() {
 }
 
 // Filter pills + search + sort wired into the Yönetim "Tüm gönüllüler" card.
-// Each row is a <details> with a compact summary; opening it reveals the
-// existing rur() edit card so write semantics stay identical.
+// Pending users sit at the top of the list (when the active filter is "all"
+// or "pending") with inline approve/reject buttons. Approved users follow,
+// each row a <details> whose body is the existing rur() edit card so write
+// semantics stay identical to earlier prompts.
 function renderYonetimUserDirectory() {
   const list = document.getElementById("userDirectory");
   if (!list) return;
@@ -4018,6 +3911,28 @@ function renderYonetimUserDirectory() {
   });
 
   const now = Date.now();
+  const passesSearch = (data) => {
+    if (!term) return true;
+    const specialty = Array.isArray(data.specialty) ? data.specialty.join(" ") : "";
+    const hay = trNormalize([
+      data.fullName, data.email, data.department, data.role, specialty
+    ].filter(Boolean).join(" "));
+    return hay.includes(term);
+  };
+  const passesDept = (data) => !dept || data.department === dept;
+
+  // Pending users surface at the top whenever the active filter is "all"
+  // (default) or "pending". They're never department/sort-filtered down to
+  // zero; they're always rendered as long as the search and dept filter let
+  // them through.
+  const showPending = filter === "all" || filter === "pending";
+  const pendingRows = showPending
+    ? (allUsers || [])
+        .filter((u) => u?.data && u.data.status === "pending" && passesSearch(u.data) && passesDept(u.data))
+        .sort((a, b) => (toDateFromTs(b.data.createdAt)?.getTime() || 0) - (toDateFromTs(a.data.createdAt)?.getTime() || 0))
+    : [];
+
+  // Approved users (only when filter !== "pending").
   const enriched = (allUsers || [])
     .filter((u) => u?.data && u.data.role && u.data.status === "approved")
     .map((u) => {
@@ -4028,50 +3943,60 @@ function renderYonetimUserDirectory() {
       if (days <= 13) bucket = "active";
       else if (days <= 27) bucket = "slowing";
       else bucket = "silent";
-      return {
-        uid: u.uid,
-        data,
-        lastReportMs,
-        days,
-        bucket,
-        reports: reportCounts.get(u.uid) || 0
-      };
+      return { uid: u.uid, data, lastReportMs, days, bucket, reports: reportCounts.get(u.uid) || 0 };
     });
 
-  let visible = enriched;
-  if (filter !== "all") visible = visible.filter((u) => u.bucket === filter);
-  if (dept) visible = visible.filter((u) => u.data.department === dept);
-  if (term) {
-    visible = visible.filter((u) => {
-      const hay = trNormalize([
-        u.data.fullName, u.data.email, u.data.department, u.data.role
-      ].filter(Boolean).join(" "));
-      return hay.includes(term);
-    });
-  }
+  let approved = enriched;
+  if (filter === "pending") approved = [];
+  else if (filter !== "all") approved = approved.filter((u) => u.bucket === filter);
+  approved = approved.filter((u) => passesDept(u.data) && passesSearch(u.data));
   if (sort === "name") {
-    visible.sort((a, b) => (a.data.fullName || a.data.email || "").localeCompare(b.data.fullName || b.data.email || "", "tr"));
+    approved.sort((a, b) => (a.data.fullName || a.data.email || "").localeCompare(b.data.fullName || b.data.email || "", "tr"));
   } else if (sort === "reports") {
-    visible.sort((a, b) => b.reports - a.reports);
+    approved.sort((a, b) => b.reports - a.reports);
   } else if (sort === "department") {
-    visible.sort((a, b) => (a.data.department || "").localeCompare(b.data.department || "", "tr"));
+    approved.sort((a, b) => (a.data.department || "").localeCompare(b.data.department || "", "tr"));
   } else {
-    visible.sort((a, b) => b.lastReportMs - a.lastReportMs);
+    approved.sort((a, b) => b.lastReportMs - a.lastReportMs);
   }
 
-  if (!visible.length) {
-    list.innerHTML = htmlEmpty("Bu filtreyle eşleşen gönüllü yok.");
+  if (!pendingRows.length && !approved.length) {
+    list.innerHTML = htmlEmpty(filter === "pending" ? "Bekleyen başvuru yok." : "Bu filtreyle eşleşen gönüllü yok.");
     return;
   }
 
+  const html = [];
+  // Pending block — rendered as flat rows with a "Pending" pill + inline
+  // approve/reject buttons. Click handlers route through the existing
+  // approve/reject infrastructure (see approveUser / rejectUser below).
+  pendingRows.forEach((u) => {
+    const name = escapeHTML(u.data.fullName || u.data.email || "—");
+    const email = escapeHTML(u.data.email || "");
+    const dept = escapeHTML(u.data.department || "—");
+    const created = toDateFromTs(u.data.createdAt);
+    const ago = created ? relativeTimeLabel(created) : "—";
+    html.push(`<div class="yonetim-user-row yonetim-user-row--pending" data-uid="${escapeHTML(u.uid)}">
+      <div class="yonetim-user-summary yonetim-user-summary--pending">
+        <span class="yonetim-user-name"><strong>${name}</strong>
+          <span class="muted yonetim-user-meta">${email} · ${dept} · kayıt: ${escapeHTML(ago)}</span>
+        </span>
+        <span class="yonetim-user-stats">
+          <span class="yonetim-user-bucket yonetim-user-bucket--pending">Pending</span>
+          <button type="button" class="btn btn-primary btn-sm" data-bugun-approve="${escapeHTML(u.uid)}">Onayla</button>
+          <button type="button" class="btn btn-secondary btn-sm" data-bugun-reject="${escapeHTML(u.uid)}">Reddet</button>
+        </span>
+      </div>
+    </div>`);
+  });
+
   const bucketLabel = (b) => b === "active" ? "Aktif" : b === "slowing" ? "Yavaşlayan" : "Sessiz";
-  list.innerHTML = visible.map((u) => {
+  approved.forEach((u) => {
     const name = escapeHTML(u.data.fullName || u.data.email || "—");
     const role = escapeHTML(u.data.role || "—");
     const rhythm = escapeHTML(u.data.rhythm || "—");
     const dept = escapeHTML(u.data.department || "—");
     const ago = u.lastReportMs ? relativeTimeLabel(new Date(u.lastReportMs)) : "Hiç rapor yok";
-    return `<details class="yonetim-user-row" data-uid="${escapeHTML(u.uid)}">
+    html.push(`<details class="yonetim-user-row" data-uid="${escapeHTML(u.uid)}">
       <summary class="yonetim-user-summary">
         <span class="yonetim-user-name"><strong>${name}</strong> <span class="muted yonetim-user-meta">${role} · ${rhythm} · ${dept}</span></span>
         <span class="yonetim-user-stats muted">
@@ -4081,7 +4006,69 @@ function renderYonetimUserDirectory() {
         </span>
       </summary>
       <div class="yonetim-user-body">${rur(u.data, u.uid)}</div>
-    </details>`;
+    </details>`);
+  });
+
+  list.innerHTML = html.join("");
+}
+
+// Combined Duyurular & Görevler feed in Yönetim. Interleaves announcement
+// docs (announcementItems) and task docs (taskItems) by createdAt.
+function renderYonetimFeed() {
+  const list = document.getElementById("yonetimFeedList");
+  if (!list) return;
+  const items = [];
+  (announcementItems || []).forEach((a) => {
+    items.push({
+      kind: "announcement",
+      id: a.id,
+      data: a.data,
+      createdMs: toDateFromTs(a.data?.createdAt)?.getTime() || 0
+    });
+  });
+  (taskItems || []).forEach((t) => {
+    items.push({
+      kind: "task",
+      id: t.id,
+      data: t.data,
+      createdMs: toDateFromTs(t.data?.createdAt)?.getTime() || 0
+    });
+  });
+  if (!items.length) {
+    list.innerHTML = htmlEmpty("Duyuru veya görev yok.");
+    return;
+  }
+  items.sort((a, b) => b.createdMs - a.createdMs);
+  list.innerHTML = items.map((item) => {
+    const when = item.createdMs ? relativeTimeLabel(new Date(item.createdMs)) : "—";
+    if (item.kind === "announcement") {
+      const title = escapeHTML(item.data?.title || "Duyuru");
+      const body = (item.data?.body || "").trim();
+      const preview = escapeHTML(body.slice(0, 120));
+      const audience = item.data?.audience === "coordinators" ? "Koordinatörler"
+        : item.data?.audience === "volunteers" ? "Gönüllüler" : "Tümü";
+      return `<div class="yonetim-feed-row" data-feed-kind="announcement" data-feed-id="${escapeHTML(item.id)}">
+        <span class="yonetim-feed-pill yonetim-feed-pill--ann">DUYURU</span>
+        <div class="yonetim-feed-main">
+          <div class="yonetim-feed-title"><strong>${title}</strong>${preview ? ` <span class="muted">— ${preview}</span>` : ""}</div>
+          <div class="yonetim-feed-meta muted">${escapeHTML(audience)} · ${escapeHTML(when)}</div>
+        </div>
+      </div>`;
+    }
+    // Task row.
+    const title = escapeHTML(item.data?.title || "Görev");
+    const desc = (item.data?.description || "").trim();
+    const preview = escapeHTML(desc.slice(0, 120));
+    const assignee = item.data?.assignedToUid ? findUserName(item.data.assignedToUid) : item.data?.assignedToEmail;
+    const status = item.data?.status || "open";
+    const due = item.data?.dueDate ? `son: ${escapeHTML(item.data.dueDate)}` : "";
+    return `<div class="yonetim-feed-row" data-feed-kind="task" data-feed-id="${escapeHTML(item.id)}">
+      <span class="yonetim-feed-pill yonetim-feed-pill--task">GÖREV</span>
+      <div class="yonetim-feed-main">
+        <div class="yonetim-feed-title"><strong>${title}</strong>${preview ? ` <span class="muted">— ${preview}</span>` : ""}</div>
+        <div class="yonetim-feed-meta muted">${assignee ? `→ ${escapeHTML(assignee)} · ` : ""}${escapeHTML(statusLabel(status))}${due ? " · " + due : ""} · ${escapeHTML(when)}</div>
+      </div>
+    </div>`;
   }).join("");
 }
 
@@ -4368,10 +4355,12 @@ function openUnitDrill(unitId) {
     seen.add(label);
     return true;
   });
+  // The legacy #drillAssignees container was removed in Prompt P (we no
+  // longer surface assignment data on the staff side). The variables
+  // namesFromUids / namesFromEmails are kept above because other code paths
+  // (CSV export, filters) still consume them.
   const assignedList = [...namesFromUids, ...namesFromEmails];
-  document.getElementById("drillAssignees").innerHTML = assignedList.length
-    ? assignedList.map((n) => `<span class="drill-chip">${escapeHTML(n)}</span>`).join("")
-    : '<p class="muted">Bu birime henüz kimse atanmadı.</p>';
+  void assignedList;
 
   document.getElementById("drillExportCsv").classList.toggle("hidden", !isStaff());
   document.getElementById("drillReports").innerHTML = '<p class="muted">Yükleniyor...</p>';
@@ -4752,18 +4741,22 @@ function archiveCard(unit) {
     </div>
     ${unit.notes ? `<p class="muted" style="font-size:.84rem">${escapeHTML(unit.notes)}</p>` : ""}
     <div class="archive-progress" title="${progress}%"><span style="width:${progress}%"></span></div>
-    <div class="archive-meta"><span class="archive-chip">Tamamlanan: ${numberText(unit.completedDocumentCount || 0)} belge</span><span class="archive-chip">Atanan: ${escapeHTML(assignedNames.join(", ") || "Yok")}</span></div>
+    <div class="archive-meta"><span class="archive-chip">Tamamlanan: ${numberText(unit.completedDocumentCount || 0)} belge</span></div>
     ${unit.blockerNote ? `<div class="revision-alert"><strong>Engel</strong><p>${escapeHTML(unit.blockerNote)}</p></div>` : ""}`;
   if (staff) {
+    // Prompt P: drop the "Atanan gönüllüler" select + the "Atanan" chip from
+    // the staff archive card. The hidden assign select preserves the
+    // submit-handler shape (selectedOptions check is null-safe) without
+    // surfacing assignment data to the coordinator.
     html += `<div class="archive-controls">
       <div class="form-row">
         <label>Durum <select data-au-status="${unit.id}">${Object.entries(archiveStatusLabels).map(([value, label]) => `<option value="${value}"${(unit.status || "not_started") === value ? " selected" : ""}>${label}</option>`).join("")}</select></label>
         <label>Öncelik <select data-au-priority="${unit.id}"><option value="low"${unit.priority === "low" ? " selected" : ""}>Düşük</option><option value="medium"${(unit.priority || "medium") === "medium" ? " selected" : ""}>Orta</option><option value="high"${unit.priority === "high" ? " selected" : ""}>Yüksek</option></select></label>
         <label>Son tarih <input type="date" data-au-due="${unit.id}" value="${escapeHTML(unit.dueDate || "")}" /></label>
       </div>
-      <label>Atanan gönüllüler <select multiple data-au-assign="${unit.id}">${userOptions(unit.assignedToUids || [])}</select></label>
+      <select multiple data-au-assign="${unit.id}" hidden style="display:none">${userOptions(unit.assignedToUids || [])}</select>
       <label>Engel / not <textarea rows="2" data-au-blocker="${unit.id}">${escapeHTML(unit.blockerNote || "")}</textarea></label>
-      <div class="archive-actions"><button class="btn btn-primary btn-sm" data-save-au="${unit.id}">Kaydet</button><button class="btn btn-secondary btn-sm" data-create-task-au="${unit.id}">İş oluştur</button><button class="btn btn-secondary btn-sm" data-report-au="${unit.id}">Rapor yaz</button><button class="btn btn-secondary btn-sm" data-drill-unit="${unit.id}">Geçmişi aç</button></div>
+      <div class="archive-actions"><button class="btn btn-primary btn-sm" data-save-au="${unit.id}">Kaydet</button><button class="btn btn-secondary btn-sm" data-report-au="${unit.id}">Rapor yaz</button><button class="btn btn-secondary btn-sm" data-drill-unit="${unit.id}">Geçmişi aç</button></div>
     </div>`;
   } else {
     html += `<div class="archive-controls"><label>Engel bildir <textarea rows="2" data-vol-blocker="${unit.id}" placeholder="Bu işte sizi durduran sorunu yazın...">${escapeHTML(unit.blockerNote || "")}</textarea></label><div class="archive-actions"><button class="btn btn-primary btn-sm" data-report-au="${unit.id}">Rapor yaz</button><button class="btn btn-secondary btn-sm" data-block-au="${unit.id}">Engel bildir</button><button class="btn btn-secondary btn-sm" data-drill-unit="${unit.id}">Geçmişi aç</button></div></div>`;
@@ -4814,10 +4807,13 @@ function archiveTableRow(unit) {
 }
 
 function renderArchiveUnitsTable(units) {
+  // The "Atanan" column was removed in Prompt P (assignment surfaces hidden
+  // from staff). archiveTableRow still emits an avatars cell (kept for the
+  // legacy template), so we preserve a column slot but render no header label.
   return `<div class="units-wrap">
     <table class="units-table">
-      <colgroup><col style="width:34%"><col style="width:10%"><col style="width:13%"><col style="width:18%"><col style="width:14%"><col style="width:11%"></colgroup>
-      <thead><tr><th>Birim</th><th>Kutu</th><th>Durum</th><th>Atanan</th><th>İlerleme</th><th>Son rapor</th></tr></thead>
+      <colgroup><col style="width:38%"><col style="width:10%"><col style="width:15%"><col style="width:6%"><col style="width:18%"><col style="width:13%"></colgroup>
+      <thead><tr><th>Birim</th><th>Kutu</th><th>Durum</th><th></th><th>İlerleme</th><th>Son rapor</th></tr></thead>
       <tbody>${units.map(archiveTableRow).join("")}</tbody>
     </table>
   </div>`;
@@ -4900,10 +4896,10 @@ function renderPnb() {
     if (archiveTitle) archiveTitle.textContent = "İşim";
     if (archiveHint) archiveHint.textContent = "Sadece sana atanmış işler görünür.";
   } else {
-    if (title) title.textContent = "Atanacak ve yapılacak işler";
-    if (intro) intro.textContent = "Koordinatör için atama ve takip; gönüllü için kendi işi ve rapor aksiyonu.";
+    if (title) title.textContent = "İş paketleri";
+    if (intro) intro.textContent = "Gönüllüler buradan rapor yazıp ilerlemeyi günceller.";
     if (archiveTitle) archiveTitle.textContent = "İş listesi";
-    if (archiveHint) archiveHint.textContent = "Bir kart, bir iş. Atama, durum, engel ve rapor aynı yerden.";
+    if (archiveHint) archiveHint.textContent = "Bir kart, bir iş paketi.";
   }
   renderPnbStats();
   renderNextActions();
@@ -5385,21 +5381,55 @@ document.addEventListener("click", async (event) => {
     renderCoordinatorRecentReports();
     return;
   }
-  // Dikkat-card row controls.
-  const dikkatToggle = event.target.closest("[data-dikkat-toggle]");
-  if (dikkatToggle) {
-    const key = dikkatToggle.dataset.dikkatToggle;
-    const expand = document.querySelector(`[data-dikkat-expand="${CSS.escape(key)}"]`);
-    expand?.classList.toggle("hidden");
+  // Bugün — bekleyen-onay inline approve / reject. Each button writes to
+  // /users/{uid}.status and refreshes the directory + Bugün surfaces.
+  const approveBtn = event.target.closest("[data-bugun-approve]");
+  if (approveBtn) {
+    const uid = approveBtn.dataset.bugunApprove;
+    if (!uid) return;
+    approveBtn.disabled = true;
+    approveBtn.textContent = "…";
+    try {
+      await updateDoc(doc(db, "users", uid), { status: "approved", updatedAt: serverTimestamp() });
+      // Patch the in-memory cache so the next render reflects it without a refetch.
+      const u = (allUsers || []).find((x) => x.uid === uid);
+      if (u) u.data = { ...u.data, status: "approved" };
+      pendingApplicationCount = Math.max(0, (pendingApplicationCount || 0) - 1);
+      renderBugun();
+      if (typeof renderYonetimUserDirectory === "function") renderYonetimUserDirectory();
+    } catch (error) {
+      alert(`Onay hatası: ${error.message}`);
+      approveBtn.disabled = false;
+      approveBtn.textContent = "Onayla";
+    }
     return;
   }
-  const dikkatAction = event.target.closest("[data-dikkat-action]");
-  if (dikkatAction) {
-    // Action handlers are stateful (they need access to the items[] array
-    // from computeCoordinatorAttentionItems). We re-derive and dispatch.
-    const items = computeCoordinatorAttentionItems();
-    const item = items.find((i) => i.key === dikkatAction.dataset.dikkatAction);
-    if (item && typeof item.action === "function") item.action();
+  const rejectBtn = event.target.closest("[data-bugun-reject]");
+  if (rejectBtn) {
+    const uid = rejectBtn.dataset.bugunReject;
+    if (!uid) return;
+    if (!confirm("Bu başvuruyu reddetmek istediğinize emin misiniz?")) return;
+    rejectBtn.disabled = true;
+    rejectBtn.textContent = "…";
+    try {
+      await updateDoc(doc(db, "users", uid), { status: "blocked", updatedAt: serverTimestamp() });
+      const u = (allUsers || []).find((x) => x.uid === uid);
+      if (u) u.data = { ...u.data, status: "blocked" };
+      pendingApplicationCount = Math.max(0, (pendingApplicationCount || 0) - 1);
+      renderBugun();
+      if (typeof renderYonetimUserDirectory === "function") renderYonetimUserDirectory();
+    } catch (error) {
+      alert(`Reddetme hatası: ${error.message}`);
+      rejectBtn.disabled = false;
+      rejectBtn.textContent = "Reddet";
+    }
+    return;
+  }
+  // Bugün warning row "Aç →" — dispatch via the bugunWarningActions table.
+  const warnBtn = event.target.closest("[data-bugun-warn-action]");
+  if (warnBtn) {
+    const action = bugunWarningActions[warnBtn.dataset.bugunWarnAction];
+    if (typeof action === "function") action();
     return;
   }
   // Bugün Son raporlar row click → toggle the inline expand.
@@ -6227,16 +6257,8 @@ document.getElementById("panoSearchInput")?.addEventListener("input", () => {
   window.__panoSearchTimer = setTimeout(renderPano, 120);
 });
 
-// Staff PNB tab — board search + volunteer-list sort.
-document.getElementById("staffPnbBoardSearch")?.addEventListener("input", (event) => {
-  _staffPnbBoardSearch = event.target.value || "";
-  clearTimeout(window.__staffPnbBoardTimer);
-  window.__staffPnbBoardTimer = setTimeout(renderStaffPnbBoard, 120);
-});
-document.getElementById("staffPnbVolSort")?.addEventListener("change", (event) => {
-  _staffPnbVolSort = event.target.value || "recent";
-  renderStaffPnbVolunteers();
-});
+// Staff PNB tab inputs were removed in Prompt P alongside the staff PNB
+// view itself; no listeners to wire here.
 
 // Yönetim — Tüm gönüllüler search + sort + dept filter.
 document.getElementById("yonetimUsersSearch")?.addEventListener("input", () => {
@@ -6345,17 +6367,12 @@ document.getElementById("taskForm")?.addEventListener("submit", async (event) =>
       await addDoc(collection(db, "tasks"), data);
       document.getElementById("taskMessage").textContent = "İş oluşturuldu!";
     }
-    if (archiveUnitId && assignedUid) {
-      await updateDoc(doc(db, "archiveUnits", archiveUnitId), {
-        assignedToUids: [assignedUid],
-        assignedToEmails: assignedEmail ? [assignedEmail.toLowerCase()] : [],
-        status: "assigned",
-        dueDate: data.dueDate,
-        priority: data.priority,
-        updatedAt: serverTimestamp()
-      });
-    }
-    if (assignedUid && assignedUid !== cu.uid) createNotif(assignedUid, "task_assigned", `Size yeni iş atandı: ${data.title}`, "pnb");
+    // The legacy task→archiveUnit assignment side-effect was removed in
+    // Prompt P. Creating a task no longer mutates archiveUnits.assignedToUids
+    // — the data fields stay in the schema, but the staff UI never surfaces
+    // assignment data, so creating a task that "assigns" a unit would be a
+    // ghost write nobody can see.
+    if (assignedUid && assignedUid !== cu.uid) createNotif(assignedUid, "task_assigned", `Size yeni iş atandı: ${data.title}`, "yonetim");
     event.target.reset();
     setTimeout(() => { document.getElementById("taskMessage").textContent = ""; }, 3000);
     await lt();
@@ -6469,23 +6486,35 @@ if (!auth || !db) {
     if (isAdmin()) {
       document.querySelectorAll(".admin-tab").forEach((tab) => tab.classList.remove("hidden"));
     }
-    await loadAllUsers();
-    await reloadPnb();
+    // Defense-in-depth: each post-auth load is awaited inside its own
+    // try/catch so one failure can't kill the rest of the chain (the lr()
+    // throw on a since-removed DOM id is exactly what data_audit.md found).
+    const safe = async (label, fn) => {
+      try { await fn(); }
+      catch (error) { console.warn(`[auth-load] ${label} failed:`, error); }
+    };
+    await safe("loadAllUsers", loadAllUsers);
+    await safe("reloadPnb", reloadPnb);
     ld.classList.add("hidden");
     tb.classList.remove("hidden");
-    await lh();
-    await lt();
-    await lr();
-    await la();
+    await safe("lh", lh);
+    await safe("lt", lt);
+    await safe("lr", lr);
+    await safe("la", la);
     if (staff) {
-      await lp();
-      await lu();
-      await loadStaffRecentReports(true);
+      await safe("lp", lp);
+      await safe("lu", lu);
+      await safe("loadStaffRecentReports", () => loadStaffRecentReports(true));
     }
     if (isAdmin()) {
-      await loadPendingReviewUnits();
+      await safe("loadPendingReviewUnits", loadPendingReviewUnits);
     }
-    loadNotifs();
+    try { loadNotifs(); } catch (error) { console.warn("[auth-load] loadNotifs failed:", error); }
+
+    // Final pass: every renderer reads from the now-populated in-memory
+    // caches. Even if an individual stage above no-op'd or threw, this
+    // single render call makes Bugün/Yönetim reflect what's loaded.
+    try { renderHomeOverview(); } catch (error) { console.warn("[auth-load] final render failed:", error); }
 
     // Initial tab routing: respect the URL hash if it's allowed for the
     // current role; otherwise drop the user on their role's default tab.

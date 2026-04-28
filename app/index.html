@@ -35,11 +35,14 @@
            Visibility is set in CSS on body.volunteer-shell / body.staff-shell
            and unhidden by setRoleShell() at auth time.
            Volunteer:  Anasayfa, PNB, Duyurular
-           Coordinator: Bugün, PNB, Yönetim
-           Admin:       Bugün, PNB, Yönetim, Bakım -->
+           Coordinator: Bugün, Yönetim
+           Admin:       Bugün, Yönetim, Bakım
+           PNB is volunteer-only after Prompt P — coordinators see what's
+           happening through the report stream on Bugün, not by watching a
+           kanban. The volunteer's PNB tab stays as their project workspace. -->
       <button class="tab volunteer-tab" data-tab="anasayfa">Anasayfa</button>
       <button class="tab staff-tab hidden" data-tab="bugun">Bugün</button>
-      <button class="tab" data-tab="pnb">PNB</button>
+      <button class="tab volunteer-tab" data-tab="pnb">PNB</button>
       <button class="tab volunteer-tab" data-tab="duyurular">Duyurular</button>
       <button class="tab staff-tab hidden" data-tab="yonetim">Yönetim</button>
       <button class="tab admin-tab hidden" data-tab="bakim">Bakım</button>
@@ -80,7 +83,9 @@
       </div>
     </section>
 
-    <!-- ====== Coordinator/admin home (Bugün) ====== -->
+    <!-- ====== Coordinator/admin home (Bugün) — single continuous scroll ======
+         Sections render top-down; each is conditionally hidden when its
+         underlying count is zero (no empty-state cards, no reassurance lines). -->
     <section id="tab-bugun" class="tab-content hidden">
       <header class="bugun-head">
         <div>
@@ -92,29 +97,33 @@
         </div>
       </header>
 
-      <!-- Card 1: Dikkat — single card with one line per attention item.
-           Lines hide entirely when count == 0. When all counts are zero,
-           a single "all clear" line is shown. Filled by renderCoordinatorDikkat(). -->
-      <article class="card dikkat-card" id="dikkatCard">
-        <h3 class="dikkat-head">Dikkat</h3>
-        <div id="dikkatList" class="dikkat-list"><p class="dikkat-loading">Yükleniyor…</p></div>
-      </article>
+      <!-- Bekleyen onaylar — only rendered when there are pending users.
+           Filled by renderBugunPendingApprovals(). -->
+      <section class="bugun-section bugun-pending-section hidden" id="bugunPendingSection">
+        <h3 class="bugun-section-h">Bekleyen onaylar <span class="muted" id="bugunPendingCount"></span></h3>
+        <div id="bugunPendingList" class="bugun-pending-list"></div>
+      </section>
 
-      <!-- Card 2: Son raporlar — coordinator-wide compact log. -->
-      <article class="card sv-log-card" id="bugunRecentCard">
+      <!-- One-line warnings (silent / blocked / stale). Each row is rendered
+           only when its count > 0; the parent section auto-hides when all
+           three are absent. -->
+      <section class="bugun-section bugun-warnings-section hidden" id="bugunWarningsSection">
+        <div id="bugunWarnings" class="bugun-warnings"></div>
+      </section>
+
+      <!-- Son raporlar — the coordinator's main workspace. All reports across
+           all volunteers, most recent first. Click a row to expand inline. -->
+      <section class="bugun-section bugun-recent-section">
         <div class="bugun-recent-head">
-          <h3 class="sv-log-head">Son raporlar</h3>
+          <h3 class="bugun-section-h">Son raporlar</h3>
           <button type="button" class="bugun-refresh-btn" id="bugunRecentRefresh" aria-label="Yenile" title="Yenile">↻</button>
         </div>
         <div id="bugunRecentList" class="sv-log-list bugun-recent-list"><p class="sv-log-empty">Yükleniyor…</p></div>
-        <div class="sv-log-foot" id="bugunRecentFooter">
-          <button class="btn btn-secondary btn-sm" type="button" id="bugunRecentMoreBtn">Tümünü göster →</button>
+        <div class="bugun-recent-foot">
+          <button class="btn btn-secondary btn-sm" type="button" id="bugunRecentMoreBtn">Daha fazla yükle</button>
+          <span class="muted" id="bugunRecentMoreHint" style="font-size:.85rem"></span>
         </div>
-      </article>
-
-      <!-- Future: project-volunteer summary card. Hidden until a second
-           project comes online; placeholder kept so the layout slot is
-           reserved. -->
+      </section>
     </section>
 
     <section id="tab-pnb" class="tab-content hidden">
@@ -186,68 +195,9 @@
         </div>
       </div>
 
-      <!-- Coordinator/admin PNB view. Hidden for volunteers via CSS
-           (body.volunteer-shell .staff-only-block { display: none }). -->
-      <div id="staffPnbView" class="staff-pnb staff-only-block hidden">
-        <header class="staff-pnb-head">
-          <h2>Pertev Naili Boratav Arşivi</h2>
-          <p class="staff-pnb-blurb">Türk halkbilimi'nin kurucu isimlerinden Pertev Naili Boratav (1908–1998).</p>
-          <p id="staffPnbStrip" class="staff-pnb-strip muted">Yükleniyor…</p>
-        </header>
-
-        <!-- Section 1: İlerleme -->
-        <h3 class="staff-pnb-section-h">İlerleme</h3>
-        <div class="vp-pnb-prog">
-          <p class="lab">Pertev Naili Boratav Arşivi</p>
-          <p class="num"><span id="staffPnbProgPct">0</span><small>%</small></p>
-          <p class="sub" id="staffPnbProgLine">Yükleniyor…</p>
-        </div>
-
-        <!-- Section 2: İş Akışı -->
-        <div class="staff-pnb-section-head">
-          <h3 class="staff-pnb-section-h">İş Akışı</h3>
-          <input id="staffPnbBoardSearch" class="search" type="search" placeholder="Kutu/seri ara…" />
-        </div>
-        <div class="vp-pnb-board" role="list" aria-label="İş paketi panosu">
-          <section class="pano-col" data-pano-col="not_started">
-            <header><h3>Başlanmadı</h3><span class="n" id="staffPnbCountTodo">0</span></header>
-            <div id="staffPnbColTodo" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
-          </section>
-          <section class="pano-col" data-pano-col="in_progress">
-            <header><h3>Devam ediyor</h3><span class="n" id="staffPnbCountDoing">0</span></header>
-            <div id="staffPnbColDoing" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
-          </section>
-          <section class="pano-col" data-pano-col="review">
-            <header><h3>Gözden geçirme</h3><span class="n" id="staffPnbCountReview">0</span></header>
-            <div id="staffPnbColReview" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
-          </section>
-          <section class="pano-col" data-pano-col="done">
-            <header><h3>Tamam</h3><span class="n" id="staffPnbCountDone">0</span></header>
-            <div id="staffPnbColDone" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
-          </section>
-          <section class="pano-col" data-pano-col="blocked">
-            <header><h3>Takıldım</h3><span class="n" id="staffPnbCountBlocked">0</span></header>
-            <div id="staffPnbColBlocked" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
-          </section>
-        </div>
-
-        <!-- Section 3: Bu projedeki gönüllüler -->
-        <div class="staff-pnb-section-head">
-          <h3 class="staff-pnb-section-h">Bu projedeki gönüllüler <span class="muted" id="staffPnbVolCount">(—)</span></h3>
-          <label class="compact-filter">Sırala
-            <select id="staffPnbVolSort">
-              <option value="recent">Son aktivite</option>
-              <option value="name">Ad</option>
-              <option value="reports">Rapor sayısı</option>
-            </select>
-          </label>
-        </div>
-        <div id="staffPnbVolList" class="staff-pnb-vols"><p class="empty">Yükleniyor…</p></div>
-        <div class="staff-pnb-vols-foot">
-          <button type="button" class="btn btn-secondary btn-sm hidden" id="staffPnbVolsMore">Daha fazla</button>
-          <span id="staffPnbVolsHint" class="muted" style="font-size:.85rem"></span>
-        </div>
-      </div>
+      <!-- Staff PNB view removed in Prompt P. Coordinators no longer have a
+           project tab; they read the report stream on Bugün. The volunteer
+           block above is the only #tab-pnb content now. -->
     </section>
 
     <!-- ====== Volunteer-only Duyurular ====== -->
@@ -258,31 +208,21 @@
       </div>
     </section>
 
-    <!-- ====== Yönetim (coordinator/admin) — four sections ====== -->
+    <!-- ====== Yönetim (coordinator/admin) — two sections after Prompt P ====== -->
     <section id="tab-yonetim" class="tab-content hidden">
       <header class="yonetim-head">
         <h1>Yönetim</h1>
-        <p class="muted">Onay, ekip, duyurular ve görevler — tek yerde.</p>
+        <p class="muted">Ekip ve duyuru/görev akışı — tek yerde.</p>
       </header>
 
-      <!-- Section 1: Onay bekleyenler. Hidden when zero by renderPendingUsers. -->
-      <article class="card" id="yonetimPendingCard">
-        <div class="step-header">
-          <div>
-            <p class="eyebrow">Onay bekleyen başvurular</p>
-            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Yeni Google girişiyle gelen üyeler — onayla, reddet veya incele.</p>
-          </div>
-          <span class="muted" id="yonetimPendingCount" style="font-size:.85rem">—</span>
-        </div>
-        <div id="pendingUsers" class="stack"><p class="empty">Bekleyen başvuru yok.</p></div>
-      </article>
-
-      <!-- Section 2: All volunteers — searchable, filterable list. -->
-      <article class="card" id="yonetimUsersCard" style="margin-top:1.25rem">
+      <!-- Section 1: Tüm gönüllüler — pending users surface at the top with a
+           Pending pill and inline approve/reject; approved users follow with
+           the existing filter pills. -->
+      <article class="card" id="yonetimUsersCard">
         <div class="step-header">
           <div>
             <p class="eyebrow">Tüm gönüllüler</p>
-            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Aktiflik durumlarına göre filtrele, satıra bas → düzenle.</p>
+            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Aktiflik durumlarına göre filtrele, satıra bas → düzenle. Onay bekleyenler en üstte.</p>
           </div>
           <button class="btn btn-secondary btn-sm" type="button" id="exportActivityBtn">CSV</button>
         </div>
@@ -292,9 +232,10 @@
             <button type="button" class="if-pill" data-yonetim-filter="active">Aktif</button>
             <button type="button" class="if-pill" data-yonetim-filter="slowing">Yavaşlayan</button>
             <button type="button" class="if-pill" data-yonetim-filter="silent">Sessiz</button>
+            <button type="button" class="if-pill" data-yonetim-filter="pending">Pending</button>
           </div>
           <div class="yonetim-users-toolbar">
-            <input id="yonetimUsersSearch" class="search" type="search" placeholder="İsim, e-posta, departman ara…" />
+            <input id="yonetimUsersSearch" class="search" type="search" placeholder="İsim, e-posta, departman, uzmanlık ara…" />
             <label class="compact-filter">Sırala
               <select id="yonetimUsersSort">
                 <option value="recent">Son aktivite</option>
@@ -315,6 +256,8 @@
             </label>
           </div>
         </div>
+        <!-- Pending block sits at the top of the list when the active filter
+             is "all" or "pending". Filled by renderYonetimUserDirectory(). -->
         <div id="userDirectory" class="stack"><p class="empty">Kullanıcı bulunamadı.</p></div>
 
         <details id="addUserPanel" class="management-drawer" style="margin-top:1rem">
@@ -352,14 +295,19 @@
         </details>
       </article>
 
-      <!-- Section 3: Duyurular (admin write + history). -->
-      <article class="card" id="yonetimAnnouncementsCard" style="margin-top:1.25rem">
+      <!-- Section 2: Duyurular & Görevler — combined feed.
+           Two "+ new" buttons reveal the respective forms inline. The list
+           below interleaves announcements and tasks, most recent first. -->
+      <article class="card" id="yonetimFeedCard" style="margin-top:1.25rem">
         <div class="step-header">
           <div>
-            <p class="eyebrow">Duyurular</p>
-            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Gönüllülere yayınlanan kısa mesajlar.</p>
+            <p class="eyebrow">Duyurular & görevler</p>
+            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Yayınlanan duyurular ve atanan koordinasyon görevleri tek liste halinde.</p>
           </div>
-          <button class="btn btn-secondary btn-sm" type="button" id="yonetimNewAnnouncementBtn">+ Yeni duyuru yaz</button>
+          <div style="display:flex;gap:.4rem">
+            <button class="btn btn-secondary btn-sm" type="button" id="yonetimNewAnnouncementBtn">+ Yeni duyuru</button>
+            <button class="btn btn-secondary btn-sm" type="button" id="yonetimNewTaskBtn">+ Yeni görev</button>
+          </div>
         </div>
         <div id="adminAnnouncementForm" class="card hidden" style="margin:.5rem 0 .75rem;background:var(--tblr-bg-surface-secondary)">
           <p class="eyebrow">Yeni duyuru</p>
@@ -378,20 +326,8 @@
             <div class="form-actions"><button type="submit" class="btn btn-primary">Duyuru yayınla</button><span id="announcementMessage" class="status-line muted"></span></div>
           </form>
         </div>
-        <div id="yonetimAnnouncementsList" class="stack"><p class="empty">Duyuru yok.</p></div>
-      </article>
-
-      <!-- Section 4: Görevler (staff coordination tasks). -->
-      <article class="card" id="yonetimTasksCard" style="margin-top:1.25rem">
-        <div class="step-header">
-          <div>
-            <p class="eyebrow">Görevler</p>
-            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">PNB dışındaki gönüllü işleri — çeviri, gözden geçirme, koordinasyon.</p>
-          </div>
-          <button class="btn btn-secondary btn-sm" type="button" id="yonetimNewTaskBtn">+ Yeni görev ata</button>
-        </div>
         <div id="adminTaskForm" class="card hidden" style="margin:.5rem 0 .75rem;background:var(--tblr-bg-surface-secondary)">
-          <p class="eyebrow">Yeni iş oluştur</p>
+          <p class="eyebrow">Yeni görev</p>
           <form id="taskForm" class="form compact-form">
             <div class="form-row">
               <label>Başlık <input id="taskTitle" type="text" required /></label>
@@ -407,7 +343,6 @@
               </label>
             </div>
             <div class="form-row">
-              <label>PNB arşiv birimi <select id="taskArchiveUnit"><option value="">Bağlantı yok</option></select></label>
               <label>Atanan kişi <select id="taskAssignedTo"><option value="">Seçiniz</option></select></label>
               <label>Son tarih <input id="taskDueDate" type="date" /></label>
               <label>Öncelik
@@ -419,10 +354,20 @@
               </label>
             </div>
             <label>Açıklama <textarea id="taskDescription" rows="2"></textarea></label>
+            <!-- The legacy "PNB arşiv birimi" select that used to live on this
+                 form was removed in Prompt P (assignment surfaces removed
+                 across the staff side). Tasks no longer link back to a
+                 specific archive unit; coordinate via the note instead. -->
+            <input type="hidden" id="taskArchiveUnit" value="" />
             <div class="form-actions"><button type="submit" class="btn btn-primary">İşi kaydet</button><span id="taskMessage" class="status-line muted"></span></div>
           </form>
         </div>
-        <div id="tasksList" class="stack"><p class="empty">Görev yok.</p></div>
+        <div id="yonetimFeedList" class="stack"><p class="empty">Duyuru veya görev yok.</p></div>
+        <!-- Hidden listeners-only buckets so existing renderers (la / lt) keep
+             writing somewhere without breaking. The feed renderer below
+             (renderYonetimFeed) builds the unified list. -->
+        <div id="yonetimAnnouncementsList" class="stack hidden"></div>
+        <div id="tasksList" class="stack hidden"></div>
       </article>
     </section>
 
@@ -531,17 +476,17 @@
         <p class="eyebrow">Durum geçmişi</p>
         <div id="drillTimeline" class="drill-timeline"></div>
       </div>
-      <div class="drill-section">
-        <p class="eyebrow">Atanan gönüllüler</p>
-        <div id="drillAssignees" class="drill-assignees"><p class="muted">-</p></div>
-      </div>
+      <!-- The "Atanan gönüllüler" section + the in-edit assign select were
+           removed in Prompt P. We never display archive-unit assignment
+           data on the coordinator/admin surface. The hidden #drillEditAssign
+           input below is a placeholder so existing JS code paths that read
+           it can stay untouched until the next cleanup pass. -->
       <details id="drillEdit" class="drill-section drill-edit hidden">
-        <summary>Ayarla (durum, öncelik, atama, engel, sheet)</summary>
+        <summary>Ayarla (durum, öncelik, engel, sheet)</summary>
         <div class="drill-edit-body">
           <div class="sp-row">
             <label>Durum <select id="drillEditStatus">
               <option value="not_started">Başlamadı</option>
-              <option value="assigned">Atandı</option>
               <option value="in_progress">Devam ediyor</option>
               <option value="review">Kontrol</option>
               <option value="done">Tamamlandı</option>
@@ -554,7 +499,7 @@
             </select></label>
           </div>
           <label>Son tarih <input type="date" id="drillEditDue" /></label>
-          <label>Atanan gönüllüler <select id="drillEditAssign" multiple size="5"></select></label>
+          <select id="drillEditAssign" multiple size="0" hidden style="display:none"></select>
           <label>Engel / not <textarea id="drillEditBlocker" rows="2"></textarea></label>
           <label>Çalışma sayfası bağlantısı (Google Sheets / Drive URL)
             <input type="url" id="drillEditSheetUrl" placeholder="https://docs.google.com/spreadsheets/..." />
