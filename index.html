@@ -182,7 +182,6 @@
         <span>Tarih Vakfı</span>
       </a>
       <nav class="lp-nav-links" aria-label="Bölümler">
-        <a href="#projeler">Çalışma Alanları</a>
         <a href="#ilerleme">Gönüllülerimiz</a>
         <a href="#hakkinda">Hakkında</a>
         <a href="#sss">SSS</a>
@@ -199,7 +198,6 @@
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
     </button>
     <nav aria-label="Mobil menü">
-      <a href="#projeler" data-mn-link>Çalışma Alanları</a>
       <a href="#ilerleme" data-mn-link>Gönüllülerimiz</a>
       <a href="#hakkinda" data-mn-link>Hakkında</a>
       <a href="#sss" data-mn-link>SSS</a>
@@ -479,28 +477,28 @@
           <span>Tarih Vakfı</span>
         </p>
         <p>1991'den bu yana, tarih bilincini topluma yayan bağımsız bir sivil toplum kuruluşu.</p>
-        <p>Valikonağı Cad. Birlik Apt. 77 / 4<br>Nişantaşı, İstanbul</p>
-        <p><a href="mailto:bilgi@tarihvakfi.org.tr">bilgi@tarihvakfi.org.tr</a></p>
+        <p>Sarıdemir Mah. Ragıp Gümüşpala Cad. Değirmen Sok. No: 10<br>Eminönü, Fatih, İstanbul</p>
+        <p><a href="mailto:tarihvakfi@tarihvakfi.org.tr">tarihvakfi@tarihvakfi.org.tr</a></p>
       </div>
       <div class="lp-footer-col">
         <h4>Hızlı linkler</h4>
         <ul>
-          <li><a href="#hakkinda">Hakkında</a></li>
-          <li><a href="#projeler">Çalışma Alanları</a></li>
+          <li><a href="https://tarihvakfi.org.tr/hakkimizda/">Hakkında</a></li>
           <li><a href="./auth/">Gönüllü ol</a></li>
-          <li><a href="mailto:bilgi@tarihvakfi.org.tr?subject=Ba%C4%9F%C4%B1%C5%9F">Bağış yap</a></li>
+          <li><a href="https://fonzip.com/tarihvakfi/tarih-dostu" target="_blank" rel="noopener noreferrer">Bağış yap</a></li>
           <li><a href="#sss">SSS</a></li>
         </ul>
       </div>
       <div class="lp-footer-col">
         <h4>Bizi takip et</h4>
         <ul class="lp-footer-social">
-          <li><a href="https://twitter.com/tarihvakfi" target="_blank" rel="noopener">X / Twitter</a></li>
-          <li><a href="https://www.instagram.com/tarihvakfi" target="_blank" rel="noopener">Instagram</a></li>
-          <li><a href="https://www.facebook.com/tarihvakfi" target="_blank" rel="noopener">Facebook</a></li>
+          <li><a href="https://x.com/TarihVakfi" target="_blank" rel="noopener noreferrer">X / Twitter</a></li>
+          <li><a href="https://www.instagram.com/tarihvakfi" target="_blank" rel="noopener noreferrer">Instagram</a></li>
+          <li><a href="https://www.facebook.com/tarihvakfi/" target="_blank" rel="noopener noreferrer">Facebook</a></li>
         </ul>
         <ul style="margin-top:1rem">
-          <li><a href="#">KVKK ve gizlilik</a></li>
+          <!-- TODO: replace with full KVKK aydınlatma metni once legal text is finalized. -->
+          <li><a href="#" id="lpKvkkOpen" aria-haspopup="dialog">KVKK ve gizlilik</a></li>
         </ul>
       </div>
     </div>
@@ -508,6 +506,68 @@
       <p>© Tarih Vakfı, 1991–2026. Bağımsız sivil toplum kuruluşu.</p>
     </div>
   </footer>
+
+  <!-- TODO: replace with full KVKK aydınlatma metni once legal text is finalized. -->
+  <dialog id="lpKvkkDialog" class="lp-kvkk-dialog" aria-labelledby="lpKvkkTitle">
+    <style>
+      .lp-kvkk-dialog {
+        max-width: 480px;
+        width: calc(100% - 2rem);
+        padding: 1.75rem 1.75rem 1.5rem;
+        border: 1px solid var(--tv-sand);
+        border-radius: 12px;
+        background: var(--tv-paper);
+        color: var(--tv-ink);
+        box-shadow: 0 12px 40px rgba(43, 32, 24, 0.25);
+      }
+      .lp-kvkk-dialog::backdrop {
+        background: rgba(43, 32, 24, 0.45);
+      }
+      .lp-kvkk-dialog h3 {
+        font-family: "Lora", Georgia, serif;
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin: 0 0 .65rem;
+        color: var(--tv-ink);
+      }
+      .lp-kvkk-dialog p {
+        margin: 0 0 1.25rem;
+        font-size: 15px;
+        line-height: 1.6;
+        color: var(--tv-ink-soft);
+      }
+      .lp-kvkk-dialog p a {
+        color: var(--tv-terracotta-deep);
+        border-bottom: 1px solid currentColor;
+      }
+      .lp-kvkk-dialog .lp-kvkk-actions {
+        display: flex;
+        justify-content: flex-end;
+      }
+    </style>
+    <h3 id="lpKvkkTitle">KVKK ve Gizlilik</h3>
+    <p>Kişisel verilerinizin işlenmesi hakkındaki aydınlatma metnimiz hazırlanmaktadır. Sorularınız için <a href="mailto:tarihvakfi@tarihvakfi.org.tr">tarihvakfi@tarihvakfi.org.tr</a> adresinden bize ulaşabilirsiniz.</p>
+    <div class="lp-kvkk-actions">
+      <button type="button" class="lp-btn lp-btn-secondary" id="lpKvkkClose">Kapat</button>
+    </div>
+  </dialog>
+  <script>
+    (function () {
+      var dlg = document.getElementById('lpKvkkDialog');
+      var openLink = document.getElementById('lpKvkkOpen');
+      var closeBtn = document.getElementById('lpKvkkClose');
+      if (!dlg || !openLink) return;
+      openLink.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (typeof dlg.showModal === 'function') dlg.showModal();
+        else dlg.setAttribute('open', '');
+      });
+      if (closeBtn) closeBtn.addEventListener('click', function () { dlg.close(); });
+      dlg.addEventListener('click', function (e) {
+        if (e.target === dlg) dlg.close();
+      });
+    })();
+  </script>
 
   <script src="./js/config.firebase.js"></script>
   <script type="module" src="./js/landing.js"></script>
