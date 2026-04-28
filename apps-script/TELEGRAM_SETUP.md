@@ -91,28 +91,70 @@ curl -X POST "https://api.telegram.org/bot<TOKEN>/deleteWebhook"
 
 ---
 
-## 4. Install the Friday 17:00 triggers
+## 4. Install the full trigger set
 
-Two new time-based triggers ride alongside the existing `processMailQueue`,
-`generateWeeklySummary`, `checkInactiveVolunteers` triggers:
+`Triggers.gs::createTriggers` is now the single entry point for every
+time-based trigger this project owns. Run it once after first deploy and
+re-run it any time you need to repair the schedule:
 
-| Handler | Schedule (Europe/Istanbul) |
-| --- | --- |
-| `sendVolunteerWeeklyReminders` | Friday 17:00 |
-| `sendManagerWeeklySummary` | Friday 17:05 |
-
-Run the installer once:
-
-1. Apps Script editor → file dropdown → **TelegramReminders.gs**.
-2. Function dropdown → `installTelegramTriggers`.
+1. Apps Script editor → file dropdown → **Triggers.gs**.
+2. Function dropdown → `createTriggers`.
 3. Click **Run**. Authorize the script if prompted.
 
-The installer is idempotent: re-running it won't create duplicate triggers.
-Verify under **Triggers** (clock icon) — you should see the two handlers
-listed.
+The function is **destructive-idempotent**: it deletes every existing
+project trigger first, then recreates the canonical set below. Re-running
+it never produces duplicates, and any one-off triggers added by hand will
+be wiped — if you've added something outside this function, fold it into
+`createTriggers` before re-running.
 
-If you ever want to remove them, delete them from the **Triggers** screen
-(or click ⋮ → **Delete trigger**).
+Canonical trigger set after a clean run:
+
+| Handler | Cadence | Notes |
+| --- | --- | --- |
+| `processMailQueue` | every 1 hour | Mailers.gs (unchanged) |
+| `checkInactiveVolunteers` | every 1 day | Mailers.gs (unchanged) |
+| `generateWeeklySummary` | every 7 days | Summaries.gs (unchanged) |
+| `keepWarmPing` | every 5 minutes | KeepWarm.gs — see §4a |
+| `sendVolunteerWeeklyReminders` | Friday 17:00 Istanbul | Telegram bot reminders |
+| `sendManagerWeeklySummary` | Friday 17:05 Istanbul | Telegram bot summary |
+
+Verify under **Triggers** (clock icon in the editor sidebar) — you should
+see exactly six rows. Anything else means a previous run left orphans;
+re-run `createTriggers` to clean up.
+
+> The legacy `installTelegramTriggers` function (originally in
+> `TelegramReminders.gs`, now a thin shim in `Triggers.gs`) still works
+> for older setup instructions — it just forwards to `createTriggers`.
+
+### 4a. Keep-warm pattern
+
+Apps Script web apps cold-start when the runtime has been idle for ~5–10
+minutes. The first message after a cold period takes 30–40 seconds to
+respond, which feels broken from the volunteer's side. The
+`keepWarmPing` trigger fires every 5 minutes and pings Telegram's
+`getWebhookInfo` endpoint, which keeps the runtime warm and doubles as a
+free smoke-test that the webhook URL is still set.
+
+If `keepWarmPing` ever logs `webhook URL is unset`, that means the
+webhook was deleted server-side (commonly: someone re-deployed the Web
+App with a new URL without re-running `setWebhook`). Re-run the curl
+from §3 and the next ping will be quiet again.
+
+**Quota math.** Apps Script free tier allows 6 hours of execution time
+per day. A keep-warm ping is ~200 ms.
+
+```
+288 pings/day  ×  ~200 ms  =  ~58 s/day
+```
+
+That's under 0.3% of the daily quota — negligible alongside everything
+else. Increasing the cadence to every 1 minute (the most aggressive
+option Apps Script allows) would be ~290 s/day, still <2% of quota.
+
+If you ever want to disable the keep-warm (e.g., to test cold-start
+behavior end-to-end), open the **Triggers** screen and delete the
+`keepWarmPing` row by hand — it'll come back on the next `createTriggers`
+run.
 
 ---
 
@@ -225,8 +267,10 @@ review).
 | `TelegramBot.gs` | `doPost` webhook entrypoint, command dispatch, conversation flow, report commit. |
 | `TelegramSession.gs` | `/telegramSessions` CRUD, archive-unit search, materialCategory + volunteer-token helpers. |
 | `TelegramAuth.gs` | Link code claim, telegramId resolution, last-seen update. |
-| `TelegramReminders.gs` | `sendVolunteerWeeklyReminders`, `sendManagerWeeklySummary`, trigger installer, diagnostics. |
+| `TelegramReminders.gs` | `sendVolunteerWeeklyReminders`, `sendManagerWeeklySummary`, diagnostics. |
+| `KeepWarm.gs` | `keepWarmPing` — every-5-min no-op that prevents doPost cold starts. |
+| `Triggers.gs` | Pre-existing. Now owns the full trigger set (mailers + Telegram Friday reminders + keep-warm) via `createTriggers`. Re-running it deletes all triggers and rebuilds the canonical set. |
 | `FirestoreClient.gs` | Pre-existing. Extended with `createDocument`, `updateDocument`, `getDocument`, `deleteDocument`, `listDocuments`, `fsServerTimestamp`, filter helpers. |
-| `Code.gs` / `Mailers.gs` / `Summaries.gs` / `Triggers.gs` | Pre-existing, untouched. |
+| `Code.gs` / `Mailers.gs` / `Summaries.gs` | Pre-existing, untouched. |
 
 Bot token: **never committed**. Read from Script Properties at runtime.

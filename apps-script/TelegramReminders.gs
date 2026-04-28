@@ -273,32 +273,12 @@ function buildManagerSummaryMessage_(dateRange, m) {
 
 // ---- Trigger registration ---------------------------------------------
 //
-// installTelegramTriggers is idempotent: it adds the two Friday triggers
-// only if they aren't already registered. Run it once after first deploy
-// (Apps Script editor → Run → installTelegramTriggers). The existing
-// createTriggers() in Triggers.gs continues to handle Mailers.gs triggers.
-
-function installTelegramTriggers() {
-  const wanted = [
-    { handler: 'sendVolunteerWeeklyReminders', minute: 0 },
-    { handler: 'sendManagerWeeklySummary',     minute: 5 }
-  ];
-  const existing = ScriptApp.getProjectTriggers().map(function (t) {
-    return t.getHandlerFunction();
-  });
-  wanted.forEach(function (cfg) {
-    if (existing.indexOf(cfg.handler) !== -1) return;
-    let builder = ScriptApp.newTrigger(cfg.handler)
-      .timeBased()
-      .onWeekDay(ScriptApp.WeekDay.FRIDAY)
-      .atHour(17)
-      .inTimezone('Europe/Istanbul');
-    if (cfg.minute && typeof builder.nearMinute === 'function') {
-      builder = builder.nearMinute(cfg.minute);
-    }
-    builder.create();
-  });
-}
+// All trigger registration moved to Triggers.gs::createTriggers, which is
+// now the single source of truth (delete-and-recreate idempotent — wipes
+// every existing trigger then rebuilds the canonical set including the
+// two Friday handlers below and the new keepWarmPing). The legacy
+// installTelegramTriggers shim in Triggers.gs forwards to createTriggers
+// so old setup instructions keep working.
 
 // ---- Diagnostic helpers (used by Bakım admin tool too) ----------------
 
