@@ -123,6 +123,11 @@ function sw(name, opts = {}) {
   // Volunteer Anasayfa gets the near-white body background; everything else
   // reverts to the default surface color.
   document.body.classList.toggle("sv-active", target === "anasayfa");
+  // Lazy-load admin Bakım diagnostic counts on first navigation. Cheap (3
+  // Firestore reads); refresh button re-runs them on demand.
+  if (target === "bakim" && typeof renderTelegramDiagnosticCounts === "function") {
+    renderTelegramDiagnosticCounts();
+  }
   // Mirror the chosen tab in the URL hash so reload / back-forward stays put.
   if (!opts.skipHashWrite) {
     const wantedHash = `#${target}`;
@@ -1971,6 +1976,14 @@ async function submitInlineRapor({ container, state, $, $all, resetForm, showBan
       pagesDone: null,
       workStatus: status === "done" || status === "review" ? "unit_done" : status === "blocked" ? "blocked" : "in_progress",
       source: "report_first",
+      // channel is the Prompt R cross-channel marker. The legacy `source`
+      // field above already encodes the WEB FLOW variant
+      // (report_first / quick / detailed / system / coordinator_logged), so
+      // we add a separate `channel` field instead of overloading source. The
+      // Bakım Telegram tanılama tool's schema-parity check compares on
+      // channel; analytics that need to differentiate web vs Telegram filter
+      // on `channel`, never on `source`.
+      channel: "web",
       reportDate: td(),
       links: url ? [url] : [],
       images: [],
@@ -2550,6 +2563,7 @@ function renderVolunteerReportPrimary() {
   ensureInlineRaporForm("pnbInlineRapor", { showProjectPicker: false, fixedProjectId: "pnb" });
   refreshAllInlineRaporForms();
   renderVolunteerActiveProjects();
+  renderTelegramCard();
   const list = document.getElementById("svRecentReports");
   if (!list) return;
   const myReports = Object.values(rd || {})
@@ -5660,6 +5674,235 @@ document.getElementById("pnbImportFile")?.addEventListener("change", async (even
   }
 });
 
+// ---------- Telegram link card (volunteer Anasayfa) ----------
+//
+// Two states. Unlinked: shows a button that generates a 6-digit code and
+// writes it to /telegramLinkCodes/{code}. Linked: shows last-seen timestamp
+// + a revoke button that clears users/{uid}.telegramId.
+//
+// The bot reads the code via service account on the Apps Script side. See
+// apps-script/TelegramAuth.gs::claimLinkCode for the consume path.
+
+let _tgCodeTimer = null;
+
+function renderTelegramCard() {
+  const card = document.getElementById("tgLinkCard");
+  if (!card || !cu) return;
+  const linkedId = cp?.telegramId || "";
+  if (linkedId) {
+    const lastSeen = cp?.telegramLastSeenAt;
+    const lastSeenLabel = lastSeen
+      ? daysSinceLabel(daysSince(toDateFromTs(lastSeen) || new Date()))
+      : "henüz mesaj yok";
+    card.innerHTML = `
+      <div class="tg-link-state tg-link-linked">
+        <div>
+          <p class="tg-link-head"><strong>Telegram: bağlı</strong></p>
+          <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Son aktivite: ${escapeHTML(lastSeenLabel)}</p>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" id="tgUnlinkBtn">Bağlantıyı kaldır</button>
+      </div>`;
+  } else {
+    card.innerHTML = `
+      <div class="tg-link-state tg-link-unlinked">
+        <div>
+          <p class="tg-link-head"><strong>Telegram bağlı değil</strong></p>
+          <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Telegram'dan da rapor yazabilirsin. Bağlamak için düğmeye bas.</p>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" id="tgGenCodeBtn">Bağlantı kodu al</button>
+      </div>`;
+  }
+}
+
+async function generateTelegramCode() {
+  if (!cu || !db) return;
+  const card = document.getElementById("tgLinkCard");
+  if (!card) return;
+  card.innerHTML = '<p class="empty">Kod oluşturuluyor…</p>';
+  try {
+    let code = "";
+    let placed = false;
+    // Up to 10 tries to find a 6-digit code that isn't in use. Collisions
+    // at 6-digit space + 10-min TTL are vanishingly rare; this loop is
+    // defensive, not a hot path.
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      code = String(Math.floor(100000 + Math.random() * 900000));
+      const existing = await getDoc(doc(db, "telegramLinkCodes", code));
+      if (existing.exists()) continue;
+      const now = new Date();
+      await setDoc(doc(db, "telegramLinkCodes", code), {
+        uid: cu.uid,
+        createdAt: now.toISOString(),
+        expiresAt: new Date(now.getTime() + 600 * 1000).toISOString()
+      });
+      placed = true;
+      break;
+    }
+    if (!placed) {
+      card.innerHTML = '<p class="empty">Kod oluşturulamadı. Tekrar dene.</p>';
+      return;
+    }
+    showTelegramCode(code);
+  } catch (error) {
+    card.innerHTML = `<p class="empty">Hata: ${escapeHTML(error.message || "")}</p>`;
+  }
+}
+
+function showTelegramCode(code) {
+  const card = document.getElementById("tgLinkCard");
+  if (!card) return;
+  const expiresAt = Date.now() + 600 * 1000;
+  const tick = () => {
+    const remaining = Math.max(0, expiresAt - Date.now());
+    if (remaining <= 0) {
+      clearInterval(_tgCodeTimer);
+      _tgCodeTimer = null;
+      renderTelegramCard();
+      return;
+    }
+    const mins = Math.floor(remaining / 60000);
+    const secs = Math.floor((remaining % 60000) / 1000);
+    const timerEl = document.getElementById("tgCodeTimer");
+    if (timerEl) timerEl.textContent = `${mins}:${String(secs).padStart(2, "0")} içinde geçerli.`;
+  };
+  card.innerHTML = `
+    <div class="tg-link-state tg-link-pending">
+      <p class="tg-link-head"><strong>Bağlantı kodun:</strong></p>
+      <div class="tg-code-row">
+        <span class="tg-code" id="tgCodeDisplay">${escapeHTML(code)}</span>
+        <button type="button" class="btn btn-secondary btn-sm" id="tgCodeCopyBtn">Kopyala</button>
+      </div>
+      <p class="muted" style="font-size:.85rem;margin:.5rem 0 0">Bu kodu Telegram'da bot hesabına gönder.</p>
+      <p class="muted" style="font-size:.8rem;margin:.25rem 0 0" id="tgCodeTimer">10:00 içinde geçerli.</p>
+    </div>`;
+  if (_tgCodeTimer) clearInterval(_tgCodeTimer);
+  _tgCodeTimer = setInterval(tick, 1000);
+  tick();
+}
+
+async function unlinkTelegram() {
+  if (!cu || !db) return;
+  if (!confirm("Telegram bağlantısını kaldırmak istediğinden emin misin?")) return;
+  try {
+    await updateDoc(doc(db, "users", cu.uid), {
+      telegramId: null,
+      telegramLinkedAt: null,
+      updatedAt: serverTimestamp()
+    });
+    if (cp) {
+      cp.telegramId = null;
+      cp.telegramLinkedAt = null;
+    }
+    renderTelegramCard();
+  } catch (error) {
+    alert(`Bağlantı kaldırılamadı: ${error.message}`);
+  }
+}
+
+// ---------- Telegram diagnostic (admin Bakım) ----------
+
+async function renderTelegramDiagnosticCounts() {
+  const wrap = document.getElementById("tgDiagnosticCounts");
+  if (!wrap || !isAdmin()) return;
+  wrap.innerHTML = '<p class="empty">Yükleniyor…</p>';
+  try {
+    const [usersSnap, sessionsSnap, codesSnap] = await Promise.all([
+      getDocs(query(collection(db, "users"), where("telegramId", "!=", null))),
+      getDocs(collection(db, "telegramSessions")),
+      getDocs(collection(db, "telegramLinkCodes"))
+    ]);
+    const linkedUsers = usersSnap.size;
+    let activeSessions = 0;
+    sessionsSnap.forEach((d) => { if ((d.data().step || "idle") !== "idle") activeSessions += 1; });
+    const now = Date.now();
+    let expiredCodes = 0;
+    codesSnap.forEach((d) => {
+      const exp = d.data().expiresAt;
+      if (exp && new Date(exp).getTime() < now) expiredCodes += 1;
+    });
+    wrap.innerHTML = `
+      <div class="tg-diag-row"><span>Toplam Telegram bağlantısı</span><strong>${numberText(linkedUsers)}</strong></div>
+      <div class="tg-diag-row"><span>Aktif oturum sayısı</span><strong>${numberText(activeSessions)}</strong></div>
+      <div class="tg-diag-row"><span>Süresi geçmiş bağlantı kodu</span><strong>${numberText(expiredCodes)}</strong></div>`;
+  } catch (error) {
+    wrap.innerHTML = `<p class="empty">Yüklenemedi: ${escapeHTML(error.message || "")}</p>`;
+  }
+}
+
+async function runTelegramSchemaCheck() {
+  const result = document.getElementById("tgSchemaCheckResult");
+  const msg = document.getElementById("tgSchemaCheckMsg");
+  const btn = document.getElementById("tgSchemaCheckBtn");
+  if (!result || !msg || !btn || !isAdmin()) return;
+  btn.disabled = true;
+  msg.textContent = "Çalışıyor…";
+  result.innerHTML = "";
+  try {
+    // Read recent reports and split by channel client-side. Admins can read
+    // all reports per Firestore rules; we only need the field shapes.
+    const snap = await getDocs(query(
+      collection(db, "reports"),
+      orderBy("createdAt", "desc"),
+      limit(200)
+    ));
+    const web = [];
+    const tg = [];
+    snap.forEach((d) => {
+      const data = d.data();
+      if ((data.channel || "") === "telegram") {
+        if (tg.length < 10) tg.push(data);
+      } else {
+        if (web.length < 10) web.push(data);
+      }
+    });
+    if (!web.length || !tg.length) {
+      msg.textContent = `Yeterli örnek yok (web: ${web.length}, telegram: ${tg.length}).`;
+      btn.disabled = false;
+      return;
+    }
+    const collectKeys = (samples) => {
+      const seen = new Set();
+      samples.forEach((s) => Object.keys(s).forEach((k) => seen.add(k)));
+      return [...seen].sort();
+    };
+    const typeOf = (v) => {
+      if (v === null || v === undefined) return "null";
+      if (Array.isArray(v)) return "array";
+      if (v && typeof v.toDate === "function") return "timestamp";
+      if (v && typeof v === "object") return "object";
+      return typeof v;
+    };
+    const webKeys = collectKeys(web);
+    const tgKeys = collectKeys(tg);
+    const webMissing = tgKeys.filter((k) => !webKeys.includes(k));
+    const tgMissing = webKeys.filter((k) => !tgKeys.includes(k));
+    const both = webKeys.filter((k) => tgKeys.includes(k));
+    const typeMismatches = [];
+    both.forEach((k) => {
+      const wType = typeOf((web.find((s) => k in s) || {})[k]);
+      const tType = typeOf((tg.find((s) => k in s) || {})[k]);
+      if (wType !== tType) typeMismatches.push({ field: k, web: wType, telegram: tType });
+    });
+    const ok = !webMissing.length && !tgMissing.length && !typeMismatches.length;
+    msg.textContent = ok ? "Şema eşleşti." : "Farklılık bulundu.";
+    const lines = [];
+    lines.push(`<div class="tg-diag-row"><span>Örnek sayısı</span><strong>web ${web.length}, telegram ${tg.length}</strong></div>`);
+    if (tgMissing.length) lines.push(`<div class="tg-diag-row"><span>Telegram'da eksik alanlar</span><strong>${escapeHTML(tgMissing.join(", "))}</strong></div>`);
+    if (webMissing.length) lines.push(`<div class="tg-diag-row"><span>Web'de eksik alanlar</span><strong>${escapeHTML(webMissing.join(", "))}</strong></div>`);
+    if (typeMismatches.length) {
+      lines.push('<div class="tg-diag-row"><span>Tip farkları</span><strong>' +
+        typeMismatches.map((m) => `${escapeHTML(m.field)} (web:${m.web}, tg:${m.telegram})`).join("; ") +
+        "</strong></div>");
+    }
+    if (ok) lines.push('<div class="tg-diag-row"><span>Sonuç</span><strong>Tüm alanlar uyuşuyor.</strong></div>');
+    result.innerHTML = lines.join("");
+  } catch (error) {
+    msg.textContent = `Hata: ${error.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 document.addEventListener("click", async (event) => {
   // ----- Bugün-tab controls (coordinator/admin home) -----
   if (event.target.id === "bugunOpenReportBtn") {
@@ -5901,6 +6144,40 @@ document.addEventListener("click", async (event) => {
 
   if (event.target.id === "exportActivityBtn") {
     exportActivityCsv();
+    return;
+  }
+
+  // ----- Telegram link card (volunteer Anasayfa) -----
+  if (event.target.id === "tgGenCodeBtn") {
+    await generateTelegramCode();
+    return;
+  }
+  if (event.target.id === "tgUnlinkBtn") {
+    await unlinkTelegram();
+    return;
+  }
+  if (event.target.id === "tgCodeCopyBtn") {
+    const codeEl = document.getElementById("tgCodeDisplay");
+    const code = codeEl?.textContent || "";
+    if (code && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(code);
+        const btn = event.target;
+        const original = btn.textContent;
+        btn.textContent = "Kopyalandı";
+        setTimeout(() => { btn.textContent = original; }, 1500);
+      } catch (err) { /* ignore — non-secure context */ }
+    }
+    return;
+  }
+
+  // ----- Telegram diagnostic (admin Bakım) -----
+  if (event.target.id === "tgDiagnosticRefresh") {
+    await renderTelegramDiagnosticCounts();
+    return;
+  }
+  if (event.target.id === "tgSchemaCheckBtn") {
+    await runTelegramSchemaCheck();
     return;
   }
 

@@ -2073,3 +2073,41 @@ body.staff-shell #volunteerPnbView { display: none !important; }
   .vp-pnb-todo-desc { grid-area: desc; white-space: normal; }
   .vp-pnb-todo-pages { grid-area: pages; }
 }
+
+/* ---------- Telegram link card (volunteer Anasayfa) ---------- */
+.tg-link-card { padding: 1rem 1.1rem; }
+.tg-link-state {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.tg-link-state.tg-link-pending { display: block; }
+.tg-link-head { margin: 0; font-size: 14px; }
+.tg-code-row {
+  display: flex; align-items: center; gap: .65rem;
+  margin-top: .5rem;
+}
+.tg-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.5rem; font-weight: 600;
+  letter-spacing: .15em;
+  padding: .35rem .6rem;
+  background: var(--tblr-bg-surface-secondary);
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 6px;
+  color: var(--tblr-body-color);
+}
+
+/* ---------- Telegram diagnostic (admin Bakım) ---------- */
+.tg-diag-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: .4rem 0;
+  border-bottom: 1px solid var(--tblr-border-color);
+  font-size: 13px;
+}
+.tg-diag-row:last-child { border-bottom: 0; }
+.tg-diag-row span { color: var(--tblr-secondary); }
+.tg-diag-row strong {
+  color: var(--tblr-body-color);
+  font-variant-numeric: tabular-nums;
+}

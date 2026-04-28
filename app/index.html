@@ -79,6 +79,13 @@
               <p class="vp-section-eyebrow">Aktif projeler</p>
               <div id="vpProjectsList" class="vp-projects-list"></div>
             </div>
+            <!-- Telegram link card. Filled by renderTelegramCard() in
+                 dashboard.js. Two states: unlinked (button to generate a
+                 6-digit code) and linked (last-seen + revoke button). -->
+            <div>
+              <p class="vp-section-eyebrow">Telegram</p>
+              <div id="tgLinkCard" class="card tg-link-card"><p class="empty">Yükleniyor…</p></div>
+            </div>
           </div>
         </div>
       </div>
@@ -464,7 +471,27 @@
         <div id="pendingReviewList" class="stack"><p class="empty">Yükleniyor…</p></div>
       </article>
 
-      <!-- Section 4: Veri sağlığı (TODO: per-collection counts + last-write timestamps) -->
+      <!-- Section 4: Telegram tanılama -->
+      <article class="card" id="tgDiagnosticCard" style="margin-top:1.25rem">
+        <div class="step-header">
+          <div>
+            <p class="eyebrow">Bakım · telegram</p>
+            <h2 style="margin-top:0">Telegram tanılama</h2>
+            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Bağlantı sayısı, oturum durumu ve şema doğrulama. Sayılar doğrudan Firestore'dan okunur.</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" type="button" id="tgDiagnosticRefresh">Yenile</button>
+        </div>
+        <div id="tgDiagnosticCounts" class="stack" style="margin-top:.75rem">
+          <p class="empty">Henüz yüklenmedi.</p>
+        </div>
+        <div class="form-actions" style="margin-top:.75rem">
+          <button class="btn btn-secondary btn-sm" type="button" id="tgSchemaCheckBtn">Şema doğrulamasını çalıştır</button>
+          <span id="tgSchemaCheckMsg" class="status-line muted" style="font-size:.85rem"></span>
+        </div>
+        <div id="tgSchemaCheckResult" class="stack" style="margin-top:.75rem"></div>
+      </article>
+
+      <!-- Section 5: Veri sağlığı (TODO: per-collection counts + last-write timestamps) -->
       <article class="card" style="margin-top:1.25rem">
         <p class="eyebrow">Bakım · veri sağlığı</p>
         <h2 style="margin-top:0">Veri sağlığı</h2>

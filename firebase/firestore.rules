@@ -124,6 +124,9 @@ service cloud.firestore {
         "reportCount30d",
         "counterWindowStart",
         "rhythm",
+        "telegramId",
+        "telegramLinkedAt",
+        "telegramLastSeenAt",
         "updatedAt"
       ];
     }
@@ -143,6 +146,13 @@ service cloud.firestore {
       // Volunteers cannot self-edit them (not in userSelfEditableFields()) and
       // coordinators are blocked by the affectedKeys() guard below — they
       // request changes through an admin.
+      //
+      // Telegram-link fields (telegramId, telegramLinkedAt, telegramLastSeenAt)
+      // are added to userSelfEditableFields above so the volunteer can self-link
+      // and self-unlink. Bot writes go through the Apps Script service account
+      // and bypass rules entirely. The cross-department coordinator clause at
+      // the end lets staff fix up telegram links for any user without needing
+      // department match — useful when an unlinking request comes in via DM.
       allow update: if signedIn() && (
         (request.auth.uid == uid &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(userSelfEditableFields())) ||
@@ -150,7 +160,11 @@ service cloud.firestore {
         (isCoordinator() &&
           resource.data.department == currentUserData().department &&
           request.resource.data.department == resource.data.department &&
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(["specialty", "availabilityDays", "canWorkInPerson"]))
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(["specialty", "availabilityDays", "canWorkInPerson"])) ||
+        (isCoordinator() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            "telegramId", "telegramLinkedAt", "telegramLastSeenAt", "updatedAt"
+          ]))
       );
 
       allow delete: if isAdmin();
@@ -307,6 +321,28 @@ service cloud.firestore {
 
       // Admins can prune / fix old entries; nobody else can edit them.
       allow update, delete: if isAdmin();
+    }
+
+    // Telegram bot session storage. Apps Script writes via service account
+    // (bypasses rules); no client writes them. Admins get read-only access
+    // for the Bakım Telegram tanılama diagnostic; everyone else is locked
+    // out, since the doc body contains in-flight conversation state.
+    match /telegramSessions/{telegramId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // 6-digit one-shot codes the volunteer creates from Anasayfa to link
+    // their Telegram account. Apps Script consumes the code via service
+    // account on bot side. Code TTL is 10 minutes; the client checks expiry
+    // for its own UI but the bot also revalidates server-side. Admin read
+    // access supports the Bakım expired-code housekeeping count.
+    match /telegramLinkCodes/{code} {
+      allow create: if isApproved() &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.keys().hasOnly(["uid", "createdAt", "expiresAt"]);
+      allow read: if (isApproved() && resource.data.uid == request.auth.uid) || isAdmin();
+      allow delete, update: if false;
     }
 
     match /publicProjectStats/{projectId} {
