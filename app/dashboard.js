@@ -96,10 +96,12 @@ function defaultTabForRole() {
   return "anasayfa";
 }
 
-// Coordinator/admin tab set narrowed in Prompt P — PNB is volunteer-only now.
+// PNB is shared again: both volunteers and staff can reach the tab. Staff
+// land on Bugün by default but can navigate into PNB to use the İş Akışı
+// kanban (with drag-drop / edit access).
 function allowedTabsForRole() {
-  if (isAdmin()) return ["bugun", "yonetim", "bakim"];
-  if (isStaff()) return ["bugun", "yonetim"];
+  if (isAdmin()) return ["bugun", "pnb", "yonetim", "bakim"];
+  if (isStaff()) return ["bugun", "pnb", "yonetim"];
   return ["anasayfa", "pnb", "duyurular"];
 }
 
@@ -109,10 +111,6 @@ function resolveTab(rawName) {
   // Legacy aliases collapse "home"/"reports" to "anasayfa"; for staff,
   // remap to "bugun" so old anchor links still land on the role's home.
   if ((rawName === "home" || rawName === "reports") && isStaff()) name = "bugun";
-  // Coordinator/admin manually navigating to #pnb (or "pano" via the alias
-  // above) ends up here — there's no staff PNB tab anymore, so bounce them
-  // to the report stream on Bugün.
-  if (name === "pnb" && isStaff()) name = "bugun";
   const allowed = allowedTabsForRole();
   if (allowed.includes(name)) return name;
   return defaultTabForRole();
@@ -2152,13 +2150,19 @@ function renderVolunteerActiveProjects() {
   }).join("");
 }
 
-// Project-tab factory. Renders header + progress + four stats + kanban for a
-// single project. Today this is wired to projectId="pnb"; once a second
-// project comes online the same function will populate that project's tab
-// without changes — just add its registry entry and an HTML block with
-// vp-{projectId}-* IDs.
+// Project-tab factory. Renders header + progress + four stats (volunteer
+// only) + İş Akışı flow for a single project. Today this is wired to
+// projectId="pnb"; once a second project comes online the same function
+// will populate that project's tab without changes — just add its registry
+// entry and an HTML block with vp-{projectId}-* IDs.
+//
+// Role split: volunteers get the four stat tiles + inline Rapor Yaz form;
+// staff get a leaner header (those panels are .volunteer-only-block in
+// the HTML and stay hidden via CSS for the staff shell). The İş Akışı
+// section below renders identically for both roles — drag-drop and edit
+// access is gated inside the handlers.
 function renderVolunteerProjectTab(projectId) {
-  if (isStaff() || !cu) return;
+  if (!cu) return;
   if (projectId !== PNB_PROJECT_ID) return; // future projects: extend here
   const view = document.getElementById("volunteerPnbView");
   if (!view) return;
@@ -2169,7 +2173,7 @@ function renderVolunteerProjectTab(projectId) {
     && (u.status || "") !== "pending_review"
   );
 
-  // --- Progress hero ---
+  // --- Progress hero (both roles) ---
   const totalPages = projectUnits.reduce((acc, u) => acc + (Number(u.pageCount) || 0), 0);
   const reports = Object.values(rd || {});
   const projectReports = reports.filter((r) => (r.projectId || PNB_PROJECT_ID) === projectId);
@@ -2189,99 +2193,343 @@ function renderVolunteerProjectTab(projectId) {
     progLine.innerHTML = `${numberText(totalPages)} sayfadan <strong>${numberText(pagesDoneTotal)}</strong> tasnif edildi · bu hafta <strong>+${numberText(thisPages)} sayfa</strong>`;
   }
 
-  // --- Sıradaki iş tile ---
-  const nextUnit = pickNextQueueUnit();
-  if (nextUnit) {
-    setT("vpPnbNextTitle", archiveLabel(nextUnit));
-    const bits = [];
-    if (nextUnit.boxNo) bits.push(`Kutu ${nextUnit.boxNo}`);
-    if (nextUnit.pageCount) bits.push(`${numberText(nextUnit.pageCount)} sayfa`);
-    if (nextUnit.priority === "high") bits.push("Yüksek öncelik");
-    setT("vpPnbNextSub", bits.join(" · "));
-    const btn = document.getElementById("vpPnbStatNext");
-    if (btn) btn.dataset.unitId = nextUnit.id;
-  } else {
-    setT("vpPnbNextTitle", "Uygun iş yok");
-    setT("vpPnbNextSub", "Şu an boş iş paketi görünmüyor.");
-  }
-
-  // --- Üstümdeki iş tile ---
-  const uid = cu?.uid;
-  const email = (cu?.email || "").toLowerCase();
-  const myOpen = projectUnits.filter((u) => {
-    const mine = (u.assignedToUids || []).includes(uid) ||
-      (email && (u.assignedToEmails || []).map((e) => String(e).toLowerCase()).includes(email));
-    return mine && !["done"].includes(u.status || "not_started");
-  });
-  const attnLab = document.getElementById("vpPnbAttnLab");
-  if (attnLab) attnLab.textContent = "Üstümdeki iş";
-  setT("vpPnbAttnVal", myOpen.length > 0 ? `${myOpen.length} iş` : "Boş");
-  setT("vpPnbAttnSub", myOpen.length > 0
-    ? myOpen.map((u) => archiveLabel(u)).slice(0, 2).join(" · ")
-    : "Atanmış iş yok.");
-
-  // --- Bu hafta tile ---
-  const now = Date.now();
-  const weekMs = 7 * 86400000;
-  const thisWeek = projectReports.filter((r) => (toDateFromTs(r.createdAt)?.getTime() || 0) >= now - weekMs);
-  const lastWeek = projectReports.filter((r) => {
-    const t = toDateFromTs(r.createdAt)?.getTime() || 0;
-    return t >= now - 2 * weekMs && t < now - weekMs;
-  });
-  const thisPages = thisWeek.reduce((acc, r) => acc + (Number(r.pagesDone) || 0), 0);
-  const lastPages = lastWeek.reduce((acc, r) => acc + (Number(r.pagesDone) || 0), 0);
-  setT("vpPnbWeekVal", `${numberText(thisPages)} sayfa`);
-  const weekSub = document.getElementById("vpPnbWeekSub");
-  if (weekSub) {
-    if (lastPages === 0 && thisPages === 0) {
-      weekSub.textContent = "Henüz aktivite yok.";
-    } else if (lastPages === 0) {
-      weekSub.innerHTML = `Başlangıç · <strong>${numberText(thisWeek.length)} rapor</strong>`;
+  // --- Volunteer-only stat tiles ---
+  // The four .vp-pnb-stat tiles and #pnbInlineRapor live in
+  // .volunteer-only-block wrappers and are CSS-hidden for staff. We still
+  // populate them when the volunteer views the tab.
+  if (!isStaff()) {
+    // Sıradaki iş
+    const nextUnit = pickNextQueueUnit();
+    if (nextUnit) {
+      setT("vpPnbNextTitle", archiveLabel(nextUnit));
+      const bits = [];
+      if (nextUnit.boxNo) bits.push(`Kutu ${nextUnit.boxNo}`);
+      if (nextUnit.pageCount) bits.push(`${numberText(nextUnit.pageCount)} sayfa`);
+      if (nextUnit.priority === "high") bits.push("Yüksek öncelik");
+      setT("vpPnbNextSub", bits.join(" · "));
+      const btn = document.getElementById("vpPnbStatNext");
+      if (btn) btn.dataset.unitId = nextUnit.id;
     } else {
-      const delta = Math.round(((thisPages - lastPages) / lastPages) * 100);
-      const sign = delta >= 0 ? "+" : "";
-      weekSub.innerHTML = `Geçen haftadan <strong>${sign}${delta}%</strong> · ${numberText(thisWeek.length)} rapor`;
+      setT("vpPnbNextTitle", "Uygun iş yok");
+      setT("vpPnbNextSub", "Şu an boş iş paketi görünmüyor.");
     }
+
+    // Üstümdeki iş
+    const uid = cu?.uid;
+    const email = (cu?.email || "").toLowerCase();
+    const myOpen = projectUnits.filter((u) => {
+      const mine = (u.assignedToUids || []).includes(uid) ||
+        (email && (u.assignedToEmails || []).map((e) => String(e).toLowerCase()).includes(email));
+      return mine && !["done"].includes(u.status || "not_started");
+    });
+    const attnLab = document.getElementById("vpPnbAttnLab");
+    if (attnLab) attnLab.textContent = "Üstümdeki iş";
+    setT("vpPnbAttnVal", myOpen.length > 0 ? `${myOpen.length} iş` : "Boş");
+    setT("vpPnbAttnSub", myOpen.length > 0
+      ? myOpen.map((u) => archiveLabel(u)).slice(0, 2).join(" · ")
+      : "Atanmış iş yok.");
+
+    // Bu hafta
+    const now = Date.now();
+    const weekMs = 7 * 86400000;
+    const thisWeek = projectReports.filter((r) => (toDateFromTs(r.createdAt)?.getTime() || 0) >= now - weekMs);
+    const lastWeek = projectReports.filter((r) => {
+      const t = toDateFromTs(r.createdAt)?.getTime() || 0;
+      return t >= now - 2 * weekMs && t < now - weekMs;
+    });
+    const thisPages = thisWeek.reduce((acc, r) => acc + (Number(r.pagesDone) || 0), 0);
+    const lastPages = lastWeek.reduce((acc, r) => acc + (Number(r.pagesDone) || 0), 0);
+    setT("vpPnbWeekVal", `${numberText(thisPages)} sayfa`);
+    const weekSub = document.getElementById("vpPnbWeekSub");
+    if (weekSub) {
+      if (lastPages === 0 && thisPages === 0) {
+        weekSub.textContent = "Henüz aktivite yok.";
+      } else if (lastPages === 0) {
+        weekSub.innerHTML = `Başlangıç · <strong>${numberText(thisWeek.length)} rapor</strong>`;
+      } else {
+        const delta = Math.round(((thisPages - lastPages) / lastPages) * 100);
+        const sign = delta >= 0 ? "+" : "";
+        weekSub.innerHTML = `Geçen haftadan <strong>${sign}${delta}%</strong> · ${numberText(thisWeek.length)} rapor`;
+      }
+    }
+
+    // Aktif gönüllü
+    const weekReports = projectReports.filter((r) => (toDateFromTs(r.createdAt)?.getTime() || 0) >= now - weekMs);
+    const weekActive = new Set(weekReports.map((r) => r.userUid || r.volunteerId).filter(Boolean)).size;
+    setT("vpPnbTeamVal", `${numberText(weekActive)} kişi`);
+    setT("vpPnbTeamSub", `son 7 günde ${numberText(weekReports.length)} rapor yazıldı`);
   }
 
-  // --- Aktif gönüllü tile ---
-  const weekReports = projectReports.filter((r) => (toDateFromTs(r.createdAt)?.getTime() || 0) >= now - weekMs);
-  const weekActive = new Set(weekReports.map((r) => r.userUid || r.volunteerId).filter(Boolean)).size;
-  setT("vpPnbTeamVal", `${numberText(weekActive)} kişi`);
-  setT("vpPnbTeamSub", `son 7 günde ${numberText(weekReports.length)} rapor yazıldı`);
+  // --- İş Akışı flow (both roles) ---
+  renderVpPnbFlow(projectId, projectUnits);
+}
 
-  // --- Read-only kanban (5 columns; no pending side panel for volunteers) ---
-  const buckets = { not_started: [], in_progress: [], review: [], done: [], blocked: [] };
+// ---------- İş Akışı flow renderer ----------
+//
+// Replaces the old 5-column kanban (Başlanmadı / Devam ediyor / Gözden
+// geçirme / Tamam / Takıldım) with a focused active-work view:
+//   - Stat line: started/total · done/total
+//   - Search box (filters all sections)
+//   - Collapsible "Başlanmamış" strip with paginated list (20/page,
+//     sort + filter chips). Default closed. The wall of ~250 cards is
+//     gone; this is a catalog-style picker.
+//   - Two-column kanban below: Devam ediyor + Tamamlandı only.
+//
+// Status mapping:
+//   not_started / null / "assigned" → todo strip
+//   in_progress                     → Devam ediyor column
+//   done                            → Tamamlandı column
+//   review / blocked                → NOT rendered here. They still exist
+//     in the data model (firestore rules unchanged); blocked surfaces in
+//     coordinator Bugün's Dikkat list, review surfaces in admin Bakım.
+
+const VP_PNB_TODO_PAGE_SIZE = 20;
+const vpPnbTodoState = {
+  page: 0,
+  sort: "priority",     // priority | source | pages | material
+  tag: "",              // suitableFor key, "" = no filter
+  digitalOnly: false,
+  search: ""
+};
+
+// Cache the last filtered+sorted Başlanmadı list so prev/next page clicks
+// don't re-traverse archiveUnits. Reset on every renderVpPnbFlow call.
+let vpPnbTodoCache = [];
+
+function renderVpPnbFlow(projectId, projectUnits) {
+  // Read the live search input so search persists across re-renders that
+  // are triggered by data refresh (the value attribute isn't owned here).
+  const searchInput = document.getElementById("vpPnbFlowSearch");
+  if (searchInput && searchInput.value !== vpPnbTodoState.search) {
+    vpPnbTodoState.search = searchInput.value || "";
+  }
+  const term = trNormalize((vpPnbTodoState.search || "").trim());
+  const matchesSearch = (u) => {
+    if (!term) return true;
+    const hay = trNormalize([
+      u.sourceIdentifier, u.sourceCode, u.boxNo, u.seriesNo, u.contentDescription,
+      u.title, u.notes, u.materialType, u.lastReporterName
+    ].filter(Boolean).join(" "));
+    return hay.includes(term);
+  };
+
+  // Bucket: todo (not_started/assigned/null) | doing (in_progress) | done.
+  // review and blocked drop out of the kanban entirely.
+  const todoAll = [];
+  const doing = [];
+  const done = [];
   projectUnits.forEach((u) => {
     const s = u.status || "not_started";
-    const key = s === "assigned" ? "not_started" : (buckets[s] ? s : "not_started");
-    buckets[key].push(u);
+    if (s === "in_progress") doing.push(u);
+    else if (s === "done") done.push(u);
+    else if (s === "review" || s === "blocked") return; // hidden from this view
+    else todoAll.push(u); // not_started, assigned, null, unknown
   });
+
+  // --- Stat line ---
+  const total = projectUnits.length;
+  const startedCount = doing.length + done.length;
+  const doneCount = done.length;
+  const statEl = document.getElementById("vpPnbFlowStat");
+  if (statEl) {
+    statEl.textContent = `${numberText(startedCount)} / ${numberText(total)} başlandı · ${numberText(doneCount)} / ${numberText(total)} tamamlandı`;
+  }
+
+  // --- Başlanmamış strip (search-filtered total) ---
+  const todoFiltered = todoAll.filter(matchesSearch).filter((u) => {
+    if (vpPnbTodoState.digitalOnly && u.digitized !== true) return false;
+    if (vpPnbTodoState.tag && !(u.suitableFor || []).includes(vpPnbTodoState.tag)) return false;
+    return true;
+  });
+  vpPnbTodoSortInPlace(todoFiltered);
+  vpPnbTodoCache = todoFiltered;
+  // Total before per-page slicing — shown in the strip summary so the
+  // collapsed state still tells the user how many items are queued. We
+  // use the search-filtered total (matchesSearch) but ignore tag/digital
+  // chips for the strip header so the user sees the unfiltered queue
+  // size; the per-page count below the controls reflects the chip filters.
+  const todoTotalForHeader = todoAll.filter(matchesSearch).length;
+  vpPnbSetText("vpPnbTodoTotal", numberText(todoTotalForHeader));
+  vpPnbRenderTodoList(todoFiltered);
+
+  // --- Active columns ---
+  vpPnbSortActive(doing);
+  vpPnbSortActive(done);
+  // Filter active columns by search too — search is meant to filter "all
+  // 3 columns" per the spec.
+  const doingShown = doing.filter(matchesSearch);
+  const doneShown = done.filter(matchesSearch);
+  const renderColumn = (bodyId, countId, list, emptyMsg) => {
+    const body = document.getElementById(bodyId);
+    const count = document.getElementById(countId);
+    if (count) count.textContent = numberText(list.length);
+    if (!body) return;
+    if (!list.length) {
+      body.innerHTML = `<p class="kb-empty vp-pnb-col-empty">${escapeHTML(emptyMsg)}</p>`;
+      return;
+    }
+    const draggable = isStaff();
+    body.innerHTML = list.map((u) => vpPnbActiveCard(u, draggable)).join("");
+  };
+  renderColumn("vpPnbColDoing", "vpPnbCountDoing", doingShown, "Şu an devam eden iş paketi yok.");
+  renderColumn("vpPnbColDone", "vpPnbCountDone", doneShown, "Henüz tamamlanan iş paketi yok.");
+}
+
+function vpPnbSetText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+
+function vpPnbTodoSortInPlace(list) {
   const priorityRank = { high: 3, medium: 2, low: 1 };
-  const sortFn = (a, b) => {
+  switch (vpPnbTodoState.sort) {
+    case "source":
+      list.sort((a, b) => String(a.sourceIdentifier || a.sourceCode || "").localeCompare(
+        String(b.sourceIdentifier || b.sourceCode || ""), "tr"
+      ));
+      break;
+    case "pages":
+      list.sort((a, b) => (Number(b.pageCount) || 0) - (Number(a.pageCount) || 0));
+      break;
+    case "material":
+      list.sort((a, b) => String(a.materialType || "").localeCompare(String(b.materialType || ""), "tr"));
+      break;
+    case "priority":
+    default:
+      list.sort((a, b) => {
+        const pa = priorityRank[a.priority] || 2;
+        const pb = priorityRank[b.priority] || 2;
+        if (pa !== pb) return pb - pa;
+        // Tie-break: oldest updated first (so stale items surface).
+        const ua = toDateFromTs(a.updatedAt)?.getTime() || 0;
+        const ub = toDateFromTs(b.updatedAt)?.getTime() || 0;
+        return ua - ub;
+      });
+  }
+}
+
+function vpPnbSortActive(list) {
+  // Active columns: highest priority first, then most-recent activity.
+  const priorityRank = { high: 3, medium: 2, low: 1 };
+  list.sort((a, b) => {
     const pa = priorityRank[a.priority] || 2;
     const pb = priorityRank[b.priority] || 2;
     if (pa !== pb) return pb - pa;
     const lb = toDateFromTs(b.lastActivityAt || b.latestReportAt)?.getTime() || 0;
     const la = toDateFromTs(a.lastActivityAt || a.latestReportAt)?.getTime() || 0;
     return lb - la;
-  };
-  const colMap = {
-    not_started: { body: "vpPnbColTodo", count: "vpPnbCountTodo" },
-    in_progress: { body: "vpPnbColDoing", count: "vpPnbCountDoing" },
-    review:      { body: "vpPnbColReview", count: "vpPnbCountReview" },
-    done:        { body: "vpPnbColDone", count: "vpPnbCountDone" },
-    blocked:     { body: "vpPnbColBlocked", count: "vpPnbCountBlocked" }
-  };
-  Object.entries(buckets).forEach(([key, list]) => {
-    const sorted = list.sort(sortFn);
-    const target = colMap[key];
-    if (!target) return;
-    const body = document.getElementById(target.body);
-    const count = document.getElementById(target.count);
-    if (count) count.textContent = sorted.length;
-    if (body) body.innerHTML = sorted.length ? sorted.map(panoCard).join("") : '<p class="kb-empty">Boş</p>';
   });
+}
+
+// Single-line row in the Başlanmadı paginated list. Click handler is
+// delegated globally — see [data-vp-todo-row] in the document click
+// listener.
+function vpPnbTodoRow(unit) {
+  const prio = unit.priority || "medium";
+  const id = unit.sourceIdentifier || archiveLabel(unit);
+  const desc = (unit.contentDescription || unit.notes || "").slice(0, 80);
+  const pages = Number(unit.pageCount) || 0;
+  return `<li class="vp-pnb-todo-row prio-${escapeHTML(prio)}" data-vp-todo-row="${escapeHTML(unit.id)}" tabindex="0" role="button">
+    <span class="vp-pnb-todo-dot" aria-hidden="true"></span>
+    <span class="vp-pnb-todo-id">${escapeHTML(id)}</span>
+    <span class="vp-pnb-todo-desc">${escapeHTML(desc)}</span>
+    <span class="vp-pnb-todo-pages">${pages > 0 ? `${numberText(pages)} sayfa` : ""}</span>
+  </li>`;
+}
+
+function vpPnbRenderTodoList(filtered) {
+  const list = document.getElementById("vpPnbTodoList");
+  const countEl = document.getElementById("vpPnbTodoCount");
+  const pageEl = document.getElementById("vpPnbTodoPage");
+  const prevBtn = document.getElementById("vpPnbTodoPrev");
+  const nextBtn = document.getElementById("vpPnbTodoNext");
+  if (countEl) countEl.textContent = `${numberText(filtered.length)} sonuç`;
+  if (!list) return;
+  if (!filtered.length) {
+    list.innerHTML = '<li class="vp-pnb-todo-empty">Filtreyle eşleşen iş paketi yok.</li>';
+    if (pageEl) pageEl.textContent = "Sayfa 0";
+    if (prevBtn) prevBtn.disabled = true;
+    if (nextBtn) nextBtn.disabled = true;
+    return;
+  }
+  const pageSize = VP_PNB_TODO_PAGE_SIZE;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  if (vpPnbTodoState.page >= totalPages) vpPnbTodoState.page = totalPages - 1;
+  if (vpPnbTodoState.page < 0) vpPnbTodoState.page = 0;
+  const start = vpPnbTodoState.page * pageSize;
+  const slice = filtered.slice(start, start + pageSize);
+  list.innerHTML = slice.map(vpPnbTodoRow).join("");
+  if (pageEl) pageEl.textContent = `Sayfa ${vpPnbTodoState.page + 1} / ${totalPages}`;
+  if (prevBtn) prevBtn.disabled = vpPnbTodoState.page === 0;
+  if (nextBtn) nextBtn.disabled = vpPnbTodoState.page >= totalPages - 1;
+}
+
+// Active-column card. Smaller than the legacy panoCard — sourceIdentifier,
+// truncated description (50 chars), last reporter + ago. Drops the
+// suitableFor pills entirely (every PNB unit gets the "general" tag and
+// it adds noise) and the "Henüz rapor yok" footer (cards in active
+// columns by definition have a report).
+function vpPnbActiveCard(unit, draggable) {
+  const desc = (unit.contentDescription || unit.notes || "").slice(0, 50);
+  const last = toDateFromTs(unit.lastActivityAt) || toDateFromTs(unit.latestReportAt);
+  const reporter = unit.lastReporterName || (unit.lastReporterId ? findUserName(unit.lastReporterId) : "");
+  let footer = "";
+  if (last) {
+    const ago = daysSinceLabel(daysSince(last));
+    footer = reporter ? `${reporter} · ${ago}` : ago;
+  }
+  const prio = unit.priority || "medium";
+  const dragAttr = draggable ? 'draggable="true"' : "";
+  return `<button type="button" class="pano-card vp-pnb-card prio-${escapeHTML(prio)}" data-vp-pnb-card="${escapeHTML(unit.id)}" ${dragAttr}>
+    <div class="pano-ti">${escapeHTML(unit.sourceIdentifier || archiveLabel(unit))}</div>
+    ${desc ? `<div class="pano-desc">${escapeHTML(desc)}</div>` : ""}
+    ${footer ? `<div class="pano-foot">${escapeHTML(footer)}</div>` : ""}
+  </button>`;
+}
+
+// ---------- İş Akışı drag-drop (staff only) ----------
+//
+// Volunteers never drag — their card has no draggable attribute. Staff
+// drag a card onto the other column to move its status. Drop opens the
+// confirmation modal, which then calls moveUnitStatus(id, target).
+
+let vpPnbDragUnitId = null;
+let vpPnbPendingMove = null; // { unitId, targetStatus }
+
+function vpPnbOpenMoveModal({ unitId, targetStatus }) {
+  if (!isStaff()) return;
+  const unit = archiveById[unitId];
+  if (!unit) return;
+  vpPnbPendingMove = { unitId, targetStatus };
+  const modal = document.getElementById("vpPnbMoveModal");
+  if (!modal) return;
+  const titleEl = document.getElementById("vpPnbMoveTitle");
+  const summaryEl = document.getElementById("vpPnbMoveSummary");
+  const confirmBtn = document.getElementById("vpPnbMoveConfirm");
+  if (targetStatus === "done") {
+    if (titleEl) titleEl.textContent = "Bu iş paketini tamamlandı olarak işaretle?";
+    if (confirmBtn) confirmBtn.textContent = "Tamamlandı işaretle";
+  } else if (targetStatus === "in_progress") {
+    if (titleEl) titleEl.textContent = "Bu iş paketini devam ediyor olarak işaretle?";
+    if (confirmBtn) confirmBtn.textContent = "Devam ediyor işaretle";
+  } else {
+    if (titleEl) titleEl.textContent = "Durum değiştirilsin mi?";
+    if (confirmBtn) confirmBtn.textContent = "Onayla";
+  }
+  if (summaryEl) summaryEl.textContent = unit.sourceIdentifier || archiveLabel(unit);
+  modal.classList.remove("hidden");
+}
+
+function vpPnbCloseMoveModal() {
+  vpPnbPendingMove = null;
+  document.getElementById("vpPnbMoveModal")?.classList.add("hidden");
+}
+
+async function vpPnbConfirmMove() {
+  if (!vpPnbPendingMove) return;
+  const { unitId, targetStatus } = vpPnbPendingMove;
+  vpPnbCloseMoveModal();
+  await moveUnitStatus(unitId, targetStatus);
 }
 
 function renderVolunteerReportPrimary() {
@@ -3192,7 +3440,8 @@ async function moveUnitStatus(unitId, newStatus) {
     await updateDoc(doc(db, "archiveUnits", unitId), {
       status: newStatus,
       updatedAt: serverTimestamp(),
-      latestReportAt: serverTimestamp()
+      latestReportAt: serverTimestamp(),
+      lastActivityAt: serverTimestamp()
     });
     // Post a system message into the channel so the status change is visible
     // in the thread alongside human messages.
@@ -3261,6 +3510,59 @@ document.addEventListener("drop", async (event) => {
   const unitId = kbDragUnitId;
   kbDragUnitId = null;
   await moveUnitStatus(unitId, target);
+});
+
+// --- İş Akışı drag-drop (staff only) ---
+//
+// Separate wiring from the legacy .kb-col kanban so they can't cross-drop.
+// On drop, we don't write directly — instead we open a confirmation modal
+// (the user explicitly asked for this), and only commit on confirm.
+
+document.addEventListener("dragstart", (event) => {
+  const card = event.target.closest?.("[data-vp-pnb-card]");
+  if (!card || !isStaff()) return;
+  vpPnbDragUnitId = card.dataset.vpPnbCard || null;
+  card.classList.add("dragging");
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+});
+document.addEventListener("dragend", (event) => {
+  const card = event.target.closest?.("[data-vp-pnb-card]");
+  if (card) card.classList.remove("dragging");
+  vpPnbDragUnitId = null;
+  document.querySelectorAll(".vp-pnb-col.drag-over").forEach((el) => el.classList.remove("drag-over"));
+});
+document.addEventListener("dragover", (event) => {
+  const col = event.target.closest?.(".vp-pnb-col");
+  if (!col || !vpPnbDragUnitId) return;
+  event.preventDefault();
+  col.classList.add("drag-over");
+});
+document.addEventListener("dragleave", (event) => {
+  const col = event.target.closest?.(".vp-pnb-col");
+  if (col && !col.contains(event.relatedTarget)) col.classList.remove("drag-over");
+});
+document.addEventListener("drop", (event) => {
+  const col = event.target.closest?.(".vp-pnb-col");
+  if (!col || !vpPnbDragUnitId) return;
+  event.preventDefault();
+  col.classList.remove("drag-over");
+  const targetStatus = col.dataset.vpTargetStatus || "";
+  const unitId = vpPnbDragUnitId;
+  vpPnbDragUnitId = null;
+  // No-op if dropped onto the same column the card is already in.
+  const unit = archiveById[unitId];
+  if (!unit || !targetStatus || unit.status === targetStatus) return;
+  vpPnbOpenMoveModal({ unitId, targetStatus });
+});
+
+// Keyboard activator for the Başlanmadı row buttons. The native click
+// handler covers Enter on <button>, but the row is an <li> with role=button.
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const todoRow = event.target.closest?.("[data-vp-todo-row]");
+  if (!todoRow) return;
+  event.preventDefault();
+  todoRow.click();
 });
 
 // --- Channel rendering (drill-modal in channel mode) ---
@@ -4919,8 +5221,9 @@ async function reloadPnb() {
   // cache, so a single refresh keeps everything consistent.
   renderPano();
   renderStaffAttention();
-  // Volunteer PNB tab — same source data, different DOM IDs.
-  if (!isStaff()) volunteerProjectIds().forEach(renderVolunteerProjectTab);
+  // PNB project tab — shared between volunteers and staff. The renderer
+  // gates role-specific behavior (inline form, drag-drop) internally.
+  volunteerProjectIds().forEach(renderVolunteerProjectTab);
 }
 
 function rf() {
@@ -5634,6 +5937,53 @@ document.addEventListener("click", async (event) => {
     document.querySelectorAll(".kb-menu-list.open").forEach((el) => el.classList.remove("open"));
   }
 
+  // ----- İş Akışı: chip filter / row click / card click / move modal -----
+  const todoTagBtn = event.target.closest("[data-todo-tag]");
+  if (todoTagBtn && todoTagBtn.closest(".vp-pnb-todo-chips")) {
+    document.querySelectorAll(".vp-pnb-todo-chips [data-todo-tag]").forEach((b) => b.classList.remove("is-on"));
+    todoTagBtn.classList.add("is-on");
+    vpPnbTodoState.tag = todoTagBtn.dataset.todoTag || "";
+    vpPnbReflow(true);
+    return;
+  }
+  // Başlanmamış list row: volunteer → open Rapor Yaz form pre-populated
+  // with this unit; staff → open the unit detail drill (same as kanban
+  // cards). Both surfaces are read-from cache.
+  const todoRow = event.target.closest("[data-vp-todo-row]");
+  if (todoRow) {
+    const unitId = todoRow.dataset.vpTodoRow;
+    if (!unitId) return;
+    if (isStaff()) {
+      openUnitDrill(unitId);
+    } else {
+      const host = document.getElementById("pnbInlineRapor");
+      const handle = host?.__inlineRaporHandle;
+      if (handle?.selectUnitById) {
+        handle.selectUnitById(unitId);
+        host?.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else {
+        openUnitDrill(unitId);
+      }
+    }
+    return;
+  }
+  // İş Akışı active-column card: opens drill for both roles. Staff also
+  // get drag-drop wired via dragstart/drop handlers below.
+  const vpCard = event.target.closest("[data-vp-pnb-card]");
+  if (vpCard) {
+    openUnitDrill(vpCard.dataset.vpPnbCard);
+    return;
+  }
+  // İş Akışı drag-drop confirmation modal — close / confirm.
+  if (event.target.closest("[data-vp-move-close]")) {
+    vpPnbCloseMoveModal();
+    return;
+  }
+  if (event.target.id === "vpPnbMoveConfirm") {
+    await vpPnbConfirmMove();
+    return;
+  }
+
   // Kanban card click → open the channel view for that unit.
   const kbCard = event.target.closest("[data-kb-unit]");
   if (kbCard) {
@@ -6257,8 +6607,51 @@ document.getElementById("panoSearchInput")?.addEventListener("input", () => {
   window.__panoSearchTimer = setTimeout(renderPano, 120);
 });
 
-// Staff PNB tab inputs were removed in Prompt P alongside the staff PNB
-// view itself; no listeners to wire here.
+// ---------- İş Akışı flow listeners ----------
+//
+// Search and the "Başlanmamış" strip controls re-run renderVpPnbFlow with
+// projectUnits scoped to PNB. They never hit Firestore — all filtering is
+// in-memory over the archiveUnits cache.
+
+function vpPnbReflow(resetPage) {
+  if (resetPage) vpPnbTodoState.page = 0;
+  const projectUnits = archiveUnits.filter((u) =>
+    (u.projectId || PNB_PROJECT_ID) === PNB_PROJECT_ID
+    && (u.status || "") !== "pending_review"
+  );
+  renderVpPnbFlow(PNB_PROJECT_ID, projectUnits);
+}
+
+document.getElementById("vpPnbFlowSearch")?.addEventListener("input", (e) => {
+  vpPnbTodoState.search = e.target.value || "";
+  clearTimeout(window.__vpPnbSearchTimer);
+  window.__vpPnbSearchTimer = setTimeout(() => vpPnbReflow(true), 120);
+});
+
+document.getElementById("vpPnbTodoSort")?.addEventListener("change", (e) => {
+  vpPnbTodoState.sort = e.target.value || "priority";
+  vpPnbReflow(true);
+});
+
+document.getElementById("vpPnbTodoDigital")?.addEventListener("change", (e) => {
+  vpPnbTodoState.digitalOnly = !!e.target.checked;
+  vpPnbReflow(true);
+});
+
+document.getElementById("vpPnbTodoPrev")?.addEventListener("click", () => {
+  if (vpPnbTodoState.page > 0) {
+    vpPnbTodoState.page -= 1;
+    vpPnbRenderTodoList(vpPnbTodoCache);
+  }
+});
+
+document.getElementById("vpPnbTodoNext")?.addEventListener("click", () => {
+  const totalPages = Math.max(1, Math.ceil(vpPnbTodoCache.length / VP_PNB_TODO_PAGE_SIZE));
+  if (vpPnbTodoState.page < totalPages - 1) {
+    vpPnbTodoState.page += 1;
+    vpPnbRenderTodoList(vpPnbTodoCache);
+  }
+});
 
 // Yönetim — Tüm gönüllüler search + sort + dept filter.
 document.getElementById("yonetimUsersSearch")?.addEventListener("input", () => {

@@ -35,14 +35,15 @@
            Visibility is set in CSS on body.volunteer-shell / body.staff-shell
            and unhidden by setRoleShell() at auth time.
            Volunteer:  Anasayfa, PNB, Duyurular
-           Coordinator: Bugün, Yönetim
-           Admin:       Bugün, Yönetim, Bakım
-           PNB is volunteer-only after Prompt P — coordinators see what's
-           happening through the report stream on Bugün, not by watching a
-           kanban. The volunteer's PNB tab stays as their project workspace. -->
+           Coordinator: Bugün, PNB, Yönetim
+           Admin:       Bugün, PNB, Yönetim, Bakım
+           PNB is shared between volunteers and staff again: the new İş Akışı
+           board is the single source of truth for active work across roles,
+           with staff getting drag-drop + edit access while volunteers stay
+           read-only. Bugün remains the staff landing tab. -->
       <button class="tab volunteer-tab" data-tab="anasayfa">Anasayfa</button>
       <button class="tab staff-tab hidden" data-tab="bugun">Bugün</button>
-      <button class="tab volunteer-tab" data-tab="pnb">PNB</button>
+      <button class="tab" data-tab="pnb">PNB</button>
       <button class="tab volunteer-tab" data-tab="duyurular">Duyurular</button>
       <button class="tab staff-tab hidden" data-tab="yonetim">Yönetim</button>
       <button class="tab admin-tab hidden" data-tab="bakim">Bakım</button>
@@ -127,11 +128,12 @@
     </section>
 
     <section id="tab-pnb" class="tab-content hidden">
-      <!-- Volunteer-only PNB project tab. Hidden for staff (CSS). The
-           project-tab factory renders this same block per project once
-           more projects come online. IDs are -pnb-suffixed so we don't
-           collide with the staff Bugün svActions/wa-prog elements. -->
-      <div id="volunteerPnbView" class="vp-pnb volunteer-only-block">
+      <!-- Shared PNB project tab. Volunteers and staff render the same DOM;
+           role gating happens inside dashboard.js (drag-drop and the inline
+           Rapor Yaz form are volunteer/staff-aware, not duplicated here).
+           IDs stay vp-* / vpPnb-* for backward compatibility with existing
+           handlers.  -->
+      <div id="volunteerPnbView" class="vp-pnb">
         <header class="vp-pnb-head">
           <h2 id="vpPnbName">Pertev Naili Boratav Arşivi</h2>
           <p class="vp-pnb-blurb" id="vpPnbBlurb">Türk halkbilimi'nin kurucu isimlerinden Pertev Naili Boratav (1908–1998).</p>
@@ -144,7 +146,7 @@
           <p class="sub" id="vpPnbProgLine">Yükleniyor…</p>
         </div>
 
-        <div class="vp-pnb-stats">
+        <div class="vp-pnb-stats volunteer-only-block">
           <button type="button" class="vp-pnb-stat" id="vpPnbStatNext">
             <span class="lab">Sıradaki iş</span>
             <span class="val" id="vpPnbNextTitle">—</span>
@@ -167,37 +169,77 @@
           </button>
         </div>
 
-        <!-- Inline Rapor Yaz form (PNB-scoped). Filled by
-             renderInlineRaporForm({ projectFilter: "pnb", showProjectToggle: false }). -->
-        <div id="pnbInlineRapor" class="card inline-rapor-card"></div>
+        <!-- Inline Rapor Yaz form (PNB-scoped, volunteers only). Filled by
+             ensureInlineRaporForm("pnbInlineRapor", { fixedProjectId: "pnb" }). -->
+        <div id="pnbInlineRapor" class="card inline-rapor-card volunteer-only-block"></div>
 
-        <div class="vp-pnb-board" role="list" aria-label="İş paketi panosu">
-          <section class="pano-col" data-pano-col="not_started">
-            <header><h3>Başlanmadı</h3><span class="n" id="vpPnbCountTodo">0</span></header>
-            <div id="vpPnbColTodo" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
-          </section>
-          <section class="pano-col" data-pano-col="in_progress">
-            <header><h3>Devam ediyor</h3><span class="n" id="vpPnbCountDoing">0</span></header>
-            <div id="vpPnbColDoing" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
-          </section>
-          <section class="pano-col" data-pano-col="review">
-            <header><h3>Gözden geçirme</h3><span class="n" id="vpPnbCountReview">0</span></header>
-            <div id="vpPnbColReview" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
-          </section>
-          <section class="pano-col" data-pano-col="done">
-            <header><h3>Tamam</h3><span class="n" id="vpPnbCountDone">0</span></header>
-            <div id="vpPnbColDone" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
-          </section>
-          <section class="pano-col" data-pano-col="blocked">
-            <header><h3>Takıldım</h3><span class="n" id="vpPnbCountBlocked">0</span></header>
-            <div id="vpPnbColBlocked" class="pano-col-body"><p class="kb-empty">Yükleniyor…</p></div>
-          </section>
-        </div>
+        <!-- ============ İş Akışı section ============ -->
+        <section class="vp-pnb-flow" aria-labelledby="vpPnbFlowH">
+          <p class="vp-pnb-flow-stat" id="vpPnbFlowStat">— / 0 başlandı · — / 0 tamamlandı</p>
+          <div class="vp-pnb-flow-head">
+            <h3 id="vpPnbFlowH" class="vp-pnb-flow-title">İş Akışı</h3>
+            <input id="vpPnbFlowSearch" class="vp-pnb-flow-search" type="search" placeholder="Kutu/seri ara…" autocomplete="off" />
+          </div>
+
+          <!-- Collapsed Başlanmamış strip. Default: closed. -->
+          <details class="vp-pnb-todo-strip" id="vpPnbTodoStrip">
+            <summary class="vp-pnb-todo-summary">
+              <span class="vp-pnb-todo-summary-text">Başlanmamış iş paketleri (<span id="vpPnbTodoTotal">0</span>)</span>
+              <span class="vp-pnb-todo-summary-toggle" aria-hidden="true">
+                <span class="when-closed">▶ Aç</span>
+                <span class="when-open">▼ Kapat</span>
+              </span>
+            </summary>
+            <div class="vp-pnb-todo-body">
+              <div class="vp-pnb-todo-controls">
+                <label class="vp-pnb-todo-sort">
+                  <span>Sırala</span>
+                  <select id="vpPnbTodoSort">
+                    <option value="priority">Öncelik (yüksek → düşük)</option>
+                    <option value="source">Kaynak / seri kodu</option>
+                    <option value="pages">Sayfa adedi</option>
+                    <option value="material">Materyal türü</option>
+                  </select>
+                </label>
+                <div class="vp-pnb-todo-chips" role="group" aria-label="Etiket filtresi">
+                  <button type="button" class="vp-pnb-chip is-on" data-todo-tag="">Tümü</button>
+                  <button type="button" class="vp-pnb-chip" data-todo-tag="osmanlica">Osmanlıca</button>
+                  <button type="button" class="vp-pnb-chip" data-todo-tag="gorsel_isitsel_envanter">Görsel-işitsel</button>
+                  <button type="button" class="vp-pnb-chip" data-todo-tag="arsivcilik">Arşiv</button>
+                  <button type="button" class="vp-pnb-chip" data-todo-tag="dijitallestirme">Dijital</button>
+                </div>
+                <label class="vp-pnb-todo-digital">
+                  <input type="checkbox" id="vpPnbTodoDigital" />
+                  <span>Sadece dijitalleşmiş</span>
+                </label>
+              </div>
+              <p class="vp-pnb-todo-count" id="vpPnbTodoCount">0 sonuç</p>
+              <ul id="vpPnbTodoList" class="vp-pnb-todo-list"><li class="vp-pnb-todo-empty">Yükleniyor…</li></ul>
+              <div class="vp-pnb-todo-pager">
+                <button type="button" class="btn btn-secondary btn-sm" id="vpPnbTodoPrev" disabled>← Önceki</button>
+                <span class="vp-pnb-todo-page muted" id="vpPnbTodoPage">Sayfa 1</span>
+                <button type="button" class="btn btn-secondary btn-sm" id="vpPnbTodoNext" disabled>Sonraki →</button>
+              </div>
+            </div>
+          </details>
+
+          <!-- Two-column kanban (Devam ediyor + Tamamlandı). Drop targets are
+               wired on the staff side only; volunteer cards are click-only.
+               "Gözden geçirme" (review) and "Takıldım" (blocked) statuses
+               still exist in the data model but no longer render here —
+               blocked surfaces in the coordinator's Bugün Dikkat instead. -->
+          <div class="vp-pnb-board" role="list" aria-label="İş paketi panosu">
+            <section class="pano-col vp-pnb-col" data-pano-col="in_progress" data-vp-target-status="in_progress">
+              <header><h3>Devam ediyor</h3><span class="n" id="vpPnbCountDoing">0</span></header>
+              <div id="vpPnbColDoing" class="pano-col-body vp-pnb-col-body"><p class="kb-empty">Yükleniyor…</p></div>
+            </section>
+            <section class="pano-col vp-pnb-col" data-pano-col="done" data-vp-target-status="done">
+              <header><h3>Tamamlandı</h3><span class="n" id="vpPnbCountDone">0</span></header>
+              <div id="vpPnbColDone" class="pano-col-body vp-pnb-col-body"><p class="kb-empty">Yükleniyor…</p></div>
+            </section>
+          </div>
+        </section>
       </div>
-
-      <!-- Staff PNB view removed in Prompt P. Coordinators no longer have a
-           project tab; they read the report stream on Bugün. The volunteer
-           block above is the only #tab-pnb content now. -->
     </section>
 
     <!-- ====== Volunteer-only Duyurular ====== -->
@@ -590,6 +632,28 @@
         </div>
       </header>
       <div id="coordinatorReportFormHost" class="card inline-rapor-card" style="padding:0;border:0;box-shadow:none"></div>
+    </div>
+  </div>
+
+  <!-- Confirmation modal for the staff drag-drop status change on the PNB
+       İş Akışı kanban. Volunteers never see this — they change status only
+       by submitting a new report. -->
+  <div id="vpPnbMoveModal" class="drill-modal hidden" role="dialog" aria-modal="true" aria-labelledby="vpPnbMoveTitle">
+    <div class="drill-backdrop" data-vp-move-close></div>
+    <div class="drill-panel" style="max-width:440px">
+      <header class="drill-header">
+        <div>
+          <h2 id="vpPnbMoveTitle" style="font-size:1.05rem;margin:0">Bu iş paketini tamamlandı olarak işaretle?</h2>
+          <p class="muted" id="vpPnbMoveSummary" style="font-size:.85rem;margin:.35rem 0 0">—</p>
+        </div>
+        <div class="drill-header-actions">
+          <button type="button" class="btn btn-secondary btn-sm" data-vp-move-close aria-label="Kapat">✕</button>
+        </div>
+      </header>
+      <div class="form-actions" style="margin-top:1rem;display:flex;justify-content:flex-end;gap:.5rem">
+        <button type="button" class="btn btn-secondary btn-sm" data-vp-move-close>Vazgeç</button>
+        <button type="button" class="btn btn-primary btn-sm" id="vpPnbMoveConfirm">Tamamlandı işaretle</button>
+      </div>
     </div>
   </div>
 

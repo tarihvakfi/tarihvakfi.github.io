@@ -1846,14 +1846,230 @@ body.staff-shell #volunteerPnbView { display: none !important; }
 .vp-pnb-cta:hover { background: #1a5aa8; }
 .vp-pnb-cta:active { transform: scale(.998); }
 
-/* Volunteer PNB kanban — same look as Pano but with -pnb suffixed IDs. */
-.vp-pnb-board { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .5rem; }
-.vp-pnb-board > .pano-col { min-height: 220px; }
-
-@media (max-width: 1100px) {
-  .vp-pnb-board { grid-template-columns: repeat(2, 1fr); }
+/* Shared PNB kanban — used on both volunteer and staff sides via the
+   PNB tab. Two columns now (Devam ediyor + Tamamlandı); the old 5-column
+   rule was retired alongside the kanban redesign. Cards within each
+   column scroll independently when one side has many more items. */
+.vp-pnb-board {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .75rem;
+  margin-top: .75rem;
 }
+.vp-pnb-board > .vp-pnb-col { min-height: 240px; }
+.vp-pnb-col { transition: background-color .12s ease; }
+.vp-pnb-col.drag-over { background: var(--tblr-primary-lt, rgba(32, 107, 196, .1)); }
+.vp-pnb-col-body {
+  max-height: 520px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.vp-pnb-col-body::-webkit-scrollbar { width: 6px; }
+.vp-pnb-col-body::-webkit-scrollbar-thumb { background: var(--tblr-border-color); border-radius: 3px; }
+.vp-pnb-card { user-select: none; }
+.vp-pnb-card.dragging { opacity: .55; }
+.vp-pnb-col-empty {
+  text-align: center;
+  padding: 1.5rem .5rem;
+  font-size: 12px;
+  color: var(--tblr-secondary);
+}
+
+/* ---- İş Akışı section ---- */
+.vp-pnb-flow {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--tblr-border-color);
+}
+.vp-pnb-flow-stat {
+  font-size: 12px;
+  color: var(--tblr-secondary);
+  margin: 0 0 .35rem;
+  font-variant-numeric: tabular-nums;
+}
+.vp-pnb-flow-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: .65rem;
+  flex-wrap: wrap;
+}
+.vp-pnb-flow-title {
+  font-size: 1.05rem; font-weight: 600;
+  margin: 0;
+  letter-spacing: -.005em;
+}
+.vp-pnb-flow-search {
+  min-width: 240px; flex: 1 1 240px; max-width: 360px;
+  height: 36px; padding: 0 .75rem;
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 6px;
+  font-size: 13px;
+  background: var(--tblr-bg-surface);
+  color: var(--tblr-body-color);
+}
+
+/* Collapsible Başlanmamış strip. Default closed. The summary row is the
+   "single line" form; .vp-pnb-todo-body is the expanded panel. */
+.vp-pnb-todo-strip {
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 6px;
+  background: var(--tblr-bg-surface-secondary);
+  margin-bottom: 1rem;
+}
+.vp-pnb-todo-summary {
+  list-style: none;
+  cursor: pointer;
+  padding: .65rem .85rem;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: .75rem;
+  font-size: 13px; font-weight: 500;
+  color: var(--tblr-body-color);
+  user-select: none;
+}
+.vp-pnb-todo-summary::-webkit-details-marker { display: none; }
+.vp-pnb-todo-summary-text { flex: 1 1 auto; }
+.vp-pnb-todo-summary-toggle {
+  font-size: 12px;
+  color: var(--tblr-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.vp-pnb-todo-strip[open] .vp-pnb-todo-summary-toggle .when-closed,
+.vp-pnb-todo-strip:not([open]) .vp-pnb-todo-summary-toggle .when-open {
+  display: none;
+}
+.vp-pnb-todo-body {
+  padding: .65rem .85rem 1rem;
+  border-top: 1px solid var(--tblr-border-color);
+  background: var(--tblr-bg-surface);
+  border-radius: 0 0 6px 6px;
+}
+.vp-pnb-todo-controls {
+  display: flex; align-items: center; gap: .85rem;
+  flex-wrap: wrap;
+  margin-bottom: .55rem;
+}
+.vp-pnb-todo-sort {
+  display: inline-flex; align-items: center; gap: .4rem;
+  font-size: 12px;
+  color: var(--tblr-secondary);
+}
+.vp-pnb-todo-sort select {
+  height: 30px; padding: 0 .5rem;
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 4px;
+  font-size: 12px;
+  background: var(--tblr-bg-surface);
+  color: var(--tblr-body-color);
+}
+.vp-pnb-todo-chips {
+  display: inline-flex; gap: .25rem;
+  flex-wrap: wrap;
+}
+.vp-pnb-chip {
+  height: 28px; padding: 0 .65rem;
+  border: 1px solid var(--tblr-border-color);
+  background: var(--tblr-bg-surface);
+  border-radius: 999px;
+  font-size: 11px; font-weight: 500;
+  color: var(--tblr-secondary);
+  cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.vp-pnb-chip:hover { color: var(--tblr-body-color); border-color: var(--tblr-secondary); }
+.vp-pnb-chip.is-on {
+  background: var(--tblr-primary, #206bc4);
+  color: #fff;
+  border-color: var(--tblr-primary, #206bc4);
+}
+.vp-pnb-todo-digital {
+  display: inline-flex; align-items: center; gap: .35rem;
+  font-size: 12px;
+  color: var(--tblr-secondary);
+  cursor: pointer;
+}
+.vp-pnb-todo-count {
+  font-size: 11px;
+  color: var(--tblr-secondary);
+  margin: 0 0 .35rem;
+}
+.vp-pnb-todo-list {
+  list-style: none;
+  margin: 0; padding: 0;
+  border-top: 1px solid var(--tblr-border-color);
+}
+.vp-pnb-todo-empty {
+  list-style: none;
+  padding: 1rem .25rem;
+  font-size: 12px;
+  color: var(--tblr-secondary);
+  text-align: center;
+}
+.vp-pnb-todo-row {
+  display: grid;
+  grid-template-columns: 12px minmax(80px, max-content) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .65rem;
+  padding: .5rem .25rem;
+  border-bottom: 1px solid var(--tblr-border-color);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--tblr-body-color);
+  outline: none;
+}
+.vp-pnb-todo-row:hover { background: var(--tblr-bg-surface-secondary); }
+.vp-pnb-todo-row:focus-visible { box-shadow: inset 0 0 0 2px var(--tblr-primary, #206bc4); }
+.vp-pnb-todo-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--tblr-secondary);
+  justify-self: center;
+}
+.vp-pnb-todo-row.prio-high .vp-pnb-todo-dot { background: var(--tblr-danger); }
+.vp-pnb-todo-row.prio-medium .vp-pnb-todo-dot { background: var(--tblr-warning); }
+.vp-pnb-todo-row.prio-low .vp-pnb-todo-dot { background: var(--tblr-secondary); }
+.vp-pnb-todo-id {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+.vp-pnb-todo-desc {
+  color: var(--tblr-secondary);
+  white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.vp-pnb-todo-pages {
+  font-size: 12px;
+  color: var(--tblr-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.vp-pnb-todo-pager {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: .5rem;
+  margin-top: .65rem;
+}
+.vp-pnb-todo-page {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  min-width: 80px;
+  text-align: center;
+}
+
 @media (max-width: 700px) {
   .vp-pnb-stats { grid-template-columns: 1fr 1fr; }
   .vp-pnb-board { grid-template-columns: 1fr; }
+  .vp-pnb-flow-search { max-width: none; }
+  .vp-pnb-todo-controls { gap: .5rem; }
+  .vp-pnb-todo-row {
+    grid-template-columns: 12px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "dot id pages"
+      ".   desc desc";
+    row-gap: 2px;
+  }
+  .vp-pnb-todo-dot { grid-area: dot; }
+  .vp-pnb-todo-id { grid-area: id; }
+  .vp-pnb-todo-desc { grid-area: desc; white-space: normal; }
+  .vp-pnb-todo-pages { grid-area: pages; }
 }
