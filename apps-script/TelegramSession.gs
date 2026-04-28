@@ -1,3 +1,7 @@
+// CURRENTLY DISABLED. Webhook removed and triggers deleted on 28 Apr 2026
+// due to Apps Script latency (1+ min response times). Revive when migrating
+// to a proper backend (Cloud Run / Vercel / etc.).
+
 /**
  * TelegramSession.gs — session CRUD, archive-unit search, materialCategory
  * lookup, volunteer token hashing.

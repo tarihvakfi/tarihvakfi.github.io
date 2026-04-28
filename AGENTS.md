@@ -283,6 +283,33 @@ Self-claim Firestore rules (`selfClaimArchiveUnit`, `selfReleaseArchiveUnit`) an
 
 **What was retired**: nothing was deleted. There is no remaining production write that depends on a self-claim ever happening — the report-first flow is fully self-contained.
 
+### Telegram bot is disabled but retained
+The Apps Script Telegram bot (Prompt S/T) was decommissioned on 28 Apr 2026. Apps Script web-app cold-start latency made the conversational flow unusable: the first message after ~10 minutes of idle took 30–40 seconds to respond, and even with a 5-minute keep-warm trigger we routinely saw 1+ minute round-trips during execution-quota contention. None of the remaining channels (web report-first, email reminders) depend on the bot.
+
+**What was disabled, in order of decommission**:
+1. **Telegram webhook** — removed via `deleteWebhook` against the bot token. The Apps Script web-app deployment was left in place, but no longer receives updates.
+2. **Apps Script triggers** — `keepWarmPing`, `sendVolunteerWeeklyReminders`, `sendManagerWeeklySummary` deleted from the project. The handler functions stayed; only the trigger registrations went. `Triggers.gs::createTriggers` now omits these (commented-out blocks document the revival path).
+3. **Dashboard UI** — both surfaces gated behind `window.FEATURE_FLAGS.telegramSection`, default `false` (set in `app/index.html`):
+   - Volunteer Anasayfa link card (`#tgLinkCard`) — markup hidden via `data-telegram-section hidden`; `renderTelegramCard()` call short-circuited.
+   - Admin Bakım diagnostic (`#tgDiagnosticCard`) — same hidden attribute; the lazy-load on `sw("bakim")` and the click handlers (`tgGenCodeBtn`, `tgUnlinkBtn`, `tgCodeCopyBtn`, `tgDiagnosticRefresh`, `tgSchemaCheckBtn`) all wrapped in the flag check.
+4. **Firestore rules + collections** — left untouched. `match /telegramSessions/...` and `match /telegramLinkCodes/...` keep their locked-down rules; `users/{uid}.telegramId` remains a self-editable field. Any stragglers in those two collections are harmless and tiny.
+
+**What stays compiled-in**:
+- Apps Script: `apps-script/TelegramBot.gs`, `TelegramSession.gs`, `TelegramAuth.gs`, `TelegramReminders.gs`, `KeepWarm.gs`. Each carries a `// CURRENTLY DISABLED. ...` banner at the top.
+- Apps Script: `FirestoreClient.gs` extensions (`createDocument`, `updateDocument`, `getDocument`, `deleteDocument`, `listDocuments`, `fsServerTimestamp`, filter builders) — these are general-purpose REST helpers and are useful even without the bot.
+- JS: `renderTelegramCard`, `generateTelegramCode`, `showTelegramCode`, `unlinkTelegram`, `renderTelegramDiagnosticCounts`, `runTelegramSchemaCheck`, plus the click delegation block inside the global handler. All gated.
+- HTML: `#tgLinkCard` and `#tgDiagnosticCard` containers, plus the Bakım `#tgDiagnosticCounts` / `#tgSchemaCheckResult` slots. All `hidden`.
+- CSS: the `.tg-link-card`, `.tg-link-state`, `.tg-code`, `.tg-diag-row` rules in `css/dashboard.css` — dead but harmless.
+- `apps-script/TELEGRAM_SETUP.md` — kept verbatim as the revival runbook.
+
+**Revival checklist** (when a real backend is in place):
+1. Host the bot logic on Cloud Run / Vercel / Cloudflare Workers / similar — anywhere that gives sub-second cold starts. The Apps Script `.gs` files can serve as a reference implementation; in practice you'll want to port to TypeScript / Node and use the Firebase Admin SDK instead of the REST helpers in `FirestoreClient.gs`.
+2. Re-register the webhook against the new backend URL: `curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" -d "url=<NEW_BACKEND_URL>"`. Verify with `getWebhookInfo`.
+3. Flip the dashboard flag: edit `app/index.html` and change `telegramSection: false` to `telegramSection: true` in the FEATURE_FLAGS init. The HTML containers' `hidden` attributes will need to be removed (or the JS gated rendering can replace them at runtime — that's a small refactor).
+4. Re-enable the volunteer reminder + manager summary triggers — these can stay in Apps Script (they're scheduled jobs, not webhook handlers, so cold-start latency doesn't matter). Uncomment the three blocks inside `Triggers.gs::createTriggers` and re-run the function.
+
+No data migration is required. The link-code → users.telegramId flow still works as designed; the only thing missing was a fast doPost.
+
 ## Data model
 Use Firestore collections:
 - users

@@ -18,17 +18,19 @@
  *      processMailQueue                 | every 1 hour
  *      checkInactiveVolunteers          | every 1 day
  *      generateWeeklySummary            | every 7 days
- *      keepWarmPing                     | every 5 minutes
- *      sendVolunteerWeeklyReminders     | Friday 17:00 Europe/Istanbul
- *      sendManagerWeeklySummary         | Friday 17:05 Europe/Istanbul
  *
- * The five existing handlers (processMailQueue, generateWeeklySummary,
- * checkInactiveVolunteers, sendVolunteerWeeklyReminders,
- * sendManagerWeeklySummary) are unchanged. The new addition is
- * keepWarmPing — see KeepWarm.gs for what it does and why.
+ *      (Telegram bot triggers — keepWarmPing every 5 min,
+ *       sendVolunteerWeeklyReminders + sendManagerWeeklySummary every
+ *       Friday 17:00 Europe/Istanbul — are currently DISABLED. See the
+ *       commented block inside the function body for the revival path.
+ *       Decommissioned 28 Apr 2026 because Apps Script cold-start
+ *       latency made the conversational bot unusable.)
+ *
+ * The three active handlers (processMailQueue, generateWeeklySummary,
+ * checkInactiveVolunteers) are unchanged from pre-Telegram days.
  *
  * After this function runs, the Triggers screen (clock icon in the editor)
- * should show six rows. Anything else means a previous run left orphans;
+ * should show three rows. Anything else means a previous run left orphans;
  * re-run createTriggers() to clean up.
  */
 
@@ -59,29 +61,40 @@ function createTriggers() {
     .timeBased().everyDays(7)
     .create();
 
-  ScriptApp.newTrigger('keepWarmPing')
-    .timeBased().everyMinutes(5)
-    .create();
+  // -- Telegram bot triggers disabled 28 Apr 2026 ---------------------------
+  // The bot stack (TelegramBot.gs / TelegramSession.gs / TelegramAuth.gs /
+  // TelegramReminders.gs / KeepWarm.gs) is currently disabled — Apps Script
+  // cold-start latency made the conversational flow unusable (1+ minute
+  // response times). The handler functions still exist; only the
+  // triggers below are commented out so re-running createTriggers() does
+  // not resurrect them. To revive: uncomment these blocks AND migrate the
+  // bot to a real backend (Cloud Run / Vercel / Cloudflare Workers) AND
+  // set window.FEATURE_FLAGS.telegramSection = true on the dashboard.
+  // ------------------------------------------------------------------------
 
-  let volunteerReminderBuilder = ScriptApp.newTrigger('sendVolunteerWeeklyReminders')
-    .timeBased()
-    .onWeekDay(ScriptApp.WeekDay.FRIDAY)
-    .atHour(17)
-    .inTimezone('Europe/Istanbul');
-  if (typeof volunteerReminderBuilder.nearMinute === 'function') {
-    volunteerReminderBuilder = volunteerReminderBuilder.nearMinute(0);
-  }
-  volunteerReminderBuilder.create();
+  // ScriptApp.newTrigger('keepWarmPing')
+  //   .timeBased().everyMinutes(5)
+  //   .create();
 
-  let managerSummaryBuilder = ScriptApp.newTrigger('sendManagerWeeklySummary')
-    .timeBased()
-    .onWeekDay(ScriptApp.WeekDay.FRIDAY)
-    .atHour(17)
-    .inTimezone('Europe/Istanbul');
-  if (typeof managerSummaryBuilder.nearMinute === 'function') {
-    managerSummaryBuilder = managerSummaryBuilder.nearMinute(5);
-  }
-  managerSummaryBuilder.create();
+  // let volunteerReminderBuilder = ScriptApp.newTrigger('sendVolunteerWeeklyReminders')
+  //   .timeBased()
+  //   .onWeekDay(ScriptApp.WeekDay.FRIDAY)
+  //   .atHour(17)
+  //   .inTimezone('Europe/Istanbul');
+  // if (typeof volunteerReminderBuilder.nearMinute === 'function') {
+  //   volunteerReminderBuilder = volunteerReminderBuilder.nearMinute(0);
+  // }
+  // volunteerReminderBuilder.create();
+
+  // let managerSummaryBuilder = ScriptApp.newTrigger('sendManagerWeeklySummary')
+  //   .timeBased()
+  //   .onWeekDay(ScriptApp.WeekDay.FRIDAY)
+  //   .atHour(17)
+  //   .inTimezone('Europe/Istanbul');
+  // if (typeof managerSummaryBuilder.nearMinute === 'function') {
+  //   managerSummaryBuilder = managerSummaryBuilder.nearMinute(5);
+  // }
+  // managerSummaryBuilder.create();
 }
 
 /**

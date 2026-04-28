@@ -124,8 +124,11 @@ function sw(name, opts = {}) {
   // reverts to the default surface color.
   document.body.classList.toggle("sv-active", target === "anasayfa");
   // Lazy-load admin Bakım diagnostic counts on first navigation. Cheap (3
-  // Firestore reads); refresh button re-runs them on demand.
-  if (target === "bakim" && typeof renderTelegramDiagnosticCounts === "function") {
+  // Firestore reads); refresh button re-runs them on demand. Gated on the
+  // telegramSection feature flag — bot decommissioned 28 Apr 2026.
+  if (target === "bakim"
+    && window.FEATURE_FLAGS?.telegramSection
+    && typeof renderTelegramDiagnosticCounts === "function") {
     renderTelegramDiagnosticCounts();
   }
   // Mirror the chosen tab in the URL hash so reload / back-forward stays put.
@@ -2563,7 +2566,12 @@ function renderVolunteerReportPrimary() {
   ensureInlineRaporForm("pnbInlineRapor", { showProjectPicker: false, fixedProjectId: "pnb" });
   refreshAllInlineRaporForms();
   renderVolunteerActiveProjects();
-  renderTelegramCard();
+  // Telegram link card gated on FEATURE_FLAGS.telegramSection (false since
+  // the bot stack was decommissioned 28 Apr 2026 over Apps Script cold-
+  // start latency). Function body kept as dead code for future revival.
+  if (window.FEATURE_FLAGS?.telegramSection) {
+    renderTelegramCard();
+  }
   const list = document.getElementById("svRecentReports");
   if (!list) return;
   const myReports = Object.values(rd || {})
@@ -6173,38 +6181,41 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
-  // ----- Telegram link card (volunteer Anasayfa) -----
-  if (event.target.id === "tgGenCodeBtn") {
-    await generateTelegramCode();
-    return;
-  }
-  if (event.target.id === "tgUnlinkBtn") {
-    await unlinkTelegram();
-    return;
-  }
-  if (event.target.id === "tgCodeCopyBtn") {
-    const codeEl = document.getElementById("tgCodeDisplay");
-    const code = codeEl?.textContent || "";
-    if (code && navigator.clipboard) {
-      try {
-        await navigator.clipboard.writeText(code);
-        const btn = event.target;
-        const original = btn.textContent;
-        btn.textContent = "Kopyalandı";
-        setTimeout(() => { btn.textContent = original; }, 1500);
-      } catch (err) { /* ignore — non-secure context */ }
+  // ----- Telegram (volunteer Anasayfa link card + admin Bakım diagnostic).
+  // Whole block is short-circuited when telegramSection is off — the markup
+  // is hidden but a stray click via devtools still shouldn't trigger any
+  // flow. Bot stack decommissioned 28 Apr 2026; revival flips the flag. -----
+  if (window.FEATURE_FLAGS?.telegramSection) {
+    if (event.target.id === "tgGenCodeBtn") {
+      await generateTelegramCode();
+      return;
     }
-    return;
-  }
-
-  // ----- Telegram diagnostic (admin Bakım) -----
-  if (event.target.id === "tgDiagnosticRefresh") {
-    await renderTelegramDiagnosticCounts();
-    return;
-  }
-  if (event.target.id === "tgSchemaCheckBtn") {
-    await runTelegramSchemaCheck();
-    return;
+    if (event.target.id === "tgUnlinkBtn") {
+      await unlinkTelegram();
+      return;
+    }
+    if (event.target.id === "tgCodeCopyBtn") {
+      const codeEl = document.getElementById("tgCodeDisplay");
+      const code = codeEl?.textContent || "";
+      if (code && navigator.clipboard) {
+        try {
+          await navigator.clipboard.writeText(code);
+          const btn = event.target;
+          const original = btn.textContent;
+          btn.textContent = "Kopyalandı";
+          setTimeout(() => { btn.textContent = original; }, 1500);
+        } catch (err) { /* ignore — non-secure context */ }
+      }
+      return;
+    }
+    if (event.target.id === "tgDiagnosticRefresh") {
+      await renderTelegramDiagnosticCounts();
+      return;
+    }
+    if (event.target.id === "tgSchemaCheckBtn") {
+      await runTelegramSchemaCheck();
+      return;
+    }
   }
 
   // Kanban card menu: toggle the ⋮ dropdown. Clicking the menu button or

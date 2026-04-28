@@ -81,8 +81,13 @@
             </div>
             <!-- Telegram link card. Filled by renderTelegramCard() in
                  dashboard.js. Two states: unlinked (button to generate a
-                 6-digit code) and linked (last-seen + revoke button). -->
-            <div>
+                 6-digit code) and linked (last-seen + revoke button).
+                 Hidden by default + the JS render call is gated on
+                 window.FEATURE_FLAGS.telegramSection. The bot stack was
+                 decommissioned 28 Apr 2026 due to Apps Script cold-start
+                 latency; the markup stays so revival is a one-flag flip
+                 once the bot moves to a real backend. -->
+            <div data-telegram-section hidden>
               <p class="vp-section-eyebrow">Telegram</p>
               <div id="tgLinkCard" class="card tg-link-card"><p class="empty">Yükleniyor…</p></div>
             </div>
@@ -471,8 +476,11 @@
         <div id="pendingReviewList" class="stack"><p class="empty">Yükleniyor…</p></div>
       </article>
 
-      <!-- Section 4: Telegram tanılama -->
-      <article class="card" id="tgDiagnosticCard" style="margin-top:1.25rem">
+      <!-- Section 4: Telegram tanılama. Hidden by default + the JS load
+           and click handlers are gated on
+           window.FEATURE_FLAGS.telegramSection (false since the bot was
+           decommissioned 28 Apr 2026). Markup retained for revival. -->
+      <article class="card" id="tgDiagnosticCard" data-telegram-section hidden style="margin-top:1.25rem">
         <div class="step-header">
           <div>
             <p class="eyebrow">Bakım · telegram</p>
@@ -734,9 +742,20 @@
     anything. Flip this to true at runtime (or hard-code true here) to
     re-enable the self-claim banner and the [data-self-claim]/[data-self-release]
     UI entry points.
+
+    telegramSection: gates the volunteer Anasayfa link card and the admin
+    Bakım Telegram tanılama panel. Currently false because the bot stack
+    on Apps Script had unusable cold-start latency (1+ minute response on
+    first message). Flip to true after migrating the bot to a real
+    backend (Cloud Run / Vercel / Cloudflare Workers / etc.) and rerunning
+    setWebhook against the new URL. See AGENTS.md for the revival
+    checklist.
   -->
   <script>
-    window.FEATURE_FLAGS = Object.assign({ selfClaim: false }, window.FEATURE_FLAGS || {});
+    window.FEATURE_FLAGS = Object.assign({
+      selfClaim: false,
+      telegramSection: false
+    }, window.FEATURE_FLAGS || {});
   </script>
   <script type="module" src="../js/firebase-init.js"></script>
   <script type="module" src="./dashboard.js"></script>
