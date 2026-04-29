@@ -652,6 +652,75 @@
     </div>
   </div>
 
+  <!-- Edit report modal — opened from the Düzenle button on a "Son raporların"
+       row. Used by both the volunteer self-edit (within 24h) flow and the
+       coordinator-edit-anyone flow. Form fields are populated by
+       openEditReportModal() in dashboard.js. -->
+  <div id="editReportModal" class="drill-modal hidden" role="dialog" aria-modal="true" aria-labelledby="editReportTitle">
+    <div class="drill-backdrop" data-edit-report-close></div>
+    <div class="drill-panel" style="max-width:560px;padding:1rem 1.25rem">
+      <header class="drill-header">
+        <div>
+          <p class="eyebrow">Raporu düzenle</p>
+          <h2 id="editReportTitle" style="font-size:1.05rem;margin:0">Raporu düzenle</h2>
+        </div>
+        <div class="drill-header-actions">
+          <button type="button" class="btn btn-secondary btn-sm" data-edit-report-close aria-label="Kapat">✕</button>
+        </div>
+      </header>
+      <div class="if-banner if-banner--hidden edit-report-banner" role="status" aria-live="polite"></div>
+      <form id="editReportForm" class="report-form" novalidate>
+        <input type="hidden" id="editingReportId" />
+
+        <div class="rm-field">
+          <label class="rm-label" for="editReportNote">Ne yaptın? <span class="req">*</span></label>
+          <textarea id="editReportNote" class="rm-textarea" rows="2" maxlength="500" required></textarea>
+          <div class="rm-counter" id="editReportNoteCounter">0 / 500</div>
+        </div>
+
+        <div class="rm-field">
+          <label class="rm-label" for="editReportWorkDate">Bu işi ne zaman yaptın?</label>
+          <input type="date" id="editReportWorkDate" class="rm-input" />
+          <div class="rm-helper hidden" id="editReportWorkDateError"></div>
+        </div>
+
+        <div class="rm-field">
+          <label class="rm-label" for="editReportProject">Proje</label>
+          <select id="editReportProject" class="rm-input"></select>
+        </div>
+
+        <div class="rm-field">
+          <label class="rm-label" for="editReportUnit">İş paketi</label>
+          <select id="editReportUnit" class="rm-input">
+            <option value="">— Bağlı değil —</option>
+          </select>
+        </div>
+
+        <div class="rm-field rm-status-row">
+          <span class="rm-label">Durum:</span>
+          <div class="rm-status-pills" role="radiogroup" aria-label="Durum">
+            <button type="button" class="rm-status-pill" data-edit-status="in_progress">Devam ediyor</button>
+            <button type="button" class="rm-status-pill" data-edit-status="done">Tamamlandı</button>
+            <button type="button" class="rm-status-pill" data-edit-status="blocked">Takıldım</button>
+          </div>
+        </div>
+
+        <div class="rm-field">
+          <label class="rm-label" for="editReportUrl">Link <em class="muted">(varsa)</em></label>
+          <input type="url" id="editReportUrl" class="rm-input" placeholder="https://drive.google.com/..." />
+        </div>
+
+        <p class="muted edit-report-audit" id="editReportAudit" style="font-size:.8rem;margin:.5rem 0 0"></p>
+
+        <div class="rm-actions">
+          <span class="status-line muted" id="editReportMessage"></span>
+          <button type="button" class="btn btn-secondary" data-edit-report-close>Vazgeç</button>
+          <button type="submit" class="btn btn-primary" id="editReportSave">Kaydet</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Coordinator "+ Rapor yaz" modal — opened from the Bugün header.
        Hosts a fresh inline form rendered on first open via
        ensureCoordinatorReportModal() in dashboard.js. -->

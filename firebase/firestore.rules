@@ -110,6 +110,36 @@ service cloud.firestore {
         request.resource.data.createdByVolunteerId == request.auth.uid;
     }
 
+    // workDate is the YYYY-MM-DD calendar date the volunteer says the work
+    // happened. Distinct from createdAt (when the report was submitted) so
+    // backdated reports stay accurate. Format check stays cheap and runs on
+    // every create/update; the 30-day-back window is also enforced here as a
+    // server-side backstop against a malicious client posting ancient dates.
+    function isValidWorkDateFormat(d) {
+      return d is string && d.matches('^\\d{4}-\\d{2}-\\d{2}$');
+    }
+
+    // Parse a YYYY-MM-DD string into a UTC-midnight Timestamp so rules can
+    // compare it against request.time. Assumes isValidWorkDateFormat(d) was
+    // already checked — split + int conversions would otherwise throw.
+    function workDateAsTimestamp(d) {
+      return timestamp.date(
+        int(d.split('-')[0]),
+        int(d.split('-')[1]),
+        int(d.split('-')[2])
+      );
+    }
+
+    // workDate must be no more than 30 days before request.time and no later
+    // than 1 day after request.time. The +1d on the future side allows for
+    // browser timezone skew (Istanbul is UTC+3) without surprising volunteers
+    // who pick "today" near local midnight.
+    function isValidWorkDateRange(d) {
+      return isValidWorkDateFormat(d) &&
+        workDateAsTimestamp(d) >= request.time - duration.value(30, 'd') &&
+        workDateAsTimestamp(d) <= request.time + duration.value(1, 'd');
+    }
+
     // Kullanıcının kendi dokümanında güncelleyebileceği alanlar.
     // role, status, department gibi yetki alanları yalnızca admin/koordinatör tarafından değiştirilebilir.
     function userSelfEditableFields() {
@@ -235,18 +265,23 @@ service cloud.firestore {
     match /reports/{reportId} {
       // Owner identity is checked against either the legacy userUid field
       // (quick / detailed forms) or the report-first volunteerId field.
-      // Both must point at the caller and the report must declare a project
-      // the caller can write to. Today every approved volunteer can write to
-      // pnb; explicit memberships (users/{uid}.projects[]) will tighten this.
-      allow create: if isApproved() && (
+      // Volunteers must match userUid/volunteerId; coordinators/admins can
+      // submit on behalf of any volunteer (Prompt: backdating + on-behalf).
+      // submittedBy is required and records who actually filed the report:
+      // for self-submitted reports it equals volunteerId; for coordinator-on-
+      // behalf reports it equals the coordinator's uid.
+      allow create: if isApproved() &&
+        request.resource.data.submittedBy == request.auth.uid &&
+        isValidWorkDateRange(request.resource.data.workDate) &&
         (
-          (request.resource.data.userUid == request.auth.uid &&
-            request.resource.data.userEmail == request.auth.token.email) ||
-          (request.resource.data.volunteerId == request.auth.uid &&
-            request.resource.data.userUid == request.auth.uid)
-        ) ||
-        isCoordinatorOrAdmin()
-      );
+          (
+            (request.resource.data.userUid == request.auth.uid &&
+              request.resource.data.userEmail == request.auth.token.email) ||
+            (request.resource.data.volunteerId == request.auth.uid &&
+              request.resource.data.userUid == request.auth.uid)
+          ) ||
+          isCoordinatorOrAdmin()
+        );
 
       allow read: if isApproved() && (
         isCoordinatorOrAdmin() ||
@@ -255,15 +290,32 @@ service cloud.firestore {
         reportCoworker(resource.data)
       );
 
-      // Update / delete: report-first reports are owner-immutable from the
-      // client (intentional — corrections happen by writing a new report).
-      // Legacy detailed reports can still be edited by their owner while
-      // status is "submitted". Admins can do anything.
-      allow update: if isAdmin() || isCoordinatorOrAdmin() ||
+      // Update branches (Prompt: edit history + 24h volunteer self-edit):
+      //   1. Admin — can edit anything.
+      //   2. Coordinator/admin — no time limit; volunteerId/createdAt/
+      //      submittedBy stay locked so the audit trail can't be rewritten.
+      //   3. Volunteer self-edit — only their own report, only within 24h of
+      //      createdAt, and the same identity invariants apply.
+      // For every branch a CHANGED workDate must still pass the 30-day check;
+      // an unchanged workDate is allowed through even if it's now older than
+      // 30 days (e.g. a 31-day-old report whose volunteer-self-edit window is
+      // already closed but a coordinator decides to fix a typo on the note).
+      allow update: if isAdmin() ||
+        (isCoordinatorOrAdmin() &&
+          request.resource.data.volunteerId == resource.data.volunteerId &&
+          request.resource.data.createdAt == resource.data.createdAt &&
+          request.resource.data.submittedBy == resource.data.submittedBy &&
+          (request.resource.data.workDate == resource.data.workDate ||
+            isValidWorkDateRange(request.resource.data.workDate))) ||
         (isApproved() &&
           resource.data.userUid == request.auth.uid &&
           request.resource.data.userUid == resource.data.userUid &&
-          request.resource.data.status == "submitted");
+          request.resource.data.volunteerId == resource.data.volunteerId &&
+          request.resource.data.createdAt == resource.data.createdAt &&
+          request.resource.data.submittedBy == resource.data.submittedBy &&
+          request.time < resource.data.createdAt + duration.value(24, 'h') &&
+          (request.resource.data.workDate == resource.data.workDate ||
+            isValidWorkDateRange(request.resource.data.workDate)));
 
       allow delete: if isAdmin() || resource.data.userUid == request.auth.uid;
     }

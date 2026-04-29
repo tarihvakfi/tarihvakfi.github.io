@@ -125,11 +125,35 @@ function checkInactiveVolunteers() {
   volunteers.forEach(function (u) {
     if (!u.email) return;
     if (u.rhythm === 'casual') return;
-    if (!u.lastReportAt) return;
 
-    const last = new Date(u.lastReportAt).getTime();
-    if (isNaN(last)) return;
-    const days = Math.floor((now - last) / 86400000);
+    // Use the latest reports.workDate (the calendar date the volunteer says
+    // they did the work) rather than the original users.lastReportAt
+    // (submission timestamp). A volunteer who batches three weeks of past
+    // work into one session shouldn't get nudged about being silent — the
+    // work happened, just got logged late. publicTicker still uses createdAt
+    // because it's about flow of submissions, not historical work.
+    var latestWorkDate;
+    try {
+      latestWorkDate = getLatestWorkDateForVolunteer(u.uid);
+    } catch (err) {
+      appendLog('inactivity_check_error', { stage: 'getLatestWorkDateForVolunteer', uid: u.uid, error: String(err) }, u.email);
+      return;
+    }
+    // Backwards compatibility: pre-Prompt-W reports don't have workDate, so a
+    // volunteer with only legacy reports falls back to lastReportAt. Without
+    // either signal, skip — there's nothing to compare against.
+    var lastSourceMs;
+    if (latestWorkDate) {
+      // Parse YYYY-MM-DD as local midnight; fine here since we only care
+      // about day-granularity for the inactivity threshold.
+      lastSourceMs = new Date(latestWorkDate + 'T00:00:00').getTime();
+    } else if (u.lastReportAt) {
+      lastSourceMs = new Date(u.lastReportAt).getTime();
+    } else {
+      return;
+    }
+    if (isNaN(lastSourceMs)) return;
+    const days = Math.floor((now - lastSourceMs) / 86400000);
 
     const isBurst = u.rhythm === 'burst';
     const reminderMin = isBurst ? 30 : 14;

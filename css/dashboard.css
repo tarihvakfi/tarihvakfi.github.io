@@ -988,6 +988,42 @@
   white-space: nowrap;
 }
 
+/* "Koordinatör tarafından yazıldı" badge inline in the volunteer's own log
+   row when a coordinator submitted on their behalf. Stays subtle — same
+   muted ink as the time-ago column. */
+.sv-log-onbehalf {
+  font-size: 11px;
+  color: var(--tblr-secondary);
+  font-style: italic;
+}
+
+/* Düzenle button on a log row. Hidden by default; revealed on row hover or
+   when the button itself receives keyboard focus (so the keyboard path stays
+   reachable). For rows where canEditReport(r) is false the button isn't
+   rendered at all, so the selector below never targets a no-op element. */
+.sv-log-edit {
+  flex-shrink: 0;
+  margin-left: .25rem;
+  padding: 2px 8px;
+  font-size: 11px;
+  background: transparent;
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 4px;
+  color: var(--tblr-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .12s ease, background .12s ease;
+}
+.sv-log-row:hover .sv-log-edit,
+.sv-log-edit:focus,
+.sv-log-edit:focus-visible {
+  opacity: 1;
+}
+.sv-log-edit:hover {
+  background: var(--tblr-bg-surface-secondary);
+  color: var(--tblr-body-color);
+}
+
 /* Optional "Tümünü göster →" footer — hidden today (no full history view
    exists for volunteers). The slot is in the markup so it's there if/when
    a /reports archive page lands. */

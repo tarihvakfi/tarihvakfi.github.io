@@ -333,9 +333,66 @@ Both new and legacy fields are written so existing list/feed renderers and Fires
 | `effort` | new — written as `"medium"` for every report (the effort UI was retired in Prompt J). |
 | `status` | new — derived from the volunteer's button choice (`in_progress \| done \| blocked`). On non-unit reports it's metadata only — no archiveUnit is updated. |
 | `url` | new — optional link, or `null` |
-| `volunteerId`, `volunteerName` | new — owner identity |
-| `userUid`, `userEmail`, `archiveUnitId`, `taskId`, `summary`, `workStatus`, `source = "report_first"` | legacy fields, kept for backwards compatibility with quick/detailed flows and the existing rules path |
-| `createdAt`, `updatedAt` | server timestamps |
+| `volunteerId`, `volunteerName` | owner identity. For coordinator-on-behalf submissions, points at the *credited* volunteer, not the coordinator. |
+| `workDate` | new (Prompt W) — YYYY-MM-DD calendar date the work happened. Volunteer-picked, defaults to today (Istanbul), can be backdated up to 30 days. Server-validated by `isValidWorkDateRange()` in `firestore.rules` on both create and update. |
+| `submittedBy` | new (Prompt W) — UID of the user who actually filed the report. Equals `volunteerId` for self-submits; differs when a coordinator submits on behalf of someone else. Audit-invariant — Firestore rules block updates to it. |
+| `editedAt` | new (Prompt W) — ISO timestamp of the most recent edit, `null` if never edited. Denormalized from `editHistory[-1].editedAt` for query convenience. |
+| `editHistory` | new (Prompt W) — append-only array. Each entry: `{ editedAt, editedByUid, editedByName, changes }` where `changes` is `{ fieldName: { from, to } }`. |
+| `userUid`, `userEmail`, `archiveUnitId`, `taskId`, `summary`, `workStatus` | legacy fields, kept for backwards compatibility with quick/detailed flows and the existing rules path |
+| `source` | `"report_first"` for self-submits; `"coordinator_logged"` for coordinator-on-behalf submits. |
+| `createdAt`, `updatedAt` | server timestamps. `createdAt` is set once on creation and never modifiable — Firestore rules lock it on update. |
+
+#### Two-timestamp model: workDate vs createdAt
+- **`workDate`** — calendar date the volunteer says the work was done. Used by:
+  - "Son raporların" volunteer log row primary date.
+  - "Bugün → Son raporlar" coordinator feed primary date.
+  - Unit drill report headline date.
+  - `Mailers.checkInactiveVolunteers` (via `getLatestWorkDateForVolunteer` in `FirestoreClient.gs`) — so a volunteer who logs three weeks of past work all at once doesn't immediately get a "you've been silent" nudge.
+- **`createdAt`** — server timestamp of when the report was submitted. Used by:
+  - Firestore rules' 24-hour edit window check (the volunteer can only self-edit within 24h of submission, regardless of `workDate`).
+  - Unit drill "Detaylar" expander (audit footer + editHistory chronology).
+  - `publicTicker` entries (the public landing's recent-activity stream is about flow of submissions, not historical work dates).
+  - Pagination cursors (`startAfter`) on the staff `loadStaffRecentReports` feed.
+
+For a same-day submission the two are equal. They diverge for backdated reports.
+
+#### 24-hour volunteer self-edit window
+Volunteers can edit their own reports for 24 hours after submission. The Düzenle button on each "Son raporların" row is gated client-side by `canEditReport(r)` (`now - createdAt < 24h && r.userUid === cu.uid`), and Firestore rules mirror the same window via `request.time < resource.data.createdAt + duration.value(24, 'h')`. Past 24h, the button disappears and a stale-context save attempt fails with the user-facing message:
+
+> Bu raporu artık düzenleyemezsin. Bir düzeltme yazmak için yeni bir rapor oluştur veya bir koordinatöre yaz.
+
+Coordinators and admins bypass the window — they can edit any report at any time. `volunteerId`, `createdAt`, and `submittedBy` stay locked across all edit branches so the audit chain can't be rewritten.
+
+#### Coordinator-on-behalf submission
+Staff get a "Kim adına yazıyorsun?" typeahead at the top of the inline form (`renderInlineRaporForm`, gated on `isStaff()`). Default is "Kendim ({coordinator's name})". Picking a different volunteer routes the submit so:
+- `volunteerId` / `userUid` / `userEmail` / `volunteerName` → the picked volunteer's identity.
+- `submittedBy` → the coordinator's uid.
+- `users/{pickedVolunteer}.lastReportAt` advances (so the silent-volunteer detection sees them as recently active), not the coordinator's.
+- `archiveUnits/{unitId}.lastReporterId` shows the coordinator's uid (so the rule's `request.auth.uid` check passes), but `lastReporterName` shows the volunteer's name.
+- `source` is `"coordinator_logged"` instead of `"report_first"`.
+- Activity log writes `report_submitted` with `metadata.onBehalfOfUid` populated.
+
+Display surfaces add a provenance label when `submittedBy !== volunteerId`:
+- Volunteer's own "Son raporların" row prepends a small `Koordinatör tarafından yazıldı` badge before the note preview.
+- Coordinator's Bugün feed expand block shows `Koordinatör {Coordinator Name} tarafından, {Volunteer Name} için`.
+- Unit drill timeline rows show the same on-behalf line.
+
+#### `editHistory` schema
+```
+editHistory: [
+  {
+    editedAt: ISO 8601 string,        // wall-clock at the time of edit
+    editedByUid: string,              // uid of whoever clicked Save
+    editedByName: string,             // denormalized display name
+    changes: {                        // only fields that actually changed
+      [fieldName]: { from, to }
+    }
+  },
+  ...
+]
+```
+
+Top-level `editedAt` (a Firestore server timestamp) mirrors the most recent entry's `editedAt` for cheap "edited / not edited" queries — this is why the per-entry `editedAt` is an ISO string (Firestore can't embed `serverTimestamp()` inside an array element). The `(düzenlendi)` suffix on log rows reads from the top-level `editedAt`. The unit drill's per-report Detaylar expander renders the full chronology in newest-first order.
 
 **`publicTicker` materialCategory.** `unit` reports use `materialCategoryFromSeriesNo(unit.seriesNo)` (e.g. `mektuplar`, `kitap metinleri`, `belgeler`). `project_general` reports use the literal `"genel"` so the public landing renderer can distinguish "general project work" from a specific archive category. `foundation_general` reports skip `publicTicker` entirely (the ticker is project-themed). The Firestore rule on `publicTicker` only requires `materialCategory` to be a string, so `"genel"` is accepted without a rule change.
 

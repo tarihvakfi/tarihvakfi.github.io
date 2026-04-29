@@ -164,6 +164,34 @@ function td() {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+// "Today" in Istanbul (Europe/Istanbul, UTC+3) as a YYYY-MM-DD string. Used by
+// the workDate picker so a volunteer near local midnight gets the date that
+// matches their wall clock, not the browser's UTC offset. en-CA locale is
+// guaranteed to produce ISO format (YYYY-MM-DD).
+function istanbulYmd(date) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul" }).format(date);
+}
+function istanbulToday() {
+  return istanbulYmd(new Date());
+}
+// Earliest backdate the form will accept (today − 30 days, Istanbul).
+function workDateMin() {
+  const d = new Date();
+  d.setDate(d.getDate() - 30);
+  return istanbulYmd(d);
+}
+// Parse a YYYY-MM-DD workDate string into a Date at local midnight, suitable
+// for `daysSinceLabel(daysSince(d))`. Returns null on missing/malformed
+// input so callers can fall back to createdAt for legacy reports.
+function workDateToDate(ymd) {
+  if (!ymd || typeof ymd !== "string") return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
+  // Append T00:00:00 so it parses as local midnight (not UTC) — keeps the
+  // "1 gün önce" math from drifting around timezone offsets.
+  const d = new Date(`${ymd}T00:00:00`);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 function numberText(value) {
   return new Intl.NumberFormat("tr-TR").format(Number(value || 0));
 }
@@ -1300,6 +1328,10 @@ const _inlineRaporForms = new Set();
 function renderInlineRaporForm({ container, showProjectPicker = false, fixedProjectId = null, onSubmitSuccess } = {}) {
   if (!container) return null;
 
+  // Staff get a "Kim adına yazıyorsun?" dropdown at the top of the form so
+  // they can submit on behalf of any volunteer. Volunteers never see it.
+  const showOnBehalfPicker = isStaff();
+
   const state = {
     unit: null,
     newUnit: false,
@@ -1311,7 +1343,18 @@ function renderInlineRaporForm({ container, showProjectPicker = false, fixedProj
     showAll: false,
     // null (no choice yet) | "foundation" | <projectId>. Drives both the unit
     // picker visibility and the typeahead's project filter at search time.
-    projectPick: fixedProjectId || null
+    projectPick: fixedProjectId || null,
+    // YYYY-MM-DD calendar date the work was done. Defaults to today (Istanbul);
+    // the volunteer can backdate up to 30 days. Stored as a string both here
+    // and on the report doc so client + Firestore rules agree on shape.
+    workDate: istanbulToday(),
+    // Coordinator-on-behalf state. null = "Kendim" (self-submit). Otherwise an
+    // object { uid, name, email } describing the volunteer the coordinator is
+    // logging for. Volunteers always submit as themselves and never set this.
+    onBehalfOf: null,
+    onBehalfSearchTerm: "",
+    onBehalfResults: [],
+    onBehalfTimer: null
   };
 
   const headingLabel = fixedProjectId
@@ -1334,6 +1377,8 @@ function renderInlineRaporForm({ container, showProjectPicker = false, fixedProj
   // on per-project tabs (project is fixed).
   const unitSectionStartsHidden = !state.projectPick;
 
+  const selfLabel = cp?.fullName ? `Kendim (${cp.fullName})` : "Kendim";
+
   container.innerHTML = `
     <div class="if-head">
       <h3 class="if-title">${escapeHTML(headingLabel)}</h3>
@@ -1341,11 +1386,38 @@ function renderInlineRaporForm({ container, showProjectPicker = false, fixedProj
     <div class="if-banner if-banner--hidden" role="status" aria-live="polite"></div>
     <form class="report-form inline-rapor-form" novalidate>
 
+      ${showOnBehalfPicker ? `
+      <div class="rm-field if-onbehalf-section">
+        <label class="rm-label">Kim adına yazıyorsun?</label>
+        <div class="rm-typeahead">
+          <div class="rm-pill rm-onbehalf-pill">
+            <div class="rm-pill-main">
+              <div class="rm-pill-title rm-onbehalf-pill-title">${escapeHTML(selfLabel)}</div>
+              <div class="rm-pill-sub rm-onbehalf-pill-sub muted"></div>
+            </div>
+            <button type="button" class="rm-pill-clear rm-onbehalf-clear hidden" aria-label="Kendine geri dön">×</button>
+          </div>
+          <input type="text" class="rm-input rm-onbehalf-input hidden" autocomplete="off" placeholder="Bir gönüllü ara…" aria-autocomplete="list" />
+          <div class="rm-results rm-onbehalf-results hidden" role="listbox"></div>
+        </div>
+        <p class="if-helper muted">Kendin için yazmak istemiyorsan bir gönüllü seç. Rapor o gönüllünün adına kaydedilir; senin yazdığın iz audit log'da kalır.</p>
+      </div>
+      ` : ""}
+
       <div class="rm-field">
         <label class="rm-label">Ne yaptın? <span class="req">*</span></label>
         <textarea class="rm-textarea rm-note" rows="2" maxlength="500" required
           placeholder="Örnek: ekiple haftalık toplantı yaptık, K48'i taradım, Drive klasörünü düzenledim."></textarea>
         <div class="rm-counter">0 / 500</div>
+      </div>
+
+      <div class="rm-field if-workdate-section">
+        <label class="rm-label">Bu işi ne zaman yaptın? <em class="muted">(boş bırakırsan bugün)</em></label>
+        <input type="date" class="rm-input rm-workdate"
+          min="${escapeHTML(workDateMin())}"
+          max="${escapeHTML(istanbulToday())}"
+          value="${escapeHTML(state.workDate)}" />
+        <div class="rm-helper rm-workdate-error if-workdate-error hidden"></div>
       </div>
 
       ${showProjectPicker ? `
@@ -1600,6 +1672,10 @@ function renderInlineRaporForm({ container, showProjectPicker = false, fixedProj
     // Project pick: clear on Anasayfa (back to "no choice"); pinned to
     // fixedProjectId on per-project tabs.
     state.projectPick = fixedProjectId || null;
+    state.workDate = istanbulToday();
+    state.onBehalfOf = null;
+    state.onBehalfSearchTerm = "";
+    state.onBehalfResults = [];
     $(".rm-note").value = "";
     $(".rm-url").value = "";
     $(".rm-unit-input").value = "";
@@ -1608,6 +1684,24 @@ function renderInlineRaporForm({ container, showProjectPicker = false, fixedProj
     $(".rm-counter").textContent = "0 / 500";
     const showAllInput = $(".rm-show-all-input");
     if (showAllInput) showAllInput.checked = false;
+    const wd = $(".rm-workdate");
+    if (wd) {
+      wd.min = workDateMin();
+      wd.max = istanbulToday();
+      wd.value = state.workDate;
+    }
+    clearWorkDateError();
+    if (showOnBehalfPicker) {
+      const titleEl = $(".rm-onbehalf-pill-title");
+      const subEl = $(".rm-onbehalf-pill-sub");
+      if (titleEl) titleEl.textContent = selfLabel;
+      if (subEl) subEl.textContent = "";
+      $(".rm-onbehalf-clear")?.classList.add("hidden");
+      $(".rm-onbehalf-input")?.classList.add("hidden");
+      const obInput = $(".rm-onbehalf-input");
+      if (obInput) obInput.value = "";
+      $(".rm-onbehalf-results")?.classList.add("hidden");
+    }
     $all(".rm-status-pill").forEach((b) => {
       b.classList.toggle("is-on", b.dataset.status === "in_progress");
     });
@@ -1623,6 +1717,113 @@ function renderInlineRaporForm({ container, showProjectPicker = false, fixedProj
     const unitSection = $(".if-unit-section");
     if (unitSection) unitSection.classList.toggle("if-hidden", !unitSectionVisible());
     refreshSubmitEnabled();
+  }
+
+  // ---- workDate validation (client-side mirror of the Firestore rule) ----
+
+  function showWorkDateError(message) {
+    const errEl = $(".rm-workdate-error");
+    if (!errEl) return;
+    errEl.textContent = message;
+    errEl.classList.remove("hidden");
+  }
+
+  function clearWorkDateError() {
+    const errEl = $(".rm-workdate-error");
+    if (!errEl) return;
+    errEl.textContent = "";
+    errEl.classList.add("hidden");
+  }
+
+  // Returns "" when the value is valid, otherwise the Turkish error message
+  // matching the spec. Empty value is treated as "today" — never an error.
+  function validateWorkDate(value) {
+    if (!value) return "";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return "Tarih formatı doğru değil.";
+    const today = istanbulToday();
+    const min = workDateMin();
+    if (value > today) return "İleri bir tarih seçemezsin.";
+    if (value < min) return "30 günden eski bir tarih seçemezsin.";
+    return "";
+  }
+
+  // ---- on-behalf typeahead (coordinator/admin only) ----
+
+  function setOnBehalfPick(volunteerObj) {
+    state.onBehalfOf = volunteerObj;
+    const titleEl = $(".rm-onbehalf-pill-title");
+    const subEl = $(".rm-onbehalf-pill-sub");
+    const clearBtn = $(".rm-onbehalf-clear");
+    const input = $(".rm-onbehalf-input");
+    const results = $(".rm-onbehalf-results");
+    if (volunteerObj) {
+      if (titleEl) titleEl.textContent = volunteerObj.name || volunteerObj.email || "Gönüllü";
+      if (subEl) subEl.textContent = volunteerObj.email || "";
+      clearBtn?.classList.remove("hidden");
+    } else {
+      if (titleEl) titleEl.textContent = selfLabel;
+      if (subEl) subEl.textContent = "";
+      clearBtn?.classList.add("hidden");
+    }
+    if (input) { input.value = ""; input.classList.add("hidden"); }
+    results?.classList.add("hidden");
+    state.onBehalfSearchTerm = "";
+    state.onBehalfResults = [];
+  }
+
+  // Search the approved-volunteer pool by name/email. Excludes the current
+  // staff user (picking yourself is the implicit "Kendim" default) and
+  // excludes other staff (an "on behalf of another coordinator" submission
+  // doesn't fit the report-first model — that coordinator can self-submit).
+  function searchVolunteersForOnBehalf(term) {
+    const needle = trNormalize(term || "");
+    const pool = approvedUsers().filter((u) =>
+      u.uid !== cu?.uid && (u.data?.role || "volunteer") === "volunteer"
+    );
+    if (!needle) {
+      // Sort alphabetically when there's no search term — useful for browsing.
+      return pool
+        .slice()
+        .sort((a, b) => userDisplayName(a).localeCompare(userDisplayName(b), "tr"))
+        .slice(0, 8);
+    }
+    const scored = [];
+    pool.forEach((u) => {
+      const hay = trNormalize(`${u.data?.fullName || ""} ${u.data?.email || ""} ${u.data?.department || ""}`);
+      if (!hay.includes(needle)) return;
+      let score = 0;
+      if (hay.startsWith(needle)) score += 5;
+      score += 2;
+      scored.push({ u, score });
+    });
+    scored.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return userDisplayName(a.u).localeCompare(userDisplayName(b.u), "tr");
+    });
+    return scored.slice(0, 8).map((m) => m.u);
+  }
+
+  function renderOnBehalfResults() {
+    const list = $(".rm-onbehalf-results");
+    if (!list) return;
+    const items = state.onBehalfResults || [];
+    if (!items.length) {
+      list.classList.add("hidden");
+      list.innerHTML = "";
+      return;
+    }
+    list.innerHTML = items.map((u) => {
+      const name = userDisplayName(u);
+      const email = u.data?.email || "";
+      const dept = u.data?.department || "";
+      return `<div class="rm-result" role="option" data-onbehalf-pick="${escapeHTML(u.uid)}">
+        <div class="rr-main">
+          <div class="rr-title">${escapeHTML(name)}</div>
+          <div class="rr-desc">${escapeHTML(email)}${dept ? ` · ${escapeHTML(dept)}` : ""}</div>
+        </div>
+      </div>`;
+    }).join("");
+    list.classList.remove("hidden");
   }
 
   // ---- Per-instance event wiring ----
@@ -1690,7 +1891,76 @@ function renderInlineRaporForm({ container, showProjectPicker = false, fixedProj
     refreshSubmitEnabled();
   });
 
+  // workDate picker: validate on change so the volunteer sees the inline
+  // error before they hit Submit. Empty value means "use today".
+  $(".rm-workdate")?.addEventListener("change", (event) => {
+    const value = event.target.value || "";
+    state.workDate = value || istanbulToday();
+    const error = validateWorkDate(value);
+    if (error) showWorkDateError(error);
+    else clearWorkDateError();
+  });
+
+  // On-behalf typeahead — staff click the pill to search, click a result to
+  // pick. Clear button restores "Kendim". Volunteer mounts skip this entirely
+  // (showOnBehalfPicker is false).
+  if (showOnBehalfPicker) {
+    const onBehalfPill = $(".rm-onbehalf-pill");
+    onBehalfPill?.addEventListener("click", (event) => {
+      // Don't toggle into search mode if the user clicked the × clear button.
+      if (event.target.closest(".rm-onbehalf-clear")) return;
+      // Already searching — leave alone.
+      const input = $(".rm-onbehalf-input");
+      if (input && !input.classList.contains("hidden")) return;
+      // Open the search input. We don't hide the pill text — it stays as a
+      // visual reference to the current pick.
+      input?.classList.remove("hidden");
+      input?.focus();
+      state.onBehalfResults = searchVolunteersForOnBehalf("");
+      renderOnBehalfResults();
+    });
+    $(".rm-onbehalf-input")?.addEventListener("input", (event) => {
+      const term = event.target.value;
+      state.onBehalfSearchTerm = term;
+      clearTimeout(state.onBehalfTimer);
+      state.onBehalfTimer = setTimeout(() => {
+        state.onBehalfResults = searchVolunteersForOnBehalf(term);
+        renderOnBehalfResults();
+      }, 200);
+    });
+    $(".rm-onbehalf-input")?.addEventListener("blur", () => {
+      // Hide the dropdown after focus leaves so it doesn't sit on the page.
+      // The 180ms grace lets click events on result rows fire first.
+      setTimeout(() => {
+        const input = $(".rm-onbehalf-input");
+        if (document.activeElement !== input) {
+          $(".rm-onbehalf-results")?.classList.add("hidden");
+        }
+      }, 180);
+    });
+  }
+
   container.addEventListener("click", (event) => {
+    // On-behalf interactions (staff only). Order matters: handle the clear
+    // button before the pick row so × on a result doesn't pick the row.
+    if (event.target.closest(".rm-onbehalf-clear")) {
+      event.stopPropagation();
+      setOnBehalfPick(null);
+      return;
+    }
+    const onBehalfPickBtn = event.target.closest("[data-onbehalf-pick]");
+    if (onBehalfPickBtn) {
+      const uid = onBehalfPickBtn.dataset.onbehalfPick;
+      const user = allUsers.find((u) => u.uid === uid);
+      if (user) {
+        setOnBehalfPick({
+          uid: user.uid,
+          name: userDisplayName(user),
+          email: user.data?.email || ""
+        });
+      }
+      return;
+    }
     const projectPillBtn = event.target.closest("[data-project-pick]");
     if (projectPillBtn) {
       setProjectPick(projectPillBtn.dataset.projectPick);
@@ -1881,6 +2151,23 @@ async function submitInlineRapor({ container, state, $, $all, resetForm, showBan
     return;
   }
 
+  // workDate: empty input → today (Istanbul). Range-validate before submit so
+  // we can show the inline error rather than an opaque rules failure later.
+  const rawWorkDate = ($(".rm-workdate")?.value || "").trim();
+  const workDate = rawWorkDate || istanbulToday();
+  if (rawWorkDate) {
+    const today = istanbulToday();
+    const min = workDateMin();
+    if (rawWorkDate > today) {
+      showBanner("error", "İleri bir tarih seçemezsin.");
+      return;
+    }
+    if (rawWorkDate < min) {
+      showBanner("error", "30 günden eski bir tarih seçemezsin.");
+      return;
+    }
+  }
+
   // Resolve the project context. "foundation" pill or no pick → null.
   // fixedProjectId tabs always have a concrete project here.
   const projectId = state.projectPick && state.projectPick !== "foundation"
@@ -1949,7 +2236,15 @@ async function submitInlineRapor({ container, state, $, $all, resetForm, showBan
       : (projectId ? "project_general" : "foundation_general");
 
     const notePreview = note.slice(0, 80);
-    const volunteerName = cp?.fullName || cu.email || "";
+    // Coordinator-on-behalf: the report's identity fields (volunteerId /
+    // userUid / userEmail / volunteerName) point at the picked volunteer; the
+    // submittedBy field records the coordinator. For self-submits these all
+    // collapse to the same uid. Volunteers can never set onBehalfOf — the
+    // dropdown is staff-only.
+    const onBehalf = isStaff() ? state.onBehalfOf : null;
+    const ownerUid = onBehalf?.uid || cu.uid;
+    const ownerEmail = onBehalf?.email || cu.email || "";
+    const volunteerName = onBehalf?.name || cp?.fullName || cu.email || "";
     const projectName = projectId ? projectDisplayName(projectId) : "";
 
     const batch = writeBatch(db);
@@ -1965,20 +2260,34 @@ async function submitInlineRapor({ container, state, $, $all, resetForm, showBan
       effort: "medium",
       status,
       url: url || null,
-      volunteerId: cu.uid,
+      volunteerId: ownerUid,
       volunteerName,
+      // Two-timestamp model: workDate is the calendar date the work happened
+      // (volunteer-picked, can be backdated up to 30 days); createdAt below is
+      // when the report was submitted. They're equal for a same-day submission
+      // and diverge for backdated reports. See AGENTS.md for which surface
+      // uses which.
+      workDate,
+      // submittedBy records who actually filed the report. Equals volunteerId
+      // for self-submits; differs only when a coordinator submits on behalf of
+      // a volunteer. Audit-invariant — Firestore rules block updates to it.
+      submittedBy: cu.uid,
+      // Edit history skeleton. editedAt stays null until the first edit;
+      // editHistory is appended to in the edit modal flow.
+      editedAt: null,
+      editHistory: [],
       // Legacy fields kept for backwards compatibility with older renderers,
       // queries, and Firestore rules. The new schema fields above are the
       // canonical ones for new code.
-      userUid: cu.uid,
-      userEmail: cu.email || "",
+      userUid: ownerUid,
+      userEmail: ownerEmail,
       archiveUnitId: unitId || "",
       taskId: unitSnapshot?.sourceIdentifier || "",
       summary: note,
       hours: 0,
       pagesDone: null,
       workStatus: status === "done" || status === "review" ? "unit_done" : status === "blocked" ? "blocked" : "in_progress",
-      source: "report_first",
+      source: onBehalf ? "coordinator_logged" : "report_first",
       // channel is the Prompt R cross-channel marker. The legacy `source`
       // field above already encodes the WEB FLOW variant
       // (report_first / quick / detailed / system / coordinator_logged), so
@@ -1998,19 +2307,30 @@ async function submitInlineRapor({ container, state, $, $all, resetForm, showBan
       updatedAt: serverTimestamp()
     });
 
-    batch.update(doc(db, "users", cu.uid), {
+    // Stamp lastReportAt on the volunteer who owns the work (not on the
+    // coordinator who submitted it on their behalf). For self-submits these
+    // are the same user; for on-behalf submits we want the volunteer's own
+    // activity counter to advance so the Anasayfa silent-volunteer detection
+    // sees them as recently active.
+    batch.update(doc(db, "users", ownerUid), {
       lastReportAt: serverTimestamp(),
       lastSeenAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
 
     // Only unit reports touch an archiveUnit. project_general and
-    // foundation_general have no unit to update.
+    // foundation_general have no unit to update. Reporter identity uses
+    // ownerUid (the volunteer credited with the work) so the unit's "last
+    // reporter" stays accurate even when a coordinator submitted on-behalf.
+    // The reportFirstUnitUpdate rule ties lastReporterId to request.auth.uid;
+    // coordinators bypass that via the isCoordinatorOrAdmin clause at the top
+    // of the archiveUnits update rule, so writing the volunteer's uid here is
+    // safe in both flows.
     if (reportType === "unit" && unitId) {
       batch.update(doc(db, "archiveUnits", unitId), {
         status,
         lastActivityAt: serverTimestamp(),
-        lastReporterId: cu.uid,
+        lastReporterId: onBehalf ? cu.uid : ownerUid,
         lastReporterName: volunteerName,
         lastReportNotePreview: notePreview,
         latestReportAt: serverTimestamp(),
@@ -2023,10 +2343,13 @@ async function submitInlineRapor({ container, state, $, $all, resetForm, showBan
     // Branched post-write side effects.
     if (reportType === "unit") {
       // Public landing denormalization — best-effort, never blocks UX.
+      // volunteerToken hashes the volunteer who actually did the work
+      // (ownerUid), not the coordinator, so the public ticker's "distinct
+      // contributors" count stays correct under on-behalf submissions.
       const submittedUnit = unitId ? archiveById[unitId] : null;
       const seriesForCategory = state.unit?.seriesNo || submittedUnit?.seriesNo || "";
       const materialCategory = materialCategoryFromSeriesNo(seriesForCategory);
-      const volunteerToken = await computeVolunteerToken(cu.uid);
+      const volunteerToken = await computeVolunteerToken(ownerUid);
       if (submittedUnit) {
         submittedUnit.status = status;
         submittedUnit.pageCount = Number(submittedUnit.pageCount) || 0;
@@ -2042,12 +2365,14 @@ async function submitInlineRapor({ container, state, $, $all, resetForm, showBan
         reportId: reportRef.id,
         unitLabel: unitSnapshot?.sourceIdentifier || "",
         effort: "medium",
-        status
+        status,
+        workDate,
+        onBehalfOfUid: onBehalf?.uid || null
       });
     } else if (reportType === "project_general") {
       // Project-themed but no specific unit. Ticker uses materialCategory:
       // "genel" so the public landing line reads as general project work.
-      const volunteerToken = await computeVolunteerToken(cu.uid);
+      const volunteerToken = await computeVolunteerToken(ownerUid);
       publishTickerEntry({
         effort: "medium",
         materialCategory: "genel",
@@ -2060,7 +2385,9 @@ async function submitInlineRapor({ container, state, $, $all, resetForm, showBan
         reportId: reportRef.id,
         notePreview,
         effort: "medium",
-        status
+        status,
+        workDate,
+        onBehalfOfUid: onBehalf?.uid || null
       });
     } else {
       // Foundation-general: ticker stays project-themed, so we skip it
@@ -2069,7 +2396,9 @@ async function submitInlineRapor({ container, state, $, $all, resetForm, showBan
         reportId: reportRef.id,
         notePreview,
         effort: "medium",
-        status
+        status,
+        workDate,
+        onBehalfOfUid: onBehalf?.uid || null
       });
     }
 
@@ -2089,6 +2418,342 @@ async function submitInlineRapor({ container, state, $, $all, resetForm, showBan
   } finally {
     submitBtn.textContent = prevLabel;
     refreshSubmitEnabled?.();
+  }
+}
+
+// ---------- Edit report modal ----------
+//
+// Two callers per row in "Son raporların":
+//   - Volunteer self-edit — only their own report, only within 24h of
+//     createdAt. The Firestore rule mirrors this window.
+//   - Coordinator/admin — any report, any time. submittedBy / volunteerId /
+//     createdAt stay locked so the audit trail is preserved.
+//
+// We compute the diff at save time (submitted vs. current values), append a
+// new editHistory entry, and bump editedAt to serverTimestamp. The status
+// "in_progress → done" + unitId case also moves the archive unit forward,
+// matching the original submit behavior.
+
+const EDIT_REPORT_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+// Returns true when the current user is allowed to edit this report. Mirrors
+// the Firestore update rule's three branches; the caller uses this to gate
+// the Düzenle button's visibility on each row.
+function canEditReport(r) {
+  if (!cu || !r) return false;
+  if (isStaff()) return true;
+  const ownerUid = r.userUid || r.volunteerId || "";
+  if (ownerUid !== cu.uid) return false;
+  const created = toDateFromTs(r.createdAt);
+  if (!created) return false;
+  return Date.now() - created.getTime() < EDIT_REPORT_WINDOW_MS;
+}
+
+// "(düzenlendi)" suffix shown in row footers. Empty string when never edited.
+function editedLabel(r) {
+  return r?.editedAt ? " (düzenlendi)" : "";
+}
+
+// Diff helper used by the save handler to capture only the fields that
+// actually changed. Each change is { from, to } so the audit trail can render
+// before/after in a future history viewer.
+function diffReportFields(before, after) {
+  const changes = {};
+  Object.keys(after).forEach((key) => {
+    const a = before?.[key];
+    const b = after[key];
+    // Treat undefined and null as equivalent so "missing → null" doesn't
+    // pollute the audit trail.
+    const norm = (v) => (v === undefined ? null : v);
+    if (JSON.stringify(norm(a)) !== JSON.stringify(norm(b))) {
+      changes[key] = { from: norm(a), to: norm(b) };
+    }
+  });
+  return changes;
+}
+
+// Renders the per-row Düzenle button HTML. Called from both volunteer and
+// staff log row renderers; returns "" when the user can't edit so the button
+// disappears entirely (no half-disabled state).
+function editReportButtonHtml(r) {
+  if (!canEditReport(r)) return "";
+  return `<button type="button" class="sv-log-edit" data-edit-report="${escapeHTML(r.id || "")}" aria-label="Raporu düzenle" title="Düzenle">Düzenle</button>`;
+}
+
+// Modal state — we cache the report being edited so the save handler can
+// compute the diff against the original values without a re-read.
+let _editReportInProgress = null;
+
+function projectOptionsForEdit(currentProjectId) {
+  const opts = ['<option value="">Genel vakıf çalışması</option>'];
+  // Today there's only PNB; once volunteerProjectIds() returns more we get
+  // them automatically. Use the project pillName for compactness.
+  volunteerProjectIds().forEach((id) => {
+    const selected = id === currentProjectId ? " selected" : "";
+    opts.push(`<option value="${escapeHTML(id)}"${selected}>${escapeHTML(projectPillName(id))}</option>`);
+  });
+  // If the report is attached to a project not in the current accessible set
+  // (e.g. retired project), show it explicitly so saving doesn't silently
+  // strip it.
+  if (currentProjectId && !volunteerProjectIds().includes(currentProjectId)) {
+    opts.push(`<option value="${escapeHTML(currentProjectId)}" selected>${escapeHTML(projectDisplayName(currentProjectId))}</option>`);
+  }
+  return opts.join("");
+}
+
+function unitOptionsForEdit(projectId, currentUnitId) {
+  const opts = ['<option value="">— Bağlı değil —</option>'];
+  if (!projectId) return opts.join("");
+  const units = archiveUnits
+    .filter((u) => (u.projectId || PNB_PROJECT_ID) === projectId)
+    .filter((u) => (u.status || "") !== "pending_review")
+    .slice()
+    .sort((a, b) => archiveLabel(a).localeCompare(archiveLabel(b), "tr"));
+  units.forEach((u) => {
+    const selected = u.id === currentUnitId ? " selected" : "";
+    opts.push(`<option value="${escapeHTML(u.id)}"${selected}>${escapeHTML(archiveLabel(u))}</option>`);
+  });
+  // The current unit might be archived/done and excluded from the list above;
+  // re-add it explicitly so the "no change" save doesn't strip the link.
+  if (currentUnitId && !units.find((u) => u.id === currentUnitId)) {
+    const stale = archiveById[currentUnitId];
+    const label = stale ? archiveLabel(stale) : currentUnitId;
+    opts.push(`<option value="${escapeHTML(currentUnitId)}" selected>${escapeHTML(label)}</option>`);
+  }
+  return opts.join("");
+}
+
+function formatAuditTimestamp(d) {
+  if (!d) return "—";
+  return `${d.toLocaleDateString("tr-TR")} ${d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}`;
+}
+
+function openEditReportModal(reportId) {
+  if (!reportId) return;
+  // Resolve the report from the in-memory cache. Fall back to the staff feed
+  // cache (paged docs) for reports older than what `rd` holds.
+  let report = rd?.[reportId];
+  if (!report && Array.isArray(staffRecentDocs)) {
+    const found = staffRecentDocs.find((d) => d.id === reportId);
+    if (found) report = found.data;
+  }
+  if (!report) {
+    showToast("Rapor bulunamadı.");
+    return;
+  }
+  if (!canEditReport({ ...report, id: reportId })) {
+    showToast("Bu raporu artık düzenleyemezsin. Bir düzeltme yazmak için yeni bir rapor oluştur veya bir koordinatöre yaz.");
+    return;
+  }
+
+  const modal = document.getElementById("editReportModal");
+  if (!modal) return;
+
+  const projectId = report.projectId || null;
+  const unitId = report.unitId || report.archiveUnitId || "";
+  const status = report.status || (report.workStatus === "unit_done" ? "done" : report.workStatus) || "in_progress";
+
+  document.getElementById("editingReportId").value = reportId;
+  const noteEl = document.getElementById("editReportNote");
+  noteEl.value = report.note || report.summary || "";
+  document.getElementById("editReportNoteCounter").textContent = `${noteEl.value.length} / 500`;
+
+  const wdEl = document.getElementById("editReportWorkDate");
+  wdEl.min = workDateMin();
+  wdEl.max = istanbulToday();
+  wdEl.value = report.workDate || istanbulToday();
+  document.getElementById("editReportWorkDateError")?.classList.add("hidden");
+
+  document.getElementById("editReportProject").innerHTML = projectOptionsForEdit(projectId || "");
+  document.getElementById("editReportUnit").innerHTML = unitOptionsForEdit(projectId || "", unitId);
+
+  document.querySelectorAll("[data-edit-status]").forEach((b) => {
+    b.classList.toggle("is-on", b.dataset.editStatus === status);
+  });
+
+  document.getElementById("editReportUrl").value = report.url || (Array.isArray(report.links) && report.links[0]) || "";
+
+  const createdAtStr = formatAuditTimestamp(toDateFromTs(report.createdAt));
+  const editedAtStr = report.editedAt ? formatAuditTimestamp(toDateFromTs(report.editedAt)) : "—";
+  document.getElementById("editReportAudit").textContent = `Oluşturuldu: ${createdAtStr}, son düzenleme: ${editedAtStr}`;
+
+  document.getElementById("editReportMessage").textContent = "";
+  const banner = modal.querySelector(".edit-report-banner");
+  banner?.classList.add("if-banner--hidden");
+  banner?.classList.remove("if-banner--error", "if-banner--success");
+  if (banner) banner.textContent = "";
+
+  _editReportInProgress = { id: reportId, original: { ...report }, status };
+  modal.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+  setTimeout(() => noteEl.focus(), 50);
+}
+
+function closeEditReportModal() {
+  const modal = document.getElementById("editReportModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+  _editReportInProgress = null;
+}
+
+async function saveEditReport() {
+  if (!cu || !db) return;
+  const ctx = _editReportInProgress;
+  if (!ctx) return;
+
+  const reportId = ctx.id;
+  const original = ctx.original;
+  const banner = document.querySelector("#editReportModal .edit-report-banner");
+  const messageEl = document.getElementById("editReportMessage");
+  const saveBtn = document.getElementById("editReportSave");
+
+  const showError = (msg) => {
+    if (!banner) return;
+    banner.classList.remove("if-banner--hidden", "if-banner--success");
+    banner.classList.add("if-banner--error");
+    banner.textContent = msg;
+  };
+
+  // Re-validate: the user could have left the modal open past their 24h
+  // window before clicking Save. Re-check against the original createdAt.
+  if (!canEditReport({ ...original, id: reportId })) {
+    showError("Bu raporu artık düzenleyemezsin. Bir düzeltme yazmak için yeni bir rapor oluştur veya bir koordinatöre yaz.");
+    return;
+  }
+
+  const newNote = (document.getElementById("editReportNote").value || "").trim().slice(0, 500);
+  if (newNote.length < 3) {
+    showError("Ne yaptığını kısa bir cümleyle yaz.");
+    return;
+  }
+
+  const rawWorkDate = (document.getElementById("editReportWorkDate").value || "").trim();
+  const newWorkDate = rawWorkDate || istanbulToday();
+  const today = istanbulToday();
+  const min = workDateMin();
+  if (newWorkDate > today) { showError("İleri bir tarih seçemezsin."); return; }
+  if (newWorkDate < min) { showError("30 günden eski bir tarih seçemezsin."); return; }
+
+  const newProjectId = document.getElementById("editReportProject").value || null;
+  const newUnitId = document.getElementById("editReportUnit").value || "";
+  const newStatus = ctx.status || "in_progress";
+  const newUrl = (document.getElementById("editReportUrl").value || "").trim();
+
+  // Derive the report shape from the new values, mirroring submitInlineRapor.
+  const newReportType = newUnitId ? "unit" : (newProjectId ? "project_general" : "foundation_general");
+  const newUnit = newUnitId ? archiveById[newUnitId] : null;
+  const newUnitSnapshot = newUnit
+    ? {
+        sourceIdentifier: newUnit.sourceIdentifier || archiveLabel(newUnit),
+        contentDescription: newUnit.contentDescription || ""
+      }
+    : (newUnitId ? original.unitSnapshot || null : null);
+
+  const editorName = cp?.fullName || cu.email || "";
+  const oldStatus = original.status || (original.workStatus === "unit_done" ? "done" : original.workStatus) || "in_progress";
+
+  // Editable fields the diff cares about. Identity / audit fields
+  // (volunteerId, createdAt, submittedBy, userUid, userEmail) are excluded
+  // intentionally — Firestore rules block changes to them.
+  const beforeView = {
+    note: original.note || original.summary || "",
+    workDate: original.workDate || "",
+    status: oldStatus,
+    url: original.url || (Array.isArray(original.links) && original.links[0]) || "",
+    unitId: original.unitId || original.archiveUnitId || "",
+    projectId: original.projectId || null,
+    reportType: original.reportType || reportTypeOf(original)
+  };
+  const afterView = {
+    note: newNote,
+    workDate: newWorkDate,
+    status: newStatus,
+    url: newUrl,
+    unitId: newUnitId || "",
+    projectId: newProjectId,
+    reportType: newReportType
+  };
+  const changes = diffReportFields(beforeView, afterView);
+
+  if (!Object.keys(changes).length) {
+    if (messageEl) messageEl.textContent = "Değişiklik yok.";
+    return;
+  }
+
+  // editHistory is append-only; the new entry uses an ISO string for editedAt
+  // since serverTimestamp() can't be embedded inside an array element. The
+  // top-level editedAt field on the doc still uses serverTimestamp() for
+  // query purposes.
+  const editHistoryEntry = {
+    editedAt: new Date().toISOString(),
+    editedByUid: cu.uid,
+    editedByName: editorName,
+    changes
+  };
+
+  saveBtn.disabled = true;
+  const prevLabel = saveBtn.textContent;
+  saveBtn.textContent = "Kaydediliyor…";
+  try {
+    const newProjectName = newProjectId ? projectDisplayName(newProjectId) : null;
+    const update = {
+      // Editable fields.
+      note: newNote,
+      summary: newNote,
+      workDate: newWorkDate,
+      status: newStatus,
+      workStatus: newStatus === "done" || newStatus === "review" ? "unit_done" : newStatus === "blocked" ? "blocked" : "in_progress",
+      url: newUrl || null,
+      links: newUrl ? [newUrl] : [],
+      unitId: newUnitId || null,
+      archiveUnitId: newUnitId || "",
+      unitSnapshot: newUnitSnapshot,
+      projectId: newProjectId || null,
+      projectName: newProjectName,
+      reportType: newReportType,
+      // Audit.
+      editedAt: serverTimestamp(),
+      editHistory: arrayUnion(editHistoryEntry),
+      updatedAt: serverTimestamp()
+    };
+
+    await updateDoc(doc(db, "reports", reportId), update);
+
+    // Side effect: status going from in_progress → done with a unitId still
+    // attached should advance the linked archive unit, matching the original
+    // submit behavior. We don't undo a prior advance if the edit reverses it.
+    if (newUnitId && oldStatus !== "done" && newStatus === "done") {
+      try {
+        await updateDoc(doc(db, "archiveUnits", newUnitId), {
+          status: "done",
+          lastActivityAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      } catch (err) {
+        console.warn("archive unit status follow-up after edit failed:", err);
+      }
+    }
+
+    await logActivity("report_edited", "report", reportId, {
+      changedFields: Object.keys(changes),
+      onBehalfOfUid: original.volunteerId && original.volunteerId !== cu.uid ? original.volunteerId : null
+    });
+
+    closeEditReportModal();
+    showToast("Rapor güncellendi.");
+
+    // Refresh in-memory caches so log rows pick up the new values.
+    await lr();
+    if (typeof loadStaffRecentReports === "function" && isStaff()) {
+      try { await loadStaffRecentReports(true); } catch (e) { console.warn(e); }
+    }
+    renderHomeOverview();
+  } catch (error) {
+    showError(`Kaydedilemedi: ${error.message}`);
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = prevLabel;
   }
 }
 
@@ -2574,7 +3239,10 @@ function renderVolunteerReportPrimary() {
   }
   const list = document.getElementById("svRecentReports");
   if (!list) return;
-  const myReports = Object.values(rd || {})
+  // Object.entries preserves the doc id from rd's keys, which the edit-modal
+  // path needs to round-trip through the Düzenle button.
+  const myReports = Object.entries(rd || {})
+    .map(([id, data]) => ({ id, ...data }))
     .filter((r) => r.userUid === cu.uid || r.volunteerId === cu.uid)
     .sort((a, b) => (toDateFromTs(b.createdAt)?.getTime() || 0) - (toDateFromTs(a.createdAt)?.getTime() || 0))
     .slice(0, 5);
@@ -2615,12 +3283,27 @@ function renderVolunteerReportLogRow(r) {
 
   const note = (r.note || r.summary || "").trim();
   const noteSliced = note.slice(0, 70);
+  // "Koordinatör tarafından yazıldı" badge appears on the volunteer's own row
+  // when a coordinator submitted on their behalf (submittedBy !== volunteerId).
+  // We slot it before the note preview so the volunteer sees the provenance
+  // without having to expand anything.
+  const ownerUid = r.volunteerId || r.userUid || "";
+  const wroteBy = r.submittedBy || "";
+  const onBehalfBadge = wroteBy && ownerUid && wroteBy !== ownerUid
+    ? `<span class="sv-log-onbehalf">Koordinatör tarafından yazıldı</span> · `
+    : "";
   const text = prefix
-    ? `<span class="sv-log-prefix">${escapeHTML(prefix)}</span> · ${escapeHTML(noteSliced)}`
-    : escapeHTML(noteSliced || "—");
+    ? `${onBehalfBadge}<span class="sv-log-prefix">${escapeHTML(prefix)}</span> · ${escapeHTML(noteSliced)}`
+    : `${onBehalfBadge}${escapeHTML(noteSliced || "—")}`;
 
-  const when = toDateFromTs(r.createdAt);
-  const ago = relativeTimeLabel(when);
+  // Show workDate as the primary date when present (so backdated reports
+  // surface their actual work date), falling back to createdAt for legacy
+  // reports written before the workDate field existed.
+  const wd = workDateToDate(r.workDate);
+  const when = wd || toDateFromTs(r.createdAt);
+  // Workdate is date-only — "5 dk önce" / "8 saat önce" wouldn't make sense,
+  // so we stick with the daily-granularity label even if workDate equals today.
+  const ago = wd ? daysSinceLabel(daysSince(when)) : relativeTimeLabel(when);
 
   // Use a <button> for unit rows so it's keyboard-accessible and routes
   // through the existing data-recent-unit click delegation. Non-unit rows
@@ -2635,7 +3318,8 @@ function renderVolunteerReportLogRow(r) {
     <span class="sv-log-dot" aria-hidden="true"></span>
     <span class="sv-log-type">${escapeHTML(typeLabel)}</span>
     <span class="sv-log-text">${text}</span>
-    <span class="sv-log-when">${escapeHTML(ago)}</span>
+    <span class="sv-log-when">${escapeHTML(ago)}${escapeHTML(editedLabel(r))}</span>
+    ${editReportButtonHtml({ ...r, id: r.id })}
   </${tag}>`;
 }
 
@@ -2863,22 +3547,34 @@ function renderCoordinatorReportLogRow(r) {
     ? `<span class="sv-log-prefix">${escapeHTML(prefix)}</span> · ${escapeHTML(noteSliced)}`
     : escapeHTML(noteSliced || "—");
 
-  const when = toDateFromTs(r.createdAt);
-  const ago = relativeTimeLabel(when);
+  const wd = workDateToDate(r.workDate);
+  const when = wd || toDateFromTs(r.createdAt);
+  const ago = wd ? daysSinceLabel(daysSince(when)) : relativeTimeLabel(when);
 
   const fullNote = note || "—";
   const url = r.url || (Array.isArray(r.links) && r.links[0]) || "";
+
+  // On-behalf label — only shown when submittedBy is set and differs from the
+  // volunteer who's credited. Coordinator's own self-submits collapse to an
+  // empty label so the row stays compact.
+  const submittedBy = r.submittedBy || "";
+  const volunteerUid = r.volunteerId || r.userUid || "";
+  const onBehalfText = submittedBy && submittedBy !== volunteerUid
+    ? `Koordinatör ${findUserName(submittedBy) || submittedBy} tarafından, ${volName} için`
+    : "";
 
   return `<div class="sv-log-row sv-log-row--clickable bugun-recent-row" data-rtype="${escapeHTML(typeKey)}" data-status="${escapeHTML(status)}" data-bugun-row="${escapeHTML(r.id || "")}" role="button" tabindex="0">
     <span class="sv-log-dot" aria-hidden="true"></span>
     <span class="sv-log-type">${escapeHTML(typeLabel)}</span>
     <span class="bugun-recent-name">${escapeHTML(volName)}</span>
     <span class="sv-log-text">${text}</span>
-    <span class="sv-log-when">${escapeHTML(ago)}</span>
+    <span class="sv-log-when">${escapeHTML(ago)}${escapeHTML(editedLabel(r))}</span>
+    ${editReportButtonHtml(r)}
     <div class="bugun-recent-expand hidden" data-bugun-expand="${escapeHTML(r.id || "")}">
       ${prefix ? `<div><strong>${escapeHTML(prefix)}</strong></div>` : ""}
       <div class="bugun-recent-fullnote">${escapeHTML(fullNote)}</div>
       ${url ? `<div class="bugun-recent-link"><a href="${escapeHTML(url)}" target="_blank" rel="noopener" data-stop-row>${escapeHTML(url)}</a></div>` : ""}
+      ${onBehalfText ? `<div class="bugun-recent-meta muted">${escapeHTML(onBehalfText)}</div>` : ""}
       <div class="bugun-recent-meta muted">Durum: ${escapeHTML(statusLabel(status))}${unitId ? ` · birime git →` : ""}</div>
     </div>
   </div>`;
@@ -4773,7 +5469,21 @@ async function loadDrillReports(unitId) {
   const reportRows = drillCurrentReports.map((r) => {
     const who = r.volunteerName || r.userUid ? (r.volunteerName || findUserName(r.userUid) || r.userEmail || "—") : (r.userEmail || "—");
     const createdAt = toDateFromTs(r.createdAt);
-    const dateStr = createdAt ? createdAt.toLocaleDateString("tr-TR") + " " + createdAt.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }) : (r.reportDate || "—");
+    const editedAt = toDateFromTs(r.editedAt);
+    const wd = workDateToDate(r.workDate);
+    // workDate is the headline for each report row (the date the volunteer
+    // says the work happened). createdAt + editHistory live inside the
+    // Detaylar expander for full audit when needed.
+    const wdStr = r.workDate
+      ? r.workDate
+      : (createdAt ? createdAt.toLocaleDateString("tr-TR") : (r.reportDate || "—"));
+    const wdAgo = wd ? ` · ${daysSinceLabel(daysSince(wd))}` : "";
+    const createdStr = createdAt
+      ? createdAt.toLocaleDateString("tr-TR") + " " + createdAt.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })
+      : "—";
+    const editedStr = editedAt
+      ? editedAt.toLocaleDateString("tr-TR") + " " + editedAt.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })
+      : "—";
     const reportStatus = r.status || (r.workStatus === "unit_done" ? "done" : r.workStatus) || "";
     const statusTag = reportStatus
       ? `<span class="drill-tag ws-${escapeHTML(reportStatus)}">${escapeHTML(statusLabel(reportStatus))}</span>`
@@ -4782,7 +5492,7 @@ async function loadDrillReports(unitId) {
       ? `<span class="drill-tag">${escapeHTML(effortLabels[r.effort] || r.effort)}</span>`
       : "";
     const src = r.source && r.source !== "report_first"
-      ? `<span class="drill-tag src-${escapeHTML(r.source)}">${escapeHTML(r.source === "quick" ? "Hızlı" : r.source === "detailed" ? "Detaylı" : r.source)}</span>`
+      ? `<span class="drill-tag src-${escapeHTML(r.source)}">${escapeHTML(r.source === "quick" ? "Hızlı" : r.source === "detailed" ? "Detaylı" : r.source === "coordinator_logged" ? "Koordinatör" : r.source)}</span>`
       : "";
     const pages = r.pagesDone != null && r.pagesDone !== "" ? `<span class="drill-pages">${numberText(r.pagesDone)} sayfa</span>` : "";
     const cumulative = runningByReportId.has(r.id) && totalPages > 0 ? `<span class="drill-cum">Toplam: ${numberText(runningByReportId.get(r.id))}</span>` : "";
@@ -4790,14 +5500,51 @@ async function loadDrillReports(unitId) {
     const noteHtml = note ? `<p class="drill-summary">${escapeHTML(note)}</p>` : "";
     const url = r.url || (Array.isArray(r.links) && r.links[0]) || "";
     const urlHtml = url ? `<div class="drill-numbers"><a href="${escapeHTML(url)}" target="_blank" rel="noopener">${escapeHTML(url.length > 60 ? url.slice(0, 60) + "…" : url)}</a></div>` : "";
+
+    // Coordinator-on-behalf line — appears only when submittedBy differs from
+    // the volunteer credited. Empty otherwise so the layout stays compact.
+    const submittedBy = r.submittedBy || "";
+    const volId = r.volunteerId || r.userUid || "";
+    const onBehalfHtml = submittedBy && volId && submittedBy !== volId
+      ? `<div class="drill-onbehalf muted">Koordinatör ${escapeHTML(findUserName(submittedBy) || submittedBy)} tarafından, ${escapeHTML(who)} için</div>`
+      : "";
+
+    // editHistory list inside Detaylar — newest first. Each entry shows
+    // who/when + the field names that changed so the audit story is readable
+    // without diff diving into JSON.
+    const history = Array.isArray(r.editHistory) ? r.editHistory : [];
+    const historyHtml = history.length
+      ? `<ul class="drill-history">${history
+          .slice()
+          .reverse()
+          .map((h) => {
+            const hWhen = h.editedAt
+              ? new Date(h.editedAt).toLocaleString("tr-TR", { hour: "2-digit", minute: "2-digit" })
+              : "—";
+            const fields = h.changes && typeof h.changes === "object"
+              ? Object.keys(h.changes).join(", ")
+              : "";
+            return `<li><strong>${escapeHTML(h.editedByName || h.editedByUid || "—")}</strong> · ${escapeHTML(hWhen)}${fields ? ` · ${escapeHTML(fields)}` : ""}</li>`;
+          })
+          .join("")}</ul>`
+      : '<p class="muted" style="font-size:.8rem;margin:0">Düzenleme yok.</p>';
+
     return `<article class="drill-report">
       <header>
-        <div><strong>${escapeHTML(who)}</strong><span class="muted"> · ${escapeHTML(dateStr)}</span></div>
-        <div class="drill-tags">${statusTag}${effortTag}${src}</div>
+        <div><strong>${escapeHTML(who)}</strong><span class="muted"> · ${escapeHTML(wdStr)}${escapeHTML(wdAgo)}</span></div>
+        <div class="drill-tags">${statusTag}${effortTag}${src}${editedAt ? '<span class="drill-tag drill-tag-edited">düzenlendi</span>' : ""}</div>
       </header>
+      ${onBehalfHtml}
       ${pages || cumulative ? `<div class="drill-numbers">${pages}${cumulative}</div>` : ""}
       ${noteHtml}
       ${urlHtml}
+      <details class="drill-detaylar">
+        <summary>Detaylar</summary>
+        <div class="drill-detaylar-body">
+          <p class="muted" style="font-size:.8rem;margin:.25rem 0 .5rem">Oluşturuldu: ${escapeHTML(createdStr)} · Son düzenleme: ${escapeHTML(editedStr)}</p>
+          ${historyHtml}
+        </div>
+      </details>
     </article>`;
   }).join("");
 
@@ -5660,6 +6407,42 @@ document.getElementById("drillEditSave")?.addEventListener("click", async () => 
     btn.disabled = false;
   }
 });
+// Edit-report modal wiring. The form's submit + dynamic counters live here
+// as direct listeners (rather than going through global click delegation) so
+// they only fire when the modal is active. The status-pill and close-button
+// clicks ARE handled by the global delegation block above so they keep
+// working even after re-renders.
+document.getElementById("editReportForm")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  saveEditReport();
+});
+
+document.getElementById("editReportNote")?.addEventListener("input", (event) => {
+  const counter = document.getElementById("editReportNoteCounter");
+  if (counter) counter.textContent = `${event.target.value.length} / 500`;
+});
+
+document.getElementById("editReportWorkDate")?.addEventListener("change", (event) => {
+  const errEl = document.getElementById("editReportWorkDateError");
+  if (!errEl) return;
+  const value = (event.target.value || "").trim();
+  if (!value) { errEl.classList.add("hidden"); errEl.textContent = ""; return; }
+  const today = istanbulToday();
+  const min = workDateMin();
+  if (value > today) { errEl.textContent = "İleri bir tarih seçemezsin."; errEl.classList.remove("hidden"); return; }
+  if (value < min) { errEl.textContent = "30 günden eski bir tarih seçemezsin."; errEl.classList.remove("hidden"); return; }
+  errEl.classList.add("hidden");
+  errEl.textContent = "";
+});
+
+// Changing the project select repopulates the unit dropdown so the volunteer
+// can only attach a unit that lives in the new project.
+document.getElementById("editReportProject")?.addEventListener("change", (event) => {
+  const projectId = event.target.value || "";
+  const unitSelect = document.getElementById("editReportUnit");
+  if (unitSelect) unitSelect.innerHTML = unitOptionsForEdit(projectId, "");
+});
+
 document.getElementById("pnbCommitBtn")?.addEventListener("click", commitPnbImport);
 
 document.getElementById("pnbImportFile")?.addEventListener("change", async (event) => {
@@ -6092,6 +6875,29 @@ document.addEventListener("click", async (event) => {
         handle?.container?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 60);
     }
+    return;
+  }
+
+  // Düzenle button on a "Son raporların" / Bugün Son raporlar row. Don't let
+  // the click bubble into the row's open-unit handler below.
+  const editReportBtn = event.target.closest("[data-edit-report]");
+  if (editReportBtn) {
+    event.preventDefault();
+    event.stopPropagation();
+    openEditReportModal(editReportBtn.dataset.editReport);
+    return;
+  }
+  // Edit-report modal close (× button or backdrop).
+  if (event.target.closest("[data-edit-report-close]")) {
+    closeEditReportModal();
+    return;
+  }
+  // Edit-report modal status pill.
+  const editStatusBtn = event.target.closest("[data-edit-status]");
+  if (editStatusBtn) {
+    document.querySelectorAll("[data-edit-status]").forEach((b) => b.classList.remove("is-on"));
+    editStatusBtn.classList.add("is-on");
+    if (_editReportInProgress) _editReportInProgress.status = editStatusBtn.dataset.editStatus;
     return;
   }
 

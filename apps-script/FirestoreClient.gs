@@ -165,6 +165,51 @@ function listApprovedVolunteers() {
 }
 
 /**
+ * Returns the latest report.workDate (YYYY-MM-DD) for the given volunteer,
+ * or null when no report exists. Used by checkInactiveVolunteers to flag
+ * inactivity based on when the work actually happened (not when it was
+ * logged) — backdated reports must keep a volunteer counted as active for
+ * the dates they cover.
+ *
+ * Requires the composite index `reports.volunteerId ASC + workDate DESC`
+ * (declared in firebase/firestore.indexes.json).
+ */
+function getLatestWorkDateForVolunteer(volunteerId) {
+  if (!volunteerId) return null;
+  const token = getAccessToken_();
+  const projectId = firestoreProjectId_();
+  const url = 'https://firestore.googleapis.com/v1/projects/' + encodeURIComponent(projectId) +
+    '/databases/(default)/documents:runQuery';
+  const body = {
+    structuredQuery: {
+      from: [{ collectionId: 'reports' }],
+      where: eqFilter_('volunteerId', volunteerId),
+      orderBy: [{ field: { fieldPath: 'workDate' }, direction: 'DESCENDING' }],
+      limit: 1
+    }
+  };
+  const response = UrlFetchApp.fetch(url, {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + token },
+    payload: JSON.stringify(body),
+    muteHttpExceptions: true
+  });
+  const code = response.getResponseCode();
+  if (code !== 200) {
+    throw new Error('Firestore latestWorkDate query failed (' + code + '): ' + response.getContentText());
+  }
+  const results = JSON.parse(response.getContentText()) || [];
+  for (var i = 0; i < results.length; i++) {
+    var d = results[i].document;
+    if (d && d.fields && d.fields.workDate) {
+      return decodeValue_(d.fields.workDate);
+    }
+  }
+  return null;
+}
+
+/**
  * Returns coordinators and admins in the given department as
  * [{uid, fullName, email, department, rhythm, lastReportAt}].
  */
