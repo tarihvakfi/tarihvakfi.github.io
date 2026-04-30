@@ -397,6 +397,41 @@ service cloud.firestore {
       allow delete, update: if false;
     }
 
+    // Sheet sync — see apps-script/SheetSync.gs and SHEET_SYNC_README.md.
+    // The service account writes both /syncLogs and /config/sheetSync via
+    // Firestore REST and bypasses these rules entirely; the rules below
+    // exist purely to expose read access to the Bakım panel and to keep
+    // every other client locked out.
+    //
+    // /syncLogs/{logId} — append-only run log. Admin-read so the Bakım
+    // panel can render the recent-events feed; nobody writes from the
+    // client side.
+    match /syncLogs/{logId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    // /config/sheetSync — single config doc holding lastGoodStructure,
+    // consecutiveAccessFailures, alertCooldown, etc. Admin-read so the
+    // Bakım panel can show the indicator dot and accept-baseline state.
+    // Updates from the panel ("Yapıyı yeniden kabul et", "Senkronizasyonu
+    // yeniden başlat") flow through Apps Script, never the web client.
+    match /config/{configId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    // Mirror collections written by SheetSync.gs. Each source-sheet tab
+    // gets a metadata doc at /sheets/{tabSlug} plus a /rows subcollection
+    // holding one doc per data row. Admin-read only — the sheet may carry
+    // volunteer-internal context that hasn't been sanitised for broader
+    // exposure. To open a specific tab to volunteers later, add a more
+    // permissive rule above this one keyed on a particular tabSlug.
+    match /sheets/{tabSlug}/{document=**} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
     match /publicProjectStats/{projectId} {
       // Aggregate doc per project — totalPages, donePages, totalUnits,
       // doneUnits, updatedAt. Numbers only; no identifiers.

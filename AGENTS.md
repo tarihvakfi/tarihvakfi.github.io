@@ -439,6 +439,21 @@ Use Google Apps Script + Google Sheets for:
 - weekly summary email
 - inactivity reminder email
 
+## Sheet sync (apps-script/SheetSync.gs)
+
+A 15-minute one-way sync pulls rows from the shared "Tarih Vakfı Gönüllü Ağı" Google Sheet into Firestore. Owned by a foundation colleague — the user has Editor + share rights but not ownership — so the sync is deliberately defensive. Full runbook in `apps-script/SHEET_SYNC_README.md`.
+
+Highlights worth knowing without opening the README:
+
+- **Mirror layout.** Each tab → `sheets/{tabSlug}` (metadata) + `sheets/{tabSlug}/rows/{rowId}` (one doc per row). Tab slugs ASCII-fold Turkish (`Günlük Akış` → `gunluk_akis`). Field keys camelCase the headers (`Çalışma Alanı` → `calismaAlani`).
+- **Additive only.** Sheet deletes never propagate. Cell edits overwrite the row doc and push the prior shape onto a 10-entry `_history` array. Per-row content hash skips writes for unchanged rows.
+- **Three failure modes the admin needs to recognize.**
+  1. *Structure change* — tab/column rename or add. Sync stays "degraded", writes `syncLogs/{id}` with `status: "structure_changed"`, emails `SYNC_ALERT_EMAIL` once per 24h. Admin clears via Bakım → Sheet senkronizasyonu → "Yapıyı yeniden kabul et" (runs `sheetSyncAcceptCurrentStructure()` from the Apps Script editor).
+  2. *Access loss* — three consecutive permission failures (~45 min) flip `config/sheetSync.enabled` to `false` and email the admin. Recovery: re-add the service account as Viewer, then "Senkronizasyonu yeniden başlat" → `sheetSyncResume()`.
+  3. *Tab error* — a single tab fails its read while others succeed. Logged as `tab_error`, the rest of the run continues, status becomes `degraded`.
+- **No automatic schema migration.** If a column rename happens, the new key is what subsequent sync writes use. Existing docs keep their old keys until they're rewritten by an edit. Don't assume any specific column name will exist forever.
+- **The sheet owner never gets system mail.** Only the admin (`SYNC_ALERT_EMAIL`) is alerted. Owner communication is human-to-human.
+
 ## Code quality
 - Keep files small and readable
 - Add clear comments only where necessary

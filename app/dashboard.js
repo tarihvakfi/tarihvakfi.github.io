@@ -138,6 +138,12 @@ function sw(name, opts = {}) {
     && typeof renderTelegramDiagnosticCounts === "function") {
     renderTelegramDiagnosticCounts();
   }
+  // Sheet sync panel: lazy-load on first navigation to Bakım. Reads two
+  // Firestore docs (config/sheetSync + 20 most recent /syncLogs entries),
+  // both small. The Yenile button triggers a refresh.
+  if (target === "bakim" && typeof loadSheetSyncStatus === "function") {
+    loadSheetSyncStatus();
+  }
   // Mirror the chosen tab in the URL hash so reload / back-forward stays put.
   if (!opts.skipHashWrite) {
     const wantedHash = `#${target}`;
@@ -1079,6 +1085,193 @@ function renderPendingReviewList() {
       </div>
     </div>`;
   }).join("");
+}
+
+// ---------- Bakım: Sheet senkronizasyonu paneli ----------
+//
+// Reads /config/sheetSync (the doc Apps Script SheetSync.gs maintains) and
+// the latest /syncLogs entries, renders a status indicator + run feed, and
+// surfaces two recovery actions:
+//   - "Yapıyı yeniden kabul et" — runs Apps Script
+//     sheetSyncAcceptCurrentStructure() to take the current sheet shape as
+//     the new baseline.
+//   - "Senkronizasyonu yeniden başlat" — runs sheetSyncResume() to clear
+//     consecutiveAccessFailures and flip enabled back to true.
+//
+// Both actions are admin-only. Apps Script execution from the dashboard is
+// not currently wired (the project doesn't have a doPost endpoint live);
+// the buttons therefore copy the Apps Script function name onto the
+// clipboard and show a toast asking the admin to run it from the editor.
+// When/if a doPost or Cloud Run endpoint is added these handlers can call
+// it directly without further markup changes.
+
+let sheetSyncConfig = null;
+let sheetSyncRecentLogs = [];
+
+async function loadSheetSyncStatus() {
+  if (!isAdmin()) return;
+  try {
+    const cfgSnap = await getDoc(doc(db, "config", "sheetSync"));
+    sheetSyncConfig = cfgSnap.exists() ? cfgSnap.data() : null;
+  } catch (err) {
+    console.warn("sheetSync config okunamadı:", err);
+    sheetSyncConfig = null;
+  }
+  try {
+    const snap = await getDocs(query(
+      collection(db, "syncLogs"),
+      orderBy("createdAt", "desc"),
+      limit(20)
+    ));
+    sheetSyncRecentLogs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch (err) {
+    console.warn("syncLogs okunamadı:", err);
+    sheetSyncRecentLogs = [];
+  }
+  renderSheetSyncPanel();
+}
+
+// Computes the status-dot color from config + most recent log:
+//   - red    paused (config.enabled === false) or last run was access_denied
+//   - yellow last run was structure_changed/degraded OR no run in 30+ min
+//   - green  last run was ok and within 30 min
+//   - grey   no data yet (first ever load before any sync ran)
+function _sheetSyncDotState() {
+  if (!sheetSyncConfig) return { color: "unknown", label: "Henüz veri yok" };
+  if (sheetSyncConfig.enabled === false) return { color: "red", label: "Senkronizasyon duraklatıldı" };
+  const status = sheetSyncConfig.lastSyncStatus || "";
+  if (status === "access_denied") return { color: "red", label: "Erişim hatası" };
+  const lastSyncAt = sheetSyncConfig.lastSyncAt ? new Date(sheetSyncConfig.lastSyncAt) : null;
+  const stale = !lastSyncAt || isNaN(lastSyncAt.getTime()) || (Date.now() - lastSyncAt.getTime()) > 30 * 60 * 1000;
+  const structureChangedRecently = (sheetSyncConfig.lastSyncSummary?.structureChanges || []).length > 0;
+  if (stale) return { color: "yellow", label: "Son senkronizasyon 30+ dakika önce" };
+  if (status === "degraded" || status === "structure_changed" || structureChangedRecently) {
+    return { color: "yellow", label: "Yapı değişikliği algılandı" };
+  }
+  if (status === "ok") return { color: "green", label: "Senkronize" };
+  return { color: "yellow", label: status || "Bilinmiyor" };
+}
+
+function renderSheetSyncPanel() {
+  const card = document.getElementById("sheetSyncCard");
+  if (!card || !isAdmin()) return;
+  const dot = document.getElementById("sheetSyncDot");
+  const statusLine = document.getElementById("sheetSyncStatusLine");
+  const alertsEl = document.getElementById("sheetSyncAlerts");
+  const logEl = document.getElementById("sheetSyncLog");
+  const acceptBtn = document.getElementById("sheetSyncAcceptBtn");
+  const resumeBtn = document.getElementById("sheetSyncResumeBtn");
+
+  const state = _sheetSyncDotState();
+  if (dot) {
+    dot.dataset.status = state.color;
+    dot.title = state.label;
+  }
+  if (statusLine) {
+    if (sheetSyncConfig) {
+      const lastSyncAt = sheetSyncConfig.lastSyncAt ? new Date(sheetSyncConfig.lastSyncAt) : null;
+      const lastAgo = lastSyncAt && !isNaN(lastSyncAt.getTime()) ? relativeTimeLabel(lastSyncAt) : "—";
+      const summary = sheetSyncConfig.lastSyncSummary || {};
+      const totals = `${summary.totalWritten ?? 0} satır yazıldı · ${summary.totalSkipped ?? 0} satır atlandı`;
+      statusLine.textContent = `${state.label} · son çalışma: ${lastAgo} · ${totals}`;
+    } else {
+      statusLine.textContent = state.label;
+    }
+  }
+
+  // Action buttons: enable based on what state we're in.
+  // Accept-baseline only makes sense when there's a structural alert OR the
+  // user wants to reset the baseline manually. Show as enabled whenever
+  // config exists.
+  if (acceptBtn) acceptBtn.disabled = !sheetSyncConfig;
+  // Resume only when paused.
+  if (resumeBtn) resumeBtn.disabled = !sheetSyncConfig || sheetSyncConfig.enabled !== false;
+
+  // Structure change alerts — pull from lastSyncSummary.structureChanges
+  // (current run) plus the most recent structure_changed log if any.
+  if (alertsEl) {
+    const liveChanges = (sheetSyncConfig?.lastSyncSummary?.structureChanges || []);
+    const recentStructureLog = sheetSyncRecentLogs.find((l) => l.status === "structure_changed");
+    const recentAccessLog = sheetSyncRecentLogs.find((l) => l.status === "access_denied" || l.status === "paused");
+    const blocks = [];
+    if (liveChanges.length) {
+      blocks.push(`<div class="ops-alert" data-sheet-alert="structure">
+        <div>
+          <strong>Yapı değişikliği algılandı</strong>
+          <ul style="margin:.35rem 0;padding-left:1.2rem;font-size:.9rem">
+            ${liveChanges.map((c) => `<li>${escapeHTML(c)}</li>`).join("")}
+          </ul>
+          <p class="muted" style="font-size:.85rem;margin:0">Yeni yapıyı doğruladıysan üstteki "Yapıyı yeniden kabul et" düğmesine bas.</p>
+        </div>
+      </div>`);
+    } else if (recentStructureLog && (Date.now() - (toDateFromTs(recentStructureLog.createdAt)?.getTime() || 0)) < 24 * 3600 * 1000) {
+      const changes = recentStructureLog.details?.changes || [];
+      blocks.push(`<div class="ops-alert" data-sheet-alert="structure-recent">
+        <div>
+          <strong>Son 24 saat içinde yapı değişikliği</strong>
+          ${changes.length ? `<ul style="margin:.35rem 0;padding-left:1.2rem;font-size:.9rem">${changes.map((c) => `<li>${escapeHTML(c)}</li>`).join("")}</ul>` : ""}
+        </div>
+      </div>`);
+    }
+    if (sheetSyncConfig?.enabled === false) {
+      const reason = recentAccessLog ? (recentAccessLog.details?.reason || recentAccessLog.details?.error || "") : "";
+      blocks.push(`<div class="ops-alert" data-sheet-alert="access">
+        <div>
+          <strong>Senkronizasyon duraklatıldı</strong>
+          <p class="muted" style="font-size:.85rem;margin:.25rem 0">Servis hesabı sheet'e erişimini kaybetti. ${escapeHTML(reason)}</p>
+          <p class="muted" style="font-size:.85rem;margin:.25rem 0">Servis hesabı email'ini Viewer olarak yeniden ekledikten sonra "Senkronizasyonu yeniden başlat" düğmesini kullan.</p>
+        </div>
+      </div>`);
+    }
+    alertsEl.innerHTML = blocks.length ? blocks.join("") : '<p class="muted" style="font-size:.85rem;margin:0">Aktif uyarı yok.</p>';
+  }
+
+  // Run-log feed.
+  if (logEl) {
+    if (!sheetSyncRecentLogs.length) {
+      logEl.innerHTML = '<p class="empty">Henüz senkronizasyon olayı yok.</p>';
+    } else {
+      logEl.innerHTML = sheetSyncRecentLogs.map(_renderSyncLogRow).join("");
+    }
+  }
+}
+
+function _renderSyncLogRow(entry) {
+  const when = toDateFromTs(entry.createdAt);
+  const whenStr = when ? `${when.toLocaleDateString("tr-TR")} ${when.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}` : "—";
+  const status = entry.status || "—";
+  const tone = status === "ok" ? "ok" :
+    status === "access_denied" || status === "paused" || status === "tab_error" || status === "error" || status === "alert_email_failed" ? "danger" :
+    status === "structure_changed" || status === "degraded" ? "warn" : "mute";
+  const details = entry.details || {};
+  const summaryBits = [];
+  if (details.totalWritten != null) summaryBits.push(`${details.totalWritten} yazıldı`);
+  if (details.totalSkipped != null) summaryBits.push(`${details.totalSkipped} atlandı`);
+  if (details.consecutive) summaryBits.push(`${details.consecutive}/${3} ardışık hata`);
+  if (Array.isArray(details.changes) && details.changes.length) summaryBits.push(`${details.changes.length} yapı değişikliği`);
+  if (details.tab) summaryBits.push(`tab: ${details.tab}`);
+  if (details.reason) summaryBits.push(details.reason);
+  if (details.error) summaryBits.push("hata: " + String(details.error).slice(0, 80));
+  return `<div class="feedback-item" data-sync-log="${escapeHTML(entry.id || "")}">
+    <strong class="sync-log-status sync-log-status--${escapeHTML(tone)}">${escapeHTML(status)}</strong>
+    <span class="muted" style="font-size:.85rem"> · ${escapeHTML(whenStr)}</span>
+    ${summaryBits.length ? `<div class="muted" style="font-size:.85rem;margin-top:.2rem">${escapeHTML(summaryBits.join(" · "))}</div>` : ""}
+  </div>`;
+}
+
+// The "accept structure" and "resume sync" buttons need to invoke Apps
+// Script functions. We don't have a doPost / Cloud Run endpoint wired up,
+// so for now copy the function name onto the clipboard and tell the admin
+// to run it from the Apps Script editor. When a backend endpoint exists
+// these can be replaced with a fetch() call.
+async function _runAppsScriptHelper(functionName, friendlyMessage) {
+  const note = `Apps Script editöründe ${functionName}() fonksiyonunu çalıştır.`;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(functionName);
+    }
+  } catch (e) { /* non-secure context — clipboard may fail, that's OK */ }
+  showToast(`${friendlyMessage} ${note}`);
 }
 
 function openApprovePendingModal(unitId) {
@@ -6961,6 +7154,26 @@ document.addEventListener("click", async (event) => {
   // Pending review (admin Bakım) actions.
   if (event.target.id === "pendingReviewRefresh") {
     loadPendingReviewUnits();
+    return;
+  }
+
+  // Sheet sync panel (admin Bakım).
+  if (event.target.id === "sheetSyncRefreshBtn") {
+    loadSheetSyncStatus();
+    return;
+  }
+  if (event.target.id === "sheetSyncAcceptBtn") {
+    _runAppsScriptHelper(
+      "sheetSyncAcceptCurrentStructure",
+      "Yapı yeni baseline olarak kaydedilmek üzere."
+    );
+    return;
+  }
+  if (event.target.id === "sheetSyncResumeBtn") {
+    _runAppsScriptHelper(
+      "sheetSyncResume",
+      "Senkronizasyon yeniden başlatılmak üzere."
+    );
     return;
   }
   const approvePending = event.target.closest("[data-pending-approve]");

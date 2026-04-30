@@ -499,6 +499,32 @@
         <div id="tgSchemaCheckResult" class="stack" style="margin-top:.75rem"></div>
       </article>
 
+      <!-- Section: Sheet senkronizasyonu — admin view of the Apps Script
+           SheetSync.gs runs. Shows status dot (green/yellow/red), recent
+           run log, structure-change alerts, and a "Yapıyı yeniden kabul et"
+           button that uploads the current sheet structure as the new
+           baseline. Wiring lives in dashboard.js renderSheetSyncPanel(). -->
+      <article class="card" id="sheetSyncCard" style="margin-top:1.25rem">
+        <div class="step-header">
+          <div class="sheet-sync-head">
+            <span class="sheet-sync-dot" id="sheetSyncDot" data-status="unknown" title="Yükleniyor…"></span>
+            <div>
+              <p class="eyebrow">Bakım · sheet senkronizasyonu</p>
+              <h2 style="margin-top:0">Sheet senkronizasyonu</h2>
+              <p class="muted" id="sheetSyncStatusLine" style="font-size:.85rem;margin:.15rem 0 0">Yükleniyor…</p>
+            </div>
+          </div>
+          <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+            <button class="btn btn-secondary btn-sm" type="button" id="sheetSyncRefreshBtn">Yenile</button>
+            <button class="btn btn-secondary btn-sm" type="button" id="sheetSyncAcceptBtn" disabled>Yapıyı yeniden kabul et</button>
+            <button class="btn btn-primary btn-sm" type="button" id="sheetSyncResumeBtn" disabled>Senkronizasyonu yeniden başlat</button>
+          </div>
+        </div>
+        <div id="sheetSyncAlerts" class="stack" style="margin-top:.75rem"></div>
+        <p class="eyebrow" style="margin-top:1rem">Son senkronizasyon olayları</p>
+        <div id="sheetSyncLog" class="stack"><p class="empty">Henüz senkronizasyon olayı yok.</p></div>
+      </article>
+
       <!-- Section 5: Veri sağlığı (TODO: per-collection counts + last-write timestamps) -->
       <article class="card" style="margin-top:1.25rem">
         <p class="eyebrow">Bakım · veri sağlığı</p>

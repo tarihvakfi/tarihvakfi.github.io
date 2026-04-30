@@ -28,10 +28,14 @@ function base64UrlEncode_(bytes) {
 
 /**
  * Builds a JWT signed with the service account's private key and exchanges it
- * for a short-lived OAuth access token scoped to Firestore.
+ * for a short-lived OAuth access token. Default scope is the Firestore
+ * datastore scope; pass a different scope (or a space-separated list of
+ * scopes) to issue a token for another Google API. SheetSync.gs uses
+ * https://www.googleapis.com/auth/spreadsheets.readonly to read the shared
+ * volunteer sheet without ever needing write access.
  * Returns the access token string. Throws if credentials are missing/invalid.
  */
-function getAccessToken_() {
+function getAccessToken_(scopeOverride) {
   const sa = getServiceAccount_();
   if (!sa) throw new Error('FIREBASE_SERVICE_ACCOUNT missing from Script Properties');
 
@@ -39,7 +43,7 @@ function getAccessToken_() {
   const header = { alg: 'RS256', typ: 'JWT' };
   const claim = {
     iss: sa.client_email,
-    scope: FIRESTORE_SCOPE_,
+    scope: scopeOverride || FIRESTORE_SCOPE_,
     aud: FIRESTORE_TOKEN_URL_,
     iat: now,
     exp: now + 3600

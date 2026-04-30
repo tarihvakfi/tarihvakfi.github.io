@@ -1035,6 +1035,40 @@
   margin-top: .35rem;
 }
 
+/* ---------- Sheet sync (admin Bakım) ---------- */
+.sheet-sync-head {
+  display: flex;
+  align-items: flex-start;
+  gap: .65rem;
+}
+.sheet-sync-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-top: .35rem;
+  border-radius: 50%;
+  background: #d1d5db; /* unknown / no data — neutral grey */
+  flex-shrink: 0;
+}
+.sheet-sync-dot[data-status="green"]   { background: #16a34a; }
+.sheet-sync-dot[data-status="yellow"]  { background: #ca8a04; }
+.sheet-sync-dot[data-status="red"]     { background: #dc2626; }
+.sheet-sync-dot[data-status="unknown"] { background: #d1d5db; }
+.sync-log-status {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--tblr-bg-surface-secondary);
+}
+.sync-log-status--ok      { color: #fff; background: #16a34a; }
+.sync-log-status--warn    { color: #fff; background: #ca8a04; }
+.sync-log-status--danger  { color: #fff; background: #dc2626; }
+.sync-log-status--mute    { color: var(--tblr-secondary); }
+
 /* Optional "Tümünü göster →" footer — hidden today (no full history view
    exists for volunteers). The slot is in the markup so it's there if/when
    a /reports archive page lands. */

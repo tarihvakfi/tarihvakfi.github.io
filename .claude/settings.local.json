@@ -5,7 +5,10 @@
       "Bash(node --check app/dashboard.js)",
       "Bash(node *)",
       "Bash(grep -n \"async function reloadPnb\\\\|renderPano\\(\\);\\\\s*$\\\\|renderStaffAttention\\(\\);\" app/dashboard.js)",
-      "Bash(grep -n 'document.addEventListener\\(\"keydown\", \\(event\\) => {' app/dashboard.js)"
+      "Bash(grep -n 'document.addEventListener\\(\"keydown\", \\(event\\) => {' app/dashboard.js)",
+      "Bash(python -c \"import openpyxl; print\\(openpyxl.__version__\\)\")",
+      "Bash(pip install *)",
+      "Bash(python *)"
     ]
   }
 }
