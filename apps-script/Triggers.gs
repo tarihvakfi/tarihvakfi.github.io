@@ -18,7 +18,7 @@
  *      processMailQueue                 | every 1 hour
  *      checkInactiveVolunteers          | every 1 day
  *      generateWeeklySummary            | every 7 days
- *      sheetSyncRun                     | every 15 minutes
+ *      sheetSyncRun                     | every 1 hour
  *
  *      (Telegram bot triggers — keepWarmPing every 5 min,
  *       sendVolunteerWeeklyReminders + sendManagerWeeklySummary every
@@ -31,7 +31,7 @@
  * checkInactiveVolunteers) are unchanged from pre-Telegram days.
  *
  * After this function runs, the Triggers screen (clock icon in the editor)
- * should show three rows. Anything else means a previous run left orphans;
+ * should show four rows. Anything else means a previous run left orphans;
  * re-run createTriggers() to clean up.
  */
 
@@ -62,14 +62,14 @@ function createTriggers() {
     .timeBased().everyDays(7)
     .create();
 
-  // 15-minute pull from the shared volunteer sheet into Firestore. See
+  // Hourly pull from the shared volunteer sheet into Firestore. See
   // SheetSync.gs for the read/write logic; SHEET_SYNC_README.md for the
   // setup runbook (Script Properties + share-with-service-account).
   // SheetSync.gs::sheetSyncRun() is idempotent — re-running it after a
   // structure change or access loss does not corrupt state, it just bumps
   // the relevant counters and logs to /syncLogs.
   ScriptApp.newTrigger('sheetSyncRun')
-    .timeBased().everyMinutes(15)
+    .timeBased().everyHours(1)
     .create();
 
   // -- Telegram bot triggers disabled 28 Apr 2026 ---------------------------

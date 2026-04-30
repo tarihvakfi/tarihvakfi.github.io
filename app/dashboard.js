@@ -144,6 +144,9 @@ function sw(name, opts = {}) {
   if (target === "bakim" && typeof loadSheetSyncStatus === "function") {
     loadSheetSyncStatus();
   }
+  if (target === "bakim" && typeof loadSheetMirrorTabs === "function") {
+    loadSheetMirrorTabs();
+  }
   // Mirror the chosen tab in the URL hash so reload / back-forward stays put.
   if (!opts.skipHashWrite) {
     const wantedHash = `#${target}`;
@@ -1107,6 +1110,11 @@ function renderPendingReviewList() {
 
 let sheetSyncConfig = null;
 let sheetSyncRecentLogs = [];
+let sheetMirrorTabs = [];
+let sheetMirrorActiveTab = "";
+let sheetMirrorRows = [];
+let sheetMirrorRowsLoading = false;
+let sheetMirrorError = "";
 
 async function loadSheetSyncStatus() {
   if (!isAdmin()) return;
@@ -1133,8 +1141,8 @@ async function loadSheetSyncStatus() {
 
 // Computes the status-dot color from config + most recent log:
 //   - red    paused (config.enabled === false) or last run was access_denied
-//   - yellow last run was structure_changed/degraded OR no run in 30+ min
-//   - green  last run was ok and within 30 min
+//   - yellow last run was structure_changed/degraded OR no run in 2+ hours
+//   - green  last run was ok and within the expected hourly window
 //   - grey   no data yet (first ever load before any sync ran)
 function _sheetSyncDotState() {
   if (!sheetSyncConfig) return { color: "unknown", label: "Henüz veri yok" };
@@ -1142,9 +1150,9 @@ function _sheetSyncDotState() {
   const status = sheetSyncConfig.lastSyncStatus || "";
   if (status === "access_denied") return { color: "red", label: "Erişim hatası" };
   const lastSyncAt = sheetSyncConfig.lastSyncAt ? new Date(sheetSyncConfig.lastSyncAt) : null;
-  const stale = !lastSyncAt || isNaN(lastSyncAt.getTime()) || (Date.now() - lastSyncAt.getTime()) > 30 * 60 * 1000;
+  const stale = !lastSyncAt || isNaN(lastSyncAt.getTime()) || (Date.now() - lastSyncAt.getTime()) > 2 * 60 * 60 * 1000;
   const structureChangedRecently = (sheetSyncConfig.lastSyncSummary?.structureChanges || []).length > 0;
-  if (stale) return { color: "yellow", label: "Son senkronizasyon 30+ dakika önce" };
+  if (stale) return { color: "yellow", label: "Son senkronizasyon 2+ saat önce" };
   if (status === "degraded" || status === "structure_changed" || structureChangedRecently) {
     return { color: "yellow", label: "Yapı değişikliği algılandı" };
   }
@@ -1234,6 +1242,164 @@ function renderSheetSyncPanel() {
       logEl.innerHTML = sheetSyncRecentLogs.map(_renderSyncLogRow).join("");
     }
   }
+}
+
+async function loadSheetMirrorTabs() {
+  if (!isAdmin()) return;
+  const tableEl = document.getElementById("sheetMirrorTable");
+  if (tableEl) tableEl.innerHTML = '<p class="empty">Sheet aynası yükleniyor...</p>';
+  sheetMirrorError = "";
+  try {
+    const snap = await getDocs(query(collection(db, "sheets"), orderBy("name")));
+    sheetMirrorTabs = snap.docs.map((d) => ({ slug: d.id, ...d.data() }));
+    if (!sheetMirrorTabs.some((t) => t.slug === sheetMirrorActiveTab)) {
+      sheetMirrorActiveTab = sheetMirrorTabs[0]?.slug || "";
+    }
+    renderSheetMirrorPanel();
+    if (sheetMirrorActiveTab) {
+      await loadSheetMirrorRows(sheetMirrorActiveTab);
+    }
+  } catch (err) {
+    console.warn("sheet mirror okunamadı:", err);
+    sheetMirrorTabs = [];
+    sheetMirrorRows = [];
+    sheetMirrorError = `Sheet aynası okunamadı: ${err.message}`;
+    renderSheetMirrorPanel();
+  }
+}
+
+async function loadSheetMirrorRows(tabSlug) {
+  if (!isAdmin() || !tabSlug) return;
+  sheetMirrorActiveTab = tabSlug;
+  sheetMirrorRows = [];
+  sheetMirrorRowsLoading = true;
+  sheetMirrorError = "";
+  renderSheetMirrorPanel();
+  try {
+    const snap = await getDocs(query(
+      collection(db, "sheets", tabSlug, "rows"),
+      orderBy("_sourceRow", "asc"),
+      limit(200)
+    ));
+    sheetMirrorRows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch (err) {
+    console.warn("sheet mirror rows okunamadı:", err);
+    sheetMirrorError = `Satırlar okunamadı: ${err.message}`;
+  } finally {
+    sheetMirrorRowsLoading = false;
+    renderSheetMirrorPanel();
+  }
+}
+
+function renderSheetMirrorPanel() {
+  const card = document.getElementById("sheetMirrorCard");
+  if (!card || !isAdmin()) return;
+  const select = document.getElementById("sheetMirrorTabSelect");
+  const summaryEl = document.getElementById("sheetMirrorSummary");
+  const tableEl = document.getElementById("sheetMirrorTable");
+  const activeTab = sheetMirrorTabs.find((t) => t.slug === sheetMirrorActiveTab);
+
+  if (select) {
+    select.disabled = sheetMirrorTabs.length === 0;
+    select.innerHTML = sheetMirrorTabs.length
+      ? sheetMirrorTabs.map((t) => `<option value="${escapeHTML(t.slug)}">${escapeHTML(t.name || t.slug)}</option>`).join("")
+      : '<option value="">Henüz tab yok</option>';
+    select.value = sheetMirrorActiveTab || "";
+  }
+
+  if (summaryEl) {
+    if (sheetMirrorError) {
+      summaryEl.textContent = sheetMirrorError;
+    } else if (!activeTab) {
+      summaryEl.textContent = "Henüz mirror tabı yok. Apps Script tarafında sheetSyncRun() ilk kez çalışınca dolacak.";
+    } else {
+      const last = toDateFromTs(activeTab.lastSyncAt);
+      const lastText = last ? relativeTimeLabel(last) : "henüz yok";
+      const total = Number(activeTab.rowCount) || sheetMirrorRows.length || 0;
+      const loaded = sheetMirrorRows.length;
+      summaryEl.textContent = `${activeTab.name || activeTab.slug} · ${loaded}/${total} satır gösteriliyor · son tab güncellemesi: ${lastText}`;
+    }
+  }
+
+  if (!tableEl) return;
+  if (sheetMirrorError) {
+    tableEl.innerHTML = `<p class="empty">${escapeHTML(sheetMirrorError)}</p>`;
+    return;
+  }
+  if (!activeTab) {
+    tableEl.innerHTML = '<p class="empty">Henüz mirror verisi yok.</p>';
+    return;
+  }
+  if (sheetMirrorRowsLoading) {
+    tableEl.innerHTML = '<p class="empty">Satırlar yükleniyor...</p>';
+    return;
+  }
+  if (!sheetMirrorRows.length) {
+    tableEl.innerHTML = '<p class="empty">Bu tabda veri satırı yok.</p>';
+    return;
+  }
+
+  const headers = Array.isArray(activeTab.headers) && activeTab.headers.length
+    ? activeTab.headers
+    : (sheetMirrorRows[0]._sourceHeaders || []);
+  const keys = sheetFieldKeysFromHeaders(headers);
+  const visibleHeaders = headers.slice(0, 12);
+  const visibleKeys = keys.slice(0, 12);
+  const truncated = headers.length > visibleHeaders.length;
+  tableEl.innerHTML = `<div class="sheet-mirror-table-wrap">
+    <table class="sheet-mirror-table">
+      <thead><tr>
+        <th>Satır</th>
+        ${visibleHeaders.map((h) => `<th>${escapeHTML(h || "—")}</th>`).join("")}
+      </tr></thead>
+      <tbody>
+        ${sheetMirrorRows.map((row) => `<tr>
+          <td>${escapeHTML(row._sourceRow || row.id)}</td>
+          ${visibleKeys.map((key) => `<td>${escapeHTML(formatSheetMirrorValue(row[key]))}</td>`).join("")}
+        </tr>`).join("")}
+      </tbody>
+    </table>
+    ${truncated ? '<p class="muted sheet-mirror-note">İlk 12 sütun gösteriliyor; tam veri Firestore mirror kayıtlarında duruyor.</p>' : ""}
+  </div>`;
+}
+
+function sheetFieldKeysFromHeaders(headers) {
+  const seen = {};
+  return (headers || []).map((header, idx) => {
+    let key = sheetHeaderToKey(header);
+    if (!key) key = `column${idx + 1}`;
+    if (seen[key]) {
+      seen[key] += 1;
+      return `${key}_${seen[key]}`;
+    }
+    seen[key] = 1;
+    return key;
+  });
+}
+
+function sheetHeaderToKey(header) {
+  const folded = sheetAsciiFold(header).trim();
+  if (!folded) return "";
+  const parts = folded.split(/[^a-zA-Z0-9]+/).filter(Boolean);
+  if (!parts.length) return "";
+  return parts.map((part, idx) => {
+    const lower = part.toLowerCase();
+    return idx === 0 ? lower : lower.charAt(0).toUpperCase() + lower.slice(1);
+  }).join("");
+}
+
+function sheetAsciiFold(value) {
+  return String(value == null ? "" : value)
+    .replace(/ı/g, "i").replace(/İ/g, "I")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function formatSheetMirrorValue(value) {
+  if (value == null || value === "") return "";
+  if (typeof value?.toDate === "function") return formatDate(value.toDate());
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
 }
 
 function _renderSyncLogRow(entry) {
@@ -6443,6 +6609,12 @@ document.getElementById("deleteAccountBtn")?.addEventListener("click", async () 
   }
 });
 
+document.addEventListener("change", (event) => {
+  if (event.target?.id === "sheetMirrorTabSelect") {
+    loadSheetMirrorRows(event.target.value);
+  }
+});
+
 document.getElementById("reportImageFiles")?.addEventListener("change", async (event) => {
   for (const file of event.target.files) {
     if (file.size > 5e6) {
@@ -7160,6 +7332,10 @@ document.addEventListener("click", async (event) => {
   // Sheet sync panel (admin Bakım).
   if (event.target.id === "sheetSyncRefreshBtn") {
     loadSheetSyncStatus();
+    return;
+  }
+  if (event.target.id === "sheetMirrorRefreshBtn") {
+    loadSheetMirrorTabs();
     return;
   }
   if (event.target.id === "sheetSyncAcceptBtn") {

@@ -1068,6 +1068,53 @@
 .sync-log-status--warn    { color: #fff; background: #ca8a04; }
 .sync-log-status--danger  { color: #fff; background: #dc2626; }
 .sync-log-status--mute    { color: var(--tblr-secondary); }
+.sheet-mirror-controls {
+  display: flex;
+  gap: .4rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+}
+.sheet-mirror-controls select {
+  min-width: 180px;
+  max-width: min(320px, 100%);
+  padding: .36rem .5rem;
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 6px;
+  background: var(--tblr-bg-surface);
+  color: var(--tblr-body-color);
+}
+.sheet-mirror-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 8px;
+}
+.sheet-mirror-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.sheet-mirror-table th,
+.sheet-mirror-table td {
+  padding: .45rem .55rem;
+  border-bottom: 1px solid var(--tblr-border-color);
+  text-align: left;
+  vertical-align: top;
+  white-space: normal;
+  word-break: break-word;
+}
+.sheet-mirror-table th {
+  background: var(--tblr-bg-surface-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tblr-secondary);
+}
+.sheet-mirror-table tr:last-child td { border-bottom: 0; }
+.sheet-mirror-note {
+  margin: .55rem .65rem;
+  font-size: 12px;
+}
 
 /* Optional "Tümünü göster →" footer — hidden today (no full history view
    exists for volunteers). The slot is in the markup so it's there if/when

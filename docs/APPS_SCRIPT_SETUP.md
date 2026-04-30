@@ -27,8 +27,11 @@ Script bu sekmeyi haftalık özet için doldurur.
 1. Google Sheet açın.
 2. `Extensions > Apps Script` ile script projesi oluşturun.
 3. `apps-script/` klasöründeki dosyaları yapıştırın.
-4. `createTriggers()` fonksiyonunu çalıştırın.
-5. Gerekli Gmail ve Spreadsheet izinlerini onaylayın.
+4. `Project Settings > Script properties` altında `FIREBASE_SERVICE_ACCOUNT`, `TARIH_VAKFI_SHEET_ID` ve `SYNC_ALERT_EMAIL` değerlerini ekleyin.
+5. Kaynak "Tarih Vakfı Gönüllü Ağı" Google Sheet'ini service account e-postasıyla Viewer olarak paylaşın.
+6. Önce `sheetSyncRun()` fonksiyonunu bir kez manuel çalıştırın ve Firestore'da `config/sheetSync`, `syncLogs` ve `sheets/*` kayıtlarını kontrol edin.
+7. Sonra `createTriggers()` fonksiyonunu çalıştırın.
+8. Gerekli Gmail, Spreadsheet ve external request izinlerini onaylayın.
 
 ## Önerilen kullanım
 
@@ -38,7 +41,7 @@ Script bu sekmeyi haftalık özet için doldurur.
 - Pasif kullanıcılar için `sendInactivityReminder`
 - PNB için haftalık özet hazırlanırken `archiveUnits`, `reports` ve `communicationPlans` verilerinden manuel/yarı otomatik rapor üretimi
 
-Not: Bu repo, Apps Script ile Firestore arasında doğrudan entegrasyon kurmaz. İlk aşamada Apps Script daha çok hafif e-posta otomasyonu ve özetler için tasarlanmıştır.
+Not: Apps Script artık Firestore ile doğrudan konuşur: e-posta/özet otomasyonlarına ek olarak `SheetSync.gs`, paylaşılan Google Sheet'i saatlik olarak `/sheets` mirror koleksiyonlarına yazar. Ham sheet verisi admin-only tutulur.
 
 ## Gönüllü aktiflik hatırlatması (otomatik)
 

@@ -114,13 +114,14 @@ Canonical trigger set after a clean run:
 | `processMailQueue` | every 1 hour | Mailers.gs (unchanged) |
 | `checkInactiveVolunteers` | every 1 day | Mailers.gs (unchanged) |
 | `generateWeeklySummary` | every 7 days | Summaries.gs (unchanged) |
-| `keepWarmPing` | every 5 minutes | KeepWarm.gs — see §4a |
-| `sendVolunteerWeeklyReminders` | Friday 17:00 Istanbul | Telegram bot reminders |
-| `sendManagerWeeklySummary` | Friday 17:05 Istanbul | Telegram bot summary |
+| `sheetSyncRun` | every 1 hour | SheetSync.gs mirror pull |
 
 Verify under **Triggers** (clock icon in the editor sidebar) — you should
-see exactly six rows. Anything else means a previous run left orphans;
+see exactly four rows. Anything else means a previous run left orphans;
 re-run `createTriggers` to clean up.
+
+Telegram bot triggers are intentionally disabled in `Triggers.gs`; the handler
+functions are kept only as a revival path.
 
 > The legacy `installTelegramTriggers` function (originally in
 > `TelegramReminders.gs`, now a thin shim in `Triggers.gs`) still works

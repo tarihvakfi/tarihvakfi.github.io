@@ -1,6 +1,6 @@
 # Sheet Sync — runbook
 
-Live one-way sync from a shared Google Sheet ("Tarih Vakfı Gönüllü Ağı") into Firestore. Implemented in `apps-script/SheetSync.gs` and triggered every 15 minutes by the time trigger registered in `apps-script/Triggers.gs::createTriggers`.
+Live one-way sync from a shared Google Sheet ("Tarih Vakfı Gönüllü Ağı") into Firestore. Implemented in `apps-script/SheetSync.gs` and triggered every hour by the time trigger registered in `apps-script/Triggers.gs::createTriggers`.
 
 ## Design principles
 
@@ -8,7 +8,7 @@ Live one-way sync from a shared Google Sheet ("Tarih Vakfı Gönüllü Ağı") i
 2. **Additive.** Rows that disappear from the sheet are NOT deleted from Firestore. The mirror doc stays in place; the historical state of every row that ever existed is preserved.
 3. **Schema-tolerant.** Renamed/missing/extra columns produce a "degraded" sync log + alert email, never a crash.
 4. **Structure-change detection.** Each run captures `{ tabs: [{ name, headers, rowCount }, ...] }` and diffs against the last accepted baseline. Drift triggers a single email per 24 h via the per-subject cooldown.
-5. **Sharing-loss detection.** Three consecutive permission failures (≈45 minutes at the 15-minute cadence) pause sync and email the admin.
+5. **Sharing-loss detection.** Three consecutive permission failures (≈3 hours at the hourly cadence) pause sync and email the admin.
 
 ## Setup — manual steps
 
@@ -54,9 +54,9 @@ Verify in Firestore:
 - `config/sheetSync` — has `lastGoodStructure`, `enabled: true`, `consecutiveAccessFailures: 0`.
 - `syncLogs/<auto>` — at least one entry with `status: "baseline_set"`.
 
-### 5. Register the 15-minute trigger
+### 5. Register the hourly trigger
 
-In the Apps Script editor, **Run → createTriggers**. This wipes existing triggers and recreates the canonical set, including a 15-minute `sheetSyncRun` trigger. The Triggers screen (clock icon) should show four time-based triggers afterwards: `processMailQueue`, `checkInactiveVolunteers`, `generateWeeklySummary`, `sheetSyncRun`.
+In the Apps Script editor, **Run → createTriggers**. This wipes existing triggers and recreates the canonical set, including an hourly `sheetSyncRun` trigger. The Triggers screen (clock icon) should show four time-based triggers afterwards: `processMailQueue`, `checkInactiveVolunteers`, `generateWeeklySummary`, `sheetSyncRun`.
 
 ## Shared-sheet ownership: special considerations
 
@@ -77,14 +77,14 @@ The sheet owner controls the structure. They may rename tabs, move columns, add 
 
 ### What to do when sharing is lost
 
-1. After three consecutive failed reads (~45 minutes at 15-min cadence), `sheetSyncRun` writes `status: "paused"` and emails subject `[Tarih Vakfı] Sheet access lost — sync stopped`.
+1. After three consecutive failed reads (~3 hours at the hourly cadence), `sheetSyncRun` writes `status: "paused"` and emails subject `[Tarih Vakfı] Sheet access lost — sync stopped`.
 2. The Bakım panel shows a red dot and an "access" alert block.
 3. Verify with the sheet owner. Most likely reasons:
    - They removed the share intentionally — coordinate a fix.
    - They moved the sheet into a Drive the service account can't reach — ask for the new share, or re-share the moved file with the service account.
    - The sheet was deleted — restore from version history if possible.
 4. Re-add the service account email as Viewer.
-5. Click **Senkronizasyonu yeniden başlat** in the Bakım panel. Same clipboard-copy / paste-and-run mechanism as above; runs `sheetSyncResume()` which flips `enabled` back to `true` and zeroes the failure counter. The next 15-minute trigger picks up normal sync.
+5. Click **Senkronizasyonu yeniden başlat** in the Bakım panel. Same clipboard-copy / paste-and-run mechanism as above; runs `sheetSyncResume()` which flips `enabled` back to `true` and zeroes the failure counter. The next hourly trigger picks up normal sync.
 
 ### Conversation script for the sheet owner
 
@@ -143,7 +143,7 @@ sheets/
 
 ### Why row content hash + per-row history (instead of pure append)
 
-The natural "additive only" implementation would be: every sync writes a new doc per non-empty row, never updates anything. That's clean but it inflates Firestore by ~400 docs every 15 minutes — most of which are duplicates of unchanged rows.
+The natural "additive only" implementation would be: every sync writes a new doc per non-empty row, never updates anything. That's clean but it inflates Firestore by hundreds of docs every hour — most of which are duplicates of unchanged rows.
 
 The current design:
 - Doc id = `row{N}` (the sheet's 1-based row index).

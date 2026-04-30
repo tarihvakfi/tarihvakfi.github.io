@@ -113,7 +113,7 @@ Bu repo iskelet bir başlangıç sürümüdür. Canlıya almadan önce şu adım
 - Yetkili domain ekleme
 - Google sign-in etkinleştirme
 - Firestore security rules yayınlama
-- Apps Script trigger kurma
+- Apps Script trigger kurma (`createTriggers()` saatlik Sheet sync dahil)
 - Yönetici kullanıcılarının ilk rol atamalarını yapma
 
 Detaylı kurulum için:

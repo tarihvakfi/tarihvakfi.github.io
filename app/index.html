@@ -525,6 +525,25 @@
         <div id="sheetSyncLog" class="stack"><p class="empty">Henüz senkronizasyon olayı yok.</p></div>
       </article>
 
+      <!-- Section: Live sheet mirror. This is admin-only because the source
+           sheet can contain names, internal notes, equipment labels, and other
+           non-public context. It renders exactly what SheetSync.gs mirrored
+           into /sheets/{tabSlug}/rows. -->
+      <article class="card" id="sheetMirrorCard" style="margin-top:1.25rem">
+        <div class="step-header">
+          <div>
+            <p class="eyebrow">Bakım · canlı sheet aynası</p>
+            <h2 style="margin-top:0">Google Sheet içeriği</h2>
+            <p class="muted" id="sheetMirrorSummary" style="font-size:.85rem;margin:.15rem 0 0">Yükleniyor...</p>
+          </div>
+          <div class="sheet-mirror-controls">
+            <select id="sheetMirrorTabSelect" aria-label="Sheet sekmesi"></select>
+            <button class="btn btn-secondary btn-sm" type="button" id="sheetMirrorRefreshBtn">Yenile</button>
+          </div>
+        </div>
+        <div id="sheetMirrorTable" style="margin-top:.85rem"><p class="empty">Henüz mirror verisi yok.</p></div>
+      </article>
+
       <!-- Section 5: Veri sağlığı (TODO: per-collection counts + last-write timestamps) -->
       <article class="card" style="margin-top:1.25rem">
         <p class="eyebrow">Bakım · veri sağlığı</p>

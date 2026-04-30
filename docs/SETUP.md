@@ -29,7 +29,10 @@
 1. Google Sheet oluşturun.
 2. `apps-script/` altındaki dosyaları Apps Script projesine kopyalayın.
 3. Gerekli sheet sekmelerini oluşturun.
-4. `createTriggers()` fonksiyonunu çalıştırın.
+4. Script Properties içinde `FIREBASE_SERVICE_ACCOUNT`, `TARIH_VAKFI_SHEET_ID` ve `SYNC_ALERT_EMAIL` değerlerini ayarlayın.
+5. Kaynak Google Sheet'i service account e-posta adresiyle Viewer olarak paylaşın.
+6. `sheetSyncRun()` fonksiyonunu bir kez manuel çalıştırıp `config/sheetSync`, `syncLogs` ve `sheets/*` mirror kayıtlarının oluştuğunu kontrol edin.
+7. `createTriggers()` fonksiyonunu çalıştırın. Bu, mail işleriyle birlikte saatlik `sheetSyncRun` tetikleyicisini kurar.
 
 ## 6. İlk yönetici
 

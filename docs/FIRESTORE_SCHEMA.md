@@ -286,3 +286,47 @@ Genel ağa açık, ekleyerek-büyüyen kısa rapor akışı. Yalnızca PII içer
 Yazmaya yalnızca `isApproved()` kullanıcı yetkilidir. Kurallar `affectedKeys.hasOnly([...])` ile şemayı kilitler; yani saldırgan/komprümize bir istemci `volunteerName`, `note`, `url` veya başka bir alanı bu koleksiyona kaçıramaz. Update/delete admin'e ayrılmıştır.
 
 > Bu iki koleksiyon, Firestore'un alan-bazlı (field-level) okuma yetkisi vermemesi nedeniyle **ayrı** tutulur. `reports` veya `archiveUnits` doğrudan halka açılırsa `volunteerName`, `note`, `lastReporterName`, `lastReportNotePreview` gibi PII alanları sızar. Denormalizasyon, gizliliği koruyabilmek için zorunlu bir tasarım kararıdır.
+
+## Sheet sync mirror
+
+`apps-script/SheetSync.gs` saatlik olarak paylaşılan "Tarih Vakfı Gönüllü Ağı" Google Sheet'ini Firestore'a tek yönlü mirror eder. Bu veri PII ve iç operasyon notları içerebileceği için yalnızca admin tarafından okunur; public landing veya gönüllü dashboard'u ham `/sheets` mirror'unu okumaz.
+
+### config/sheetSync
+
+- `enabled`: boolean — false olduğunda Apps Script sheet'e dokunmadan koşuyu atlar.
+- `lastGoodStructure`: map — kabul edilen son `{ tabs: [{ name, headers, rowCount }] }` snapshot'ı.
+- `lastSyncAt`: string ISO timestamp — son koşu başlangıcı.
+- `lastSyncStatus`: string — `ok`, `degraded`, `access_denied`, `paused`, `skipped`, vb.
+- `lastSyncSummary`: map — son koşunun tab bazlı özeti, yazılan/atlanılan satır sayıları ve yapı değişiklikleri.
+- `consecutiveAccessFailures`: number — sheet erişim hatası sayacı; 3 olduğunda sync duraklatılır.
+- `alertCooldown`: map — aynı uyarı e-postasını 24 saat içinde tekrar göndermemek için.
+- `updatedAt`: timestamp.
+
+### syncLogs/{logId}
+
+Append-only koşu günlüğü. Her kayıt:
+
+- `status`: string — koşu veya alt olay durumu.
+- `details`: map — status'a göre değişen özet/hata bilgisi.
+- `createdAt`: timestamp.
+
+### sheets/{tabSlug}
+
+Kaynak Sheet'teki her tab için metadata dokümanı:
+
+- `name`: string — orijinal tab adı.
+- `headers`: string[] — son görülen başlık satırı.
+- `rowCount`: number — header hariç veri satırı sayısı.
+- `lastSyncAt`: timestamp.
+
+### sheets/{tabSlug}/rows/{rowId}
+
+Her veri satırı için mirror dokümanı:
+
+- `{camelCaseFromHeader}`: mixed — hücre değerleri.
+- `_sourceTab`: string.
+- `_sourceRow`: number — Google Sheet UI'daki 1-based satır numarası.
+- `_sourceHeaders`: string[].
+- `_contentHash`: string — değişmeyen satırları yeniden yazmamak için SHA-1.
+- `_syncedAt`: timestamp.
+- `_history`: map[] — önceki satır şekilleri, son 10 değişiklikle sınırlı.

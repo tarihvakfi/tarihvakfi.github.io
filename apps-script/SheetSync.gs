@@ -29,14 +29,14 @@
  *      as Viewer on the sheet.
  *   3. Set TARIH_VAKFI_SHEET_ID and SYNC_ALERT_EMAIL Script Properties.
  *   4. Run sheetSyncRun() once manually to verify access + write the
- *      initial baseline. Subsequent runs come from the 15-min trigger
+ *      initial baseline. Subsequent runs come from the hourly trigger
  *      registered by Triggers.gs::createTriggers.
  */
 
 const SHEETS_SCOPE_ = 'https://www.googleapis.com/auth/spreadsheets.readonly';
 const SHEET_SYNC_CONFIG_PATH_ = 'config/sheetSync';
 const SHEET_SYNC_LOGS_COLLECTION_ = 'syncLogs';
-const SHEET_SYNC_INTERVAL_MIN_ = 15;       // matches the Triggers.gs cadence
+const SHEET_SYNC_INTERVAL_MIN_ = 60;       // matches the Triggers.gs cadence
 const ACCESS_FAILURE_PAUSE_THRESHOLD_ = 3; // 3 consecutive failures → pause
 const ALERT_COOLDOWN_HOURS_ = 24;
 const SHEET_SYNC_TIMEZONE_ = 'Europe/Istanbul';
@@ -486,19 +486,15 @@ function _stripMetaForHistory_(doc) {
 }
 
 function _listMirrorDocs_(collectionPath) {
-  // Use the existing listDocuments helper if it's there, otherwise fall back
-  // to the runStructuredQuery REST endpoint with no filters.
-  if (typeof listDocuments === 'function') {
-    try { return listDocuments(collectionPath, [], { limit: 2000 }); } catch (e) { /* fall through */ }
-  }
+  // Read the concrete collection path directly. Firestore structured queries
+  // take a collection *id*, not "sheets/foo/rows"; using a direct documents
+  // list keeps nested row collections working reliably.
   const token = getAccessToken_();
-  const url = 'https://firestore.googleapis.com/v1/' + fsDocBasePath_() +
-    '/' + encodeURIComponent(collectionPath) + '?pageSize=300';
   const out = [];
   let nextPageToken = null;
   let safety = 10; // hard cap at 10 pages = 3000 docs
   do {
-    const u = nextPageToken ? url + '&pageToken=' + encodeURIComponent(nextPageToken) : url;
+    const u = _collectionListUrl_(collectionPath, nextPageToken);
     const response = UrlFetchApp.fetch(u, {
       method: 'get',
       headers: { Authorization: 'Bearer ' + token },
@@ -522,6 +518,26 @@ function _listMirrorDocs_(collectionPath) {
     safety -= 1;
   } while (nextPageToken && safety > 0);
   return out;
+}
+
+function _collectionListUrl_(collectionPath, pageToken) {
+  const segments = String(collectionPath || '').split('/').filter(Boolean);
+  if (segments.length === 0 || segments.length % 2 === 0) {
+    throw new Error('Expected a Firestore collection path, got: ' + collectionPath);
+  }
+  const collectionId = segments.pop();
+  const parentPath = segments.join('/');
+  let url = 'https://firestore.googleapis.com/v1/' + fsDocBasePath_();
+  if (parentPath) url += '/' + _encodeFirestorePath_(parentPath);
+  url += '/' + encodeURIComponent(collectionId) + '?pageSize=300';
+  if (pageToken) url += '&pageToken=' + encodeURIComponent(pageToken);
+  return url;
+}
+
+function _encodeFirestorePath_(path) {
+  return String(path || '').split('/').filter(Boolean).map(function (seg) {
+    return encodeURIComponent(seg);
+  }).join('/');
 }
 
 // ---------------------------------------------------------------------------

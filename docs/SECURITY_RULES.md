@@ -20,6 +20,10 @@ Bu projede güvenlik sadece arayüzdeki buton gizleme ile sağlanmaz. Asıl koru
 
 Gönüllüler ekipteki herkesin telefon/e-posta/uygunluk bilgisini görmez. PNB sekmesinde sadece kendi atandıkları iş paketlerini ve genel duyuruları görürler. Koordinatör ve admin rolleri operasyonel planlama için tam PNB görünümüne sahiptir.
 
+## Sheet sync gizlilik modeli
+
+Apps Script service account, Firestore REST API üzerinden `/config/sheetSync`, `/syncLogs` ve `/sheets/{tabSlug}/rows/{rowId}` mirror kayıtlarını yazar; service account Firestore rules'u bypass eder. Web istemcisinde bu koleksiyonlar admin-read-only tutulur. Ham Google Sheet satırları isim, not ve ekipman bilgisi içerebildiği için public landing veya gönüllü dashboard'u bu mirror'u okuyamaz.
+
 ## Manuel kurulum notu
 
 İlk admin kaydı Firebase Console üzerinden manuel atanmalıdır. Aksi halde sistemde yönetici oluşmaz ve import ekranı kullanılamaz.
