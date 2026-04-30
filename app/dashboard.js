@@ -430,10 +430,12 @@ function assignedOpenArchiveUnits() {
 function setRoleShell(staff) {
   document.body.classList.toggle("volunteer-shell", !staff);
   document.body.classList.toggle("staff-shell", staff);
+  document.body.classList.toggle("admin-shell", isAdmin());
   // Volunteers see Anasayfa / Duyurular by default. The PNB button is an
   // opt-in project surface while coordination is sheet-led.
   const volunteerHasPnb = !staff && volunteerProjectIds().includes(PNB_PROJECT_ID);
   document.querySelector('[data-tab="pnb"]')?.classList.toggle("hidden", !volunteerHasPnb);
+  document.querySelectorAll(".admin-only-block").forEach((item) => item.classList.toggle("hidden", !isAdmin()));
   const labels = staff
     ? { bugun: "Bugün", yonetim: "Yönetim", bakim: "Bakım" }
     : { anasayfa: "Anasayfa", pnb: "PNB", duyurular: "Duyurular" };
@@ -1144,6 +1146,9 @@ async function loadSheetSyncStatus() {
     sheetSyncLogError = err.message || String(err);
   }
   renderSheetSyncPanel();
+  renderManagerOverview();
+  renderManagerSheetPreview();
+  renderManagerSyncLogList();
 }
 
 // Computes the status-dot color from config + most recent log:
@@ -1271,12 +1276,16 @@ async function loadSheetMirrorTabs() {
     if (sheetMirrorActiveTab) {
       await loadSheetMirrorRows(sheetMirrorActiveTab);
     }
+    renderManagerOverview();
+    renderManagerSheetPreview();
   } catch (err) {
     console.warn("sheet mirror okunamadı:", err);
     sheetMirrorTabs = [];
     sheetMirrorRows = [];
     sheetMirrorError = `Sheet aynası okunamadı: ${err.message}`;
     renderSheetMirrorPanel();
+    renderManagerOverview();
+    renderManagerSheetPreview();
   }
 }
 
@@ -1300,6 +1309,8 @@ async function loadSheetMirrorRows(tabSlug) {
   } finally {
     sheetMirrorRowsLoading = false;
     renderSheetMirrorPanel();
+    renderManagerOverview();
+    renderManagerSheetPreview();
   }
 }
 
@@ -3762,6 +3773,201 @@ function renderCoordinatorHomeHeader() {
     const dayStr = TR_WEEKDAYS[today.getDay()];
     subEl.textContent = `Bugün ${dateStr}, ${dayStr} · Tarih Vakfı`;
   }
+  const refreshed = document.getElementById("managerLastRefresh");
+  if (refreshed) refreshed.textContent = `Son ekran yenileme: ${new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}`;
+}
+
+function managerSetText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+
+function bugunPendingUsers() {
+  return (allUsers || []).filter((u) => u?.data?.status === "pending");
+}
+
+function bugunSilentVolunteers() {
+  const now = Date.now();
+  return (allUsers || []).filter((u) => {
+    const data = u?.data || {};
+    if (data.role !== "volunteer") return false;
+    if (data.status !== "approved") return false;
+    if (data.rhythm === "casual") return false;
+    const last = toDateFromTs(data.lastReportAt);
+    if (!last) return true;
+    return (now - last.getTime()) >= 21 * 86400000;
+  });
+}
+
+function bugunBlockedUnits() {
+  return (archiveUnits || []).filter((u) => (u.status || "") === "blocked");
+}
+
+function bugunStaleUnits() {
+  const now = Date.now();
+  const staleThreshold = 60 * 86400000;
+  return (archiveUnits || []).filter((u) => {
+    const status = u.status || "not_started";
+    if (status === "done" || status === "pending_review") return false;
+    const last = toDateFromTs(u.lastActivityAt || u.latestReportAt);
+    if (!last) return true;
+    return (now - last.getTime()) >= staleThreshold;
+  });
+}
+
+function renderManagerOverview() {
+  if (!isStaff()) return;
+  const pending = bugunPendingUsers().length;
+  const silent = bugunSilentVolunteers().length;
+  const reportCount = Array.isArray(staffRecentDocs) && staffRecentDocs.length
+    ? staffRecentDocs.length
+    : Object.keys(rd || {}).length;
+
+  managerSetText("managerPendingValue", numberText(pending));
+  managerSetText("managerPendingHint", pending ? "Onay bekliyor" : "Başvuru yok");
+  managerSetText("managerSilentValue", numberText(silent));
+  managerSetText("managerSilentHint", silent ? "Hatırlatma gerekebilir" : "Takip gerekmiyor");
+  managerSetText("managerReportsValue", numberText(reportCount));
+  managerSetText("managerReportsHint", reportCount ? "Yüklü rapor" : "Rapor yok");
+
+  if (isAdmin()) {
+    const state = _sheetSyncDotState();
+    const activeTab = sheetMirrorTabs.find((t) => t.slug === sheetMirrorActiveTab);
+    const rowCount = Number(activeTab?.rowCount) || sheetMirrorRows.length || 0;
+    managerSetText("managerSheetValue", state.color === "red" ? "!" : numberText(rowCount));
+    managerSetText("managerSheetHint", activeTab ? `${activeTab.name || activeTab.slug} · ${state.label}` : state.label);
+  }
+}
+
+function renderManagerSyncLogList() {
+  const list = document.getElementById("managerSyncLogList");
+  if (!list || !isAdmin()) return;
+  if (sheetSyncLogError) {
+    list.innerHTML = `<p class="empty">Olaylar okunamadı: ${escapeHTML(sheetSyncLogError)}</p>`;
+    return;
+  }
+  const logs = (sheetSyncRecentLogs || []).slice(0, 4);
+  if (!logs.length) {
+    list.innerHTML = '<p class="empty">Henüz senkronizasyon olayı yok.</p>';
+    return;
+  }
+  list.innerHTML = logs.map((log) => {
+    const when = toDateFromTs(log.createdAt);
+    const status = (log.status || "ok").toUpperCase();
+    const summary = log.summary || log.details || {};
+    const written = summary.totalWritten ?? summary.written ?? 0;
+    const skipped = summary.totalSkipped ?? summary.skipped ?? 0;
+    const tone = status === "OK" ? "ok" :
+      ["ACCESS_DENIED", "PAUSED", "TAB_ERROR", "ERROR", "ALERT_EMAIL_FAILED"].includes(status) ? "danger" :
+      ["STRUCTURE_CHANGED", "DEGRADED"].includes(status) ? "warn" : "mute";
+    const whenText = when
+      ? `${when.toLocaleDateString("tr-TR")} ${when.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}`
+      : "tarih yok";
+    return `<div class="manager-sync-item" data-status="${escapeHTML(tone)}">
+      <div class="manager-sync-title"><span class="manager-sync-status">${escapeHTML(status)}</span><strong>${escapeHTML(whenText)}</strong></div>
+      <span>${escapeHTML(numberText(written))} yazıldı · ${escapeHTML(numberText(skipped))} atlandı</span>
+    </div>`;
+  }).join("");
+}
+
+function renderManagerSheetPreview() {
+  const card = document.getElementById("managerSheetCard");
+  if (!card || !isAdmin()) return;
+  const select = document.getElementById("managerSheetTabSelect");
+  const summaryEl = document.getElementById("managerSheetSummary");
+  const preview = document.getElementById("managerSheetPreview");
+  const statusDot = document.getElementById("managerSheetStatusDot");
+  const statusText = document.getElementById("managerSheetStatusText");
+  const activeTab = sheetMirrorTabs.find((t) => t.slug === sheetMirrorActiveTab);
+
+  if (select) {
+    select.disabled = sheetMirrorTabs.length === 0;
+    select.innerHTML = sheetMirrorTabs.length
+      ? sheetMirrorTabs.map((t) => `<option value="${escapeHTML(t.slug)}">${escapeHTML(t.name || t.slug)}</option>`).join("")
+      : '<option value="">Henüz tab yok</option>';
+    select.value = sheetMirrorActiveTab || "";
+  }
+
+  const state = _sheetSyncDotState();
+  if (statusDot) statusDot.dataset.status = state.color;
+  if (statusText) {
+    if (sheetSyncConfigError) statusText.textContent = `Senkronizasyon okunamadı: ${sheetSyncConfigError}`;
+    else {
+      const last = sheetSyncConfig?.lastSyncAt ? new Date(sheetSyncConfig.lastSyncAt) : null;
+      const lastText = last && !isNaN(last.getTime()) ? relativeTimeLabel(last) : "henüz yok";
+      statusText.textContent = `${state.label} · son çalışma: ${lastText}`;
+    }
+  }
+
+  if (summaryEl) {
+    if (sheetMirrorError) summaryEl.textContent = sheetMirrorError;
+    else if (!activeTab) summaryEl.textContent = "Sheet aynası henüz yüklenmedi.";
+    else {
+      const last = toDateFromTs(activeTab.lastSyncAt);
+      const total = Number(activeTab.rowCount) || sheetMirrorRows.length || 0;
+      summaryEl.textContent = `${activeTab.name || activeTab.slug} · ${numberText(total)} satır · son tab güncellemesi: ${last ? relativeTimeLabel(last) : "henüz yok"}`;
+    }
+  }
+
+  if (!preview) return;
+  if (sheetMirrorError) {
+    preview.innerHTML = `<p class="empty">${escapeHTML(sheetMirrorError)}</p>`;
+    return;
+  }
+  if (sheetMirrorRowsLoading) {
+    preview.innerHTML = '<p class="empty">Sheet satırları yükleniyor…</p>';
+    return;
+  }
+  if (!activeTab) {
+    preview.innerHTML = '<p class="empty">Henüz tab seçilmedi.</p>';
+    return;
+  }
+  if (!sheetMirrorRows.length) {
+    preview.innerHTML = '<p class="empty">Bu tabda veri satırı yok.</p>';
+    return;
+  }
+  preview.innerHTML = sheetMirrorRows.slice(-6).reverse().map((row) => renderManagerSheetRow(row, activeTab)).join("");
+}
+
+function renderManagerSheetRow(row, activeTab) {
+  const headers = Array.isArray(activeTab.headers) && activeTab.headers.length
+    ? activeTab.headers
+    : (row._sourceHeaders || []);
+  const keys = sheetFieldKeysFromHeaders(headers);
+  const labelByKey = new Map();
+  keys.forEach((key, idx) => labelByKey.set(key, headers[idx] || key));
+  const preferred = ["tarih", "paydas", "calismaAlani", "devamEdenCalisma", "notlar"];
+  const pairs = [];
+  const addPair = (key) => {
+    if (row[key] != null && row[key] !== "") {
+      pairs.push({
+        key,
+        label: labelByKey.get(key) || key,
+        value: formatSheetMirrorValue(row[key])
+      });
+    }
+  };
+  preferred.forEach(addPair);
+  keys.forEach((key) => {
+    if (pairs.length >= 5) return;
+    if (preferred.includes(key)) return;
+    if (key.startsWith("_")) return;
+    addPair(key);
+  });
+  const titlePair = pairs.find((pair) => pair.key === "paydas")
+    || pairs.find((pair) => pair.key === "devamEdenCalisma")
+    || pairs[0];
+  const title = titlePair?.value || `Satır ${row._sourceRow || row.id}`;
+  const meta = pairs
+    .filter((pair) => pair !== titlePair && pair.value)
+    .slice(0, 4)
+    .map((pair) => `${pair.label}: ${pair.value}`)
+    .join(" · ");
+  return `<div class="manager-sheet-row">
+    <span class="manager-sheet-row-num">${escapeHTML(row._sourceRow || row.id)}</span>
+    <span class="manager-sheet-row-title">${escapeHTML(title)}</span>
+    <span class="manager-sheet-row-meta">${escapeHTML(meta || "—")}</span>
+  </div>`;
 }
 
 // ---- Bugün — bekleyen onaylar ----
@@ -3810,19 +4016,10 @@ function renderBugunWarnings() {
   const list = document.getElementById("bugunWarnings");
   if (!section || !list) return;
 
-  const now = Date.now();
   const lines = [];
 
   // Silent volunteers (regular cadence, ≥ 21 days no report).
-  const silent = (allUsers || []).filter((u) => {
-    const data = u?.data || {};
-    if (data.role !== "volunteer") return false;
-    if (data.status !== "approved") return false;
-    if (data.rhythm === "casual") return false;
-    const last = toDateFromTs(data.lastReportAt);
-    if (!last) return true;
-    return (now - last.getTime()) >= 21 * 86400000;
-  });
+  const silent = bugunSilentVolunteers();
   if (silent.length) {
     lines.push({
       key: "silent",
@@ -3838,7 +4035,7 @@ function renderBugunWarnings() {
   }
 
   // Blocked archive units.
-  const blocked = (archiveUnits || []).filter((u) => (u.status || "") === "blocked").length;
+  const blocked = bugunBlockedUnits().length;
   if (blocked) {
     lines.push({
       key: "blocked",
@@ -3848,14 +4045,7 @@ function renderBugunWarnings() {
   }
 
   // Stale units (60+ days inactivity, not done/pending_review).
-  const staleThreshold = 60 * 86400000;
-  const stale = (archiveUnits || []).filter((u) => {
-    const status = u.status || "not_started";
-    if (status === "done" || status === "pending_review") return false;
-    const last = toDateFromTs(u.lastActivityAt || u.latestReportAt);
-    if (!last) return true;
-    return (now - last.getTime()) >= staleThreshold;
-  }).length;
+  const stale = bugunStaleUnits().length;
   if (stale) {
     lines.push({
       key: "stale",
@@ -4047,6 +4237,9 @@ function closeCoordinatorReportModal() {
 function renderBugun() {
   if (!isStaff()) return;
   renderCoordinatorHomeHeader();
+  renderManagerOverview();
+  renderManagerSheetPreview();
+  renderManagerSyncLogList();
   renderBugunPendingApprovals();
   renderBugunWarnings();
   renderCoordinatorRecentReports();
@@ -6676,6 +6869,9 @@ document.addEventListener("change", (event) => {
   if (event.target?.id === "sheetMirrorTabSelect") {
     loadSheetMirrorRows(event.target.value);
   }
+  if (event.target?.id === "managerSheetTabSelect") {
+    loadSheetMirrorRows(event.target.value);
+  }
 });
 
 document.getElementById("reportImageFiles")?.addEventListener("change", async (event) => {
@@ -7187,19 +7383,52 @@ async function runTelegramSchemaCheck() {
 
 document.addEventListener("click", async (event) => {
   // ----- Bugün-tab controls (coordinator/admin home) -----
-  if (event.target.id === "bugunOpenReportBtn") {
+  if (event.target.closest("#bugunOpenReportBtn")) {
     openCoordinatorReportModal();
+    return;
+  }
+  const managerRefreshBtn = event.target.closest("#managerRefreshBtn");
+  if (managerRefreshBtn) {
+    managerRefreshBtn.disabled = true;
+    try {
+      await loadAllUsers();
+      await reloadPnb();
+      if (typeof loadStaffRecentReports === "function") await loadStaffRecentReports(true);
+      if (isAdmin()) {
+        await loadSheetSyncStatus();
+        await loadSheetMirrorTabs();
+      }
+      renderBugun();
+    } catch (error) {
+      console.warn("[manager-refresh] failed:", error);
+    } finally {
+      managerRefreshBtn.disabled = false;
+    }
+    return;
+  }
+  const managerGo = event.target.closest("[data-manager-go]");
+  if (managerGo) {
+    const tabName = managerGo.dataset.managerGo || "bugun";
+    sw(tabName);
+    if (managerGo.dataset.managerFilter === "silent") {
+      document.querySelectorAll("[data-yonetim-filter]").forEach((b) => b.classList.toggle("is-on", b.dataset.yonetimFilter === "silent"));
+      if (typeof renderYonetimUserDirectory === "function") renderYonetimUserDirectory();
+    }
+    const targetId = managerGo.dataset.scrollTo;
+    if (targetId) {
+      setTimeout(() => document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+    }
     return;
   }
   if (event.target.closest("[data-coordinator-report-close]")) {
     closeCoordinatorReportModal();
     return;
   }
-  if (event.target.id === "bugunRecentRefresh") {
+  if (event.target.closest("#bugunRecentRefresh")) {
     if (typeof loadStaffRecentReports === "function") {
       try { await loadStaffRecentReports(true); } catch (e) { console.warn(e); }
     }
-    renderCoordinatorRecentReports();
+    renderBugun();
     return;
   }
   if (event.target.id === "bugunRecentMoreBtn") {
@@ -7258,6 +7487,22 @@ document.addEventListener("click", async (event) => {
   if (warnBtn) {
     const action = bugunWarningActions[warnBtn.dataset.bugunWarnAction];
     if (typeof action === "function") action();
+    return;
+  }
+  const managerSheetRefreshBtn = event.target.closest("#managerSheetRefresh");
+  if (managerSheetRefreshBtn) {
+    managerSheetRefreshBtn.disabled = true;
+    try {
+      await loadSheetSyncStatus();
+      await loadSheetMirrorTabs();
+    } finally {
+      managerSheetRefreshBtn.disabled = false;
+    }
+    return;
+  }
+  if (event.target.closest("#managerSheetOpenBakim")) {
+    sw("bakim");
+    setTimeout(() => document.getElementById("sheetMirrorCard")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
     return;
   }
   // Bugün Son raporlar row click → toggle the inline expand.
@@ -8509,6 +8754,8 @@ if (!auth || !db) {
       await safe("loadStaffRecentReports", () => loadStaffRecentReports(true));
     }
     if (isAdmin()) {
+      await safe("loadSheetSyncStatus", loadSheetSyncStatus);
+      await safe("loadSheetMirrorTabs", loadSheetMirrorTabs);
       await safe("loadPendingReviewUnits", loadPendingReviewUnits);
     }
     try { loadNotifs(); } catch (error) { console.warn("[auth-load] loadNotifs failed:", error); }
