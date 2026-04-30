@@ -238,6 +238,8 @@ Proje iletişim matrisinden gelen toplantı/rapor rutinleri.
 - `createdAt`: timestamp
 - `updatedAt`: timestamp
 
+Volunteer UI shows only `all` and `volunteers` announcements in `/app/#duyurular`; staff history in Yönetim keeps the full announcement list. Recent Firestore exports in `backups/YYYY-MM-DD/announcements.json` can be used to restore deleted announcements manually if the live collection is emptied.
+
 ## notifications
 
 - `toUid`: string
@@ -246,6 +248,8 @@ Proje iletişim matrisinden gelen toplantı/rapor rutinleri.
 - `tab`: string
 - `read`: boolean
 - `createdAt`: timestamp
+
+New announcements create notification docs only for approved users matching the announcement audience. Announcement notifications route to `duyurular`.
 
 ## preregistered
 

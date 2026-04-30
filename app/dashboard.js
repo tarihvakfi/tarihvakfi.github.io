@@ -101,15 +101,18 @@ function defaultTabForRole() {
   return "anasayfa";
 }
 
-// PNB is volunteer-only. Staff used to share the tab (it doubled as
-// "İşler" via a setRoleShell relabel) but the tab body had no staff
-// content after Prompt P emptied it, so the relabel and the staff entry
-// here are gone. A coordinator who lands on /app/#pnb (or any of the
-// pnb aliases above) is redirected to #bugun by resolveTab below.
+// PNB is no longer a default volunteer surface while coordination is
+// sheet-led. Volunteers always get Anasayfa + Duyurular, and the PNB
+// workspace appears only when volunteerProjectIds() says they have access
+// (currently the volunteerPnbTab feature flag). Staff still route away from
+// #pnb because the staff PNB tab body was retired in Prompt P.
 function allowedTabsForRole() {
   if (isAdmin()) return ["bugun", "yonetim", "bakim"];
   if (isStaff()) return ["bugun", "yonetim"];
-  return ["anasayfa", "pnb", "duyurular"];
+  const tabs = ["anasayfa"];
+  if (volunteerProjectIds().includes(PNB_PROJECT_ID)) tabs.push("pnb");
+  tabs.push("duyurular");
+  return tabs;
 }
 
 function resolveTab(rawName) {
@@ -427,15 +430,13 @@ function assignedOpenArchiveUnits() {
 function setRoleShell(staff) {
   document.body.classList.toggle("volunteer-shell", !staff);
   document.body.classList.toggle("staff-shell", staff);
-  // Volunteers see Anasayfa / PNB / Duyurular. Staff see Bugün / Yönetim
-  // (and Bakım for admins) — the legacy "İşler" relabel of the PNB tab
-  // for staff was removed because the staff body of #tab-pnb has been
-  // empty since Prompt P. Tab visibility itself is handled by the
-  // .volunteer-tab / .staff-tab / .admin-tab classes in CSS plus the
-  // staff-shell rule in dashboard.css that hides .volunteer-tab.
+  // Volunteers see Anasayfa / Duyurular by default. The PNB button is an
+  // opt-in project surface while coordination is sheet-led.
+  const volunteerHasPnb = !staff && volunteerProjectIds().includes(PNB_PROJECT_ID);
+  document.querySelector('[data-tab="pnb"]')?.classList.toggle("hidden", !volunteerHasPnb);
   const labels = staff
-    ? { home: "Bugün", reports: "Rapor Yaz", announcements: "Duyurular" }
-    : { home: "Anasayfa", pnb: "PNB", announcements: "Duyurular" };
+    ? { bugun: "Bugün", yonetim: "Yönetim", bakim: "Bakım" }
+    : { anasayfa: "Anasayfa", pnb: "PNB", duyurular: "Duyurular" };
   Object.entries(labels).forEach(([tab, label]) => {
     const button = document.querySelector(`[data-tab="${tab}"]`);
     if (button) button.textContent = label;
@@ -1625,9 +1626,10 @@ async function getSharedDriveUrl() {
   return cachedSharedDriveUrl;
 }
 
-// Returns the volunteer's accessible project ids. Today: pnb only.
+// Returns the volunteer's accessible project ids. During the sheet-led
+// period this is empty for everyone unless PNB is globally re-enabled.
 function volunteerProjectIds() {
-  return [REPORT_PROJECT_FILTER];
+  return window.FEATURE_FLAGS?.volunteerPnbTab ? [REPORT_PROJECT_FILTER] : [];
 }
 
 const SUITABLE_FOR_LABELS = {
@@ -1703,9 +1705,9 @@ const _inlineRaporForms = new Set();
 //                          coordination — no specific archive unit)
 //   3. foundation_general — both null (cross-foundation work)
 //
-// showProjectPicker — true on Anasayfa: render a row of project pills + a
-//                     "Genel vakıf çalışması" pill. The unit picker only
-//                     appears once a real project is picked.
+// showProjectPicker — true on Anasayfa: render project pills when available
+//                     plus a "Genel vakıf çalışması" pill. The unit picker
+//                     only appears once a real project is picked.
 // fixedProjectId    — set on per-project tabs (e.g. "pnb"): no pills, the
 //                     unit picker is shown immediately filtered to that
 //                     project. Unit selection is still optional.
@@ -1750,16 +1752,22 @@ function renderInlineRaporForm({ container, showProjectPicker = false, fixedProj
   const availableProjects = showProjectPicker
     ? volunteerProjectIds().map((id) => ({ id, label: projectPillName(id) }))
     : [];
+  const hasProjectChoices = availableProjects.length > 0;
+  if (showProjectPicker && !fixedProjectId && !hasProjectChoices) {
+    state.projectPick = "foundation";
+  }
 
   const unitHelperText = fixedProjectId
     ? "Bu çalışma belirli bir kutuyla ilgiliyse seç. Toplantı, koordinasyon, gözden geçirme gibi genel proje işleri için boş bırak."
     : "İşin belirli bir kutuya bağlıysa seç. Yoksa boş bırak (toplantı, gözden geçirme, koordinasyon gibi).";
 
-  const projectHelperText = "Bir proje seçersen alttaki kutu seçimi açılır. Boş bırakırsan genel vakıf çalışması olarak kaydedilir.";
+  const projectHelperText = hasProjectChoices
+    ? "Bir proje seçersen alttaki kutu seçimi açılır. Boş bırakırsan genel vakıf çalışması olarak kaydedilir."
+    : "Şu an çalışmalar genel vakıf çalışması olarak kaydediliyor. PNB iş paketleri tekrar açıldığında bu alanda proje seçimi görünecek.";
 
-  // Unit section starts hidden on Anasayfa (no project picked yet) and visible
-  // on per-project tabs (project is fixed).
-  const unitSectionStartsHidden = !state.projectPick;
+  // Unit section starts hidden on Anasayfa until a real project is picked;
+  // the "foundation" choice records general work and has no unit picker.
+  const unitSectionStartsHidden = !state.projectPick || state.projectPick === "foundation";
 
   const selfLabel = cp?.fullName ? `Kendim (${cp.fullName})` : "Kendim";
 
@@ -1809,9 +1817,9 @@ function renderInlineRaporForm({ container, showProjectPicker = false, fixedProj
         <label class="rm-label">Hangi proje için? <em class="muted">(opsiyonel)</em></label>
         <div class="if-project-pills" role="radiogroup" aria-label="Proje">
           ${availableProjects.map((p) => `
-            <button type="button" class="if-pill" data-project-pick="${escapeHTML(p.id)}">${escapeHTML(p.label)}</button>
+            <button type="button" class="if-pill${state.projectPick === p.id ? " is-on" : ""}" data-project-pick="${escapeHTML(p.id)}">${escapeHTML(p.label)}</button>
           `).join("")}
-          <button type="button" class="if-pill if-pill-foundation" data-project-pick="foundation">Genel vakıf çalışması</button>
+          <button type="button" class="if-pill if-pill-foundation${state.projectPick === "foundation" ? " is-on" : ""}" data-project-pick="foundation">Genel vakıf çalışması</button>
         </div>
         <p class="if-helper muted">${escapeHTML(projectHelperText)}</p>
       </div>
@@ -2053,9 +2061,10 @@ function renderInlineRaporForm({ container, showProjectPicker = false, fixedProj
     state.results = [];
     state.activeIndex = -1;
     state.showAll = false;
-    // Project pick: clear on Anasayfa (back to "no choice"); pinned to
-    // fixedProjectId on per-project tabs.
-    state.projectPick = fixedProjectId || null;
+    // Project pick: clear on Anasayfa when project choices exist; otherwise
+    // keep the single general-work pill selected so volunteers see the
+    // current sheet-led mode as the default, not as an empty state.
+    state.projectPick = fixedProjectId || (showProjectPicker && !hasProjectChoices ? "foundation" : null);
     state.workDate = istanbulToday();
     state.onBehalfOf = null;
     state.onBehalfSearchTerm = "";
@@ -3195,11 +3204,19 @@ function reportTypeOf(r) {
 function renderVolunteerActiveProjects() {
   const list = document.getElementById("vpProjectsList");
   if (!list || isStaff() || !cu) return;
+  const title = document.getElementById("vpProjectsTitle");
   const projectIds = volunteerProjectIds();
   if (!projectIds.length) {
-    list.innerHTML = '<p class="sv-empty">Şu an erişimin olan aktif proje yok.</p>';
+    if (title) title.textContent = "Çalışma alanı";
+    list.innerHTML = `<div class="vp-project-card vp-project-card--static" aria-live="polite">
+      <div>
+        <p class="vp-pname">Genel vakıf çalışması</p>
+        <p class="vp-pdesc">Toplantı, koordinasyon, arşiv dışı destek ve Sheet üzerinden yürüyen işleri Anasayfa'daki Rapor Yaz formundan kaydet.</p>
+      </div>
+    </div>`;
     return;
   }
+  if (title) title.textContent = "Aktif projeler";
   list.innerHTML = projectIds.map((projectId) => {
     const meta = PROJECT_TAB_REGISTRY[projectId] || { tab: projectId, name: projectId, fallbackDescription: "" };
     // Optional shortDescription from projects/{projectId} could be wired in
@@ -3605,14 +3622,17 @@ function renderVolunteerReportPrimary() {
     return;
   }
   wrap.classList.remove("hidden");
-  // Mount the Anasayfa and PNB-tab inline forms once. Both calls are
+  // Mount the Anasayfa inline form once. The PNB form is mounted only when
+  // the project workspace is enabled for this volunteer. Both calls are
   // idempotent — they short-circuit if a form is already attached, so
   // re-running this on every Firestore data refresh won't blow away
   // in-progress volunteer input.
   //   Anasayfa: project-agnostic — show project pills, no fixed project.
   //   PNB tab:  project-locked — no pills, unit picker filters to "pnb".
   ensureInlineRaporForm("anasayfaInlineRapor", { showProjectPicker: true, fixedProjectId: null });
-  ensureInlineRaporForm("pnbInlineRapor", { showProjectPicker: false, fixedProjectId: "pnb" });
+  if (volunteerProjectIds().includes(PNB_PROJECT_ID)) {
+    ensureInlineRaporForm("pnbInlineRapor", { showProjectPicker: false, fixedProjectId: "pnb" });
+  }
   refreshAllInlineRaporForms();
   renderVolunteerActiveProjects();
   // Telegram link card gated on FEATURE_FLAGS.telegramSection (false since
@@ -5151,6 +5171,19 @@ function ra(announcement, id) {
   return html;
 }
 
+function announcementTargetsAudience(audience, userData = {}) {
+  const role = userData.role || "volunteer";
+  if (audience === "volunteers") return role === "volunteer";
+  if (audience === "coordinators") return role === "coordinator" || role === "admin";
+  return true;
+}
+
+function announcementNotificationTargets(audience) {
+  return approvedUsers().filter((user) =>
+    user.uid !== cu?.uid && announcementTargetsAudience(audience || "all", user.data || {})
+  );
+}
+
 function rpu(data, uid) {
   return `<div class="user-card" id="user-${uid}"><div class="user-info"><strong>${escapeHTML(data.fullName || "-")}</strong><small>${escapeHTML(data.email || "-")} · ${escapeHTML(data.department || "-")}</small></div><div class="user-actions"><button class="btn btn-approve btn-sm" data-action="approve" data-uid="${uid}">Onayla</button><button class="btn btn-block btn-sm" data-action="block" data-uid="${uid}">Engelle</button></div></div>`;
 }
@@ -5255,17 +5288,36 @@ async function lr() {
 }
 
 async function la() {
-  const snap = await getDocs(query(collection(db, "announcements"), orderBy("createdAt", "desc"), limit(20)));
-  announcementItems = snap.docs.map((item) => ({ id: item.id, data: item.data() }));
-  const html = snap.empty ? htmlEmpty("Duyuru yok.") : snap.docs.map((item) => ra(item.data(), item.id)).join("");
-  // Render into both possible targets — volunteers see the standalone
-  // Duyurular tab list (#announcementsList), staff see the in-Yönetim list
-  // (#yonetimAnnouncementsList). Either may not exist for the current role.
-  const volList = document.getElementById("announcementsList");
-  if (volList) volList.innerHTML = html;
-  const staffList = document.getElementById("yonetimAnnouncementsList");
-  if (staffList) staffList.innerHTML = html;
-  renderHomeOverview();
+  try {
+    const snap = await getDocs(query(collection(db, "announcements"), orderBy("createdAt", "desc"), limit(20)));
+    announcementItems = snap.docs.map((item) => ({ id: item.id, data: item.data() }));
+
+    // Staff history stays complete; volunteers see only public/volunteer
+    // announcements. This keeps coordinator-only notes out of the volunteer
+    // Duyurular tab without needing separate Firestore collections.
+    const staffHtml = announcementItems.length
+      ? announcementItems.map((item) => ra(item.data, item.id)).join("")
+      : htmlEmpty("Duyuru yok.");
+    const volunteerItems = announcementItems.filter((item) =>
+      announcementTargetsAudience(item.data?.audience || "all", { role: "volunteer" })
+    );
+    const volunteerHtml = volunteerItems.length
+      ? volunteerItems.map((item) => ra(item.data, item.id)).join("")
+      : htmlEmpty("Duyuru yok.");
+
+    const volList = document.getElementById("announcementsList");
+    if (volList) volList.innerHTML = volunteerHtml;
+    const staffList = document.getElementById("yonetimAnnouncementsList");
+    if (staffList) staffList.innerHTML = staffHtml;
+    renderHomeOverview();
+  } catch (error) {
+    console.error("Duyuru yükleme hatası:", error);
+    const html = htmlEmpty("Duyurular yüklenemedi. Biraz sonra tekrar deneyin.");
+    const volList = document.getElementById("announcementsList");
+    if (volList) volList.innerHTML = html;
+    const staffList = document.getElementById("yonetimAnnouncementsList");
+    if (staffList) staffList.innerHTML = html;
+  }
 }
 
 async function lp() {
@@ -8382,8 +8434,8 @@ document.getElementById("announcementForm")?.addEventListener("submit", async (e
       data.createdAt = serverTimestamp();
       await addDoc(collection(db, "announcements"), data);
       document.getElementById("announcementMessage").textContent = "Duyuru yayınlandı!";
-      allUsers.forEach((user) => {
-        if (user.uid !== cu.uid) createNotif(user.uid, "announcement", `Yeni duyuru: ${data.title}`, "announcements");
+      announcementNotificationTargets(data.audience).forEach((user) => {
+        createNotif(user.uid, "announcement", `Yeni duyuru: ${data.title}`, "duyurular");
       });
     }
     event.target.reset();

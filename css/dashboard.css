@@ -1699,9 +1699,10 @@ body.modal-open { overflow: hidden; }
 }
 
 /* ---------- Role-aware shell (Prompts H + N) ----------
-   Volunteers see Anasayfa / PNB / Duyurular.
-   Coordinators see Bugün / PNB / Yönetim.
-   Admins see Bugün / PNB / Yönetim / Bakım.
+   Volunteers see Anasayfa / Duyurular by default. PNB is an optional
+   project tab controlled by FEATURE_FLAGS.volunteerPnbTab.
+   Coordinators see Bugün / Yönetim.
+   Admins see Bugün / Yönetim / Bakım.
    Tabs are gated by class on the tab button itself; sections are gated
    by section id (sw() shows only the active section). */
 
@@ -1911,6 +1912,8 @@ body.staff-shell #volunteerPnbView { display: none !important; }
   transition: border-color .12s, box-shadow .12s;
 }
 .vp-project-card:hover { border-color: var(--tblr-primary); }
+.vp-project-card--static { grid-template-columns: 1fr; }
+.vp-project-card--static:hover { border-color: var(--tblr-border-color); box-shadow: none; }
 .vp-project-card .vp-pname { font-size: 14px; font-weight: 600; color: var(--tblr-body-color); margin: 0 0 2px; }
 .vp-project-card .vp-pdesc { font-size: 12px; color: var(--tblr-secondary); margin: 0; }
 .vp-project-card .vp-go { font-size: 13px; font-weight: 500; color: var(--tblr-primary); white-space: nowrap; }

@@ -34,7 +34,8 @@
       <!-- Tabs are role-scoped via .volunteer-tab / .staff-tab / .admin-tab.
            Visibility is set in CSS on body.volunteer-shell / body.staff-shell
            and unhidden by setRoleShell() at auth time.
-           Volunteer:  Anasayfa, PNB, Duyurular
+           Volunteer:  Anasayfa, Duyurular
+                       (PNB appears only when volunteerPnbTab is enabled)
            Coordinator: Bugün, Yönetim
            Admin:       Bugün, Yönetim, Bakım
            PNB is volunteer-only — the staff body of #tab-pnb has been empty
@@ -76,7 +77,7 @@
 
           <div id="vpAnasayfaExtras" class="vp-anasayfa volunteer-only-block">
             <div>
-              <p class="vp-section-eyebrow">Aktif projeler</p>
+              <p id="vpProjectsTitle" class="vp-section-eyebrow">Aktif projeler</p>
               <div id="vpProjectsList" class="vp-projects-list"></div>
             </div>
             <!-- Telegram link card. Filled by renderTelegramCard() in
@@ -864,11 +865,17 @@
     backend (Cloud Run / Vercel / Cloudflare Workers / etc.) and rerunning
     setWebhook against the new URL. See AGENTS.md for the revival
     checklist.
+
+    volunteerPnbTab: keeps the old PNB project workspace hidden while
+    volunteer coordination is temporarily sheet-led. Volunteers can still
+    submit general foundation work from Anasayfa; flip this to true when
+    PNB-specific website work resumes.
   -->
   <script>
     window.FEATURE_FLAGS = Object.assign({
       selfClaim: false,
-      telegramSection: false
+      telegramSection: false,
+      volunteerPnbTab: false
     }, window.FEATURE_FLAGS || {});
   </script>
   <script type="module" src="../js/firebase-init.js"></script>

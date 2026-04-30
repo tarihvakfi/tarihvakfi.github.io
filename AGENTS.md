@@ -45,27 +45,27 @@ Roles:
 
 ## Dashboard tab structure (Prompt P — assignment surfaces removed, staff PNB tab dropped)
 
-The dashboard collapses to **2–4 tabs by role**:
+The dashboard currently collapses to **2–3 tabs by role**, with PNB as an optional volunteer project tab:
 
 | Role         | Tabs (in order)                          | Default landing |
 |--------------|------------------------------------------|-----------------|
-| volunteer    | Anasayfa · PNB · Duyurular              | `#anasayfa`    |
+| volunteer    | Anasayfa · Duyurular *(PNB only when enabled)* | `#anasayfa`    |
 | coordinator  | Bugün · Yönetim                          | `#bugun`       |
 | admin        | Bugün · Yönetim · Bakım                  | `#bugun`       |
 
-**Coordinator/admin no longer have a PNB tab.** The kanban view is no longer a primary management surface — staff read the report stream on Bugün to see what's happening. Volunteers still have PNB as their project workspace. A coordinator who manually navigates to `/app/#pnb` is redirected to `#bugun` by `resolveTab()`.
+**Coordinator/admin no longer have a PNB tab.** The kanban view is no longer a primary management surface — staff read the report stream on Bugün to see what's happening. During the sheet-led volunteer-management period, volunteers also do not see PNB by default; they log general foundation work from Anasayfa. `window.FEATURE_FLAGS.volunteerPnbTab` re-enables the PNB volunteer workspace when PNB-specific website work resumes. A coordinator who manually navigates to `/app/#pnb` is redirected to `#bugun` by `resolveTab()`, and a volunteer is redirected to `#anasayfa` unless PNB is enabled.
 
 **Assignment surfaces are removed across coordinator/admin views (Prompt P).** The data model still carries `assignedToUids` / `assignedToEmails` on `archiveUnits` and the rules' `selfClaimArchiveUnit` / `selfReleaseArchiveUnit` paths stay in `firestore.rules` as a hedge against future revival, but no UI displays them: removed in this prompt are the unit drill modal's "Atanan gönüllüler" panel and the in-edit assign select (kept hidden for the legacy save path), the channel-side stat row labelled "Atanan", the staff archive-card "Atanan: …" chip + assign select, the table-header "Atanan" column, the `Atanmamış arşiv birimi` warning text, and the side-effect in the task-create handler that used to write back into `archiveUnit.assignedToUids`. Tasks (the `tasks` collection) keep their own `assignedToUid` field and surface it as "→ {name}" inside the Yönetim feed — tasks are explicit one-off coordination items, not archive-unit assignments.
 
 Old tabs `Pano`, `İşler`, and `Rapor Yaz` are **gone**:
-- The Pano kanban moved under the PNB tab — both volunteer and coordinator now share `#tab-pnb`, with `#volunteerPnbView` and `#staffPnbView` blocks gated by `body.volunteer-shell` / `body.staff-shell`.
+- The Pano kanban lives under the optional volunteer PNB tab when `window.FEATURE_FLAGS.volunteerPnbTab` is true. Staff no longer have a primary `#tab-pnb` route.
 - "İşler" — the assigned-tasks-for-staff card (`#adminTaskForm` + `#tasksList`) moved into Yönetim → Görevler. The volunteer kanban view stays under PNB.
 - "Rapor Yaz" — coordinators have **no tab** for this. They use the inline `+ Rapor yaz` icon button at the top right of the Bugün header which opens `#coordinatorReportModal`, a thin modal hosting a fresh `renderInlineRaporForm({ showProjectPicker: true })` instance.
 
 Volunteers continue to see their **Anasayfa** (project-agnostic inline form + Son raporların log + Aktif projeler card). Coordinators land on **Bugün** (greeting + Dikkat single-card + Son raporlar 8-row log).
 
 ### Hash routing
-Tab names are URL hashes. `sw(name)` writes the chosen tab to `location.hash` via `history.replaceState`; `syncRouteFromHash()` reads on load and on `hashchange`. `resolveTab(name)` enforces role gating — if a volunteer types `/app/#yonetim` or `#bakim`, they're redirected to their default `#anasayfa`. Coordinators on `#anasayfa` get bumped to `#bugun`. Aliases keep older anchor links working: `home` → `anasayfa` (or `bugun` for staff), `pano` → `pnb`, `reports` → `anasayfa` (or `bugun`), `announcements` → `duyurular`, `management` → `yonetim`, `maintenance` → `bakim`.
+Tab names are URL hashes. `sw(name)` writes the chosen tab to `location.hash` via `history.replaceState`; `syncRouteFromHash()` reads on load and on `hashchange`. `resolveTab(name)` enforces role gating — if a volunteer types `/app/#yonetim`, `#bakim`, or `#pnb` while PNB is disabled, they're redirected to their default `#anasayfa`. Coordinators on `#anasayfa` get bumped to `#bugun`. Aliases keep older anchor links working: `home` → `anasayfa` (or `bugun` for staff), `pano` → `pnb` when allowed, `reports` → `anasayfa` (or `bugun`), `announcements` → `duyurular`, `management` → `yonetim`, `maintenance` → `bakim`.
 
 ### Bugün (coordinator/admin home)
 Three things live here, all in `renderBugun()`:
@@ -75,8 +75,8 @@ Three things live here, all in `renderBugun()`:
 3. **Son raporlar card** (`#bugunRecentCard`) — coordinator-wide compact log, 8 rows max, click-to-expand for the full note + URL. Reuses the `.sv-log-row` primitives from the volunteer side, plus a `.bugun-recent-name` column for the volunteer's name. Refresh icon-button in the header re-pulls via `loadStaffRecentReports(true)`. "Tümünü göster →" link at the bottom (TODO: full reports history view).
 4. **Future**: project-volunteer summary card — placeholder kept in the markup as a comment, hidden until a second project comes online.
 
-### PNB tab — staff view
-Coordinators / admins on `#tab-pnb` see `#staffPnbView`:
+### PNB tab — staff view (retired)
+Coordinators / admins are redirected away from `#tab-pnb`; the old `#staffPnbView` notes below are kept only as historical context:
 1. **İlerleme** — same dark progress card volunteers see, but with `staff*` IDs.
 2. **İş Akışı** — read-only 5-column kanban (drag-drop is wired through the existing dragstart/drop handlers). Search input above the board (`#staffPnbBoardSearch`) Turkish-normalizes against `sourceIdentifier`, `seriesNo`, `boxNo`, `contentDescription`, etc.
 3. **Bu projedeki gönüllüler** — list of every approved volunteer who has reported on a PNB unit (or a `project_general` PNB report) at least once in the last 90 days. Sortable by recent activity / name / report count. First 20 shown; "+N daha" hint for overflow.
@@ -100,7 +100,7 @@ Project-agnostic landing page. Renders the same regardless of which projects exi
 1. Greeting (`Merhaba, {firstName}` + `Tarih Vakfı · {date}` subtitle).
 2. **Rapor Yaz** card (`#anasayfaInlineRapor`) — the inline form is rendered directly into the page; there is no "open" button. Same six elements as the old modal (typeahead, note, status pills, link, submit). The typeahead is unfiltered (all projects the volunteer can access) and the "Tüm iş paketlerini göster" toggle is shown.
 3. **Son raporların** — last 3 reports by the current volunteer.
-4. **Aktif projeler** (`#vpProjectsList`) — one card per project the volunteer can access. Each card has the project name, a one-line description (read from `projects/{projectId}.shortDescription` if present, otherwise the registry default in `PROJECT_TAB_REGISTRY`), and a "Bu projeye git →" link that switches to that project's tab. New projects appear automatically as `volunteerProjectIds()` expands.
+4. **Çalışma alanı / Aktif projeler** (`#vpProjectsList`) — when no project tabs are enabled, this shows a static "Genel vakıf çalışması" card that points volunteers back to the Anasayfa report form. When project tabs are enabled, it becomes one card per project the volunteer can access. Each project card has the project name, a one-line description (read from `projects/{projectId}.shortDescription` if present, otherwise the registry default in `PROJECT_TAB_REGISTRY`), and a "Bu projeye git →" link that switches to that project's tab. New projects appear automatically as `volunteerProjectIds()` expands.
 
 The legacy Bugün widgets (`.wa-prog`, `.sv-actions`, `.sv-work`, `.wa-cta`) were removed from the volunteer Anasayfa in Prompt J; the staff Bugün still uses its own blocks (`#homeHero`, `#kbBoard`, `#homeWorkGrid`, `#homeAnnouncements`).
 
@@ -112,7 +112,7 @@ The legacy Bugün widgets (`.wa-prog`, `.sv-actions`, `.sv-work`, `.wa-cta`) wer
 3. `volunteerProjectIds()` returning that project id for the user.
 4. A call to `ensureInlineRaporForm("{projectId}InlineRapor", { projectFilter: "{projectId}", showProjectToggle: false })` once the volunteer's profile loads (today this happens for `pnb` from `renderVolunteerReportPrimary()` — extend there).
 
-Staff PNB content (`#pnbHero`, `#pnbStats`, `#pnbOpsGrid`, `#pnbArchivePanel`, `#adminTaskForm`, `#generalTaskPanel`) remains untouched and is only visible on `body.staff-shell`. The volunteer block (`#volunteerPnbView`) is only visible on `body.volunteer-shell`. Both blocks live in the same `#tab-pnb` section.
+Legacy staff PNB markup (`#pnbHero`, `#pnbStats`, `#pnbOpsGrid`, `#pnbArchivePanel`, `#adminTaskForm`, `#generalTaskPanel`) may still exist in older notes, but staff routing no longer exposes it as a primary tab. The volunteer block (`#volunteerPnbView`) is only visible when the PNB feature flag exposes `#tab-pnb`.
 
 ### Volunteer PNB tab content
 1. Header: project name, italic Boratav line, one-line description.
@@ -143,7 +143,7 @@ Every report falls into exactly one of these. The shape is computed at submit ti
 ### Shared component: `renderInlineRaporForm({ container, showProjectPicker, fixedProjectId, onSubmitSuccess })`
 A single factory in `app/dashboard.js` builds every form instance — fixing a bug in one fixes them all. State is closure-private; DOM lookups are scoped via `container.querySelector` so two instances coexist without ID collisions. Each call returns a handle attached to the container as `container.__inlineRaporHandle` with `{ selectUnitById, reset, refreshResults }`. Use `ensureInlineRaporForm(containerId, opts)` for idempotent mounting (won't blow away in-progress input on rerender).
 
-- `showProjectPicker: true` (Anasayfa) — render a row of pills, one per accessible project (today: just `Pertev Naili Boratav`) plus a `Genel vakıf çalışması` pill. The unit picker stays hidden until a real project pill is picked.
+- `showProjectPicker: true` (Anasayfa) — render a row of pills, one per accessible project plus a `Genel vakıf çalışması` pill. When no project tabs are enabled, the general-work pill is selected by default and the unit picker stays hidden. When project tabs are available, the unit picker opens only after a real project pill is picked.
 - `fixedProjectId: "pnb"` (PNB tab) — no project pills; the unit picker is shown immediately, filtered to that project. `state.projectPick` is fixed to the project id and reset to it on every form reset.
 
 The drill modal's "Rapor Yaz (bu iş paketi için)" shortcut closes the drill, switches to the PNB tab, and calls `selectUnitById(unitId)` on that form. `selectUnitById` auto-selects the unit's project first (so the section is visible) then the unit itself.
@@ -190,7 +190,7 @@ Row clicks on unit reports open the drill; clicks on the other two shapes are no
 The primary action on the volunteer dashboard is **Rapor Yaz**. Volunteers do not pull work from a queue; they log what they did and the system infers the unit's status from the latest report.
 
 Flow:
-1. The volunteer lands on `app/index.html` → `#tab-home`. The Rapor Yaz form is **already on screen** as an inline card; no button-press is needed to "open" it. The same form is also embedded in the PNB tab (`#tab-pnb`), pre-filtered to that project.
+1. The volunteer lands on `app/index.html` → `#tab-anasayfa`. The Rapor Yaz form is **already on screen** as an inline card; no button-press is needed to "open" it. If the PNB workspace is enabled, the same form is also embedded in the PNB tab (`#tab-pnb`), pre-filtered to that project.
 2. Fields, in order: typeahead (archive unit) → ne yaptın? (note ≤ 500 chars) → status (`in_progress` / `done` / `blocked`) → optional URL → submit. Effort is no longer a UI control; submissions write `effort: "medium"` silently for backwards compatibility.
 3. Submit writes a `reports/{id}` doc, denormalizes `archiveUnits/{unitId}` (status + last-activity metadata), updates `users/{uid}.lastReportAt`, and appends an `activityLogs` entry of `type: "report_submitted"`.
 4. The "liste dışı / yeni iş" path creates an `archiveUnits/{newId}` with `status == "pending_review"` and `createdByVolunteerId == auth.uid`, then chains the report to that new id. This option only appears in the typeahead dropdown when the volunteer typed something AND zero units matched.
