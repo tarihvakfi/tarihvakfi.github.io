@@ -158,29 +158,62 @@
       const snap = await fs.getDocs(fs.query(
         fs.collection(db, "publicTicker"),
         fs.orderBy("createdAt", "desc"),
-        fs.limit(8)
+        fs.limit(40)
       ));
       const items = snap.docs.map((d) => d.data() || {})
         .filter((r) => r.createdAt);
       if (!items.length) { hideTicker(); return; }
       const list = document.getElementById("lpTicker");
       if (!list) return;
-      list.innerHTML = items.map(renderTickerRow).join("");
+      const groups = summarizeTickerItems(items).slice(0, 6);
+      if (!groups.length) { hideTicker(); return; }
+      list.innerHTML = groups.map(renderTickerGroup).join("");
       const section = list.closest(".lp-section");
       if (section) section.removeAttribute("hidden");
     } catch (err) {
       hideTicker();
     }
   }
-  function renderTickerRow(r) {
-    const when = tsMillis(r.createdAt);
-    const ago = relativeTime(when);
-    const effort = effortDescription(r.effort);
-    const cat = String(r.materialCategory || "belgeler");
-    const project = (r.projectId || "pnb") === "pnb" ? "PNB arşivinde" : "arşivde";
+
+  function summarizeTickerItems(items) {
+    const byDay = new Map();
+    items.forEach((r) => {
+      const when = tsMillis(r.createdAt);
+      if (!when) return;
+      const key = dayKey(when);
+      if (!byDay.has(key)) {
+        byDay.set(key, {
+          when,
+          label: dayLabel(when),
+          count: 0,
+          categories: new Map()
+        });
+      }
+      const group = byDay.get(key);
+      group.when = Math.max(group.when, when);
+      group.count += 1;
+      const category = cleanCategory(r.materialCategory);
+      group.categories.set(category, (group.categories.get(category) || 0) + 1);
+    });
+
+    return Array.from(byDay.values())
+      .sort((a, b) => b.when - a.when)
+      .map((group) => {
+        const categories = Array.from(group.categories.entries())
+          .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "tr"))
+          .map(([name]) => name);
+        return { ...group, categories };
+      });
+  }
+
+  function renderTickerGroup(group) {
+    const shownCategories = group.categories.slice(0, 4);
+    const hiddenCount = Math.max(0, group.categories.length - shownCategories.length);
+    const categoryText = joinTurkish(shownCategories);
+    const extraText = hiddenCount ? ` + ${hiddenCount} alan` : "";
     return `<li>
-      <span class="lp-ticker-when">${esc(ago)}</span>
-      <span class="lp-ticker-rest">— ${esc(effort)}, ${esc(project)}, ${esc(cat)}</span>
+      <span class="lp-ticker-when">${esc(group.label)}</span>
+      <span class="lp-ticker-rest">— ${esc(formatNum(group.count))} katkı${categoryText ? ` · ${esc(categoryText)}${esc(extraText)}` : ""}</span>
     </li>`;
   }
   function hideTicker() {
@@ -200,24 +233,32 @@
   function formatNum(n) {
     return new Intl.NumberFormat("tr-TR").format(Number(n) || 0);
   }
-  function relativeTime(when) {
-    if (!when) return "—";
-    const diffMs = Date.now() - when;
-    const m = Math.floor(diffMs / 60000);
-    if (m < 1) return "az önce";
-    if (m < 60) return `${m} dakika önce`;
-    const h = Math.floor(m / 60);
-    if (h < 24) return `${h} saat önce`;
-    const d = Math.floor(h / 24);
-    if (d === 1) return "Dün";
-    if (d < 7) return `${d} gün önce`;
-    if (d < 30) return `${Math.floor(d / 7)} hafta önce`;
-    return `${Math.floor(d / 30)} ay önce`;
+  function dayKey(when) {
+    const d = new Date(when);
+    return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
   }
-  function effortDescription(eff) {
-    if (eff === "small") return "kısa bir çalışma";
-    if (eff === "large") return "uzunca bir çalışma";
-    return "orta uzunlukta bir çalışma";
+  function dayLabel(when) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const d = new Date(when);
+    d.setHours(0, 0, 0, 0);
+    const days = Math.round((today.getTime() - d.getTime()) / 86400000);
+    if (days <= 0) return "Bugün";
+    if (days === 1) return "Dün";
+    if (days < 7) return `${days} gün önce`;
+    return d.toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
+  }
+  function cleanCategory(category) {
+    const value = String(category || "belgeler").trim();
+    if (!value) return "belgeler";
+    if (value === "genel") return "genel proje çalışması";
+    return value;
+  }
+  function joinTurkish(items) {
+    const clean = items.filter(Boolean);
+    if (clean.length <= 1) return clean[0] || "";
+    if (clean.length === 2) return `${clean[0]} ve ${clean[1]}`;
+    return `${clean.slice(0, -1).join(", ")} ve ${clean[clean.length - 1]}`;
   }
   function esc(s) {
     return String(s == null ? "" : s)
