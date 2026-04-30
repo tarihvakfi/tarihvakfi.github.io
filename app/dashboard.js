@@ -107,8 +107,7 @@ function defaultTabForRole() {
 // (currently the volunteerPnbTab feature flag). Staff still route away from
 // #pnb because the staff PNB tab body was retired in Prompt P.
 function allowedTabsForRole() {
-  if (isAdmin()) return ["bugun", "yonetim", "bakim"];
-  if (isStaff()) return ["bugun", "yonetim"];
+  if (isStaff()) return ["bugun"];
   const tabs = ["anasayfa"];
   if (volunteerProjectIds().includes(PNB_PROJECT_ID)) tabs.push("pnb");
   tabs.push("duyurular");
@@ -436,6 +435,7 @@ function setRoleShell(staff) {
   const volunteerHasPnb = !staff && volunteerProjectIds().includes(PNB_PROJECT_ID);
   document.querySelector('[data-tab="pnb"]')?.classList.toggle("hidden", !volunteerHasPnb);
   document.querySelectorAll(".admin-only-block").forEach((item) => item.classList.toggle("hidden", !isAdmin()));
+  mountManagerCockpitSections();
   const labels = staff
     ? { bugun: "Bugün", yonetim: "Yönetim", bakim: "Bakım" }
     : { anasayfa: "Anasayfa", pnb: "PNB", duyurular: "Duyurular" };
@@ -3782,6 +3782,26 @@ function managerSetText(id, value) {
   if (el) el.textContent = value;
 }
 
+function moveManagerCard(cardId, mountId) {
+  const card = document.getElementById(cardId);
+  const mount = document.getElementById(mountId);
+  if (!card || !mount) return;
+  if (card.parentElement !== mount) mount.appendChild(card);
+  card.classList.add("manager-cockpit-card");
+}
+
+function mountManagerCockpitSections() {
+  if (!isStaff()) return;
+  moveManagerCard("yonetimUsersCard", "managerUsersMount");
+  moveManagerCard("yonetimFeedCard", "managerFeedMount");
+  const sheetGroup = document.getElementById("managerSheetGroup");
+  if (sheetGroup) sheetGroup.classList.toggle("hidden", !isAdmin());
+  if (isAdmin()) {
+    moveManagerCard("sheetSyncCard", "managerSheetSyncMount");
+    moveManagerCard("sheetMirrorCard", "managerSheetMirrorMount");
+  }
+}
+
 function bugunPendingUsers() {
   return (allUsers || []).filter((u) => u?.data?.status === "pending");
 }
@@ -4025,7 +4045,7 @@ function renderBugunWarnings() {
       key: "silent",
       text: `${silent.length} sessiz gönüllü (≥21 gün rapor yok).`,
       action: () => {
-        sw("yonetim");
+        sw("bugun");
         // Pre-set the Yönetim filter to "silent" so the user lands on the right slice.
         document.querySelectorAll("[data-yonetim-filter]").forEach((b) => b.classList.toggle("is-on", b.dataset.yonetimFilter === "silent"));
         if (typeof renderYonetimUserDirectory === "function") renderYonetimUserDirectory();
@@ -4076,7 +4096,7 @@ function renderBugunWarnings() {
 // can call it without re-running render to find the right item.
 const bugunWarningActions = {
   silent: () => {
-    sw("yonetim");
+    sw("bugun");
     document.querySelectorAll("[data-yonetim-filter]").forEach((b) => b.classList.toggle("is-on", b.dataset.yonetimFilter === "silent"));
     if (typeof renderYonetimUserDirectory === "function") renderYonetimUserDirectory();
     document.getElementById("yonetimUsersCard")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -4236,6 +4256,7 @@ function closeCoordinatorReportModal() {
 // from the refresh button in the Son raporlar header.
 function renderBugun() {
   if (!isStaff()) return;
+  mountManagerCockpitSections();
   renderCoordinatorHomeHeader();
   renderManagerOverview();
   renderManagerSheetPreview();
@@ -7500,8 +7521,8 @@ document.addEventListener("click", async (event) => {
     }
     return;
   }
-  if (event.target.closest("#managerSheetOpenBakim")) {
-    sw("bakim");
+  if (event.target.closest("#managerSheetOpenDetails")) {
+    sw("bugun");
     setTimeout(() => document.getElementById("sheetMirrorCard")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
     return;
   }
@@ -8722,7 +8743,7 @@ if (!auth || !db) {
     setRoleShell(staff);
     hu.textContent = cp.fullName || user.email;
     if (staff) {
-      document.querySelectorAll(".staff-tab").forEach((tab) => tab.classList.remove("hidden"));
+      document.querySelectorAll(".staff-tab").forEach((tab) => tab.classList.toggle("hidden", tab.dataset.tab !== "bugun"));
       document.querySelectorAll(".staff-only").forEach((item) => item.classList.remove("hidden"));
       // Note: #adminTaskForm and #adminAnnouncementForm now live inside the
       // Yönetim tab as collapsible expanders, toggled by their respective
@@ -8731,7 +8752,7 @@ if (!auth || !db) {
       document.getElementById("reportUserRow")?.classList.remove("hidden");
     }
     if (isAdmin()) {
-      document.querySelectorAll(".admin-tab").forEach((tab) => tab.classList.remove("hidden"));
+      document.querySelectorAll(".admin-tab").forEach((tab) => tab.classList.add("hidden"));
     }
     // Defense-in-depth: each post-auth load is awaited inside its own
     // try/catch so one failure can't kill the rest of the chain (the lr()
@@ -8756,7 +8777,6 @@ if (!auth || !db) {
     if (isAdmin()) {
       await safe("loadSheetSyncStatus", loadSheetSyncStatus);
       await safe("loadSheetMirrorTabs", loadSheetMirrorTabs);
-      await safe("loadPendingReviewUnits", loadPendingReviewUnits);
     }
     try { loadNotifs(); } catch (error) { console.warn("[auth-load] loadNotifs failed:", error); }
 
