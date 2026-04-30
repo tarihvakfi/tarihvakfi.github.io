@@ -34,7 +34,7 @@ Bu sekme script tarafından doldurulur.
 2. Yukarıdaki sekmeleri açın.
 3. Apps Script projesi ekleyin.
 4. Bu klasördeki dosyaları yapıştırın.
-5. Script Properties içinde `FIREBASE_SERVICE_ACCOUNT`, `TARIH_VAKFI_SHEET_ID` ve `SYNC_ALERT_EMAIL` değerlerini ayarlayın.
+5. Script Properties içinde `FIREBASE_SERVICE_ACCOUNT`, `TARIH_VAKFI_SHEET_ID` ve `SYNC_ALERT_EMAIL` değerlerini ayarlayın. Public ticker token'ları için opsiyonel `PUBLIC_TICKER_TOKEN_SALT` da eklenebilir.
 6. Kaynak gönüllü ağı Google Sheet'ini service account e-postasıyla Viewer olarak paylaşın.
 7. `sheetSyncRun()` fonksiyonunu bir kez manuel çalıştırın.
 8. `createTriggers()` fonksiyonunu bir kez manuel çalıştırın.

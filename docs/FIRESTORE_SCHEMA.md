@@ -271,7 +271,7 @@ Genel ağa açık özet sayılar. Kamuya açık `index.html` (kök) sayfası bu 
 - `doneUnits`: number — tamamlanmış birim sayısı.
 - `updatedAt`: timestamp — son refresh.
 
-`app/dashboard.js → publishProjectStats()` rapor kaydedildikten sonra ve PNB import commit'inde bu dokümanı yeniden yazar. Kurallar: herkes okuyabilir; yazmaya yalnızca `isApproved()` kullanıcı yetkilidir ve `affectedKeys` yalnızca yukarıdaki listeyi içerebilir (admin silebilir).
+`app/dashboard.js → publishProjectStats()` rapor kaydedildikten sonra ve PNB import commit'inde bu dokümanı yeniden yazar. `apps-script/SheetSync.gs` de saatlik sheet sync sonunda PNB sayısallaştırma tabından ve PNB detay tablarından aynı public-safe aggregate'i günceller. Kurallar: herkes okuyabilir; web istemcisinden yazmaya yalnızca `isApproved()` kullanıcı yetkilidir ve `affectedKeys` yalnızca yukarıdaki listeyi içerebilir (admin silebilir). Apps Script service account Firestore rules'u bypass ederek aynı şemayı yazar.
 
 ## publicTicker
 
@@ -283,13 +283,15 @@ Genel ağa açık, ekleyerek-büyüyen kısa rapor akışı. Yalnızca PII içer
 - `projectId`: string — bağlı proje (`pnb`).
 - `volunteerToken`: string — `SHA-256(uid | YYYY-MM | "tarih-vakfi-public-ticker")` çıktısının ilk 16 hex karakteri (64 bit). Aynı gönüllü için takvim ayı boyunca sabit, ay sonunda yenilenir. Halka açık okuyucu farklı `volunteerToken` sayarak son 30 günde **kaç ayrı gönüllü** rapor verdiğini sayabilir; ama token'dan gönüllü kimliğine geri dönüş mümkün değildir ve aylar arasında uzun vadeli takip yapılamaz.
 
-Yazmaya yalnızca `isApproved()` kullanıcı yetkilidir. Kurallar `affectedKeys.hasOnly([...])` ile şemayı kilitler; yani saldırgan/komprümize bir istemci `volunteerName`, `note`, `url` veya başka bir alanı bu koleksiyona kaçıramaz. Update/delete admin'e ayrılmıştır.
+Yazmaya yalnızca `isApproved()` kullanıcı yetkilidir. Kurallar `affectedKeys.hasOnly([...])` ile şemayı kilitler; yani saldırgan/komprümize bir istemci `volunteerName`, `note`, `url` veya başka bir alanı bu koleksiyona kaçıramaz. Update/delete admin'e ayrılmıştır. Sheet sync, aynı koleksiyona deterministic doc id'lerle anonim satırlar yazar; `volunteerToken` burada kişi adından değil, Apps Script tarafındaki gizli salt/service-account anahtarıyla HMAC edilmiş aylık token'dan gelir.
 
 > Bu iki koleksiyon, Firestore'un alan-bazlı (field-level) okuma yetkisi vermemesi nedeniyle **ayrı** tutulur. `reports` veya `archiveUnits` doğrudan halka açılırsa `volunteerName`, `note`, `lastReporterName`, `lastReportNotePreview` gibi PII alanları sızar. Denormalizasyon, gizliliği koruyabilmek için zorunlu bir tasarım kararıdır.
 
 ## Sheet sync mirror
 
 `apps-script/SheetSync.gs` saatlik olarak paylaşılan "Tarih Vakfı Gönüllü Ağı" Google Sheet'ini Firestore'a tek yönlü mirror eder. Bu veri PII ve iç operasyon notları içerebileceği için yalnızca admin tarafından okunur; public landing veya gönüllü dashboard'u ham `/sheets` mirror'unu okumaz.
+
+Her sync sonunda aynı script ayrıca public landing için ayrı bir sanitizasyon adımı çalıştırır: PNB toplam/tamamlanan sayfa sayılarını `publicProjectStats/pnb` dokümanına, son katkı hareketlerini de `publicTicker` koleksiyonuna yazar. Bu public projection isim, not, link, sheet satır id'si, tarayıcı/bilgisayar etiketi veya ham belge kodu içermez.
 
 ### config/sheetSync
 

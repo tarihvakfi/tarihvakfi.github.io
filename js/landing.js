@@ -5,7 +5,7 @@
 //   - smooth-scroll for in-page anchors (CSS handles the bulk; we just close
 //     the mobile sheet on click)
 //   - fetch publicProjectStats/pnb (3 stat tiles + project card progress bar)
-//   - fetch publicTicker (last 8, anonymized) + render
+//   - fetch publicTicker (last 8, anonymized report/sheet activity) + render
 // All Firestore reads are unauthenticated; rules permit public read on those
 // two collections only.
 //
@@ -103,29 +103,29 @@
 
       // Tiles 2 + 3 come from the ticker (cheap, public).
       const since30d = Date.now() - 30 * 86400000;
-      const since24h = Date.now() - 24 * 3600000;
+      const since7d = Date.now() - 7 * 86400000;
       const tickerSnap = await fs.getDocs(fs.query(
         fs.collection(db, "publicTicker"),
         fs.orderBy("createdAt", "desc"),
         fs.limit(500)
       ));
       const tokens30d = new Set();
-      let count24h = 0;
+      let count7d = 0;
       tickerSnap.docs.forEach((d) => {
         const r = d.data() || {};
         const t = tsMillis(r.createdAt);
         if (!t) return;
         if (t >= since30d && r.volunteerToken) tokens30d.add(r.volunteerToken);
-        if (t >= since24h) count24h += 1;
+        if (t >= since7d) count7d += 1;
       });
 
       setStat("month", {
         num: formatNum(tokens30d.size),
-        foot: "gönüllü, son 30 günde rapor verdi"
+        foot: "gönüllü, son 30 günde katkı verdi"
       });
       setStat("day", {
-        num: formatNum(count24h),
-        foot: count24h === 1 ? "yeni rapor" : "yeni rapor"
+        num: formatNum(count7d),
+        foot: "son 7 günde katkı"
       });
     } catch (err) {
       hideStats();

@@ -9,6 +9,7 @@ Live one-way sync from a shared Google Sheet ("Tarih Vakfı Gönüllü Ağı") i
 3. **Schema-tolerant.** Renamed/missing/extra columns produce a "degraded" sync log + alert email, never a crash.
 4. **Structure-change detection.** Each run captures `{ tabs: [{ name, headers, rowCount }, ...] }` and diffs against the last accepted baseline. Drift triggers a single email per 24 h via the per-subject cooldown.
 5. **Sharing-loss detection.** Three consecutive permission failures (≈3 hours at the hourly cadence) pause sync and email the admin.
+6. **Public projection.** After the private mirror is updated, the script publishes only sanitized aggregate/ticker data to `publicProjectStats` and `publicTicker` for the homepage. It never publishes volunteer names, notes, links, scanner/computer labels, raw sheet row ids, or raw document identifiers.
 
 ## Setup — manual steps
 
@@ -53,6 +54,8 @@ Verify in Firestore:
 - `sheets/gunluk_akis/rows/row2` — first data row of the Günlük Akış tab.
 - `config/sheetSync` — has `lastGoodStructure`, `enabled: true`, `consecutiveAccessFailures: 0`.
 - `syncLogs/<auto>` — at least one entry with `status: "baseline_set"`.
+- `publicProjectStats/pnb` — has non-zero aggregate totals if the `PNB Sayısallaştırma` tab is present.
+- `publicTicker/sheet_*` — contains anonymous public-safe activity rows if dated volunteer rows exist.
 
 ### 5. Register the hourly trigger
 
@@ -134,6 +137,14 @@ sheets/
         _contentHash  : sha1(headers+row)    (skip-write key)
         _syncedAt     : server timestamp
         _history      : [<prior shapes>]    (capped at 10 entries)
+
+publicProjectStats/
+  pnb                                      ← sanitized homepage aggregate
+    totalPages, donePages, totalUnits, doneUnits, updatedAt
+
+publicTicker/
+  sheet_{tabSlug}_row{N}                   ← deterministic, anonymous row
+    createdAt, effort, materialCategory, projectId, volunteerToken
 ```
 
 ### Key naming
@@ -150,6 +161,15 @@ The current design:
 - A SHA-1 hash of the row content is stored on the doc. If the next sync sees the same hash for the same row, it's a no-op — no Firestore write at all.
 - If the hash changes (cell edited), the prior doc body is pushed onto a `_history` array (capped at 10 entries) and the doc is overwritten with the new content. Past states are preserved without storage growing unboundedly.
 - Sheet rows that disappear leave the Firestore doc in place. A `_seen` field could be added later if surfaces need to distinguish "currently in sheet" vs. "was in sheet, now gone".
+
+## Public homepage projection
+
+The public page never reads `/sheets`. `SheetSync.gs` derives a separate, tiny public projection:
+
+- `publicProjectStats/pnb`: total pages/units from `PNB Sayısallaştırma`; completed pages/units from dated PNB detail tabs.
+- `publicTicker/sheet_*`: one deterministic anonymous entry per dated volunteer row from `Günlük Akış` and PNB detail tabs.
+
+Volunteer names from the sheet are used only inside Apps Script to compute a monthly `volunteerToken` with a secret HMAC salt; the name itself is never written. If `PUBLIC_TICKER_TOKEN_SALT` is set in Script Properties, that value is used as the HMAC secret. Otherwise the service-account private key is used as the hidden secret.
 
 ## Test plan
 

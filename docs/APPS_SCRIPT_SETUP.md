@@ -27,7 +27,7 @@ Script bu sekmeyi haftalık özet için doldurur.
 1. Google Sheet açın.
 2. `Extensions > Apps Script` ile script projesi oluşturun.
 3. `apps-script/` klasöründeki dosyaları yapıştırın.
-4. `Project Settings > Script properties` altında `FIREBASE_SERVICE_ACCOUNT`, `TARIH_VAKFI_SHEET_ID` ve `SYNC_ALERT_EMAIL` değerlerini ekleyin.
+4. `Project Settings > Script properties` altında `FIREBASE_SERVICE_ACCOUNT`, `TARIH_VAKFI_SHEET_ID` ve `SYNC_ALERT_EMAIL` değerlerini ekleyin. İsterseniz public ticker token'ları için ayrıca `PUBLIC_TICKER_TOKEN_SALT` ekleyin; yoksa service-account private key gizli salt olarak kullanılır.
 5. Kaynak "Tarih Vakfı Gönüllü Ağı" Google Sheet'ini service account e-postasıyla Viewer olarak paylaşın.
 6. Önce `sheetSyncRun()` fonksiyonunu bir kez manuel çalıştırın ve Firestore'da `config/sheetSync`, `syncLogs` ve `sheets/*` kayıtlarını kontrol edin.
 7. Sonra `createTriggers()` fonksiyonunu çalıştırın.

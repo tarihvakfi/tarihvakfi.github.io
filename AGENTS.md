@@ -452,6 +452,7 @@ Highlights worth knowing without opening the README:
   2. *Access loss* — three consecutive permission failures (~3 hours) flip `config/sheetSync.enabled` to `false` and email the admin. Recovery: re-add the service account as Viewer, then "Senkronizasyonu yeniden başlat" → `sheetSyncResume()`.
   3. *Tab error* — a single tab fails its read while others succeed. Logged as `tab_error`, the rest of the run continues, status becomes `degraded`.
 - **No automatic schema migration.** If a column rename happens, the new key is what subsequent sync writes use. Existing docs keep their old keys until they're rewritten by an edit. Don't assume any specific column name will exist forever.
+- **Public projection.** The raw `/sheets` mirror stays admin-only. After each sync, `SheetSync.gs` publishes a sanitized homepage projection into `publicProjectStats/pnb` and deterministic `publicTicker/sheet_*` docs. The public projection contains aggregate counts plus anonymous coarse activity categories only — no names, notes, links, scanner/computer labels, sheet row ids, or raw document identifiers.
 - **The sheet owner never gets system mail.** Only the admin (`SYNC_ALERT_EMAIL`) is alerted. Owner communication is human-to-human.
 
 ## Code quality

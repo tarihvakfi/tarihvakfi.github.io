@@ -146,6 +146,15 @@ function sheetSyncRun() {
     }
   });
 
+  let publicProjectionSummary = null;
+  try {
+    publicProjectionSummary = _publishPublicProjectionFromSheet_(sheetId, metadata);
+  } catch (err) {
+    degraded = true;
+    publicProjectionSummary = { error: String(err) };
+    _logSyncEvent_('public_projection_error', { error: String(err) });
+  }
+
   // Step 4 — write the run summary and persist updated config.
   const status = degraded ? 'degraded' : 'ok';
   config.lastSyncAt = startedAt.toISOString();
@@ -155,7 +164,8 @@ function sheetSyncRun() {
     tabs: perTabSummary,
     totalWritten: totalWritten,
     totalSkipped: totalSkipped,
-    structureChanges: structureChanges
+    structureChanges: structureChanges,
+    publicProjection: publicProjectionSummary
   };
   _saveConfig_(config);
 
@@ -518,6 +528,329 @@ function _listMirrorDocs_(collectionPath) {
     safety -= 1;
   } while (nextPageToken && safety > 0);
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Public landing projection
+// ---------------------------------------------------------------------------
+//
+// The raw /sheets mirror is admin-only because the source sheet contains names,
+// internal notes, equipment labels, and other operational context. The public
+// homepage reads only /publicProjectStats and /publicTicker, so each sync also
+// publishes a tiny, privacy-safe projection:
+//   - aggregate PNB page/unit counts
+//   - anonymous recent activity rows with coarse material categories
+//
+// No volunteer names, notes, sheet row ids, links, scanner labels, or raw unit
+// identifiers are written to the public collections.
+
+function _publishPublicProjectionFromSheet_(sheetId, metadata) {
+  const projection = _buildPublicProjectionFromSheet_(sheetId, metadata);
+  const writes = [];
+
+  if (projection.hasStats) {
+    writes.push(_buildSetWrite_('publicProjectStats/pnb', {
+      totalPages: projection.totalPages,
+      donePages: projection.donePages,
+      totalUnits: projection.totalUnits,
+      doneUnits: projection.doneUnits,
+      updatedAt: fsServerTimestamp()
+    }));
+  }
+
+  projection.tickerEntries.forEach(function (entry) {
+    writes.push(_buildSetWrite_('publicTicker/' + entry.id, {
+      createdAt: entry.createdAt,
+      effort: entry.effort,
+      materialCategory: entry.materialCategory,
+      projectId: entry.projectId,
+      volunteerToken: entry.volunteerToken
+    }));
+  });
+
+  while (writes.length > 0) {
+    fsCommit_(writes.splice(0, 400));
+  }
+  return {
+    totalPages: projection.totalPages,
+    donePages: projection.donePages,
+    totalUnits: projection.totalUnits,
+    doneUnits: projection.doneUnits,
+    statsWritten: projection.hasStats,
+    tickerWritten: projection.tickerEntries.length
+  };
+}
+
+function _buildPublicProjectionFromSheet_(sheetId, metadata) {
+  const tabs = ((metadata && metadata.sheets) || []).map(function (s) {
+    return (s.properties && s.properties.title) || '';
+  }).filter(Boolean);
+
+  let totalPages = 0;
+  let totalUnits = 0;
+  const summaryTab = tabs.find(function (name) {
+    return _slugifyTabName_(name) === 'pnb_sayisallastirma';
+  });
+  if (summaryTab) {
+    const summaryRows = _readPublicSheetRows_(sheetId, summaryTab);
+    const summary = _summarizePnbOverviewRows_(summaryRows);
+    totalPages = summary.totalPages;
+    totalUnits = summary.totalUnits;
+  }
+
+  let donePages = 0;
+  let doneUnits = 0;
+  let tickerEntries = [];
+  tabs.forEach(function (tabName) {
+    const slug = _slugifyTabName_(tabName);
+    const rows = _readPublicSheetRows_(sheetId, tabName);
+    if (slug === 'gunluk_akis') {
+      tickerEntries = tickerEntries.concat(_tickerFromDailyFlowRows_(slug, rows));
+      return;
+    }
+    if (slug.indexOf('pnb_') === 0 && slug !== 'pnb_sayisallastirma') {
+      const detail = _summarizePnbDetailRows_(slug, rows);
+      donePages += detail.donePages;
+      doneUnits += detail.doneUnits;
+      tickerEntries = tickerEntries.concat(detail.tickerEntries);
+    }
+  });
+
+  tickerEntries = _dedupePublicTickerEntries_(tickerEntries)
+    .sort(function (a, b) { return b.createdAt.getTime() - a.createdAt.getTime(); })
+    .slice(0, 500);
+
+  return {
+    hasStats: totalPages > 0 || totalUnits > 0,
+    totalPages: Math.max(0, Math.round(totalPages)),
+    donePages: Math.max(0, Math.round(totalPages > 0 ? Math.min(donePages, totalPages) : donePages)),
+    totalUnits: Math.max(0, Math.round(totalUnits)),
+    doneUnits: Math.max(0, Math.round(totalUnits > 0 ? Math.min(doneUnits, totalUnits) : doneUnits)),
+    tickerEntries: tickerEntries
+  };
+}
+
+function _readPublicSheetRows_(sheetId, tabName) {
+  const range = tabName + '!A1:J1000';
+  const matrix = _readSheetValues_(sheetId, range);
+  if (!matrix || matrix.length < 2) return [];
+  const headers = (matrix[0] || []).map(function (h, idx) {
+    const key = _slugifyHeaderToKey_(h);
+    return key || ('column' + (idx + 1));
+  });
+  const rows = [];
+  for (let i = 1; i < matrix.length; i++) {
+    const raw = matrix[i] || [];
+    const allBlank = raw.every(function (v) { return v == null || String(v).trim() === ''; });
+    if (allBlank) continue;
+    const row = { _sourceRow: i + 1, _raw: raw };
+    headers.forEach(function (key, idx) {
+      row[key] = raw[idx] == null ? null : raw[idx];
+    });
+    rows.push(row);
+  }
+  return rows;
+}
+
+function _summarizePnbOverviewRows_(rows) {
+  let totalPages = 0;
+  let totalUnits = 0;
+  rows.forEach(function (row) {
+    const pages = _parseDoneTotalCell_(row.sayfaSayisi);
+    totalPages += pages.total;
+    totalUnits += _numberOrZero_(row.belgeSayisi);
+  });
+  return { totalPages: totalPages, totalUnits: totalUnits };
+}
+
+function _summarizePnbDetailRows_(tabSlug, rows) {
+  let donePages = 0;
+  let doneUnits = 0;
+  const tickerEntries = [];
+  rows.forEach(function (row) {
+    const pages = _parseDoneTotalCell_(row.sayfaSayisi != null ? row.sayfaSayisi : row.sayfa);
+    const pageCount = pages.done || pages.total;
+    if (pageCount > 0) donePages += pageCount;
+    doneUnits += 1;
+
+    const createdAt = _parseSheetDate_(row.tarih);
+    const person = _stringValue_(row.kaydiOlusuran || row.kaydiOlusturan || row.paydas);
+    if (!createdAt || !person) return;
+    tickerEntries.push({
+      id: _publicTickerDocId_('sheet_' + tabSlug + '_row' + row._sourceRow),
+      createdAt: createdAt,
+      effort: 'medium',
+      materialCategory: _materialCategoryFromPublicRow_(row),
+      projectId: 'pnb',
+      volunteerToken: _publicVolunteerToken_(person, createdAt)
+    });
+  });
+  return { donePages: donePages, doneUnits: doneUnits, tickerEntries: tickerEntries };
+}
+
+function _tickerFromDailyFlowRows_(tabSlug, rows) {
+  const entries = [];
+  rows.forEach(function (row) {
+    const createdAt = _parseSheetDate_(row.tarih);
+    const person = _stringValue_(row.paydas || row.kaydiOlusuran || row.kaydiOlusturan);
+    if (!createdAt || !person) return;
+    const scope = _publicProjectIdFromRow_(row);
+    entries.push({
+      id: _publicTickerDocId_('sheet_' + tabSlug + '_row' + row._sourceRow),
+      createdAt: createdAt,
+      effort: 'medium',
+      materialCategory: _materialCategoryFromPublicRow_(row),
+      projectId: scope,
+      volunteerToken: _publicVolunteerToken_(person, createdAt)
+    });
+  });
+  return entries;
+}
+
+function _dedupePublicTickerEntries_(entries) {
+  const seen = {};
+  const out = [];
+  entries.forEach(function (entry) {
+    if (!entry || !entry.id || seen[entry.id]) return;
+    seen[entry.id] = true;
+    out.push(entry);
+  });
+  return out;
+}
+
+function _parseDoneTotalCell_(value) {
+  if (value == null || value === '') return { done: 0, total: 0 };
+  if (typeof value === 'number') return { done: 0, total: value };
+  const s = String(value).trim();
+  const fraction = s.match(/^([\d.,]+)\s*\/\s*([\d.,]+)$/);
+  if (fraction) {
+    return {
+      done: _parseLocaleNumber_(fraction[1]),
+      total: _parseLocaleNumber_(fraction[2])
+    };
+  }
+  const n = _parseLocaleNumber_(s);
+  return { done: 0, total: n };
+}
+
+function _parseLocaleNumber_(value) {
+  if (value == null || value === '') return 0;
+  if (typeof value === 'number') return isFinite(value) ? value : 0;
+  const s = String(value).trim().replace(/\s+/g, '');
+  if (!s) return 0;
+  const normalized = s.indexOf(',') >= 0 && s.indexOf('.') >= 0
+    ? s.replace(/\./g, '').replace(',', '.')
+    : s.replace(',', '.');
+  const n = Number(normalized.replace(/[^\d.-]/g, ''));
+  return isFinite(n) ? n : 0;
+}
+
+function _numberOrZero_(value) {
+  return _parseLocaleNumber_(value);
+}
+
+function _parseSheetDate_(value) {
+  if (!value && value !== 0) return null;
+  if (value instanceof Date && !isNaN(value.getTime())) return value;
+  if (typeof value === 'number' && isFinite(value)) {
+    // Google Sheets serial date: days since 1899-12-30.
+    const ms = Math.round((value - 25569) * 86400000);
+    const d = new Date(ms);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const s = String(value).trim();
+  if (!s) return null;
+  const turkishLong = s.match(/^(\d{1,2})\s+([A-Za-zÇĞİÖŞÜçğıöşü]+)\s+(\d{4})$/);
+  if (turkishLong) {
+    const month = _turkishMonthIndex_(turkishLong[2]);
+    if (month >= 0) return new Date(Number(turkishLong[3]), month, Number(turkishLong[1]), 12, 0, 0);
+  }
+  const numeric = s.match(/^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{2,4})$/);
+  if (numeric) {
+    let year = Number(numeric[3]);
+    if (year < 100) year += 2000;
+    return new Date(year, Number(numeric[2]) - 1, Number(numeric[1]), 12, 0, 0);
+  }
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function _turkishMonthIndex_(monthName) {
+  const key = _asciiFold_(monthName).toLowerCase();
+  const months = {
+    ocak: 0, subat: 1, mart: 2, nisan: 3, mayis: 4, haziran: 5,
+    temmuz: 6, agustos: 7, eylul: 8, ekim: 9, kasim: 10, aralik: 11
+  };
+  return Object.prototype.hasOwnProperty.call(months, key) ? months[key] : -1;
+}
+
+function _materialCategoryFromPublicRow_(row) {
+  const haystack = _asciiFold_([
+    row.calismaAlani,
+    row.devamEdenCalisma,
+    row.dijitalBelgeKodu,
+    row.notlar
+  ].join(' ')).toLowerCase();
+  if (haystack.indexOf('foto') >= 0 || haystack.indexOf('gorsel') >= 0) return 'fotoğraflar';
+  if (haystack.indexOf('mektup') >= 0) return 'mektuplar';
+  if (haystack.indexOf('kitap') >= 0) return 'kitap metinleri';
+  if (haystack.indexOf('ders') >= 0) return 'ders notları';
+  if (haystack.indexOf('envanter') >= 0) return 'envanter';
+  if (haystack.indexOf('toplanti') >= 0 || haystack.indexOf('koordinasyon') >= 0) return 'genel';
+  return 'belgeler';
+}
+
+function _publicProjectIdFromRow_(row) {
+  const haystack = _asciiFold_([
+    row.fon,
+    row.fonAdi,
+    row.calismaAlani,
+    row.devamEdenCalisma,
+    row.dijitalBelgeKodu,
+    row.notlar
+  ].join(' ')).toLowerCase();
+  return haystack.indexOf('pnb') >= 0 || haystack.indexOf('boratav') >= 0 ? 'pnb' : 'foundation';
+}
+
+function _publicVolunteerToken_(name, date) {
+  const normalized = _asciiFold_(name).toLowerCase().replace(/\s+/g, ' ').trim();
+  if (!normalized) return '';
+  const d = date instanceof Date && !isNaN(date.getTime()) ? date : new Date();
+  const monthSalt = Utilities.formatDate(d, SHEET_SYNC_TIMEZONE_, 'yyyy-MM');
+  const secret = _publicTickerSecret_();
+  const payload = normalized + '|' + monthSalt + '|tarih-vakfi-public-ticker';
+  const bytes = Utilities.computeHmacSha256Signature(payload, secret);
+  return _bytesToHex_(bytes).slice(0, 16);
+}
+
+function _publicTickerSecret_() {
+  const props = PropertiesService.getScriptProperties();
+  const explicit = props.getProperty('PUBLIC_TICKER_TOKEN_SALT');
+  if (explicit) return explicit;
+  const sa = getServiceAccount_();
+  return (sa && sa.private_key) || 'tarih-vakfi-public-ticker-fallback';
+}
+
+function _publicTickerDocId_(value) {
+  return _slugifyTabName_(value).slice(0, 120) || ('sheet_' + _hashText_(value).slice(0, 16));
+}
+
+function _hashText_(value) {
+  const bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_1, String(value || ''));
+  return _bytesToHex_(bytes);
+}
+
+function _bytesToHex_(bytes) {
+  let hex = '';
+  for (let i = 0; i < bytes.length; i++) {
+    const b = (bytes[i] + 256) % 256;
+    hex += (b < 16 ? '0' : '') + b.toString(16);
+  }
+  return hex;
+}
+
+function _stringValue_(value) {
+  return value == null ? '' : String(value).trim();
 }
 
 function _collectionListUrl_(collectionPath, pageToken) {

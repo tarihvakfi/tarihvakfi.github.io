@@ -343,7 +343,8 @@ service cloud.firestore {
     // Public landing page surfaces. These two collections exist purely to
     // expose privacy-safe aggregates and a denormalized recent-activity
     // ticker to unauthenticated visitors of the public site. They are
-    // populated by the authenticated dashboard at report-submit time.
+    // populated by the authenticated dashboard at report-submit time and by
+    // Apps Script's sheet-sync public projection.
     //
     // Why a separate collection: Firestore rules grant read at the document
     // level, not the field level. Exposing /reports publicly would leak
