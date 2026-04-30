@@ -34,10 +34,8 @@
       <!-- Tabs are role-scoped via .volunteer-tab / .staff-tab / .admin-tab.
            Visibility is set in CSS on body.volunteer-shell / body.staff-shell
            and unhidden by setRoleShell() at auth time.
-           Volunteer:  Anasayfa, Duyurular
-                       (PNB appears only when volunteerPnbTab is enabled)
-           Coordinator: Bugün, Yönetim
-           Admin:       Bugün, Yönetim, Bakım
+           Volunteer:  single Anasayfa cockpit
+           Coordinator/Admin: single Bugün cockpit
            PNB is volunteer-only — the staff body of #tab-pnb has been empty
            since Prompt P, and the legacy "İşler" relabel of this button for
            staff was retired alongside it. A coordinator who lands on
@@ -80,6 +78,12 @@
               <p id="vpProjectsTitle" class="vp-section-eyebrow">Aktif projeler</p>
               <div id="vpProjectsList" class="vp-projects-list"></div>
             </div>
+            <section class="volunteer-cockpit-group" id="volunteerAnnouncementsGroup" aria-label="Duyurular">
+              <div id="volunteerAnnouncementsMount"></div>
+            </section>
+            <section class="volunteer-cockpit-group hidden" id="volunteerProjectWorkspaceGroup" aria-label="Proje çalışma alanı">
+              <div id="volunteerProjectWorkspaceMount"></div>
+            </section>
             <!-- Telegram link card. Filled by renderTelegramCard() in
                  dashboard.js. Two states: unlinked (button to generate a
                  6-digit code) and linked (last-seen + revoke button).

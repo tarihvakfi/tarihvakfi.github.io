@@ -1709,6 +1709,7 @@ body.modal-open { overflow: hidden; }
 /* Tab-bar visibility per role. */
 body.volunteer-shell .tab-bar .staff-tab,
 body.volunteer-shell .tab-bar .admin-tab { display: none !important; }
+body.volunteer-shell .tab-bar { display: none !important; }
 body.staff-shell .tab-bar { display: none !important; }
 body.staff-shell .tab-bar .volunteer-tab { display: none !important; }
 body:not(.admin-shell) .admin-only-block { display: none !important; }
@@ -2203,6 +2204,17 @@ body.staff-shell #volunteerPnbView { display: none !important; }
 
 /* ---------- Volunteer Anasayfa (Aktif projeler) ---------- */
 .vp-anasayfa { display: flex; flex-direction: column; gap: 1.25rem; margin-top: 1rem; }
+.volunteer-cockpit-group {
+  display: grid;
+  gap: 1rem;
+}
+.volunteer-cockpit-group.hidden { display: none; }
+.volunteer-cockpit-card {
+  margin-top: 0 !important;
+}
+.volunteer-cockpit-card#volunteerPnbView {
+  padding-top: 0;
+}
 .vp-section-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--tblr-secondary); margin: 0 0 .5rem; }
 .vp-projects-list { display: grid; grid-template-columns: 1fr; gap: .75rem; }
 .vp-project-card {

@@ -101,17 +101,12 @@ function defaultTabForRole() {
   return "anasayfa";
 }
 
-// PNB is no longer a default volunteer surface while coordination is
-// sheet-led. Volunteers always get Anasayfa + Duyurular, and the PNB
-// workspace appears only when volunteerProjectIds() says they have access
-// (currently the volunteerPnbTab feature flag). Staff still route away from
-// #pnb because the staff PNB tab body was retired in Prompt P.
+// Staff and volunteers now each have one cockpit route. Legacy hashes like
+// #duyurular, #pnb, #yonetim, and #bakim resolve to the role's cockpit while
+// their useful sections are mounted inside that page.
 function allowedTabsForRole() {
   if (isStaff()) return ["bugun"];
-  const tabs = ["anasayfa"];
-  if (volunteerProjectIds().includes(PNB_PROJECT_ID)) tabs.push("pnb");
-  tabs.push("duyurular");
-  return tabs;
+  return ["anasayfa"];
 }
 
 function resolveTab(rawName) {
@@ -167,6 +162,15 @@ function syncRouteFromHash() {
   const target = resolveTab(raw);
   sw(target, { skipHashWrite: true });
   if (target !== raw) history.replaceState(null, "", `#${target}`);
+  if (!isStaff()) {
+    const legacy = TAB_ALIASES[raw] || raw;
+    const scrollId = legacy === "duyurular"
+      ? "volunteerAnnouncementsGroup"
+      : legacy === "pnb"
+        ? "volunteerProjectWorkspaceGroup"
+        : "";
+    if (scrollId) setTimeout(() => document.getElementById(scrollId)?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+  }
 }
 
 function htmlEmpty(message) {
@@ -430,11 +434,12 @@ function setRoleShell(staff) {
   document.body.classList.toggle("volunteer-shell", !staff);
   document.body.classList.toggle("staff-shell", staff);
   document.body.classList.toggle("admin-shell", isAdmin());
-  // Volunteers see Anasayfa / Duyurular by default. The PNB button is an
-  // opt-in project surface while coordination is sheet-led.
+  // Volunteers and staff each get a single cockpit. Legacy tab buttons stay in
+  // the markup for older code paths, but the tab bar is hidden by role CSS.
   const volunteerHasPnb = !staff && volunteerProjectIds().includes(PNB_PROJECT_ID);
   document.querySelector('[data-tab="pnb"]')?.classList.toggle("hidden", !volunteerHasPnb);
   document.querySelectorAll(".admin-only-block").forEach((item) => item.classList.toggle("hidden", !isAdmin()));
+  mountVolunteerCockpitSections();
   mountManagerCockpitSections();
   const labels = staff
     ? { bugun: "Bugün", yonetim: "Yönetim", bakim: "Bakım" }
@@ -3244,7 +3249,7 @@ function renderVolunteerActiveProjects() {
     // Optional shortDescription from projects/{projectId} could be wired in
     // here once that field is populated; for now we use the registry default.
     const desc = meta.fallbackDescription;
-    return `<button type="button" class="vp-project-card" data-go-tab="${escapeHTML(meta.tab)}">
+    return `<button type="button" class="vp-project-card" data-go-tab="${escapeHTML(meta.tab)}" data-scroll-to="volunteerProjectWorkspaceGroup">
       <div>
         <p class="vp-pname">${escapeHTML(meta.name)}</p>
         ${desc ? `<p class="vp-pdesc">${escapeHTML(desc)}</p>` : ""}
@@ -3643,6 +3648,7 @@ function renderVolunteerReportPrimary() {
     wrap.classList.add("hidden");
     return;
   }
+  mountVolunteerCockpitSections();
   wrap.classList.remove("hidden");
   // Mount the Anasayfa inline form once. The PNB form is mounted only when
   // the project workspace is enabled for this volunteer. Both calls are
@@ -3780,6 +3786,25 @@ function renderCoordinatorHomeHeader() {
 function managerSetText(id, value) {
   const el = document.getElementById(id);
   if (el) el.textContent = value;
+}
+
+function moveVolunteerCard(cardId, mountId) {
+  const card = document.getElementById(cardId);
+  const mount = document.getElementById(mountId);
+  if (!card || !mount) return;
+  if (card.parentElement !== mount) mount.appendChild(card);
+  card.classList.add("volunteer-cockpit-card");
+}
+
+function mountVolunteerCockpitSections() {
+  if (isStaff()) return;
+  moveVolunteerCard("announcementsCard", "volunteerAnnouncementsMount");
+  const hasPnb = volunteerProjectIds().includes(PNB_PROJECT_ID);
+  const projectGroup = document.getElementById("volunteerProjectWorkspaceGroup");
+  const pnbView = document.getElementById("volunteerPnbView");
+  if (projectGroup) projectGroup.classList.toggle("hidden", !hasPnb);
+  if (pnbView) pnbView.classList.toggle("hidden", !hasPnb);
+  if (hasPnb) moveVolunteerCard("volunteerPnbView", "volunteerProjectWorkspaceMount");
 }
 
 function moveManagerCard(cardId, mountId) {
@@ -7555,6 +7580,7 @@ document.addEventListener("click", async (event) => {
   const tabTarget = event.target.closest("[data-go-tab]");
   if (tabTarget) {
     const tabName = tabTarget.dataset.goTab === "tasks" ? "pnb" : tabTarget.dataset.goTab;
+    const resolvedTab = resolveTab(tabName);
     // If the element also carries data-status-filter, apply it on the İşler tab.
     const statusFilter = tabTarget.dataset.statusFilter;
     if (statusFilter !== undefined) {
@@ -7562,7 +7588,14 @@ document.addEventListener("click", async (event) => {
       if (select) { select.value = statusFilter || ""; renderArchiveUnits(); }
     }
     sw(tabName);
-    const scrollTarget = tabTarget.dataset.scrollTo ? document.getElementById(tabTarget.dataset.scrollTo) : document.getElementById(`tab-${tabName}`);
+    let scrollTarget = tabTarget.dataset.scrollTo ? document.getElementById(tabTarget.dataset.scrollTo) : null;
+    if (!scrollTarget && !isStaff() && (tabName === "pnb" || tabName === "tasks")) {
+      scrollTarget = document.getElementById("volunteerProjectWorkspaceGroup") || document.getElementById("volunteerPnbView");
+    }
+    if (!scrollTarget && !isStaff() && (tabName === "duyurular" || tabName === "announcements")) {
+      scrollTarget = document.getElementById("volunteerAnnouncementsGroup") || document.getElementById("announcementsCard");
+    }
+    if (!scrollTarget) scrollTarget = document.getElementById(`tab-${resolvedTab}`);
     if (scrollTarget?.tagName === "DETAILS") scrollTarget.open = true;
     scrollTarget?.scrollIntoView({ behavior: "smooth", block: "start" });
     const focusId = tabTarget.dataset.focus;
