@@ -35,15 +35,15 @@
            Visibility is set in CSS on body.volunteer-shell / body.staff-shell
            and unhidden by setRoleShell() at auth time.
            Volunteer:  Anasayfa, PNB, Duyurular
-           Coordinator: Bugün, PNB, Yönetim
-           Admin:       Bugün, PNB, Yönetim, Bakım
-           PNB is shared between volunteers and staff again: the new İş Akışı
-           board is the single source of truth for active work across roles,
-           with staff getting drag-drop + edit access while volunteers stay
-           read-only. Bugün remains the staff landing tab. -->
+           Coordinator: Bugün, Yönetim
+           Admin:       Bugün, Yönetim, Bakım
+           PNB is volunteer-only — the staff body of #tab-pnb has been empty
+           since Prompt P, and the legacy "İşler" relabel of this button for
+           staff was retired alongside it. A coordinator who lands on
+           /app/#pnb is redirected to #bugun by resolveTab(). -->
       <button class="tab volunteer-tab" data-tab="anasayfa">Anasayfa</button>
       <button class="tab staff-tab hidden" data-tab="bugun">Bugün</button>
-      <button class="tab" data-tab="pnb">PNB</button>
+      <button class="tab volunteer-tab" data-tab="pnb">PNB</button>
       <button class="tab volunteer-tab" data-tab="duyurular">Duyurular</button>
       <button class="tab staff-tab hidden" data-tab="yonetim">Yönetim</button>
       <button class="tab admin-tab hidden" data-tab="bakim">Bakım</button>

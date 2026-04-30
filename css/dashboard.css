@@ -997,10 +997,15 @@
   font-style: italic;
 }
 
-/* Düzenle button on a log row. Hidden by default; revealed on row hover or
-   when the button itself receives keyboard focus (so the keyboard path stays
-   reachable). For rows where canEditReport(r) is false the button isn't
-   rendered at all, so the selector below never targets a no-op element. */
+/* Düzenle button. The visibility GATE is canEditReport(r) at render time —
+   if it returns false, the button is omitted from the markup entirely.
+   Two visual placements:
+     - Volunteer "Son raporların" rows: button sits on the collapsed line
+       with hover-reveal (no expand body to host it).
+     - Coordinator Bugün rows: button lives inside .bugun-recent-actions
+       (rendered in the toggle-revealed expand body), and is fully
+       visible there — no hover gating needed since the expand itself
+       gates visibility. */
 .sv-log-edit {
   flex-shrink: 0;
   margin-left: .25rem;
@@ -1016,12 +1021,18 @@
 }
 .sv-log-row:hover .sv-log-edit,
 .sv-log-edit:focus,
-.sv-log-edit:focus-visible {
+.sv-log-edit:focus-visible,
+.bugun-recent-expand .sv-log-edit {
   opacity: 1;
 }
 .sv-log-edit:hover {
   background: var(--tblr-bg-surface-secondary);
   color: var(--tblr-body-color);
+}
+.bugun-recent-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: .35rem;
 }
 
 /* Optional "Tümünü göster →" footer — hidden today (no full history view

@@ -79,9 +79,14 @@ function isAdmin() {
 // default tab instead of 404'ing.
 
 // Legacy tab aliases — keep buttons / links that still reference the old
-// names working without rewiring every caller.
+// names working without rewiring every caller. The `isler` / `tasks` /
+// `pano` aliases used to point at #pnb on the staff side; with PNB now
+// volunteer-only (see allowedTabsForRole below), resolveTab will fall
+// through to defaultTabForRole() for staff visiting those legacy hashes,
+// landing them on #bugun automatically.
 const TAB_ALIASES = {
   tasks: "pnb",
+  isler: "pnb",
   home: "anasayfa",       // resolved further by role inside resolveTab()
   pano: "pnb",            // legacy alias; volunteers land on PNB tab
   reports: "anasayfa",    // legacy "Rapor Yaz" tab → anasayfa for volunteers,
@@ -96,12 +101,14 @@ function defaultTabForRole() {
   return "anasayfa";
 }
 
-// PNB is shared again: both volunteers and staff can reach the tab. Staff
-// land on Bugün by default but can navigate into PNB to use the İş Akışı
-// kanban (with drag-drop / edit access).
+// PNB is volunteer-only. Staff used to share the tab (it doubled as
+// "İşler" via a setRoleShell relabel) but the tab body had no staff
+// content after Prompt P emptied it, so the relabel and the staff entry
+// here are gone. A coordinator who lands on /app/#pnb (or any of the
+// pnb aliases above) is redirected to #bugun by resolveTab below.
 function allowedTabsForRole() {
-  if (isAdmin()) return ["bugun", "pnb", "yonetim", "bakim"];
-  if (isStaff()) return ["bugun", "pnb", "yonetim"];
+  if (isAdmin()) return ["bugun", "yonetim", "bakim"];
+  if (isStaff()) return ["bugun", "yonetim"];
   return ["anasayfa", "pnb", "duyurular"];
 }
 
@@ -346,6 +353,21 @@ function statusLabel(status) {
   return archiveStatusLabels[status] || taskStatusLabels[status] || reportStatusLabels[status] || status || "-";
 }
 
+// Collapse pre-Prompt-K legacy status values onto the current two-state
+// display model. Reports written before the volunteer dashboard moved to
+// `in_progress` / `done` carried "submitted", "approved", or the localized
+// "Onaylandı" / "Gönderildi" strings. Treat all of those as "in_progress"
+// for display purposes — the dot icon and the (optional) status pill in
+// the expanded view both use this so the row never surfaces a stale label.
+function normalizeStatusForDisplay(status) {
+  if (status === "done") return "done";
+  if (status === "in_progress") return "in_progress";
+  if (status === "blocked") return "blocked";
+  // review and the legacy submitted/approved/Onaylandı/Gönderildi values
+  // all collapse to in_progress (they predate the current model).
+  return "in_progress";
+}
+
 function statusClass(status) {
   if (status === "approved" || status === "done") return "badge approved";
   if (status === "revision_needed" || status === "review") return "badge pending";
@@ -396,11 +418,14 @@ function assignedOpenArchiveUnits() {
 function setRoleShell(staff) {
   document.body.classList.toggle("volunteer-shell", !staff);
   document.body.classList.toggle("staff-shell", staff);
-  // Volunteers see only Anasayfa / PNB / Duyurular. Pano (top-level) and
-  // Rapor Yaz tabs are hidden via CSS for volunteers — the kanban moves
-  // under PNB and the Rapor Yaz button replaces the Rapor tab.
+  // Volunteers see Anasayfa / PNB / Duyurular. Staff see Bugün / Yönetim
+  // (and Bakım for admins) — the legacy "İşler" relabel of the PNB tab
+  // for staff was removed because the staff body of #tab-pnb has been
+  // empty since Prompt P. Tab visibility itself is handled by the
+  // .volunteer-tab / .staff-tab / .admin-tab classes in CSS plus the
+  // staff-shell rule in dashboard.css that hides .volunteer-tab.
   const labels = staff
-    ? { home: "Bugün", pano: "Pano", pnb: "İşler", reports: "Rapor Yaz", announcements: "Duyurular" }
+    ? { home: "Bugün", reports: "Rapor Yaz", announcements: "Duyurular" }
     : { home: "Anasayfa", pnb: "PNB", announcements: "Duyurular" };
   Object.entries(labels).forEach(([tab, label]) => {
     const button = document.querySelector(`[data-tab="${tab}"]`);
@@ -3518,7 +3543,11 @@ function renderCoordinatorRecentReports() {
 
 function renderCoordinatorReportLogRow(r) {
   const reportType = reportTypeOf(r);
-  const status = r.status || (r.workStatus === "unit_done" ? "done" : r.workStatus) || "in_progress";
+  // Collapsed-row dot color and the expanded status pill both use the
+  // normalized status so legacy submitted/Onaylandı/Gönderildi values
+  // surface as in_progress instead of leaking the old label.
+  const rawStatus = r.status || (r.workStatus === "unit_done" ? "done" : r.workStatus) || "in_progress";
+  const status = normalizeStatusForDisplay(rawStatus);
   const unitId = r.unitId || r.archiveUnitId || "";
   const volId = r.volunteerId || r.userUid || "";
   const volName = r.volunteerName || (volId ? findUserName(volId) : "") || r.userEmail || "—";
@@ -3543,6 +3572,11 @@ function renderCoordinatorReportLogRow(r) {
   const note = (r.note || r.summary || "").trim();
   const previewLen = 60;
   const noteSliced = note.slice(0, previewLen);
+  // The collapsed top line shows the truncated preview; the expanded body
+  // only renders the full note when there's actually MORE to read (the note
+  // exceeded the 60-char preview window). For short notes the expand omits
+  // the note entirely so we don't visually duplicate the same text twice.
+  const noteHasMore = note.length > previewLen;
   const text = prefix
     ? `<span class="sv-log-prefix">${escapeHTML(prefix)}</span> · ${escapeHTML(noteSliced)}`
     : escapeHTML(noteSliced || "—");
@@ -3551,7 +3585,6 @@ function renderCoordinatorReportLogRow(r) {
   const when = wd || toDateFromTs(r.createdAt);
   const ago = wd ? daysSinceLabel(daysSince(when)) : relativeTimeLabel(when);
 
-  const fullNote = note || "—";
   const url = r.url || (Array.isArray(r.links) && r.links[0]) || "";
 
   // On-behalf label — only shown when submittedBy is set and differs from the
@@ -3563,19 +3596,24 @@ function renderCoordinatorReportLogRow(r) {
     ? `Koordinatör ${findUserName(submittedBy) || submittedBy} tarafından, ${volName} için`
     : "";
 
+  // "Düzenlendi 5 dakika önce" line in the expand. Driven by the top-level
+  // editedAt server timestamp. Empty otherwise.
+  const editedAt = toDateFromTs(r.editedAt);
+  const editedAgo = editedAt ? `Düzenlendi ${relativeTimeLabel(editedAt)}` : "";
+
   return `<div class="sv-log-row sv-log-row--clickable bugun-recent-row" data-rtype="${escapeHTML(typeKey)}" data-status="${escapeHTML(status)}" data-bugun-row="${escapeHTML(r.id || "")}" role="button" tabindex="0">
     <span class="sv-log-dot" aria-hidden="true"></span>
     <span class="sv-log-type">${escapeHTML(typeLabel)}</span>
     <span class="bugun-recent-name">${escapeHTML(volName)}</span>
     <span class="sv-log-text">${text}</span>
     <span class="sv-log-when">${escapeHTML(ago)}${escapeHTML(editedLabel(r))}</span>
-    ${editReportButtonHtml(r)}
     <div class="bugun-recent-expand hidden" data-bugun-expand="${escapeHTML(r.id || "")}">
-      ${prefix ? `<div><strong>${escapeHTML(prefix)}</strong></div>` : ""}
-      <div class="bugun-recent-fullnote">${escapeHTML(fullNote)}</div>
+      ${prefix ? `<div class="bugun-recent-source"><strong>${escapeHTML(prefix)}</strong>${unitId ? ' · birime git →' : ''}</div>` : ""}
+      ${noteHasMore ? `<div class="bugun-recent-fullnote">${escapeHTML(note)}</div>` : ""}
       ${url ? `<div class="bugun-recent-link"><a href="${escapeHTML(url)}" target="_blank" rel="noopener" data-stop-row>${escapeHTML(url)}</a></div>` : ""}
       ${onBehalfText ? `<div class="bugun-recent-meta muted">${escapeHTML(onBehalfText)}</div>` : ""}
-      <div class="bugun-recent-meta muted">Durum: ${escapeHTML(statusLabel(status))}${unitId ? ` · birime git →` : ""}</div>
+      ${editedAgo ? `<div class="bugun-recent-meta muted">${escapeHTML(editedAgo)}</div>` : ""}
+      <div class="bugun-recent-actions">${editReportButtonHtml(r)}</div>
     </div>
   </div>`;
 }
@@ -4874,7 +4912,13 @@ async function la() {
 async function lp() {
   const snap = await getDocs(query(collection(db, "users"), where("status", "==", "pending"), limit(50)));
   const list = document.getElementById("pendingUsers");
+  // The Yönetim tab nav button used to carry a red ".count-badge" mirroring
+  // the pending count, but Bugün's bekleyen-onaylar card already surfaces
+  // the same items at the top of the staff landing tab. The badge in the
+  // nav double-counted that signal, so we strip any pre-existing badge here
+  // (a leftover from the earlier render) and never re-attach one.
   const tab = document.querySelector('[data-tab="yonetim"]');
+  tab?.querySelector(".count-badge")?.remove();
   const card = document.getElementById("yonetimPendingCard");
   const countLabel = document.getElementById("yonetimPendingCount");
   pendingApplicationCount = snap.size;
@@ -4883,19 +4927,12 @@ async function lp() {
     // Hide the entire card when there are zero pending applications.
     card?.classList.add("hidden");
     if (countLabel) countLabel.textContent = "";
-    const old = tab?.querySelector(".count-badge");
-    if (old) old.remove();
     renderHomeOverview();
     return;
   }
   if (list) list.innerHTML = snap.docs.map((item) => rpu(item.data(), item.id)).join("");
   card?.classList.remove("hidden");
   if (countLabel) countLabel.textContent = `${snap.size} kişi`;
-  if (tab) {
-    const old = tab.querySelector(".count-badge");
-    if (old) old.remove();
-    tab.insertAdjacentHTML("beforeend", `<span class="count-badge">${snap.size}</span>`);
-  }
   renderHomeOverview();
 }
 
