@@ -1111,6 +1111,8 @@ function renderPendingReviewList() {
 
 let sheetSyncConfig = null;
 let sheetSyncRecentLogs = [];
+let sheetSyncConfigError = "";
+let sheetSyncLogError = "";
 let sheetMirrorTabs = [];
 let sheetMirrorActiveTab = "";
 let sheetMirrorRows = [];
@@ -1119,12 +1121,15 @@ let sheetMirrorError = "";
 
 async function loadSheetSyncStatus() {
   if (!isAdmin()) return;
+  sheetSyncConfigError = "";
+  sheetSyncLogError = "";
   try {
     const cfgSnap = await getDoc(doc(db, "config", "sheetSync"));
     sheetSyncConfig = cfgSnap.exists() ? cfgSnap.data() : null;
   } catch (err) {
     console.warn("sheetSync config okunamadı:", err);
     sheetSyncConfig = null;
+    sheetSyncConfigError = err.message || String(err);
   }
   try {
     const snap = await getDocs(query(
@@ -1136,6 +1141,7 @@ async function loadSheetSyncStatus() {
   } catch (err) {
     console.warn("syncLogs okunamadı:", err);
     sheetSyncRecentLogs = [];
+    sheetSyncLogError = err.message || String(err);
   }
   renderSheetSyncPanel();
 }
@@ -1146,6 +1152,7 @@ async function loadSheetSyncStatus() {
 //   - green  last run was ok and within the expected hourly window
 //   - grey   no data yet (first ever load before any sync ran)
 function _sheetSyncDotState() {
+  if (sheetSyncConfigError || sheetSyncLogError) return { color: "red", label: "Okuma izni hatası" };
   if (!sheetSyncConfig) return { color: "unknown", label: "Henüz veri yok" };
   if (sheetSyncConfig.enabled === false) return { color: "red", label: "Senkronizasyon duraklatıldı" };
   const status = sheetSyncConfig.lastSyncStatus || "";
@@ -1177,7 +1184,9 @@ function renderSheetSyncPanel() {
     dot.title = state.label;
   }
   if (statusLine) {
-    if (sheetSyncConfig) {
+    if (sheetSyncConfigError) {
+      statusLine.textContent = `Sheet sync ayarları okunamadı: ${sheetSyncConfigError}`;
+    } else if (sheetSyncConfig) {
       const lastSyncAt = sheetSyncConfig.lastSyncAt ? new Date(sheetSyncConfig.lastSyncAt) : null;
       const lastAgo = lastSyncAt && !isNaN(lastSyncAt.getTime()) ? relativeTimeLabel(lastSyncAt) : "—";
       const summary = sheetSyncConfig.lastSyncSummary || {};
@@ -1237,7 +1246,9 @@ function renderSheetSyncPanel() {
 
   // Run-log feed.
   if (logEl) {
-    if (!sheetSyncRecentLogs.length) {
+    if (sheetSyncLogError) {
+      logEl.innerHTML = `<p class="empty">Senkronizasyon olayları okunamadı: ${escapeHTML(sheetSyncLogError)}</p>`;
+    } else if (!sheetSyncRecentLogs.length) {
       logEl.innerHTML = '<p class="empty">Henüz senkronizasyon olayı yok.</p>';
     } else {
       logEl.innerHTML = sheetSyncRecentLogs.map(_renderSyncLogRow).join("");

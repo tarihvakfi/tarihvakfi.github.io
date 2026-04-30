@@ -22,7 +22,7 @@ Gönüllüler ekipteki herkesin telefon/e-posta/uygunluk bilgisini görmez. PNB 
 
 ## Sheet sync gizlilik modeli
 
-Apps Script service account, Firestore REST API üzerinden `/config/sheetSync`, `/syncLogs` ve `/sheets/{tabSlug}/rows/{rowId}` mirror kayıtlarını yazar; service account Firestore rules'u bypass eder. Web istemcisinde bu koleksiyonlar admin-read-only tutulur. Ham Google Sheet satırları isim, not ve ekipman bilgisi içerebildiği için public landing veya gönüllü dashboard'u bu mirror'u okuyamaz.
+Apps Script service account, Firestore REST API üzerinden `/config/sheetSync`, `/syncLogs`, `/sheets/{tabSlug}` ve `/sheets/{tabSlug}/rows/{rowId}` mirror kayıtlarını yazar; service account Firestore rules'u bypass eder. Web istemcisinde bu koleksiyonlar admin-read-only tutulur. Ham Google Sheet satırları isim, not ve ekipman bilgisi içerebildiği için public landing veya gönüllü dashboard'u bu mirror'u okuyamaz.
 
 ## Manuel kurulum notu
 

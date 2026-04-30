@@ -428,7 +428,12 @@ service cloud.firestore {
     // volunteer-internal context that hasn't been sanitised for broader
     // exposure. To open a specific tab to volunteers later, add a more
     // permissive rule above this one keyed on a particular tabSlug.
-    match /sheets/{tabSlug}/{document=**} {
+    match /sheets/{tabSlug} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /sheets/{tabSlug}/rows/{rowId} {
       allow read: if isAdmin();
       allow create, update, delete: if false;
     }
