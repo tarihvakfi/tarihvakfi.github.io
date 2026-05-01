@@ -1,0 +1,30 @@
+[
+  {
+    "id": "KnMk7BB5nosZjsa8B40a",
+    "title": "Duyuru 2",
+    "body": "Deneme duyurusu iki, üç, dört.",
+    "audience": "volunteers",
+    "department": "",
+    "createdByUid": "ekTPH3LD4QQKwyTkLS264Q44XfI2",
+    "createdAt": {
+      "_seconds": 1775561912,
+      "_nanoseconds": 295000000
+    },
+    "updatedAt": {
+      "_seconds": 1775561912,
+      "_nanoseconds": 295000000
+    }
+  },
+  {
+    "id": "ih59Hz0tE8oRE4iGYotb",
+    "title": "Deneme Duyuru",
+    "body": "Merhabalar,\nBu bir deneme duyuru mesajıdır. Dikkate almayınız.\nTeşekkürler.",
+    "audience": "volunteers",
+    "department": "",
+    "createdByUid": "ekTPH3LD4QQKwyTkLS264Q44XfI2",
+    "createdAt": {
+      "_seconds": 1775557754,
+      "_nanoseconds": 404000000
+    }
+  }
+]
