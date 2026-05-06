@@ -1123,36 +1123,9 @@
   background: var(--tblr-bg-surface);
   color: var(--tblr-body-color);
 }
-.sheet-mirror-resize {
-  display: inline-flex;
-  align-items: center;
-  gap: .45rem;
-  flex: 1 1 320px;
-  min-width: min(320px, 100%);
-  max-width: 560px;
-  height: 30px;
-  padding: 0 .65rem;
-  border: 1px solid var(--tblr-border-color);
-  border-radius: 6px;
-  background: var(--tblr-bg-surface);
-}
-.sheet-mirror-resize span {
-  color: var(--tblr-secondary);
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-.sheet-mirror-resize input[type="range"] {
-  flex: 1 1 auto;
-  width: auto;
-  min-width: 90px;
-  height: auto;
-  padding: 0;
-  border: 0;
-  box-shadow: none;
-}
+.sheet-mirror-controls .btn { flex: 0 0 auto; }
 .sheet-mirror-table-wrap {
-  overflow-x: auto;
+  overflow-x: visible;
   border: 1px solid var(--tblr-border-color);
   border-radius: 8px;
   max-width: 100%;
@@ -1160,7 +1133,7 @@
 }
 .sheet-mirror-table {
   width: 100%;
-  min-width: var(--sheet-mirror-min-width, 1320px);
+  min-width: 0;
   table-layout: fixed;
   border-collapse: collapse;
   font-size: 13px;
@@ -1180,22 +1153,78 @@
   font-size: 12px;
   font-weight: 700;
   color: var(--tblr-secondary);
-  white-space: nowrap;
-  overflow-wrap: normal;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .sheet-mirror-table tr:last-child td { border-bottom: 0; }
 .sheet-mirror-note {
   margin: .55rem .65rem;
   font-size: 12px;
 }
-.sheet-mirror-table .sheet-col--row { width: 4.5rem; }
-.sheet-mirror-table .sheet-col--tarih { width: 7rem; }
-.sheet-mirror-table .sheet-col--paydas { width: 10rem; }
-.sheet-mirror-table .sheet-col--calisma-alani { width: 12rem; }
-.sheet-mirror-table .sheet-col--devam-eden-calisma { width: 18rem; }
-.sheet-mirror-table .sheet-col--bilgisayar { width: 7rem; }
-.sheet-mirror-table .sheet-col--tarayici { width: 7rem; }
-.sheet-mirror-table .sheet-col--notlar { width: 25rem; }
+.sheet-mirror-table .sheet-col--row { width: 5%; }
+.sheet-mirror-table .sheet-col--tarih { width: 9%; }
+.sheet-mirror-table .sheet-col--paydas { width: 13%; }
+.sheet-mirror-table .sheet-col--calisma-alani { width: 15%; }
+.sheet-mirror-table .sheet-col--devam-eden-calisma { width: 19%; }
+.sheet-mirror-table .sheet-col--bilgisayar { width: 8%; }
+.sheet-mirror-table .sheet-col--tarayici { width: 8%; }
+.sheet-mirror-table .sheet-col--notlar { width: 23%; }
+
+@media (max-width: 1100px) {
+  .sheet-mirror-table-wrap {
+    border: 0;
+    background: transparent;
+  }
+  .sheet-mirror-table,
+  .sheet-mirror-table tbody,
+  .sheet-mirror-table tr,
+  .sheet-mirror-table td {
+    display: block;
+    width: 100%;
+  }
+  .sheet-mirror-table colgroup,
+  .sheet-mirror-table thead {
+    display: none;
+  }
+  .sheet-mirror-table tbody {
+    display: grid;
+    gap: .75rem;
+  }
+  .sheet-mirror-table tr {
+    padding: .7rem .85rem;
+    border: 1px solid var(--tblr-border-color);
+    border-radius: 8px;
+    background: var(--tblr-bg-surface);
+  }
+  .sheet-mirror-table td {
+    display: grid;
+    grid-template-columns: minmax(112px, 30%) minmax(0, 1fr);
+    gap: .65rem;
+    padding: .42rem 0;
+    border-bottom: 1px solid var(--tblr-border-color);
+  }
+  .sheet-mirror-table tr:last-child td:not(:last-child) {
+    border-bottom: 1px solid var(--tblr-border-color);
+  }
+  .sheet-mirror-table tr td:last-child {
+    border-bottom: 0;
+  }
+  .sheet-mirror-table td::before {
+    content: attr(data-label);
+    color: var(--tblr-secondary);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+}
+
+@media (max-width: 640px) {
+  .sheet-mirror-table td {
+    grid-template-columns: 1fr;
+    gap: .12rem;
+  }
+}
 
 /* Optional "Tümünü göster →" footer — hidden today (no full history view
    exists for volunteers). The slot is in the markup so it's there if/when
@@ -2263,9 +2292,7 @@ body.staff-shell {
   .sheet-sync-actions .btn { width: 100%; }
   .sheet-mirror-controls { justify-content: stretch; }
   .sheet-mirror-controls select,
-  .sheet-mirror-controls .btn,
-  .sheet-mirror-resize { width: 100%; }
-  .sheet-mirror-resize input[type="range"] { flex: 1 1 auto; width: auto; }
+  .sheet-mirror-controls .btn { width: 100%; }
   .manager-sheet-row { grid-template-columns: 1fr; }
   .manager-sheet-row-num { grid-row: auto; width: max-content; }
 }
