@@ -1129,6 +1129,35 @@ let sheetMirrorActiveTab = "";
 let sheetMirrorRows = [];
 let sheetMirrorRowsLoading = false;
 let sheetMirrorError = "";
+const SHEET_MIRROR_WIDTH_KEY = "tarihVakfi.sheetMirrorWidth";
+let sheetMirrorTableWidth = initialSheetMirrorTableWidth();
+
+function initialSheetMirrorTableWidth() {
+  try {
+    const stored = Number(localStorage.getItem(SHEET_MIRROR_WIDTH_KEY));
+    if (stored >= 900 && stored <= 2200) return stored;
+  } catch (error) {
+    // Private browsing can block localStorage; keep the default width.
+  }
+  return 1320;
+}
+
+function setSheetMirrorTableWidth(value, persist) {
+  const next = Math.min(2200, Math.max(900, Number(value) || 1320));
+  sheetMirrorTableWidth = next;
+  document.documentElement.style.setProperty("--sheet-mirror-min-width", `${next}px`);
+  const input = document.getElementById("sheetMirrorWidthRange");
+  if (input) input.value = String(next);
+  if (persist !== false) {
+    try {
+      localStorage.setItem(SHEET_MIRROR_WIDTH_KEY, String(next));
+    } catch (error) {
+      // Non-critical: the live resize still works for this session.
+    }
+  }
+}
+
+setSheetMirrorTableWidth(sheetMirrorTableWidth, false);
 
 async function loadSheetSyncStatus() {
   if (!isAdmin()) return;
@@ -1330,6 +1359,7 @@ function renderSheetMirrorPanel() {
   const summaryEl = document.getElementById("sheetMirrorSummary");
   const tableEl = document.getElementById("sheetMirrorTable");
   const activeTab = sheetMirrorTabs.find((t) => t.slug === sheetMirrorActiveTab);
+  setSheetMirrorTableWidth(sheetMirrorTableWidth, false);
 
   if (select) {
     select.disabled = sheetMirrorTabs.length === 0;
@@ -6932,6 +6962,12 @@ document.addEventListener("change", (event) => {
   }
   if (event.target?.id === "managerSheetTabSelect") {
     loadSheetMirrorRows(event.target.value);
+  }
+});
+
+document.addEventListener("input", (event) => {
+  if (event.target?.id === "sheetMirrorWidthRange") {
+    setSheetMirrorTableWidth(event.target.value, true);
   }
 });
 

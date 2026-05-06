@@ -1084,6 +1084,30 @@
   background: var(--tblr-bg-surface);
   color: var(--tblr-body-color);
 }
+.sheet-mirror-resize {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  min-width: 210px;
+  height: 30px;
+  padding: 0 .65rem;
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 6px;
+  background: var(--tblr-bg-surface);
+}
+.sheet-mirror-resize span {
+  color: var(--tblr-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.sheet-mirror-resize input[type="range"] {
+  width: 100px;
+  height: auto;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+}
 .sheet-mirror-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--tblr-border-color);
@@ -1093,7 +1117,7 @@
 }
 .sheet-mirror-table {
   width: 100%;
-  min-width: 1320px;
+  min-width: var(--sheet-mirror-min-width, 1320px);
   table-layout: fixed;
   border-collapse: collapse;
   font-size: 13px;
@@ -1945,10 +1969,17 @@ body.staff-shell .dashboard {
 .manager-cockpit-group {
   display: grid;
   gap: 1rem;
+  min-width: 0;
 }
 .manager-cockpit-group.hidden { display: none; }
 .manager-cockpit-card {
   margin-top: 0 !important;
+}
+.manager-workbench {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  margin-top: 1rem;
 }
 .manager-panel {
   background: var(--tblr-bg-surface, #fff);
@@ -2115,20 +2146,7 @@ body.staff-shell .dashboard {
   body.staff-shell .manager-layout {
     grid-template-columns: minmax(0, 1fr) clamp(300px, 21vw, 380px);
   }
-  body.staff-shell .manager-main {
-    display: contents;
-  }
-  body.staff-shell .manager-main > .manager-panel {
-    grid-column: 1;
-    min-width: 0;
-  }
-  body.staff-shell .manager-main > .manager-cockpit-group {
-    grid-column: 1 / -1;
-    min-width: 0;
-  }
   body.staff-shell .manager-side {
-    grid-column: 2;
-    grid-row: 1 / span 4;
     position: sticky;
     top: 72px;
     max-height: calc(100vh - 88px);
@@ -2166,6 +2184,11 @@ body.staff-shell .dashboard {
   .manager-sheet-actions { justify-content: stretch; }
   .manager-sheet-actions select,
   .manager-sheet-actions .btn { width: 100%; }
+  .sheet-mirror-controls { justify-content: stretch; }
+  .sheet-mirror-controls select,
+  .sheet-mirror-controls .btn,
+  .sheet-mirror-resize { width: 100%; }
+  .sheet-mirror-resize input[type="range"] { flex: 1 1 auto; width: auto; }
   .manager-sheet-row { grid-template-columns: 1fr; }
   .manager-sheet-row-num { grid-row: auto; width: max-content; }
 }

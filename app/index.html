@@ -201,15 +201,6 @@
             </div>
           </section>
 
-          <section class="manager-cockpit-group" id="managerPeopleGroup" aria-label="Ekip yönetimi">
-            <div id="managerUsersMount"></div>
-            <div id="managerFeedMount"></div>
-          </section>
-
-          <section class="manager-cockpit-group admin-only-block hidden" id="managerSheetGroup" aria-label="Sheet ayrıntıları">
-            <div id="managerSheetSyncMount"></div>
-            <div id="managerSheetMirrorMount"></div>
-          </section>
         </main>
 
         <aside class="manager-side">
@@ -234,6 +225,18 @@
           </section>
         </aside>
       </div>
+
+      <section class="manager-workbench" aria-label="Yönetim çalışma alanı">
+        <section class="manager-cockpit-group" id="managerPeopleGroup" aria-label="Ekip yönetimi">
+          <div id="managerUsersMount"></div>
+          <div id="managerFeedMount"></div>
+        </section>
+
+        <section class="manager-cockpit-group admin-only-block hidden" id="managerSheetGroup" aria-label="Sheet ayrıntıları">
+          <div id="managerSheetSyncMount"></div>
+          <div id="managerSheetMirrorMount"></div>
+        </section>
+      </section>
     </section>
 
     <section id="tab-pnb" class="tab-content hidden">
@@ -635,6 +638,10 @@
           </div>
           <div class="sheet-mirror-controls">
             <select id="sheetMirrorTabSelect" aria-label="Sheet sekmesi"></select>
+            <label class="sheet-mirror-resize" title="Tablo genişliği">
+              <span>Tablo genişliği</span>
+              <input id="sheetMirrorWidthRange" type="range" min="900" max="2200" step="50" value="1320" />
+            </label>
             <button class="btn btn-secondary btn-sm" type="button" id="sheetMirrorRefreshBtn">Yenile</button>
           </div>
         </div>
