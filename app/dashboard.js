@@ -105,11 +105,11 @@ function defaultTabForRole() {
   return "anasayfa";
 }
 
-// Staff and volunteers now each have one cockpit route. Legacy hashes like
-// #duyurular, #pnb, #yonetim, and #bakim resolve to the role's cockpit while
-// their useful sections are mounted inside that page.
+// Staff get a compact command center plus focused workspaces. Volunteers stay
+// on the report-first cockpit unless a project tab is explicitly enabled.
 function allowedTabsForRole() {
-  if (isStaff()) return ["bugun"];
+  if (isAdmin()) return ["bugun", "yonetim", "bakim"];
+  if (isStaff()) return ["bugun", "yonetim"];
   return ["anasayfa"];
 }
 
@@ -438,9 +438,13 @@ function setRoleShell(staff) {
   document.body.classList.toggle("volunteer-shell", !staff);
   document.body.classList.toggle("staff-shell", staff);
   document.body.classList.toggle("admin-shell", isAdmin());
-  // Volunteers and staff each get a single cockpit. Legacy tab buttons stay in
-  // the markup for older code paths, but the tab bar is hidden by role CSS.
   const volunteerHasPnb = !staff && volunteerProjectIds().includes(PNB_PROJECT_ID);
+  document.querySelectorAll(".volunteer-tab").forEach((tab) => {
+    const isPnb = tab.dataset.tab === "pnb";
+    tab.classList.toggle("hidden", staff || (isPnb && !volunteerHasPnb));
+  });
+  document.querySelectorAll(".staff-tab").forEach((tab) => tab.classList.toggle("hidden", !staff));
+  document.querySelectorAll(".admin-tab").forEach((tab) => tab.classList.toggle("hidden", !isAdmin()));
   document.querySelector('[data-tab="pnb"]')?.classList.toggle("hidden", !volunteerHasPnb);
   document.querySelectorAll(".admin-only-block").forEach((item) => item.classList.toggle("hidden", !isAdmin()));
   mountVolunteerCockpitSections();
@@ -3822,24 +3826,10 @@ function mountVolunteerCockpitSections() {
   if (hasPnb) moveVolunteerCard("volunteerPnbView", "volunteerProjectWorkspaceMount");
 }
 
-function moveManagerCard(cardId, mountId) {
-  const card = document.getElementById(cardId);
-  const mount = document.getElementById(mountId);
-  if (!card || !mount) return;
-  if (card.parentElement !== mount) mount.appendChild(card);
-  card.classList.add("manager-cockpit-card");
-}
-
 function mountManagerCockpitSections() {
   if (!isStaff()) return;
-  moveManagerCard("yonetimUsersCard", "managerUsersMount");
-  moveManagerCard("yonetimFeedCard", "managerFeedMount");
-  const sheetGroup = document.getElementById("managerSheetGroup");
-  if (sheetGroup) sheetGroup.classList.toggle("hidden", !isAdmin());
-  if (isAdmin()) {
-    moveManagerCard("sheetSyncCard", "managerSheetSyncMount");
-    moveManagerCard("sheetMirrorCard", "managerSheetMirrorMount");
-  }
+  // Bugün is the daily command center; Yönetim and Bakım keep their own cards
+  // in their own tabs. This hook stays as a stable no-op for older callers.
 }
 
 function bugunPendingUsers() {
@@ -4085,7 +4075,7 @@ function renderBugunWarnings() {
       key: "silent",
       text: `${silent.length} sessiz gönüllü (≥21 gün rapor yok).`,
       action: () => {
-        sw("bugun");
+        sw("yonetim");
         // Pre-set the Yönetim filter to "silent" so the user lands on the right slice.
         document.querySelectorAll("[data-yonetim-filter]").forEach((b) => b.classList.toggle("is-on", b.dataset.yonetimFilter === "silent"));
         if (typeof renderYonetimUserDirectory === "function") renderYonetimUserDirectory();
@@ -4136,7 +4126,7 @@ function renderBugunWarnings() {
 // can call it without re-running render to find the right item.
 const bugunWarningActions = {
   silent: () => {
-    sw("bugun");
+    sw("yonetim");
     document.querySelectorAll("[data-yonetim-filter]").forEach((b) => b.classList.toggle("is-on", b.dataset.yonetimFilter === "silent"));
     if (typeof renderYonetimUserDirectory === "function") renderYonetimUserDirectory();
     document.getElementById("yonetimUsersCard")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -7471,8 +7461,9 @@ document.addEventListener("click", async (event) => {
   if (managerGo) {
     const tabName = managerGo.dataset.managerGo || "bugun";
     sw(tabName);
-    if (managerGo.dataset.managerFilter === "silent") {
-      document.querySelectorAll("[data-yonetim-filter]").forEach((b) => b.classList.toggle("is-on", b.dataset.yonetimFilter === "silent"));
+    const managerFilter = managerGo.dataset.managerFilter || "";
+    if (managerFilter) {
+      document.querySelectorAll("[data-yonetim-filter]").forEach((b) => b.classList.toggle("is-on", b.dataset.yonetimFilter === managerFilter));
       if (typeof renderYonetimUserDirectory === "function") renderYonetimUserDirectory();
     }
     const targetId = managerGo.dataset.scrollTo;
@@ -7562,7 +7553,7 @@ document.addEventListener("click", async (event) => {
     return;
   }
   if (event.target.closest("#managerSheetOpenDetails")) {
-    sw("bugun");
+    sw("bakim");
     setTimeout(() => document.getElementById("sheetMirrorCard")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
     return;
   }
@@ -8791,7 +8782,7 @@ if (!auth || !db) {
     setRoleShell(staff);
     hu.textContent = cp.fullName || user.email;
     if (staff) {
-      document.querySelectorAll(".staff-tab").forEach((tab) => tab.classList.toggle("hidden", tab.dataset.tab !== "bugun"));
+      document.querySelectorAll(".staff-tab").forEach((tab) => tab.classList.remove("hidden"));
       document.querySelectorAll(".staff-only").forEach((item) => item.classList.remove("hidden"));
       // Note: #adminTaskForm and #adminAnnouncementForm now live inside the
       // Yönetim tab as collapsible expanders, toggled by their respective
@@ -8800,6 +8791,8 @@ if (!auth || !db) {
       document.getElementById("reportUserRow")?.classList.remove("hidden");
     }
     if (isAdmin()) {
+      document.querySelectorAll(".admin-tab").forEach((tab) => tab.classList.remove("hidden"));
+    } else {
       document.querySelectorAll(".admin-tab").forEach((tab) => tab.classList.add("hidden"));
     }
     // Defense-in-depth: each post-auth load is awaited inside its own

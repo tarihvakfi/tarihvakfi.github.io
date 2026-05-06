@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler-flags.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.3.0/dist/tabler-icons.min.css" />
   <link rel="stylesheet" href="../css/main.css" />
-  <link rel="stylesheet" href="../css/dashboard.css?v=20260506-5" />
+  <link rel="stylesheet" href="../css/dashboard.css?v=20260506-6" />
 </head>
 <body>
   <header class="site-header">
@@ -117,19 +117,19 @@
       </header>
 
       <section class="manager-overview" aria-label="Bugünkü özet">
-        <button type="button" class="manager-summary-card" data-manager-go="bugun" data-scroll-to="yonetimUsersCard">
+        <button type="button" class="manager-summary-card" data-manager-go="yonetim" data-scroll-to="yonetimUsersCard" data-manager-filter="pending">
           <span class="manager-card-icon"><i class="ti ti-user-check" aria-hidden="true"></i></span>
           <span class="manager-card-label">Bekleyen onay</span>
           <strong id="managerPendingValue">0</strong>
           <span id="managerPendingHint">Başvuru yok</span>
         </button>
-        <button type="button" class="manager-summary-card" data-manager-go="bugun" data-scroll-to="yonetimUsersCard" data-manager-filter="silent">
+        <button type="button" class="manager-summary-card" data-manager-go="yonetim" data-scroll-to="yonetimUsersCard" data-manager-filter="silent">
           <span class="manager-card-icon"><i class="ti ti-bell-off" aria-hidden="true"></i></span>
           <span class="manager-card-label">Sessiz gönüllü</span>
           <strong id="managerSilentValue">0</strong>
           <span id="managerSilentHint">Takip gerekmiyor</span>
         </button>
-        <button type="button" class="manager-summary-card admin-only-block hidden" data-manager-go="bugun" data-scroll-to="sheetMirrorCard">
+        <button type="button" class="manager-summary-card admin-only-block hidden" data-manager-go="bakim" data-scroll-to="sheetMirrorCard">
           <span class="manager-card-icon"><i class="ti ti-table" aria-hidden="true"></i></span>
           <span class="manager-card-label">Sheet durumu</span>
           <strong id="managerSheetValue">—</strong>
@@ -151,7 +151,7 @@
                 <p class="bugun-section-h">Bekleyen onaylar <span class="muted" id="bugunPendingCount"></span></p>
                 <h2>Yeni başvurular</h2>
               </div>
-              <button type="button" class="btn btn-secondary btn-sm" data-manager-go="bugun" data-scroll-to="yonetimUsersCard">Listede aç</button>
+              <button type="button" class="btn btn-secondary btn-sm" data-manager-go="yonetim" data-scroll-to="yonetimUsersCard" data-manager-filter="pending">Listede aç</button>
             </div>
             <div id="bugunPendingList" class="bugun-pending-list"></div>
           </section>
@@ -164,26 +164,6 @@
               </div>
             </div>
             <div id="bugunWarnings" class="bugun-warnings"></div>
-          </section>
-
-          <section class="manager-panel manager-sheet-panel admin-only-block hidden" id="managerSheetCard">
-            <div class="manager-panel-head manager-panel-head--split">
-              <div>
-                <p class="bugun-section-h">Canlı Sheet</p>
-                <h2>Google Sheet güncellemeleri</h2>
-                <p class="muted" id="managerSheetSummary">Yükleniyor…</p>
-              </div>
-              <div class="manager-sheet-actions">
-                <select id="managerSheetTabSelect" aria-label="Sheet sekmesi"></select>
-                <button type="button" class="btn btn-secondary btn-sm" id="managerSheetRefresh"><i class="ti ti-refresh" aria-hidden="true"></i> Yenile</button>
-                <button type="button" class="btn btn-secondary btn-sm" id="managerSheetOpenDetails">Ayrıntılı tablo</button>
-              </div>
-            </div>
-            <div class="manager-sheet-status">
-              <span class="sheet-sync-dot" id="managerSheetStatusDot" data-status="unknown" aria-hidden="true"></span>
-              <span id="managerSheetStatusText">Senkronizasyon bilgisi yükleniyor…</span>
-            </div>
-            <div id="managerSheetPreview" class="manager-sheet-preview"><p class="empty">Sheet satırları yükleniyor…</p></div>
           </section>
 
           <section class="manager-panel bugun-recent-section" id="bugunRecentSection">
@@ -204,13 +184,33 @@
         </main>
 
         <aside class="manager-side">
+          <section class="manager-panel manager-sheet-panel admin-only-block hidden" id="managerSheetCard">
+            <div class="manager-panel-head manager-panel-head--split">
+              <div>
+                <p class="bugun-section-h">Canlı Sheet</p>
+                <h2>Google Sheet özeti</h2>
+                <p class="muted" id="managerSheetSummary">Yükleniyor…</p>
+              </div>
+              <div class="manager-sheet-actions">
+                <select id="managerSheetTabSelect" aria-label="Sheet sekmesi"></select>
+                <button type="button" class="btn btn-secondary btn-sm" id="managerSheetRefresh"><i class="ti ti-refresh" aria-hidden="true"></i> Yenile</button>
+                <button type="button" class="btn btn-secondary btn-sm" id="managerSheetOpenDetails">Ayrıntılı tablo</button>
+              </div>
+            </div>
+            <div class="manager-sheet-status">
+              <span class="sheet-sync-dot" id="managerSheetStatusDot" data-status="unknown" aria-hidden="true"></span>
+              <span id="managerSheetStatusText">Senkronizasyon bilgisi yükleniyor…</span>
+            </div>
+            <div id="managerSheetPreview" class="manager-sheet-preview"><p class="empty">Sheet satırları yükleniyor…</p></div>
+          </section>
+
           <section class="manager-panel manager-quick-panel">
             <p class="bugun-section-h">Hızlı işlemler</p>
             <div class="manager-quick-list">
-              <button type="button" class="manager-quick-btn" data-manager-go="bugun" data-scroll-to="yonetimUsersCard"><i class="ti ti-users" aria-hidden="true"></i><span>Gönüllüleri yönet</span></button>
-              <button type="button" class="manager-quick-btn" data-manager-go="bugun" data-scroll-to="yonetimFeedList"><i class="ti ti-speakerphone" aria-hidden="true"></i><span>Duyuru / görev akışı</span></button>
-              <button type="button" class="manager-quick-btn admin-only-block hidden" data-manager-go="bugun" data-scroll-to="sheetSyncCard"><i class="ti ti-refresh-dot" aria-hidden="true"></i><span>Sheet senkronizasyonu</span></button>
-              <button type="button" class="manager-quick-btn admin-only-block hidden" data-manager-go="bugun" data-scroll-to="sheetMirrorCard"><i class="ti ti-table" aria-hidden="true"></i><span>Canlı Sheet aynası</span></button>
+              <button type="button" class="manager-quick-btn" data-manager-go="yonetim" data-scroll-to="yonetimUsersCard"><i class="ti ti-users" aria-hidden="true"></i><span>Gönüllüleri yönet</span></button>
+              <button type="button" class="manager-quick-btn" data-manager-go="yonetim" data-scroll-to="yonetimFeedCard"><i class="ti ti-speakerphone" aria-hidden="true"></i><span>Duyuru / görev akışı</span></button>
+              <button type="button" class="manager-quick-btn admin-only-block hidden" data-manager-go="bakim" data-scroll-to="sheetSyncCard"><i class="ti ti-refresh-dot" aria-hidden="true"></i><span>Sheet senkronizasyonu</span></button>
+              <button type="button" class="manager-quick-btn admin-only-block hidden" data-manager-go="bakim" data-scroll-to="sheetMirrorCard"><i class="ti ti-table" aria-hidden="true"></i><span>Canlı Sheet aynası</span></button>
             </div>
           </section>
 
@@ -225,24 +225,6 @@
           </section>
         </aside>
       </div>
-
-      <section class="manager-workbench" aria-label="Yönetim çalışma alanı">
-        <div class="manager-workbench-head">
-          <div>
-            <p class="bugun-section-h">Çalışma alanı</p>
-            <h2>Yönetim ve kayıtlar</h2>
-          </div>
-        </div>
-        <section class="manager-cockpit-group" id="managerPeopleGroup" aria-label="Ekip yönetimi">
-          <div id="managerUsersMount"></div>
-          <div id="managerFeedMount"></div>
-        </section>
-
-        <section class="manager-cockpit-group admin-only-block hidden" id="managerSheetGroup" aria-label="Sheet ayrıntıları">
-          <div id="managerSheetSyncMount"></div>
-          <div id="managerSheetMirrorMount"></div>
-        </section>
-      </section>
     </section>
 
     <section id="tab-pnb" class="tab-content hidden">
