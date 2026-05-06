@@ -38,42 +38,48 @@ document.querySelectorAll("[id^=signOutBtn]").forEach(btn => {
   btn.addEventListener("click", async () => { if (!auth) return; await signOut(auth); });
 });
 
-googleSignInBtn?.addEventListener("click", async () => {
-  if (!auth || !provider) { alert(missingConfigMessage); return; }
-  try {
-    googleSignInBtn.disabled = true;
-    googleSignInBtn.textContent = "Giriş yapılıyor...";
-    await signInWithPopup(auth, provider);
-  } catch (error) {
-    console.error(error);
-    showMessage("authStatus", "Giriş sırasında hata oluştu.", "danger");
-    googleSignInBtn.disabled = false;
-    googleSignInBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 48 48" style="flex-shrink:0"><path fill="#4285F4" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#34A853" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.03 24.03 0 0 0 0 21.56l7.98-6.19z"/><path fill="#EA4335" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Google ile giriş yap';
-  }
-});
-
-applicationForm?.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  if (!auth?.currentUser || !db) { showMessage("applicationMessage", "Önce giriş yapmalısınız.", "danger"); return; }
-  const current = auth.currentUser;
-  try {
-    const ref = doc(db, "users", current.uid);
-    const existing = await getDoc(ref);
-    const rhythmValue = rhythmInput?.value ? rhythmInput.value : null;
-    if (existing.exists()) {
-      await updateDoc(ref, { fullName: fullNameInput.value.trim(), phone: phoneInput.value.trim(), department: departmentInput.value, notes: notesInput.value.trim(), rhythm: rhythmValue, updatedAt: serverTimestamp(), lastSeenAt: serverTimestamp() });
-    } else {
-      await setDoc(ref, { uid: current.uid, fullName: fullNameInput.value.trim(), email: current.email || "", phone: phoneInput.value.trim(), department: departmentInput.value, role: "volunteer", status: "pending", notes: notesInput.value.trim(), rhythm: rhythmValue, createdAt: serverTimestamp(), updatedAt: serverTimestamp(), lastSeenAt: serverTimestamp() });
+if (googleSignInBtn) {
+  googleSignInBtn.addEventListener("click", async () => {
+    if (!auth || !provider) { alert(missingConfigMessage); return; }
+    try {
+      googleSignInBtn.disabled = true;
+      googleSignInBtn.textContent = "Giriş yapılıyor...";
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error(error);
+      showMessage("authStatus", "Giriş sırasında hata oluştu.", "danger");
+      googleSignInBtn.disabled = false;
+      googleSignInBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 48 48" style="flex-shrink:0"><path fill="#4285F4" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#34A853" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.03 24.03 0 0 0 0 21.56l7.98-6.19z"/><path fill="#EA4335" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Google ile giriş yap';
     }
-    const latest = await loadUserProfile(current);
-    routeUser(latest, current);
-  } catch (error) { console.error(error); showMessage("applicationMessage", "Başvuru kaydedilirken hata oluştu.", "danger"); }
-});
+  });
+}
 
-editProfileBtn?.addEventListener("click", () => { showStep("application"); });
+if (applicationForm) {
+  applicationForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!auth || !auth.currentUser || !db) { showMessage("applicationMessage", "Önce giriş yapmalısınız.", "danger"); return; }
+    const current = auth.currentUser;
+    try {
+      const ref = doc(db, "users", current.uid);
+      const existing = await getDoc(ref);
+      const rhythmValue = rhythmInput && rhythmInput.value ? rhythmInput.value : null;
+      if (existing.exists()) {
+        await updateDoc(ref, { fullName: fullNameInput.value.trim(), phone: phoneInput.value.trim(), department: departmentInput.value, notes: notesInput.value.trim(), rhythm: rhythmValue, updatedAt: serverTimestamp(), lastSeenAt: serverTimestamp() });
+      } else {
+        await setDoc(ref, { uid: current.uid, fullName: fullNameInput.value.trim(), email: current.email || "", phone: phoneInput.value.trim(), department: departmentInput.value, role: "volunteer", status: "pending", notes: notesInput.value.trim(), rhythm: rhythmValue, createdAt: serverTimestamp(), updatedAt: serverTimestamp(), lastSeenAt: serverTimestamp() });
+      }
+      const latest = await loadUserProfile(current);
+      routeUser(latest, current);
+    } catch (error) { console.error(error); showMessage("applicationMessage", "Başvuru kaydedilirken hata oluştu.", "danger"); }
+  });
+}
+
+if (editProfileBtn) {
+  editProfileBtn.addEventListener("click", () => { showStep("application"); });
+}
 
 async function checkPreregistration(authUser) {
-  if (!db || !authUser?.email) return null;
+  if (!db || !authUser || !authUser.email) return null;
   var email = authUser.email.toLowerCase();
   var preRef = doc(db, "preregistered", email);
   var preSnap = await getDoc(preRef);

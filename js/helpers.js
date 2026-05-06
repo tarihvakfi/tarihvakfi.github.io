@@ -11,7 +11,7 @@ export function setHTML(id, value) {
 export function formatDate(value) {
   if (!value) return "-";
   try {
-    const date = typeof value?.toDate === "function" ? value.toDate() : new Date(value);
+    const date = value && typeof value.toDate === "function" ? value.toDate() : new Date(value);
     return new Intl.DateTimeFormat("tr-TR", { dateStyle: "medium" }).format(date);
   } catch (error) {
     return String(value);
@@ -20,11 +20,11 @@ export function formatDate(value) {
 
 export function escapeHTML(value = "") {
   return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 export function showMessage(id, message, tone = "muted") {

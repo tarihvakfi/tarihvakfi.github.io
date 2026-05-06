@@ -19,17 +19,6 @@ let auth = null;
 let db = null;
 let provider = null;
 
-async function ensureConfigLoaded() {
-  if (window.__FIREBASE_CONFIG__) return;
-  try {
-    await import("./config.firebase.js");
-  } catch (error) {
-    console.warn("config.firebase.js yüklenemedi.", error);
-  }
-}
-
-await ensureConfigLoaded();
-
 if (window.__FIREBASE_CONFIG__) {
   app = initializeApp(window.__FIREBASE_CONFIG__);
   auth = getAuth(app);
