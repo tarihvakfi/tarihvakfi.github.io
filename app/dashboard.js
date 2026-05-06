@@ -1647,7 +1647,7 @@ async function getSharedDriveUrl() {
   try {
     const snap = await getDoc(doc(db, "config", "pnb"));
     cachedSharedDriveUrl = (snap.exists() && snap.data().sharedDriveUrl) || "";
-  } catch {
+  } catch (error) {
     cachedSharedDriveUrl = "";
   }
   return cachedSharedDriveUrl;

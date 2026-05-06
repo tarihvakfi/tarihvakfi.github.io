@@ -7,7 +7,7 @@ import {
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import {
-  getFirestore,
+  initializeFirestore,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
@@ -33,7 +33,9 @@ await ensureConfigLoaded();
 if (window.__FIREBASE_CONFIG__) {
   app = initializeApp(window.__FIREBASE_CONFIG__);
   auth = getAuth(app);
-  db = getFirestore(app);
+  db = initializeFirestore(app, {
+    experimentalAutoDetectLongPolling: true
+  });
   provider = new GoogleAuthProvider();
 } else {
   console.warn(missingConfigMessage);

@@ -13,7 +13,7 @@ export function formatDate(value) {
   try {
     const date = typeof value?.toDate === "function" ? value.toDate() : new Date(value);
     return new Intl.DateTimeFormat("tr-TR", { dateStyle: "medium" }).format(date);
-  } catch {
+  } catch (error) {
     return String(value);
   }
 }
