@@ -1375,24 +1375,35 @@ function renderSheetMirrorPanel() {
     ? activeTab.headers
     : (sheetMirrorRows[0]._sourceHeaders || []);
   const keys = sheetFieldKeysFromHeaders(headers);
-  const visibleHeaders = headers.slice(0, 12);
-  const visibleKeys = keys.slice(0, 12);
-  const truncated = headers.length > visibleHeaders.length;
+  const visibleHeaders = headers;
+  const visibleKeys = keys;
   tableEl.innerHTML = `<div class="sheet-mirror-table-wrap">
     <table class="sheet-mirror-table">
+      <colgroup>
+        <col class="sheet-col--row">
+        ${visibleKeys.map((key) => `<col class="${escapeHTML(sheetColumnClass(key))}">`).join("")}
+      </colgroup>
       <thead><tr>
-        <th>Satır</th>
-        ${visibleHeaders.map((h) => `<th>${escapeHTML(h || "—")}</th>`).join("")}
+        <th class="sheet-col--row">Satır</th>
+        ${visibleHeaders.map((h, idx) => `<th class="${escapeHTML(sheetColumnClass(visibleKeys[idx]))}">${escapeHTML(h || "—")}</th>`).join("")}
       </tr></thead>
       <tbody>
         ${sheetMirrorRows.map((row) => `<tr>
-          <td>${escapeHTML(row._sourceRow || row.id)}</td>
-          ${visibleKeys.map((key) => `<td>${escapeHTML(formatSheetMirrorValue(row[key]))}</td>`).join("")}
+          <td class="sheet-col--row">${escapeHTML(row._sourceRow || row.id)}</td>
+          ${visibleKeys.map((key) => `<td class="${escapeHTML(sheetColumnClass(key))}">${escapeHTML(formatSheetMirrorValue(row[key]))}</td>`).join("")}
         </tr>`).join("")}
       </tbody>
     </table>
-    ${truncated ? '<p class="muted sheet-mirror-note">İlk 12 sütun gösteriliyor; tam veri Firestore mirror kayıtlarında duruyor.</p>' : ""}
   </div>`;
+}
+
+function sheetColumnClass(key) {
+  const slug = String(key || "column")
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return `sheet-col--${slug || "column"}`;
 }
 
 function sheetFieldKeysFromHeaders(headers) {

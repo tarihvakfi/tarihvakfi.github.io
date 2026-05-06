@@ -1088,33 +1088,47 @@
   overflow-x: auto;
   border: 1px solid var(--tblr-border-color);
   border-radius: 8px;
+  max-width: 100%;
+  background: var(--tblr-bg-surface);
 }
 .sheet-mirror-table {
   width: 100%;
-  min-width: 760px;
+  min-width: 1320px;
+  table-layout: fixed;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: 13px;
 }
 .sheet-mirror-table th,
 .sheet-mirror-table td {
-  padding: .45rem .55rem;
+  padding: .7rem .75rem;
   border-bottom: 1px solid var(--tblr-border-color);
   text-align: left;
   vertical-align: top;
   white-space: normal;
-  word-break: break-word;
+  word-break: normal;
+  overflow-wrap: anywhere;
 }
 .sheet-mirror-table th {
   background: var(--tblr-bg-surface-secondary);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
   color: var(--tblr-secondary);
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 .sheet-mirror-table tr:last-child td { border-bottom: 0; }
 .sheet-mirror-note {
   margin: .55rem .65rem;
   font-size: 12px;
 }
+.sheet-mirror-table .sheet-col--row { width: 4.5rem; }
+.sheet-mirror-table .sheet-col--tarih { width: 7rem; }
+.sheet-mirror-table .sheet-col--paydas { width: 10rem; }
+.sheet-mirror-table .sheet-col--calisma-alani { width: 12rem; }
+.sheet-mirror-table .sheet-col--devam-eden-calisma { width: 18rem; }
+.sheet-mirror-table .sheet-col--bilgisayar { width: 7rem; }
+.sheet-mirror-table .sheet-col--tarayici { width: 7rem; }
+.sheet-mirror-table .sheet-col--notlar { width: 25rem; }
 
 /* Optional "Tümünü göster →" footer — hidden today (no full history view
    exists for volunteers). The slot is in the markup so it's there if/when
@@ -1724,6 +1738,13 @@ body.volunteer-shell .staff-only-block { display: none; }
 body.volunteer-shell #staffPnbView { display: none !important; }
 body.staff-shell #volunteerPnbView { display: none !important; }
 
+/* Staff pages are operational workspaces. Let them use the browser width
+   instead of inheriting the narrower public/volunteer reading container. */
+body.staff-shell .site-header .container,
+body.staff-shell .dashboard {
+  width: calc(100% - clamp(1rem, 2.4vw, 3rem));
+}
+
 /* ---------- Bugün (coordinator/admin home — single continuous scroll) ----- */
 .bugun-head {
   display: flex; align-items: center; justify-content: space-between;
@@ -2088,6 +2109,35 @@ body.staff-shell #volunteerPnbView { display: none !important; }
 .manager-quick-btn i {
   color: var(--tblr-primary);
   font-size: 18px;
+}
+
+@media (min-width: 1101px) {
+  body.staff-shell .manager-layout {
+    grid-template-columns: minmax(0, 1fr) clamp(300px, 21vw, 380px);
+  }
+  body.staff-shell .manager-main {
+    display: contents;
+  }
+  body.staff-shell .manager-main > .manager-panel {
+    grid-column: 1;
+    min-width: 0;
+  }
+  body.staff-shell .manager-main > .manager-cockpit-group {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+  body.staff-shell .manager-side {
+    grid-column: 2;
+    grid-row: 1 / span 4;
+    position: sticky;
+    top: 72px;
+    max-height: calc(100vh - 88px);
+    overflow: auto;
+  }
+  body.staff-shell .manager-cockpit-card {
+    width: 100%;
+    min-width: 0;
+  }
 }
 
 @media (max-width: 1100px) {
