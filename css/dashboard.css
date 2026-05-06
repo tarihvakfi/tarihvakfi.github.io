@@ -471,7 +471,16 @@
   position: absolute; left: 0; top: 1rem; bottom: 1rem;
   width: 3px; background: var(--tblr-primary); border-radius: 2px;
 }
-.step-header { display: flex; justify-content: space-between; margin-bottom: .5rem; }
+.step-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: .75rem 1rem;
+  flex-wrap: wrap;
+  min-width: 0;
+  margin-bottom: .5rem;
+}
+.step-header > * { min-width: 0; max-width: 100%; }
 .step-header .eyebrow { margin: 0; }
 
 .eyebrow {
@@ -1040,6 +1049,10 @@
   display: flex;
   align-items: flex-start;
   gap: .65rem;
+  min-width: 0;
+}
+.sheet-sync-head > div {
+  min-width: 0;
 }
 .sheet-sync-dot {
   display: inline-block;
@@ -1068,6 +1081,18 @@
 .sync-log-status--warn    { color: #fff; background: #ca8a04; }
 .sync-log-status--danger  { color: #fff; background: #dc2626; }
 .sync-log-status--mute    { color: var(--tblr-secondary); }
+.sheet-sync-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: .4rem;
+  flex: 1 1 360px;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
+}
+.sheet-sync-actions .btn {
+  max-width: 100%;
+}
 .sheet-mirror-controls {
   display: flex;
   gap: .4rem;
@@ -1768,6 +1793,9 @@ body.staff-shell .site-header .container,
 body.staff-shell .dashboard {
   width: calc(100% - clamp(1rem, 2.4vw, 3rem));
 }
+body.staff-shell {
+  overflow-x: hidden;
+}
 
 /* ---------- Bugün (coordinator/admin home — single continuous scroll) ----- */
 .bugun-head {
@@ -1984,6 +2012,8 @@ body.staff-shell .dashboard {
 .manager-workbench {
   display: grid;
   gap: 1rem;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   margin-top: 1rem;
   position: relative;
@@ -1995,6 +2025,8 @@ body.staff-shell .dashboard {
   border: 1px solid var(--tblr-border-color);
   border-radius: 8px;
   padding: 1rem;
+  min-width: 0;
+  max-width: 100%;
 }
 .manager-panel.hidden { display: none; }
 .manager-panel-head {
@@ -2187,6 +2219,11 @@ body.staff-shell .dashboard {
   .manager-sheet-actions { justify-content: stretch; }
   .manager-sheet-actions select,
   .manager-sheet-actions .btn { width: 100%; }
+  .sheet-sync-actions {
+    justify-content: stretch;
+    flex-basis: 100%;
+  }
+  .sheet-sync-actions .btn { width: 100%; }
   .sheet-mirror-controls { justify-content: stretch; }
   .sheet-mirror-controls select,
   .sheet-mirror-controls .btn,
