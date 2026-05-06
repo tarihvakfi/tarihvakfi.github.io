@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler-flags.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.3.0/dist/tabler-icons.min.css" />
   <link rel="stylesheet" href="../css/main.css" />
-  <link rel="stylesheet" href="../css/dashboard.css?v=20260506-3" />
+  <link rel="stylesheet" href="../css/dashboard.css?v=20260506-4" />
 </head>
 <body>
   <header class="site-header">
@@ -227,6 +227,12 @@
       </div>
 
       <section class="manager-workbench" aria-label="Yönetim çalışma alanı">
+        <div class="manager-workbench-head">
+          <div>
+            <p class="bugun-section-h">Çalışma alanı</p>
+            <h2>Yönetim ve kayıtlar</h2>
+          </div>
+        </div>
         <section class="manager-cockpit-group" id="managerPeopleGroup" aria-label="Ekip yönetimi">
           <div id="managerUsersMount"></div>
           <div id="managerFeedMount"></div>
@@ -614,11 +620,11 @@
               <p class="muted" id="sheetSyncStatusLine" style="font-size:.85rem;margin:.15rem 0 0">Yükleniyor…</p>
             </div>
           </div>
-          <div class="sheet-sync-actions">
-            <button class="btn btn-secondary btn-sm" type="button" id="sheetSyncRefreshBtn">Yenile</button>
-            <button class="btn btn-secondary btn-sm" type="button" id="sheetSyncAcceptBtn" disabled>Yapıyı yeniden kabul et</button>
-            <button class="btn btn-primary btn-sm" type="button" id="sheetSyncResumeBtn" disabled>Senkronizasyonu yeniden başlat</button>
-          </div>
+        </div>
+        <div class="sheet-sync-actions">
+          <button class="btn btn-secondary btn-sm" type="button" id="sheetSyncRefreshBtn">Yenile</button>
+          <button class="btn btn-secondary btn-sm" type="button" id="sheetSyncAcceptBtn" disabled>Yapıyı yeniden kabul et</button>
+          <button class="btn btn-primary btn-sm" type="button" id="sheetSyncResumeBtn" disabled>Senkronizasyonu yeniden başlat</button>
         </div>
         <div id="sheetSyncAlerts" class="stack" style="margin-top:.75rem"></div>
         <p class="eyebrow" style="margin-top:1rem">Son senkronizasyon olayları</p>
@@ -636,14 +642,14 @@
             <h2 style="margin-top:0">Google Sheet içeriği</h2>
             <p class="muted" id="sheetMirrorSummary" style="font-size:.85rem;margin:.15rem 0 0">Yükleniyor...</p>
           </div>
-          <div class="sheet-mirror-controls">
-            <select id="sheetMirrorTabSelect" aria-label="Sheet sekmesi"></select>
-            <label class="sheet-mirror-resize" title="Tablo genişliği">
-              <span>Tablo genişliği</span>
-              <input id="sheetMirrorWidthRange" type="range" min="900" max="2200" step="50" value="1320" />
-            </label>
-            <button class="btn btn-secondary btn-sm" type="button" id="sheetMirrorRefreshBtn">Yenile</button>
-          </div>
+        </div>
+        <div class="sheet-mirror-controls">
+          <select id="sheetMirrorTabSelect" aria-label="Sheet sekmesi"></select>
+          <label class="sheet-mirror-resize" title="Tablo genişliği">
+            <span>Tablo genişliği</span>
+            <input id="sheetMirrorWidthRange" type="range" min="900" max="2200" step="50" value="1320" />
+          </label>
+          <button class="btn btn-secondary btn-sm" type="button" id="sheetMirrorRefreshBtn">Yenile</button>
         </div>
         <div id="sheetMirrorTable" style="margin-top:.85rem"><p class="empty">Henüz mirror verisi yok.</p></div>
       </article>
