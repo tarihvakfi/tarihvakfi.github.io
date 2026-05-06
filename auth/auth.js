@@ -1,13 +1,17 @@
-import { auth, db, provider, signInWithPopup, signOut, onAuthStateChanged, serverTimestamp, missingConfigMessage } from "../js/firebase-init.js";
+import { app, auth, provider, signInWithPopup, signOut, onAuthStateChanged, missingConfigMessage } from "../js/firebase-init.js";
 import {
+  getFirestore,
   doc,
   getDoc,
   setDoc,
   updateDoc,
-  deleteDoc
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+  deleteDoc,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-lite.js";
 import { showMessage } from "../js/helpers.js";
 import { renderUserCard } from "../js/ui.js";
+
+const db = app ? getFirestore(app) : null;
 
 const googleSignInBtn = document.getElementById("googleSignInBtn");
 const applicationForm = document.getElementById("applicationForm");

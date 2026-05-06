@@ -58,7 +58,7 @@
   const FB = "https://www.gstatic.com/firebasejs/10.12.5";
   Promise.all([
     import(`${FB}/firebase-app.js`),
-    import(`${FB}/firebase-firestore.js`)
+    import(`${FB}/firebase-firestore-lite.js`)
   ])
     .then(([{ initializeApp }, fs]) => {
       const app = initializeApp(window.__FIREBASE_CONFIG__);

@@ -1,5 +1,6 @@
-import { auth, db, signOut, onAuthStateChanged, serverTimestamp, missingConfigMessage } from "../js/firebase-init.js";
+import { app, auth, signOut, onAuthStateChanged, missingConfigMessage } from "../js/firebase-init.js";
 import {
+  getFirestore,
   collection,
   addDoc,
   doc,
@@ -15,9 +16,12 @@ import {
   updateDoc,
   writeBatch,
   arrayUnion,
-  arrayRemove
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+  arrayRemove,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-lite.js";
 import { escapeHTML, formatDate, badge } from "../js/helpers.js";
+
+const db = app ? getFirestore(app) : null;
 
 const PNB_PROJECT_ID = "pnb";
 const PNB_PROJECT_TITLE = "Pertev Naili Boratav Arşivi Dijitalleştirme";
