@@ -67,12 +67,16 @@ const reportStatusLabels = {
   approved: "Onaylandı"
 };
 
+// Coordinator role merged into admin (May 2026). Anyone with role
+// "coordinator" now sees the same UI as role "admin": Bugün cockpit with
+// the Bakım panels at the bottom. isStaff is kept as an alias because a
+// lot of legacy code branches on it; both functions return the same set.
 function isStaff() {
   return cp && (cp.role === "admin" || cp.role === "coordinator");
 }
 
 function isAdmin() {
-  return cp && cp.role === "admin";
+  return cp && (cp.role === "admin" || cp.role === "coordinator");
 }
 
 // ---------- Tab routing ----------

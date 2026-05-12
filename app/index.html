@@ -638,8 +638,11 @@
                 <label>Rol
                   <select id="addUserRole">
                     <option value="volunteer">Gönüllü</option>
-                    <option value="coordinator">Koordinatör</option>
                     <option value="admin">Yönetici</option>
+                    <!-- Coordinator role merged into admin (May 2026); option
+                         retained in DOM so legacy users with role=coordinator
+                         still parse but it's hidden from the dropdown. -->
+                    <option value="coordinator" hidden>Koordinatör</option>
                   </select>
                 </label>
                 <label>Telefon <input id="addUserPhone" type="tel" placeholder="+90 ..." /></label>
@@ -673,7 +676,7 @@
                 <select id="announcementAudience">
                   <option value="all">Tümü</option>
                   <option value="volunteers">Gönüllüler</option>
-                  <option value="coordinators">Koordinatörler</option>
+                  <option value="coordinators">Yöneticiler</option>
                 </select>
               </label>
             </div>
@@ -1169,8 +1172,3 @@
   <script type="module" src="./dashboard.js"></script>
 </body>
 </html>
-rc="../js/firebase-init.js"></script>
-  <script type="module" src="./dashboard.js"></script>
-</body>
-</html>
-l>
