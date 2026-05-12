@@ -9727,8 +9727,35 @@ function hydrateBugunWorkAreaDonut() {
   }).join("");
 }
 
+
 function _bugunReportMillis(d) {
   if (!d) return 0;
   const ts = d.createdAt || d.workDate;
   if (!ts) return 0;
-  if (typeof ts.to
+  if (typeof ts.toMillis === "function") return ts.toMillis();
+  if (typeof ts.seconds === "number") return ts.seconds * 1000;
+  if (ts instanceof Date) return ts.getTime();
+  if (typeof ts === "string") {
+    const t = Date.parse(ts);
+    return isNaN(t) ? 0 : t;
+  }
+  return 0;
+}
+
+function _bugunInitials(name) {
+  return String(name || "")
+    .split(/\s+/)
+    .map((p) => p[0] || "")
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function _bugunCapitalize(s) {
+  if (!s) return s;
+  return s.charAt(0).toLocaleUpperCase("tr") + s.slice(1);
+}
+
+function _esc(s) {
+  return typeof escapeHTML === "function" ? escapeHTML(s) : String(s == null ? "" : s);
+}
