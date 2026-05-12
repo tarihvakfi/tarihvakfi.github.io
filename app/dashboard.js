@@ -905,6 +905,10 @@ async function loadStaffRecentReports(reset = false) {
 }
 
 function renderStaffRecentReports() {
+  // Mirror the staff recent reports into the new Bugün visual panels too.
+  // Same data source, no extra read.
+  if (typeof hydrateBugunActivityPanels === "function") hydrateBugunActivityPanels();
+
   const list = document.getElementById("staffRecentList");
   if (!list) return;
   if (!staffRecentDocs.length) {
@@ -4306,6 +4310,9 @@ function renderBugun() {
   // Live PNB stats from publicProjectStats — staff-readable (allow-read: true)
   // so admin PNB hero + summary cell match the public site exactly.
   if (typeof loadPnbStatsForAdmin === "function") loadPnbStatsForAdmin();
+  // Paint activity + donut panels with whatever staffRecentDocs has now;
+  // they'll re-render via renderStaffRecentReports when more reports load.
+  if (typeof hydrateBugunActivityPanels === "function") hydrateBugunActivityPanels();
   if (isAdmin()) {
     if (typeof loadSheetSyncStatus === "function") loadSheetSyncStatus();
     if (typeof loadSheetMirrorTabs === "function") loadSheetMirrorTabs();
@@ -9558,4 +9565,203 @@ function hydrateManagerPnbCard() {
     const remaining = Math.max(0, total - done);
     sumFoot.textContent = total > 0 ? `~${fmt(remaining)} sayfa kaldı` : "yükleniyor";
   }
+}
+
+// ============================================================
+// Bugün visual layer (May 2026): Aktif gönüllüler + donut
+// ============================================================
+// Reads from existing staffRecentDocs (already loaded by
+// loadCoordinatorRecentReports) — no extra Firestore reads. Falls back to
+// silent "—" rows if data hasn't arrived yet; renderCoordinatorRecentReports
+// triggers a re-render once it does.
+
+const _BUGUN_DONUT_PALETTE = ["#94462a", "#b85c3a", "#c89b3c", "#4a7c7e", "#6b5d50", "#8a6818"];
+const _BUGUN_AV_TINTS = ["", "av-t", "av-g", "av-i"];
+
+function hydrateBugunActivityPanels() {
+  hydrateBugunActivityList();
+  hydrateBugunWorkAreaDonut();
+}
+
+function hydrateBugunActivityList() {
+  const list = document.getElementById("bugunActivityList");
+  const countEl = document.getElementById("bugunActivityCount");
+  if (!list) return;
+
+  const reports = (typeof staffRecentDocs !== "undefined" && Array.isArray(staffRecentDocs))
+    ? staffRecentDocs : [];
+  if (!reports.length) {
+    list.innerHTML = `<li class="empty">Henüz rapor yok.</li>`;
+    if (countEl) countEl.textContent = "—";
+    return;
+  }
+
+  // Group by volunteer (use userUid as primary key, fall back to userName).
+  const now = Date.now();
+  const since14d = now - 14 * 86400000;
+  const dayBuckets = new Array(14).fill(0); // not used directly; per-volunteer below
+  const byVolunteer = new Map();
+
+  reports.forEach((r) => {
+    const d = r.data || {};
+    const t = _bugunReportMillis(d);
+    if (!t || t < since14d) return;
+    const key = d.userUid || d.volunteerId || d.userName || "anon";
+    if (!byVolunteer.has(key)) {
+      byVolunteer.set(key, {
+        name: d.userName || d.volunteerName || "Anonim",
+        department: d.department || d.userDepartment || "",
+        category: d.materialCategory || "",
+        spark: new Array(14).fill(0),
+        latest: 0,
+        count: 0,
+      });
+    }
+    const v = byVolunteer.get(key);
+    v.count += 1;
+    v.latest = Math.max(v.latest, t);
+    const dayIndex = 13 - Math.floor((now - t) / 86400000);
+    if (dayIndex >= 0 && dayIndex < 14) v.spark[dayIndex] += 1;
+    if (d.materialCategory && !v.category) v.category = d.materialCategory;
+  });
+
+  const sorted = Array.from(byVolunteer.values())
+    .filter((v) => v.name && v.name !== "Anonim")
+    .sort((a, b) => a.name.localeCompare(b.name, "tr"));
+
+  if (!sorted.length) {
+    list.innerHTML = `<li class="empty">Son 14 günde rapor yazan gönüllü yok.</li>`;
+    if (countEl) countEl.textContent = "0 kişi";
+    return;
+  }
+
+  const maxBar = Math.max(1, ...sorted.flatMap((v) => v.spark));
+  list.innerHTML = sorted.slice(0, 10).map((v, idx) => {
+    const initials = _bugunInitials(v.name);
+    const avClass = _BUGUN_AV_TINTS[idx % _BUGUN_AV_TINTS.length];
+    const lastDays = Math.round((now - v.latest) / 86400000);
+    let lastLabel, statusClass;
+    if (lastDays <= 0) { lastLabel = "bugün"; statusClass = ""; }
+    else if (lastDays === 1) { lastLabel = "dün"; statusClass = ""; }
+    else if (lastDays <= 7) { lastLabel = `${lastDays} gün önce`; statusClass = ""; }
+    else if (lastDays <= 14) { lastLabel = `${lastDays} gün önce`; statusClass = "slow"; }
+    else { lastLabel = `${lastDays} gün önce`; statusClass = "silent"; }
+
+    const bars = v.spark.map((n) => {
+      const h = Math.max(5, Math.round((n / maxBar) * 100));
+      const klass = n > 0 ? "b on" : "b";
+      return `<span class="${klass}" style="height:${h}%"></span>`;
+    }).join("");
+
+    const meta = [v.category || v.department].filter(Boolean).join(" · ") || "—";
+
+    return `<li class="bugun-activity-row">
+      <span class="av ${avClass}">${_esc(initials)}</span>
+      <span class="name">${_esc(v.name)}<span class="meta">${_esc(meta)}</span></span>
+      <span class="spark" aria-label="${v.count} rapor / 14 gün">${bars}</span>
+      <span class="status ${statusClass}">${_esc(lastLabel)}</span>
+    </li>`;
+  }).join("");
+
+  if (countEl) {
+    countEl.textContent = `${sorted.length} kişi · ${reports.filter((r) => {
+      const t = _bugunReportMillis(r.data); return t && t >= since14d;
+    }).length} rapor`;
+  }
+}
+
+function hydrateBugunWorkAreaDonut() {
+  const svg = document.getElementById("bugunDonutSvg");
+  const legend = document.getElementById("bugunDonutLegend");
+  const centerVal = document.getElementById("bugunDonutCenterValue");
+  const totalEl = document.getElementById("bugunDonutTotal");
+  if (!svg || !legend) return;
+
+  const reports = (typeof staffRecentDocs !== "undefined" && Array.isArray(staffRecentDocs))
+    ? staffRecentDocs : [];
+  const since30d = Date.now() - 30 * 86400000;
+
+  const counts = new Map();
+  let total = 0;
+  reports.forEach((r) => {
+    const d = r.data || {};
+    const t = _bugunReportMillis(d);
+    if (!t || t < since30d) return;
+    const cat = (d.materialCategory || "diğer").toString().trim() || "diğer";
+    counts.set(cat, (counts.get(cat) || 0) + 1);
+    total += 1;
+  });
+
+  // Reset ring (keep bg)
+  while (svg.childNodes.length > 1) svg.removeChild(svg.lastChild);
+  if (centerVal) centerVal.textContent = total > 0 ? String(total) : "—";
+  if (totalEl) totalEl.textContent = total > 0 ? `${total} rapor` : "—";
+
+  if (total === 0) {
+    legend.innerHTML = `<li class="empty">Son 30 günde rapor yok.</li>`;
+    return;
+  }
+
+  const sorted = Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
+  const C = 2 * Math.PI * 40; // circumference for r=40
+  let offset = 0;
+  sorted.forEach(([_name, n], i) => {
+    const dash = (n / total) * C;
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("cx", "50");
+    circle.setAttribute("cy", "50");
+    circle.setAttribute("r", "40");
+    circle.setAttribute("fill", "none");
+    circle.setAttribute("stroke", _BUGUN_DONUT_PALETTE[i] || "#6b5d50");
+    circle.setAttribute("stroke-width", "14");
+    circle.setAttribute("stroke-dasharray", `${dash} ${C}`);
+    circle.setAttribute("stroke-dashoffset", String(-offset));
+    svg.appendChild(circle);
+    offset += dash;
+  });
+
+  legend.innerHTML = sorted.map(([name, n], i) => {
+    const pct = Math.round((n / total) * 100);
+    return `<li>
+      <span class="sw" style="background:${_BUGUN_DONUT_PALETTE[i] || "#6b5d50"}"></span>
+      <span class="lab">${_esc(_bugunCapitalize(name))}</span>
+      <span class="pct">${pct}% · ${n}</span>
+    </li>`;
+  }).join("");
+}
+
+function _bugunReportMillis(d) {
+  if (!d) return 0;
+  const ts = d.createdAt || d.workDate;
+  if (!ts) return 0;
+  if (typeof ts.toMillis === "function") return ts.toMillis();
+  if (typeof ts.seconds === "number") return ts.seconds * 1000;
+  if (ts instanceof Date) return ts.getTime();
+  if (typeof ts === "string") {
+    // YYYY-MM-DD or ISO
+    const t = Date.parse(ts);
+    return isNaN(t) ? 0 : t;
+  }
+  return 0;
+}
+
+function _bugunInitials(name) {
+  return String(name || "")
+    .split(/\s+/)
+    .map((p) => p[0] || "")
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function _bugunCapitalize(s) {
+  if (!s) return s;
+  return s.charAt(0).toLocaleUpperCase("tr") + s.slice(1);
+}
+
+function _esc(s) {
+  return typeof escapeHTML === "function" ? escapeHTML(s) : String(s == null ? "" : s);
 }

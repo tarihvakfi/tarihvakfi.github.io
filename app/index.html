@@ -191,6 +191,49 @@
             </div>
           </section>
 
+          <!-- Visual layer (May 2026): "Ekip aktivitesi" + "Emek nereye gitti"
+               donut. Names + sparklines + chart — matches the mockup's
+               visually-rich admin view. Hydrated by hydrateBugunActivityPanels(). -->
+          <section class="bugun-visual-grid">
+            <article class="manager-panel bugun-activity-panel">
+              <header class="bugun-activity-head">
+                <div>
+                  <p class="lab">Ekip · 14 gün</p>
+                  <h3>Aktif gönüllüler</h3>
+                </div>
+                <span class="bugun-activity-meta" id="bugunActivityCount">—</span>
+              </header>
+              <ul class="bugun-activity-list" id="bugunActivityList">
+                <li class="empty">Yükleniyor…</li>
+              </ul>
+              <p class="bugun-activity-foot" id="bugunActivityFoot">son raporlardan derlendi · alfabetik</p>
+            </article>
+
+            <article class="manager-panel bugun-donut-panel">
+              <header class="bugun-activity-head">
+                <div>
+                  <p class="lab">Çalışma alanı · 30 gün</p>
+                  <h3>Emek nereye gitti</h3>
+                </div>
+                <span class="bugun-activity-meta" id="bugunDonutTotal">—</span>
+              </header>
+              <div class="bugun-donut-wrap">
+                <div class="bugun-donut" id="bugunDonut" aria-label="Çalışma alanı dağılımı">
+                  <svg viewBox="0 0 100 100" id="bugunDonutSvg">
+                    <circle class="ring-bg" cx="50" cy="50" r="40" fill="none" stroke="#e8dfd2" stroke-width="14"></circle>
+                  </svg>
+                  <div class="bugun-donut-center">
+                    <span class="v" id="bugunDonutCenterValue">—</span>
+                    <span class="lbl">rapor</span>
+                  </div>
+                </div>
+                <ul class="bugun-donut-legend" id="bugunDonutLegend">
+                  <li class="empty">Yükleniyor…</li>
+                </ul>
+              </div>
+            </article>
+          </section>
+
           <section class="manager-panel bugun-pending-section hidden" id="bugunPendingSection">
             <div class="manager-panel-head">
               <div>

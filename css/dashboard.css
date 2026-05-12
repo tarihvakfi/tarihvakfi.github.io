@@ -4296,3 +4296,232 @@ i .when {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+/* === Bugün visual layer: activity sparklines + donut (May 2026) === */
+.bugun-visual-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+@media (max-width: 880px) {
+  .bugun-visual-grid { grid-template-columns: 1fr; }
+}
+
+.bugun-activity-panel,
+.bugun-donut-panel {
+  padding: 1.4rem 1.55rem !important;
+  background: linear-gradient(180deg, #fff 0%, #fdfaf3 100%);
+  border: 1px solid #e8dfd2;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(43, 32, 24, .04), 0 8px 24px rgba(43, 32, 24, .03);
+  position: relative;
+  overflow: hidden;
+}
+.bugun-activity-panel::before,
+.bugun-donut-panel::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #4a7c7e, #c89b3c);
+  opacity: .8;
+}
+
+.bugun-activity-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 1rem;
+  padding-bottom: .75rem;
+  border-bottom: 1px solid rgba(232, 223, 210, .8);
+}
+.bugun-activity-head .lab {
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: #94462a;
+  margin: 0 0 .2rem;
+}
+.bugun-activity-head h3 {
+  font-family: "Lora", Georgia, serif;
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -.012em;
+}
+.bugun-activity-meta {
+  font-family: "DM Mono", monospace;
+  font-size: 11px;
+  color: #6b5d50;
+  letter-spacing: .05em;
+}
+
+/* Activity list with sparklines */
+.bugun-activity-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.bugun-activity-list .empty {
+  color: #6b5d50;
+  font-style: italic;
+  text-align: center;
+  padding: 1rem 0;
+}
+.bugun-activity-row {
+  display: grid;
+  grid-template-columns: 32px 1.5fr 1.8fr 80px;
+  gap: .9rem;
+  align-items: center;
+  padding: .65rem 0;
+  border-bottom: 1px solid rgba(232, 223, 210, .6);
+}
+.bugun-activity-row:last-child { border-bottom: none; }
+.bugun-activity-row .av {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: #b85c3a;
+  color: #fff;
+  font-weight: 600;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.bugun-activity-row .av.av-t { background: #4a7c7e; }
+.bugun-activity-row .av.av-g { background: #c89b3c; color: #2b2018; }
+.bugun-activity-row .av.av-i { background: #6b5d50; }
+.bugun-activity-row .name {
+  font-weight: 500;
+  font-size: 13.5px;
+  color: #2b2018;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bugun-activity-row .meta {
+  display: block;
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  letter-spacing: .04em;
+  color: #6b5d50;
+  margin-top: 1px;
+  font-weight: 400;
+}
+.bugun-activity-row .spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 24px;
+}
+.bugun-activity-row .spark .b {
+  flex: 1;
+  min-width: 3px;
+  background: rgba(74, 124, 126, .15);
+  border-radius: 1px;
+  transition: background .12s;
+}
+.bugun-activity-row .spark .b.on {
+  background: linear-gradient(180deg, #4a7c7e 0%, #5e9092 100%);
+}
+.bugun-activity-row .status {
+  font-family: "DM Mono", monospace;
+  font-size: 10.5px;
+  text-align: right;
+  color: #4a7c7e;
+  font-weight: 500;
+}
+.bugun-activity-row .status.slow { color: #c89b3c; }
+.bugun-activity-row .status.silent { color: #6b5d50; opacity: .65; }
+
+.bugun-activity-foot {
+  margin: 1rem 0 0;
+  padding-top: .75rem;
+  border-top: 1px dashed rgba(232, 223, 210, .8);
+  font-family: "DM Mono", monospace;
+  font-size: 11px;
+  color: #6b5d50;
+  text-align: center;
+  letter-spacing: .05em;
+}
+
+/* Donut */
+.bugun-donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+.bugun-donut {
+  width: 140px;
+  height: 140px;
+  position: relative;
+  flex-shrink: 0;
+}
+.bugun-donut svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.bugun-donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.bugun-donut-center .v {
+  font-family: "Lora", Georgia, serif;
+  font-weight: 600;
+  font-size: 1.6rem;
+  color: #2b2018;
+  line-height: 1;
+}
+.bugun-donut-center .lbl {
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: #6b5d50;
+  margin-top: 4px;
+}
+.bugun-donut-legend {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex: 1;
+  font-size: 13px;
+}
+.bugun-donut-legend li {
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
+  gap: .55rem;
+  align-items: center;
+  padding: .35rem 0;
+  border-bottom: 1px dashed rgba(232, 223, 210, .6);
+}
+.bugun-donut-legend li:last-child { border-bottom: none; }
+.bugun-donut-legend li.empty {
+  grid-template-columns: 1fr;
+  color: #6b5d50;
+  font-style: italic;
+  padding: .85rem 0;
+}
+.bugun-donut-legend .sw {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+.bugun-donut-legend .lab {
+  font-weight: 500;
+  color: #2b2018;
+}
+.bugun-donut-legend .pct {
+  font-family: "DM Mono", monospace;
+  font-size: 11.5px;
+  color: #6b5d50;
+  font-variant-numeric: tabular-nums;
+}
