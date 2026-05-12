@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler-flags.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.3.0/dist/tabler-icons.min.css" />
   <link rel="stylesheet" href="../css/main.css" />
-  <link rel="stylesheet" href="../css/dashboard.css?v=20260512-simple" />
+  <link rel="stylesheet" href="../css/dashboard.css?v=20260512-bakim" />
 </head>
 <body>
   <header class="site-header">
@@ -575,10 +575,14 @@
     </section>
 
     <!-- ====== Bakım (admin only) — four sections ====== -->
-    <section id="tab-bakim" class="tab-content hidden">
-      <header class="yonetim-head">
+    <section id="tab-bakim" class="tab-content tab-bakim-editorial hidden">
+      <!-- Editorial hero (May 2026): same aesthetic as the public site —
+           kicker with pulsing dot + Lora h1 + sentence subtitle. The "ldot"
+           is purely decorative; admin can ignore it. -->
+      <header class="bakim-hero">
+        <p class="bakim-kicker"><span class="bakim-ldot" aria-hidden="true"></span>Yönetici · Sistem</p>
         <h1>Bakım</h1>
-        <p class="muted">Veri araçları, ön kayıt, gözden geçirme kuyruğu ve veri sağlığı.</p>
+        <p class="bakim-sub">İçerik düzenleme, sheet senkronizasyonu, kullanıcı işlemleri — hepsi tek yerde.</p>
       </header>
 
       <!-- Section 0 (May 2026): Public-site editorial content editor.
@@ -1078,3 +1082,17 @@
 </html>
 </html>
 >
+g.firebase.js"></script>
+  <script>
+    window.FEATURE_FLAGS = Object.assign({
+      selfClaim: false,
+      telegramSection: false,
+      volunteerPnbTab: false
+    }, window.FEATURE_FLAGS || {});
+  </script>
+  <script type="module" src="../js/firebase-init.js"></script>
+  <script type="module" src="./dashboard.js"></script>
+</body>
+</html>
+>
+</html>

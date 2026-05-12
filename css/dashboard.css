@@ -3199,21 +3199,318 @@ body.admin-shell #publicContentEditorCard { display: block; }
   margin-right: 4px;
   opacity: .7;
 }
+
+/* ============================================================
+   Bakım — Editorial redesign (May 2026)
+   Brings the Bakım admin tab to the same aesthetic as the public site:
+   Lora serif headings, DM Mono eyebrows in terracotta, generous spacing,
+   thin gold rules, editorial number panels for sheet-sync status.
+   ============================================================ */
+
+.tab-bakim-editorial {
+  padding: 1rem 0 4rem;
 }
-  background: var(--tblr-bg-surface, #fff);
-  color: var(--tblr-body-color);
-  border-color: var(--tblr-border-color);
+
+/* Hero — kicker + Lora h1 + sentence subtitle */
+.bakim-hero {
+  border-bottom: 2px solid var(--tblr-body-color, #2b2018);
+  padding-bottom: 1.5rem;
+  margin-bottom: 2rem;
+  order: 0 !important;
 }
-.tab-bar-slim .tab-secondary { display: none !important; }
-.tab-bar-slim .admin-tab[data-tab="bakim"] {
-  margin-left: auto;
-  font-family: "Inter", sans-serif;
+.bakim-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+  margin: 0 0 .7rem;
+  font-family: "DM Mono", "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #6b5d50;
+}
+.bakim-ldot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #4a7c7e;
+  animation: managerHeroPulse 2s infinite;
+}
+.bakim-hero h1 {
+  font-family: "Lora", Georgia, serif;
+  font-size: clamp(1.8rem, 3.5vw, 2.5rem);
+  font-weight: 600;
+  letter-spacing: -.015em;
+  line-height: 1.15;
+  margin: 0 0 .5rem;
+  color: #2b2018;
+}
+.bakim-sub {
+  font-size: 1rem;
+  color: #6b5d50;
+  margin: 0;
+  max-width: 64ch;
+  line-height: 1.55;
+}
+
+/* Restyle all article.card cards under tab-bakim-editorial */
+.tab-bakim-editorial > article.card {
+  background: #fff;
+  border: 1px solid #e8dfd2;
+  border-radius: 6px;
+  padding: 1.75rem 1.85rem;
+  box-shadow: 0 1px 3px rgba(43, 32, 24, 0.04);
+  margin-top: 1.25rem !important;
+}
+.tab-bakim-editorial > article.card:first-of-type {
+  margin-top: 0 !important;
+}
+
+/* Eyebrow → DM Mono terracotta */
+.tab-bakim-editorial > article.card .eyebrow {
+  font-family: "DM Mono", "JetBrains Mono", ui-monospace, monospace !important;
+  font-size: 10px !important;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #94462a !important;
+  margin: 0 0 .35rem !important;
+}
+
+/* h2 → Lora serif */
+.tab-bakim-editorial > article.card h2 {
+  font-family: "Lora", Georgia, serif !important;
+  font-size: 1.35rem !important;
+  font-weight: 600;
+  letter-spacing: -.012em;
+  color: #2b2018 !important;
+  margin: 0 0 .35rem !important;
+}
+
+.tab-bakim-editorial > article.card .muted,
+.tab-bakim-editorial > article.card p.muted {
+  color: #6b5d50;
+  font-size: .94rem;
+  line-height: 1.55;
+}
+
+/* Section divider — thin gold rule between major panels */
+.tab-bakim-editorial > article.card + article.card::before {
+  content: "";
+  display: block;
+  width: 32px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #c89b3c, transparent);
+  margin: -.85rem auto 1.5rem;
+  opacity: .5;
+}
+
+/* Sheet sync card — big editorial stat row */
+#sheetSyncCard .sheet-sync-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  padding: 1.25rem 0;
+  border-top: 1px solid #e8dfd2;
+  border-bottom: 1px solid #e8dfd2;
+  margin: 1rem 0 1.25rem;
+}
+#sheetSyncCard .sheet-sync-stats > div .ss-l {
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: #6b5d50;
+  margin: 0 0 .25rem;
+}
+#sheetSyncCard .sheet-sync-stats > div .ss-v {
+  font-family: "Lora", serif;
+  font-weight: 600;
+  font-size: 1.5rem;
+  color: #2b2018;
+  line-height: 1;
+  margin: 0;
+}
+#sheetSyncCard .sheet-sync-stats > div .ss-v.ok { color: #4a7c7e; }
+#sheetSyncCard .sheet-sync-stats > div .ss-v.warn { color: #c89b3c; }
+#sheetSyncCard .sheet-sync-stats > div .ss-v.bad { color: #94462a; }
+#sheetSyncCard .sheet-sync-stats > div .ss-s {
+  font-size: 11px;
+  color: #6b5d50;
+  margin: .2rem 0 0;
+}
+@media (max-width: 720px) {
+  #sheetSyncCard .sheet-sync-stats { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Sync event log — editorial timeline */
+#managerSyncLogList .sync-log-row,
+.manager-sync-list .sync-log-row {
+  display: grid;
+  grid-template-columns: 110px auto 1fr;
+  gap: 1rem;
+  padding: .85rem 0;
+  border-bottom: 1px solid #e8dfd2;
+  align-items: start;
+}
+#managerSyncLogList .sync-log-row:last-child,
+.manager-sync-list .sync-log-row:last-child {
+  border-bottom: none;
+}
+.sync-log-row .when {
+  font-family: "DM Mono", monospace;
+  font-size: 11px;
+  color: #6b5d50;
+  letter-spacing: .05em;
+  padding-top: .2rem;
+}
+.sync-log-row .badge {
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: .2rem .55rem;
+  border-radius: 99px;
+  flex-shrink: 0;
+  align-self: start;
+}
+.sync-log-row .badge.ok { background: rgba(74,124,126,.12); color: #4a7c7e; }
+.sync-log-row .badge.degraded { background: rgba(200,155,60,.18); color: #8a6818; }
+.sync-log-row .badge.structure { background: rgba(184,92,58,.12); color: #94462a; }
+.sync-log-row .badge.error { background: rgba(184,92,58,.18); color: #94462a; }
+.sync-log-row .body { font-size: 13px; color: #2b2018; }
+.sync-log-row .body b { font-weight: 500; }
+.sync-log-row .body .meta {
+  color: #6b5d50;
+  font-size: 12px;
+  margin-top: .15rem;
+}
+
+/* Status banner row at top of sheet sync card */
+#sheetSyncCard .sheet-sync-status-banner {
+  display: flex;
+  align-items: center;
+  gap: .85rem;
+  padding: 1rem 1.15rem;
+  background: rgba(200,155,60,.08);
+  border-left: 3px solid #c89b3c;
+  border-radius: 4px;
+  margin: .85rem 0;
+  font-size: .92rem;
+  color: #6b5d50;
+}
+#sheetSyncCard .sheet-sync-status-banner.ok {
+  background: rgba(74,124,126,.08);
+  border-left-color: #4a7c7e;
+}
+#sheetSyncCard .sheet-sync-status-banner.bad {
+  background: rgba(184,92,58,.08);
+  border-left-color: #94462a;
+}
+#sheetSyncCard .sheet-sync-status-banner strong {
+  color: #2b2018;
+  font-weight: 500;
+}
+
+/* Form inside the public content editor — editorial */
+.tab-bakim-editorial #publicContentForm input[type="text"],
+.tab-bakim-editorial #publicContentForm textarea {
+  border-color: #e8dfd2;
+  padding: .65rem .85rem;
+  font-size: 14px;
+  background: #faf6f0;
+  transition: border-color .12s, background .12s;
+}
+.tab-bakim-editorial #publicContentForm input[type="text"]:focus,
+.tab-bakim-editorial #publicContentForm textarea:focus {
+  border-color: #94462a;
+  outline: 2px solid rgba(184, 92, 58, .2);
+  outline-offset: 1px;
+  background: #fff;
+}
+.tab-bakim-editorial #publicContentForm .form-stack-label {
+  font-size: .82rem;
+  font-weight: 500;
+  color: #2b2018;
+}
+.tab-bakim-editorial #publicContentForm .form-fieldset {
+  background: #faf6f0;
+  border-color: #e8dfd2;
+  border-radius: 4px;
+  padding: 1.1rem 1.25rem;
+}
+.tab-bakim-editorial #publicContentForm legend {
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: #94462a;
+}
+.tab-bakim-editorial #publicContentForm .btn-primary,
+.tab-bakim-editorial #publicContentForm #publicContentSaveBtn {
+  background: #b85c3a;
+  border-color: #b85c3a;
+  color: #fff;
+  font-weight: 500;
+}
+.tab-bakim-editorial #publicContentForm .btn-primary:hover,
+.tab-bakim-editorial #publicContentForm #publicContentSaveBtn:hover {
+  background: #94462a;
+  border-color: #94462a;
+}
+
+/* Buttons inside Bakım — editorial subtle */
+.tab-bakim-editorial > article.card .btn-secondary {
+  background: #faf6f0;
+  border-color: #e8dfd2;
+  color: #2b2018;
+  font-weight: 500;
   font-size: 13px;
-  color: var(--tblr-secondary);
-  font-weight: 400;
 }
-.tab-bar-slim .admin-tab[data-tab="bakim"]::before {
-  content: "⚙ ";
-  margin-right: 4px;
-  opacity: .7;
+.tab-bakim-editorial > article.card .btn-secondary:hover {
+  background: #fff;
+  border-color: #6b5d50;
+}
+.tab-bakim-editorial > article.card .btn-primary {
+  background: #b85c3a;
+  border-color: #b85c3a;
+}
+.tab-bakim-editorial > article.card .btn-primary:hover {
+  background: #94462a;
+}
+
+/* Telegram diagnostic / PNB import / enrichment — softer, less prominent */
+.tab-bakim-editorial > article.card .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+@media (max-width: 720px) {
+  .tab-bakim-editorial > article.card .form-row { grid-template-columns: 1fr; }
+}
+
+/* Sheet mirror table — strip framework noise */
+.tab-bakim-editorial #sheetMirrorCard table,
+.tab-bakim-editorial #sheetMirrorTable table {
+  font-size: 13px;
+}
+.tab-bakim-editorial #sheetMirrorCard th,
+.tab-bakim-editorial #sheetMirrorTable th {
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: #6b5d50;
+  padding: .65rem .85rem;
+  background: #faf6f0;
+  font-weight: 500;
+  text-align: left;
+}
+.tab-bakim-editorial #sheetMirrorCard td,
+.tab-bakim-editorial #sheetMirrorTable td {
+  padding: .55rem .85rem;
+  border-bottom: 1px solid #e8dfd2;
+  color: #2b2018;
 }
