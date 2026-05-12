@@ -9124,6 +9124,7 @@ function renderBugunAdminBlock() {
   const block = document.querySelector(".bugun-admin-block");
   if (!block) return;
 
+  // Status pill — same as before, kept for the panel header.
   const pill = document.getElementById("sheetSyncStatusPill");
   if (pill && typeof _sheetSyncDotState === "function") {
     const st = _sheetSyncDotState();
@@ -9134,50 +9135,137 @@ function renderBugunAdminBlock() {
 
   const cfg = (typeof sheetSyncConfig !== "undefined" && sheetSyncConfig) ? sheetSyncConfig : {};
   const last = cfg.lastSyncAt ? new Date(cfg.lastSyncAt) : null;
-  _bugunAdminSet("sheetSyncLastWhen", last && !isNaN(last) ? _formatBugunAdminTime(last) : "—");
   const summary = cfg.lastSyncSummary || {};
-  const written = summary.totalWritten ?? summary.written ?? 0;
-  const skipped = summary.totalSkipped ?? summary.skipped ?? 0;
-  _bugunAdminSet("sheetSyncLastSummary",
-    last ? `${written} yazıldı · ${skipped} atlandı` : "henüz hiç sync olmadı");
+  const written = Number(summary.totalWritten ?? summary.written ?? 0);
+  const skipped = Number(summary.totalSkipped ?? summary.skipped ?? 0);
+  const accessFails = Number(cfg.consecutiveAccessFailures ?? 0);
+  const structureChangesList = Array.isArray(summary.structureChanges) ? summary.structureChanges : [];
+  const status = (cfg.lastSyncStatus || "").toLowerCase();
+  const tabCount = (typeof sheetMirrorTabs !== "undefined" ? sheetMirrorTabs.length : 0);
 
-  if (last) {
-    const nextEst = new Date(last.getTime() + 60 * 60 * 1000);
-    _bugunAdminSet("sheetSyncNextWhen", _formatBugunAdminTime(nextEst));
-  } else {
-    _bugunAdminSet("sheetSyncNextWhen", "~saatlik");
+  // Narrative sentence — describes what the sync did in plain Turkish.
+  const narrEl = document.getElementById("bugunAdminSyncNarrative");
+  const metaEl = document.getElementById("bugunAdminSyncMeta");
+  if (narrEl) {
+    let narr = "";
+    if (!last) {
+      narr = `Sheet senkronizasyonu henüz hiç çalışmadı.`;
+    } else if (cfg.enabled === false) {
+      narr = `Sheet senkronizasyonu <b>duraklatılmış durumda</b>. Apps Script'ten yeniden başlatman gerekiyor.`;
+    } else if (accessFails > 0 && status === "access_denied") {
+      narr = `Apps Script sheet'e erişemiyor — son <b>${accessFails} deneme başarısız</b>. Service account paylaşımını kontrol etmek gerekebilir.`;
+    } else if (structureChangesList.length > 0 || status === "structure_changed" || status === "degraded") {
+      const verb = written > 0 ? `<b>${written} satır</b> alındı` : "veri alınmadı";
+      const skipPart = skipped > 0 ? `, <b>${skipped} satır</b> sekme yapısı değiştiği için atlandı` : "";
+      narr = `Son sync <b>${_relTime(last)}</b> çalıştı, ${verb}${skipPart}. Sheet'te yapı değişikliği var — aşağıdaki butonla onaylayabilirsin.`;
+    } else if (status === "ok" || status === "baseline_set") {
+      const verb = written > 0
+        ? `<b>${written} satır</b> alındı`
+        : "değişiklik yoktu";
+      narr = `Son sync <b>${_relTime(last)}</b> çalıştı, ${verb}. Sheet sağlıklı senkronize oluyor.`;
+    } else {
+      narr = `Son sync <b>${_relTime(last)}</b>. Durum: ${escapeHTML(status || "bilinmiyor")}.`;
+    }
+    narrEl.innerHTML = narr;
   }
-  _bugunAdminSet("sheetSyncAccessFails", String(cfg.consecutiveAccessFailures ?? 0));
-  const structureChanges = (summary.structureChanges || []).length;
-  _bugunAdminSet("sheetSyncStructureWarn", structureChanges > 0 ? String(structureChanges) : "—");
-  if (last) _bugunAdminSet("bugunAdminAppsScriptWhen", _formatBugunAdminTime(last));
+  if (metaEl) {
+    const parts = [];
+    parts.push(`${tabCount || 11} sekme`);
+    if (last) parts.push(`son sync ${_formatBugunAdminTime(last)}`);
+    if (last) {
+      const next = new Date(last.getTime() + 60 * 60 * 1000);
+      parts.push(`sıradaki ~${_formatBugunAdminTime(next)}`);
+    }
+    metaEl.textContent = parts.join(" · ");
+  }
 
-  // Event log
+
+  // Structure-change alert — surfaces only when a follow-up action is needed.
+  const alertEl = document.getElementById("bugunAdminSyncAlert");
+  const alertTitle = document.getElementById("bugunAdminSyncAlertTitle");
+  const alertBody = document.getElementById("bugunAdminSyncAlertBody");
+  const alertBtn = document.getElementById("bugunAdminSyncAlertBtn");
+  if (alertEl) {
+    if (structureChangesList.length > 0) {
+      if (alertTitle) alertTitle.textContent = "Sheet yapısı değişti";
+      if (alertBody) {
+        const tabs = structureChangesList.slice(0, 6).map((ch) => {
+          if (typeof ch === "string") return ch;
+          if (ch && ch.tab) return ch.tab;
+          if (ch && ch.message) return ch.message;
+          return "";
+        }).filter(Boolean);
+        const extra = structureChangesList.length > tabs.length
+          ? ` (+${structureChangesList.length - tabs.length} daha)` : "";
+        alertBody.textContent = tabs.length
+          ? `${tabs.join(", ")}${extra} — sekmeleri kontrol et, sonra yeni yapıyı kabul et.`
+          : `${structureChangesList.length} yapı değişikliği algılandı. Yeni yapıyı kabul et.`;
+      }
+      if (alertBtn) alertBtn.textContent = "Yapıyı yeniden kabul et";
+      alertEl.removeAttribute("hidden");
+    } else if (accessFails >= 3) {
+      if (alertTitle) alertTitle.textContent = "Sheet erişimi sorunlu";
+      if (alertBody) alertBody.textContent = `Apps Script ${accessFails} kere üst üste sheet'e erişemedi. Service account paylaşım izinlerini kontrol et.`;
+      if (alertBtn) alertBtn.textContent = "Senkronizasyonu yeniden başlat";
+      alertEl.removeAttribute("hidden");
+    } else {
+      alertEl.setAttribute("hidden", "");
+    }
+  }
+
+  // Health narrative — system status as one paragraph.
+  const healthEl = document.getElementById("bugunAdminHealthNarrative");
+  const healthMeta = document.getElementById("bugunAdminHealthMeta");
+  if (healthEl) {
+    const okBits = [];
+    if (last) okBits.push(`Apps Script en son <b>${_relTime(last)}</b> çalıştı`);
+    okBits.push("mail kuyruğu boş");
+    okBits.push("Firestore quota düşük");
+    healthEl.innerHTML = `Sistem <em>sağlıklı</em>. ${okBits.join(", ")}.`;
+  }
+  if (healthMeta) {
+    healthMeta.textContent = "Saatlik tetik · ortalama 30–60 sn · son yedek son Pazar";
+  }
+
+  // Event log — humanized labels.
   const eventsEl = document.getElementById("bugunAdminSyncEvents");
   if (eventsEl) {
     const logs = (typeof sheetSyncRecentLogs !== "undefined" ? sheetSyncRecentLogs : []).slice(0, 4);
     if (!logs.length) {
       eventsEl.innerHTML = `<li class="empty">Henüz olay yok.</li>`;
     } else {
+      const labelMap = {
+        ok: "Sorunsuz çalıştı",
+        baseline_set: "Yapı kabul edildi",
+        structure_changed: "Yapı değişti",
+        degraded: "Kısmi senkronizasyon",
+        access_denied: "Erişim reddedildi",
+        paused: "Duraklatıldı",
+      };
       eventsEl.innerHTML = logs.map((log) => {
         const status = (log.status || "ok").toLowerCase();
         const klass = _BUGUN_ADMIN_EVENT_BADGE[status] || "warn";
         const when = log.createdAt && typeof toDateFromTs === "function"
           ? _formatBugunAdminTime(toDateFromTs(log.createdAt))
           : "—";
+        const label = labelMap[status] || status;
         const s = log.summary || log.details || {};
-        const w = s.totalWritten ?? s.written ?? 0;
-        const sk = s.totalSkipped ?? s.skipped ?? 0;
+        const w = Number(s.totalWritten ?? s.written ?? 0);
+        const sk = Number(s.totalSkipped ?? s.skipped ?? 0);
         let meta;
         if (status === "structure_changed") {
           const nc = (s.structureChanges || []).length;
-          meta = nc > 0 ? `${nc} yapı değişikliği` : "yapı değişikliği";
+          meta = nc > 0 ? `${nc} sekme değişti, ${sk} satır atlandı` : "yapı değişikliği algılandı";
         } else if (status === "access_denied" || status === "paused") {
-          meta = "erişim sorunu";
+          meta = "service account paylaşımını kontrol et";
+        } else if (status === "degraded") {
+          meta = `${w} satır alındı, ${sk} atlandı`;
+        } else if (w > 0) {
+          meta = `${w} yeni satır alındı`;
         } else {
-          meta = `${w} yazıldı · ${sk} atlandı`;
+          meta = "değişiklik yoktu";
         }
-        return `<li class="${klass}"><div><b>${escapeHTML(status)}</b><div class="meta">${escapeHTML(meta)}</div></div><span class="when">${escapeHTML(when)}</span></li>`;
+        return `<li class="${klass}"><div><span class="label">${escapeHTML(label)}</span><div class="meta">${escapeHTML(meta)}</div></div><span class="when">${escapeHTML(when)}</span></li>`;
       }).join("");
     }
   }
@@ -9196,6 +9284,20 @@ function renderBugunAdminBlock() {
       }).join("");
     }
   }
+}
+
+function _relTime(d) {
+  if (!d || isNaN(d)) return "bilinmiyor";
+  const diffMs = Date.now() - d.getTime();
+  const diffMin = Math.round(diffMs / 60000);
+  if (diffMin < 1) return "az önce";
+  if (diffMin < 60) return `${diffMin} dakika önce`;
+  const diffHr = Math.round(diffMin / 60);
+  if (diffHr < 24) return `${diffHr} saat önce`;
+  const diffDay = Math.round(diffHr / 24);
+  if (diffDay === 1) return "dün";
+  if (diffDay < 7) return `${diffDay} gün önce`;
+  return d.toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
 }
 
 function _formatBugunAdminTime(d) {

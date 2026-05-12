@@ -3835,9 +3835,108 @@ body:not(.admin-shell) .bugun-admin-block { display: none !important; }
   color: #94462a;
   padding: 0 .5rem;
 }
-  font-size: 10px;
-  letter-spacing: .15em;
-  text-transform: uppercase;
+
+/* === Editorial narrative panels inside bugun-admin-block (May 2026) ===
+   Replaces the raw 4-stat grids with sentence-led summaries that mirror
+   the public site's editorial language. The same panel layout, but
+   the body of each panel reads like a paragraph. */
+
+.bugun-admin-narrative {
+  font-family: "Lora", Georgia, serif;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: #2b2018;
+  margin: 0 0 .65rem;
+  max-width: 56ch;
+}
+.bugun-admin-narrative b {
+  font-weight: 600;
   color: #94462a;
-  padding: 0 .5rem;
+}
+.bugun-admin-narrative em {
+  font-style: italic;
+  color: #4a7c7e;
+  font-weight: 500;
+}
+.bugun-admin-narrative-sm {
+  font-size: .96rem;
+}
+
+.bugun-admin-meta {
+  font-family: "DM Mono", "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: .05em;
+  color: #6b5d50;
+  margin: 0 0 1rem;
+}
+
+.bugun-admin-alert {
+  display: flex;
+  gap: .85rem;
+  padding: .9rem 1rem;
+  background: rgba(200, 155, 60, .12);
+  border-left: 3px solid #c89b3c;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  align-items: flex-start;
+}
+.bugun-admin-alert .ic {
+  font-family: "Lora", Georgia, serif;
+  font-weight: 700;
+  color: #8a6818;
+  font-size: 1.2rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: .1rem;
+}
+.bugun-admin-alert .body { flex: 1; }
+.bugun-admin-alert .t {
+  font-family: "Lora", Georgia, serif;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #2b2018;
+  margin: 0 0 .25rem;
+}
+.bugun-admin-alert .s {
+  font-size: .9rem;
+  color: #6b5d50;
+  margin: 0 0 .65rem;
+  line-height: 1.5;
+}
+.bugun-admin-alert .btn {
+  margin-top: .2rem;
+}
+
+/* Event log items — humanized labels, no enum names */
+.bugun-admin-events li {
+  align-items: flex-start;
+}
+.bugun-admin-events li > div {
+  min-width: 0;
+}
+.bugun-admin-events li > div .label {
+  font-weight: 500;
+  color: #2b2018;
+}
+.bugun-admin-events li .meta {
+  font-size: 11.5px;
+  color: #6b5d50;
+  margin-top: 1px;
+  line-height: 1.45;
+}
+
+/* When the mirror tab list is being rendered, give each row a softer
+   "since" line and remove the technical status pill in favor of a
+   timestamp-ish phrase. */
+.bugun-admin-mirror li .when {
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  color: #6b5d50;
+  letter-spacing: .03em;
+}
+i .when {
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  color: #6b5d50;
+  letter-spacing: .03em;
 }
