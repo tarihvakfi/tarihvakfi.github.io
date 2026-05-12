@@ -1,0 +1,1244 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Panel — Tarih Vakfı</title>
+  <!-- Tabler base (professional admin dashboard framework) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler-flags.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.3.0/dist/tabler-icons.min.css" />
+  <link rel="stylesheet" href="../css/main.css" />
+  <link rel="stylesheet" href="../css/dashboard.css?v=20260512-v3" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav">
+      <a class="brand" href="../"><img src="../assets/logo-placeholder.svg" alt="Tarih Vakfı" /><span>Tarih Vakfı</span></a>
+      <div class="header-right">
+        <span id="headerUser" class="header-user"></span>
+        <button id="notifBtn" class="notif-btn" title="Bildirimler"><span id="notifCount" class="notif-count hidden">0</span>&#128276;</button>
+        <button id="signOutBtn" class="btn btn-secondary btn-sm">Çıkış</button>
+      </div>
+      <div id="notifPanel" class="notif-panel hidden">
+        <div class="notif-header"><strong>Bildirimler</strong><button id="notifReadAll" class="btn btn-secondary btn-sm">Tümünü okundu işaretle</button></div>
+        <div id="notifList" class="notif-list"><p class="empty">Bildirim yok.</p></div>
+      </div>
+    </div>
+  </header>
+
+  <div class="container dashboard">
+    <div id="loadingState" class="centered-message"><div class="spinner"></div><p class="muted">Yükleniyor...</p></div>
+
+    <!-- Tab bar (May 2026 simplification): one page per role.
+         · Volunteer sees only Anasayfa (PNB + Duyurular tabs retained in
+           DOM with .tab-secondary so dashboard.js routing still works for
+           direct URL hits, but hidden from the visible nav).
+         · Coordinator sees only Bugün (Yönetim folded inline at bottom).
+         · Admin sees Bugün + a discreet Bakım entry on the right. -->
+    <nav id="tabBar" class="tab-bar hidden tab-bar-slim">
+      <button class="tab volunteer-tab" data-tab="anasayfa">Anasayfa</button>
+      <button class="tab staff-tab hidden" data-tab="bugun">Bugün</button>
+      <!-- Secondary tabs retained but visually hidden from the nav. -->
+      <button class="tab volunteer-tab tab-secondary" data-tab="pnb" hidden>PNB</button>
+      <button class="tab volunteer-tab tab-secondary" data-tab="duyurular" hidden>Duyurular</button>
+      <button class="tab staff-tab tab-secondary hidden" data-tab="yonetim" hidden>Yönetim</button>
+      <!-- Bakım tab dropped from the visible nav (May 2026). Admin-only
+           panels now live inline at the bottom of Bugün. The button is
+           retained in DOM with [hidden] so direct /app/#bakim URL hits
+           still resolve to the old (now-empty) section for backward compat. -->
+      <button class="tab admin-tab tab-secondary hidden" data-tab="bakim" hidden>Bakım</button>
+    </nav>
+
+    <!-- ====== Volunteer home (Anasayfa) ====== -->
+    <section id="tab-anasayfa" class="tab-content sv-mode hidden">
+      <div class="sv-home">
+        <div class="frame">
+          <div class="sv-greet">
+            <div>
+              <h1 id="svGreetName">Merhaba</h1>
+              <div class="sv-greet-sub" id="svGreetSub">Tarih Vakfı</div>
+            </div>
+          </div>
+
+          <!-- Daily note / quote strip — admin-editable from /publicSiteContent.
+               Visible only when dailyNote text + visible flag are set.
+               Same source as the public hero banner, presented warmer here. -->
+          <aside class="sv-daily-note" id="svDailyNote" hidden>
+            <span class="sv-daily-note-lab">Bugünün notu</span>
+            <span class="sv-daily-note-text" id="svDailyNoteText"></span>
+          </aside>
+
+          <div id="svSelfClaim" class="sv-selfclaim hidden"></div>
+
+          <div id="svReportPrimary" class="sv-report-primary hidden">
+            <!-- Inline Rapor Yaz form (Anasayfa, project-agnostic). -->
+            <div id="anasayfaInlineRapor" class="card inline-rapor-card"></div>
+
+            <!-- Son raporların — compact log. Filled by renderVolunteerReportPrimary(). -->
+            <div class="card sv-log-card">
+              <h3 class="sv-log-head">Son raporların</h3>
+              <div id="svRecentReports" class="sv-log-list"><p class="sv-log-empty">Henüz rapor yok.</p></div>
+              <div id="svRecentReportsFooter" class="sv-log-foot hidden"></div>
+            </div>
+          </div>
+
+          <div id="vpAnasayfaExtras" class="vp-anasayfa volunteer-only-block">
+            <div>
+              <p id="vpProjectsTitle" class="vp-section-eyebrow">Aktif projeler</p>
+              <div id="vpProjectsList" class="vp-projects-list"></div>
+            </div>
+            <section class="volunteer-cockpit-group" id="volunteerAnnouncementsGroup" aria-label="Duyurular">
+              <div id="volunteerAnnouncementsMount"></div>
+            </section>
+            <section class="volunteer-cockpit-group hidden" id="volunteerProjectWorkspaceGroup" aria-label="Proje çalışma alanı">
+              <div id="volunteerProjectWorkspaceMount"></div>
+            </section>
+            <!-- Telegram link card. Filled by renderTelegramCard() in
+                 dashboard.js. Two states: unlinked (button to generate a
+                 6-digit code) and linked (last-seen + revoke button).
+                 Hidden by default + the JS render call is gated on
+                 window.FEATURE_FLAGS.telegramSection. The bot stack was
+                 decommissioned 28 Apr 2026 due to Apps Script cold-start
+                 latency; the markup stays so revival is a one-flag flip
+                 once the bot moves to a real backend. -->
+            <div data-telegram-section hidden>
+              <p class="vp-section-eyebrow">Telegram</p>
+              <div id="tgLinkCard" class="card tg-link-card"><p class="empty">Yükleniyor…</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====== Coordinator/admin cockpit (Bugün) ====== -->
+    <section id="tab-bugun" class="tab-content hidden manager-page">
+      <!-- Editorial hero v2 (May 2026): sentence-led headline + 5-cell inline
+           summary strip. Existing IDs preserved so dashboard.js renderers
+           (renderCoordinatorHomeHeader, renderManagerOverview) continue to
+           write into them unchanged. The four card-buttons of the previous
+           design are replaced by <button>s styled as inline cells with thin
+           rules between them — they still navigate via data-manager-go. -->
+      <header class="manager-hero manager-hero-v2">
+        <div class="manager-hero-top">
+          <div class="manager-hero-main">
+            <p class="manager-kicker manager-kicker-v2"><span class="mh-dot" aria-hidden="true"></span><span id="bugunGreetSub">Yönetici paneli</span></p>
+            <h1 id="bugunGreetName">Merhaba</h1>
+            <p class="manager-editorial-sub" id="managerEditorialSub">Bugün arşivde gönüllüler işbaşında — aşağıda günün özetleri.</p>
+            <p class="manager-last-refresh" id="managerLastRefresh">Veriler yükleniyor…</p>
+          </div>
+          <div class="manager-hero-actions">
+            <button type="button" class="btn btn-secondary btn-sm" id="managerRefreshBtn"><i class="ti ti-refresh" aria-hidden="true"></i> Yenile</button>
+            <button type="button" class="btn btn-primary btn-sm" id="bugunOpenReportBtn"><i class="ti ti-plus" aria-hidden="true"></i> Rapor yaz</button>
+          </div>
+        </div>
+
+        <!-- Inline summary strip — same IDs as before, restyled. -->
+        <section class="manager-summary-strip" aria-label="Bugünkü özet">
+          <button type="button" class="manager-summary-cell" data-manager-go="yonetim" data-scroll-to="yonetimUsersCard" data-manager-filter="pending">
+            <span class="ms-lbl">Bekleyen onay</span>
+            <span class="ms-val"><strong id="managerPendingValue">0</strong></span>
+            <span class="ms-foot" id="managerPendingHint">Başvuru yok</span>
+          </button>
+          <button type="button" class="manager-summary-cell" data-manager-go="yonetim" data-scroll-to="yonetimUsersCard" data-manager-filter="silent">
+            <span class="ms-lbl">Sessiz gönüllü</span>
+            <span class="ms-val"><strong id="managerSilentValue">0</strong></span>
+            <span class="ms-foot" id="managerSilentHint">Takip gerekmiyor</span>
+          </button>
+          <button type="button" class="manager-summary-cell admin-only-block hidden" data-manager-go="bakim" data-scroll-to="sheetMirrorCard">
+            <span class="ms-lbl">Sheet durumu</span>
+            <span class="ms-val"><strong id="managerSheetValue">—</strong></span>
+            <span class="ms-foot" id="managerSheetHint">Yükleniyor</span>
+          </button>
+          <button type="button" class="manager-summary-cell" data-manager-go="bugun" data-scroll-to="bugunRecentSection">
+            <span class="ms-lbl">Son raporlar</span>
+            <span class="ms-val"><strong id="managerReportsValue">0</strong></span>
+            <span class="ms-foot" id="managerReportsHint">Rapor yükleniyor</span>
+          </button>
+          <!-- PNB progress cell — hydrated from /publicProjectStats/pnb by
+               hydrateManagerPnbCard() in dashboard.js. -->
+          <div class="manager-summary-cell manager-summary-static">
+            <span class="ms-lbl">PNB ilerleme</span>
+            <span class="ms-val"><strong id="managerPnbPct">—</strong></span>
+            <span class="ms-foot">~72.500 sayfa kaldı</span>
+          </div>
+        </section>
+      </header>
+
+      <div class="manager-layout">
+        <main class="manager-main">
+
+          <!-- PNB project hero block (May 2026). Hydrated by
+               hydrateManagerPnbCard() from the same /publicProjectStats/pnb
+               doc the public site reads, so the numbers stay consistent
+               between public and admin views. -->
+          <section class="manager-panel manager-pnb-hero">
+            <p class="bugun-section-h" style="margin:0 0 .25rem;">Aktif proje</p>
+            <h2 style="font-size:1.35rem; margin:0 0 .25rem;">Pertev Naili Boratav Arşivi</h2>
+            <p class="muted" id="managerPnbHeroDesc" style="font-size:.875rem; margin:0 0 1.25rem;">Boratav'ın özel arşivinin yolculuğu sürüyor.</p>
+            <div class="manager-pnb-row">
+              <span class="manager-pnb-pct" id="managerPnbHeroPct">—</span>
+              <span class="manager-pnb-status" id="managerPnbHeroStatus">veri yükleniyor…</span>
+            </div>
+            <div class="manager-pnb-bar" aria-hidden="true">
+              <span style="width:0%" id="managerPnbHeroBar"></span>
+            </div>
+            <div class="manager-pnb-facts">
+              <div><p class="l">Açık kutu</p><p class="v" id="managerPnbHeroBoxes">—</p></div>
+              <div><p class="l">Toplam belge</p><p class="v" id="managerPnbHeroUnits">—</p></div>
+              <div><p class="l">Toplam dosya</p><p class="v" id="managerPnbHeroFiles">—</p></div>
+              <div><p class="l">Bu hafta katkı</p><p class="v" id="managerPnbHeroWeek">—</p></div>
+            </div>
+          </section>
+
+          <!-- Visual layer (May 2026): "Ekip aktivitesi" + "Emek nereye gitti"
+               donut. Names + sparklines + chart — matches the mockup's
+               visually-rich admin view. Hydrated by hydrateBugunActivityPanels(). -->
+          <section class="bugun-visual-grid">
+            <article class="manager-panel bugun-activity-panel">
+              <header class="bugun-activity-head">
+                <div>
+                  <p class="lab">Ekip · 14 gün</p>
+                  <h3>Aktif gönüllüler</h3>
+                </div>
+                <span class="bugun-activity-meta" id="bugunActivityCount">—</span>
+              </header>
+              <ul class="bugun-activity-list" id="bugunActivityList">
+                <li class="empty">Yükleniyor…</li>
+              </ul>
+              <p class="bugun-activity-foot" id="bugunActivityFoot">son raporlardan derlendi · alfabetik</p>
+            </article>
+
+            <article class="manager-panel bugun-donut-panel">
+              <header class="bugun-activity-head">
+                <div>
+                  <p class="lab">Çalışma alanı · 30 gün</p>
+                  <h3>Emek nereye gitti</h3>
+                </div>
+                <span class="bugun-activity-meta" id="bugunDonutTotal">—</span>
+              </header>
+              <div class="bugun-donut-wrap">
+                <div class="bugun-donut" id="bugunDonut" aria-label="Çalışma alanı dağılımı">
+                  <svg viewBox="0 0 100 100" id="bugunDonutSvg">
+                    <circle class="ring-bg" cx="50" cy="50" r="40" fill="none" stroke="#e8dfd2" stroke-width="14"></circle>
+                  </svg>
+                  <div class="bugun-donut-center">
+                    <span class="v" id="bugunDonutCenterValue">—</span>
+                    <span class="lbl">rapor</span>
+                  </div>
+                </div>
+                <ul class="bugun-donut-legend" id="bugunDonutLegend">
+                  <li class="empty">Yükleniyor…</li>
+                </ul>
+              </div>
+            </article>
+          </section>
+
+          <section class="manager-panel bugun-pending-section hidden" id="bugunPendingSection">
+            <div class="manager-panel-head">
+              <div>
+                <p class="bugun-section-h">Bekleyen onaylar <span class="muted" id="bugunPendingCount"></span></p>
+                <h2>Yeni başvurular</h2>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" data-manager-go="yonetim" data-scroll-to="yonetimUsersCard" data-manager-filter="pending">Listede aç</button>
+            </div>
+            <div id="bugunPendingList" class="bugun-pending-list"></div>
+          </section>
+
+          <section class="manager-panel bugun-warnings-section hidden" id="bugunWarningsSection">
+            <div class="manager-panel-head">
+              <div>
+                <p class="bugun-section-h">Dikkat</p>
+                <h2>Takip edilmesi gerekenler</h2>
+              </div>
+            </div>
+            <div id="bugunWarnings" class="bugun-warnings"></div>
+          </section>
+
+          <section class="manager-panel bugun-recent-section" id="bugunRecentSection">
+            <div class="manager-panel-head manager-panel-head--split">
+              <div>
+                <p class="bugun-section-h">Rapor akışı</p>
+                <h2>Son raporlar</h2>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" id="bugunRecentRefresh"><i class="ti ti-refresh" aria-hidden="true"></i> Yenile</button>
+            </div>
+            <div id="bugunRecentList" class="sv-log-list bugun-recent-list"><p class="sv-log-empty">Yükleniyor…</p></div>
+            <div class="bugun-recent-foot">
+              <button class="btn btn-secondary btn-sm" type="button" id="bugunRecentMoreBtn">Daha fazla yükle</button>
+              <span class="muted" id="bugunRecentMoreHint" style="font-size:.85rem"></span>
+            </div>
+          </section>
+
+        </main>
+
+        <aside class="manager-side">
+          <!-- Bugün arşivde — today's volunteer roster, derived from the
+               live "Günlük Gönüllü Akışı" sheet tab via /sheets/gunluk_gonullu_akisi/rows/*.
+               Apps Script SheetSync.gs mirrors that tab hourly. The panel
+               loads asynchronously; on permission failure (non-admin staff)
+               or empty mirror it stays in the empty state. -->
+          <section class="manager-panel manager-today-panel">
+            <div class="manager-panel-head">
+              <div>
+                <p class="bugun-section-h" id="managerTodayLabel">Bugün</p>
+                <h2>Arşivde kim var</h2>
+              </div>
+            </div>
+            <div id="managerTodayRoster" class="manager-today-roster">
+              <p class="empty" style="font-size:.85rem">Program yükleniyor…</p>
+            </div>
+            <p class="muted manager-today-foot" style="font-size:.78rem; text-align:center; margin:.5rem 0 0;">Canlı Sheet'in <em>Günlük Gönüllü Akışı</em> sekmesinden okunur.</p>
+          </section>
+
+          <section class="manager-panel manager-sheet-panel admin-only-block hidden" id="managerSheetCard">
+            <div class="manager-panel-head manager-panel-head--split">
+              <div>
+                <p class="bugun-section-h">Canlı Sheet</p>
+                <h2>Google Sheet özeti</h2>
+                <p class="muted" id="managerSheetSummary">Yükleniyor…</p>
+              </div>
+              <div class="manager-sheet-actions">
+                <select id="managerSheetTabSelect" aria-label="Sheet sekmesi"></select>
+                <button type="button" class="btn btn-secondary btn-sm" id="managerSheetRefresh"><i class="ti ti-refresh" aria-hidden="true"></i> Yenile</button>
+                <button type="button" class="btn btn-secondary btn-sm" id="managerSheetOpenDetails">Ayrıntılı tablo</button>
+              </div>
+            </div>
+            <div class="manager-sheet-status">
+              <span class="sheet-sync-dot" id="managerSheetStatusDot" data-status="unknown" aria-hidden="true"></span>
+              <span id="managerSheetStatusText">Senkronizasyon bilgisi yükleniyor…</span>
+            </div>
+            <div id="managerSheetPreview" class="manager-sheet-preview"><p class="empty">Sheet satırları yükleniyor…</p></div>
+          </section>
+
+          <section class="manager-panel manager-quick-panel">
+            <p class="bugun-section-h">Hızlı işlemler</p>
+            <div class="manager-quick-list">
+              <button type="button" class="manager-quick-btn" data-manager-go="yonetim" data-scroll-to="yonetimUsersCard"><i class="ti ti-users" aria-hidden="true"></i><span>Gönüllüleri yönet</span></button>
+              <button type="button" class="manager-quick-btn" data-manager-go="yonetim" data-scroll-to="yonetimFeedCard"><i class="ti ti-speakerphone" aria-hidden="true"></i><span>Duyuru / görev akışı</span></button>
+              <button type="button" class="manager-quick-btn admin-only-block hidden" data-manager-go="bakim" data-scroll-to="sheetSyncCard"><i class="ti ti-refresh-dot" aria-hidden="true"></i><span>Sheet senkronizasyonu</span></button>
+              <button type="button" class="manager-quick-btn admin-only-block hidden" data-manager-go="bakim" data-scroll-to="sheetMirrorCard"><i class="ti ti-table" aria-hidden="true"></i><span>Canlı Sheet aynası</span></button>
+            </div>
+          </section>
+
+          <section class="manager-panel manager-sync-panel admin-only-block hidden">
+            <div class="manager-panel-head">
+              <div>
+                <p class="bugun-section-h">Son senkronizasyon</p>
+                <h2>Sheet olayları</h2>
+              </div>
+            </div>
+            <div id="managerSyncLogList" class="manager-sync-list"><p class="empty">Henüz veri yok.</p></div>
+          </section>
+        </aside>
+      </div>
+
+      <!-- ====================================================
+           Admin-only block (May 2026): used to be the Bakım tab.
+           Mockup-style 4-stat sheet sync + compact mirror tab list +
+           sağlık durumu + hızlı işlemler buttons. The public-site
+           editorial editor lives at the bottom as a collapsed accordion.
+           ==================================================== -->
+      <section class="bugun-admin-block admin-only-block hidden" aria-label="Bakım">
+        <header class="bugun-admin-head">
+          <p class="bugun-admin-kicker"><span class="bugun-admin-ldot" aria-hidden="true"></span>Yönetici · Sistem</p>
+          <h2>Bakım</h2>
+          <p class="bugun-admin-sub">Sheet senkronizasyonu, hızlı eylemler ve public anasayfa içeriği — tek yerde.</p>
+        </header>
+
+        <div class="bugun-admin-grid">
+          <!-- Sheet sync: mockup-style 4-stat grid + colored event log -->
+          <section class="bugun-admin-panel">
+            <header class="bugun-admin-panel-head">
+              <div>
+                <p class="lab">Sheet · Senkronizasyon</p>
+                <h3>Saatlik akış</h3>
+              </div>
+              <span class="bugun-admin-status" id="sheetSyncStatusPill" data-status="ok">●  Sağlıklı</span>
+            </header>
+            <!-- Editorial narrative — populated by renderBugunAdminBlock().
+                 Reads like a sentence rather than a stat grid. The "alert"
+                 block underneath surfaces structure-change details and a
+                 single CTA when action is needed. -->
+            <p class="bugun-admin-narrative" id="bugunAdminSyncNarrative">Yükleniyor…</p>
+            <div class="bugun-admin-meta-row">
+              <p class="bugun-admin-meta" id="bugunAdminSyncMeta">—</p>
+              <button type="button" class="btn btn-primary btn-sm bugun-admin-live-btn" id="bugunAdminLiveSync" disabled>
+                <i class="ti ti-bolt" aria-hidden="true"></i>
+                <span>Şimdi senkronize et</span>
+              </button>
+            </div>
+            <div class="bugun-admin-alert" id="bugunAdminSyncAlert" hidden>
+              <span class="ic" aria-hidden="true">!</span>
+              <div class="body">
+                <p class="t" id="bugunAdminSyncAlertTitle">—</p>
+                <p class="s" id="bugunAdminSyncAlertBody">—</p>
+                <button type="button" class="btn btn-primary btn-sm" id="bugunAdminSyncAlertBtn">Yapıyı yeniden kabul et</button>
+              </div>
+            </div>
+            <p class="bugun-admin-eyebrow">Son olaylar</p>
+            <ol class="bugun-admin-events" id="bugunAdminSyncEvents"><li class="empty">Yükleniyor…</li></ol>
+          </section>
+
+          <!-- Mirror tab list (compact, not the full table) -->
+          <section class="bugun-admin-panel">
+            <header class="bugun-admin-panel-head">
+              <div>
+                <p class="lab">Canlı sheet</p>
+                <h3>Sekme durumu</h3>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" id="bugunAdminMirrorRefresh">↻</button>
+            </header>
+            <ul class="bugun-admin-mirror" id="bugunAdminMirrorList"><li class="empty">Yükleniyor…</li></ul>
+          </section>
+
+          <!-- Hızlı işlemler -->
+          <section class="bugun-admin-panel">
+            <header class="bugun-admin-panel-head">
+              <div>
+                <p class="lab">Bakım eylemleri</p>
+                <h3>Hızlı işlemler</h3>
+              </div>
+            </header>
+            <div class="bugun-admin-actions">
+              <button type="button" class="btn btn-secondary" id="bugunAdminAcceptStructure"><i class="ti ti-check"></i> Yapıyı yeniden kabul et</button>
+              <a class="btn btn-secondary" href="https://docs.google.com/spreadsheets/d/1qJ49Iv4UL0kPC0dd9MmfilTwQAMKgelujWPqZH134RE/edit" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Sheet'i Drive'da aç</a>
+              <button type="button" class="btn btn-secondary" id="bugunAdminWebhookConfig"><i class="ti ti-link"></i> Webhook URL ayarla</button>
+            </div>
+
+            <!-- Webhook setup details — collapsed unless URL is unset. Filled
+                 by renderBugunAdminBlock() and submitted to /config/syncWebhook
+                 (admin-only write per firestore.rules). -->
+            <details class="bugun-admin-webhook" id="bugunAdminWebhookForm">
+              <summary><span class="kicker">Bir kerelik kurulum</span><span class="title">Apps Script Web App URL'sini ayarla</span></summary>
+              <div class="bugun-admin-webhook-body">
+                <p class="muted" style="font-size:.85rem; margin: 0 0 .85rem;">Apps Script editörü → Deploy → New deployment → Web app. Çıkan URL'yi aşağıya yapıştır, token olarak da uzun rastgele bir metin yaz (Script Properties'e <code>SYNC_WEBHOOK_TOKEN</code> olarak da kaydet).</p>
+                <label class="form-stack" style="margin-bottom:.65rem;">
+                  <span class="form-stack-label">Web App URL</span>
+                  <input type="url" id="bugunAdminWebhookUrl" placeholder="https://script.google.com/macros/s/AKfycb.../exec" />
+                </label>
+                <label class="form-stack" style="margin-bottom:.65rem;">
+                  <span class="form-stack-label">Token (paylaşılan sır)</span>
+                  <input type="text" id="bugunAdminWebhookToken" placeholder="uzun rastgele bir metin" />
+                </label>
+                <div style="display:flex; gap:.5rem; align-items:center;">
+                  <button type="button" class="btn btn-primary btn-sm" id="bugunAdminWebhookSave">Kaydet</button>
+                  <span id="bugunAdminWebhookMsg" class="muted" style="font-size:.8rem;">—</span>
+                </div>
+              </div>
+            </details>
+          </section>
+
+          <!-- Sağlık durumu (placeholder values for now) -->
+          <section class="bugun-admin-panel">
+            <header class="bugun-admin-panel-head">
+              <div>
+                <p class="lab">Sistem · Sağlık</p>
+                <h3>Sağlık durumu</h3>
+              </div>
+              <span class="bugun-admin-status" data-status="ok">●  OK</span>
+            </header>
+            <p class="bugun-admin-narrative bugun-admin-narrative-sm" id="bugunAdminHealthNarrative">Yükleniyor…</p>
+            <p class="bugun-admin-meta" id="bugunAdminHealthMeta">—</p>
+          </section>
+        </div>
+
+        <!-- Public anasayfa editor — collapsed details accordion -->
+        <details class="bugun-admin-accordion" id="bugunAdminContentAccordion">
+          <summary>
+            <span class="kicker">Public anasayfa</span>
+            <span class="title">Ana sayfa metinlerini düzenle ↓</span>
+          </summary>
+          <article class="card" id="publicContentEditorCard">
+            <p class="eyebrow">Bakım · anasayfa metinleri</p>
+            <h2 style="margin-top:0">Public anasayfayı düzenle</h2>
+            <p class="muted">Aşağıdaki alanları düzenlediğinde tarihvakfi.org.tr ana sayfasındaki ilgili yazılar değişir. Live preview yok — değişiklikten sonra yeni sekmede ana sayfayı yenile.</p>
+
+            <form id="publicContentForm" class="form" style="margin-top:1rem; display:grid; gap:.85rem;">
+              <label class="form-stack">
+                <span class="form-stack-label">Üst etiket (eyebrow)</span>
+                <input type="text" id="pcfHeroEyebrow" placeholder="Tarih Vakfı · Pertev Naili Boratav Arşivi" />
+                <small class="muted">Hero'nun en üstündeki küçük mono yazı.</small>
+              </label>
+              <label class="form-stack">
+                <span class="form-stack-label">Ana başlık (H1) <em class="muted" style="font-weight:400;">— <code>&lt;em&gt;</code> ile vurgulayabilirsin</em></span>
+                <input type="text" id="pcfHeroHeadline" placeholder='Geçmişin sesini &lt;em&gt;birlikte&lt;/em&gt; koruyoruz.' />
+              </label>
+              <label class="form-stack">
+                <span class="form-stack-label">Hero alt paragraf</span>
+                <textarea id="pcfHeroSub" rows="3" placeholder="Pertev Naili Boratav'ın özel arşivi sayfa sayfa..."></textarea>
+                <small class="muted"><code>&lt;b&gt;</code> ile kalın, <code>&lt;em&gt;</code> ile vurgu.</small>
+              </label>
+              <fieldset class="form-fieldset">
+                <legend>Proje kartı (PNB)</legend>
+                <label class="form-stack" style="margin-bottom:.65rem;">
+                  <span class="form-stack-label">Başlık</span>
+                  <input type="text" id="pcfProjectHeading" placeholder="Bir hayatın izleri, sayfa sayfa." />
+                </label>
+                <label class="form-stack" style="margin-bottom:.65rem;">
+                  <span class="form-stack-label">Alt satır</span>
+                  <input type="text" id="pcfProjectPeople" placeholder="Türk halkbilimi'nin kurucu isimlerinden..." />
+                </label>
+                <label class="form-stack">
+                  <span class="form-stack-label">Açıklama</span>
+                  <textarea id="pcfProjectBlurb" rows="3" placeholder="Boratav'ın özel kitaplığı..."></textarea>
+                </label>
+              </fieldset>
+              <fieldset class="form-fieldset">
+                <legend>Bugünün notu (banner)</legend>
+                <p class="muted" style="margin:0 0 .65rem; font-size:.85rem;">Public anasayfanın en üstüne sarı bir banner ekler.</p>
+                <label class="form-stack" style="margin-bottom:.65rem;">
+                  <span class="form-stack-label">Metin</span>
+                  <input type="text" id="pcfDailyNote" placeholder="Bu Cumartesi açık ofis günü · 14:00 Eminönü" />
+                </label>
+                <label style="display:inline-flex; align-items:center; gap:.5rem; font-size:.9rem;">
+                  <input type="checkbox" id="pcfDailyNoteVisible" />
+                  <span>Banner'ı public sayfada göster</span>
+                </label>
+              </fieldset>
+              <div class="form-actions" style="margin-top:.5rem; display:flex; justify-content:space-between; align-items:center; gap:.5rem;">
+                <span id="publicContentMessage" class="status-line muted" style="font-size:.85rem;">—</span>
+                <div style="display:flex; gap:.5rem;">
+                  <button type="button" class="btn btn-secondary" id="publicContentReloadBtn">↻ Sıfırla</button>
+                  <a class="btn btn-secondary" href="../" target="_blank" rel="noopener">↗ Ana sayfayı aç</a>
+                  <button type="submit" class="btn btn-primary" id="publicContentSaveBtn">Kaydet</button>
+                </div>
+              </div>
+            </form>
+          </article>
+        </details>
+      </section>
+    </section>
+
+    <section id="tab-pnb" class="tab-content hidden">
+      <!-- Shared PNB project tab. Volunteers and staff render the same DOM;
+           role gating happens inside dashboard.js (drag-drop and the inline
+           Rapor Yaz form are volunteer/staff-aware, not duplicated here).
+           IDs stay vp-* / vpPnb-* for backward compatibility with existing
+           handlers.  -->
+      <div id="volunteerPnbView" class="vp-pnb">
+        <header class="vp-pnb-head">
+          <h2 id="vpPnbName">Pertev Naili Boratav Arşivi</h2>
+          <p class="vp-pnb-blurb" id="vpPnbBlurb">Türk halkbilimi'nin kurucu isimlerinden Pertev Naili Boratav (1908–1998).</p>
+          <p class="vp-pnb-desc" id="vpPnbDesc">Boratav'ın özel kitaplığı, makaleleri, mektupları, ders notları ve halk hikâyesi derlemeleri sayfa sayfa dijital ortama aktarılıyor.</p>
+        </header>
+
+        <div class="vp-pnb-prog">
+          <p class="lab" id="vpPnbProgEyebrow">Pertev Naili Boratav Arşivi</p>
+          <p class="num"><span id="vpPnbProgPct">0</span><small>%</small></p>
+          <p class="sub" id="vpPnbProgLine">Yükleniyor…</p>
+        </div>
+
+        <div class="vp-pnb-stats volunteer-only-block">
+          <button type="button" class="vp-pnb-stat" id="vpPnbStatNext">
+            <span class="lab">Sıradaki iş</span>
+            <span class="val" id="vpPnbNextTitle">—</span>
+            <span class="sub" id="vpPnbNextSub">—</span>
+          </button>
+          <button type="button" class="vp-pnb-stat" id="vpPnbStatAttn">
+            <span class="lab" id="vpPnbAttnLab">Üstümdeki iş</span>
+            <span class="val" id="vpPnbAttnVal">—</span>
+            <span class="sub" id="vpPnbAttnSub">—</span>
+          </button>
+          <button type="button" class="vp-pnb-stat" id="vpPnbStatWeek">
+            <span class="lab">Bu hafta</span>
+            <span class="val" id="vpPnbWeekVal">0 sayfa</span>
+            <span class="sub" id="vpPnbWeekSub">—</span>
+          </button>
+          <button type="button" class="vp-pnb-stat" id="vpPnbStatTeam">
+            <span class="lab">Aktif gönüllü</span>
+            <span class="val" id="vpPnbTeamVal">0 kişi</span>
+            <span class="sub" id="vpPnbTeamSub">son 7 günde rapor yazdı</span>
+          </button>
+        </div>
+
+        <!-- Inline Rapor Yaz form (PNB-scoped, volunteers only). Filled by
+             ensureInlineRaporForm("pnbInlineRapor", { fixedProjectId: "pnb" }). -->
+        <div id="pnbInlineRapor" class="card inline-rapor-card volunteer-only-block"></div>
+
+        <!-- ============ İş Akışı section ============ -->
+        <section class="vp-pnb-flow" aria-labelledby="vpPnbFlowH">
+          <p class="vp-pnb-flow-stat" id="vpPnbFlowStat">— / 0 başlandı · — / 0 tamamlandı</p>
+          <div class="vp-pnb-flow-head">
+            <h3 id="vpPnbFlowH" class="vp-pnb-flow-title">İş Akışı</h3>
+            <input id="vpPnbFlowSearch" class="vp-pnb-flow-search" type="search" placeholder="Kutu/seri ara…" autocomplete="off" />
+          </div>
+
+          <!-- Collapsed Başlanmamış strip. Default: closed. -->
+          <details class="vp-pnb-todo-strip" id="vpPnbTodoStrip">
+            <summary class="vp-pnb-todo-summary">
+              <span class="vp-pnb-todo-summary-text">Başlanmamış iş paketleri (<span id="vpPnbTodoTotal">0</span>)</span>
+              <span class="vp-pnb-todo-summary-toggle" aria-hidden="true">
+                <span class="when-closed">▶ Aç</span>
+                <span class="when-open">▼ Kapat</span>
+              </span>
+            </summary>
+            <div class="vp-pnb-todo-body">
+              <div class="vp-pnb-todo-controls">
+                <label class="vp-pnb-todo-sort">
+                  <span>Sırala</span>
+                  <select id="vpPnbTodoSort">
+                    <option value="priority">Öncelik (yüksek → düşük)</option>
+                    <option value="source">Kaynak / seri kodu</option>
+                    <option value="pages">Sayfa adedi</option>
+                    <option value="material">Materyal türü</option>
+                  </select>
+                </label>
+                <div class="vp-pnb-todo-chips" role="group" aria-label="Etiket filtresi">
+                  <button type="button" class="vp-pnb-chip is-on" data-todo-tag="">Tümü</button>
+                  <button type="button" class="vp-pnb-chip" data-todo-tag="osmanlica">Osmanlıca</button>
+                  <button type="button" class="vp-pnb-chip" data-todo-tag="gorsel_isitsel_envanter">Görsel-işitsel</button>
+                  <button type="button" class="vp-pnb-chip" data-todo-tag="arsivcilik">Arşiv</button>
+                  <button type="button" class="vp-pnb-chip" data-todo-tag="dijitallestirme">Dijital</button>
+                </div>
+                <label class="vp-pnb-todo-digital">
+                  <input type="checkbox" id="vpPnbTodoDigital" />
+                  <span>Sadece dijitalleşmiş</span>
+                </label>
+              </div>
+              <p class="vp-pnb-todo-count" id="vpPnbTodoCount">0 sonuç</p>
+              <ul id="vpPnbTodoList" class="vp-pnb-todo-list"><li class="vp-pnb-todo-empty">Yükleniyor…</li></ul>
+              <div class="vp-pnb-todo-pager">
+                <button type="button" class="btn btn-secondary btn-sm" id="vpPnbTodoPrev" disabled>← Önceki</button>
+                <span class="vp-pnb-todo-page muted" id="vpPnbTodoPage">Sayfa 1</span>
+                <button type="button" class="btn btn-secondary btn-sm" id="vpPnbTodoNext" disabled>Sonraki →</button>
+              </div>
+            </div>
+          </details>
+
+          <!-- Two-column kanban (Devam ediyor + Tamamlandı). Drop targets are
+               wired on the staff side only; volunteer cards are click-only.
+               "Gözden geçirme" (review) and "Takıldım" (blocked) statuses
+               still exist in the data model but no longer render here —
+               blocked surfaces in the coordinator's Bugün Dikkat instead. -->
+          <div class="vp-pnb-board" role="list" aria-label="İş paketi panosu">
+            <section class="pano-col vp-pnb-col" data-pano-col="in_progress" data-vp-target-status="in_progress">
+              <header><h3>Devam ediyor</h3><span class="n" id="vpPnbCountDoing">0</span></header>
+              <div id="vpPnbColDoing" class="pano-col-body vp-pnb-col-body"><p class="kb-empty">Yükleniyor…</p></div>
+            </section>
+            <section class="pano-col vp-pnb-col" data-pano-col="done" data-vp-target-status="done">
+              <header><h3>Tamamlandı</h3><span class="n" id="vpPnbCountDone">0</span></header>
+              <div id="vpPnbColDone" class="pano-col-body vp-pnb-col-body"><p class="kb-empty">Yükleniyor…</p></div>
+            </section>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <!-- ====== Volunteer-only Duyurular ====== -->
+    <section id="tab-duyurular" class="tab-content hidden">
+      <div id="announcementsCard" class="card">
+        <p class="eyebrow">Duyurular</p>
+        <div id="announcementsList" class="stack"><p class="empty">Duyuru yok.</p></div>
+      </div>
+    </section>
+
+    <!-- ====== Yönetim (coordinator/admin) — two sections after Prompt P ====== -->
+    <section id="tab-yonetim" class="tab-content hidden">
+      <header class="yonetim-head">
+        <h1>Yönetim</h1>
+        <p class="muted">Ekip ve duyuru/görev akışı — tek yerde.</p>
+      </header>
+
+      <!-- Section 1: Tüm gönüllüler — pending users surface at the top with a
+           Pending pill and inline approve/reject; approved users follow with
+           the existing filter pills. -->
+      <article class="card" id="yonetimUsersCard">
+        <div class="step-header">
+          <div>
+            <p class="eyebrow">Tüm gönüllüler</p>
+            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Aktiflik durumlarına göre filtrele, satıra bas → düzenle. Onay bekleyenler en üstte.</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" type="button" id="exportActivityBtn">CSV</button>
+        </div>
+        <div class="yonetim-users-controls">
+          <div class="yonetim-users-filters">
+            <button type="button" class="if-pill is-on" data-yonetim-filter="all">Hepsi</button>
+            <button type="button" class="if-pill" data-yonetim-filter="active">Aktif</button>
+            <button type="button" class="if-pill" data-yonetim-filter="slowing">Yavaşlayan</button>
+            <button type="button" class="if-pill" data-yonetim-filter="silent">Sessiz</button>
+            <button type="button" class="if-pill" data-yonetim-filter="pending">Pending</button>
+          </div>
+          <div class="yonetim-users-toolbar">
+            <input id="yonetimUsersSearch" class="search" type="search" placeholder="İsim, e-posta, departman, uzmanlık ara…" />
+            <label class="compact-filter">Sırala
+              <select id="yonetimUsersSort">
+                <option value="recent">Son aktivite</option>
+                <option value="name">Ad</option>
+                <option value="reports">Rapor sayısı</option>
+                <option value="department">Departman</option>
+              </select>
+            </label>
+            <label class="compact-filter">Departman
+              <select id="activityDeptFilter">
+                <option value="">Tümü</option>
+                <option>Eğitim</option>
+                <option>Arşiv</option>
+                <option>İletişim</option>
+                <option>Etkinlik</option>
+                <option>Dijital İçerik</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <!-- Pending block sits at the top of the list when the active filter
+             is "all" or "pending". Filled by renderYonetimUserDirectory(). -->
+        <div id="userDirectory" class="stack"><p class="empty">Kullanıcı bulunamadı.</p></div>
+
+        <details id="addUserPanel" class="management-drawer" style="margin-top:1rem">
+          <summary>+ Yeni gönüllü / kullanıcı ekle</summary>
+          <div class="management-drawer-body">
+            <p class="muted" style="font-size:.9rem;margin:0 0 .75rem">E-posta ile ön kayıt oluşturun. Kişi Google ile giriş yaptığında otomatik onaylanır.</p>
+            <form id="addUserForm" class="form compact-form">
+              <div class="form-row">
+                <label>E-posta <input id="addUserEmail" type="email" required placeholder="ornek@gmail.com" /></label>
+                <label>Ad Soyad <input id="addUserName" type="text" required /></label>
+              </div>
+              <div class="form-row">
+                <label>Departman
+                  <select id="addUserDepartment" required>
+                    <option value="">Seçiniz</option>
+                    <option>Eğitim</option>
+                    <option>Arşiv</option>
+                    <option>İletişim</option>
+                    <option>Etkinlik</option>
+                    <option>Dijital İçerik</option>
+                  </select>
+                </label>
+                <label>Rol
+                  <select id="addUserRole">
+                    <option value="volunteer">Gönüllü</option>
+                    <option value="admin">Yönetici</option>
+                    <!-- Coordinator role merged into admin (May 2026); option
+                         retained in DOM so legacy users with role=coordinator
+                         still parse but it's hidden from the dropdown. -->
+                    <option value="coordinator" hidden>Koordinatör</option>
+                  </select>
+                </label>
+                <label>Telefon <input id="addUserPhone" type="tel" placeholder="+90 ..." /></label>
+              </div>
+              <div class="form-actions"><button type="submit" class="btn btn-primary">Kullanıcı ekle</button><span id="addUserMessage" class="status-line muted"></span></div>
+            </form>
+          </div>
+        </details>
+      </article>
+
+      <!-- Section 2: Duyurular & Görevler — combined feed.
+           Two "+ new" buttons reveal the respective forms inline. The list
+           below interleaves announcements and tasks, most recent first. -->
+      <article class="card" id="yonetimFeedCard" style="margin-top:1.25rem">
+        <div class="step-header">
+          <div>
+            <p class="eyebrow">Duyurular & görevler</p>
+            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Yayınlanan duyurular ve atanan koordinasyon görevleri tek liste halinde.</p>
+          </div>
+          <div style="display:flex;gap:.4rem">
+            <button class="btn btn-secondary btn-sm" type="button" id="yonetimNewAnnouncementBtn">+ Yeni duyuru</button>
+            <button class="btn btn-secondary btn-sm" type="button" id="yonetimNewTaskBtn">+ Yeni görev</button>
+          </div>
+        </div>
+        <div id="adminAnnouncementForm" class="card hidden" style="margin:.5rem 0 .75rem;background:var(--tblr-bg-surface-secondary)">
+          <p class="eyebrow">Yeni duyuru</p>
+          <form id="announcementForm" class="form compact-form">
+            <div class="form-row">
+              <label>Başlık <input id="announcementTitle" type="text" required /></label>
+              <label>Hedef
+                <select id="announcementAudience">
+                  <option value="all">Tümü</option>
+                  <option value="volunteers">Gönüllüler</option>
+                  <option value="coordinators">Yöneticiler</option>
+                </select>
+              </label>
+            </div>
+            <label>Metin <textarea id="announcementBody" rows="3" required></textarea></label>
+            <div class="form-actions"><button type="submit" class="btn btn-primary">Duyuru yayınla</button><span id="announcementMessage" class="status-line muted"></span></div>
+          </form>
+        </div>
+        <div id="adminTaskForm" class="card hidden" style="margin:.5rem 0 .75rem;background:var(--tblr-bg-surface-secondary)">
+          <p class="eyebrow">Yeni görev</p>
+          <form id="taskForm" class="form compact-form">
+            <div class="form-row">
+              <label>Başlık <input id="taskTitle" type="text" required /></label>
+              <label>Departman
+                <select id="taskDepartment" required>
+                  <option value="">Seçiniz</option>
+                  <option>Eğitim</option>
+                  <option>Arşiv</option>
+                  <option>İletişim</option>
+                  <option>Etkinlik</option>
+                  <option>Dijital İçerik</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-row">
+              <label>Atanan kişi <select id="taskAssignedTo"><option value="">Seçiniz</option></select></label>
+              <label>Son tarih <input id="taskDueDate" type="date" /></label>
+              <label>Öncelik
+                <select id="taskPriority">
+                  <option value="low">Düşük</option>
+                  <option value="medium" selected>Orta</option>
+                  <option value="high">Yüksek</option>
+                </select>
+              </label>
+            </div>
+            <label>Açıklama <textarea id="taskDescription" rows="2"></textarea></label>
+            <!-- The legacy "PNB arşiv birimi" select that used to live on this
+                 form was removed in Prompt P (assignment surfaces removed
+                 across the staff side). Tasks no longer link back to a
+                 specific archive unit; coordinate via the note instead. -->
+            <input type="hidden" id="taskArchiveUnit" value="" />
+            <div class="form-actions"><button type="submit" class="btn btn-primary">İşi kaydet</button><span id="taskMessage" class="status-line muted"></span></div>
+          </form>
+        </div>
+        <div id="yonetimFeedList" class="stack"><p class="empty">Duyuru veya görev yok.</p></div>
+        <!-- Hidden listeners-only buckets so existing renderers (la / lt) keep
+             writing somewhere without breaking. The feed renderer below
+             (renderYonetimFeed) builds the unified list. -->
+        <div id="yonetimAnnouncementsList" class="stack hidden"></div>
+        <div id="tasksList" class="stack hidden"></div>
+      </article>
+    </section>
+
+    <!-- ====== Bakım (admin only) — four sections ====== -->
+    <section id="tab-bakim" class="tab-content tab-bakim-editorial hidden">
+      <!-- Editorial hero (May 2026): same aesthetic as the public site —
+           kicker with pulsing dot + Lora h1 + sentence subtitle. The "ldot"
+           is purely decorative; admin can ignore it. -->
+      <header class="bakim-hero">
+        <p class="bakim-kicker"><span class="bakim-ldot" aria-hidden="true"></span>Yönetici · Sistem</p>
+        <h1>Bakım</h1>
+        <p class="bakim-sub">İçerik düzenleme, sheet senkronizasyonu, kullanıcı işlemleri — hepsi tek yerde.</p>
+      </header>
+
+      <!-- publicContentEditorCard moved into tab-bugun (May 2026) as an
+           admin-only collapsed accordion at the bottom. Bakım tab is dropped
+           from the visible nav. -->
+
+      <!-- Section 1: PNB import aracı (hidden in simplified May-2026 Bakım — use direct CLI tools instead) -->
+      <article class="card" hidden>
+        <p class="eyebrow">Bakım · veri araçları</p>
+        <h2 style="margin-top:0">PNB import aracı</h2>
+        <p class="muted">Önce <code>tools/pnb_excel_to_import.py</code> ile yerel JSON üretin. JSON kişisel iletişim bilgileri içerebilir; repo içinde <code>imports/</code> klasörü git tarafından yok sayılır.</p>
+        <div class="form-row">
+          <label>Import JSON <input id="pnbImportFile" type="file" accept="application/json,.json" /></label>
+        </div>
+        <div class="form-actions">
+          <button id="pnbCommitBtn" class="btn btn-primary" type="button" disabled>Firestore'a aktar</button>
+          <span id="pnbImportMessage" class="status-line muted"></span>
+        </div>
+        <div id="pnbImportPreview" style="margin-top:1rem"><p class="empty">Henüz import dosyası seçilmedi.</p></div>
+      </article>
+
+      <!-- Section 2: User enrichment import (hidden in simplified Bakım) -->
+      <article class="card" hidden style="margin-top:1.25rem">
+        <p class="eyebrow">Bakım · kullanıcı zenginleştirme</p>
+        <h2 style="margin-top:0">User enrichment import</h2>
+        <p class="muted">Gönüllü ve ön kayıt güncellemelerini batch olarak içe aktarır. Önce <code>tools/build_enrichment_preview.py</code> ile <code>tools/enrichment_preview_updates.json</code> ve <code>tools/enrichment_preview_prereg.json</code> üretin, sonra burada yükleyip onaylayın.</p>
+        <div class="form-row">
+          <label>Updates JSON <input id="enrichUpdatesFile" type="file" accept="application/json,.json" /></label>
+          <label>Preregistration JSON <input id="enrichPreregFile" type="file" accept="application/json,.json" /></label>
+        </div>
+        <div class="form-actions">
+          <button id="enrichCommitBtn" class="btn btn-primary" type="button" disabled>İçe aktar</button>
+          <span id="enrichImportMessage" class="status-line muted">TODO: önizleme + onay akışı eklenmeli.</span>
+        </div>
+        <div id="enrichImportPreview" style="margin-top:1rem"><p class="empty">Henüz dosya seçilmedi.</p></div>
+      </article>
+
+      <!-- Section 3: Pending review (hidden in simplified Bakım — coordinator handles in Bugün > Yönetim) -->
+      <article class="card" id="pendingReviewCard" hidden style="margin-top:1.25rem">
+        <div class="step-header">
+          <div>
+            <p class="eyebrow">Yeni iş kuyruğu</p>
+            <h2 style="margin-top:0">Gözden geçirme bekleyen yeni işler</h2>
+            <p class="muted">Gönüllülerin "Liste dışı / yeni bir iş" yoluyla oluşturduğu kayıtlar — onaylayıp sıraya ekleyin, mevcut bir işle birleştirin veya silin.</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" type="button" id="pendingReviewRefresh">Yenile</button>
+        </div>
+        <div id="pendingReviewList" class="stack"><p class="empty">Yükleniyor…</p></div>
+      </article>
+
+      <!-- Section 4: Telegram tanılama. Hidden by default + the JS load
+           and click handlers are gated on
+           window.FEATURE_FLAGS.telegramSection (false since the bot was
+           decommissioned 28 Apr 2026). Markup retained for revival. -->
+      <article class="card" id="tgDiagnosticCard" data-telegram-section hidden style="margin-top:1.25rem">
+        <div class="step-header">
+          <div>
+            <p class="eyebrow">Bakım · telegram</p>
+            <h2 style="margin-top:0">Telegram tanılama</h2>
+            <p class="muted" style="font-size:.85rem;margin:.15rem 0 0">Bağlantı sayısı, oturum durumu ve şema doğrulama. Sayılar doğrudan Firestore'dan okunur.</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" type="button" id="tgDiagnosticRefresh">Yenile</button>
+        </div>
+        <div id="tgDiagnosticCounts" class="stack" style="margin-top:.75rem">
+          <p class="empty">Henüz yüklenmedi.</p>
+        </div>
+        <div class="form-actions" style="margin-top:.75rem">
+          <button class="btn btn-secondary btn-sm" type="button" id="tgSchemaCheckBtn">Şema doğrulamasını çalıştır</button>
+          <span id="tgSchemaCheckMsg" class="status-line muted" style="font-size:.85rem"></span>
+        </div>
+        <div id="tgSchemaCheckResult" class="stack" style="margin-top:.75rem"></div>
+      </article>
+
+      <!-- Section: Sheet senkronizasyonu — admin view of the Apps Script
+           SheetSync.gs runs. Shows status dot (green/yellow/red), recent
+           run log, structure-change alerts, and a "Yapıyı yeniden kabul et"
+           button that uploads the current sheet structure as the new
+           baseline. Wiring lives in dashboard.js renderSheetSyncPanel(). -->
+      <article class="card" id="sheetSyncCard" style="margin-top:1.25rem">
+        <div class="step-header">
+          <div class="sheet-sync-head">
+            <span class="sheet-sync-dot" id="sheetSyncDot" data-status="unknown" title="Yükleniyor…"></span>
+            <div>
+              <p class="eyebrow">Sheet · senkronizasyon</p>
+              <h2 style="margin-top:0">Sheet senkronizasyonu</h2>
+              <p class="muted" id="sheetSyncStatusLine" style="font-size:.85rem;margin:.15rem 0 0">Yükleniyor…</p>
+            </div>
+          </div>
+        </div>
+        <div class="sheet-sync-actions">
+          <button class="btn btn-secondary btn-sm" type="button" id="sheetSyncRefreshBtn">Yenile</button>
+          <button class="btn btn-secondary btn-sm" type="button" id="sheetSyncAcceptBtn" disabled>Yapıyı yeniden kabul et</button>
+          <button class="btn btn-primary btn-sm" type="button" id="sheetSyncResumeBtn" disabled>Senkronizasyonu yeniden başlat</button>
+        </div>
+        <div id="sheetSyncAlerts" class="stack" style="margin-top:.75rem"></div>
+        <p class="eyebrow" style="margin-top:1rem">Son senkronizasyon olayları</p>
+        <div id="sheetSyncLog" class="stack"><p class="empty">Henüz senkronizasyon olayı yok.</p></div>
+      </article>
+
+      <!-- Section: Live sheet mirror. This is admin-only because the source
+           sheet can contain names, internal notes, equipment labels, and other
+           non-public context. It renders exactly what SheetSync.gs mirrored
+           into /sheets/{tabSlug}/rows. -->
+      <article class="card" id="sheetMirrorCard" hidden style="margin-top:1.25rem">
+        <div class="step-header">
+          <div>
+            <p class="eyebrow">Sheet · canlı ayna</p>
+            <h2 style="margin-top:0">Google Sheet içeriği</h2>
+            <p class="muted" id="sheetMirrorSummary" style="font-size:.85rem;margin:.15rem 0 0">Yükleniyor...</p>
+          </div>
+        </div>
+        <div class="sheet-mirror-controls">
+          <select id="sheetMirrorTabSelect" aria-label="Sheet sekmesi"></select>
+          <button class="btn btn-secondary btn-sm" type="button" id="sheetMirrorRefreshBtn">Yenile</button>
+        </div>
+        <div id="sheetMirrorTable" style="margin-top:.85rem"><p class="empty">Henüz mirror verisi yok.</p></div>
+      </article>
+
+      <!-- Section 5: Veri sağlığı (hidden in simplified Bakım — not implemented yet) -->
+      <article class="card" hidden style="margin-top:1.25rem">
+        <p class="eyebrow">Bakım · veri sağlığı</p>
+        <h2 style="margin-top:0">Veri sağlığı</h2>
+        <p class="muted">Koleksiyon doc sayıları, son yazma zamanları ve tutarsızlık uyarıları. <em>(TODO: implement health-check render — tools/data_health.py to drive this.)</em></p>
+        <div id="dataHealthSummary" class="stack"><p class="empty">Veri sağlığı paneli henüz yapılandırılmadı.</p></div>
+      </article>
+    </section>
+  </div>
+
+  <div id="unitDrillModal" class="drill-modal hidden" role="dialog" aria-modal="true" aria-labelledby="drillTitle">
+    <div class="drill-backdrop" data-drill-close></div>
+    <div class="drill-panel">
+      <aside id="chSide" class="ch-side hidden" aria-label="Birim bilgileri"></aside>
+      <section id="chMain" class="ch-main hidden" aria-label="Kanal">
+        <header class="ch-head">
+          <span class="ch-title" id="chTitle">—</span>
+          <div class="actions" style="display:flex;gap:.4rem">
+            <a id="chSheetLink" class="btn btn-secondary btn-sm hidden" href="#" target="_blank" rel="noopener">📊 Sheet</a>
+            <button type="button" class="btn btn-secondary btn-sm" data-drill-close>Kapat</button>
+          </div>
+        </header>
+        <div id="chThread" class="ch-thread"></div>
+        <div id="chComposer" class="ch-composer">
+          <button type="button" class="q" data-compose="pages">+ Sayfa</button>
+          <input type="number" id="chComposePages" class="pages-input hidden" min="0" step="1" placeholder="sayfa" />
+          <button type="button" class="q" data-compose="blocker">Engel</button>
+          <button type="button" class="q" data-compose="done">Bitti ↑</button>
+          <button type="button" class="q" data-compose="paste">Yapıştır</button>
+          <input type="text" id="chComposeText" placeholder="Bir şey yaz…" />
+          <button type="button" class="send" id="chComposeSend">Gönder</button>
+        </div>
+      </section>
+      <header class="drill-header">
+        <div>
+          <p class="eyebrow">Arşiv birimi geçmişi</p>
+          <h2 id="drillTitle">—</h2>
+          <p id="drillSubtitle" class="muted"></p>
+        </div>
+        <div class="drill-header-actions">
+          <button type="button" id="drillExportCsv" class="btn btn-secondary btn-sm hidden">CSV</button>
+          <button type="button" class="btn btn-secondary btn-sm" data-drill-close aria-label="Kapat">Kapat</button>
+        </div>
+      </header>
+      <div id="drillMeta" class="drill-meta"></div>
+      <div id="drillStats" class="drill-stats"></div>
+      <div id="drillBlocker" class="drill-blocker"></div>
+      <div class="drill-section drill-actions-row">
+        <button type="button" id="drillReportBtn" class="btn btn-primary btn-sm">Rapor Yaz (bu iş paketi için)</button>
+      </div>
+      <div class="drill-section drill-timeline-section hidden" id="drillTimelineSection">
+        <p class="eyebrow">Durum geçmişi</p>
+        <div id="drillTimeline" class="drill-timeline"></div>
+      </div>
+      <!-- The "Atanan gönüllüler" section + the in-edit assign select were
+           removed in Prompt P. We never display archive-unit assignment
+           data on the coordinator/admin surface. The hidden #drillEditAssign
+           input below is a placeholder so existing JS code paths that read
+           it can stay untouched until the next cleanup pass. -->
+      <details id="drillEdit" class="drill-section drill-edit hidden">
+        <summary>Ayarla (durum, öncelik, engel, sheet)</summary>
+        <div class="drill-edit-body">
+          <div class="sp-row">
+            <label>Durum <select id="drillEditStatus">
+              <option value="not_started">Başlamadı</option>
+              <option value="in_progress">Devam ediyor</option>
+              <option value="review">Kontrol</option>
+              <option value="done">Tamamlandı</option>
+              <option value="blocked">Engelli</option>
+            </select></label>
+            <label>Öncelik <select id="drillEditPriority">
+              <option value="low">Düşük</option>
+              <option value="medium">Orta</option>
+              <option value="high">Yüksek</option>
+            </select></label>
+          </div>
+          <label>Son tarih <input type="date" id="drillEditDue" /></label>
+          <select id="drillEditAssign" multiple size="0" hidden style="display:none"></select>
+          <label>Engel / not <textarea id="drillEditBlocker" rows="2"></textarea></label>
+          <label>Çalışma sayfası bağlantısı (Google Sheets / Drive URL)
+            <input type="url" id="drillEditSheetUrl" placeholder="https://docs.google.com/spreadsheets/..." />
+          </label>
+          <div style="display:flex;gap:.4rem;justify-content:flex-end">
+            <button type="button" id="drillEditSave" class="btn btn-primary btn-sm">Kaydet</button>
+            <span id="drillEditMsg" class="status-line muted" style="font-size:.85rem"></span>
+          </div>
+        </div>
+      </details>
+
+      <div class="drill-section">
+        <p class="eyebrow">Son raporlar</p>
+        <div id="drillReports" class="drill-reports"><p class="muted">Yükleniyor...</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="approvePendingModal" class="drill-modal hidden" role="dialog" aria-modal="true" aria-labelledby="approvePendingTitle">
+    <div class="drill-backdrop" data-approve-pending-close></div>
+    <div class="drill-panel" style="max-width:520px">
+      <header class="drill-header">
+        <div>
+          <p class="eyebrow">Onayla ve sıraya ekle</p>
+          <h2 id="approvePendingTitle">Yeni işi onayla</h2>
+          <p class="muted" id="approvePendingSummary" style="font-size:.85rem;margin:.15rem 0 0"></p>
+        </div>
+        <div class="drill-header-actions">
+          <button type="button" class="btn btn-secondary btn-sm" data-approve-pending-close>Kapat</button>
+        </div>
+      </header>
+      <form id="approvePendingForm" class="form compact-form" novalidate>
+        <input type="hidden" id="approvePendingId" />
+        <label>Öncelik
+          <select id="approvePendingPriority">
+            <option value="low">Düşük</option>
+            <option value="medium" selected>Orta</option>
+            <option value="high">Yüksek</option>
+          </select>
+        </label>
+        <label>Uygunluk etiketleri (virgülle ayrılmış kodlar)
+          <input id="approvePendingSuitableFor" type="text" placeholder="dijitallestirme, arsivcilik" />
+          <small class="muted" style="font-size:.8rem">Boş bırakılabilir. Geçerli kodlar AGENTS.md / FIRESTORE_SCHEMA.md içindeki listededir.</small>
+        </label>
+        <div class="form-actions"><button type="submit" class="btn btn-primary">Onayla</button><span id="approvePendingMessage" class="status-line muted"></span></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="mergePendingModal" class="drill-modal hidden" role="dialog" aria-modal="true" aria-labelledby="mergePendingTitle">
+    <div class="drill-backdrop" data-merge-pending-close></div>
+    <div class="drill-panel" style="max-width:520px">
+      <header class="drill-header">
+        <div>
+          <p class="eyebrow">Birleştir</p>
+          <h2 id="mergePendingTitle">Mevcut bir iş paketine birleştir</h2>
+          <p class="muted" id="mergePendingSummary" style="font-size:.85rem;margin:.15rem 0 0"></p>
+        </div>
+        <div class="drill-header-actions">
+          <button type="button" class="btn btn-secondary btn-sm" data-merge-pending-close>Kapat</button>
+        </div>
+      </header>
+      <form id="mergePendingForm" class="form compact-form" novalidate>
+        <input type="hidden" id="mergePendingId" />
+        <label>Hedef iş paketi
+          <select id="mergePendingTarget" required>
+            <option value="">— Seç —</option>
+          </select>
+        </label>
+        <p class="muted" style="font-size:.8rem;margin:0">Pending kaydın notu hedef birime not olarak eklenir, sonra pending kayıt silinir. İlgili rapor zaten hedef birim ID'si ile yeniden bağlanır.</p>
+        <div class="form-actions"><button type="submit" class="btn btn-primary">Birleştir</button><span id="mergePendingMessage" class="status-line muted"></span></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit report modal — opened from the Düzenle button on a "Son raporların"
+       row. Used by both the volunteer self-edit (within 24h) flow and the
+       coordinator-edit-anyone flow. Form fields are populated by
+       openEditReportModal() in dashboard.js. -->
+  <div id="editReportModal" class="drill-modal hidden" role="dialog" aria-modal="true" aria-labelledby="editReportTitle">
+    <div class="drill-backdrop" data-edit-report-close></div>
+    <div class="drill-panel" style="max-width:560px;padding:1rem 1.25rem">
+      <header class="drill-header">
+        <div>
+          <p class="eyebrow">Raporu düzenle</p>
+          <h2 id="editReportTitle" style="font-size:1.05rem;margin:0">Raporu düzenle</h2>
+        </div>
+        <div class="drill-header-actions">
+          <button type="button" class="btn btn-secondary btn-sm" data-edit-report-close aria-label="Kapat">✕</button>
+        </div>
+      </header>
+      <div class="if-banner if-banner--hidden edit-report-banner" role="status" aria-live="polite"></div>
+      <form id="editReportForm" class="report-form" novalidate>
+        <input type="hidden" id="editingReportId" />
+
+        <div class="rm-field">
+          <label class="rm-label" for="editReportNote">Ne yaptın? <span class="req">*</span></label>
+          <textarea id="editReportNote" class="rm-textarea" rows="2" maxlength="500" required></textarea>
+          <div class="rm-counter" id="editReportNoteCounter">0 / 500</div>
+        </div>
+
+        <div class="rm-field">
+          <label class="rm-label" for="editReportWorkDate">Bu işi ne zaman yaptın?</label>
+          <input type="date" id="editReportWorkDate" class="rm-input" />
+          <div class="rm-helper hidden" id="editReportWorkDateError"></div>
+        </div>
+
+        <div class="rm-field">
+          <label class="rm-label" for="editReportProject">Proje</label>
+          <select id="editReportProject" class="rm-input"></select>
+        </div>
+
+        <div class="rm-field">
+          <label class="rm-label" for="editReportUnit">İş paketi</label>
+          <select id="editReportUnit" class="rm-input">
+            <option value="">— Bağlı değil —</option>
+          </select>
+        </div>
+
+        <div class="rm-field rm-status-row">
+          <span class="rm-label">Durum:</span>
+          <div class="rm-status-pills" role="radiogroup" aria-label="Durum">
+            <button type="button" class="rm-status-pill" data-edit-status="in_progress">Devam ediyor</button>
+            <button type="button" class="rm-status-pill" data-edit-status="done">Tamamlandı</button>
+            <button type="button" class="rm-status-pill" data-edit-status="blocked">Takıldım</button>
+          </div>
+        </div>
+
+        <div class="rm-field">
+          <label class="rm-label" for="editReportUrl">Link <em class="muted">(varsa)</em></label>
+          <input type="url" id="editReportUrl" class="rm-input" placeholder="https://drive.google.com/..." />
+        </div>
+
+        <p class="muted edit-report-audit" id="editReportAudit" style="font-size:.8rem;margin:.5rem 0 0"></p>
+
+        <div class="rm-actions">
+          <span class="status-line muted" id="editReportMessage"></span>
+          <button type="button" class="btn btn-secondary" data-edit-report-close>Vazgeç</button>
+          <button type="submit" class="btn btn-primary" id="editReportSave">Kaydet</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Coordinator "+ Rapor yaz" modal — opened from the Bugün header.
+       Hosts a fresh inline form rendered on first open via
+       ensureCoordinatorReportModal() in dashboard.js. -->
+  <div id="coordinatorReportModal" class="drill-modal hidden" role="dialog" aria-modal="true" aria-labelledby="coordinatorReportTitle">
+    <div class="drill-backdrop" data-coordinator-report-close></div>
+    <div class="drill-panel" style="max-width:560px;padding:1rem 1.25rem">
+      <header class="drill-header">
+        <div>
+          <h2 id="coordinatorReportTitle" style="font-size:1.05rem;margin:0">Rapor yaz</h2>
+        </div>
+        <div class="drill-header-actions">
+          <button type="button" class="btn btn-secondary btn-sm" data-coordinator-report-close aria-label="Kapat">✕</button>
+        </div>
+      </header>
+      <div id="coordinatorReportFormHost" class="card inline-rapor-card" style="padding:0;border:0;box-shadow:none"></div>
+    </div>
+  </div>
+
+  <!-- Confirmation modal for the staff drag-drop status change on the PNB
+       İş Akışı kanban. Volunteers never see this — they change status only
+       by submitting a new report. -->
+  <div id="vpPnbMoveModal" class="drill-modal hidden" role="dialog" aria-modal="true" aria-labelledby="vpPnbMoveTitle">
+    <div class="drill-backdrop" data-vp-move-close></div>
+    <div class="drill-panel" style="max-width:440px">
+      <header class="drill-header">
+        <div>
+          <h2 id="vpPnbMoveTitle" style="font-size:1.05rem;margin:0">Bu iş paketini tamamlandı olarak işaretle?</h2>
+          <p class="muted" id="vpPnbMoveSummary" style="font-size:.85rem;margin:.35rem 0 0">—</p>
+        </div>
+        <div class="drill-header-actions">
+          <button type="button" class="btn btn-secondary btn-sm" data-vp-move-close aria-label="Kapat">✕</button>
+        </div>
+      </header>
+      <div class="form-actions" style="margin-top:1rem;display:flex;justify-content:flex-end;gap:.5rem">
+        <button type="button" class="btn btn-secondary btn-sm" data-vp-move-close>Vazgeç</button>
+        <button type="button" class="btn btn-primary btn-sm" id="vpPnbMoveConfirm">Tamamlandı işaretle</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="logForModal" class="drill-modal log-for-modal hidden" role="dialog" aria-modal="true" aria-labelledby="logForTitle">
+    <div class="drill-backdrop" data-log-for-close></div>
+    <div class="drill-panel log-for-panel">
+      <header class="drill-header">
+        <div>
+          <p class="eyebrow">Ekip raporu logla</p>
+          <h2 id="logForTitle">Birinin adına hızlıca logla</h2>
+          <p class="muted" id="logForSubtitle">WhatsApp'ta ya da ofiste konuştuğun gönüllü için tek seferde kaydet.</p>
+        </div>
+        <div class="drill-header-actions">
+          <button type="button" class="btn btn-secondary btn-sm" data-log-for-close aria-label="Kapat">Kapat</button>
+        </div>
+      </header>
+      <form id="logForForm" class="log-for-form" novalidate>
+        <label class="log-for-field">
+          <span>Kim adına?</span>
+          <select id="logForUser" required>
+            <option value="">— Gönüllü seç —</option>
+          </select>
+        </label>
+        <label class="log-for-field">
+          <span>Hangi arşiv birimi?</span>
+          <select id="logForUnit" required>
+            <option value="">— Önce gönüllü seç —</option>
+          </select>
+        </label>
+        <label class="log-for-field">
+          <span>Sayfa sayısı <em class="muted">(opsiyonel)</em></span>
+          <input type="number" id="logForPages" min="0" step="1" inputmode="numeric" placeholder="örn. 24" />
+        </label>
+        <label class="log-for-field">
+          <span>Kısa not <em class="muted">(opsiyonel, 240 karakter)</em></span>
+          <input type="text" id="logForNote" maxlength="240" placeholder="WhatsApp'tan iletti — iki kutu tarandı…" />
+        </label>
+        <div class="log-for-actions">
+          <span id="logForMessage" class="status-line muted"></span>
+          <button type="submit" class="btn btn-primary" id="logForSubmit">Hızlıca logla</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../js/config.firebase.js"></script>
+  <script>
+    window.FEATURE_FLAGS = Object.assign({
+      selfClaim: false,
+      telegramSection: false,
+      volunteerPnbTab: false
+    }, window.FEATURE_FLAGS || {});
+  </script>
+  <script type="module" src="../js/firebase-init.js"></script>
+  <script type="module" src="./dashboard.js"></script>
+</body>
+</html>
