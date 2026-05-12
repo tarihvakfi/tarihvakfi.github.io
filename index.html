@@ -207,11 +207,22 @@
 
   <main>
     <!-- ============ Hero (editorial: headline + inline live ledger) ============ -->
+    <!-- Editable text targets are marked with [data-edit="<key>"] — admins
+         can overwrite these via the /app/ Bakım panel which writes to
+         /publicSiteContent/landing. landing.js applies the overrides on load. -->
+
+    <!-- Admin-editable daily note banner. Hidden by default; revealed when
+         publicSiteContent.dailyNote is non-empty. -->
+    <aside class="lp-daily-note" id="lpDailyNote" hidden>
+      <span class="lp-daily-note-label">Bugün</span>
+      <span class="lp-daily-note-text" data-edit="dailyNote"></span>
+    </aside>
+
     <section class="lp-hero lp-hero-editorial">
       <div class="lp-container">
-        <p class="lp-hero-eyebrow" id="lpHeroEyebrow">Tarih Vakfı · Pertev Naili Boratav Arşivi</p>
-        <h1>Geçmişin sesini <em>birlikte</em> koruyoruz.</h1>
-        <p class="lp-hero-sub">Pertev Naili Boratav'ın özel arşivi sayfa sayfa dijital ortama aktarılıyor. <b id="lpHeroProgress">Şu an yolculuğun başındayız.</b> Aşağıda — bu hafta neler oldu, ne yapıldı.</p>
+        <p class="lp-hero-eyebrow" id="lpHeroEyebrow" data-edit="heroEyebrow">Tarih Vakfı · Pertev Naili Boratav Arşivi</p>
+        <h1 data-edit="heroHeadline">Geçmişin sesini <em>birlikte</em> koruyoruz.</h1>
+        <p class="lp-hero-sub" data-edit="heroSub">Pertev Naili Boratav'ın özel arşivi sayfa sayfa dijital ortama aktarılıyor. <b id="lpHeroProgress">Şu an yolculuğun başındayız.</b> Aşağıda — bu hafta neler oldu, ne yapıldı.</p>
         <div class="lp-hero-actions">
           <a class="lp-btn lp-btn-primary" href="#projeler">Çalışmalarımızı keşfet</a>
           <a class="lp-btn lp-btn-secondary" href="./auth/">Gönüllü ol</a>
@@ -419,12 +430,12 @@
         <article class="lp-project-card lp-project-feature">
           <header class="lp-project-head">
             <div>
-              <h3>Bir hayatın izleri, sayfa sayfa.</h3>
-              <p class="lp-project-people">Türk halkbilimi'nin kurucu isimlerinden Pertev Naili Boratav (1908–1998).</p>
+              <h3 data-edit="projectHeading">Bir hayatın izleri, sayfa sayfa.</h3>
+              <p class="lp-project-people" data-edit="projectPeople">Türk halkbilimi'nin kurucu isimlerinden Pertev Naili Boratav (1908–1998).</p>
             </div>
             <span class="lp-pill lp-pill-active">Devam ediyor</span>
           </header>
-          <p class="lp-project-body">Boratav'ın özel kitaplığı, makaleleri, mektupları, ders notları, fotoğrafları ve halk hikâyesi derlemeleri Tarih Vakfı'na bağışlandı. Bu malzeme şu an gönüllülerimizin elinde sayfa sayfa dijital ortama aktarılıyor; her belge tek tek tasniflenip Drive'a yükleniyor, metadatası tablolara işleniyor.</p>
+          <p class="lp-project-body" data-edit="projectBlurb">Boratav'ın özel kitaplığı, makaleleri, mektupları, ders notları, fotoğrafları ve halk hikâyesi derlemeleri Tarih Vakfı'na bağışlandı. Bu malzeme şu an gönüllülerimizin elinde sayfa sayfa dijital ortama aktarılıyor; her belge tek tek tasniflenip Drive'a yükleniyor, metadatası tablolara işleniyor.</p>
 
           <!-- Editorial progress block — milestone strip + honest framing. -->
           <div class="lp-project-progress lp-project-progress-v2" id="lpProjectProgress">
@@ -736,6 +747,26 @@
 </body>
 </html>
 ();
+      });
+    })();
+  </script>
+
+  <script src="./js/config.firebase.js"></script>
+  <script type="module" src="./js/landing.js"></script>
+</body>
+</html>
+kDialog');
+      var openLink = document.getElementById('lpKvkkOpen');
+      var closeBtn = document.getElementById('lpKvkkClose');
+      if (!dlg || !openLink) return;
+      openLink.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (typeof dlg.showModal === 'function') dlg.showModal();
+        else dlg.setAttribute('open', '');
+      });
+      if (closeBtn) closeBtn.addEventListener('click', function () { dlg.close(); });
+      dlg.addEventListener('click', function (e) {
+        if (e.target === dlg) dlg.close();
       });
     })();
   </script>

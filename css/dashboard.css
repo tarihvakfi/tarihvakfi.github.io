@@ -2923,3 +2923,47 @@ body.staff-shell {
   color: var(--tblr-body-color);
   font-variant-numeric: tabular-nums;
 }
+
+/* === Public-site content editor (Bakım > Anasayfa metinleri) === */
+.form-stack { display: flex; flex-direction: column; gap: .25rem; }
+.form-stack-label {
+  font-size: .8rem; font-weight: 500;
+  color: var(--tblr-body-color, #1d273b);
+}
+#publicContentForm input[type="text"],
+#publicContentForm textarea {
+  font-family: inherit; font-size: 14px;
+  padding: .55rem .75rem;
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 4px;
+  background: var(--tblr-bg-surface, #fff);
+}
+#publicContentForm textarea { resize: vertical; min-height: 56px; }
+#publicContentForm .form-fieldset { background: rgba(0,0,0,.015); }
+#publicContentForm .form-fieldset legend { color: var(--tblr-secondary); font-weight: 500; }
+#publicContentEditorCard { display: none; }
+body.admin-shell #publicContentEditorCard { display: block; }
+
+/* === Daily note (volunteer Anasayfa) — same source as public banner === */
+.sv-daily-note {
+  background: linear-gradient(135deg, #fff8e6 0%, #fef3d2 100%);
+  border-left: 4px solid #c89b3c;
+  border-radius: 6px;
+  padding: .85rem 1.15rem;
+  margin: 0 0 1.25rem;
+  display: flex; align-items: baseline; gap: .85rem; flex-wrap: wrap;
+}
+.sv-daily-note[hidden] { display: none; }
+.sv-daily-note-lab {
+  font-family: "DM Mono", "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10px; font-weight: 600;
+  letter-spacing: .18em; text-transform: uppercase;
+  color: #94462a;
+  flex-shrink: 0;
+}
+.sv-daily-note-text {
+  font-family: "Lora", Georgia, serif;
+  font-size: 1rem; line-height: 1.5; color: #2b2018;
+  font-style: italic;
+}
+.sv-daily-note-text b { font-weight: 600; color: #94462a; font-style: normal; }

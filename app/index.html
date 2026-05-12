@@ -59,6 +59,14 @@
             </div>
           </div>
 
+          <!-- Daily note / quote strip — admin-editable from /publicSiteContent.
+               Visible only when dailyNote text + visible flag are set.
+               Same source as the public hero banner, presented warmer here. -->
+          <aside class="sv-daily-note" id="svDailyNote" hidden>
+            <span class="sv-daily-note-lab">Bugünün notu</span>
+            <span class="sv-daily-note-text" id="svDailyNoteText"></span>
+          </aside>
+
           <div id="svSelfClaim" class="sv-selfclaim hidden"></div>
 
           <div id="svReportPrimary" class="sv-report-primary hidden">
@@ -550,6 +558,73 @@
         <p class="muted">Veri araçları, ön kayıt, gözden geçirme kuyruğu ve veri sağlığı.</p>
       </header>
 
+      <!-- Section 0 (May 2026): Public-site editorial content editor.
+           Writes to /publicSiteContent/landing; landing.js applies overrides
+           on the public page. Admin-only via firestore.rules. Implementation
+           hooks: renderPublicContentEditor() in dashboard.js. -->
+      <article class="card" id="publicContentEditorCard">
+        <p class="eyebrow">Bakım · anasayfa metinleri</p>
+        <h2 style="margin-top:0">Public anasayfayı düzenle</h2>
+        <p class="muted">Aşağıdaki alanları düzenlediğinde tarihvakfi.org.tr ana sayfasındaki ilgili yazılar değişir. Live preview yok — değişiklikten sonra yeni sekmede ana sayfayı yenile.</p>
+
+        <form id="publicContentForm" class="form" style="margin-top:1rem; display:grid; gap:.85rem;">
+          <label class="form-stack">
+            <span class="form-stack-label">Üst etiket (eyebrow)</span>
+            <input type="text" id="pcfHeroEyebrow" placeholder="Tarih Vakfı · Pertev Naili Boratav Arşivi" />
+            <small class="muted">Hero'nun en üstündeki küçük mono yazı.</small>
+          </label>
+
+          <label class="form-stack">
+            <span class="form-stack-label">Ana başlık (H1) <em class="muted" style="font-weight:400;">— <code>&lt;em&gt;</code> ile vurgulayabilirsin</em></span>
+            <input type="text" id="pcfHeroHeadline" placeholder='Geçmişin sesini &lt;em&gt;birlikte&lt;/em&gt; koruyoruz.' />
+          </label>
+
+          <label class="form-stack">
+            <span class="form-stack-label">Hero alt paragraf</span>
+            <textarea id="pcfHeroSub" rows="3" placeholder="Pertev Naili Boratav'ın özel arşivi sayfa sayfa..."></textarea>
+            <small class="muted"><code>&lt;b&gt;</code> ile kalın metin, <code>&lt;em&gt;</code> ile vurgu yapabilirsin.</small>
+          </label>
+
+          <fieldset class="form-fieldset" style="border:1px solid var(--tblr-border-color); border-radius:6px; padding:1rem;">
+            <legend style="font-size:.85rem; padding:0 .5rem;">Proje kartı (PNB)</legend>
+            <label class="form-stack" style="margin-bottom:.65rem;">
+              <span class="form-stack-label">Başlık</span>
+              <input type="text" id="pcfProjectHeading" placeholder="Bir hayatın izleri, sayfa sayfa." />
+            </label>
+            <label class="form-stack" style="margin-bottom:.65rem;">
+              <span class="form-stack-label">Alt satır</span>
+              <input type="text" id="pcfProjectPeople" placeholder="Türk halkbilimi'nin kurucu isimlerinden..." />
+            </label>
+            <label class="form-stack">
+              <span class="form-stack-label">Açıklama</span>
+              <textarea id="pcfProjectBlurb" rows="3" placeholder="Boratav'ın özel kitaplığı..."></textarea>
+            </label>
+          </fieldset>
+
+          <fieldset class="form-fieldset" style="border:1px solid var(--tblr-border-color); border-radius:6px; padding:1rem;">
+            <legend style="font-size:.85rem; padding:0 .5rem;">Bugünün notu (banner)</legend>
+            <p class="muted" style="margin:0 0 .65rem; font-size:.85rem;">Public anasayfanın en üstüne sarı bir banner ekler. Mesajla bir duyuru paylaş, ziyaretçilere bir hatırlatma yap.</p>
+            <label class="form-stack" style="margin-bottom:.65rem;">
+              <span class="form-stack-label">Metin</span>
+              <input type="text" id="pcfDailyNote" placeholder="Bu Cumartesi açık ofis günü · 14:00 Eminönü" />
+            </label>
+            <label style="display:inline-flex; align-items:center; gap:.5rem; font-size:.9rem;">
+              <input type="checkbox" id="pcfDailyNoteVisible" />
+              <span>Banner'ı public sayfada göster</span>
+            </label>
+          </fieldset>
+
+          <div class="form-actions" style="margin-top:.5rem; display:flex; justify-content:space-between; align-items:center; gap:.5rem;">
+            <span id="publicContentMessage" class="status-line muted" style="font-size:.85rem;">—</span>
+            <div style="display:flex; gap:.5rem;">
+              <button type="button" class="btn btn-secondary" id="publicContentReloadBtn"><i class="ti ti-refresh"></i> Sıfırla</button>
+              <a class="btn btn-secondary" href="../" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Ana sayfayı aç</a>
+              <button type="submit" class="btn btn-primary" id="publicContentSaveBtn">Kaydet</button>
+            </div>
+          </div>
+        </form>
+      </article>
+
       <!-- Section 1: PNB import aracı -->
       <article class="card">
         <p class="eyebrow">Bakım · veri araçları</p>
@@ -928,7 +1003,7 @@
     <div class="drill-backdrop" data-log-for-close></div>
     <div class="drill-panel log-for-panel">
       <header class="drill-header">
-              <div>
+        <div>
           <p class="eyebrow">Ekip raporu logla</p>
           <h2 id="logForTitle">Birinin adına hızlıca logla</h2>
           <p class="muted" id="logForSubtitle">WhatsApp'ta ya da ofiste konuştuğun gönüllü için tek seferde kaydet.</p>
@@ -967,27 +1042,6 @@
   </div>
 
   <script src="../js/config.firebase.js"></script>
-  <!--
-    Feature flags. The self-claim flow was retired with the report-first
-    rollout (Prompt C/D); the underlying code paths and Firestore rules are
-    intentionally retained so we can A/B-test them again without rewriting
-    anything. Flip this to true at runtime (or hard-code true here) to
-    re-enable the self-claim banner and the [data-self-claim]/[data-self-release]
-    UI entry points.
-
-    telegramSection: gates the volunteer Anasayfa link card and the admin
-    Bakım Telegram tanılama panel. Currently false because the bot stack
-    on Apps Script had unusable cold-start latency (1+ minute response on
-    first message). Flip to true after migrating the bot to a real
-    backend (Cloud Run / Vercel / Cloudflare Workers / etc.) and rerunning
-    setWebhook against the new URL. See AGENTS.md for the revival
-    checklist.
-
-    volunteerPnbTab: keeps the old PNB project workspace hidden while
-    volunteer coordination is temporarily sheet-led. Volunteers can still
-    submit general foundation work from Anasayfa; flip this to true when
-    PNB-specific website work resumes.
-  -->
   <script>
     window.FEATURE_FLAGS = Object.assign({
       selfClaim: false,

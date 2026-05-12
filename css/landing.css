@@ -940,3 +940,29 @@ body.landing .lp-roster-foot a {
     font-size: 10px; padding: 0 0.5rem;
   }
 }
+
+/* ===== Admin-editable daily note banner =====
+   Sits above the hero. Admins can change copy + visibility from /app/. */
+body.landing .lp-daily-note {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0.85rem; flex-wrap: wrap;
+  background: var(--tv-gold);
+  color: var(--tv-ink);
+  padding: 0.65rem 1.25rem;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(43, 32, 24, 0.08);
+}
+body.landing .lp-daily-note[hidden] { display: none; }
+body.landing .lp-daily-note-label {
+  font-family: "DM Mono", "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  background: rgba(43, 32, 24, 0.12);
+  padding: 2px 8px;
+  border-radius: 99px;
+}
+body.landing .lp-daily-note-text { font-weight: 500; }
+body.landing .lp-daily-note-text b { font-weight: 600; }
+

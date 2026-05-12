@@ -449,22 +449,34 @@ service cloud.firestore {
     }
 
     match /publicProjectStats/{projectId} {
-      // Aggregate doc per project — totalPages, donePages, totalUnits,
-      // doneUnits, updatedAt. Numbers only; no identifiers.
+      // Aggregate doc per project. Numbers only; no identifiers.
+      // Fields: totalPages, donePages, totalUnits, doneUnits, totalFiles,
+      // cataloguedBoxes, updatedAt. (May 2026: extended with totalFiles +
+      // cataloguedBoxes so the public ledger can show kutu/dosya counts.)
       allow read: if true;
 
-      // Approved volunteers and the importer (admin) can refresh the
-      // aggregate. Schema locked to prevent extraneous fields from being
-      // smuggled into a public read.
       allow create, update: if isApproved() &&
         request.resource.data.keys().hasOnly([
-          "totalPages", "donePages", "totalUnits", "doneUnits", "updatedAt"
+          "totalPages", "donePages", "totalUnits", "doneUnits",
+          "totalFiles", "cataloguedBoxes", "updatedAt"
         ]) &&
         request.resource.data.totalPages is number &&
         request.resource.data.donePages is number &&
         request.resource.data.totalUnits is number &&
         request.resource.data.doneUnits is number;
 
+      allow delete: if isAdmin();
+    }
+
+    // ===== Public site editorial content (May 2026) =====
+    // Admin-editable copy that overlays the public landing page. Only one
+    // doc is used today — publicSiteContent/landing — but the rule is
+    // parameterised by docId so future copy buckets (e.g. /about, /faq)
+    // don't need new rules. Schema is open-string; landing.js only reads
+    // a fixed set of keys and ignores anything else.
+    match /publicSiteContent/{docId} {
+      allow read: if true;
+      allow create, update: if isAdmin();
       allow delete: if isAdmin();
     }
   }

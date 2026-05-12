@@ -136,6 +136,56 @@
     // Attempt to read them; on miss, they simply stay hidden.
     hydrateWall(db, fs).catch(() => {});
     hydrateRoster(db, fs).catch(() => {});
+
+    // Admin-editable copy overlay. Reads /publicSiteContent/landing if it
+    // exists and writes string values into any [data-edit="<key>"] target.
+    // Special-cased: dailyNote toggles its banner's visibility.
+    hydrateSiteContent(db, fs).catch(() => {});
+  }
+
+  // ---------- publicSiteContent overlay ----------
+  // Doc shape (all keys optional):
+  //   heroEyebrow, heroHeadline, heroSub,
+  //   projectHeading, projectPeople, projectBlurb,
+  //   dailyNote, dailyNoteVisible (boolean),
+  //   updatedAt
+  // landing.js never strips HTML — admins editing rich strings (e.g. with
+  // <em>, <b>) get those rendered. Inputs are trusted because only admins
+  // can write to the doc (firestore.rules).
+  async function hydrateSiteContent(db, fs) {
+    let doc = null;
+    try {
+      const ref = fs.doc(db, "publicSiteContent", "landing");
+      const snap = await fs.getDoc(ref);
+      doc = snap.exists() ? snap.data() : null;
+    } catch (err) { doc = null; }
+    if (!doc) return;
+
+    // Apply every key with a [data-edit] target except dailyNote, which
+    // gets its own visibility toggle.
+    const TEXT_KEYS = ["heroEyebrow", "heroHeadline", "heroSub",
+                       "projectHeading", "projectPeople", "projectBlurb"];
+    TEXT_KEYS.forEach((key) => {
+      const value = doc[key];
+      if (value == null || String(value).trim() === "") return;
+      document.querySelectorAll(`[data-edit="${key}"]`).forEach((el) => {
+        el.innerHTML = String(value);
+      });
+    });
+
+    // Daily note — show only when both text and visible flag are set.
+    const note = document.getElementById("lpDailyNote");
+    const noteText = document.querySelector('[data-edit="dailyNote"]');
+    const text = doc.dailyNote ? String(doc.dailyNote).trim() : "";
+    const visible = doc.dailyNoteVisible !== false && text.length > 0;
+    if (note && noteText) {
+      if (visible) {
+        noteText.innerHTML = text;
+        note.removeAttribute("hidden");
+      } else {
+        note.setAttribute("hidden", "");
+      }
+    }
   }
 
   // ---------- Ledger strip (4 cells in hero) ----------

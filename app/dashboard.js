@@ -131,6 +131,10 @@ function sw(name, opts = {}) {
   // Volunteer Anasayfa gets the near-white body background; everything else
   // reverts to the default surface color.
   document.body.classList.toggle("sv-active", target === "anasayfa");
+  // Daily note overlay — hydrate once on first Anasayfa visit (volunteer view).
+  if (target === "anasayfa" && typeof hydrateVolunteerDailyNote === "function") {
+    hydrateVolunteerDailyNote();
+  }
   // Lazy-load admin Bakım diagnostic counts on first navigation. Cheap (3
   // Firestore reads); refresh button re-runs them on demand. Gated on the
   // telegramSection feature flag — bot decommissioned 28 Apr 2026.
@@ -147,6 +151,9 @@ function sw(name, opts = {}) {
   }
   if (target === "bakim" && typeof loadSheetMirrorTabs === "function") {
     loadSheetMirrorTabs();
+  }
+  if (target === "bakim" && typeof loadPublicContentEditor === "function") {
+    loadPublicContentEditor();
   }
   // Mirror the chosen tab in the URL hash so reload / back-forward stays put.
   if (!opts.skipHashWrite) {
@@ -8964,4 +8971,119 @@ if (!auth || !db) {
   window.addEventListener("hashchange", () => {
     if (cp) syncRouteFromHash();
   });
+}
+
+// ============================================================
+// Public-site content editor (Bakım > Anasayfa metinleri)
+// ============================================================
+// Loads /publicSiteContent/landing into the form on first Bakım nav, and
+// saves back on submit. Admin-only (firestore.rules enforces write gating).
+// landing.js reads the same doc and overlays the public page on every load.
+
+const PUBLIC_CONTENT_FIELDS = [
+  ["pcfHeroEyebrow",    "heroEyebrow"],
+  ["pcfHeroHeadline",   "heroHeadline"],
+  ["pcfHeroSub",        "heroSub"],
+  ["pcfProjectHeading", "projectHeading"],
+  ["pcfProjectPeople",  "projectPeople"],
+  ["pcfProjectBlurb",   "projectBlurb"],
+  ["pcfDailyNote",      "dailyNote"],
+];
+
+let _publicContentLoaded = false;
+
+async function loadPublicContentEditor() {
+  if (!isAdmin()) return;
+  const form = document.getElementById("publicContentForm");
+  if (!form) return;
+  if (_publicContentLoaded) return;
+  const msg = document.getElementById("publicContentMessage");
+  if (msg) msg.textContent = "Mevcut metinler okunuyor…";
+
+  try {
+    const ref = doc(db, "publicSiteContent", "landing");
+    const snap = await getDoc(ref);
+    const data = snap.exists() ? (snap.data() || {}) : {};
+    PUBLIC_CONTENT_FIELDS.forEach(([inputId, key]) => {
+      const el = document.getElementById(inputId);
+      if (el) el.value = data[key] != null ? String(data[key]) : "";
+    });
+    const vis = document.getElementById("pcfDailyNoteVisible");
+    if (vis) vis.checked = data.dailyNoteVisible !== false;
+    if (msg) msg.textContent = snap.exists()
+      ? `Yüklendi · ${data.updatedAt ? formatDate(data.updatedAt) + " güncellendi" : "henüz hiç düzenlenmedi"}`
+      : "Henüz kaydedilmemiş — boş alanlar bırakırsan public sayfa default kopya gösterir.";
+    _publicContentLoaded = true;
+  } catch (err) {
+    if (msg) msg.textContent = `Okunamadı: ${err.message}`;
+  }
+
+  // Bind submit + reset once.
+  if (!form.dataset.bound) {
+    form.dataset.bound = "1";
+    form.addEventListener("submit", savePublicContentEditor);
+    const reload = document.getElementById("publicContentReloadBtn");
+    if (reload) {
+      reload.addEventListener("click", () => {
+        _publicContentLoaded = false;
+        loadPublicContentEditor();
+      });
+    }
+  }
+}
+
+async function savePublicContentEditor(e) {
+  e.preventDefault();
+  if (!isAdmin()) return;
+  const msg = document.getElementById("publicContentMessage");
+  const btn = document.getElementById("publicContentSaveBtn");
+  if (btn) btn.disabled = true;
+  if (msg) msg.textContent = "Kaydediliyor…";
+
+  const payload = { updatedAt: serverTimestamp() };
+  PUBLIC_CONTENT_FIELDS.forEach(([inputId, key]) => {
+    const el = document.getElementById(inputId);
+    payload[key] = el ? el.value.trim() : "";
+  });
+  const vis = document.getElementById("pcfDailyNoteVisible");
+  payload.dailyNoteVisible = !!(vis && vis.checked);
+
+  try {
+    const ref = doc(db, "publicSiteContent", "landing");
+    await setDoc(ref, payload, { merge: true });
+    if (msg) msg.textContent = "Kaydedildi. Ana sayfayı yenile (Ctrl+Shift+R) — değişiklik anında görünmeli.";
+  } catch (err) {
+    if (msg) msg.textContent = `Kaydedilemedi: ${err.message}`;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// ============================================================
+// Volunteer daily-note hydrator
+// ============================================================
+// Reads /publicSiteContent/landing (same doc the public site uses) and shows
+// the daily note inside the volunteer Anasayfa. Public read is allowed so
+// even non-staff volunteers see admin-edited messages without extra rules.
+let _volunteerDailyNoteLoaded = false;
+async function hydrateVolunteerDailyNote() {
+  if (_volunteerDailyNoteLoaded) return;
+  _volunteerDailyNoteLoaded = true;
+  const note = document.getElementById("svDailyNote");
+  const text = document.getElementById("svDailyNoteText");
+  if (!note || !text) return;
+  try {
+    const ref = doc(db, "publicSiteContent", "landing");
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+    const data = snap.data() || {};
+    const body = (data.dailyNote || "").trim();
+    const visible = data.dailyNoteVisible !== false && body.length > 0;
+    if (visible) {
+      text.innerHTML = body;
+      note.removeAttribute("hidden");
+    }
+  } catch (err) {
+    // Non-fatal — just keep the note hidden.
+  }
 }
