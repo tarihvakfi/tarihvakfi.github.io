@@ -9389,7 +9389,7 @@ async function triggerLiveSync() {
   if (!btn || btn.disabled) return;
   const cfg = _syncWebhookConfig || {};
   if (!cfg.url || !cfg.token) {
-    showToast("Önce Webhook URL'sini ayarla.", "error");
+    _showBugunAdminToast("Önce Webhook URL'sini ayarla.", "error");
     return;
   }
   const originalLabel = btn.innerHTML;
@@ -9404,15 +9404,15 @@ async function triggerLiveSync() {
     const res = await fetch(url, { method: "GET", redirect: "follow" });
     const body = await res.json().catch(() => ({ ok: false, error: "Geçersiz yanıt" }));
     if (!body.ok) {
-      showToast(`Sync başarısız: ${body.error || "bilinmeyen hata"}`, "error");
+      _showBugunAdminToast(`Sync başarısız: ${body.error || "bilinmeyen hata"}`, "error");
     } else {
-      showToast("Sync tamamlandı. Veriler yenileniyor…", "success");
+      _showBugunAdminToast("Sync tamamlandı. Veriler yenileniyor…", "success");
       // Re-read sheet sync state + refresh the admin block.
       if (typeof loadSheetSyncStatus === "function") await loadSheetSyncStatus();
       if (typeof loadSheetMirrorTabs === "function") await loadSheetMirrorTabs();
     }
   } catch (err) {
-    showToast(`Sync isteği başarısız: ${err.message || err}`, "error");
+    _showBugunAdminToast(`Sync isteği başarısız: ${err.message || err}`, "error");
   } finally {
     btn.disabled = false;
     btn.innerHTML = originalLabel;
@@ -9441,20 +9441,25 @@ async function saveSyncWebhookConfig() {
       token: token,
       updatedAt: serverTimestamp(),
     }, { merge: true });
-    _syncWebhookConfig = { url, token };
+    _syncWebhookConfig = { url: url, token: token };
     renderSyncWebhookUi();
     if (msg) msg.textContent = "Kaydedildi. Artık 'Şimdi senkronize et' butonu çalışıyor.";
   } catch (err) {
-    if (msg) msg.textContent = `Kaydedilemedi: ${err.message || err}`;
+    if (msg) msg.textContent = `Kaydedilemedi: ${(err && err.message) || err}`;
   }
 }
 
-function showToast(message, kind) {
-  const host = document.getElementById("toastHost") || document.body;
+// Bugün admin toast — distinct from the older showToast(message) helper
+// (which renders a single fixed #appToast element). This one supports a
+// "kind" parameter (info/success/error) for the live-sync result feedback
+// and stacks multiple toasts cleanly.
+function _showBugunAdminToast(message, kind) {
+  const host = document.body;
   const el = document.createElement("div");
   el.className = "bugun-admin-toast " + (kind || "info");
   el.textContent = message;
   host.appendChild(el);
+  // Trigger the CSS transition.
   setTimeout(() => el.classList.add("show"), 10);
   setTimeout(() => {
     el.classList.remove("show");
