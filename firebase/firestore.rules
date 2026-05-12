@@ -433,7 +433,12 @@ service cloud.firestore {
     // yeniden başlat") flow through Apps Script, never the web client.
     match /config/{configId} {
       allow read: if isAdmin() || (configId == "sheetSync" && isSheetMirrorAdmin());
-      allow create, update, delete: if false;
+      // /config/syncWebhook is the only config doc admins can write from the
+      // web UI — it holds the deployed Apps Script Web App URL + shared
+      // secret used by the "Şimdi senkronize et" button. Everything else is
+      // written exclusively by Apps Script.
+      allow create, update: if isAdmin() && configId == "syncWebhook";
+      allow delete: if false;
     }
 
     // Mirror collections written by SheetSync.gs. Each source-sheet tab
@@ -486,6 +491,19 @@ service cloud.firestore {
   }
 }
 buckets (e.g. /about, /faq)
+    // don't need new rules. Schema is open-string; landing.js only reads
+    // a fixed set of keys and ignores anything else.
+    match /publicSiteContent/{docId} {
+      allow read: if true;
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}
+  }
+}
+}
+Id so future copy buckets (e.g. /about, /faq)
     // don't need new rules. Schema is open-string; landing.js only reads
     // a fixed set of keys and ignores anything else.
     match /publicSiteContent/{docId} {

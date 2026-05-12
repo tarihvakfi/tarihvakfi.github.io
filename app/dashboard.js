@@ -4306,6 +4306,7 @@ function renderBugun() {
   if (isAdmin()) {
     if (typeof loadSheetSyncStatus === "function") loadSheetSyncStatus();
     if (typeof loadSheetMirrorTabs === "function") loadSheetMirrorTabs();
+    if (typeof loadSyncWebhookConfig === "function") loadSyncWebhookConfig();
   }
   renderCoordinatorHomeHeader();
   renderManagerOverview();
@@ -7873,6 +7874,22 @@ document.addEventListener("click", async (event) => {
     if (typeof loadSheetMirrorTabs === "function") loadSheetMirrorTabs();
     return;
   }
+  if (event.target.closest("#bugunAdminLiveSync")) {
+    if (typeof triggerLiveSync === "function") triggerLiveSync();
+    return;
+  }
+  if (event.target.closest("#bugunAdminWebhookConfig")) {
+    const form = document.getElementById("bugunAdminWebhookForm");
+    if (form) {
+      form.open = true;
+      form.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    return;
+  }
+  if (event.target.closest("#bugunAdminWebhookSave")) {
+    if (typeof saveSyncWebhookConfig === "function") saveSyncWebhookConfig();
+    return;
+  }
   if (event.target.id === "sheetSyncResumeBtn") {
     _runAppsScriptHelper(
       "sheetSyncResume",
@@ -9322,4 +9339,125 @@ function _formatBugunAdminTime(d) {
 function _bugunAdminSet(id, value) {
   const el = document.getElementById(id);
   if (el) el.textContent = value;
+}
+
+// ============================================================
+// Live "Şimdi senkronize et" button (May 2026)
+// ============================================================
+// Reads /config/syncWebhook  (admin-only) for { url, token }; when set,
+// enables the prominent live-sync button next to the schedule meta. On
+// click, fetches the Apps Script Web App URL with the token. On success,
+// re-runs loadSheetSyncStatus() so the panel refreshes.
+
+let _syncWebhookConfig = null;
+
+async function loadSyncWebhookConfig() {
+  if (!isAdmin()) return;
+  try {
+    const snap = await getDoc(doc(db, "config", "syncWebhook"));
+    _syncWebhookConfig = snap.exists() ? snap.data() : null;
+  } catch (err) {
+    _syncWebhookConfig = null;
+  }
+  renderSyncWebhookUi();
+}
+
+function renderSyncWebhookUi() {
+  const btn = document.getElementById("bugunAdminLiveSync");
+  const form = document.getElementById("bugunAdminWebhookForm");
+  const urlIn = document.getElementById("bugunAdminWebhookUrl");
+  const tokIn = document.getElementById("bugunAdminWebhookToken");
+  if (!btn) return;
+
+  const cfg = _syncWebhookConfig || {};
+  const ready = !!(cfg.url && cfg.token);
+  btn.disabled = !ready;
+  btn.title = ready
+    ? "Sheet'i şimdi senkronize et — sonuç birkaç saniye içinde gelir."
+    : "Önce Webhook URL'sini ayarlamalısın (sağdaki butona bas).";
+
+  if (urlIn) urlIn.value = cfg.url || "";
+  if (tokIn) tokIn.value = cfg.token || "";
+  if (form && !ready) {
+    // If unset, auto-open the setup details on first admin visit.
+    form.setAttribute("open", "");
+  }
+}
+
+async function triggerLiveSync() {
+  const btn = document.getElementById("bugunAdminLiveSync");
+  if (!btn || btn.disabled) return;
+  const cfg = _syncWebhookConfig || {};
+  if (!cfg.url || !cfg.token) {
+    showToast("Önce Webhook URL'sini ayarla.", "error");
+    return;
+  }
+  const originalLabel = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader"></i> <span>Senkronize ediliyor…</span>';
+
+  try {
+    const url = cfg.url + (cfg.url.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(cfg.token);
+    // Apps Script Web Apps don't support CORS preflight, so use a GET with
+    // the token in the query. The deployed endpoint runs sheetSyncRun()
+    // and returns JSON.
+    const res = await fetch(url, { method: "GET", redirect: "follow" });
+    const body = await res.json().catch(() => ({ ok: false, error: "Geçersiz yanıt" }));
+    if (!body.ok) {
+      showToast(`Sync başarısız: ${body.error || "bilinmeyen hata"}`, "error");
+    } else {
+      showToast("Sync tamamlandı. Veriler yenileniyor…", "success");
+      // Re-read sheet sync state + refresh the admin block.
+      if (typeof loadSheetSyncStatus === "function") await loadSheetSyncStatus();
+      if (typeof loadSheetMirrorTabs === "function") await loadSheetMirrorTabs();
+    }
+  } catch (err) {
+    showToast(`Sync isteği başarısız: ${err.message || err}`, "error");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalLabel;
+  }
+}
+
+async function saveSyncWebhookConfig() {
+  if (!isAdmin()) return;
+  const urlIn = document.getElementById("bugunAdminWebhookUrl");
+  const tokIn = document.getElementById("bugunAdminWebhookToken");
+  const msg = document.getElementById("bugunAdminWebhookMsg");
+  const url = urlIn ? urlIn.value.trim() : "";
+  const token = tokIn ? tokIn.value.trim() : "";
+  if (!url || !token) {
+    if (msg) msg.textContent = "URL ve token gerekli.";
+    return;
+  }
+  if (!/^https:\/\/script\.google\.com\//.test(url)) {
+    if (msg) msg.textContent = "URL Apps Script /exec adresi olmalı.";
+    return;
+  }
+  if (msg) msg.textContent = "Kaydediliyor…";
+  try {
+    await setDoc(doc(db, "config", "syncWebhook"), {
+      url: url,
+      token: token,
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+    _syncWebhookConfig = { url, token };
+    renderSyncWebhookUi();
+    if (msg) msg.textContent = "Kaydedildi. Artık 'Şimdi senkronize et' butonu çalışıyor.";
+  } catch (err) {
+    if (msg) msg.textContent = `Kaydedilemedi: ${err.message || err}`;
+  }
+}
+
+function showToast(message, kind) {
+  const host = document.getElementById("toastHost") || document.body;
+  const el = document.createElement("div");
+  el.className = "bugun-admin-toast " + (kind || "info");
+  el.textContent = message;
+  host.appendChild(el);
+  setTimeout(() => el.classList.add("show"), 10);
+  setTimeout(() => {
+    el.classList.remove("show");
+    setTimeout(() => el.remove(), 250);
+  }, 3600);
 }

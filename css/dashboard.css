@@ -3940,3 +3940,112 @@ i .when {
   color: #6b5d50;
   letter-spacing: .03em;
 }
+
+/* === Live "Şimdi senkronize et" button + webhook setup (May 2026) === */
+.bugun-admin-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.bugun-admin-meta-row .bugun-admin-meta {
+  margin: 0;
+}
+.bugun-admin-live-btn {
+  background: #b85c3a !important;
+  border-color: #b85c3a !important;
+  color: #fff !important;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  flex-shrink: 0;
+}
+.bugun-admin-live-btn:hover:not(:disabled) {
+  background: #94462a !important;
+  border-color: #94462a !important;
+}
+.bugun-admin-live-btn:disabled {
+  background: var(--tblr-bg-surface-secondary, #faf6f0) !important;
+  border-color: var(--tblr-border-color, #e8dfd2) !important;
+  color: var(--tblr-secondary) !important;
+  cursor: not-allowed;
+  opacity: .8;
+}
+.bugun-admin-live-btn .ti { font-size: 14px; }
+
+.bugun-admin-webhook {
+  margin-top: 1rem;
+  border: 1px solid var(--tblr-border-color, #e8dfd2);
+  border-radius: 4px;
+  background: #faf6f0;
+}
+.bugun-admin-webhook > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: .75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+  user-select: none;
+}
+.bugun-admin-webhook > summary::-webkit-details-marker { display: none; }
+.bugun-admin-webhook > summary .kicker {
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: #94462a;
+}
+.bugun-admin-webhook > summary .title {
+  font-family: "Lora", Georgia, serif;
+  font-size: .95rem;
+  font-weight: 600;
+  color: #2b2018;
+}
+.bugun-admin-webhook[open] > summary {
+  border-bottom: 1px solid var(--tblr-border-color, #e8dfd2);
+}
+.bugun-admin-webhook-body {
+  padding: 1rem 1.15rem 1.15rem;
+}
+.bugun-admin-webhook input[type="url"],
+.bugun-admin-webhook input[type="text"] {
+  width: 100%;
+  padding: .5rem .7rem;
+  border: 1px solid var(--tblr-border-color, #e8dfd2);
+  border-radius: 4px;
+  font-family: "DM Mono", monospace;
+  font-size: 12px;
+  background: #fff;
+}
+
+/* Bugün admin toast — shown for sync result feedback */
+.bugun-admin-toast {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 2000;
+  background: #2b2018;
+  color: #faf6f0;
+  padding: .75rem 1.1rem;
+  border-radius: 6px;
+  font-size: .9rem;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgba(43, 32, 24, .25);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity .25s ease, transform .25s ease;
+  max-width: 360px;
+}
+.bugun-admin-toast.show { opacity: 1; transform: translateY(0); }
+.bugun-admin-toast.success {
+  background: #2c6e3f;
+  color: #fff;
+}
+.bugun-admin-toast.error {
+  background: #94462a;
+  color: #fff;
+}

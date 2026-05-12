@@ -1195,3 +1195,32 @@ function _hashRow_(headers, row) {
   }
   return hex;
 }
+
+// ============================================================
+// Live "Şimdi senkronize et" Web App endpoint (May 2026)
+// ============================================================
+// Lets the admin trigger sheetSyncRun() from /app/ Bugün without waiting
+// for the hourly trigger. Deploy as Web App ("execute as me, accessible
+// to anyone with the link") — the SYNC_WEBHOOK_TOKEN Script Property is
+// the auth gate.
+function doGet(e) {
+  const want = (e && e.parameter && e.parameter.token) || "";
+  const have = PropertiesService.getScriptProperties().getProperty("SYNC_WEBHOOK_TOKEN") || "";
+  if (!have || want !== have) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "unauthorized" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  try {
+    const result = sheetSyncRun();
+    return ContentService.createTextOutput(JSON.stringify({
+      ok: true,
+      runAt: new Date().toISOString(),
+      result: result || null
+    })).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      ok: false,
+      error: String((err && err.message) || err)
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}

@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler-flags.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.3.0/dist/tabler-icons.min.css" />
   <link rel="stylesheet" href="../css/main.css" />
-  <link rel="stylesheet" href="../css/dashboard.css?v=20260512-narrative" />
+  <link rel="stylesheet" href="../css/dashboard.css?v=20260512-livesync" />
 </head>
 <body>
   <header class="site-header">
@@ -319,7 +319,13 @@
                  block underneath surfaces structure-change details and a
                  single CTA when action is needed. -->
             <p class="bugun-admin-narrative" id="bugunAdminSyncNarrative">Yükleniyor…</p>
-            <p class="bugun-admin-meta" id="bugunAdminSyncMeta">—</p>
+            <div class="bugun-admin-meta-row">
+              <p class="bugun-admin-meta" id="bugunAdminSyncMeta">—</p>
+              <button type="button" class="btn btn-primary btn-sm bugun-admin-live-btn" id="bugunAdminLiveSync" disabled>
+                <i class="ti ti-bolt" aria-hidden="true"></i>
+                <span>Şimdi senkronize et</span>
+              </button>
+            </div>
             <div class="bugun-admin-alert" id="bugunAdminSyncAlert" hidden>
               <span class="ic" aria-hidden="true">!</span>
               <div class="body">
@@ -353,10 +359,32 @@
               </div>
             </header>
             <div class="bugun-admin-actions">
-              <button type="button" class="btn btn-secondary" id="bugunAdminRunSync"><i class="ti ti-refresh-dot"></i> Sync manuel çalıştır</button>
               <button type="button" class="btn btn-secondary" id="bugunAdminAcceptStructure"><i class="ti ti-check"></i> Yapıyı yeniden kabul et</button>
               <a class="btn btn-secondary" href="https://docs.google.com/spreadsheets/d/1qJ49Iv4UL0kPC0dd9MmfilTwQAMKgelujWPqZH134RE/edit" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Sheet'i Drive'da aç</a>
+              <button type="button" class="btn btn-secondary" id="bugunAdminWebhookConfig"><i class="ti ti-link"></i> Webhook URL ayarla</button>
             </div>
+
+            <!-- Webhook setup details — collapsed unless URL is unset. Filled
+                 by renderBugunAdminBlock() and submitted to /config/syncWebhook
+                 (admin-only write per firestore.rules). -->
+            <details class="bugun-admin-webhook" id="bugunAdminWebhookForm">
+              <summary><span class="kicker">Bir kerelik kurulum</span><span class="title">Apps Script Web App URL'sini ayarla</span></summary>
+              <div class="bugun-admin-webhook-body">
+                <p class="muted" style="font-size:.85rem; margin: 0 0 .85rem;">Apps Script editörü → Deploy → New deployment → Web app. Çıkan URL'yi aşağıya yapıştır, token olarak da uzun rastgele bir metin yaz (Script Properties'e <code>SYNC_WEBHOOK_TOKEN</code> olarak da kaydet).</p>
+                <label class="form-stack" style="margin-bottom:.65rem;">
+                  <span class="form-stack-label">Web App URL</span>
+                  <input type="url" id="bugunAdminWebhookUrl" placeholder="https://script.google.com/macros/s/AKfycb.../exec" />
+                </label>
+                <label class="form-stack" style="margin-bottom:.65rem;">
+                  <span class="form-stack-label">Token (paylaşılan sır)</span>
+                  <input type="text" id="bugunAdminWebhookToken" placeholder="uzun rastgele bir metin" />
+                </label>
+                <div style="display:flex; gap:.5rem; align-items:center;">
+                  <button type="button" class="btn btn-primary btn-sm" id="bugunAdminWebhookSave">Kaydet</button>
+                  <span id="bugunAdminWebhookMsg" class="muted" style="font-size:.8rem;">—</span>
+                </div>
+              </div>
+            </details>
           </section>
 
           <!-- Sağlık durumu (placeholder values for now) -->
