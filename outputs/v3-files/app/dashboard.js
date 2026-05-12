@@ -1312,7 +1312,7 @@ async function loadSheetMirrorTabs() {
     console.warn("sheet mirror okunamadı:", err);
     sheetMirrorTabs = [];
     sheetMirrorRows = [];
-    sheetMirrorError = `Sheet aynası okunamadı: ${err.message}`;
+    sheetMirrorError = _friendlyFirestoreError(err, "Sheet aynası");
     renderSheetMirrorPanel();
     renderManagerOverview();
     renderManagerSheetPreview();
@@ -3958,7 +3958,7 @@ function renderManagerSheetPreview() {
   const state = _sheetSyncDotState();
   if (statusDot) statusDot.dataset.status = state.color;
   if (statusText) {
-    if (sheetSyncConfigError) statusText.textContent = `Senkronizasyon okunamadı: ${sheetSyncConfigError}`;
+    if (sheetSyncConfigError) statusText.textContent = _friendlyFirestoreError({ message: sheetSyncConfigError }, "Senkronizasyon");
     else {
       const last = sheetSyncConfig?.lastSyncAt ? new Date(sheetSyncConfig.lastSyncAt) : null;
       const lastText = last && !isNaN(last.getTime()) ? relativeTimeLabel(last) : "henüz yok";
@@ -9758,4 +9758,22 @@ function _bugunCapitalize(s) {
 
 function _esc(s) {
   return typeof escapeHTML === "function" ? escapeHTML(s) : String(s == null ? "" : s);
+}
+
+// Friendlier error string for Firestore failures — special-cases quota and
+// permission denials so the admin sees a humane message instead of the raw
+// SDK error. Used by the Bakım panels.
+function _friendlyFirestoreError(err, what) {
+  const msg = String((err && err.message) || err || "");
+  const lower = msg.toLowerCase();
+  if (lower.includes("quota") || lower.includes("resource-exhausted")) {
+    return `${what} için günlük okuma kotası doldu. Birkaç saat içinde otomatik sıfırlanacak (Pasifik gece yarısı).`;
+  }
+  if (lower.includes("permission") || lower.includes("insufficient")) {
+    return `${what} okunamadı: yetki yok. Firestore rules güncel mi?`;
+  }
+  if (lower.includes("unavailable") || lower.includes("network")) {
+    return `${what} okunamadı: ağ erişimi yok.`;
+  }
+  return `${what} okunamadı: ${msg}`;
 }
