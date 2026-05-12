@@ -1169,6 +1169,7 @@ async function loadSheetSyncStatus() {
   renderManagerOverview();
   renderManagerSheetPreview();
   renderManagerSyncLogList();
+  if (typeof renderBugunAdminBlock === "function") renderBugunAdminBlock();
 }
 
 // Computes the status-dot color from config + most recent log:
@@ -1293,6 +1294,7 @@ async function loadSheetMirrorTabs() {
       sheetMirrorActiveTab = sheetMirrorTabs[0]?.slug || "";
     }
     renderSheetMirrorPanel();
+    if (typeof renderBugunAdminBlock === "function") renderBugunAdminBlock();
     if (sheetMirrorActiveTab) {
       await loadSheetMirrorRows(sheetMirrorActiveTab);
     }
@@ -4294,6 +4296,13 @@ function closeCoordinatorReportModal() {
 function renderBugun() {
   if (!isStaff()) return;
   mountManagerCockpitSections();
+  // Admin-only Bakım block at the bottom of Bugün (May 2026). Render
+  // immediately so the layout shows; refreshed when sheet sync data lands.
+  if (typeof renderBugunAdminBlock === "function") renderBugunAdminBlock();
+  if (isAdmin()) {
+    if (typeof loadSheetSyncStatus === "function") loadSheetSyncStatus();
+    if (typeof loadSheetMirrorTabs === "function") loadSheetMirrorTabs();
+  }
   renderCoordinatorHomeHeader();
   renderManagerOverview();
   // Today's roster + editorial subtitle both depend on the live schedule
@@ -7842,11 +7851,22 @@ document.addEventListener("click", async (event) => {
     loadSheetMirrorTabs();
     return;
   }
-  if (event.target.id === "sheetSyncAcceptBtn") {
+  if (event.target.id === "sheetSyncAcceptBtn" || event.target.closest("#bugunAdminAcceptStructure")) {
     _runAppsScriptHelper(
       "sheetSyncAcceptCurrentStructure",
       "Yapı yeni baseline olarak kaydedilmek üzere."
     );
+    return;
+  }
+  if (event.target.closest("#bugunAdminRunSync")) {
+    _runAppsScriptHelper(
+      "sheetSyncRun",
+      "Sync manuel olarak çalıştırılmak üzere."
+    );
+    return;
+  }
+  if (event.target.closest("#bugunAdminMirrorRefresh")) {
+    if (typeof loadSheetMirrorTabs === "function") loadSheetMirrorTabs();
     return;
   }
   if (event.target.id === "sheetSyncResumeBtn") {
@@ -9060,11 +9080,8 @@ async function savePublicContentEditor(e) {
 }
 
 // ============================================================
-// Volunteer daily-note hydrator
+// Volunteer daily-note hydrator (May 2026)
 // ============================================================
-// Reads /publicSiteContent/landing (same doc the public site uses) and shows
-// the daily note inside the volunteer Anasayfa. Public read is allowed so
-// even non-staff volunteers see admin-edited messages without extra rules.
 let _volunteerDailyNoteLoaded = false;
 async function hydrateVolunteerDailyNote() {
   if (_volunteerDailyNoteLoaded) return;
@@ -9083,7 +9100,120 @@ async function hydrateVolunteerDailyNote() {
       text.innerHTML = body;
       note.removeAttribute("hidden");
     }
-  } catch (err) {
-    // Non-fatal — just keep the note hidden.
+  } catch (err) { /* non-fatal */ }
+}
+
+// ============================================================
+// Bugün admin block — Bakım folded inline (May 2026)
+// ============================================================
+// Editorial admin-only block at the bottom of Bugün. Pulls from existing
+// state (sheetSyncConfig + sheetSyncRecentLogs + sheetMirrorTabs) so no
+// new Firestore reads are required.
+
+const _BUGUN_ADMIN_EVENT_BADGE = {
+  ok: "ok",
+  baseline_set: "ok",
+  paused: "bad",
+  access_denied: "bad",
+  structure_changed: "warn",
+  degraded: "warn",
+};
+
+function renderBugunAdminBlock() {
+  if (typeof isAdmin === "function" && !isAdmin()) return;
+  const block = document.querySelector(".bugun-admin-block");
+  if (!block) return;
+
+  const pill = document.getElementById("sheetSyncStatusPill");
+  if (pill && typeof _sheetSyncDotState === "function") {
+    const st = _sheetSyncDotState();
+    const ds = st.color === "green" ? "ok" : st.color === "yellow" ? "warn" : st.color === "red" ? "bad" : "unknown";
+    pill.dataset.status = ds;
+    pill.textContent = `●  ${st.label}`;
   }
+
+  const cfg = (typeof sheetSyncConfig !== "undefined" && sheetSyncConfig) ? sheetSyncConfig : {};
+  const last = cfg.lastSyncAt ? new Date(cfg.lastSyncAt) : null;
+  _bugunAdminSet("sheetSyncLastWhen", last && !isNaN(last) ? _formatBugunAdminTime(last) : "—");
+  const summary = cfg.lastSyncSummary || {};
+  const written = summary.totalWritten ?? summary.written ?? 0;
+  const skipped = summary.totalSkipped ?? summary.skipped ?? 0;
+  _bugunAdminSet("sheetSyncLastSummary",
+    last ? `${written} yazıldı · ${skipped} atlandı` : "henüz hiç sync olmadı");
+
+  if (last) {
+    const nextEst = new Date(last.getTime() + 60 * 60 * 1000);
+    _bugunAdminSet("sheetSyncNextWhen", _formatBugunAdminTime(nextEst));
+  } else {
+    _bugunAdminSet("sheetSyncNextWhen", "~saatlik");
+  }
+  _bugunAdminSet("sheetSyncAccessFails", String(cfg.consecutiveAccessFailures ?? 0));
+  const structureChanges = (summary.structureChanges || []).length;
+  _bugunAdminSet("sheetSyncStructureWarn", structureChanges > 0 ? String(structureChanges) : "—");
+  if (last) _bugunAdminSet("bugunAdminAppsScriptWhen", _formatBugunAdminTime(last));
+
+  // Event log
+  const eventsEl = document.getElementById("bugunAdminSyncEvents");
+  if (eventsEl) {
+    const logs = (typeof sheetSyncRecentLogs !== "undefined" ? sheetSyncRecentLogs : []).slice(0, 4);
+    if (!logs.length) {
+      eventsEl.innerHTML = `<li class="empty">Henüz olay yok.</li>`;
+    } else {
+      eventsEl.innerHTML = logs.map((log) => {
+        const status = (log.status || "ok").toLowerCase();
+        const klass = _BUGUN_ADMIN_EVENT_BADGE[status] || "warn";
+        const when = log.createdAt && typeof toDateFromTs === "function"
+          ? _formatBugunAdminTime(toDateFromTs(log.createdAt))
+          : "—";
+        const s = log.summary || log.details || {};
+        const w = s.totalWritten ?? s.written ?? 0;
+        const sk = s.totalSkipped ?? s.skipped ?? 0;
+        let meta;
+        if (status === "structure_changed") {
+          const nc = (s.structureChanges || []).length;
+          meta = nc > 0 ? `${nc} yapı değişikliği` : "yapı değişikliği";
+        } else if (status === "access_denied" || status === "paused") {
+          meta = "erişim sorunu";
+        } else {
+          meta = `${w} yazıldı · ${sk} atlandı`;
+        }
+        return `<li class="${klass}"><div><b>${escapeHTML(status)}</b><div class="meta">${escapeHTML(meta)}</div></div><span class="when">${escapeHTML(when)}</span></li>`;
+      }).join("");
+    }
+  }
+
+  // Mirror tabs
+  const mirrorEl = document.getElementById("bugunAdminMirrorList");
+  if (mirrorEl) {
+    const tabs = typeof sheetMirrorTabs !== "undefined" ? sheetMirrorTabs : [];
+    if (!tabs.length) {
+      mirrorEl.innerHTML = `<li class="empty">Sekme bilgisi yükleniyor…</li>`;
+    } else {
+      mirrorEl.innerHTML = tabs.slice(0, 8).map((tab) => {
+        const name = escapeHTML(tab.name || tab.slug || "—");
+        const rc = Number(tab.rowCount) || 0;
+        return `<li><span class="nm">${name}</span><span class="rc">${rc} satır</span><span class="st">● ok</span></li>`;
+      }).join("");
+    }
+  }
+}
+
+function _formatBugunAdminTime(d) {
+  if (!d || isNaN(d)) return "—";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const day = new Date(d);
+  day.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((today.getTime() - day.getTime()) / 86400000);
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  if (diffDays === 0) return `Bugün ${hh}:${mm}`;
+  if (diffDays === 1) return `Dün ${hh}:${mm}`;
+  if (diffDays < 7) return `${diffDays}g önce`;
+  return d.toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+}
+
+function _bugunAdminSet(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
 }

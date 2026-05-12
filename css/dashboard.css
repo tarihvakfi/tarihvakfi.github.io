@@ -3514,3 +3514,330 @@ body.admin-shell #publicContentEditorCard { display: block; }
   border-bottom: 1px solid #e8dfd2;
   color: #2b2018;
 }
+
+/* ============================================================
+   Admin-only block inside Bugün (May 2026)
+   Drop-in replacement for the old Bakım tab. Same editorial language
+   as the public site: kicker + Lora h2 + sentence sub + tile/list
+   panels in a 2×2 grid. Accordion at the bottom for content editing.
+   Visible only on body.admin-shell.
+   ============================================================ */
+
+.bugun-admin-block {
+  margin-top: 2.5rem;
+  padding-top: 2rem;
+  border-top: 2px solid var(--tblr-body-color, #2b2018);
+}
+body:not(.admin-shell) .bugun-admin-block { display: none !important; }
+
+.bugun-admin-head { margin-bottom: 1.5rem; }
+.bugun-admin-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+  margin: 0 0 .55rem;
+  font-family: "DM Mono", "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: #6b5d50;
+}
+.bugun-admin-ldot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #4a7c7e;
+  animation: managerHeroPulse 2s infinite;
+}
+.bugun-admin-head h2 {
+  font-family: "Lora", Georgia, serif;
+  font-size: 1.7rem;
+  font-weight: 600;
+  letter-spacing: -.012em;
+  margin: 0 0 .35rem;
+  color: #2b2018;
+}
+.bugun-admin-sub {
+  font-size: .95rem;
+  color: #6b5d50;
+  margin: 0;
+  max-width: 64ch;
+}
+
+.bugun-admin-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 1.25rem;
+}
+@media (max-width: 880px) {
+  .bugun-admin-grid { grid-template-columns: 1fr; }
+}
+
+.bugun-admin-panel {
+  background: var(--tblr-bg-surface, #fff);
+  border: 1px solid var(--tblr-border-color, #e8dfd2);
+  border-radius: 6px;
+  padding: 1.25rem 1.35rem;
+}
+.bugun-admin-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: .85rem;
+  padding-bottom: .65rem;
+  border-bottom: 1px solid var(--tblr-border-color, #e8dfd2);
+}
+.bugun-admin-panel-head .lab {
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: #94462a;
+  margin: 0 0 .2rem;
+}
+.bugun-admin-panel-head h3 {
+  font-family: "Lora", Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0;
+  color: #2b2018;
+}
+.bugun-admin-status {
+  font-family: "DM Mono", monospace;
+  font-size: 11px;
+  letter-spacing: .08em;
+  padding: .2rem .55rem;
+  border-radius: 99px;
+  flex-shrink: 0;
+  background: rgba(74,124,126,.12);
+  color: #4a7c7e;
+}
+.bugun-admin-status[data-status="warn"] { background: rgba(200,155,60,.18); color: #8a6818; }
+.bugun-admin-status[data-status="bad"] { background: rgba(184,92,58,.12); color: #94462a; }
+
+/* 4-stat grid for sheet sync */
+.bugun-admin-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--tblr-border-color, #e8dfd2);
+}
+.bugun-admin-stats .l {
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: #6b5d50;
+  margin: 0 0 .2rem;
+}
+.bugun-admin-stats .v {
+  font-family: "Lora", serif;
+  font-weight: 600;
+  font-size: 1.3rem;
+  color: #2b2018;
+  line-height: 1.1;
+  margin: 0;
+}
+.bugun-admin-stats .s {
+  font-size: 11px;
+  color: #6b5d50;
+  margin: .15rem 0 0;
+}
+@media (max-width: 720px) {
+  .bugun-admin-stats { grid-template-columns: repeat(2, 1fr); }
+}
+
+.bugun-admin-eyebrow {
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: #94462a;
+  margin: 0 0 .5rem;
+}
+
+/* Compact event log */
+.bugun-admin-events {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.bugun-admin-events li {
+  display: grid;
+  grid-template-columns: 8px 1fr auto;
+  gap: .65rem;
+  align-items: center;
+  padding: .5rem 0;
+  border-bottom: 1px solid var(--tblr-border-color, #e8dfd2);
+  font-size: 13px;
+}
+.bugun-admin-events li:last-child { border-bottom: none; }
+.bugun-admin-events li::before {
+  content: "";
+  display: block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #4cae5e;
+}
+.bugun-admin-events li.warn::before { background: #c89b3c; }
+.bugun-admin-events li.bad::before { background: #b85c3a; }
+.bugun-admin-events li .meta {
+  color: #6b5d50;
+  font-size: 11.5px;
+}
+.bugun-admin-events li .when {
+  font-family: "DM Mono", monospace;
+  font-size: 10.5px;
+  color: #6b5d50;
+}
+.bugun-admin-events li.empty {
+  grid-template-columns: 1fr;
+  color: #6b5d50;
+  font-style: italic;
+  padding: 1rem 0;
+  text-align: center;
+}
+.bugun-admin-events li.empty::before { display: none; }
+
+/* Sheet mirror compact list */
+.bugun-admin-mirror {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.bugun-admin-mirror li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: .65rem;
+  align-items: center;
+  padding: .55rem .65rem;
+  background: #faf6f0;
+  border-radius: 4px;
+  margin-bottom: .35rem;
+  font-size: 13px;
+}
+.bugun-admin-mirror li:last-child { margin-bottom: 0; }
+.bugun-admin-mirror li .nm {
+  font-family: "Lora", serif;
+  font-weight: 500;
+  color: #2b2018;
+}
+.bugun-admin-mirror li .rc {
+  font-family: "DM Mono", monospace;
+  font-size: 11px;
+  color: #6b5d50;
+}
+.bugun-admin-mirror li .st {
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  padding: .15rem .5rem;
+  border-radius: 99px;
+  background: rgba(74,124,126,.12);
+  color: #4a7c7e;
+}
+.bugun-admin-mirror li.empty {
+  grid-template-columns: 1fr;
+  color: #6b5d50;
+  font-style: italic;
+  text-align: center;
+  padding: 1rem 0;
+  background: transparent;
+}
+
+/* Hızlı eylemler buttons */
+.bugun-admin-actions {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+.bugun-admin-actions .btn {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+/* Sağlık list */
+.bugun-admin-health {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.bugun-admin-health li {
+  display: flex;
+  justify-content: space-between;
+  padding: .5rem 0;
+  border-bottom: 1px dashed var(--tblr-border-color, #e8dfd2);
+  font-size: 13px;
+}
+.bugun-admin-health li:last-child { border-bottom: none; }
+.bugun-admin-health .l { color: #2b2018; }
+.bugun-admin-health .v { font-family: "DM Mono", monospace; color: #6b5d50; font-size: 12px; }
+.bugun-admin-health .v.ok { color: #4a7c7e; }
+.bugun-admin-health .v.warn { color: #c89b3c; }
+
+/* Accordion for content editor */
+.bugun-admin-accordion {
+  margin-top: 1.5rem;
+  border: 1px solid var(--tblr-border-color, #e8dfd2);
+  border-radius: 6px;
+  background: var(--tblr-bg-surface, #fff);
+  overflow: hidden;
+}
+.bugun-admin-accordion > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 1rem 1.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+  user-select: none;
+  transition: background .12s;
+}
+.bugun-admin-accordion > summary:hover { background: #faf6f0; }
+.bugun-admin-accordion > summary::-webkit-details-marker { display: none; }
+.bugun-admin-accordion > summary .kicker {
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: #94462a;
+}
+.bugun-admin-accordion > summary .title {
+  font-family: "Lora", Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #2b2018;
+}
+.bugun-admin-accordion[open] > summary {
+  border-bottom: 1px solid var(--tblr-border-color, #e8dfd2);
+}
+.bugun-admin-accordion[open] > summary .title::after { content: ""; }
+.bugun-admin-accordion > #publicContentEditorCard {
+  border: none;
+  border-radius: 0;
+  margin: 0 !important;
+  box-shadow: none;
+  padding: 1.5rem 1.85rem 1.75rem;
+}
+.bugun-admin-accordion #publicContentForm .form-fieldset {
+  background: #faf6f0;
+  border: 1px solid var(--tblr-border-color, #e8dfd2);
+  border-radius: 4px;
+  padding: 1rem 1.15rem;
+}
+.bugun-admin-accordion #publicContentForm legend {
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: #94462a;
+  padding: 0 .5rem;
+}
+  font-size: 10px;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: #94462a;
+  padding: 0 .5rem;
+}

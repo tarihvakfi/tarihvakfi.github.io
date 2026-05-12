@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler-flags.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.3.0/dist/tabler-icons.min.css" />
   <link rel="stylesheet" href="../css/main.css" />
-  <link rel="stylesheet" href="../css/dashboard.css?v=20260512-bakim" />
+  <link rel="stylesheet" href="../css/dashboard.css?v=20260512-merge" />
 </head>
 <body>
   <header class="site-header">
@@ -43,7 +43,11 @@
       <button class="tab volunteer-tab tab-secondary" data-tab="pnb" hidden>PNB</button>
       <button class="tab volunteer-tab tab-secondary" data-tab="duyurular" hidden>Duyurular</button>
       <button class="tab staff-tab tab-secondary hidden" data-tab="yonetim" hidden>Yönetim</button>
-      <button class="tab admin-tab hidden" data-tab="bakim">Bakım</button>
+      <!-- Bakım tab dropped from the visible nav (May 2026). Admin-only
+           panels now live inline at the bottom of Bugün. The button is
+           retained in DOM with [hidden] so direct /app/#bakim URL hits
+           still resolve to the old (now-empty) section for backward compat. -->
+      <button class="tab admin-tab tab-secondary hidden" data-tab="bakim" hidden>Bakım</button>
     </nav>
 
     <!-- ====== Volunteer home (Anasayfa) ====== -->
@@ -286,6 +290,150 @@
           </section>
         </aside>
       </div>
+
+      <!-- ====================================================
+           Admin-only block (May 2026): used to be the Bakım tab.
+           Mockup-style 4-stat sheet sync + compact mirror tab list +
+           sağlık durumu + hızlı işlemler buttons. The public-site
+           editorial editor lives at the bottom as a collapsed accordion.
+           ==================================================== -->
+      <section class="bugun-admin-block admin-only-block hidden" aria-label="Bakım">
+        <header class="bugun-admin-head">
+          <p class="bugun-admin-kicker"><span class="bugun-admin-ldot" aria-hidden="true"></span>Yönetici · Sistem</p>
+          <h2>Bakım</h2>
+          <p class="bugun-admin-sub">Sheet senkronizasyonu, hızlı eylemler ve public anasayfa içeriği — tek yerde.</p>
+        </header>
+
+        <div class="bugun-admin-grid">
+          <!-- Sheet sync: mockup-style 4-stat grid + colored event log -->
+          <section class="bugun-admin-panel">
+            <header class="bugun-admin-panel-head">
+              <div>
+                <p class="lab">Sheet · Senkronizasyon</p>
+                <h3>Saatlik akış</h3>
+              </div>
+              <span class="bugun-admin-status" id="sheetSyncStatusPill" data-status="ok">●  Sağlıklı</span>
+            </header>
+            <div class="bugun-admin-stats">
+              <div><p class="l">Son sync</p><p class="v" id="sheetSyncLastWhen">—</p><p class="s" id="sheetSyncLastSummary">—</p></div>
+              <div><p class="l">Sonraki sync</p><p class="v" id="sheetSyncNextWhen">~hourly</p><p class="s">Apps Script trigger</p></div>
+              <div><p class="l">Erişim hatası</p><p class="v" id="sheetSyncAccessFails">0</p><p class="s">son 24 saatte</p></div>
+              <div><p class="l">Yapı uyarısı</p><p class="v" id="sheetSyncStructureWarn">—</p><p class="s">son baseline'a göre</p></div>
+            </div>
+            <p class="bugun-admin-eyebrow">Son olaylar</p>
+            <ol class="bugun-admin-events" id="bugunAdminSyncEvents"><li class="empty">Yükleniyor…</li></ol>
+          </section>
+
+          <!-- Mirror tab list (compact, not the full table) -->
+          <section class="bugun-admin-panel">
+            <header class="bugun-admin-panel-head">
+              <div>
+                <p class="lab">Canlı sheet</p>
+                <h3>Sekme durumu</h3>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" id="bugunAdminMirrorRefresh">↻</button>
+            </header>
+            <ul class="bugun-admin-mirror" id="bugunAdminMirrorList"><li class="empty">Yükleniyor…</li></ul>
+          </section>
+
+          <!-- Hızlı işlemler -->
+          <section class="bugun-admin-panel">
+            <header class="bugun-admin-panel-head">
+              <div>
+                <p class="lab">Bakım eylemleri</p>
+                <h3>Hızlı işlemler</h3>
+              </div>
+            </header>
+            <div class="bugun-admin-actions">
+              <button type="button" class="btn btn-secondary" id="bugunAdminRunSync"><i class="ti ti-refresh-dot"></i> Sync manuel çalıştır</button>
+              <button type="button" class="btn btn-secondary" id="bugunAdminAcceptStructure"><i class="ti ti-check"></i> Yapıyı yeniden kabul et</button>
+              <a class="btn btn-secondary" href="https://docs.google.com/spreadsheets/d/1qJ49Iv4UL0kPC0dd9MmfilTwQAMKgelujWPqZH134RE/edit" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Sheet'i Drive'da aç</a>
+            </div>
+          </section>
+
+          <!-- Sağlık durumu (placeholder values for now) -->
+          <section class="bugun-admin-panel">
+            <header class="bugun-admin-panel-head">
+              <div>
+                <p class="lab">Sistem · Sağlık</p>
+                <h3>Sağlık durumu</h3>
+              </div>
+              <span class="bugun-admin-status" data-status="ok">●  OK</span>
+            </header>
+            <ul class="bugun-admin-health">
+              <li><span class="l">Firestore quota</span><span class="v ok">düşük</span></li>
+              <li><span class="l">Apps Script son çalışma</span><span class="v" id="bugunAdminAppsScriptWhen">—</span></li>
+              <li><span class="l">Yedek (haftalık)</span><span class="v" id="bugunAdminBackup">son Pazar</span></li>
+              <li><span class="l">Mail queue</span><span class="v ok">0 bekleyen</span></li>
+            </ul>
+          </section>
+        </div>
+
+        <!-- Public anasayfa editor — collapsed details accordion -->
+        <details class="bugun-admin-accordion" id="bugunAdminContentAccordion">
+          <summary>
+            <span class="kicker">Public anasayfa</span>
+            <span class="title">Ana sayfa metinlerini düzenle ↓</span>
+          </summary>
+          <article class="card" id="publicContentEditorCard">
+            <p class="eyebrow">Bakım · anasayfa metinleri</p>
+            <h2 style="margin-top:0">Public anasayfayı düzenle</h2>
+            <p class="muted">Aşağıdaki alanları düzenlediğinde tarihvakfi.org.tr ana sayfasındaki ilgili yazılar değişir. Live preview yok — değişiklikten sonra yeni sekmede ana sayfayı yenile.</p>
+
+            <form id="publicContentForm" class="form" style="margin-top:1rem; display:grid; gap:.85rem;">
+              <label class="form-stack">
+                <span class="form-stack-label">Üst etiket (eyebrow)</span>
+                <input type="text" id="pcfHeroEyebrow" placeholder="Tarih Vakfı · Pertev Naili Boratav Arşivi" />
+                <small class="muted">Hero'nun en üstündeki küçük mono yazı.</small>
+              </label>
+              <label class="form-stack">
+                <span class="form-stack-label">Ana başlık (H1) <em class="muted" style="font-weight:400;">— <code>&lt;em&gt;</code> ile vurgulayabilirsin</em></span>
+                <input type="text" id="pcfHeroHeadline" placeholder='Geçmişin sesini &lt;em&gt;birlikte&lt;/em&gt; koruyoruz.' />
+              </label>
+              <label class="form-stack">
+                <span class="form-stack-label">Hero alt paragraf</span>
+                <textarea id="pcfHeroSub" rows="3" placeholder="Pertev Naili Boratav'ın özel arşivi sayfa sayfa..."></textarea>
+                <small class="muted"><code>&lt;b&gt;</code> ile kalın, <code>&lt;em&gt;</code> ile vurgu.</small>
+              </label>
+              <fieldset class="form-fieldset">
+                <legend>Proje kartı (PNB)</legend>
+                <label class="form-stack" style="margin-bottom:.65rem;">
+                  <span class="form-stack-label">Başlık</span>
+                  <input type="text" id="pcfProjectHeading" placeholder="Bir hayatın izleri, sayfa sayfa." />
+                </label>
+                <label class="form-stack" style="margin-bottom:.65rem;">
+                  <span class="form-stack-label">Alt satır</span>
+                  <input type="text" id="pcfProjectPeople" placeholder="Türk halkbilimi'nin kurucu isimlerinden..." />
+                </label>
+                <label class="form-stack">
+                  <span class="form-stack-label">Açıklama</span>
+                  <textarea id="pcfProjectBlurb" rows="3" placeholder="Boratav'ın özel kitaplığı..."></textarea>
+                </label>
+              </fieldset>
+              <fieldset class="form-fieldset">
+                <legend>Bugünün notu (banner)</legend>
+                <p class="muted" style="margin:0 0 .65rem; font-size:.85rem;">Public anasayfanın en üstüne sarı bir banner ekler.</p>
+                <label class="form-stack" style="margin-bottom:.65rem;">
+                  <span class="form-stack-label">Metin</span>
+                  <input type="text" id="pcfDailyNote" placeholder="Bu Cumartesi açık ofis günü · 14:00 Eminönü" />
+                </label>
+                <label style="display:inline-flex; align-items:center; gap:.5rem; font-size:.9rem;">
+                  <input type="checkbox" id="pcfDailyNoteVisible" />
+                  <span>Banner'ı public sayfada göster</span>
+                </label>
+              </fieldset>
+              <div class="form-actions" style="margin-top:.5rem; display:flex; justify-content:space-between; align-items:center; gap:.5rem;">
+                <span id="publicContentMessage" class="status-line muted" style="font-size:.85rem;">—</span>
+                <div style="display:flex; gap:.5rem;">
+                  <button type="button" class="btn btn-secondary" id="publicContentReloadBtn">↻ Sıfırla</button>
+                  <a class="btn btn-secondary" href="../" target="_blank" rel="noopener">↗ Ana sayfayı aç</a>
+                  <button type="submit" class="btn btn-primary" id="publicContentSaveBtn">Kaydet</button>
+                </div>
+              </div>
+            </form>
+          </article>
+        </details>
+      </section>
     </section>
 
     <section id="tab-pnb" class="tab-content hidden">
@@ -585,75 +733,12 @@
         <p class="bakim-sub">İçerik düzenleme, sheet senkronizasyonu, kullanıcı işlemleri — hepsi tek yerde.</p>
       </header>
 
-      <!-- Section 0 (May 2026): Public-site editorial content editor.
-           Writes to /publicSiteContent/landing; landing.js applies overrides
-           on the public page. Admin-only via firestore.rules. Implementation
-           hooks: renderPublicContentEditor() in dashboard.js. -->
-      <article class="card" id="publicContentEditorCard">
-        <p class="eyebrow">Bakım · anasayfa metinleri</p>
-        <h2 style="margin-top:0">Public anasayfayı düzenle</h2>
-        <p class="muted">Aşağıdaki alanları düzenlediğinde tarihvakfi.org.tr ana sayfasındaki ilgili yazılar değişir. Live preview yok — değişiklikten sonra yeni sekmede ana sayfayı yenile.</p>
+      <!-- publicContentEditorCard moved into tab-bugun (May 2026) as an
+           admin-only collapsed accordion at the bottom. Bakım tab is dropped
+           from the visible nav. -->
 
-        <form id="publicContentForm" class="form" style="margin-top:1rem; display:grid; gap:.85rem;">
-          <label class="form-stack">
-            <span class="form-stack-label">Üst etiket (eyebrow)</span>
-            <input type="text" id="pcfHeroEyebrow" placeholder="Tarih Vakfı · Pertev Naili Boratav Arşivi" />
-            <small class="muted">Hero'nun en üstündeki küçük mono yazı.</small>
-          </label>
-
-          <label class="form-stack">
-            <span class="form-stack-label">Ana başlık (H1) <em class="muted" style="font-weight:400;">— <code>&lt;em&gt;</code> ile vurgulayabilirsin</em></span>
-            <input type="text" id="pcfHeroHeadline" placeholder='Geçmişin sesini &lt;em&gt;birlikte&lt;/em&gt; koruyoruz.' />
-          </label>
-
-          <label class="form-stack">
-            <span class="form-stack-label">Hero alt paragraf</span>
-            <textarea id="pcfHeroSub" rows="3" placeholder="Pertev Naili Boratav'ın özel arşivi sayfa sayfa..."></textarea>
-            <small class="muted"><code>&lt;b&gt;</code> ile kalın metin, <code>&lt;em&gt;</code> ile vurgu yapabilirsin.</small>
-          </label>
-
-          <fieldset class="form-fieldset" style="border:1px solid var(--tblr-border-color); border-radius:6px; padding:1rem;">
-            <legend style="font-size:.85rem; padding:0 .5rem;">Proje kartı (PNB)</legend>
-            <label class="form-stack" style="margin-bottom:.65rem;">
-              <span class="form-stack-label">Başlık</span>
-              <input type="text" id="pcfProjectHeading" placeholder="Bir hayatın izleri, sayfa sayfa." />
-            </label>
-            <label class="form-stack" style="margin-bottom:.65rem;">
-              <span class="form-stack-label">Alt satır</span>
-              <input type="text" id="pcfProjectPeople" placeholder="Türk halkbilimi'nin kurucu isimlerinden..." />
-            </label>
-            <label class="form-stack">
-              <span class="form-stack-label">Açıklama</span>
-              <textarea id="pcfProjectBlurb" rows="3" placeholder="Boratav'ın özel kitaplığı..."></textarea>
-            </label>
-          </fieldset>
-
-          <fieldset class="form-fieldset" style="border:1px solid var(--tblr-border-color); border-radius:6px; padding:1rem;">
-            <legend style="font-size:.85rem; padding:0 .5rem;">Bugünün notu (banner)</legend>
-            <p class="muted" style="margin:0 0 .65rem; font-size:.85rem;">Public anasayfanın en üstüne sarı bir banner ekler. Mesajla bir duyuru paylaş, ziyaretçilere bir hatırlatma yap.</p>
-            <label class="form-stack" style="margin-bottom:.65rem;">
-              <span class="form-stack-label">Metin</span>
-              <input type="text" id="pcfDailyNote" placeholder="Bu Cumartesi açık ofis günü · 14:00 Eminönü" />
-            </label>
-            <label style="display:inline-flex; align-items:center; gap:.5rem; font-size:.9rem;">
-              <input type="checkbox" id="pcfDailyNoteVisible" />
-              <span>Banner'ı public sayfada göster</span>
-            </label>
-          </fieldset>
-
-          <div class="form-actions" style="margin-top:.5rem; display:flex; justify-content:space-between; align-items:center; gap:.5rem;">
-            <span id="publicContentMessage" class="status-line muted" style="font-size:.85rem;">—</span>
-            <div style="display:flex; gap:.5rem;">
-              <button type="button" class="btn btn-secondary" id="publicContentReloadBtn"><i class="ti ti-refresh"></i> Sıfırla</button>
-              <a class="btn btn-secondary" href="../" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Ana sayfayı aç</a>
-              <button type="submit" class="btn btn-primary" id="publicContentSaveBtn">Kaydet</button>
-            </div>
-          </div>
-        </form>
-      </article>
-
-      <!-- Section 1: PNB import aracı -->
-      <article class="card">
+      <!-- Section 1: PNB import aracı (hidden in simplified May-2026 Bakım — use direct CLI tools instead) -->
+      <article class="card" hidden>
         <p class="eyebrow">Bakım · veri araçları</p>
         <h2 style="margin-top:0">PNB import aracı</h2>
         <p class="muted">Önce <code>tools/pnb_excel_to_import.py</code> ile yerel JSON üretin. JSON kişisel iletişim bilgileri içerebilir; repo içinde <code>imports/</code> klasörü git tarafından yok sayılır.</p>
@@ -667,8 +752,8 @@
         <div id="pnbImportPreview" style="margin-top:1rem"><p class="empty">Henüz import dosyası seçilmedi.</p></div>
       </article>
 
-      <!-- Section 2: User enrichment import (TODO: full preview/commit flow) -->
-      <article class="card" style="margin-top:1.25rem">
+      <!-- Section 2: User enrichment import (hidden in simplified Bakım) -->
+      <article class="card" hidden style="margin-top:1.25rem">
         <p class="eyebrow">Bakım · kullanıcı zenginleştirme</p>
         <h2 style="margin-top:0">User enrichment import</h2>
         <p class="muted">Gönüllü ve ön kayıt güncellemelerini batch olarak içe aktarır. Önce <code>tools/build_enrichment_preview.py</code> ile <code>tools/enrichment_preview_updates.json</code> ve <code>tools/enrichment_preview_prereg.json</code> üretin, sonra burada yükleyip onaylayın.</p>
@@ -683,8 +768,8 @@
         <div id="enrichImportPreview" style="margin-top:1rem"><p class="empty">Henüz dosya seçilmedi.</p></div>
       </article>
 
-      <!-- Section 3: Pending review (Liste dışı queue) -->
-      <article class="card" id="pendingReviewCard" style="margin-top:1.25rem">
+      <!-- Section 3: Pending review (hidden in simplified Bakım — coordinator handles in Bugün > Yönetim) -->
+      <article class="card" id="pendingReviewCard" hidden style="margin-top:1.25rem">
         <div class="step-header">
           <div>
             <p class="eyebrow">Yeni iş kuyruğu</p>
@@ -749,7 +834,7 @@
            sheet can contain names, internal notes, equipment labels, and other
            non-public context. It renders exactly what SheetSync.gs mirrored
            into /sheets/{tabSlug}/rows. -->
-      <article class="card" id="sheetMirrorCard" style="margin-top:1.25rem">
+      <article class="card" id="sheetMirrorCard" hidden style="margin-top:1.25rem">
         <div class="step-header">
           <div>
             <p class="eyebrow">Sheet · canlı ayna</p>
@@ -764,8 +849,8 @@
         <div id="sheetMirrorTable" style="margin-top:.85rem"><p class="empty">Henüz mirror verisi yok.</p></div>
       </article>
 
-      <!-- Section 5: Veri sağlığı (TODO: per-collection counts + last-write timestamps) -->
-      <article class="card" style="margin-top:1.25rem">
+      <!-- Section 5: Veri sağlığı (hidden in simplified Bakım — not implemented yet) -->
+      <article class="card" hidden style="margin-top:1.25rem">
         <p class="eyebrow">Bakım · veri sağlığı</p>
         <h2 style="margin-top:0">Veri sağlığı</h2>
         <p class="muted">Koleksiyon doc sayıları, son yazma zamanları ve tutarsızlık uyarıları. <em>(TODO: implement health-check render — tools/data_health.py to drive this.)</em></p>
@@ -1079,20 +1164,4 @@
   <script type="module" src="../js/firebase-init.js"></script>
   <script type="module" src="./dashboard.js"></script>
 </body>
-</html>
-</html>
->
-g.firebase.js"></script>
-  <script>
-    window.FEATURE_FLAGS = Object.assign({
-      selfClaim: false,
-      telegramSection: false,
-      volunteerPnbTab: false
-    }, window.FEATURE_FLAGS || {});
-  </script>
-  <script type="module" src="../js/firebase-init.js"></script>
-  <script type="module" src="./dashboard.js"></script>
-</body>
-</html>
->
 </html>
