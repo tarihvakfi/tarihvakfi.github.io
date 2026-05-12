@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler-flags.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.3.0/dist/tabler-icons.min.css" />
   <link rel="stylesheet" href="../css/main.css" />
-  <link rel="stylesheet" href="../css/dashboard.css?v=20260512-mockup" />
+  <link rel="stylesheet" href="../css/dashboard.css?v=20260512-simple" />
 </head>
 <body>
   <header class="site-header">
@@ -30,21 +30,19 @@
   <div class="container dashboard">
     <div id="loadingState" class="centered-message"><div class="spinner"></div><p class="muted">Yükleniyor...</p></div>
 
-    <nav id="tabBar" class="tab-bar hidden">
-      <!-- Tabs are role-scoped via .volunteer-tab / .staff-tab / .admin-tab.
-           Visibility is set in CSS on body.volunteer-shell / body.staff-shell
-           and unhidden by setRoleShell() at auth time.
-           Volunteer:  single Anasayfa cockpit
-           Coordinator/Admin: single Bugün cockpit
-           PNB is volunteer-only — the staff body of #tab-pnb has been empty
-           since Prompt P, and the legacy "İşler" relabel of this button for
-           staff was retired alongside it. A coordinator who lands on
-           /app/#pnb is redirected to #bugun by resolveTab(). -->
+    <!-- Tab bar (May 2026 simplification): one page per role.
+         · Volunteer sees only Anasayfa (PNB + Duyurular tabs retained in
+           DOM with .tab-secondary so dashboard.js routing still works for
+           direct URL hits, but hidden from the visible nav).
+         · Coordinator sees only Bugün (Yönetim folded inline at bottom).
+         · Admin sees Bugün + a discreet Bakım entry on the right. -->
+    <nav id="tabBar" class="tab-bar hidden tab-bar-slim">
       <button class="tab volunteer-tab" data-tab="anasayfa">Anasayfa</button>
       <button class="tab staff-tab hidden" data-tab="bugun">Bugün</button>
-      <button class="tab volunteer-tab" data-tab="pnb">PNB</button>
-      <button class="tab volunteer-tab" data-tab="duyurular">Duyurular</button>
-      <button class="tab staff-tab hidden" data-tab="yonetim">Yönetim</button>
+      <!-- Secondary tabs retained but visually hidden from the nav. -->
+      <button class="tab volunteer-tab tab-secondary" data-tab="pnb" hidden>PNB</button>
+      <button class="tab volunteer-tab tab-secondary" data-tab="duyurular" hidden>Duyurular</button>
+      <button class="tab staff-tab tab-secondary hidden" data-tab="yonetim" hidden>Yönetim</button>
       <button class="tab admin-tab hidden" data-tab="bakim">Bakım</button>
     </nav>
 
@@ -1078,3 +1076,5 @@
   <script type="module" src="./dashboard.js"></script>
 </body>
 </html>
+</html>
+>

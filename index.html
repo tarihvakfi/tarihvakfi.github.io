@@ -307,12 +307,10 @@
     </section>
 
     <!-- ============ Wall of contributors — alphabetical, equal weight ============ -->
-    <!-- Names mirror the live foundation volunteer roster (sheet-side). The
-         initial render uses the names hydrateWall() finds in /publicVolunteers
-         when that collection lands; until then it falls back to the static
-         alphabetical list below. Opt-out is via email — printed in the foot.
-         No ranking, no size-by-contribution. -->
-    <section class="lp-section lp-wall-section" id="lpWallSection">
+    <!-- Removed from the simplified May-2026 public site to reduce page
+         length. Markup retained behind [hidden] so it can be brought back
+         by removing the attribute. hydrateWall() still works if revealed. -->
+    <section class="lp-section lp-wall-section" id="lpWallSection" hidden>
       <div class="lp-container">
         <p class="lp-eyebrow">Birlikte yapıyoruz</p>
         <h2>Bu arşivin arkasındaki ekip</h2>
@@ -464,11 +462,9 @@
           </dl>
         </article>
 
-        <!-- Box-by-box visualization. Per-box state comes from
-             /publicProjectStats/pnb.boxes[] when SheetSync publishes it
-             (extension below). Until then JS renders the same color-coded
-             grid from a static map so the section keeps its place. -->
-        <div class="lp-boxes" id="lpBoxesBlock" aria-label="Kutu kutu durum">
+        <!-- Box-by-box visualization. Hidden in the simplified May-2026
+             layout. Remove [hidden] to restore. -->
+        <div class="lp-boxes" id="lpBoxesBlock" aria-label="Kutu kutu durum" hidden>
           <div class="lp-boxes-head">
             <h3>Kutu kutu durum — bir bakışta</h3>
             <div class="lp-boxes-legend">
@@ -489,9 +485,8 @@
           </div>
         </div>
 
-        <!-- Work area breakdown — single stacked bar showing where the 30-day
-             effort went. Hydrated in landing.js from publicTicker.materialCategory. -->
-        <div class="lp-areas-block">
+        <!-- Work area breakdown. Hidden in simplified layout. -->
+        <div class="lp-areas-block" hidden>
           <h3 class="lp-areas-h">Geçen ay emek nereye gitti</h3>
           <p class="lp-areas-sub">Son 30 günün çalışma alanı dağılımı — kişi adı yok, sadece iş:</p>
           <div class="lp-area-bar" id="lpAreaBar" aria-hidden="true">
@@ -515,11 +510,8 @@
     </section>
 
     <!-- ============ Weekly roster ============ -->
-    <!-- Static grid mirrors the manual "Günlük Gönüllü Akışı" sheet tab.
-         hydrateRoster() will overwrite this content with live data once
-         /publicSchedule/current is published by SheetSync. Today's column
-         is highlighted by markRosterToday() (CSS-only). -->
-    <section class="lp-section lp-roster-section" id="lpRosterSection">
+    <!-- Hidden in simplified May-2026 layout. -->
+    <section class="lp-section lp-roster-section" id="lpRosterSection" hidden>
       <div class="lp-container">
         <p class="lp-eyebrow">Bu hafta</p>
         <h2>Kim, nerede, ne zaman</h2>
@@ -727,35 +719,6 @@
   <script>
     (function () {
       var dlg = document.getElementById('lpKvkkDialog');
-      var openLink = document.getElementById('lpKvkkOpen');
-      var closeBtn = document.getElementById('lpKvkkClose');
-      if (!dlg || !openLink) return;
-      openLink.addEventListener('click', function (e) {
-        e.preventDefault();
-        if (typeof dlg.showModal === 'function') dlg.showModal();
-        else dlg.setAttribute('open', '');
-      });
-      if (closeBtn) closeBtn.addEventListener('click', function () { dlg.close(); });
-      dlg.addEventListener('click', function (e) {
-        if (e.target === dlg) dlg.close();
-      });
-    })();
-  </script>
-
-  <script src="./js/config.firebase.js"></script>
-  <script type="module" src="./js/landing.js"></script>
-</body>
-</html>
-();
-      });
-    })();
-  </script>
-
-  <script src="./js/config.firebase.js"></script>
-  <script type="module" src="./js/landing.js"></script>
-</body>
-</html>
-kDialog');
       var openLink = document.getElementById('lpKvkkOpen');
       var closeBtn = document.getElementById('lpKvkkClose');
       if (!dlg || !openLink) return;

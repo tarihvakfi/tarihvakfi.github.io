@@ -620,7 +620,15 @@ function _buildPublicProjectionFromSheet_(sheetId, metadata) {
       tickerEntries = tickerEntries.concat(_tickerFromDailyFlowRows_(slug, rows));
       return;
     }
-    if (slug.indexOf('pnb_') === 0 && slug !== 'pnb_sayisallastirma') {
+    // Per-volunteer detail tabs only. Skip the two summary/tracking tabs
+    // (pnb_sayisallastirma = inventory, pnb_zarf_calisma = box-level scanning
+    // tracker). Including pnb_zarf_calisma here would double-count: its
+    // "Sayfa Sayısı" column repeats the inventory totals, so the donePages
+    // sum would clamp to totalPages → %100 progress (the May 2026 bug).
+    if (slug.indexOf('pnb_') === 0
+        && slug !== 'pnb_sayisallastirma'
+        && slug !== 'pnb_zarf_calisma'
+        && slug.indexOf('_zarf') === -1) {
       const detail = _summarizePnbDetailRows_(slug, rows);
       donePages += detail.donePages;
       doneUnits += detail.doneUnits;
@@ -694,14 +702,37 @@ function _summarizePnbOverviewRows_(rows) {
   };
 }
 
+// Per-volunteer detail tabs come in two schemas:
+//   A. "Sayfa Sayısı" column = pages-per-document count
+//      (e.g. PNB 14 Betül: 1 row = 1 doc with N pages; sum the column)
+//   B. "Sayfa" column = page index within a document
+//      (e.g. PNB 15 Ateş: 1 row = 1 scanned page; count rows, never sum the column)
+//
+// The pre-May-2026 code used `row.sayfaSayisi || row.sayfa` and summed
+// indiscriminately — which produced wildly inflated donePages for Schema B
+// tabs (e.g. Ateş tab with 704 rows of page indices 1..37 summed to ~13k).
+// Detection here: if *any* row in the tab has a non-null sayfaSayisi value,
+// the tab is Schema A and we sum that column. Otherwise it's Schema B and
+// each row contributes exactly 1 scanned page to donePages.
 function _summarizePnbDetailRows_(tabSlug, rows) {
   let donePages = 0;
   let doneUnits = 0;
   const tickerEntries = [];
+
+  const hasSayfaSayisi = rows.some(function (r) {
+    return r.sayfaSayisi != null && String(r.sayfaSayisi).trim() !== '';
+  });
+
   rows.forEach(function (row) {
-    const pages = _parseDoneTotalCell_(row.sayfaSayisi != null ? row.sayfaSayisi : row.sayfa);
-    const pageCount = pages.done || pages.total;
-    if (pageCount > 0) donePages += pageCount;
+    // Schema A: sum the per-doc page count.
+    // Schema B: each row is one scanned page.
+    if (hasSayfaSayisi) {
+      const pages = _parseDoneTotalCell_(row.sayfaSayisi);
+      const pageCount = pages.done || pages.total;
+      if (pageCount > 0) donePages += pageCount;
+    } else {
+      donePages += 1;
+    }
     doneUnits += 1;
 
     const createdAt = _parseSheetDate_(row.tarih);

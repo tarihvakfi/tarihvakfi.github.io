@@ -1839,11 +1839,19 @@ body.volunteer-shell .staff-only-block { display: none; }
   margin-top: 0 !important;
 }
 #tab-bakim > .yonetim-head { order: 0; }
+/* The Bakım tab uses CSS `order` to put the admin "panels" at the top
+   (sheet sync + sheet mirror + pending review) and the bulk "tools" (PNB
+   import, user enrichment, etc.) below. The May-2026 admin-editable
+   content card sits at order -1 so it's the very first thing an admin
+   sees on Bakım. The nth-of-type rules originally targeted PNB import (1)
+   and user enrichment (2); those slots shifted after publicContentEditorCard
+   landed, so we now target each card by id directly. */
+#publicContentEditorCard { order: -1; }
 #sheetSyncCard { order: 1; }
 #sheetMirrorCard { order: 2; }
 #pendingReviewCard { order: 3; }
-#tab-bakim > article:nth-of-type(1) { order: 4; }
-#tab-bakim > article:nth-of-type(2) { order: 5; }
+#tab-bakim > article:nth-of-type(2) { order: 4; }  /* PNB import */
+#tab-bakim > article:nth-of-type(3) { order: 5; }  /* User enrichment */
 #tgDiagnosticCard { order: 6; }
 #tab-bakim > article:last-of-type { order: 7; }
 
@@ -3144,4 +3152,68 @@ body.admin-shell #publicContentEditorCard { display: block; }
   font-family: "Lora", Georgia, serif;
   font-weight: 600;
   letter-spacing: -.008em;
+}
+
+/* === May 2026 simplification: slim tab bar ===
+   One page per role. Tab nav still renders but only shows the role's
+   primary view (Anasayfa for volunteer, Bugün for staff, Bugün + small
+   Bakım entry for admin). Secondary tabs (PNB, Duyurular, Yönetim) are
+   kept in the DOM so direct URL hits still resolve, but hidden from the
+   visible nav. */
+.tab-bar-slim {
+  border-bottom: 1px solid var(--tblr-border-color);
+  margin-bottom: 1rem;
+  padding: .5rem 0;
+  gap: .25rem;
+}
+.tab-bar-slim .tab {
+  font-family: "Lora", Georgia, serif;
+  font-size: 1rem;
+  font-weight: 500;
+  padding: .45rem .85rem;
+  background: transparent;
+  border: 1.5px solid transparent;
+  border-radius: 6px;
+  color: var(--tblr-secondary);
+  cursor: pointer;
+}
+.tab-bar-slim .tab:hover { color: var(--tblr-body-color); }
+.tab-bar-slim .tab.active {
+  background: var(--tblr-bg-surface, #fff);
+  color: var(--tblr-body-color);
+  border-color: var(--tblr-border-color);
+}
+.tab-bar-slim .tab-secondary { display: none !important; }
+
+/* Bakım tab — for admins, sit it on the far right so it reads as a
+   "settings" entry, not a main view. */
+.tab-bar-slim .admin-tab[data-tab="bakim"] {
+  margin-left: auto;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  color: var(--tblr-secondary);
+  font-weight: 400;
+}
+.tab-bar-slim .admin-tab[data-tab="bakim"]::before {
+  content: "⚙ ";
+  margin-right: 4px;
+  opacity: .7;
+}
+}
+  background: var(--tblr-bg-surface, #fff);
+  color: var(--tblr-body-color);
+  border-color: var(--tblr-border-color);
+}
+.tab-bar-slim .tab-secondary { display: none !important; }
+.tab-bar-slim .admin-tab[data-tab="bakim"] {
+  margin-left: auto;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  color: var(--tblr-secondary);
+  font-weight: 400;
+}
+.tab-bar-slim .admin-tab[data-tab="bakim"]::before {
+  content: "⚙ ";
+  margin-right: 4px;
+  opacity: .7;
 }
