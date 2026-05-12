@@ -9486,30 +9486,17 @@ let _pnbTickerCache = null;
 
 async function loadPnbStatsForAdmin() {
   if (!isStaff()) return;
+  // Single doc read. We used to also pull 200 publicTicker docs here to
+  // count "this week's contributions" — that was wasteful (200 reads per
+  // page load → easy to blow through the 50k/day free-tier quota). Now
+  // the same count comes from the already-loaded staffRecentDocs.
   try {
     const snap = await getDoc(doc(db, "publicProjectStats", "pnb"));
     _pnbStatsCache = snap.exists() ? snap.data() : null;
   } catch (err) {
     _pnbStatsCache = null;
   }
-  try {
-    const since = Date.now() - 7 * 86400000;
-    const tickerSnap = await getDocs(query(
-      collection(db, "publicTicker"),
-      orderBy("createdAt", "desc"),
-      limit(200)
-    ));
-    _pnbTickerCache = tickerSnap.docs
-      .map((d) => d.data() || {})
-      .filter((r) => {
-        const t = r.createdAt && typeof r.createdAt.toMillis === "function"
-          ? r.createdAt.toMillis()
-          : (r.createdAt && r.createdAt.seconds ? r.createdAt.seconds * 1000 : 0);
-        return t >= since;
-      });
-  } catch (err) {
-    _pnbTickerCache = [];
-  }
+  _pnbTickerCache = null;
   hydrateManagerPnbCard();
 }
 
@@ -9529,7 +9516,14 @@ function hydrateManagerPnbCard() {
   const pctEl = document.getElementById("managerPnbHeroPct");
   if (pctEl) pctEl.textContent = pct > 0 ? `%${fmtPct(pct)}` : "—";
 
-  const weekCount = (_pnbTickerCache || []).length;
+  // "Bu hafta" count comes from already-loaded staffRecentDocs (no extra read).
+  const since7d = Date.now() - 7 * 86400000;
+  const weekCount = (typeof staffRecentDocs !== "undefined" && Array.isArray(staffRecentDocs))
+    ? staffRecentDocs.filter((r) => {
+        const t = _bugunReportMillis(r.data || {});
+        return t && t >= since7d;
+      }).length
+    : 0;
   const statusEl = document.getElementById("managerPnbHeroStatus");
   if (statusEl) {
     statusEl.textContent = total > 0
@@ -9737,5 +9731,4 @@ function _bugunReportMillis(d) {
   if (!d) return 0;
   const ts = d.createdAt || d.workDate;
   if (!ts) return 0;
-  if (typeof ts.toMillis === "function") return ts.toMillis();
-  if (typeof
+  if (typeof ts.to
