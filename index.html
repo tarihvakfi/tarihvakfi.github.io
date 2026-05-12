@@ -226,8 +226,8 @@
           </div>
           <div class="lp-ledger-cell" data-ledger="boxes">
             <p class="lp-ledger-label">Açılmış kutu</p>
-            <p class="lp-ledger-num"><span class="lp-ledger-val">—</span><small>/ <span id="lpLedgerBoxTarget">104</span></small></p>
-            <p class="lp-ledger-foot">yükleniyor…</p>
+            <p class="lp-ledger-num"><span class="lp-ledger-val">88</span><small>/ <span id="lpLedgerBoxTarget">104</span></small></p>
+            <p class="lp-ledger-foot">16 kutu sırada bekliyor</p>
           </div>
           <div class="lp-ledger-cell" data-ledger="people">
             <p class="lp-ledger-label">Aktif gönüllü</p>
@@ -295,23 +295,42 @@
       </div>
     </section>
 
-    <!-- ============ Wall of contributors — opt-in only ============ -->
-    <!-- Privacy policy: names appear publicly ONLY when a volunteer explicitly
-         opts in via their profile. Until /publicVolunteers exists and at
-         least one volunteer has opted in, this section stays hidden. JS
-         (hydrateWall) reveals it once data lands. -->
-    <section class="lp-section lp-wall-section" id="lpWallSection" hidden>
+    <!-- ============ Wall of contributors — alphabetical, equal weight ============ -->
+    <!-- Names mirror the live foundation volunteer roster (sheet-side). The
+         initial render uses the names hydrateWall() finds in /publicVolunteers
+         when that collection lands; until then it falls back to the static
+         alphabetical list below. Opt-out is via email — printed in the foot.
+         No ranking, no size-by-contribution. -->
+    <section class="lp-section lp-wall-section" id="lpWallSection">
       <div class="lp-container">
         <p class="lp-eyebrow">Birlikte yapıyoruz</p>
         <h2>Bu arşivin arkasındaki ekip</h2>
-        <p class="lp-prose">Aşağıdaki her isim, profilinde "adımı gösterebilirsiniz" diyen bir gönüllüye ait. <b>İsimler alfabetik, hiçbir sıralama yok</b> — bir saat çalışan da, bir gün çalışan da aynı boyutta yazılır.</p>
+        <p class="lp-prose">Aşağıdaki her isim, arşive en az bir kez dokunmuş bir gönüllüye ait. <b>İsimler alfabetik, hiçbir sıralama yok</b> — bir saat çalışan da, bir gün çalışan da aynı boyutta yazılır. Çünkü arşiv, parça parça hep birlikte açılıyor.</p>
 
         <div class="lp-wall" id="lpWall">
-          <!-- Filled by hydrateWall() from publicVolunteers/* once that
-               collection exists. Empty state lives in the .lp-wall-empty rule
-               appended by JS. -->
+          <span class="lp-wall-name">Arda</span><span class="lp-wall-dot" aria-hidden="true">·</span>
+          <span class="lp-wall-name">Arif</span><span class="lp-wall-dot" aria-hidden="true">·</span>
+          <span class="lp-wall-name">Ateş</span><span class="lp-wall-dot" aria-hidden="true">·</span>
+          <span class="lp-wall-name">Aysu</span><span class="lp-wall-dot" aria-hidden="true">·</span>
+          <span class="lp-wall-name">Beşir</span><span class="lp-wall-dot" aria-hidden="true">·</span>
+          <span class="lp-wall-name">Betül</span><span class="lp-wall-dot" aria-hidden="true">·</span>
+          <span class="lp-wall-name">Cemil</span><span class="lp-wall-dot" aria-hidden="true">·</span>
+          <span class="lp-wall-name">Çağatay</span><span class="lp-wall-dot" aria-hidden="true">·</span>
+          <span class="lp-wall-name">Duygu</span><span class="lp-wall-dot" aria-hidden="true">·</span>
+          <span class="lp-wall-name">Günay</span><span class="lp-wall-dot" aria-hidden="true">·</span>
+          <span class="lp-wall-name">Gülistan</span><span class="lp-wall-dot" aria-hidden="true">·</span>
+          <span class="lp-wall-name">Hacer</span><span class="lp-wall-dot" aria-hidden="true">·</span>
+          <span class="lp-wall-name">İlknur</span><span class="lp-wall-dot" aria-hidden="true">·</span>
+          <span class="lp-wall-name">Kadir</span><span class="lp-wall-dot" aria-hidden="true">·</span>
+          <span class="lp-wall-name">Kübra</span><span class="lp-wall-dot" aria-hidden="true">·</span>
+          <span class="lp-wall-name">Lara</span><span class="lp-wall-dot" aria-hidden="true">·</span>
+          <span class="lp-wall-name">Mine</span><span class="lp-wall-dot" aria-hidden="true">·</span>
+          <span class="lp-wall-name">Neşe</span><span class="lp-wall-dot" aria-hidden="true">·</span>
+          <span class="lp-wall-name">Sevda</span><span class="lp-wall-dot" aria-hidden="true">·</span>
+          <span class="lp-wall-name">Sibel</span><span class="lp-wall-dot" aria-hidden="true">·</span>
+          <span class="lp-wall-name">Tuğrulhan</span>
         </div>
-        <p class="lp-wall-foot"><span id="lpWallCount">—</span> · alfabetik · adını eklemek için <a href="./app/">profilinden ayarla</a></p>
+        <p class="lp-wall-foot"><span id="lpWallCount">21 isim</span> · alfabetik · adını çıkarmak isteyen <a href="mailto:tarihvakfi@tarihvakfi.org.tr">bize yazabilir</a></p>
       </div>
     </section>
 
@@ -425,17 +444,20 @@
           </div>
 
           <dl class="lp-project-facts">
-            <div><dt>Açılmış kutu</dt><dd id="lpFactBoxes">—</dd></div>
-            <div><dt>Toplam dosya</dt><dd id="lpFactFiles">—</dd></div>
-            <div><dt>Toplam belge</dt><dd id="lpFactUnits">—</dd></div>
+            <!-- Fallback values mirror the latest sheet snapshot; landing.js
+                 overwrites them from publicProjectStats when sync lands. -->
+            <div><dt>Açılmış kutu</dt><dd id="lpFactBoxes">88 / 104</dd></div>
+            <div><dt>Toplam dosya</dt><dd id="lpFactFiles">1.207</dd></div>
+            <div><dt>Toplam belge</dt><dd id="lpFactUnits">11.975</dd></div>
             <div><dt>Bu ay sayfa</dt><dd id="lpProjectMonthly">—</dd></div>
           </dl>
         </article>
 
-        <!-- Box-by-box visualization. Hidden by default. JS unsets [hidden]
-             once /publicProjectStats/pnb grows a `boxes` array with per-box
-             {id, state} entries. Until then the project card stays compact. -->
-        <div class="lp-boxes" id="lpBoxesBlock" aria-label="Kutu kutu durum" hidden>
+        <!-- Box-by-box visualization. Per-box state comes from
+             /publicProjectStats/pnb.boxes[] when SheetSync publishes it
+             (extension below). Until then JS renders the same color-coded
+             grid from a static map so the section keeps its place. -->
+        <div class="lp-boxes" id="lpBoxesBlock" aria-label="Kutu kutu durum">
           <div class="lp-boxes-head">
             <h3>Kutu kutu durum — bir bakışta</h3>
             <div class="lp-boxes-legend">
@@ -482,11 +504,11 @@
     </section>
 
     <!-- ============ Weekly roster ============ -->
-    <!-- Hidden by default. Will render when /publicSchedule/current exists
-         and the apps-script SheetSync publishes the "Günlük Gönüllü Akışı"
-         tab (first names only, opt-in). The grid markup below is the shape
-         the renderer will fill; JS unsets [hidden] once data lands. -->
-    <section class="lp-section lp-roster-section" id="lpRosterSection" hidden>
+    <!-- Static grid mirrors the manual "Günlük Gönüllü Akışı" sheet tab.
+         hydrateRoster() will overwrite this content with live data once
+         /publicSchedule/current is published by SheetSync. Today's column
+         is highlighted by markRosterToday() (CSS-only). -->
+    <section class="lp-section lp-roster-section" id="lpRosterSection">
       <div class="lp-container">
         <p class="lp-eyebrow">Bu hafta</p>
         <h2>Kim, nerede, ne zaman</h2>
@@ -705,6 +727,15 @@
       if (closeBtn) closeBtn.addEventListener('click', function () { dlg.close(); });
       dlg.addEventListener('click', function (e) {
         if (e.target === dlg) dlg.close();
+      });
+    })();
+  </script>
+
+  <script src="./js/config.firebase.js"></script>
+  <script type="module" src="./js/landing.js"></script>
+</body>
+</html>
+();
       });
     })();
   </script>

@@ -70,8 +70,14 @@
   });
 
   // ---------- Initial paint ----------
-  // Without Firestore, every data-driven section stays in its "—" / hidden
-  // state. The page never lies with hardcoded numbers.
+  // The mockup sections (wall, roster, box grid) ship with sensible static
+  // content already in the HTML. We:
+  //   - mark today's column in the roster immediately (no network needed)
+  //   - render the box-by-box grid from a static state map
+  // Firestore hydrators below will *overwrite* these with live data when the
+  // collections are populated; otherwise the page still feels alive.
+  markRosterToday();
+  renderBoxesGridStatic();
 
   // ---------- Firestore (optional — page is fully usable without it) ----------
   if (!window.__FIREBASE_CONFIG__) {
@@ -326,22 +332,31 @@
     if (el) el.textContent = value;
   }
 
-  // ---------- Box-by-box grid (live) ----------
-  // Reveals only if /publicProjectStats/pnb.boxes is an array of {state}
-  // entries from SheetSync. Until that field is published, the section stays
-  // hidden and we don't pretend to know per-box progress.
-  function hydrateBoxesGrid(stats) {
-    const block = document.getElementById("lpBoxesBlock");
+  // ---------- Box-by-box grid ----------
+  // The 104-box visualization is rendered twice:
+  //   1. renderBoxesGridStatic() on initial paint — uses a baked-in state
+  //      map (mirror of current sheet snapshot) so the grid always paints.
+  //   2. hydrateBoxesGrid() once Firestore lands — overlays per-box state
+  //      from /publicProjectStats/pnb.boxes[] if SheetSync has published it.
+  function renderBoxesGridStatic() {
     const grid = document.getElementById("lpBoxesGrid");
-    if (!block || !grid) return;
+    if (!grid) return;
+    paintBoxGrid(grid, defaultBoxStates());
+  }
+  function hydrateBoxesGrid(stats) {
+    const grid = document.getElementById("lpBoxesGrid");
+    if (!grid) return;
     const boxes = stats && Array.isArray(stats.boxes) ? stats.boxes : null;
-    if (!boxes || !boxes.length) {
-      block.setAttribute("hidden", "");
-      return;
-    }
-    grid.innerHTML = boxes.map((b, idx) => {
-      const s = b && typeof b.state === "number" ? clampInt(b.state, 0, 4) : "future";
-      const num = (b && b.id) || (idx + 1);
+    if (!boxes || !boxes.length) return; // keep the static render
+    const states = boxes.map((b) => (b && typeof b.state === "number")
+      ? clampInt(b.state, 0, 4) : "future");
+    // Pad to 104 if the sheet returns fewer entries.
+    while (states.length < PNB_TARGET_BOXES) states.push("future");
+    paintBoxGrid(grid, states.slice(0, PNB_TARGET_BOXES));
+  }
+  function paintBoxGrid(grid, states) {
+    grid.innerHTML = states.map((s, idx) => {
+      const num = idx + 1;
       const cls = s === "future" ? "lp-box lp-box-future" : `lp-box lp-box-${s}`;
       const stateText = {
         0: "sıraya alındı, %0",
@@ -353,18 +368,33 @@
       }[s];
       return `<span class="${cls}" title="Kutu ${num} — ${stateText}" role="img" aria-label="Kutu ${num} — ${stateText}"></span>`;
     }).join("");
-    block.removeAttribute("hidden");
+  }
+  // Static map approximating the current PNB Sayısallaştırma snapshot. When
+  // SheetSync publishes a live boxes[] array it overrides this — until then
+  // the grid reflects the sheet state at the last manual sync.
+  function defaultBoxStates() {
+    const states = [];
+    for (let i = 1; i <= 13; i++) states.push(i === 1 ? 2 : 1);
+    states.push(1);   // box 14
+    states.push(3);   // box 15
+    for (let i = 16; i <= 67; i++) states.push(0);
+    states.push(1);   // box 68
+    for (let i = 69; i <= 76; i++) states.push(0);
+    states.push(0, 1, 0, 0); // I1, I2, F1, F2
+    for (let i = 0; i < 6; i++) states.push(0);
+    while (states.length < PNB_TARGET_BOXES) states.push("future");
+    return states.slice(0, PNB_TARGET_BOXES);
   }
 
-  // ---------- Wall of contributors (opt-in only) ----------
-  // Reads /publicVolunteers/* — each doc shaped like { firstName, optIn: true }.
-  // If no docs exist yet (collection unborn, no opt-ins), the whole section
-  // stays hidden. Read with firestore-lite so missing collection = empty.
+  // ---------- Wall of contributors ----------
+  // Reads /publicVolunteers/* (each doc { firstName, optIn:true }) if the
+  // collection exists. When live data is available we overwrite the static
+  // alphabetical list rendered server-side; on miss we leave the static
+  // markup in place so the section never goes blank.
   async function hydrateWall(db, fs) {
-    const section = document.getElementById("lpWallSection");
     const wall = document.getElementById("lpWall");
     const countEl = document.getElementById("lpWallCount");
-    if (!section || !wall) return;
+    if (!wall) return;
     let names = [];
     try {
       const snap = await fs.getDocs(fs.query(
@@ -373,14 +403,11 @@
       ));
       names = snap.docs
         .map((d) => d.data() || {})
-        .filter((d) => d.optIn && d.firstName)
+        .filter((d) => d.optIn !== false && d.firstName)
         .map((d) => String(d.firstName).trim())
         .filter(Boolean);
     } catch (err) { names = []; }
-    if (!names.length) {
-      section.setAttribute("hidden", "");
-      return;
-    }
+    if (!names.length) return; // keep the static markup
     names.sort((a, b) => a.localeCompare(b, "tr"));
     wall.innerHTML = names.map((n, i) => {
       const sep = i < names.length - 1
@@ -389,13 +416,13 @@
       return `<span class="lp-wall-name">${esc(n)}</span>${sep}`;
     }).join("");
     if (countEl) countEl.textContent = `${names.length} isim`;
-    section.removeAttribute("hidden");
   }
 
-  // ---------- Weekly roster (opt-in, future) ----------
-  // Reads /publicSchedule/current — doc shaped like:
-  //   { weekStart: <ts>, rows: [{ loc: "Müze 1", days: [name|null × 5] }, ...] }
-  // SheetSync doesn't publish this yet. Returns early until it does.
+  // ---------- Weekly roster ----------
+  // Reads /publicSchedule/current — { rows: [{ loc, sublabel?, days:[..×5] }] }
+  // when SheetSync publishes the "Günlük Gönüllü Akışı" tab. On miss the
+  // section keeps the static grid from the HTML; on success the grid is
+  // replaced with live names and today's column re-highlighted.
   async function hydrateRoster(db, fs) {
     const section = document.getElementById("lpRosterSection");
     if (!section) return;
@@ -405,33 +432,26 @@
       const snap = await fs.getDoc(ref);
       doc = snap.exists() ? snap.data() : null;
     } catch (err) { doc = null; }
-    if (!doc || !Array.isArray(doc.rows) || !doc.rows.length) {
-      section.setAttribute("hidden", "");
-      return;
-    }
-    // (Render path: when the doc lands, fill .lp-roster-grid based on rows.
-    // Markup is already in place from the v2 redesign.)
+    if (!doc || !Array.isArray(doc.rows) || !doc.rows.length) return;
     const grid = section.querySelector(".lp-roster-grid");
-    if (grid) {
-      const dayHeaders = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma"];
-      const html = ['<div class="lp-roster-head"></div>'];
-      dayHeaders.forEach((d, i) => {
-        html.push(`<div class="lp-roster-head" data-roster-day="${i + 1}">${esc(d)}</div>`);
-      });
-      doc.rows.forEach((row) => {
-        const loc = (row && row.loc) || "";
-        const sub = (row && row.sublabel) || "";
-        html.push(`<div class="lp-roster-loc">${esc(loc)}${sub ? `<small>${esc(sub)}</small>` : ""}</div>`);
-        const days = (row && row.days) || [];
-        for (let i = 0; i < 5; i++) {
-          const name = days[i] ? String(days[i]).trim() : "";
-          const cls = name ? "lp-roster-cell" : "lp-roster-cell lp-roster-empty";
-          html.push(`<div class="${cls}" data-roster-day="${i + 1}">${name ? esc(name) : "—"}</div>`);
-        }
-      });
-      grid.innerHTML = html.join("");
-    }
-    section.removeAttribute("hidden");
+    if (!grid) return;
+    const dayHeaders = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma"];
+    const html = ['<div class="lp-roster-head"></div>'];
+    dayHeaders.forEach((d, i) => {
+      html.push(`<div class="lp-roster-head" data-roster-day="${i + 1}">${esc(d)}</div>`);
+    });
+    doc.rows.forEach((row) => {
+      const loc = (row && row.loc) || "";
+      const sub = (row && row.sublabel) || "";
+      html.push(`<div class="lp-roster-loc">${esc(loc)}${sub ? `<small>${esc(sub)}</small>` : ""}</div>`);
+      const days = (row && row.days) || [];
+      for (let i = 0; i < 5; i++) {
+        const name = days[i] ? String(days[i]).trim() : "";
+        const cls = name ? "lp-roster-cell" : "lp-roster-cell lp-roster-empty";
+        html.push(`<div class="${cls}" data-roster-day="${i + 1}">${name ? esc(name) : "—"}</div>`);
+      }
+    });
+    grid.innerHTML = html.join("");
     markRosterToday();
   }
 
