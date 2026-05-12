@@ -103,45 +103,57 @@
 
     <!-- ====== Coordinator/admin cockpit (Bugün) ====== -->
     <section id="tab-bugun" class="tab-content hidden manager-page">
-      <header class="manager-hero">
-        <div class="manager-hero-main">
-          <p class="manager-kicker">Yönetici paneli</p>
-          <h1 id="bugunGreetName">Merhaba</h1>
-          <p class="bugun-sub" id="bugunGreetSub">Tarih Vakfı</p>
-          <p class="manager-last-refresh" id="managerLastRefresh">Veriler yükleniyor…</p>
+      <!-- Editorial hero v2 (May 2026): sentence-led headline + 5-cell inline
+           summary strip. Existing IDs preserved so dashboard.js renderers
+           (renderCoordinatorHomeHeader, renderManagerOverview) continue to
+           write into them unchanged. The four card-buttons of the previous
+           design are replaced by <button>s styled as inline cells with thin
+           rules between them — they still navigate via data-manager-go. -->
+      <header class="manager-hero manager-hero-v2">
+        <div class="manager-hero-top">
+          <div class="manager-hero-main">
+            <p class="manager-kicker manager-kicker-v2"><span class="mh-dot" aria-hidden="true"></span><span id="bugunGreetSub">Yönetici paneli</span></p>
+            <h1 id="bugunGreetName">Merhaba</h1>
+            <p class="manager-editorial-sub" id="managerEditorialSub">Bugün arşivde gönüllüler işbaşında — aşağıda günün özetleri.</p>
+            <p class="manager-last-refresh" id="managerLastRefresh">Veriler yükleniyor…</p>
+          </div>
+          <div class="manager-hero-actions">
+            <button type="button" class="btn btn-secondary btn-sm" id="managerRefreshBtn"><i class="ti ti-refresh" aria-hidden="true"></i> Yenile</button>
+            <button type="button" class="btn btn-primary btn-sm" id="bugunOpenReportBtn"><i class="ti ti-plus" aria-hidden="true"></i> Rapor yaz</button>
+          </div>
         </div>
-        <div class="manager-hero-actions">
-          <button type="button" class="btn btn-secondary btn-sm" id="managerRefreshBtn"><i class="ti ti-refresh" aria-hidden="true"></i> Yenile</button>
-          <button type="button" class="btn btn-primary btn-sm" id="bugunOpenReportBtn"><i class="ti ti-plus" aria-hidden="true"></i> Rapor yaz</button>
-        </div>
-      </header>
 
-      <section class="manager-overview" aria-label="Bugünkü özet">
-        <button type="button" class="manager-summary-card" data-manager-go="yonetim" data-scroll-to="yonetimUsersCard" data-manager-filter="pending">
-          <span class="manager-card-icon"><i class="ti ti-user-check" aria-hidden="true"></i></span>
-          <span class="manager-card-label">Bekleyen onay</span>
-          <strong id="managerPendingValue">0</strong>
-          <span id="managerPendingHint">Başvuru yok</span>
-        </button>
-        <button type="button" class="manager-summary-card" data-manager-go="yonetim" data-scroll-to="yonetimUsersCard" data-manager-filter="silent">
-          <span class="manager-card-icon"><i class="ti ti-bell-off" aria-hidden="true"></i></span>
-          <span class="manager-card-label">Sessiz gönüllü</span>
-          <strong id="managerSilentValue">0</strong>
-          <span id="managerSilentHint">Takip gerekmiyor</span>
-        </button>
-        <button type="button" class="manager-summary-card admin-only-block hidden" data-manager-go="bakim" data-scroll-to="sheetMirrorCard">
-          <span class="manager-card-icon"><i class="ti ti-table" aria-hidden="true"></i></span>
-          <span class="manager-card-label">Sheet durumu</span>
-          <strong id="managerSheetValue">—</strong>
-          <span id="managerSheetHint">Yükleniyor</span>
-        </button>
-        <button type="button" class="manager-summary-card" data-manager-go="bugun" data-scroll-to="bugunRecentSection">
-          <span class="manager-card-icon"><i class="ti ti-notes" aria-hidden="true"></i></span>
-          <span class="manager-card-label">Son raporlar</span>
-          <strong id="managerReportsValue">0</strong>
-          <span id="managerReportsHint">Rapor yükleniyor</span>
-        </button>
-      </section>
+        <!-- Inline summary strip — same IDs as before, restyled. -->
+        <section class="manager-summary-strip" aria-label="Bugünkü özet">
+          <button type="button" class="manager-summary-cell" data-manager-go="yonetim" data-scroll-to="yonetimUsersCard" data-manager-filter="pending">
+            <span class="ms-lbl">Bekleyen onay</span>
+            <span class="ms-val"><strong id="managerPendingValue">0</strong></span>
+            <span class="ms-foot" id="managerPendingHint">Başvuru yok</span>
+          </button>
+          <button type="button" class="manager-summary-cell" data-manager-go="yonetim" data-scroll-to="yonetimUsersCard" data-manager-filter="silent">
+            <span class="ms-lbl">Sessiz gönüllü</span>
+            <span class="ms-val"><strong id="managerSilentValue">0</strong></span>
+            <span class="ms-foot" id="managerSilentHint">Takip gerekmiyor</span>
+          </button>
+          <button type="button" class="manager-summary-cell admin-only-block hidden" data-manager-go="bakim" data-scroll-to="sheetMirrorCard">
+            <span class="ms-lbl">Sheet durumu</span>
+            <span class="ms-val"><strong id="managerSheetValue">—</strong></span>
+            <span class="ms-foot" id="managerSheetHint">Yükleniyor</span>
+          </button>
+          <button type="button" class="manager-summary-cell" data-manager-go="bugun" data-scroll-to="bugunRecentSection">
+            <span class="ms-lbl">Son raporlar</span>
+            <span class="ms-val"><strong id="managerReportsValue">0</strong></span>
+            <span class="ms-foot" id="managerReportsHint">Rapor yükleniyor</span>
+          </button>
+          <!-- PNB progress cell — static for now. When publicProjectStats is
+               read on /app/, swap the values in via a new renderer. -->
+          <div class="manager-summary-cell manager-summary-static">
+            <span class="ms-lbl">PNB ilerleme</span>
+            <span class="ms-val"><strong id="managerPnbPct">%4,0</strong></span>
+            <span class="ms-foot">~72.500 sayfa kaldı</span>
+          </div>
+        </section>
+      </header>
 
       <div class="manager-layout">
         <main class="manager-main">
@@ -184,6 +196,24 @@
         </main>
 
         <aside class="manager-side">
+          <!-- Bugün arşivde — today's volunteer roster, derived from the
+               live "Günlük Gönüllü Akışı" sheet tab via /sheets/gunluk_gonullu_akisi/rows/*.
+               Apps Script SheetSync.gs mirrors that tab hourly. The panel
+               loads asynchronously; on permission failure (non-admin staff)
+               or empty mirror it stays in the empty state. -->
+          <section class="manager-panel manager-today-panel">
+            <div class="manager-panel-head">
+              <div>
+                <p class="bugun-section-h" id="managerTodayLabel">Bugün</p>
+                <h2>Arşivde kim var</h2>
+              </div>
+            </div>
+            <div id="managerTodayRoster" class="manager-today-roster">
+              <p class="empty" style="font-size:.85rem">Program yükleniyor…</p>
+            </div>
+            <p class="muted manager-today-foot" style="font-size:.78rem; text-align:center; margin:.5rem 0 0;">Canlı Sheet'in <em>Günlük Gönüllü Akışı</em> sekmesinden okunur.</p>
+          </section>
+
           <section class="manager-panel manager-sheet-panel admin-only-block hidden" id="managerSheetCard">
             <div class="manager-panel-head manager-panel-head--split">
               <div>
@@ -898,7 +928,7 @@
     <div class="drill-backdrop" data-log-for-close></div>
     <div class="drill-panel log-for-panel">
       <header class="drill-header">
-        <div>
+              <div>
           <p class="eyebrow">Ekip raporu logla</p>
           <h2 id="logForTitle">Birinin adına hızlıca logla</h2>
           <p class="muted" id="logForSubtitle">WhatsApp'ta ya da ofiste konuştuğun gönüllü için tek seferde kaydet.</p>

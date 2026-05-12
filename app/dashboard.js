@@ -4289,11 +4289,140 @@ function renderBugun() {
   mountManagerCockpitSections();
   renderCoordinatorHomeHeader();
   renderManagerOverview();
+  // Today's roster + editorial subtitle both depend on the live schedule
+  // mirror. Load it once, then re-render the panels that consumed it. If
+  // the read fails (non-admin staff lacking sheets/* permission), both
+  // panels stay empty and the page is otherwise unaffected.
+  loadManagerSchedule().then(() => {
+    renderManagerEditorialSub();
+    renderManagerTodayRoster();
+  });
+  // First render (before the schedule lands) shows empty states so the
+  // layout doesn't jump when the rows arrive.
+  renderManagerEditorialSub();
+  renderManagerTodayRoster();
   renderManagerSheetPreview();
   renderManagerSyncLogList();
   renderBugunPendingApprovals();
   renderBugunWarnings();
   renderCoordinatorRecentReports();
+}
+
+// ---------- Editorial hero v2 helpers (May 2026) ----------
+// Builds the sentence-led subtitle ("Bugün arşivde X gönüllü…") that lives
+// directly under the greeting in the manager hero. Driven by the same data
+// renderManagerOverview reads, plus the today's roster derived below.
+function renderManagerEditorialSub() {
+  const sub = document.getElementById("managerEditorialSub");
+  if (!sub) return;
+  const today = managerTodayVolunteers();
+  const pending = bugunPendingUsers().length;
+  const silent = bugunSilentVolunteers().length;
+
+  const bits = [];
+  // Only claim a roster count if the schedule mirror has actually loaded.
+  // Before that, stay neutral so the page doesn't say "0 gönüllü" while
+  // the sheet read is still in flight.
+  if (managerScheduleLoaded) {
+    if (today.length) {
+      bits.push(`Bugün arşivde <b>${today.length} gönüllü</b> çalışıyor`);
+    } else {
+      bits.push("Bugün arşivde planlı gönüllü yok");
+    }
+  } else {
+    bits.push("Bugün arşivde gönüllüler işbaşında");
+  }
+  if (pending > 0) bits.push(`<b>${pending} yeni başvuru</b> seni bekliyor`);
+  if (silent > 0) bits.push(`${silent} kişi 14 gündür sessiz`);
+
+  sub.innerHTML = bits.join(" · ") + ".";
+}
+
+// Today's volunteer roster, derived from the live Günlük Gönüllü Akışı tab
+// mirrored to /sheets/gunluk_gonullu_akisi/rows/* by Apps Script SheetSync.
+// Each row in that tab is shaped:
+//   { column1: <location>, column2: Pzt, column3: Sal, ... column6: Cum }
+// We pick today's column and flatten comma-separated names per location.
+// Falls back to [] on weekends, on permission failure (non-admin staff), or
+// before the mirror has been fetched. The mirror is loaded once via
+// loadManagerSchedule(), cached in managerScheduleRows.
+let managerScheduleRows = [];
+let managerScheduleLoaded = false;
+let managerScheduleLoading = null;
+async function loadManagerSchedule() {
+  if (managerScheduleLoaded) return managerScheduleRows;
+  if (managerScheduleLoading) return managerScheduleLoading;
+  managerScheduleLoading = (async () => {
+    try {
+      const snap = await getDocs(query(
+        collection(db, "sheets", "gunluk_gonullu_akisi", "rows"),
+        orderBy("_sourceRow", "asc"),
+        limit(50)
+      ));
+      managerScheduleRows = snap.docs.map((d) => d.data() || {});
+    } catch (err) {
+      // Most likely: permission-denied for non-admin staff. The panel just
+      // stays empty in that case — no error noise needed.
+      managerScheduleRows = [];
+    } finally {
+      managerScheduleLoaded = true;
+      managerScheduleLoading = null;
+    }
+    return managerScheduleRows;
+  })();
+  return managerScheduleLoading;
+}
+
+function managerTodayVolunteers() {
+  const dow = new Date().getDay(); // 0=Sun..6=Sat
+  if (dow < 1 || dow > 5) return [];
+  // Sheet columns: column1=location, column2=Pzt..column6=Cum
+  // So dow 1..5 maps to column key "column" + (dow + 1).
+  const colKey = "column" + (dow + 1);
+  const out = [];
+  managerScheduleRows.forEach((row) => {
+    const loc = String(row.column1 || "").trim();
+    if (!loc) return;
+    const cell = row[colKey];
+    if (!cell) return;
+    String(cell).split(/[,/]/).map((s) => s.trim()).filter(Boolean).forEach((name) => {
+      out.push({ name, loc });
+    });
+  });
+  return out;
+}
+
+function renderManagerTodayRoster() {
+  const host = document.getElementById("managerTodayRoster");
+  if (!host) return;
+  const label = document.getElementById("managerTodayLabel");
+  if (label) {
+    const tDate = new Date();
+    label.textContent = `${TR_WEEKDAYS[tDate.getDay()]} · ${tDate.getDate()} ${TR_MONTHS_LONG[tDate.getMonth()]}`;
+  }
+  // Before the schedule mirror has loaded, show a loading placeholder rather
+  // than "kimse yok" — the latter is a lie when we just don't know yet.
+  if (!managerScheduleLoaded) {
+    host.innerHTML = `<p class="empty">Program yükleniyor…</p>`;
+    return;
+  }
+  const today = managerTodayVolunteers();
+  if (!today.length) {
+    host.innerHTML = `<p class="empty">Bugün planda kimse yok.</p>`;
+    return;
+  }
+  // Rotate four soft accent classes so the row doesn't look monotone.
+  const accents = ["", " av-t", " av-g", " av-i"];
+  host.innerHTML = today.slice(0, 12).map((person, i) => {
+    const initials = person.name.split(/\s+/).map((p) => p[0] || "").join("").slice(0, 2).toUpperCase();
+    return `<div class="manager-today-cell">
+      <span class="av${accents[i % accents.length]}">${escapeHTML(initials)}</span>
+      <div class="info">
+        <div class="name">${escapeHTML(person.name)}</div>
+        <div class="loc">${escapeHTML(person.loc)}</div>
+      </div>
+    </div>`;
+  }).join("");
 }
 
 // Staff PNB tab renderers were removed in Prompt P. The coordinator/admin

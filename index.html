@@ -12,7 +12,7 @@
   <!-- Fonts: Lora (serif headings) + Inter (sans body). Loaded with display=swap. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&amp;family=Lora:wght@500;600&amp;display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Lora:wght@500;600&amp;family=DM+Mono:wght@400;500&amp;display=swap" />
 
   <!-- Critical above-the-fold styles inlined for first paint. The full
        landing.css follows for everything below. -->
@@ -206,42 +206,40 @@
   </div>
 
   <main>
-    <!-- ============ Hero ============ -->
-    <section class="lp-hero">
-      <div class="lp-container lp-hero-grid">
-        <div>
-          <p class="lp-eyebrow">Tarih Vakfı arşiv projeleri</p>
-          <h1>Geçmişin sesini birlikte koruyoruz.</h1>
-          <p class="lp-hero-sub">Tarih Vakfı arşivleri, gönüllü emeğiyle gün yüzüne çıkıyor. Pertev Naili Boratav'ın 80 binden fazla sayfalık özel arşivinden başlayarak, kültürel hafızayı erişilebilir kılıyoruz.</p>
-          <div class="lp-hero-actions">
-            <a class="lp-btn lp-btn-primary" href="#projeler">Çalışmalarımızı keşfet</a>
-            <a class="lp-btn lp-btn-secondary" href="./auth/">Gönüllü ol</a>
+    <!-- ============ Hero (editorial: headline + inline live ledger) ============ -->
+    <section class="lp-hero lp-hero-editorial">
+      <div class="lp-container">
+        <p class="lp-hero-eyebrow" id="lpHeroEyebrow">Tarih Vakfı · Pertev Naili Boratav Arşivi</p>
+        <h1>Geçmişin sesini <em>birlikte</em> koruyoruz.</h1>
+        <p class="lp-hero-sub">Pertev Naili Boratav'ın özel arşivi sayfa sayfa dijital ortama aktarılıyor. <b id="lpHeroProgress">Şu an yolculuğun başındayız.</b> Aşağıda — bu hafta neler oldu, ne yapıldı.</p>
+        <div class="lp-hero-actions">
+          <a class="lp-btn lp-btn-primary" href="#projeler">Çalışmalarımızı keşfet</a>
+          <a class="lp-btn lp-btn-secondary" href="./auth/">Gönüllü ol</a>
+        </div>
+
+        <!-- Live ledger strip — 4 cells, replaces the old 3 stat tiles. Filled by landing.js. -->
+        <div class="lp-ledger" id="lpLedger" aria-live="polite">
+          <div class="lp-ledger-cell" data-ledger="progress">
+            <p class="lp-ledger-label">Şu an</p>
+            <p class="lp-ledger-num"><span class="lp-ledger-val">—</span><small>tamamlandı</small></p>
+            <p class="lp-ledger-foot">yükleniyor…</p>
+          </div>
+          <div class="lp-ledger-cell" data-ledger="boxes">
+            <p class="lp-ledger-label">Açılmış kutu</p>
+            <p class="lp-ledger-num"><span class="lp-ledger-val">—</span><small>/ <span id="lpLedgerBoxTarget">104</span></small></p>
+            <p class="lp-ledger-foot">yükleniyor…</p>
+          </div>
+          <div class="lp-ledger-cell" data-ledger="people">
+            <p class="lp-ledger-label">Aktif gönüllü</p>
+            <p class="lp-ledger-num"><span class="lp-ledger-val">—</span><small>kişi</small></p>
+            <p class="lp-ledger-foot">son 30 gün içinde katkı</p>
+          </div>
+          <div class="lp-ledger-cell" data-ledger="week">
+            <p class="lp-ledger-label">Son 7 gün</p>
+            <p class="lp-ledger-num"><span class="lp-ledger-val">—</span><small>katkı</small></p>
+            <p class="lp-ledger-foot">arşive dokunuldu</p>
           </div>
         </div>
-        <figure class="lp-hero-figure" aria-hidden="true">
-          <!-- PLACEHOLDER — replace with commissioned illustration: hands turning the page of an old book -->
-          <svg class="lp-illustration" viewBox="0 0 240 220" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <!-- open book base -->
-            <path d="M30 150 Q120 130 210 150 L210 175 Q120 158 30 175 Z" />
-            <path d="M120 145 L120 175" />
-            <!-- left page (static) -->
-            <path d="M40 148 Q90 132 118 142 L118 100 Q90 92 40 102 Z" />
-            <line x1="55" y1="115" x2="105" y2="110" />
-            <line x1="55" y1="125" x2="100" y2="120" />
-            <line x1="55" y1="135" x2="95" y2="130" />
-            <!-- turning page (curved) -->
-            <path d="M122 142 Q150 80 198 78 Q186 110 178 142" />
-            <line x1="138" y1="116" x2="180" y2="110" />
-            <line x1="142" y1="126" x2="178" y2="122" />
-            <!-- right hand fingertips, gentle, on the turning page -->
-            <path d="M178 78 Q188 64 195 70 Q200 76 196 86" />
-            <path d="M186 70 Q190 60 196 64" />
-            <path d="M192 70 Q196 58 202 62" />
-            <!-- left hand fingertips supporting the spine -->
-            <path d="M44 148 Q34 142 30 132 Q26 124 32 120" />
-            <path d="M36 134 Q28 130 28 122" />
-          </svg>
-        </figure>
       </div>
     </section>
 
@@ -254,31 +252,66 @@
       </div>
     </section>
 
-    <!-- ============ Live archive progress ============ -->
-    <section class="lp-section lp-progress" id="ilerleme">
+    <!-- ============ Collective this-week summary ============ -->
+    <!-- Replaces the old three stat tiles. No single-volunteer spotlight — the
+         spotlight is on what the team did together this week. Numbers are
+         hydrated from publicTicker in landing.js (distinct days, distinct
+         volunteer tokens, materialCategory tally). -->
+    <section class="lp-section lp-collective-section" id="ilerleme">
       <div class="lp-container">
-        <p class="lp-eyebrow">Şu an</p>
-        <h2>Şu an arşivde olan biten</h2>
-        <p class="lp-prose">Gönüllülerimiz her hafta yeni belgeleri gün yüzüne çıkarıyor. İşte güncel durum:</p>
+        <p class="lp-eyebrow">Bu hafta arşivde</p>
+        <h2>Birlikte yaptıklarımız</h2>
+        <p class="lp-prose">Geçen hafta arşivde birkaç gönüllü yan yana çalıştı. İşte ortaya çıkan iş — kişi adı yok, çünkü her sayfa hepsi sayesinde:</p>
 
-        <div class="lp-stats" id="lpStats" aria-live="polite">
-          <article class="lp-stat lp-stat-skeleton" data-stat="progress">
-            <p class="lp-stat-label">PNB arşivi ilerleme</p>
-            <p class="lp-stat-num"><span class="lp-skel" aria-hidden="true"></span></p>
-            <div class="lp-progress-bar"><span></span></div>
-            <p class="lp-stat-foot"><span class="lp-skel lp-skel-line" aria-hidden="true"></span></p>
-          </article>
-          <article class="lp-stat lp-stat-skeleton" data-stat="month">
-            <p class="lp-stat-label">Bu ay katkıda bulunan gönüllü</p>
-            <p class="lp-stat-num"><span class="lp-skel" aria-hidden="true"></span></p>
-            <p class="lp-stat-foot"><span class="lp-skel lp-skel-line" aria-hidden="true"></span></p>
-          </article>
-          <article class="lp-stat lp-stat-skeleton" data-stat="day">
-            <p class="lp-stat-label">Son 7 gün</p>
-            <p class="lp-stat-num"><span class="lp-skel" aria-hidden="true"></span></p>
-            <p class="lp-stat-foot"><span class="lp-skel lp-skel-line" aria-hidden="true"></span></p>
-          </article>
+        <article class="lp-collect" id="lpCollect">
+          <div class="lp-collect-head">
+            <h3 id="lpCollectTitle">Bu hafta birlikte arşive dokunduk.</h3>
+            <span class="lp-collect-when" id="lpCollectWhen">son 7 gün</span>
+          </div>
+          <div class="lp-collect-grid">
+            <div class="lp-collect-cell" data-collect="days">
+              <p class="lp-collect-lbl">Çalışma günü</p>
+              <p class="lp-collect-val"><span class="lp-collect-num">—</span><small>gün</small></p>
+              <p class="lp-collect-foot">arşive girildi</p>
+            </div>
+            <div class="lp-collect-cell" data-collect="people">
+              <p class="lp-collect-lbl">Sahaya giren kişi</p>
+              <p class="lp-collect-val"><span class="lp-collect-num">—</span><small>gönüllü</small></p>
+              <p class="lp-collect-foot">paralel çalıştı</p>
+            </div>
+            <div class="lp-collect-cell" data-collect="contribs">
+              <p class="lp-collect-lbl">Yapılan katkı</p>
+              <p class="lp-collect-val"><span class="lp-collect-num">—</span><small>kayıt</small></p>
+              <p class="lp-collect-foot">rapor yazıldı</p>
+            </div>
+            <div class="lp-collect-cell" data-collect="areas">
+              <p class="lp-collect-lbl">Çalışma alanı</p>
+              <p class="lp-collect-val"><span class="lp-collect-num">—</span><small>farklı</small></p>
+              <p class="lp-collect-foot">alanda emek</p>
+            </div>
+          </div>
+          <p class="lp-collect-narr" id="lpCollectNarr">Yükleniyor…</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============ Wall of contributors — opt-in only ============ -->
+    <!-- Privacy policy: names appear publicly ONLY when a volunteer explicitly
+         opts in via their profile. Until /publicVolunteers exists and at
+         least one volunteer has opted in, this section stays hidden. JS
+         (hydrateWall) reveals it once data lands. -->
+    <section class="lp-section lp-wall-section" id="lpWallSection" hidden>
+      <div class="lp-container">
+        <p class="lp-eyebrow">Birlikte yapıyoruz</p>
+        <h2>Bu arşivin arkasındaki ekip</h2>
+        <p class="lp-prose">Aşağıdaki her isim, profilinde "adımı gösterebilirsiniz" diyen bir gönüllüye ait. <b>İsimler alfabetik, hiçbir sıralama yok</b> — bir saat çalışan da, bir gün çalışan da aynı boyutta yazılır.</p>
+
+        <div class="lp-wall" id="lpWall">
+          <!-- Filled by hydrateWall() from publicVolunteers/* once that
+               collection exists. Empty state lives in the .lp-wall-empty rule
+               appended by JS. -->
         </div>
+        <p class="lp-wall-foot"><span id="lpWallCount">—</span> · alfabetik · adını eklemek için <a href="./app/">profilinden ayarla</a></p>
       </div>
     </section>
 
@@ -361,29 +394,80 @@
     <!-- ============ Current projects ============ -->
     <section class="lp-section lp-projects" id="projeler">
       <div class="lp-container">
-        <p class="lp-eyebrow">Projeler</p>
-        <h2>Şu an üzerinde çalıştığımız arşivler</h2>
+        <p class="lp-eyebrow">Şu an üzerinde çalıştığımız arşiv</p>
+        <h2>Pertev Naili Boratav Arşivi</h2>
 
         <article class="lp-project-card lp-project-feature">
           <header class="lp-project-head">
             <div>
-              <h3>Pertev Naili Boratav Arşivi</h3>
+              <h3>Bir hayatın izleri, sayfa sayfa.</h3>
               <p class="lp-project-people">Türk halkbilimi'nin kurucu isimlerinden Pertev Naili Boratav (1908–1998).</p>
             </div>
             <span class="lp-pill lp-pill-active">Devam ediyor</span>
           </header>
           <p class="lp-project-body">Boratav'ın özel kitaplığı, makaleleri, mektupları, ders notları, fotoğrafları ve halk hikâyesi derlemeleri Tarih Vakfı'na bağışlandı. Bu malzeme şu an gönüllülerimizin elinde sayfa sayfa dijital ortama aktarılıyor; her belge tek tek tasniflenip Drive'a yükleniyor, metadatası tablolara işleniyor.</p>
-          <dl class="lp-project-facts">
-            <div><dt>Kutu</dt><dd>104</dd></div>
-            <div><dt>Belge</dt><dd>14.099</dd></div>
-            <div><dt>Sayfa</dt><dd>80.378</dd></div>
-            <div><dt>Gönüllü</dt><dd>50+</dd></div>
-          </dl>
-          <div class="lp-project-progress" id="lpProjectProgress" aria-hidden="true">
-            <div class="lp-progress-bar"><span style="width:0%"></span></div>
-            <p class="lp-project-progress-text">Yükleniyor…</p>
+
+          <!-- Editorial progress block — milestone strip + honest framing. -->
+          <div class="lp-project-progress lp-project-progress-v2" id="lpProjectProgress">
+            <div class="lp-project-progress-numbers">
+              <span class="lp-pp-done" id="lpPpDone">— tamamlandı</span>
+              <span class="lp-pp-target" id="lpPpTarget">yükleniyor…</span>
+            </div>
+            <div class="lp-progress-bar"><span id="lpPpBar" style="width:0%"></span></div>
+            <div class="lp-progress-milestones" aria-hidden="true">
+              <span id="lpPpMsNow" class="lp-pp-ms-now">Bugün</span>
+              <span>%25</span>
+              <span>%50</span>
+              <span>%75</span>
+              <span>%100 — arşiv tamamen açık</span>
+            </div>
+            <p class="lp-project-progress-note">Yolun başındayız. Asıl iş henüz önümüzde; gönüllü ağıyla yavaş yavaş hız artıyor.</p>
           </div>
+
+          <dl class="lp-project-facts">
+            <div><dt>Açılmış kutu</dt><dd id="lpFactBoxes">—</dd></div>
+            <div><dt>Toplam dosya</dt><dd id="lpFactFiles">—</dd></div>
+            <div><dt>Toplam belge</dt><dd id="lpFactUnits">—</dd></div>
+            <div><dt>Bu ay sayfa</dt><dd id="lpProjectMonthly">—</dd></div>
+          </dl>
         </article>
+
+        <!-- Box-by-box visualization. Hidden by default. JS unsets [hidden]
+             once /publicProjectStats/pnb grows a `boxes` array with per-box
+             {id, state} entries. Until then the project card stays compact. -->
+        <div class="lp-boxes" id="lpBoxesBlock" aria-label="Kutu kutu durum" hidden>
+          <div class="lp-boxes-head">
+            <h3>Kutu kutu durum — bir bakışta</h3>
+            <div class="lp-boxes-legend">
+              <span><i class="lp-bsw" style="background:#efe6d4;"></i>başlanmadı</span>
+              <span><i class="lp-bsw" style="background:#f0d6b3;"></i>açıldı</span>
+              <span><i class="lp-bsw" style="background:#e0a874;"></i>devam</span>
+              <span><i class="lp-bsw" style="background:#c47a48;"></i>ileri</span>
+              <span><i class="lp-bsw" style="background:#94462a;"></i>tamamlandı</span>
+              <span><i class="lp-bsw lp-bsw-future"></i>katalogda değil</span>
+            </div>
+          </div>
+          <div class="lp-boxes-grid" id="lpBoxesGrid">
+            <!-- Filled by landing.js. -->
+          </div>
+          <div class="lp-boxes-foot">
+            <span>Bir kutu üzerine gelince detay açılır</span>
+            <span id="lpBoxesFootPct" class="lp-mono">yükleniyor…</span>
+          </div>
+        </div>
+
+        <!-- Work area breakdown — single stacked bar showing where the 30-day
+             effort went. Hydrated in landing.js from publicTicker.materialCategory. -->
+        <div class="lp-areas-block">
+          <h3 class="lp-areas-h">Geçen ay emek nereye gitti</h3>
+          <p class="lp-areas-sub">Son 30 günün çalışma alanı dağılımı — kişi adı yok, sadece iş:</p>
+          <div class="lp-area-bar" id="lpAreaBar" aria-hidden="true">
+            <!-- Filled by landing.js. -->
+          </div>
+          <ul class="lp-area-legend" id="lpAreaLegend">
+            <!-- Filled by landing.js. -->
+          </ul>
+        </div>
 
         <article class="lp-project-card lp-project-soon">
           <header class="lp-project-head">
@@ -394,6 +478,66 @@
             <span class="lp-pill lp-pill-soon">Yakında</span>
           </header>
         </article>
+      </div>
+    </section>
+
+    <!-- ============ Weekly roster ============ -->
+    <!-- Hidden by default. Will render when /publicSchedule/current exists
+         and the apps-script SheetSync publishes the "Günlük Gönüllü Akışı"
+         tab (first names only, opt-in). The grid markup below is the shape
+         the renderer will fill; JS unsets [hidden] once data lands. -->
+    <section class="lp-section lp-roster-section" id="lpRosterSection" hidden>
+      <div class="lp-container">
+        <p class="lp-eyebrow">Bu hafta</p>
+        <h2>Kim, nerede, ne zaman</h2>
+        <p class="lp-prose">Arşiv haftası boyunca beş yerde paralel ilerliyor. Aşağıda bu haftaki gönüllü programı — herkes haftada ortalama bir gün gelir, kimse her gün gelmez.</p>
+
+        <div class="lp-roster">
+          <div class="lp-roster-grid">
+            <div class="lp-roster-head"></div>
+            <div class="lp-roster-head" data-roster-day="1">Pazartesi</div>
+            <div class="lp-roster-head" data-roster-day="2">Salı</div>
+            <div class="lp-roster-head" data-roster-day="3">Çarşamba</div>
+            <div class="lp-roster-head" data-roster-day="4">Perşembe</div>
+            <div class="lp-roster-head" data-roster-day="5">Cuma</div>
+
+            <div class="lp-roster-loc">Müze 1</div>
+            <div class="lp-roster-cell" data-roster-day="1">Arda</div>
+            <div class="lp-roster-cell" data-roster-day="2">Arda</div>
+            <div class="lp-roster-cell" data-roster-day="3">Arda</div>
+            <div class="lp-roster-cell lp-roster-empty" data-roster-day="4">—</div>
+            <div class="lp-roster-cell lp-roster-empty" data-roster-day="5">—</div>
+
+            <div class="lp-roster-loc">Müze 2</div>
+            <div class="lp-roster-cell" data-roster-day="1">Beşir</div>
+            <div class="lp-roster-cell" data-roster-day="2">Aysu</div>
+            <div class="lp-roster-cell" data-roster-day="3">Kübra</div>
+            <div class="lp-roster-cell lp-roster-empty" data-roster-day="4">—</div>
+            <div class="lp-roster-cell lp-roster-empty" data-roster-day="5">—</div>
+
+            <div class="lp-roster-loc">Vakıf T1<small>Tarayıcı 1</small></div>
+            <div class="lp-roster-cell" data-roster-day="1">Betül</div>
+            <div class="lp-roster-cell" data-roster-day="2">Sibel</div>
+            <div class="lp-roster-cell" data-roster-day="3">Beşir</div>
+            <div class="lp-roster-cell" data-roster-day="4">Tuğrulhan</div>
+            <div class="lp-roster-cell" data-roster-day="5">Kadir</div>
+
+            <div class="lp-roster-loc">Vakıf T2<small>Tarayıcı 2</small></div>
+            <div class="lp-roster-cell" data-roster-day="1">Ateş</div>
+            <div class="lp-roster-cell" data-roster-day="2">İlknur</div>
+            <div class="lp-roster-cell lp-roster-empty" data-roster-day="3">—</div>
+            <div class="lp-roster-cell" data-roster-day="4">Günay</div>
+            <div class="lp-roster-cell" data-roster-day="5">Arif</div>
+
+            <div class="lp-roster-loc">Vakıf T3<small>Tarayıcı 3</small></div>
+            <div class="lp-roster-cell" data-roster-day="1">Çağatay</div>
+            <div class="lp-roster-cell" data-roster-day="2">Lara</div>
+            <div class="lp-roster-cell" data-roster-day="3">Lara, Çiğdem</div>
+            <div class="lp-roster-cell lp-roster-empty" data-roster-day="4">—</div>
+            <div class="lp-roster-cell lp-roster-empty" data-roster-day="5">—</div>
+          </div>
+        </div>
+        <p class="lp-roster-foot" id="lpRosterFoot">Sarı şerit = bugün · katılmak isteyen <a href="./auth/">başvurabilir</a></p>
       </div>
     </section>
 

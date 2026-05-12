@@ -2043,6 +2043,212 @@ body.staff-shell {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ============================================================
+   Manager hero v2 (editorial, May 2026)
+   Replaces the boxy 4-card summary at top of Bugün with a
+   newspaper-style headline + inline 5-cell summary strip.
+   Existing IDs are preserved; only the markup wrappers changed.
+   ============================================================ */
+.manager-hero-v2 {
+  display: block;
+  grid-template-columns: none;
+  border-bottom: 2px solid var(--tblr-body-color, #1d273b);
+  padding-bottom: 1.25rem;
+  margin: .5rem 0 1.5rem;
+}
+.manager-hero-v2 .manager-hero-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1.5rem;
+  align-items: flex-start;
+  padding: .3rem 0 1rem;
+}
+.manager-hero-v2 .manager-hero-main { min-width: 0; }
+.manager-hero-v2 h1 {
+  font-family: "Lora", Georgia, serif;
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -.012em;
+  margin: 0 0 .25rem;
+}
+.manager-kicker-v2 {
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+  margin: 0 0 .6rem;
+  font-family: "DM Mono", "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--tblr-secondary, #6b7280);
+}
+.manager-kicker-v2 .mh-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #4a7c7e;
+  animation: managerHeroPulse 2s infinite;
+}
+@keyframes managerHeroPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+.manager-editorial-sub {
+  margin: .4rem 0 .25rem;
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--tblr-secondary, #4a5568);
+  max-width: 64ch;
+}
+.manager-editorial-sub b { color: var(--tblr-body-color, #1d273b); font-weight: 500; }
+.manager-hero-v2 .manager-last-refresh {
+  margin-top: .55rem;
+  font-family: "DM Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--tblr-secondary);
+}
+
+/* 5-cell summary strip — replaces the .manager-overview card grid. */
+.manager-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--tblr-border-color);
+}
+.manager-summary-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .3rem;
+  padding: 0 0 0 1.25rem;
+  margin: 0;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--tblr-border-color);
+  border-radius: 0;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: background .12s, transform .05s;
+  min-width: 0;
+}
+.manager-summary-cell:first-child {
+  border-left: none;
+  padding-left: 0;
+}
+.manager-summary-cell:hover { background: rgba(0, 0, 0, .02); }
+.manager-summary-cell:active { transform: translateY(1px); }
+.manager-summary-cell.manager-summary-static { cursor: default; }
+.manager-summary-cell.manager-summary-static:hover { background: transparent; }
+.manager-summary-cell .ms-lbl {
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--tblr-secondary);
+}
+.manager-summary-cell .ms-val {
+  display: flex;
+  align-items: baseline;
+  font-family: "Lora", Georgia, serif;
+  font-size: 1.8rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--tblr-body-color, #1d273b);
+  letter-spacing: -.008em;
+}
+.manager-summary-cell .ms-val strong {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  line-height: inherit;
+}
+.manager-summary-cell .ms-foot {
+  font-size: 12px;
+  color: var(--tblr-secondary);
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: 0;
+  font-weight: 400;
+  text-transform: none;
+}
+
+/* Today's volunteer roster panel (sidebar) */
+.manager-today-panel { padding-bottom: .75rem; }
+.manager-today-roster {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: .5rem;
+  margin-top: .75rem;
+}
+.manager-today-cell {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  padding: .5rem .65rem;
+  background: var(--tblr-bg-surface-secondary, #faf7f1);
+  border-radius: 6px;
+  min-width: 0;
+}
+.manager-today-cell .av {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #b85c3a;
+  color: white;
+  font-weight: 600;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-family: "Inter", sans-serif;
+}
+.manager-today-cell .av.av-t { background: #4a7c7e; }
+.manager-today-cell .av.av-g { background: #c89b3c; color: #2b2018; }
+.manager-today-cell .av.av-i { background: #6b5d50; }
+.manager-today-cell .info { min-width: 0; flex: 1; }
+.manager-today-cell .name {
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--tblr-body-color, #1d273b);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.manager-today-cell .loc {
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--tblr-secondary);
+}
+.manager-today-roster .empty {
+  grid-column: 1 / -1;
+  color: var(--tblr-secondary);
+  font-style: italic;
+  text-align: center;
+  padding: .5rem;
+}
+
+@media (max-width: 880px) {
+  .manager-hero-v2 .manager-hero-top { grid-template-columns: 1fr; }
+  .manager-hero-v2 .manager-hero-actions { justify-content: flex-start; }
+  .manager-summary-strip { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+  .manager-summary-cell {
+    border-left: none;
+    padding-left: 0;
+    border-top: 1px solid var(--tblr-border-color);
+    padding-top: .75rem;
+  }
+  .manager-summary-cell:nth-child(-n+2) { border-top: none; padding-top: 0; }
+}
+/* === end manager v2 === */
 .manager-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(290px, 360px);

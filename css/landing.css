@@ -464,3 +464,479 @@ body.landing .lp-footer-bottom a:hover {
   body.landing .lp-progress-bar > span { transition: none; }
   html { scroll-behavior: auto; }
 }
+
+/* ============================================================
+   V2 EDITORIAL REDESIGN (Mayıs 2026)
+   Adds the newspaper-ledger hero, collective spotlight, wall of
+   names, box-by-box grid, work-area breakdown, weekly roster.
+   All v2 rules are scoped to body.landing and use existing
+   palette variables — no theme changes.
+   ============================================================ */
+
+/* Mono helper used inline. */
+body.landing .lp-mono {
+  font-family: "DM Mono", "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* ===== Editorial hero ===== */
+body.landing .lp-hero-editorial { padding: 64px 0 32px; }
+body.landing .lp-hero-eyebrow {
+  display: flex; align-items: center; gap: 0.9rem;
+  font-family: "DM Mono", "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--tv-ink-soft);
+  margin: 0 0 1.5rem;
+}
+body.landing .lp-hero-eyebrow::after {
+  content: ""; flex: 1; height: 1px; background: var(--tv-sand); max-width: 120px;
+}
+body.landing .lp-hero-editorial h1 {
+  font-size: clamp(2.1rem, 4.8vw, 3.4rem);
+  line-height: 1.1; letter-spacing: -0.018em;
+  margin: 0 0 1.25rem; max-width: 20ch;
+}
+body.landing .lp-hero-editorial h1 em {
+  font-style: italic; color: var(--tv-terracotta-deep); font-weight: 600;
+}
+body.landing .lp-hero-editorial .lp-hero-sub {
+  font-size: 1.0625rem; color: var(--tv-ink-soft);
+  max-width: 56ch; margin: 0 0 1.75rem;
+}
+body.landing .lp-hero-editorial .lp-hero-sub b { color: var(--tv-ink); font-weight: 500; }
+
+/* ===== Live ledger strip — 4 cells, masthead style ===== */
+body.landing .lp-ledger {
+  margin-top: 3rem;
+  border-top: 2px solid var(--tv-ink);
+  border-bottom: 1px solid var(--tv-sand);
+  padding: 1.75rem 0 1.5rem;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem;
+}
+body.landing .lp-ledger-cell {
+  border-left: 1px solid var(--tv-sand);
+  padding-left: 1.25rem;
+}
+body.landing .lp-ledger-cell:first-child { border-left: none; padding-left: 0; }
+body.landing .lp-ledger-label {
+  font-family: "DM Mono", monospace;
+  font-size: 10px; font-weight: 500;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--tv-ink-soft);
+  margin: 0 0 0.35rem;
+}
+body.landing .lp-ledger-num {
+  font-family: "Lora", Georgia, serif; font-weight: 600;
+  font-size: clamp(1.7rem, 2.4vw, 2.1rem);
+  color: var(--tv-ink); line-height: 1; letter-spacing: -0.01em;
+  margin: 0;
+}
+body.landing .lp-ledger-num small {
+  font-size: 0.55em; font-weight: 500; color: var(--tv-ink-soft);
+  margin-left: 4px; letter-spacing: 0;
+}
+body.landing .lp-ledger-foot {
+  margin: 0.4rem 0 0;
+  font-size: 12px; color: var(--tv-ink-soft);
+}
+body.landing .lp-ledger-foot .lp-delta-up {
+  color: var(--tv-teal); font-weight: 600;
+  font-family: "DM Mono", monospace; font-size: 11px;
+}
+
+/* ===== Collective spotlight (replaces 3 stat tiles) ===== */
+body.landing .lp-collective-section { padding: 80px 0 64px; }
+body.landing .lp-collect {
+  background: var(--tv-paper);
+  border: 1px solid var(--tv-sand);
+  border-radius: 4px;
+  padding: 2.5rem;
+  margin-top: 2rem;
+  position: relative;
+  box-shadow: 0 4px 16px rgba(43, 32, 24, 0.08);
+}
+body.landing .lp-collect::before {
+  content: ""; position: absolute; top: -1px; left: -1px; right: -1px; height: 4px;
+  background: linear-gradient(90deg, var(--tv-terracotta) 0%, var(--tv-gold) 60%, var(--tv-teal) 100%);
+  border-radius: 4px 4px 0 0;
+}
+body.landing .lp-collect-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 1.5rem; flex-wrap: wrap;
+  margin-bottom: 1.5rem; padding-bottom: 1rem;
+  border-bottom: 1px solid var(--tv-sand);
+}
+body.landing .lp-collect-head h3 {
+  font-family: "Lora", Georgia, serif; font-style: italic;
+  font-size: 1.5rem; color: var(--tv-ink); margin: 0;
+  max-width: 32ch;
+}
+body.landing .lp-collect-when {
+  font-family: "DM Mono", monospace; font-size: 11px;
+  color: var(--tv-ink-soft); letter-spacing: 0.1em; text-transform: uppercase;
+  flex-shrink: 0;
+}
+body.landing .lp-collect-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem;
+  padding-top: 0.5rem;
+}
+body.landing .lp-collect-lbl {
+  font-family: "DM Mono", monospace; font-size: 10px;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--tv-ink-soft); margin: 0 0 0.25rem;
+}
+body.landing .lp-collect-val {
+  font-family: "Lora", Georgia, serif; font-weight: 600;
+  font-size: 1.7rem; color: var(--tv-ink); line-height: 1;
+  margin: 0;
+}
+body.landing .lp-collect-val small {
+  font-size: 0.55em; font-weight: 500; color: var(--tv-ink-soft);
+  margin-left: 4px; letter-spacing: 0;
+}
+body.landing .lp-collect-foot {
+  font-size: 12px; color: var(--tv-ink-soft); margin: 0.35rem 0 0;
+}
+body.landing .lp-collect-narr {
+  margin: 1.5rem 0 0; padding-top: 1.25rem;
+  border-top: 1px dashed var(--tv-sand);
+  font-family: "Lora", Georgia, serif; font-size: 1.05rem;
+  color: var(--tv-ink-soft); line-height: 1.65;
+  max-width: 70ch;
+}
+body.landing .lp-collect-narr b { color: var(--tv-ink); font-weight: 500; }
+
+/* ===== Wall of contributors (equal-weight, alphabetical) ===== */
+body.landing .lp-wall-section {
+  background: var(--tv-paper);
+  padding: 80px 0;
+}
+body.landing .lp-wall {
+  margin-top: 2.5rem;
+  display: flex; flex-wrap: wrap; gap: 0.6rem 0.4rem;
+  align-items: baseline; justify-content: center;
+  line-height: 1.4;
+  padding: 3rem 2.5rem;
+  border: 1px dashed var(--tv-sand);
+  border-radius: 4px;
+  background: var(--tv-cream);
+  position: relative;
+}
+body.landing .lp-wall::before {
+  content: "Birlikte yapıyoruz";
+  position: absolute; top: -10px; left: 50%;
+  transform: translateX(-50%);
+  background: var(--tv-paper); padding: 0 1rem;
+  font-family: "Lora", Georgia, serif; font-style: italic;
+  font-size: 14px; color: var(--tv-ink-soft);
+}
+body.landing .lp-wall-name {
+  font-family: "Lora", Georgia, serif;
+  font-size: 1.4rem; font-weight: 500;
+  color: var(--tv-ink);
+  padding: 0 0.4rem;
+  border-radius: 3px;
+  transition: color 0.2s, background 0.2s;
+}
+body.landing .lp-wall-name:hover {
+  color: var(--tv-terracotta);
+  background: rgba(184, 92, 58, 0.06);
+  cursor: default;
+}
+body.landing .lp-wall-dot {
+  color: var(--tv-sand);
+  font-size: 0.9rem;
+  user-select: none;
+}
+body.landing .lp-wall-foot {
+  text-align: center;
+  margin: 1.5rem 0 0;
+  font-family: "DM Mono", monospace; font-size: 11px;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--tv-ink-soft);
+}
+body.landing .lp-wall-foot a {
+  color: var(--tv-terracotta-deep);
+  border-bottom: 1px solid currentColor;
+  text-transform: none; letter-spacing: 0; font-family: "Inter", sans-serif;
+}
+
+/* ===== Editorial project progress (v2) ===== */
+body.landing .lp-project-progress-v2 {
+  margin: 1.75rem 0 1.5rem !important;
+  padding: 0 !important;
+  background: none !important;
+}
+body.landing .lp-project-progress-numbers {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap; gap: 0.5rem;
+}
+body.landing .lp-pp-done {
+  font-family: "Lora", Georgia, serif; font-weight: 600;
+  font-size: 1.9rem; color: var(--tv-ink); line-height: 1;
+}
+body.landing .lp-pp-target {
+  font-family: "DM Mono", monospace; font-size: 13px;
+  color: var(--tv-ink-soft);
+}
+body.landing .lp-project-progress-v2 .lp-progress-bar {
+  height: 10px;
+}
+body.landing .lp-project-progress-v2 .lp-progress-bar > span {
+  background: linear-gradient(90deg, var(--tv-terracotta), var(--tv-gold));
+}
+body.landing .lp-progress-milestones {
+  display: flex; justify-content: space-between;
+  margin-top: 0.5rem;
+  font-family: "DM Mono", monospace; font-size: 10px;
+  color: var(--tv-ink-soft);
+  flex-wrap: wrap; gap: 0.25rem;
+}
+body.landing .lp-progress-milestones .lp-pp-ms-now {
+  color: var(--tv-terracotta-deep); font-weight: 600;
+}
+body.landing .lp-project-progress-note {
+  margin: 1rem 0 0;
+  font-size: 13px; color: var(--tv-ink-soft);
+  font-style: italic;
+}
+
+/* ===== Box-by-box visualization ===== */
+body.landing .lp-boxes {
+  margin-top: 2.5rem;
+  background: var(--tv-paper); border: 1px solid var(--tv-sand);
+  border-radius: 4px; padding: 1.75rem;
+}
+body.landing .lp-boxes-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 1.5rem; flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+body.landing .lp-boxes-head h3 {
+  font-family: "Lora", Georgia, serif; font-size: 1.15rem;
+  margin: 0; color: var(--tv-ink);
+}
+body.landing .lp-boxes-legend {
+  display: flex; gap: 0.9rem; flex-wrap: wrap;
+  font-size: 11px; color: var(--tv-ink-soft);
+  font-family: "DM Mono", monospace; letter-spacing: 0.05em;
+}
+body.landing .lp-boxes-legend > span {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+}
+body.landing .lp-boxes-legend .lp-bsw {
+  width: 14px; height: 14px;
+  display: inline-block;
+  border-radius: 2px;
+  border: 1px solid rgba(0,0,0,0.05);
+}
+body.landing .lp-boxes-legend .lp-bsw-future {
+  background: var(--tv-cream); border: 1px dashed var(--tv-sand);
+}
+body.landing .lp-boxes-grid {
+  display: grid;
+  grid-template-columns: repeat(13, 1fr);
+  gap: 4px;
+  margin-bottom: 1rem;
+}
+body.landing .lp-box {
+  aspect-ratio: 1;
+  background: var(--tv-sand);
+  border-radius: 2px;
+  cursor: default;
+  transition: transform 0.12s;
+  position: relative;
+}
+body.landing .lp-box:hover {
+  transform: scale(1.18);
+  z-index: 5;
+  outline: 2px solid var(--tv-ink);
+  outline-offset: 1px;
+}
+body.landing .lp-box-0 { background: #efe6d4; }
+body.landing .lp-box-1 { background: #f0d6b3; }
+body.landing .lp-box-2 { background: #e0a874; }
+body.landing .lp-box-3 { background: #c47a48; }
+body.landing .lp-box-4 { background: #94462a; }
+body.landing .lp-box-future {
+  background: var(--tv-cream);
+  border: 1px dashed var(--tv-sand);
+}
+body.landing .lp-boxes-foot {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 1rem; padding-top: 1rem;
+  border-top: 1px solid var(--tv-sand);
+  font-size: 12px; color: var(--tv-ink-soft);
+  flex-wrap: wrap; gap: 0.5rem;
+}
+body.landing .lp-boxes-foot .lp-mono {
+  font-family: "DM Mono", monospace; letter-spacing: 0.05em;
+}
+
+/* ===== Work-area stacked bar ===== */
+body.landing .lp-areas-block { margin-top: 3rem; }
+body.landing .lp-areas-h {
+  font-size: 1.2rem;
+  margin: 0 0 0.4rem;
+}
+body.landing .lp-areas-sub {
+  color: var(--tv-ink-soft);
+  margin: 0 0 1.25rem;
+  font-size: 0.95rem;
+}
+body.landing .lp-area-bar {
+  display: flex;
+  height: 56px;
+  border-radius: 4px; overflow: hidden;
+  border: 1px solid var(--tv-sand);
+  margin-bottom: 1rem;
+}
+body.landing .lp-area-seg {
+  display: flex; align-items: center; justify-content: center;
+  color: white;
+  font-family: "DM Mono", monospace;
+  font-size: 12px; font-weight: 500;
+  padding: 0 1rem; min-width: 0; overflow: hidden;
+  white-space: nowrap;
+  letter-spacing: 0.05em;
+  transition: flex-grow 0.4s ease;
+}
+body.landing .lp-area-seg-empty {
+  background: var(--tv-cream);
+  color: var(--tv-ink-soft);
+  flex: 1;
+  border: 1px dashed var(--tv-sand);
+}
+body.landing .lp-area-legend {
+  list-style: none; padding: 0; margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.55rem 1.25rem;
+  font-size: 13px; color: var(--tv-ink-soft);
+}
+body.landing .lp-area-legend li {
+  display: flex; align-items: center; gap: 0.5rem;
+}
+body.landing .lp-area-legend .lp-aw {
+  width: 12px; height: 12px;
+  border-radius: 2px; flex-shrink: 0;
+}
+body.landing .lp-area-legend b {
+  color: var(--tv-ink); font-weight: 500;
+}
+
+/* ===== Weekly roster ===== */
+body.landing .lp-roster-section { padding: 80px 0; background: var(--tv-cream); }
+body.landing .lp-roster {
+  margin-top: 2rem;
+  background: var(--tv-paper);
+  border: 1px solid var(--tv-sand);
+  border-radius: 4px;
+  overflow: hidden;
+}
+body.landing .lp-roster-grid {
+  display: grid;
+  grid-template-columns: 140px repeat(5, 1fr);
+}
+body.landing .lp-roster-grid > div {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--tv-sand);
+  border-right: 1px solid var(--tv-sand);
+  font-size: 13px;
+  min-height: 56px;
+  display: flex; align-items: center;
+}
+body.landing .lp-roster-grid > div:nth-child(6n) { border-right: none; }
+body.landing .lp-roster-grid > div:nth-last-child(-n+6) { border-bottom: none; }
+body.landing .lp-roster-head {
+  background: var(--tv-cream);
+  font-family: "DM Mono", monospace;
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--tv-ink-soft);
+}
+body.landing .lp-roster-head.lp-roster-today {
+  color: var(--tv-terracotta-deep);
+  font-weight: 600;
+}
+body.landing .lp-roster-loc {
+  font-family: "Lora", Georgia, serif; font-weight: 500;
+  color: var(--tv-ink);
+  background: var(--tv-cream);
+  flex-direction: column;
+  align-items: flex-start !important;
+  gap: 1px;
+}
+body.landing .lp-roster-loc small {
+  font-family: "Inter", sans-serif; font-weight: 400;
+  font-size: 11px; color: var(--tv-ink-soft);
+}
+body.landing .lp-roster-cell { color: var(--tv-ink); position: relative; }
+body.landing .lp-roster-cell.lp-roster-today-col {
+  background: rgba(200, 155, 60, 0.1);
+}
+body.landing .lp-roster-cell.lp-roster-today-col::before {
+  content: "";
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; background: var(--tv-gold);
+}
+body.landing .lp-roster-cell.lp-roster-empty { color: var(--tv-sand); }
+body.landing .lp-roster-foot {
+  text-align: center;
+  margin: 1.25rem 0 0;
+  font-family: "DM Mono", monospace; font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--tv-ink-soft);
+}
+body.landing .lp-roster-foot a {
+  color: var(--tv-terracotta-deep);
+  border-bottom: 1px solid currentColor;
+  font-family: "Inter", sans-serif;
+}
+
+/* ===== Responsive overrides for v2 ===== */
+@media (max-width: 860px) {
+  body.landing .lp-ledger {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+  }
+  body.landing .lp-ledger-cell {
+    border-left: none;
+    padding-left: 0;
+    border-top: 1px solid var(--tv-sand);
+    padding-top: 0.85rem;
+  }
+  body.landing .lp-ledger-cell:nth-child(-n+2) {
+    border-top: none;
+    padding-top: 0;
+  }
+  body.landing .lp-collect { padding: 1.75rem; }
+  body.landing .lp-collect-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+  }
+  body.landing .lp-collect-head h3 { font-size: 1.25rem; }
+  body.landing .lp-boxes-grid {
+    grid-template-columns: repeat(10, 1fr);
+  }
+  body.landing .lp-roster-grid {
+    grid-template-columns: 90px repeat(5, 1fr);
+    font-size: 11px;
+  }
+  body.landing .lp-roster-grid > div {
+    padding: 0.65rem 0.5rem;
+    min-height: 48px;
+  }
+  body.landing .lp-wall { padding: 2rem 1.25rem; }
+  body.landing .lp-wall-name { font-size: 1.15rem; }
+}
+
+@media (max-width: 480px) {
+  body.landing .lp-boxes-grid {
+    grid-template-columns: repeat(8, 1fr);
+  }
+  body.landing .lp-area-seg {
+    font-size: 10px; padding: 0 0.5rem;
+  }
+}

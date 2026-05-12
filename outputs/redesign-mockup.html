@@ -1,0 +1,1486 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tarih Vakfı — Redesign Mockup v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:wght@500;600;700&family=DM+Mono:wght@400;500&display=swap" />
+<style>
+  :root {
+    --tv-cream: #faf6f0;
+    --tv-paper: #ffffff;
+    --tv-ink: #2b2018;
+    --tv-ink-soft: #6b5d50;
+    --tv-terracotta: #b85c3a;
+    --tv-terracotta-deep: #94462a;
+    --tv-teal: #4a7c7e;
+    --tv-sand: #e8dfd2;
+    --tv-gold: #c89b3c;
+    --tv-shadow: 0 1px 3px rgba(43, 32, 24, 0.06);
+    --tv-shadow-md: 0 4px 16px rgba(43, 32, 24, 0.08);
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0; background: #efeae0; color: var(--tv-ink);
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 { font-family: "Lora", Georgia, serif; font-weight: 600; line-height: 1.25; margin: 0; }
+  .mono { font-family: "DM Mono", "JetBrains Mono", ui-monospace, monospace; }
+
+  /* === Mockup chrome === */
+  .mock-bar {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--tv-ink); color: var(--tv-cream);
+    padding: 0.75rem 1.25rem;
+    display: flex; align-items: center; gap: 1rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,.2);
+  }
+  .mock-bar strong { font-family: "Lora", serif; font-weight: 600; font-size: 0.95rem; }
+  .mock-bar .mock-sep { opacity: 0.4; }
+  .mock-tabs { display: flex; gap: 0.25rem; margin-left: auto; }
+  .mock-tab {
+    background: transparent; color: var(--tv-cream); opacity: 0.6;
+    border: 1px solid transparent; border-radius: 6px;
+    padding: 0.4rem 0.9rem; font-size: 0.85rem; cursor: pointer; font-family: inherit;
+  }
+  .mock-tab:hover { opacity: 1; }
+  .mock-tab.is-on { opacity: 1; background: rgba(232, 223, 210, 0.12); border-color: rgba(232, 223, 210, 0.3); }
+  .mock-frame { background: var(--tv-cream); }
+  .mock-frame.is-hidden { display: none; }
+
+  .mock-callout {
+    background: #fff8e6; border-bottom: 1px solid #f0e5c8;
+    padding: 0.6rem 1.5rem; font-size: 0.82rem; color: #7a5b1e;
+    text-align: center; font-family: "DM Mono", monospace;
+  }
+  .mock-callout b { color: var(--tv-terracotta-deep); font-family: inherit; }
+
+  /* === Headline picker === */
+  .picker-section {
+    background: var(--tv-paper); border-bottom: 1px solid var(--tv-sand);
+    padding: 3rem 0 2.5rem;
+  }
+  .picker-eyebrow {
+    font-family: "DM Mono", monospace; font-size: 11px; font-weight: 500;
+    letter-spacing: 0.2em; text-transform: uppercase; color: var(--tv-ink-soft);
+    margin: 0 0 0.5rem;
+  }
+  .picker-help {
+    color: var(--tv-ink-soft); font-size: 14px; margin: 0 0 2rem;
+  }
+  .picker-grid {
+    display: grid; grid-template-columns: 1fr; gap: 0.85rem;
+  }
+  .picker-opt {
+    border: 1.5px solid var(--tv-sand); border-radius: 6px;
+    padding: 1.25rem 1.5rem; background: var(--tv-cream);
+    cursor: pointer; transition: border-color .15s, background .15s;
+    position: relative;
+  }
+  .picker-opt:hover { border-color: var(--tv-gold); }
+  .picker-opt.is-on { border-color: var(--tv-terracotta); background: #fff9f1; }
+  .picker-opt .opt-num {
+    position: absolute; top: 1rem; right: 1.25rem;
+    font-family: "DM Mono", monospace; font-size: 11px;
+    color: var(--tv-ink-soft); letter-spacing: 0.1em;
+  }
+  .picker-opt h1 {
+    font-family: "Lora", serif; font-weight: 600;
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    line-height: 1.2; letter-spacing: -0.012em;
+    margin: 0 3rem 0.4rem 0;
+  }
+  .picker-opt em { font-style: italic; color: var(--tv-terracotta-deep); }
+  .picker-opt .note {
+    font-family: "DM Mono", monospace; font-size: 11px;
+    color: var(--tv-ink-soft); letter-spacing: 0.05em;
+  }
+
+  /* === Container === */
+  .lp-container { width: min(1100px, calc(100% - 2.5rem)); margin: 0 auto; }
+
+  /* === Nav === */
+  .lp-nav-wrap { background: rgba(250, 246, 240, 0.92); border-bottom: 1px solid rgba(232,223,210,0.6); }
+  .lp-nav { display: flex; align-items: center; justify-content: space-between; min-height: 68px; }
+  .lp-brand { display: inline-flex; align-items: center; gap: .65rem; font-family: "Lora", serif; font-weight: 600; font-size: 1.1rem; }
+  .lp-brand .logo-dot {
+    width: 36px; height: 36px; border-radius: 8px; background: var(--tv-terracotta);
+    display: inline-flex; align-items: center; justify-content: center; color: white;
+    font-family: "Lora", serif; font-weight: 600;
+  }
+  .lp-nav-links { display: flex; align-items: center; gap: 1.75rem; }
+  .lp-nav-links a { font-size: 14px; color: var(--tv-ink-soft); text-decoration: none; }
+  .lp-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 42px; padding: 0 1.1rem; font-size: 14px; font-weight: 500;
+    border-radius: 8px; border: 1.5px solid transparent; cursor: pointer; text-decoration: none;
+  }
+  .lp-btn-primary { background: var(--tv-terracotta); color: #fff; border-color: var(--tv-terracotta); }
+  .lp-btn-secondary { background: transparent; color: var(--tv-ink); border-color: var(--tv-ink); }
+
+  /* === HERO === */
+  .lp-hero { padding: 64px 0 56px; }
+  .lp-hero-eyebrow {
+    display: flex; align-items: center; gap: 0.9rem;
+    font-family: "DM Mono", monospace; font-size: 11px; font-weight: 500;
+    letter-spacing: 0.2em; text-transform: uppercase; color: var(--tv-ink-soft);
+    margin-bottom: 1.5rem;
+  }
+  .lp-hero-eyebrow::after { content: ""; flex: 1; height: 1px; background: var(--tv-sand); max-width: 120px; }
+  .lp-hero-headline {
+    font-family: "Lora", serif; font-weight: 600;
+    font-size: clamp(2.2rem, 5vw, 3.6rem);
+    line-height: 1.1; letter-spacing: -0.018em;
+    color: var(--tv-ink); margin: 0;
+    max-width: 20ch; min-height: 2.4em;
+  }
+  .lp-hero-headline em {
+    font-style: italic; color: var(--tv-terracotta-deep); font-weight: 600;
+  }
+  .lp-hero-lede {
+    margin: 1.5rem 0 0; max-width: 56ch;
+    font-size: 1.1rem; color: var(--tv-ink-soft);
+  }
+  .lp-hero-lede b { color: var(--tv-ink); font-weight: 500; }
+  .lp-hero-cta { margin-top: 2rem; display: flex; gap: 0.75rem; flex-wrap: wrap; }
+
+  /* === LEDGER STRIP — honest, journey-framed === */
+  .lp-ledger {
+    margin-top: 3rem;
+    border-top: 2px solid var(--tv-ink);
+    border-bottom: 1px solid var(--tv-sand);
+    padding: 1.75rem 0 1.5rem;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem;
+  }
+  .lp-ledger-cell { border-left: 1px solid var(--tv-sand); padding-left: 1.25rem; }
+  .lp-ledger-cell:first-child { border-left: none; padding-left: 0; }
+  .lp-ledger-label {
+    font-family: "DM Mono", monospace;
+    font-size: 10px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--tv-ink-soft); margin: 0 0 0.35rem;
+  }
+  .lp-ledger-num {
+    font-family: "Lora", serif; font-weight: 600;
+    font-size: clamp(1.7rem, 2.4vw, 2.1rem);
+    color: var(--tv-ink); line-height: 1; letter-spacing: -0.01em; margin: 0;
+  }
+  .lp-ledger-num small { font-size: 0.55em; font-weight: 500; color: var(--tv-ink-soft); margin-left: 4px; }
+  .lp-ledger-foot { margin: 0.4rem 0 0; font-size: 12px; color: var(--tv-ink-soft); }
+  .lp-ledger-foot .delta-up { color: var(--tv-teal); font-weight: 600; font-family: "DM Mono", monospace; font-size: 11px; }
+
+  /* === SECTIONS === */
+  .lp-section { padding: 80px 0; }
+  .lp-section + .lp-section { border-top: 1px solid rgba(232,223,210,0.6); }
+  .lp-eyebrow {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--tv-terracotta-deep); margin: 0 0 1rem;
+    font-family: "DM Mono", monospace;
+  }
+  .lp-section h2 {
+    font-size: clamp(1.7rem, 3vw, 2.25rem);
+    margin: 0 0 0.9rem; letter-spacing: -0.008em;
+  }
+  .lp-prose { max-width: 65ch; color: var(--tv-ink-soft); font-size: 1.0625rem; margin: 0 0 1.25rem; }
+
+  /* === COLLECTIVE SPOTLIGHT — "Bu hafta birlikte" === */
+  .lp-collect {
+    background: var(--tv-paper); border: 1px solid var(--tv-sand);
+    border-radius: 4px; padding: 2.5rem; margin-top: 2rem;
+    position: relative; box-shadow: var(--tv-shadow-md);
+  }
+  .lp-collect::before {
+    content: ""; position: absolute; top: -1px; left: -1px; right: -1px; height: 4px;
+    background: linear-gradient(90deg, var(--tv-terracotta) 0%, var(--tv-gold) 60%, var(--tv-teal) 100%);
+    border-radius: 4px 4px 0 0;
+  }
+  .lp-collect-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--tv-sand);
+  }
+  .lp-collect-head .when {
+    font-family: "DM Mono", monospace; font-size: 11px;
+    color: var(--tv-ink-soft); letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .lp-collect h3 {
+    font-family: "Lora", serif; font-style: italic;
+    font-size: 1.6rem; color: var(--tv-ink); margin: 0;
+    max-width: 28ch;
+  }
+  .lp-collect-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem;
+    padding-top: 0.5rem;
+  }
+  .lp-collect-cell .lbl {
+    font-family: "DM Mono", monospace; font-size: 10px; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--tv-ink-soft); margin: 0 0 0.25rem;
+  }
+  .lp-collect-cell .val {
+    font-family: "Lora", serif; font-weight: 600; font-size: 1.7rem;
+    color: var(--tv-ink); line-height: 1;
+  }
+  .lp-collect-cell .val small { font-size: 0.55em; font-weight: 500; color: var(--tv-ink-soft); margin-left: 4px; }
+  .lp-collect-cell .foot { font-size: 12px; color: var(--tv-ink-soft); margin: 0.35rem 0 0; }
+  .lp-collect-narr {
+    margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px dashed var(--tv-sand);
+    font-family: "Lora", serif; font-size: 1.05rem; color: var(--tv-ink-soft); line-height: 1.65;
+    max-width: 70ch;
+  }
+  .lp-collect-narr b { color: var(--tv-ink); font-weight: 500; }
+
+  /* === PROJECT CARD === */
+  .lp-project {
+    background: var(--tv-paper); border: 1px solid var(--tv-sand);
+    border-radius: 4px; padding: 2.5rem; margin-top: 2rem; box-shadow: var(--tv-shadow);
+  }
+  .lp-project-head {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 2rem;
+    margin-bottom: 1.5rem;
+  }
+  .lp-project-head h3 { font-size: 1.6rem; margin-bottom: 0.35rem; }
+  .lp-pill {
+    font-family: "DM Mono", monospace; font-size: 11px; font-weight: 500;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    background: var(--tv-cream); color: var(--tv-teal);
+    border: 1px solid var(--tv-teal);
+    padding: 0.35rem 0.7rem; border-radius: 99px; flex-shrink: 0;
+  }
+  .lp-pill::before {
+    content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--tv-teal); margin-right: 0.5rem; vertical-align: middle;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .lp-project-progress-wrap { margin: 2rem 0 1.5rem; }
+  .lp-project-progress-numbers {
+    display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;
+  }
+  .lp-project-progress-numbers .done {
+    font-family: "Lora", serif; font-weight: 600; font-size: 2rem; color: var(--tv-ink);
+  }
+  .lp-project-progress-numbers .target {
+    font-family: "DM Mono", monospace; font-size: 13px; color: var(--tv-ink-soft);
+  }
+  .lp-progress-bar {
+    height: 10px; background: var(--tv-sand); border-radius: 99px; overflow: hidden;
+  }
+  .lp-progress-bar > span {
+    display: block; height: 100%; border-radius: 99px;
+    background: linear-gradient(90deg, var(--tv-terracotta), var(--tv-gold));
+  }
+  .lp-progress-milestones {
+    display: flex; justify-content: space-between; margin-top: 0.5rem;
+    font-family: "DM Mono", monospace; font-size: 10px; color: var(--tv-ink-soft);
+  }
+  .lp-progress-milestones span.now {
+    color: var(--tv-terracotta-deep); font-weight: 600;
+    transform: translateY(-2px); display: inline-block;
+  }
+  .lp-project-facts {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem;
+    padding-top: 1.5rem; border-top: 1px solid var(--tv-sand); margin: 1.5rem 0 0;
+  }
+  .lp-project-facts dt {
+    font-family: "DM Mono", monospace; font-size: 10px; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--tv-ink-soft);
+  }
+  .lp-project-facts dd {
+    font-family: "Lora", serif; font-weight: 600; font-size: 1.4rem; color: var(--tv-ink); margin: 0.2rem 0 0;
+  }
+
+  /* === WALL OF NAMES (equal-weight, alphabetical) === */
+  .lp-wall-section { background: var(--tv-paper); }
+  .lp-wall {
+    margin-top: 2.5rem;
+    display: flex; flex-wrap: wrap; gap: 0.6rem 0.8rem;
+    align-items: baseline; justify-content: center;
+    line-height: 1.4;
+    padding: 3rem 2.5rem; border: 1px dashed var(--tv-sand); border-radius: 4px;
+    background: var(--tv-cream); position: relative;
+  }
+  .lp-wall::before {
+    content: "Birlikte yapıyoruz"; position: absolute; top: -10px; left: 50%;
+    transform: translateX(-50%);
+    background: var(--tv-paper); padding: 0 1rem;
+    font-family: "Lora", serif; font-style: italic; font-size: 14px;
+    color: var(--tv-ink-soft);
+  }
+  .lp-wall-name {
+    font-family: "Lora", serif;
+    font-size: 1.4rem; font-weight: 500;
+    color: var(--tv-ink);
+    transition: color 0.2s; padding: 0 0.4rem;
+    border-radius: 3px;
+  }
+  .lp-wall-name:hover { color: var(--tv-terracotta); background: rgba(184, 92, 58, 0.06); cursor: default; }
+  .lp-wall-dot {
+    color: var(--tv-sand); font-size: 0.9rem; padding: 0 0.1rem;
+  }
+  .lp-wall-foot {
+    text-align: center; margin: 1.5rem 0 0;
+    font-family: "DM Mono", monospace; font-size: 11px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--tv-ink-soft);
+  }
+  .lp-wall-rotation {
+    text-align: center; margin: 0.6rem 0 0;
+    font-family: "Lora", serif; font-style: italic; font-size: 14px; color: var(--tv-ink-soft);
+  }
+
+  /* === BOX-BY-BOX progress (replaces leaderboard) === */
+  .lp-boxes {
+    margin-top: 2rem;
+    background: var(--tv-paper); border: 1px solid var(--tv-sand);
+    border-radius: 4px; padding: 2rem;
+  }
+  .lp-boxes-head {
+    display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1.25rem;
+  }
+  .lp-boxes-head h3 { font-size: 1.2rem; margin: 0; }
+  .lp-boxes-head .legend {
+    display: flex; gap: 1rem; font-size: 12px; color: var(--tv-ink-soft);
+    align-items: center;
+  }
+  .lp-boxes-head .legend .sw { width: 14px; height: 14px; display: inline-block; vertical-align: middle; margin-right: 4px; border-radius: 2px; border: 1px solid rgba(0,0,0,0.05); }
+  .lp-boxes-grid {
+    display: grid; grid-template-columns: repeat(13, 1fr); gap: 4px;
+    margin-bottom: 1rem;
+  }
+  .lp-box {
+    aspect-ratio: 1;
+    background: var(--tv-sand); border-radius: 2px;
+    position: relative; cursor: pointer;
+    transition: transform 0.12s;
+  }
+  .lp-box:hover { transform: scale(1.15); z-index: 5; }
+  .lp-box.b0 { background: #efe6d4; }                      /* not started */
+  .lp-box.b1 { background: #f0d6b3; }                      /* started */
+  .lp-box.b2 { background: #e0a874; }                      /* in progress */
+  .lp-box.b3 { background: #c47a48; }                      /* mostly done */
+  .lp-box.b4 { background: #94462a; }                      /* fully scanned */
+  .lp-box.b-future { background: var(--tv-cream); border: 1px dashed var(--tv-sand); }
+  .lp-boxes-foot {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--tv-sand);
+    font-size: 13px; color: var(--tv-ink-soft);
+  }
+
+  /* === WORK AREA STACKED BAR === */
+  .lp-areas { margin-top: 2rem; }
+  .lp-area-bar {
+    display: flex; height: 56px; border-radius: 4px; overflow: hidden;
+    border: 1px solid var(--tv-sand); margin-bottom: 1rem;
+  }
+  .lp-area-seg {
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-family: "DM Mono", monospace; font-size: 12px; font-weight: 500;
+    padding: 0 1rem; min-width: 0; overflow: hidden;
+  }
+  .lp-area-seg.a1 { background: var(--tv-terracotta-deep); flex: 15; }
+  .lp-area-seg.a2 { background: var(--tv-terracotta); flex: 13; }
+  .lp-area-seg.a3 { background: var(--tv-gold); flex: 4; color: var(--tv-ink); }
+  .lp-area-seg.a4 { background: var(--tv-teal); flex: 2; }
+  .lp-area-seg.a5 { background: var(--tv-ink-soft); flex: 9; }
+  .lp-area-legend {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.5rem 1.25rem; font-size: 13px; color: var(--tv-ink-soft);
+  }
+  .lp-area-legend > div { display: flex; align-items: center; gap: 0.5rem; }
+  .lp-area-legend .swatch { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+  .lp-area-legend b { color: var(--tv-ink); font-weight: 500; }
+
+  /* === WEEKLY ROSTER === */
+  .lp-roster {
+    margin-top: 2rem; background: var(--tv-paper); border: 1px solid var(--tv-sand);
+    border-radius: 4px; overflow: hidden;
+  }
+  .lp-roster-grid {
+    display: grid; grid-template-columns: 140px repeat(5, 1fr);
+  }
+  .lp-roster-grid > div {
+    padding: 0.85rem 1rem; border-bottom: 1px solid var(--tv-sand); border-right: 1px solid var(--tv-sand);
+    font-size: 13px; min-height: 56px;
+    display: flex; align-items: center;
+  }
+  .lp-roster-grid > div:nth-child(6n) { border-right: none; }
+  .lp-roster-head {
+    background: var(--tv-cream);
+    font-family: "DM Mono", monospace; font-size: 11px; font-weight: 500;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--tv-ink-soft);
+  }
+  .lp-roster-loc { font-family: "Lora", serif; font-weight: 500; color: var(--tv-ink); background: var(--tv-cream); }
+  .lp-roster-loc small { display: block; font-family: "Inter", sans-serif; font-weight: 400; font-size: 11px; color: var(--tv-ink-soft); }
+  .lp-roster-cell { color: var(--tv-ink); position: relative; }
+  .lp-roster-cell.is-today { background: rgba(200, 155, 60, 0.1); }
+  .lp-roster-cell.is-today::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--tv-gold);
+  }
+  .lp-roster-cell.is-empty { color: var(--tv-sand); }
+
+  /* === TICKER === */
+  .lp-ticker { list-style: none; padding: 0; margin: 2rem 0 0; }
+  .lp-ticker li {
+    padding: 0.9rem 0; border-bottom: 1px solid var(--tv-sand);
+    display: flex; gap: 1.25rem; font-size: 0.95rem;
+  }
+  .lp-ticker li:last-child { border-bottom: none; }
+  .lp-ticker-when {
+    font-family: "DM Mono", monospace; font-size: 11px;
+    color: var(--tv-ink-soft); width: 110px; flex-shrink: 0; letter-spacing: 0.05em;
+  }
+  .lp-ticker-rest { color: var(--tv-ink); }
+  .lp-ticker-rest b { color: var(--tv-terracotta-deep); font-weight: 600; }
+
+  /* =====================================================
+     MANAGER DASHBOARD
+     ===================================================== */
+  .mgr-page { background: var(--tv-cream); min-height: 100vh; }
+  .mgr-topbar {
+    background: var(--tv-paper); border-bottom: 1px solid var(--tv-sand);
+    padding: 0.85rem 1.5rem; display: flex; align-items: center; gap: 1rem;
+  }
+  .mgr-topbar .brand { font-family: "Lora", serif; font-weight: 600; font-size: 1.05rem; display: inline-flex; align-items: center; gap: 0.65rem; }
+  .mgr-topbar .brand .logo-dot { width: 32px; height: 32px; border-radius: 6px; background: var(--tv-terracotta); display:flex; align-items:center; justify-content:center; color:white; font-family: "Lora", serif; font-weight: 600; font-size: 14px; }
+  .mgr-topbar .right { margin-left: auto; display: flex; align-items: center; gap: 0.75rem; }
+  .mgr-user-chip {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    background: var(--tv-cream); padding: 0.3rem 0.75rem 0.3rem 0.3rem;
+    border-radius: 99px; font-size: 13px; color: var(--tv-ink);
+  }
+  .mgr-user-chip .av { width: 28px; height: 28px; border-radius: 50%; background: var(--tv-teal); color: white; font-weight: 600; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+
+  .mgr-container { width: min(1300px, calc(100% - 3rem)); margin: 0 auto; padding: 2.5rem 0 5rem; }
+
+  .mgr-hero { border-bottom: 2px solid var(--tv-ink); padding-bottom: 2rem; margin-bottom: 2.5rem; }
+  .mgr-hero-top {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 2rem;
+    margin-bottom: 1.5rem;
+  }
+  .mgr-hero-kicker {
+    font-family: "DM Mono", monospace; font-size: 11px; font-weight: 500;
+    letter-spacing: 0.2em; text-transform: uppercase; color: var(--tv-ink-soft);
+    margin: 0 0 0.5rem; display: flex; align-items: center; gap: 0.75rem;
+  }
+  .mgr-hero-kicker::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--tv-teal); animation: pulse 2s infinite; }
+  .mgr-hero h1 { font-size: clamp(2rem, 4vw, 2.8rem); margin: 0; letter-spacing: -0.015em; }
+  .mgr-hero h1 em { font-style: italic; color: var(--tv-terracotta-deep); font-weight: 600; }
+  .mgr-hero-sub {
+    margin: 0.6rem 0 0; color: var(--tv-ink-soft); font-size: 1.05rem; max-width: 64ch;
+  }
+  .mgr-hero-sub b { color: var(--tv-ink); font-weight: 500; }
+  .mgr-hero-actions { display: flex; gap: 0.65rem; flex-shrink: 0; }
+  .mgr-btn {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.55rem 1rem; border-radius: 6px;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    border: 1.5px solid var(--tv-sand);
+    background: var(--tv-paper); color: var(--tv-ink); text-decoration: none;
+  }
+  .mgr-btn.primary { background: var(--tv-terracotta); color: white; border-color: var(--tv-terracotta); }
+
+  .mgr-summary-strip {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 2rem;
+    margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--tv-sand);
+  }
+  .mgr-summary-cell .lbl {
+    font-family: "DM Mono", monospace; font-size: 10px; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--tv-ink-soft); margin: 0 0 0.3rem;
+  }
+  .mgr-summary-cell .val {
+    font-family: "Lora", serif; font-weight: 600; font-size: 2rem; color: var(--tv-ink);
+    line-height: 1; letter-spacing: -0.01em; display: flex; align-items: baseline; gap: 0.6rem;
+  }
+  .mgr-summary-cell .val small { font-size: 0.55em; font-weight: 500; color: var(--tv-ink-soft); }
+  .mgr-summary-cell .val .delta {
+    font-family: "DM Mono", monospace; font-size: 11px; font-weight: 500;
+    color: var(--tv-teal); padding: 2px 6px; background: rgba(74,124,126,0.1); border-radius: 4px;
+  }
+  .mgr-summary-cell .val .delta.alert { color: var(--tv-terracotta-deep); background: rgba(184,92,58,0.1); }
+  .mgr-summary-cell .foot { font-size: 12px; color: var(--tv-ink-soft); margin: 0.4rem 0 0; }
+
+  .mgr-grid { display: grid; grid-template-columns: 1fr 360px; gap: 2rem; }
+  .mgr-panel {
+    background: var(--tv-paper); border: 1px solid var(--tv-sand);
+    border-radius: 4px; padding: 1.5rem; margin-bottom: 1.5rem;
+  }
+  .mgr-panel-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 1.25rem; padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--tv-sand);
+  }
+  .mgr-panel-head h2 { font-size: 1.1rem; font-family: "Lora", serif; margin: 0; }
+  .mgr-panel-head .eyebrow {
+    font-family: "DM Mono", monospace; font-size: 10px;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--tv-terracotta-deep); margin: 0 0 0.25rem;
+  }
+  .mgr-panel-head .actions { display: flex; gap: 0.5rem; }
+
+  .mgr-today-roster { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.65rem; }
+  .mgr-today-cell {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.6rem 0.85rem; background: var(--tv-cream); border-radius: 4px;
+  }
+  .mgr-today-cell .av {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--tv-terracotta); color: white;
+    font-weight: 600; font-size: 13px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .mgr-today-cell .av.t { background: var(--tv-teal); }
+  .mgr-today-cell .av.g { background: var(--tv-gold); color: var(--tv-ink); }
+  .mgr-today-cell .info { min-width: 0; flex: 1; }
+  .mgr-today-cell .name {
+    font-weight: 500; font-size: 14px; color: var(--tv-ink);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .mgr-today-cell .loc {
+    font-family: "DM Mono", monospace; font-size: 10px;
+    letter-spacing: 0.1em; color: var(--tv-ink-soft);
+  }
+
+  .mgr-pnb-hero {
+    background: linear-gradient(135deg, var(--tv-paper) 0%, #fdf9f1 100%);
+    border: 1px solid var(--tv-sand); border-left: 4px solid var(--tv-terracotta);
+    border-radius: 4px; padding: 2rem 1.75rem; margin-bottom: 1.5rem;
+  }
+  .mgr-pnb-hero h3 { font-size: 1.4rem; margin: 0 0 0.25rem; }
+  .mgr-pnb-hero .desc { color: var(--tv-ink-soft); font-size: 13px; margin: 0 0 1.5rem; }
+  .mgr-pnb-progress { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 0.5rem; }
+  .mgr-pnb-pct {
+    font-family: "Lora", serif; font-weight: 600; font-size: 2.6rem;
+    color: var(--tv-ink); line-height: 1;
+  }
+  .mgr-pnb-pct small { font-size: 0.4em; color: var(--tv-ink-soft); font-weight: 500; }
+  .mgr-pnb-status { font-family: "DM Mono", monospace; font-size: 12px; color: var(--tv-ink-soft); }
+  .mgr-pnb-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;
+    padding-top: 1.5rem; margin-top: 1rem; border-top: 1px solid var(--tv-sand);
+  }
+  .mgr-pnb-grid .cell .lbl {
+    font-family: "DM Mono", monospace; font-size: 10px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--tv-ink-soft); margin-bottom: 0.2rem;
+  }
+  .mgr-pnb-grid .cell .v { font-family: "Lora", serif; font-weight: 600; font-size: 1.5rem; color: var(--tv-ink); }
+
+  .mgr-timeline { padding: 0; margin: 0; list-style: none; }
+  .mgr-tl-item {
+    display: grid; grid-template-columns: 80px 36px 1fr;
+    gap: 1rem; padding: 0.85rem 0;
+    border-bottom: 1px solid var(--tv-sand); align-items: start;
+  }
+  .mgr-tl-item:last-child { border-bottom: none; }
+  .mgr-tl-when {
+    font-family: "DM Mono", monospace; font-size: 11px;
+    color: var(--tv-ink-soft); letter-spacing: 0.05em; padding-top: 0.25rem;
+  }
+  .mgr-tl-av {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--tv-teal); color: white; font-weight: 600; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mgr-tl-av.a { background: var(--tv-terracotta); }
+  .mgr-tl-av.g { background: var(--tv-gold); color: var(--tv-ink); }
+  .mgr-tl-body .who { font-weight: 500; font-size: 14px; color: var(--tv-ink); }
+  .mgr-tl-body .what { font-size: 13px; color: var(--tv-ink-soft); margin-top: 0.2rem; }
+  .mgr-tl-body .what b { color: var(--tv-ink); font-weight: 500; }
+  .mgr-tl-body .tags { display: inline-flex; gap: 0.35rem; margin-top: 0.45rem; flex-wrap: wrap; }
+  .mgr-tl-body .tag {
+    font-family: "DM Mono", monospace; font-size: 10px;
+    background: var(--tv-cream); color: var(--tv-ink-soft);
+    padding: 2px 8px; border-radius: 99px; letter-spacing: 0.05em;
+  }
+
+  /* per-volunteer roster — NO RANKING, alphabetical, status not output */
+  .mgr-vols { list-style: none; padding: 0; margin: 0; }
+  .mgr-vol-row {
+    display: grid;
+    grid-template-columns: 32px 1.4fr 2fr 110px;
+    align-items: center; gap: 0.85rem;
+    padding: 0.65rem 0; border-bottom: 1px solid var(--tv-sand);
+  }
+  .mgr-vol-row:last-child { border-bottom: none; }
+  .mgr-vol-av {
+    width: 28px; height: 28px; border-radius: 50%; background: var(--tv-teal);
+    color: white; font-weight: 600; font-size: 11px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mgr-vol-name {
+    font-weight: 500; font-size: 13px; color: var(--tv-ink);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .mgr-vol-name .meta {
+    display: block; font-family: "DM Mono", monospace; font-size: 10px;
+    color: var(--tv-ink-soft); font-weight: 400; letter-spacing: 0.05em; margin-top: 1px;
+  }
+  .mgr-vol-spark { display: flex; align-items: flex-end; gap: 2px; height: 24px; }
+  .mgr-vol-spark .b { flex: 1; min-width: 4px; background: var(--tv-sand); border-radius: 1px; }
+  .mgr-vol-spark .b.on { background: var(--tv-teal); }
+  .mgr-vol-status {
+    font-family: "DM Mono", monospace; font-size: 10px; text-align: right;
+    color: var(--tv-teal);
+  }
+  .mgr-vol-status.slow { color: var(--tv-gold); }
+  .mgr-vol-status.silent { color: var(--tv-ink-soft); opacity: 0.7; }
+
+  .mgr-alert {
+    display: flex; gap: 0.85rem; padding: 0.85rem;
+    background: rgba(184, 92, 58, 0.06); border-left: 3px solid var(--tv-terracotta);
+    border-radius: 4px; margin-bottom: 0.65rem;
+  }
+  .mgr-alert .icon { color: var(--tv-terracotta); flex-shrink: 0; font-size: 1.1rem; margin-top: 0.15rem; }
+  .mgr-alert .body { font-size: 13px; }
+  .mgr-alert .title { font-weight: 500; color: var(--tv-ink); }
+  .mgr-alert .sub { color: var(--tv-ink-soft); margin-top: 0.15rem; }
+
+  .mgr-workarea { display: flex; align-items: center; gap: 1.5rem; }
+  .mgr-workarea-chart { position: relative; width: 140px; height: 140px; flex-shrink: 0; }
+  .mgr-workarea-chart svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .mgr-workarea-chart .ring-bg { fill: none; stroke: var(--tv-sand); stroke-width: 14; }
+  .mgr-workarea-chart .ring { fill: none; stroke-width: 14; stroke-linecap: butt; }
+  .mgr-workarea-chart .center {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .mgr-workarea-chart .center .v {
+    font-family: "Lora", serif; font-weight: 600; font-size: 1.4rem;
+    color: var(--tv-ink); line-height: 1;
+  }
+  .mgr-workarea-chart .center .lbl {
+    font-family: "DM Mono", monospace; font-size: 9px; color: var(--tv-ink-soft);
+    letter-spacing: 0.15em; text-transform: uppercase; margin-top: 4px;
+  }
+  .mgr-workarea-legend { font-size: 13px; flex: 1; }
+  .mgr-workarea-legend li {
+    display: grid; grid-template-columns: 12px 1fr auto; align-items: center;
+    gap: 0.5rem; padding: 0.35rem 0; list-style: none;
+    border-bottom: 1px dashed var(--tv-sand);
+  }
+  .mgr-workarea-legend li:last-child { border-bottom: none; }
+  .mgr-workarea-legend .sw { width: 12px; height: 12px; border-radius: 2px; }
+  .mgr-workarea-legend .lab { color: var(--tv-ink); }
+  .mgr-workarea-legend .v { font-family: "DM Mono", monospace; color: var(--tv-ink-soft); font-size: 12px; }
+
+  .mgr-note {
+    margin-top: 1rem; padding: 0.75rem 1rem;
+    background: var(--tv-cream); border-radius: 4px;
+    font-size: 12px; color: var(--tv-ink-soft); text-align: center;
+    font-family: "DM Mono", monospace;
+  }
+
+  @media (max-width: 880px) {
+    .lp-ledger { grid-template-columns: repeat(2, 1fr); }
+    .lp-collect-grid { grid-template-columns: repeat(2, 1fr); }
+    .lp-project-facts { grid-template-columns: repeat(2, 1fr); }
+    .lp-roster-grid { grid-template-columns: 100px repeat(5, 1fr); font-size: 11px; }
+    .lp-boxes-grid { grid-template-columns: repeat(10, 1fr); }
+    .mgr-summary-strip { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    .mgr-grid { grid-template-columns: 1fr; }
+    .mgr-today-roster { grid-template-columns: 1fr; }
+    .mgr-pnb-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="mock-bar">
+  <strong>Tarih Vakfı · Redesign v2</strong>
+  <span class="mock-sep">·</span>
+  <span style="font-size:0.78rem; opacity:0.7;">Honest %4 progress · No ranking · Multiple headline options</span>
+  <nav class="mock-tabs">
+    <button class="mock-tab is-on" data-view="picker">Headline picker</button>
+    <button class="mock-tab" data-view="public">Public site</button>
+    <button class="mock-tab" data-view="manager">Manager dashboard</button>
+  </nav>
+</div>
+<div class="mock-callout">
+  Real numbers: <b>~%4</b> progress · <b>~3.025 sayfa</b> bugüne kadar tasniflenip korundu · target <b>75.613 sayfa</b> · <b>21 gönüllü</b> aktif · no individual ranking anywhere.
+</div>
+
+<!-- ============================================================
+     HEADLINE PICKER VIEW — 9 alternatives
+     ============================================================ -->
+<div class="mock-frame" id="view-picker">
+  <div class="picker-section">
+    <div class="lp-container">
+      <p class="picker-eyebrow">Hangi başlık daha doğru hissettiriyor?</p>
+      <h2 style="margin: 0 0 0.5rem; font-size: 1.6rem;">Önceki başlığı sevmedin — işte 9 alternatif</h2>
+      <p class="picker-help">Birini seç (tıklayınca işaretlenir), sonra "Public site" sekmesine geç → seçtiğin başlık o sayfanın tepesinde olacak. Bunlar gönüllülere kıyas yapmadan, arşivin yolculuğunu öne çıkaran seçenekler.</p>
+
+      <div class="picker-grid">
+        <button class="picker-opt" data-headline-id="1" data-headline="Bir hayatın izleri. <em>Birlikte</em> ortak hafızaya geçiyor." data-note="Şiirsel, kişi-merkezsiz. Boratav'ın bir hayatı vurgulanır, gönüllüler isimsiz 'birlikte' altında.">
+          <span class="opt-num mono">01</span>
+          <h1>Bir hayatın izleri. <em>Birlikte</em> ortak hafızaya geçiyor.</h1>
+          <span class="note">Şiirsel · kişi-merkezsiz · Boratav'ın bir hayatına odaklı</span>
+        </button>
+
+        <button class="picker-opt" data-headline-id="2" data-headline="<em>104 kutu</em> önümüzde duruyor. Birlikte açıyoruz." data-note="Yolculuk dili. Sayı görsel — hedefe işaret eder, ne yapıldığını değil ne yapılacağını gösterir.">
+          <span class="opt-num mono">02</span>
+          <h1><em>104 kutu</em> önümüzde duruyor. Birlikte açıyoruz.</h1>
+          <span class="note">Yolculuk dili · hedef-odaklı · küçük başlangıç ruhuna uygun</span>
+        </button>
+
+        <button class="picker-opt" data-headline-id="3" data-headline="Pertev Naili Boratav'ın özel arşivi, <em>sayfa sayfa</em> açılıyor." data-note="Klasik gazete başlığı. 'sayfa sayfa' yavaş işin değerini onurlandırır.">
+          <span class="opt-num mono">03</span>
+          <h1>Pertev Naili Boratav'ın özel arşivi, <em>sayfa sayfa</em> açılıyor.</h1>
+          <span class="note">Klasik gazete dili · yavaş emeği onurlandırır</span>
+        </button>
+
+        <button class="picker-opt is-on" data-headline-id="4" data-headline="Geçmişin sesini <em>birlikte</em> koruyoruz." data-note="Mevcut başlığın yeniden vurgulanmış hali — 'birlikte' italik. Kalıcı, sıcak, tanıdık.">
+          <span class="opt-num mono">04 · ŞU AN AYNI</span>
+          <h1>Geçmişin sesini <em>birlikte</em> koruyoruz.</h1>
+          <span class="note">Mevcut başlığın iyileştirilmiş hali · sıcak · tanıdık (Recommended baz)</span>
+        </button>
+
+        <button class="picker-opt" data-headline-id="5" data-headline="Bir kitaplık. Bir hayat. <em>Bir araya gelmiş eller.</em>" data-note="Üç adımlı ritim — yer, kişi, emek. Şiirsel, manifesto havası.">
+          <span class="opt-num mono">05</span>
+          <h1>Bir kitaplık. Bir hayat. <em>Bir araya gelmiş eller.</em></h1>
+          <span class="note">Üç adımlı ritim · manifesto havası · şiirsel</span>
+        </button>
+
+        <button class="picker-opt" data-headline-id="6" data-headline="Açılan kutu: 1. <em>Sıradaki: 103.</em> Yolculuk başladı." data-note="Spesifik, görsel. Numaranın küçüklüğü ve hedefin büyüklüğü dürüstlüğü vurgular.">
+          <span class="opt-num mono">06</span>
+          <h1>Açılan kutu: 1. <em>Sıradaki: 103.</em> Yolculuk başladı.</h1>
+          <span class="note">Spesifik · dürüst · hedef-açık</span>
+        </button>
+
+        <button class="picker-opt" data-headline-id="7" data-headline="Yarın bir tarihçi, bugün bizim açtığımız bir <em>kutuyu</em> okuyacak." data-note="Geleceği bugünle bağlar. İşin neden önemli olduğunu anlatır, 'gönüllü' kelimesini hiç söylemez.">
+          <span class="opt-num mono">07</span>
+          <h1>Yarın bir tarihçi, bugün bizim açtığımız bir <em>kutuyu</em> okuyacak.</h1>
+          <span class="note">Geleceği bugünle bağlar · işin anlamına işaret eder</span>
+        </button>
+
+        <button class="picker-opt" data-headline-id="8" data-headline="Boratav arşivi, <em>kamuya açılıyor</em>. Yavaş, dikkatli, birlikte." data-note="Açılış olarak çerçeveler — bir yayın gibi. 'Yavaş, dikkatli' işin doğasını anlatır.">
+          <span class="opt-num mono">08</span>
+          <h1>Boratav arşivi, <em>kamuya açılıyor</em>. Yavaş, dikkatli, birlikte.</h1>
+          <span class="note">Açılış · yayın havası · işin temposunu onurlandırır</span>
+        </button>
+
+        <button class="picker-opt" data-headline-id="9" data-headline="<em>Birlikte yapıyoruz.</em> Bir arşivi, bir araya gelerek." data-note="En sade, en kolektif. Slogan kısa, tekrar edilebilir. Manifestolaşmaya açık.">
+          <span class="opt-num mono">09</span>
+          <h1><em>Birlikte yapıyoruz.</em> Bir arşivi, bir araya gelerek.</h1>
+          <span class="note">Sade · kolektif · slogan-kısa · manifesto-açık</span>
+        </button>
+      </div>
+
+      <p style="margin-top: 2rem; padding: 1rem; background: var(--tv-cream); border-radius: 4px; font-size: 13px; color: var(--tv-ink-soft); text-align: center;">
+        Bir seçenek tıkla → "Public site" sekmesi açıldığında seçtiğin başlık tepede olacak.
+      </p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============================================================
+     PUBLIC SITE
+     ============================================================ -->
+<div class="mock-frame is-hidden" id="view-public">
+
+  <div class="lp-nav-wrap">
+    <div class="lp-container lp-nav">
+      <a class="lp-brand" href="#">
+        <span class="logo-dot">TV</span>
+        <span>Tarih Vakfı</span>
+      </a>
+      <nav class="lp-nav-links">
+        <a href="#ilerleme">Gönüllüler</a>
+        <a href="#hakkinda">Hakkında</a>
+        <a href="#sss">SSS</a>
+        <a class="lp-btn lp-btn-primary" href="#">Giriş / Başvuru</a>
+      </nav>
+    </div>
+  </div>
+
+  <main>
+    <!-- HERO -->
+    <section class="lp-hero">
+      <div class="lp-container">
+        <p class="lp-hero-eyebrow">Tarih Vakfı · Pertev Naili Boratav Arşivi · 12 Mayıs 2026</p>
+        <h1 class="lp-hero-headline" id="liveHeadline">
+          Geçmişin sesini <em>birlikte</em> koruyoruz.
+        </h1>
+        <p class="lp-hero-lede">
+          Pertev Naili Boratav'ın özel arşivi <b>104 kutu, 75.613 sayfa</b>. Bir gönüllü ağı bu malzemeyi yavaş yavaş tasnif edip dijital ortama aktarıyor. <b>Şu an %4'ündeyiz.</b> Aşağıda — bu hafta neler oldu, kimler katıldı, ne yapıldı.
+        </p>
+        <div class="lp-hero-cta">
+          <a class="lp-btn lp-btn-primary" href="#projeler">Çalışmalarımızı keşfet</a>
+          <a class="lp-btn lp-btn-secondary" href="#">Gönüllü ol</a>
+        </div>
+
+        <!-- HONEST LEDGER STRIP -->
+        <div class="lp-ledger" aria-label="Canlı arşiv defteri">
+          <div class="lp-ledger-cell">
+            <p class="lp-ledger-label">Şu an</p>
+            <p class="lp-ledger-num">%4<small>tamamlandı</small></p>
+            <p class="lp-ledger-foot">~3.025 / 75.613 sayfa</p>
+          </div>
+          <div class="lp-ledger-cell">
+            <p class="lp-ledger-label">Açılmış kutu</p>
+            <p class="lp-ledger-num">88<small>/ 104</small></p>
+            <p class="lp-ledger-foot">16 kutu sırada bekliyor</p>
+          </div>
+          <div class="lp-ledger-cell">
+            <p class="lp-ledger-label">Aktif gönüllü</p>
+            <p class="lp-ledger-num">21<small>kişi</small></p>
+            <p class="lp-ledger-foot">son 30 gün içinde katkı</p>
+          </div>
+          <div class="lp-ledger-cell">
+            <p class="lp-ledger-label">Son 7 gün</p>
+            <p class="lp-ledger-num">+287<small>sayfa</small></p>
+            <p class="lp-ledger-foot"><span class="delta-up">↑</span> 4 yeni dosya açıldı</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COLLECTIVE THIS-WEEK SUMMARY (no single-person spotlight) -->
+    <section class="lp-section" style="padding-top: 32px;">
+      <div class="lp-container">
+        <p class="lp-eyebrow">Bu hafta arşivde</p>
+        <h2>Birlikte yaptıklarımız</h2>
+        <p class="lp-prose">Geçen hafta arşivde altı kişi yan yana çalıştı. İşte ortaya çıkan iş — kişi adı yok, çünkü her sayfa hepsi sayesinde:</p>
+
+        <article class="lp-collect">
+          <div class="lp-collect-head">
+            <h3>Bu hafta toplam 22 saat çalıştık; arşivin sesi biraz daha duyulur oldu.</h3>
+            <span class="when">4–11 Mayıs 2026</span>
+          </div>
+          <div class="lp-collect-grid">
+            <div class="lp-collect-cell">
+              <p class="lbl">Çalışma günü</p>
+              <p class="val">6<small>gün</small></p>
+              <p class="foot">Pzt'den Pazar'a</p>
+            </div>
+            <div class="lp-collect-cell">
+              <p class="lbl">Sahaya giren kişi</p>
+              <p class="val">11<small>gönüllü</small></p>
+              <p class="foot">8 farklı yerde paralel</p>
+            </div>
+            <div class="lp-collect-cell">
+              <p class="lbl">Yeni tasniflenen</p>
+              <p class="val">287<small>sayfa</small></p>
+              <p class="foot">PNB-14, 15, 68, I2</p>
+            </div>
+            <div class="lp-collect-cell">
+              <p class="lbl">Açılan yeni dosya</p>
+              <p class="val">4<small>dosya</small></p>
+              <p class="foot">Görsel-işitsel envanteri kapandı</p>
+            </div>
+          </div>
+          <p class="lp-collect-narr">
+            Hafta içinde <b>iki dolap (A ve B) tamamlandı</b>, Osmanlıca el yazısıyla yazılmış üç belge çeviriye gönderildi. Görsel-işitsel envanteri de bu hafta sonlandı. <b>Önümüzdeki hafta</b>: I2 kutusundan kalan yedi dosya, ve henüz hiç dokunulmamış Kutu 7'ye geçiş.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <!-- WALL OF VOLUNTEERS — alphabetical, equal weight -->
+    <section class="lp-section lp-wall-section">
+      <div class="lp-container">
+        <p class="lp-eyebrow">Birlikte yapıyoruz</p>
+        <h2>Bu arşivin arkasındaki ekip</h2>
+        <p class="lp-prose">Aşağıdaki her isim, son 30 gün içinde arşive en az bir kez dokunmuş bir gönüllüye ait. <b>İsimler alfabetik, hiçbir sıralama yok</b> — bir saat çalışan da, bir gün çalışan da aynı boyutta yazılır. Çünkü arşiv, parça parça hep birlikte açılıyor.</p>
+
+        <div class="lp-wall" id="lpWall">
+          <span class="lp-wall-name">Arda</span><span class="lp-wall-dot">·</span>
+          <span class="lp-wall-name">Arif</span><span class="lp-wall-dot">·</span>
+          <span class="lp-wall-name">Ateş</span><span class="lp-wall-dot">·</span>
+          <span class="lp-wall-name">Aysu</span><span class="lp-wall-dot">·</span>
+          <span class="lp-wall-name">Beşir</span><span class="lp-wall-dot">·</span>
+          <span class="lp-wall-name">Betül</span><span class="lp-wall-dot">·</span>
+          <span class="lp-wall-name">Cemil</span><span class="lp-wall-dot">·</span>
+          <span class="lp-wall-name">Çağatay</span><span class="lp-wall-dot">·</span>
+          <span class="lp-wall-name">Duygu</span><span class="lp-wall-dot">·</span>
+          <span class="lp-wall-name">Günay</span><span class="lp-wall-dot">·</span>
+          <span class="lp-wall-name">Gülistan</span><span class="lp-wall-dot">·</span>
+          <span class="lp-wall-name">Hacer</span><span class="lp-wall-dot">·</span>
+          <span class="lp-wall-name">İlknur</span><span class="lp-wall-dot">·</span>
+          <span class="lp-wall-name">Kadir</span><span class="lp-wall-dot">·</span>
+          <span class="lp-wall-name">Kübra</span><span class="lp-wall-dot">·</span>
+          <span class="lp-wall-name">Lara</span><span class="lp-wall-dot">·</span>
+          <span class="lp-wall-name">Mine</span><span class="lp-wall-dot">·</span>
+          <span class="lp-wall-name">Neşe</span><span class="lp-wall-dot">·</span>
+          <span class="lp-wall-name">Sevda</span><span class="lp-wall-dot">·</span>
+          <span class="lp-wall-name">Sibel</span><span class="lp-wall-dot">·</span>
+          <span class="lp-wall-name">Tuğrulhan</span>
+        </div>
+        <p class="lp-wall-rotation">Her ay alfabetik sıra rotate olur — sıralama tamamen rasgele bir şekilde değişir.</p>
+        <p class="lp-wall-foot">21 isim · son 30 gün · adını çıkarmak isteyen tek tıkla profilini gizleyebilir</p>
+      </div>
+    </section>
+
+    <!-- PROJECT CARD with honest progress + BOX MAP -->
+    <section class="lp-section" id="projeler">
+      <div class="lp-container">
+        <p class="lp-eyebrow">Şu an üzerinde çalıştığımız arşiv</p>
+        <h2>Pertev Naili Boratav Arşivi</h2>
+
+        <article class="lp-project">
+          <div class="lp-project-head">
+            <div>
+              <h3>104 kutu, 75.613 sayfa, bir hayatın izleri.</h3>
+              <p style="color: var(--tv-ink-soft); margin: 0;">Türk halkbilimi'nin kurucu isimlerinden Pertev Naili Boratav (1908–1998).</p>
+            </div>
+            <span class="lp-pill">Devam ediyor</span>
+          </div>
+
+          <div class="lp-project-progress-wrap">
+            <div class="lp-project-progress-numbers">
+              <span class="done">%4 tamamlandı</span>
+              <span class="target">~3.025 / 75.613 sayfa</span>
+            </div>
+            <div class="lp-progress-bar"><span style="width: 4%;"></span></div>
+            <div class="lp-progress-milestones">
+              <span class="now">Bugün · %4</span>
+              <span>%25</span>
+              <span>%50</span>
+              <span>%75</span>
+              <span>%100 — Boratav arşivi tamamen açık</span>
+            </div>
+            <p style="margin: 1rem 0 0; font-size: 13px; color: var(--tv-ink-soft); font-style: italic;">
+              Yolun başındayız. Asıl iş henüz önümüzde, hız mevcut gönüllü ağıyla yavaş yavaş artıyor.
+            </p>
+          </div>
+
+          <dl class="lp-project-facts">
+            <div><dt>Catalogued kutu</dt><dd>88 / 104</dd></div>
+            <div><dt>Toplam dosya</dt><dd>1.207</dd></div>
+            <div><dt>Toplam belge</dt><dd>11.975</dd></div>
+            <div><dt>Bu ay sayfa</dt><dd>+~750</dd></div>
+          </dl>
+        </article>
+
+        <!-- BOX-BY-BOX visualization (instead of named leaderboard) -->
+        <div class="lp-boxes">
+          <div class="lp-boxes-head">
+            <h3>Kutu kutu durum — 104 kutu, bir bakışta</h3>
+            <div class="legend">
+              <span><span class="sw" style="background:#efe6d4;"></span>başlanmadı</span>
+              <span><span class="sw" style="background:#f0d6b3;"></span>açıldı</span>
+              <span><span class="sw" style="background:#e0a874;"></span>devam</span>
+              <span><span class="sw" style="background:#c47a48;"></span>ileri</span>
+              <span><span class="sw" style="background:#94462a;"></span>tamamlandı</span>
+              <span><span class="sw" style="background:var(--tv-cream);border:1px dashed var(--tv-sand);"></span>henüz sıraya alınmadı</span>
+            </div>
+          </div>
+
+          <div class="lp-boxes-grid" id="boxesGrid">
+            <!-- Generated by JS below -->
+          </div>
+
+          <div class="lp-boxes-foot">
+            <span>104 kutu görüntüleniyor · bir kutu üzerine gelince detay açılır</span>
+            <span class="mono">~%4 tamamlandı</span>
+          </div>
+        </div>
+
+        <!-- WORK AREA BREAKDOWN -->
+        <h3 style="margin-top: 3rem; margin-bottom: 0.6rem; font-size: 1.3rem;">Geçen ay emek nereye gitti</h3>
+        <p style="color: var(--tv-ink-soft); margin: 0 0 1.5rem;">43 oturumun çalışma alanı dağılımı — kişi adı yok, sadece iş:</p>
+
+        <div class="lp-areas">
+          <div class="lp-area-bar">
+            <div class="lp-area-seg a1">Tarama · 15</div>
+            <div class="lp-area-seg a2">Envanter · 13</div>
+            <div class="lp-area-seg a5">Karma · 9</div>
+            <div class="lp-area-seg a3">Başvuru · 4</div>
+            <div class="lp-area-seg a4">Çeviri · 2</div>
+          </div>
+          <div class="lp-area-legend">
+            <div><span class="swatch" style="background: var(--tv-terracotta-deep);"></span><span><b>Tarama</b> — belgeyi dijital ortama aktarmak</span></div>
+            <div><span class="swatch" style="background: var(--tv-terracotta);"></span><span><b>Envanter</b> — afiş, görsel-işitsel, dolap tasnifi</span></div>
+            <div><span class="swatch" style="background: var(--tv-ink-soft);"></span><span><b>Karma</b> — planlama, raporlama, web</span></div>
+            <div><span class="swatch" style="background: var(--tv-gold);"></span><span><b>Başvuru</b> — Gerda Henkel proje hazırlığı</span></div>
+            <div><span class="swatch" style="background: var(--tv-teal);"></span><span><b>Osmanlıca çevirisi</b></span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WEEKLY ROSTER -->
+    <section class="lp-section lp-wall-section">
+      <div class="lp-container">
+        <p class="lp-eyebrow">Bu hafta</p>
+        <h2>Kim, nerede, ne zaman</h2>
+        <p class="lp-prose">Arşiv haftası boyunca beş yerde paralel ilerliyor. Aşağıda bu haftaki gönüllü programı — herkes haftada ortalama bir gün gelir, kimse her gün gelmez.</p>
+
+        <div class="lp-roster">
+          <div class="lp-roster-grid">
+            <div class="lp-roster-head"></div>
+            <div class="lp-roster-head">Pazartesi</div>
+            <div class="lp-roster-head">Salı</div>
+            <div class="lp-roster-head">Çarşamba</div>
+            <div class="lp-roster-head">Perşembe</div>
+            <div class="lp-roster-head">Cuma</div>
+
+            <div class="lp-roster-loc">Müze 1</div>
+            <div class="lp-roster-cell">Arda</div>
+            <div class="lp-roster-cell">Arda</div>
+            <div class="lp-roster-cell is-today">Arda</div>
+            <div class="lp-roster-cell is-empty">—</div>
+            <div class="lp-roster-cell is-empty">—</div>
+
+            <div class="lp-roster-loc">Müze 2</div>
+            <div class="lp-roster-cell">Beşir</div>
+            <div class="lp-roster-cell">Aysu</div>
+            <div class="lp-roster-cell is-today">Kübra</div>
+            <div class="lp-roster-cell is-empty">—</div>
+            <div class="lp-roster-cell is-empty">—</div>
+
+            <div class="lp-roster-loc">Vakıf T1<small>Tarayıcı 1</small></div>
+            <div class="lp-roster-cell">Betül</div>
+            <div class="lp-roster-cell">Sibel</div>
+            <div class="lp-roster-cell is-today">Beşir</div>
+            <div class="lp-roster-cell">Tuğrulhan</div>
+            <div class="lp-roster-cell">Kadir</div>
+
+            <div class="lp-roster-loc">Vakıf T2<small>Tarayıcı 2</small></div>
+            <div class="lp-roster-cell">Ateş</div>
+            <div class="lp-roster-cell">İlknur</div>
+            <div class="lp-roster-cell is-today is-empty">—</div>
+            <div class="lp-roster-cell">Günay</div>
+            <div class="lp-roster-cell">Arif</div>
+
+            <div class="lp-roster-loc">Vakıf T3<small>Tarayıcı 3</small></div>
+            <div class="lp-roster-cell">Çağatay</div>
+            <div class="lp-roster-cell">Lara</div>
+            <div class="lp-roster-cell is-today">Lara, Çiğdem</div>
+            <div class="lp-roster-cell is-empty">—</div>
+            <div class="lp-roster-cell is-empty">—</div>
+          </div>
+        </div>
+        <p class="lp-wall-foot" style="margin-top: 1rem;">Bugün altı kişi sahada · sarı şerit = bugün · Cuma'da boşluk var, biri katılmak ister mi?</p>
+      </div>
+    </section>
+
+    <!-- RECENT TICKER — depersonalized -->
+    <section class="lp-section">
+      <div class="lp-container">
+        <p class="lp-eyebrow">Son hareketler</p>
+        <h2>Arşivin günlüğü</h2>
+        <p class="lp-prose">Son birkaç gün içinde arşivde ne oldu — kim yaptı bilgisi yok, ne yapıldı bilgisi açık:</p>
+
+        <ol class="lp-ticker">
+          <li>
+            <span class="lp-ticker-when">Bugün · 14:22</span>
+            <span class="lp-ticker-rest">PNB Kutu 15 · <b>704 sayfa tarandı</b> · A dolabı tamamlandı.</span>
+          </li>
+          <li>
+            <span class="lp-ticker-when">Bugün · 11:08</span>
+            <span class="lp-ticker-rest">PNB Kutu I2 · <b>40 yeni belge</b> kodlandı.</span>
+          </li>
+          <li>
+            <span class="lp-ticker-when">Dün · 16:45</span>
+            <span class="lp-ticker-rest">Görsel-işitsel envanteri kapandı · <b>TBCT envanteri tamamlandı.</b></span>
+          </li>
+          <li>
+            <span class="lp-ticker-when">2 gün önce</span>
+            <span class="lp-ticker-rest">Osmanlıca el yazması üç belgenin çevirisi tamamlandı.</span>
+          </li>
+          <li>
+            <span class="lp-ticker-when">3 gün önce</span>
+            <span class="lp-ticker-rest">Afiş envanteri · <b>A dolabı bitti</b>, B dolabına geçildi.</span>
+          </li>
+          <li>
+            <span class="lp-ticker-when">5 gün önce</span>
+            <span class="lp-ticker-rest">PNB Kutu 68 · 4 belge dijitalleştirildi.</span>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- CTA STRIP -->
+    <section class="lp-section" style="background: var(--tv-ink); color: var(--tv-cream); padding: 64px 0;">
+      <div class="lp-container" style="text-align: center;">
+        <p class="lp-eyebrow" style="color: var(--tv-gold);">Sen de katıl</p>
+        <h2 style="color: var(--tv-cream); max-width: 24ch; margin: 0 auto 1rem;">Yolun başındayız. Yanımıza gel.</h2>
+        <p class="lp-prose" style="color: rgba(250, 246, 240, 0.7); margin: 0 auto 2rem; text-align: center;">Atanan görev yok, deadline yok. Vaktin olduğunda gir, bir iş paketi seç, birkaç saat çalış, ne yaptığını yaz. Bir saat de yeter, bir gün de.</p>
+        <a class="lp-btn lp-btn-primary" href="#" style="background: var(--tv-terracotta); color: white;">Gönüllü ol →</a>
+      </div>
+    </section>
+  </main>
+</div>
+
+
+<!-- ============================================================
+     MANAGER DASHBOARD — no ranking
+     ============================================================ -->
+<div class="mock-frame is-hidden mgr-page" id="view-manager">
+
+  <div class="mgr-topbar">
+    <span class="brand"><span class="logo-dot">TV</span>Tarih Vakfı · Panel</span>
+    <div class="right">
+      <button class="mgr-btn">🔔 3</button>
+      <span class="mgr-user-chip"><span class="av">A</span>Arif Solmaz</span>
+      <button class="mgr-btn">Çıkış</button>
+    </div>
+  </div>
+
+  <div class="mgr-container">
+
+    <!-- HERO -->
+    <header class="mgr-hero">
+      <div class="mgr-hero-top">
+        <div>
+          <p class="mgr-hero-kicker">Yönetici paneli · Salı, 12 Mayıs 2026</p>
+          <h1>Bugün arşivde <em>6 kişi</em>.</h1>
+          <p class="mgr-hero-sub">
+            Geçen hafta birlikte <b>287 sayfa</b> tasniflendi, görsel-işitsel envanteri kapandı. <b>3 yeni başvuru</b> onay bekliyor — biri Osmanlıca okur, fenâ değil.
+          </p>
+        </div>
+        <div class="mgr-hero-actions">
+          <button class="mgr-btn">↻ Yenile</button>
+          <button class="mgr-btn primary">+ Rapor yaz</button>
+        </div>
+      </div>
+
+      <!-- EDITORIAL SUMMARY -->
+      <div class="mgr-summary-strip">
+        <div class="mgr-summary-cell">
+          <p class="lbl">Aktif gönüllü · 7 gün</p>
+          <p class="val">11<span class="delta">↑ 3</span></p>
+          <p class="foot">geçen haftadan</p>
+        </div>
+        <div class="mgr-summary-cell">
+          <p class="lbl">Bekleyen onay</p>
+          <p class="val">3<span class="delta alert">!</span></p>
+          <p class="foot">en eskisi 4 gündür</p>
+        </div>
+        <div class="mgr-summary-cell">
+          <p class="lbl">Sessiz · 14 gündür</p>
+          <p class="val">2<span class="delta">—</span></p>
+          <p class="foot">hatırlatma uygun</p>
+        </div>
+        <div class="mgr-summary-cell">
+          <p class="lbl">Bu hafta sayfa</p>
+          <p class="val">287<small>sayfa</small></p>
+          <p class="foot">+%9 geçen haftaya</p>
+        </div>
+        <div class="mgr-summary-cell">
+          <p class="lbl">PNB ilerleme</p>
+          <p class="val">%4,0</p>
+          <p class="foot">~72.500 sayfa kaldı</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- MAIN GRID -->
+    <div class="mgr-grid">
+
+      <main>
+        <!-- PNB project hero -->
+        <section class="mgr-pnb-hero">
+          <p class="mgr-hero-kicker" style="margin: 0 0 0.6rem;">Aktif proje</p>
+          <h3>Pertev Naili Boratav Arşivi</h3>
+          <p class="desc">Boratav'ın 75.613 sayfalık özel arşivinin yolculuğu yeni başladı.</p>
+
+          <div class="mgr-pnb-progress">
+            <span class="mgr-pnb-pct">4,0<small>%</small></span>
+            <span class="mgr-pnb-status">~3.025 / 75.613 sayfa · mevcut hızla yıl sonunda ~%15'e ulaşabiliriz</span>
+          </div>
+          <div class="lp-progress-bar" style="margin-top: 0.5rem;"><span style="width: 4%;"></span></div>
+
+          <div class="mgr-pnb-grid">
+            <div class="cell"><p class="lbl">Açık kutu</p><p class="v">88 / 104</p></div>
+            <div class="cell"><p class="lbl">Toplam belge</p><p class="v">11.975</p></div>
+            <div class="cell"><p class="lbl">Toplam dosya</p><p class="v">1.207</p></div>
+            <div class="cell"><p class="lbl">Bu hafta sayfa</p><p class="v">+287</p></div>
+          </div>
+        </section>
+
+        <!-- VOLUNTEER ACTIVITY — alphabetical, status not output -->
+        <section class="mgr-panel">
+          <div class="mgr-panel-head">
+            <div>
+              <p class="eyebrow">Gönüllü aktivitesi · 14 gün · alfabetik</p>
+              <h2>Kim, neyle uğraşıyor</h2>
+            </div>
+            <div class="actions">
+              <button class="mgr-btn">Hepsi</button>
+              <button class="mgr-btn" style="background: var(--tv-ink); color: white; border-color: var(--tv-ink);">Aktif</button>
+              <button class="mgr-btn">Yavaşlayan</button>
+              <button class="mgr-btn">Sessiz</button>
+            </div>
+          </div>
+
+          <ul class="mgr-vols">
+            <li class="mgr-vol-row">
+              <span class="mgr-vol-av">AT</span>
+              <span class="mgr-vol-name">Arda Tuzkapı<span class="meta">Müze 1 · Envanter</span></span>
+              <span class="mgr-vol-spark">
+                <span class="b on" style="height: 40%;"></span><span class="b on" style="height: 45%;"></span><span class="b on" style="height: 50%;"></span><span class="b" style="height: 5%;"></span><span class="b on" style="height: 55%;"></span><span class="b on" style="height: 60%;"></span><span class="b" style="height: 5%;"></span><span class="b on" style="height: 50%;"></span><span class="b on" style="height: 45%;"></span><span class="b on" style="height: 55%;"></span><span class="b" style="height: 5%;"></span><span class="b on" style="height: 60%;"></span><span class="b on" style="height: 50%;"></span><span class="b on" style="height: 55%;"></span>
+              </span>
+              <span class="mgr-vol-status">son 2 gün önce</span>
+            </li>
+            <li class="mgr-vol-row">
+              <span class="mgr-vol-av" style="background: var(--tv-terracotta);">AD</span>
+              <span class="mgr-vol-name">Ateş Dağlı<span class="meta">PNB-15 · Tarama</span></span>
+              <span class="mgr-vol-spark">
+                <span class="b on" style="height: 60%;"></span><span class="b on" style="height: 85%;"></span><span class="b on" style="height: 70%;"></span><span class="b" style="height: 5%;"></span><span class="b on" style="height: 90%;"></span><span class="b on" style="height: 100%;"></span><span class="b on" style="height: 75%;"></span><span class="b" style="height: 5%;"></span><span class="b on" style="height: 80%;"></span><span class="b on" style="height: 95%;"></span><span class="b on" style="height: 70%;"></span><span class="b on" style="height: 60%;"></span><span class="b" style="height: 5%;"></span><span class="b on" style="height: 88%;"></span>
+              </span>
+              <span class="mgr-vol-status">bugün</span>
+            </li>
+            <li class="mgr-vol-row">
+              <span class="mgr-vol-av" style="background: var(--tv-teal);">AB</span>
+              <span class="mgr-vol-name">Aysu Balta<span class="meta">PNB-I2 · Tarama</span></span>
+              <span class="mgr-vol-spark">
+                <span class="b" style="height: 5%;"></span><span class="b on" style="height: 55%;"></span><span class="b" style="height: 5%;"></span><span class="b on" style="height: 60%;"></span><span class="b on" style="height: 45%;"></span><span class="b" style="height: 5%;"></span><span class="b on" style="height: 70%;"></span><span class="b on" style="height: 65%;"></span><span class="b" style="height: 5%;"></span><span class="b on" style="height: 80%;"></span><span class="b on" style="height: 75%;"></span><span class="b" style="height: 5%;"></span><span class="b on" style="height: 60%;"></span><span class="b on" style="height: 55%;"></span>
+              </span>
+              <span class="mgr-vol-status">bugün</span>
+            </li>
+            <li class="mgr-vol-row">
+              <span class="mgr-vol-av">BD</span>
+              <span class="mgr-vol-name">Betül İşeri<span class="meta">PNB-14 · Tarama</span></span>
+              <span class="mgr-vol-spark">
+                <span class="b on" style="height: 60%;"></span><span class="b" style="height: 5%;"></span><span class="b" style="height: 5%;"></span><span class="b on" style="height: 50%;"></span><span class="b" style="height: 5%;"></span><span class="b" style="height: 5%;"></span><span class="b" style="height: 5%;"></span><span class="b on" style="height: 45%;"></span><span class="b" style="height: 5%;"></span><span class="b" style="height: 5%;"></span><span class="b" style="height: 5%;"></span><span class="b" style="height: 5%;"></span><span class="b on" style="height: 40%;"></span><span class="b" style="height: 5%;"></span>
+              </span>
+              <span class="mgr-vol-status slow">8 gün önce</span>
+            </li>
+            <li class="mgr-vol-row">
+              <span class="mgr-vol-av" style="background: var(--tv-gold); color: var(--tv-ink);">GE</span>
+              <span class="mgr-vol-name">Gülistan Eren<span class="meta">Başvuru · Planlama</span></span>
+              <span class="mgr-vol-spark">
+                <span class="b on" style="height: 50%;"></span><span class="b" style="height: 5%;"></span><span class="b on" style="height: 70%;"></span><span class="b on" style="height: 65%;"></span><span class="b" style="height: 5%;"></span><span class="b on" style="height: 75%;"></span><span class="b" style="height: 5%;"></span><span class="b on" style="height: 60%;"></span><span class="b on" style="height: 80%;"></span><span class="b on" style="height: 55%;"></span><span class="b" style="height: 5%;"></span><span class="b on" style="height: 70%;"></span><span class="b on" style="height: 90%;"></span><span class="b on" style="height: 65%;"></span>
+              </span>
+              <span class="mgr-vol-status">bugün</span>
+            </li>
+            <li class="mgr-vol-row">
+              <span class="mgr-vol-av" style="background: var(--tv-teal);">LG</span>
+              <span class="mgr-vol-name">Lara Gülmez<span class="meta">Vakıf T3 · Envanter</span></span>
+              <span class="mgr-vol-spark">
+                <span class="b" style="height: 5%;"></span><span class="b on" style="height: 60%;"></span><span class="b on" style="height: 50%;"></span><span class="b on" style="height: 70%;"></span><span class="b on" style="height: 65%;"></span><span class="b" style="height: 5%;"></span><span class="b on" style="height: 75%;"></span><span class="b on" style="height: 80%;"></span><span class="b" style="height: 5%;"></span><span class="b on" style="height: 70%;"></span><span class="b on" style="height: 55%;"></span><span class="b on" style="height: 60%;"></span><span class="b on" style="height: 50%;"></span><span class="b" style="height: 5%;"></span>
+              </span>
+              <span class="mgr-vol-status">dün</span>
+            </li>
+            <li class="mgr-vol-row">
+              <span class="mgr-vol-av" style="background: var(--tv-ink-soft);">SD</span>
+              <span class="mgr-vol-name">Sibel Dağ<span class="meta">PNB-68 · Tarama</span></span>
+              <span class="mgr-vol-spark">
+                <span class="b" style="height: 5%;"></span><span class="b on" style="height: 30%;"></span><span class="b" style="height: 5%;"></span><span class="b" style="height: 5%;"></span><span class="b" style="height: 5%;"></span><span class="b" style="height: 5%;"></span><span class="b" style="height: 5%;"></span><span class="b" style="height: 5%;"></span><span class="b" style="height: 5%;"></span><span class="b" style="height: 5%;"></span><span class="b" style="height: 5%;"></span><span class="b" style="height: 5%;"></span><span class="b" style="height: 5%;"></span><span class="b" style="height: 5%;"></span>
+              </span>
+              <span class="mgr-vol-status silent">14 gün önce</span>
+            </li>
+          </ul>
+
+          <p class="mgr-note">↑ son 14 gün, alfabetik · "son" sütununda hiçbir kıyas yok, sadece destek için son aktivite günü</p>
+        </section>
+
+        <!-- REPORTS TIMELINE -->
+        <section class="mgr-panel">
+          <div class="mgr-panel-head">
+            <div>
+              <p class="eyebrow">Son raporlar · gerçek zamanlı</p>
+              <h2>Rapor akışı</h2>
+            </div>
+            <div class="actions">
+              <button class="mgr-btn">↻</button>
+              <button class="mgr-btn">Tümü</button>
+            </div>
+          </div>
+
+          <ol class="mgr-timeline">
+            <li class="mgr-tl-item">
+              <span class="mgr-tl-when">14:22<br>bugün</span>
+              <span class="mgr-tl-av a">AD</span>
+              <div class="mgr-tl-body">
+                <span class="who">Ateş Dağlı · PNB Kutu 15</span>
+                <p class="what">"<b>704 sayfa tarandı</b>, A dolabı tamamlandı. Yarın B dolabına geçiyorum."</p>
+                <div class="tags"><span class="tag">tarama</span><span class="tag">PNB-15</span><span class="tag">viisan</span></div>
+              </div>
+            </li>
+            <li class="mgr-tl-item">
+              <span class="mgr-tl-when">11:08<br>bugün</span>
+              <span class="mgr-tl-av">AB</span>
+              <div class="mgr-tl-body">
+                <span class="who">Aysu Balta · PNB Kutu I2</span>
+                <p class="what">"<b>40 yeni belge</b> kodlandı. Notlar bölümünde Boratav'ın kendi el yazısıyla bir liste var, ona ayrıca bakmak gerekebilir."</p>
+                <div class="tags"><span class="tag">tarama</span><span class="tag">PNB-I2</span><span class="tag">epson</span></div>
+              </div>
+            </li>
+            <li class="mgr-tl-item">
+              <span class="mgr-tl-when">dün<br>16:45</span>
+              <span class="mgr-tl-av g">BÖ</span>
+              <div class="mgr-tl-body">
+                <span class="who">Beşir Özmen · Görsel-işitsel envanter</span>
+                <p class="what">"<b>TBCT envanteri tamamlandı.</b> Toplam 312 kalem girildi. Excel'i Drive'a yükledim."</p>
+                <div class="tags"><span class="tag">envanter</span><span class="tag">görsel-işitsel</span></div>
+              </div>
+            </li>
+            <li class="mgr-tl-item">
+              <span class="mgr-tl-when">2 gün önce</span>
+              <span class="mgr-tl-av" style="background: var(--tv-gold); color: var(--tv-ink);">LG</span>
+              <div class="mgr-tl-body">
+                <span class="who">Lara Gülmez · Afiş envanteri</span>
+                <p class="what">"A dolabı tamamlandı. Bazı afişlerin köşesi yırtık olduğundan ayrı bir not bıraktım."</p>
+                <div class="tags"><span class="tag">envanter</span><span class="tag">afiş</span></div>
+              </div>
+            </li>
+          </ol>
+          <div style="text-align: center; margin-top: 1rem;">
+            <button class="mgr-btn">Daha fazla yükle</button>
+          </div>
+        </section>
+      </main>
+
+      <aside>
+        <!-- TODAY'S ROSTER -->
+        <section class="mgr-panel">
+          <div class="mgr-panel-head">
+            <div><p class="eyebrow">Salı · 12 Mayıs</p><h2>Bugün arşivde</h2></div>
+          </div>
+          <div class="mgr-today-roster">
+            <div class="mgr-today-cell"><span class="av">AT</span><div class="info"><div class="name">Arda Tuzkapı</div><div class="loc">Müze 1</div></div></div>
+            <div class="mgr-today-cell"><span class="av t">AB</span><div class="info"><div class="name">Aysu Balta</div><div class="loc">Müze 2</div></div></div>
+            <div class="mgr-today-cell"><span class="av">SD</span><div class="info"><div class="name">Sibel Dağ</div><div class="loc">Vakıf T1</div></div></div>
+            <div class="mgr-today-cell"><span class="av g">İA</span><div class="info"><div class="name">İlknur Arslan</div><div class="loc">Vakıf T2</div></div></div>
+            <div class="mgr-today-cell"><span class="av t">LG</span><div class="info"><div class="name">Lara Gülmez</div><div class="loc">Vakıf T3</div></div></div>
+            <div class="mgr-today-cell"><span class="av">DP</span><div class="info"><div class="name">Duygu Polat</div><div class="loc">Vakıf T3</div></div></div>
+          </div>
+          <p class="mgr-note">6 kişi · ortalama 4 saat planlanmış</p>
+        </section>
+
+        <!-- ALERTS -->
+        <section class="mgr-panel">
+          <div class="mgr-panel-head">
+            <div><p class="eyebrow">Dikkat</p><h2>Takip gerekenler</h2></div>
+          </div>
+          <div class="mgr-alert">
+            <span class="icon">!</span>
+            <div class="body">
+              <div class="title">3 başvuru onay bekliyor</div>
+              <div class="sub">En eskisi 4 gündür. Biri Osmanlıca okuyor.</div>
+            </div>
+          </div>
+          <div class="mgr-alert">
+            <span class="icon">⏰</span>
+            <div class="body">
+              <div class="title">Sibel Dağ — 14 gündür sessiz</div>
+              <div class="sub">Son raporu 28 Nisan. Bir hatırlatma yeterli olabilir.</div>
+            </div>
+          </div>
+          <div class="mgr-alert">
+            <span class="icon">📦</span>
+            <div class="body">
+              <div class="title">Kutu 7–9 hâlâ tasnif sırasında</div>
+              <div class="sub">Sayfa sayısı boş, tarama bekleniyor.</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- WORK AREA DONUT -->
+        <section class="mgr-panel">
+          <div class="mgr-panel-head">
+            <div><p class="eyebrow">Çalışma alanı · 30 gün</p><h2>Emek nereye gitti</h2></div>
+          </div>
+          <div class="mgr-workarea">
+            <div class="mgr-workarea-chart" aria-label="Çalışma alanı dağılımı">
+              <svg viewBox="0 0 100 100">
+                <circle class="ring-bg" cx="50" cy="50" r="40" />
+                <circle class="ring" cx="50" cy="50" r="40" stroke="#94462a" stroke-dasharray="88 251.327" stroke-dashoffset="0" />
+                <circle class="ring" cx="50" cy="50" r="40" stroke="#b85c3a" stroke-dasharray="75 251.327" stroke-dashoffset="-88" />
+                <circle class="ring" cx="50" cy="50" r="40" stroke="#6b5d50" stroke-dasharray="50 251.327" stroke-dashoffset="-163" />
+                <circle class="ring" cx="50" cy="50" r="40" stroke="#c89b3c" stroke-dasharray="25 251.327" stroke-dashoffset="-213" />
+                <circle class="ring" cx="50" cy="50" r="40" stroke="#4a7c7e" stroke-dasharray="13 251.327" stroke-dashoffset="-238" />
+              </svg>
+              <div class="center"><div class="v">43</div><div class="lbl">oturum</div></div>
+            </div>
+            <ul class="mgr-workarea-legend">
+              <li><span class="sw" style="background: #94462a;"></span><span class="lab">Tarama</span><span class="v">35%</span></li>
+              <li><span class="sw" style="background: #b85c3a;"></span><span class="lab">Envanter</span><span class="v">30%</span></li>
+              <li><span class="sw" style="background: #6b5d50;"></span><span class="lab">Karma</span><span class="v">20%</span></li>
+              <li><span class="sw" style="background: #c89b3c;"></span><span class="lab">Başvuru</span><span class="v">10%</span></li>
+              <li><span class="sw" style="background: #4a7c7e;"></span><span class="lab">Çeviri</span><span class="v">5%</span></li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- WEEKLY SCHEDULE -->
+        <section class="mgr-panel">
+          <div class="mgr-panel-head">
+            <div><p class="eyebrow">Bu hafta</p><h2>Gönüllü programı</h2></div>
+            <div class="actions"><button class="mgr-btn">Düzenle</button></div>
+          </div>
+          <div style="font-size: 13px; color: var(--tv-ink-soft); display: grid; grid-template-columns: 60px 1fr; gap: 0.5rem 0.85rem;">
+            <span class="mono" style="color: var(--tv-ink-soft);">Pzt</span><span>Arda · Beşir · Betül · Ateş · Çağatay</span>
+            <span class="mono" style="color: var(--tv-ink-soft);">Sal</span><span>Arda · Aysu · Sibel · İlknur · Lara</span>
+            <span class="mono" style="color: var(--tv-terracotta-deep); font-weight: 600;">Çar</span><span style="color: var(--tv-ink); font-weight: 500;">Arda · Kübra · Beşir · — · Lara, Çiğdem</span>
+            <span class="mono" style="color: var(--tv-ink-soft);">Per</span><span>— · — · Tuğrulhan · Günay · —</span>
+            <span class="mono" style="color: var(--tv-ink-soft);">Cum</span><span>— · — · Kadir · Arif · —</span>
+          </div>
+          <p class="mgr-note">Cuma az dolu — bir tarayıcı boşa duruyor</p>
+        </section>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<script>
+  // View switcher
+  document.querySelectorAll('.mock-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.mock-tab').forEach(t => t.classList.remove('is-on'));
+      tab.classList.add('is-on');
+      const view = tab.dataset.view;
+      document.querySelectorAll('.mock-frame').forEach(f => f.classList.add('is-hidden'));
+      document.getElementById('view-' + view).classList.remove('is-hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+
+  // Headline picker — clicking an option applies it to the public hero
+  document.querySelectorAll('.picker-opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      document.querySelectorAll('.picker-opt').forEach(o => o.classList.remove('is-on'));
+      opt.classList.add('is-on');
+      const text = opt.dataset.headline;
+      const live = document.getElementById('liveHeadline');
+      if (live) live.innerHTML = text;
+    });
+  });
+
+  // Box-by-box grid — render 104 boxes with progress states based on real data
+  // 88 catalogued, ~5 in mid-progress, rest mostly just-opened or zero
+  (function renderBoxes() {
+    const grid = document.getElementById('boxesGrid');
+    if (!grid) return;
+    // Based on actual data: most boxes opened (88), but only a few have meaningful Tarama %
+    // We approximate per-box state: 4 with high progress (kutu 15 = Ateş, kutu 14 = Betül, kutu 68 = Sibel, kutu I2 = Aysu)
+    // and 20-ish "started", 64 "opened but barely", 16 "future" (boxes 89-104)
+    const states = [];
+    // Box 1-13: opened, mostly empty (b1)
+    for (let i = 1; i <= 13; i++) states.push(i === 1 ? 'b2' : 'b1');
+    // Box 14: Betül - ~10% (b1)
+    states.push('b1');
+    // Box 15: Ateş - high progress (b3)
+    states.push('b3');
+    // Box 16-67: catalogued but barely started (b0)
+    for (let i = 16; i <= 67; i++) states.push('b0');
+    // Box 68: Sibel (b1)
+    states.push('b1');
+    // Box 69-76: catalogued (b0)
+    for (let i = 69; i <= 76; i++) states.push('b0');
+    // I1, I2, F1, F2 - "intermediate" boxes - I2 = Aysu (b1), rest b0
+    states.push('b0', 'b1', 'b0', 'b0');
+    // diapozitif boxes (6) - b0
+    for (let i = 0; i < 6; i++) states.push('b0');
+    // future / not-yet-catalogued — 6 to reach 104
+    for (let i = 0; i < 6; i++) states.push('b-future');
+
+    const titles = [];
+    states.forEach((s, idx) => {
+      const num = idx + 1;
+      const div = document.createElement('div');
+      div.className = 'lp-box ' + s;
+      div.title = `Kutu ${num} — ${ {b0:'sıraya alınmış', b1:'açıldı, %0–5', b2:'%5–25', b3:'%25–60', b4:'%60+', 'b-future':'henüz katalogda yok'}[s] }`;
+      grid.appendChild(div);
+    });
+  })();
+</script>
+
+</body>
+</html>

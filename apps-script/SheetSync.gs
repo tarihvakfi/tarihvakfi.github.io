@@ -554,6 +554,12 @@ function _publishPublicProjectionFromSheet_(sheetId, metadata) {
       donePages: projection.donePages,
       totalUnits: projection.totalUnits,
       doneUnits: projection.doneUnits,
+      // v2 (May 2026): box + file counts so the public ledger / project card
+      // can show "açılmış kutu: 88 / 104" and "toplam dosya: 1.207" without
+      // hardcoding inventory numbers in the website. The website still needs
+      // a fallback for cases where this sync hasn't run yet.
+      totalFiles: projection.totalFiles,
+      cataloguedBoxes: projection.cataloguedBoxes,
       updatedAt: fsServerTimestamp()
     }));
   }
@@ -576,6 +582,8 @@ function _publishPublicProjectionFromSheet_(sheetId, metadata) {
     donePages: projection.donePages,
     totalUnits: projection.totalUnits,
     doneUnits: projection.doneUnits,
+    totalFiles: projection.totalFiles,
+    cataloguedBoxes: projection.cataloguedBoxes,
     statsWritten: projection.hasStats,
     tickerWritten: projection.tickerEntries.length
   };
@@ -588,6 +596,8 @@ function _buildPublicProjectionFromSheet_(sheetId, metadata) {
 
   let totalPages = 0;
   let totalUnits = 0;
+  let totalFiles = 0;
+  let cataloguedBoxes = 0;
   const summaryTab = tabs.find(function (name) {
     return _slugifyTabName_(name) === 'pnb_sayisallastirma';
   });
@@ -596,6 +606,8 @@ function _buildPublicProjectionFromSheet_(sheetId, metadata) {
     const summary = _summarizePnbOverviewRows_(summaryRows);
     totalPages = summary.totalPages;
     totalUnits = summary.totalUnits;
+    totalFiles = summary.totalFiles;
+    cataloguedBoxes = summary.cataloguedBoxes;
   }
 
   let donePages = 0;
@@ -626,6 +638,8 @@ function _buildPublicProjectionFromSheet_(sheetId, metadata) {
     donePages: Math.max(0, Math.round(totalPages > 0 ? Math.min(donePages, totalPages) : donePages)),
     totalUnits: Math.max(0, Math.round(totalUnits)),
     doneUnits: Math.max(0, Math.round(totalUnits > 0 ? Math.min(doneUnits, totalUnits) : doneUnits)),
+    totalFiles: Math.max(0, Math.round(totalFiles)),
+    cataloguedBoxes: Math.max(0, Math.round(cataloguedBoxes)),
     tickerEntries: tickerEntries
   };
 }
@@ -655,12 +669,29 @@ function _readPublicSheetRows_(sheetId, tabName) {
 function _summarizePnbOverviewRows_(rows) {
   let totalPages = 0;
   let totalUnits = 0;
+  let totalFiles = 0;
+  let cataloguedBoxes = 0;
   rows.forEach(function (row) {
     const pages = _parseDoneTotalCell_(row.sayfaSayisi);
     totalPages += pages.total;
     totalUnits += _numberOrZero_(row.belgeSayisi);
+    totalFiles += _numberOrZero_(row.dosyaSayisi);
+    // A box counts as catalogued when its Kutu cell carries a value AND at
+    // least one of the dosya/belge/sayfa columns is non-zero. This avoids
+    // counting placeholder rows with only a Kutu number filled in.
+    const kutu = _stringValue_(row.kutu);
+    if (kutu && (_numberOrZero_(row.dosyaSayisi) > 0 ||
+                 _numberOrZero_(row.belgeSayisi) > 0 ||
+                 pages.total > 0)) {
+      cataloguedBoxes += 1;
+    }
   });
-  return { totalPages: totalPages, totalUnits: totalUnits };
+  return {
+    totalPages: totalPages,
+    totalUnits: totalUnits,
+    totalFiles: totalFiles,
+    cataloguedBoxes: cataloguedBoxes
+  };
 }
 
 function _summarizePnbDetailRows_(tabSlug, rows) {
