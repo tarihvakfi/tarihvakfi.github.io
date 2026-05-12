@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler-flags.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.3.0/dist/tabler-icons.min.css" />
   <link rel="stylesheet" href="../css/main.css" />
-  <link rel="stylesheet" href="../css/dashboard.css?v=20260512-livesync" />
+  <link rel="stylesheet" href="../css/dashboard.css?v=20260512-v3" />
 </head>
 <body>
   <header class="site-header">
@@ -155,11 +155,11 @@
             <span class="ms-val"><strong id="managerReportsValue">0</strong></span>
             <span class="ms-foot" id="managerReportsHint">Rapor yükleniyor</span>
           </button>
-          <!-- PNB progress cell — static for now. When publicProjectStats is
-               read on /app/, swap the values in via a new renderer. -->
+          <!-- PNB progress cell — hydrated from /publicProjectStats/pnb by
+               hydrateManagerPnbCard() in dashboard.js. -->
           <div class="manager-summary-cell manager-summary-static">
             <span class="ms-lbl">PNB ilerleme</span>
-            <span class="ms-val"><strong id="managerPnbPct">%4,0</strong></span>
+            <span class="ms-val"><strong id="managerPnbPct">—</strong></span>
             <span class="ms-foot">~72.500 sayfa kaldı</span>
           </div>
         </section>
@@ -168,27 +168,26 @@
       <div class="manager-layout">
         <main class="manager-main">
 
-          <!-- PNB project hero block (May 2026). Mirrors the mockup design:
-               a terracotta-left-edged panel summarising current PNB progress
-               so coordinators don't need to switch tabs to see how the
-               archive is doing. Static numbers; landing-side wiring already
-               exists in publicProjectStats — could be ported here later. -->
+          <!-- PNB project hero block (May 2026). Hydrated by
+               hydrateManagerPnbCard() from the same /publicProjectStats/pnb
+               doc the public site reads, so the numbers stay consistent
+               between public and admin views. -->
           <section class="manager-panel manager-pnb-hero">
             <p class="bugun-section-h" style="margin:0 0 .25rem;">Aktif proje</p>
             <h2 style="font-size:1.35rem; margin:0 0 .25rem;">Pertev Naili Boratav Arşivi</h2>
-            <p class="muted" style="font-size:.875rem; margin:0 0 1.25rem;">Boratav'ın 75.613 sayfalık özel arşivinin yolculuğu yeni başladı.</p>
+            <p class="muted" id="managerPnbHeroDesc" style="font-size:.875rem; margin:0 0 1.25rem;">Boratav'ın özel arşivinin yolculuğu sürüyor.</p>
             <div class="manager-pnb-row">
-              <span class="manager-pnb-pct" id="managerPnbHeroPct">%4,0</span>
-              <span class="manager-pnb-status" id="managerPnbHeroStatus">~3.025 / 75.613 sayfa · son 7 günde +287 sayfa</span>
+              <span class="manager-pnb-pct" id="managerPnbHeroPct">—</span>
+              <span class="manager-pnb-status" id="managerPnbHeroStatus">veri yükleniyor…</span>
             </div>
             <div class="manager-pnb-bar" aria-hidden="true">
-              <span style="width:4%" id="managerPnbHeroBar"></span>
+              <span style="width:0%" id="managerPnbHeroBar"></span>
             </div>
             <div class="manager-pnb-facts">
-              <div><p class="l">Açık kutu</p><p class="v" id="managerPnbHeroBoxes">88 / 104</p></div>
-              <div><p class="l">Toplam belge</p><p class="v" id="managerPnbHeroUnits">11.975</p></div>
-              <div><p class="l">Toplam dosya</p><p class="v" id="managerPnbHeroFiles">1.207</p></div>
-              <div><p class="l">Bu hafta</p><p class="v" id="managerPnbHeroWeek">+287 sf</p></div>
+              <div><p class="l">Açık kutu</p><p class="v" id="managerPnbHeroBoxes">—</p></div>
+              <div><p class="l">Toplam belge</p><p class="v" id="managerPnbHeroUnits">—</p></div>
+              <div><p class="l">Toplam dosya</p><p class="v" id="managerPnbHeroFiles">—</p></div>
+              <div><p class="l">Bu hafta katkı</p><p class="v" id="managerPnbHeroWeek">—</p></div>
             </div>
           </section>
 

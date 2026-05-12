@@ -4303,6 +4303,9 @@ function renderBugun() {
   // Admin-only Bakım block at the bottom of Bugün (May 2026). Render
   // immediately so the layout shows; refreshed when sheet sync data lands.
   if (typeof renderBugunAdminBlock === "function") renderBugunAdminBlock();
+  // Live PNB stats from publicProjectStats — staff-readable (allow-read: true)
+  // so admin PNB hero + summary cell match the public site exactly.
+  if (typeof loadPnbStatsForAdmin === "function") loadPnbStatsForAdmin();
   if (isAdmin()) {
     if (typeof loadSheetSyncStatus === "function") loadSheetSyncStatus();
     if (typeof loadSheetMirrorTabs === "function") loadSheetMirrorTabs();
@@ -9465,4 +9468,94 @@ function _showBugunAdminToast(message, kind) {
     el.classList.remove("show");
     setTimeout(() => el.remove(), 250);
   }, 3600);
+}
+
+// ============================================================
+// PNB hero card hydrator (May 2026) — pulls from same source as public
+// site so admin and public numbers stay in lockstep.
+// ============================================================
+let _pnbStatsCache = null;
+let _pnbTickerCache = null;
+
+async function loadPnbStatsForAdmin() {
+  if (!isStaff()) return;
+  try {
+    const snap = await getDoc(doc(db, "publicProjectStats", "pnb"));
+    _pnbStatsCache = snap.exists() ? snap.data() : null;
+  } catch (err) {
+    _pnbStatsCache = null;
+  }
+  try {
+    const since = Date.now() - 7 * 86400000;
+    const tickerSnap = await getDocs(query(
+      collection(db, "publicTicker"),
+      orderBy("createdAt", "desc"),
+      limit(200)
+    ));
+    _pnbTickerCache = tickerSnap.docs
+      .map((d) => d.data() || {})
+      .filter((r) => {
+        const t = r.createdAt && typeof r.createdAt.toMillis === "function"
+          ? r.createdAt.toMillis()
+          : (r.createdAt && r.createdAt.seconds ? r.createdAt.seconds * 1000 : 0);
+        return t >= since;
+      });
+  } catch (err) {
+    _pnbTickerCache = [];
+  }
+  hydrateManagerPnbCard();
+}
+
+function hydrateManagerPnbCard() {
+  const stats = _pnbStatsCache || {};
+  const total = Number(stats.totalPages) || 0;
+  const done = Number(stats.donePages) || 0;
+  const totalUnits = Number(stats.totalUnits) || 0;
+  const totalFiles = Number(stats.totalFiles) || 0;
+  const cataloguedBoxes = Number(stats.cataloguedBoxes) || 0;
+  const pct = total > 0 ? (done / total) * 100 : 0;
+
+  // PNB hero block
+  const fmt = (n) => new Intl.NumberFormat("tr-TR").format(n);
+  const fmtPct = (p) => (p < 10 ? p.toFixed(1).replace(".", ",") : Math.round(p).toString());
+
+  const pctEl = document.getElementById("managerPnbHeroPct");
+  if (pctEl) pctEl.textContent = pct > 0 ? `%${fmtPct(pct)}` : "—";
+
+  const weekCount = (_pnbTickerCache || []).length;
+  const statusEl = document.getElementById("managerPnbHeroStatus");
+  if (statusEl) {
+    statusEl.textContent = total > 0
+      ? `~${fmt(done)} / ${fmt(total)} sayfa · son 7 günde ${weekCount} katkı`
+      : "veri henüz yok";
+  }
+
+  const barEl = document.getElementById("managerPnbHeroBar");
+  if (barEl) barEl.style.width = Math.max(0, Math.min(100, pct)) + "%";
+
+  const descEl = document.getElementById("managerPnbHeroDesc");
+  if (descEl && total > 0) {
+    descEl.textContent = `Boratav'ın ${fmt(total)} sayfalık özel arşivi gönüllü emeğiyle gün yüzüne çıkıyor.`;
+  }
+
+  const boxesEl = document.getElementById("managerPnbHeroBoxes");
+  if (boxesEl) boxesEl.textContent = cataloguedBoxes > 0 ? `${cataloguedBoxes} / 104` : "—";
+
+  const unitsEl = document.getElementById("managerPnbHeroUnits");
+  if (unitsEl) unitsEl.textContent = totalUnits > 0 ? fmt(totalUnits) : "—";
+
+  const filesEl = document.getElementById("managerPnbHeroFiles");
+  if (filesEl) filesEl.textContent = totalFiles > 0 ? fmt(totalFiles) : "—";
+
+  const weekEl = document.getElementById("managerPnbHeroWeek");
+  if (weekEl) weekEl.textContent = weekCount > 0 ? `+${weekCount} rapor` : "—";
+
+  // Summary strip PNB cell
+  const sumPct = document.getElementById("managerPnbPct");
+  if (sumPct) sumPct.textContent = pct > 0 ? `%${fmtPct(pct)}` : "—";
+  const sumFoot = document.querySelector(".manager-summary-cell.manager-summary-static .ms-foot");
+  if (sumFoot) {
+    const remaining = Math.max(0, total - done);
+    sumFoot.textContent = total > 0 ? `~${fmt(remaining)} sayfa kaldı` : "yükleniyor";
+  }
 }

@@ -4049,3 +4049,250 @@ i .when {
   background: #94462a;
   color: #fff;
 }
+
+/* === Admin panel visual upgrade (May 2026, "v3") =====================
+   The Bakım block lives at the bottom of Bugün. This pass adds a richer
+   editorial treatment: gradient accent strip on each panel, larger
+   numbers in Lora, softer cream backgrounds, a more confident hero
+   typography, and a polished "Şimdi senkronize et" CTA. */
+
+.bugun-admin-block {
+  margin-top: 3rem;
+  padding-top: 2.5rem;
+  border-top: none;
+  position: relative;
+}
+.bugun-admin-block::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #c89b3c 30%, #b85c3a 50%, #4a7c7e 70%, transparent);
+  opacity: .55;
+}
+
+.bugun-admin-head {
+  margin-bottom: 2rem;
+  text-align: left;
+}
+.bugun-admin-head h2 {
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  font-weight: 600;
+  letter-spacing: -.02em;
+  margin: 0 0 .45rem;
+}
+.bugun-admin-sub {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: #6b5d50;
+  max-width: 68ch;
+}
+
+/* Panel — richer card */
+.bugun-admin-panel {
+  background: linear-gradient(180deg, #ffffff 0%, #fdfaf3 100%);
+  border: 1px solid #e8dfd2;
+  border-radius: 8px;
+  padding: 1.5rem 1.6rem;
+  box-shadow: 0 1px 2px rgba(43, 32, 24, .04), 0 8px 24px rgba(43, 32, 24, .03);
+  position: relative;
+  overflow: hidden;
+}
+.bugun-admin-panel::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #b85c3a 0%, #c89b3c 100%);
+  opacity: .85;
+}
+.bugun-admin-panel-head {
+  padding-bottom: .85rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid rgba(232, 223, 210, .8);
+}
+.bugun-admin-panel-head .lab {
+  color: #94462a;
+  font-size: 11px;
+  letter-spacing: .18em;
+}
+.bugun-admin-panel-head h3 {
+  font-size: 1.2rem;
+  letter-spacing: -.012em;
+}
+
+/* Narrative sentence — make the highlighted bits feel weighty */
+.bugun-admin-narrative {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #2b2018;
+  max-width: 62ch;
+}
+.bugun-admin-narrative b {
+  font-weight: 600;
+  color: #94462a;
+  background: linear-gradient(180deg, transparent 70%, rgba(200, 155, 60, .25) 70%);
+  padding: 0 2px;
+}
+
+/* Status pill — bigger, more presence */
+.bugun-admin-status {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: .35rem .75rem;
+  border-radius: 99px;
+  border: 1px solid currentColor;
+  background: rgba(74, 124, 126, .08);
+  color: #4a7c7e;
+}
+.bugun-admin-status[data-status="warn"] { background: rgba(200, 155, 60, .15); color: #8a6818; }
+.bugun-admin-status[data-status="bad"] { background: rgba(184, 92, 58, .12); color: #94462a; }
+
+/* Live sync button — make it the unmissable primary action */
+.bugun-admin-live-btn {
+  padding: .65rem 1.25rem !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+  background: linear-gradient(135deg, #b85c3a 0%, #94462a 100%) !important;
+  border: 1.5px solid #94462a !important;
+  box-shadow: 0 4px 14px rgba(184, 92, 58, .3) !important;
+  letter-spacing: .01em;
+  transition: transform .12s ease, box-shadow .15s ease;
+}
+.bugun-admin-live-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(184, 92, 58, .4) !important;
+}
+.bugun-admin-live-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(184, 92, 58, .3) !important;
+}
+
+/* Event log row polish — make dots bigger, more breathing room */
+.bugun-admin-events li {
+  padding: .65rem 0;
+  align-items: center;
+}
+.bugun-admin-events li::before {
+  width: 10px; height: 10px;
+  margin-top: 0;
+  box-shadow: 0 0 0 3px rgba(76, 174, 94, .12);
+}
+.bugun-admin-events li.warn::before { box-shadow: 0 0 0 3px rgba(200, 155, 60, .15); }
+.bugun-admin-events li.bad::before { box-shadow: 0 0 0 3px rgba(184, 92, 58, .12); }
+.bugun-admin-events li .label {
+  font-family: "Lora", Georgia, serif;
+  font-size: .98rem;
+  font-weight: 500;
+}
+
+/* Mirror tabs — alternating zebra + smoother pills */
+.bugun-admin-mirror li {
+  padding: .65rem .85rem;
+  font-size: 13.5px;
+  background: rgba(250, 246, 240, .7);
+  transition: background .12s;
+}
+.bugun-admin-mirror li:hover { background: #fdf9f1; }
+.bugun-admin-mirror li .nm {
+  font-size: .98rem;
+  font-weight: 500;
+}
+.bugun-admin-mirror li .rc {
+  font-variant-numeric: tabular-nums;
+}
+.bugun-admin-mirror li .st {
+  font-weight: 600;
+  background: rgba(74, 124, 126, .15);
+  color: #4a7c7e;
+}
+
+/* Hızlı işlemler — full-width buttons with terracotta hover */
+.bugun-admin-actions .btn {
+  background: #fff !important;
+  border: 1px solid #e8dfd2 !important;
+  color: #2b2018 !important;
+  font-size: 13.5px !important;
+  padding: .65rem .85rem !important;
+  transition: border-color .12s, background .12s;
+}
+.bugun-admin-actions .btn:hover {
+  border-color: #b85c3a !important;
+  background: #fdf9f1 !important;
+}
+
+/* Accordion — make summary feel like a real call-to-action */
+.bugun-admin-accordion {
+  margin-top: 2rem;
+  border: 1px solid #e8dfd2;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fff 0%, #fdfaf3 100%);
+  box-shadow: 0 1px 2px rgba(43, 32, 24, .04);
+}
+.bugun-admin-accordion > summary {
+  padding: 1.25rem 1.5rem;
+  transition: background .15s;
+}
+.bugun-admin-accordion > summary::after {
+  content: "▾";
+  position: absolute;
+  right: 1.5rem;
+  top: 1.35rem;
+  color: #6b5d50;
+  font-size: 1.1rem;
+  transition: transform .2s;
+}
+.bugun-admin-accordion[open] > summary::after {
+  transform: rotate(180deg);
+}
+.bugun-admin-accordion > summary {
+  position: relative;
+  padding-right: 3rem;
+}
+.bugun-admin-accordion > summary .title {
+  font-size: 1.15rem;
+}
+
+/* PNB hero — visual presence with gradient bar */
+.manager-pnb-hero {
+  position: relative;
+  overflow: hidden;
+}
+.manager-pnb-hero::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #b85c3a 0%, #c89b3c 100%);
+}
+.manager-pnb-pct {
+  font-size: 2.6rem !important;
+  letter-spacing: -.02em;
+  background: linear-gradient(135deg, #94462a 0%, #b85c3a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.manager-pnb-bar {
+  background: rgba(232, 223, 210, .6);
+}
+.manager-pnb-bar > span {
+  background: linear-gradient(90deg, #b85c3a 0%, #c89b3c 100%);
+  box-shadow: 0 0 8px rgba(184, 92, 58, .25);
+}
+
+/* Summary strip — strong number presence */
+.manager-summary-strip {
+  padding-top: 1.5rem;
+  gap: 2rem;
+}
+.manager-summary-cell .ms-val {
+  font-size: 2rem;
+}
+.manager-summary-cell .ms-val strong {
+  background: linear-gradient(135deg, #2b2018 0%, #6b5d50 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
