@@ -2967,3 +2967,181 @@ body.admin-shell #publicContentEditorCard { display: block; }
   font-style: italic;
 }
 .sv-daily-note-text b { font-weight: 600; color: #94462a; font-style: normal; }
+
+/* ============================================================
+   Mockup → /app/ visual port (May 2026)
+   Pulls the editorial styling from the mockup into the live app:
+   - Big terracotta Rapor Yaz card on volunteer Anasayfa
+   - PNB hero block above the coordinator Bugün pending section
+   - Volunteer log card polish
+   ============================================================ */
+
+/* --- Volunteer Anasayfa: greeting + rapor card prominence --- */
+.sv-greet h1 {
+  font-family: "Lora", Georgia, serif;
+  font-size: 1.75rem;
+  letter-spacing: -.015em;
+  font-weight: 600;
+}
+.sv-greet-sub {
+  font-family: "DM Mono", "JetBrains Mono", ui-monospace, monospace;
+  font-size: .8rem;
+  letter-spacing: .04em;
+  color: var(--tblr-secondary);
+}
+
+/* The inline Rapor Yaz card is the primary CTA on Anasayfa — give it
+   the prominent terracotta-bordered card look from the mockup. */
+.sv-mode .inline-rapor-card {
+  background: var(--tblr-bg-surface, #fff);
+  border: 2px solid #b85c3a !important;
+  border-radius: 8px;
+  padding: 1.5rem 1.6rem 1.4rem !important;
+  box-shadow: 0 6px 22px rgba(184, 92, 58, .08);
+  position: relative;
+}
+.sv-mode .inline-rapor-card::before {
+  content: "+ Rapor Yaz";
+  display: inline-block;
+  font-family: "Lora", Georgia, serif;
+  font-size: 1.25rem; font-weight: 600;
+  color: #94462a;
+  margin-bottom: .25rem;
+}
+.sv-mode .inline-rapor-card .if-title {
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 11px; font-weight: 500;
+  letter-spacing: .15em; text-transform: uppercase;
+  color: var(--tblr-secondary);
+  margin: 0 0 .15rem;
+}
+.sv-mode .inline-rapor-card .if-sub {
+  font-size: .92rem; color: var(--tblr-secondary, #4a5568);
+  margin-bottom: .85rem;
+}
+.sv-mode .inline-rapor-card .if-submit,
+.sv-mode .inline-rapor-card button[type="submit"] {
+  background: #b85c3a; color: #fff;
+  border: 1.5px solid #b85c3a;
+  font-weight: 500;
+}
+.sv-mode .inline-rapor-card .if-submit:hover,
+.sv-mode .inline-rapor-card button[type="submit"]:hover {
+  background: #a04e30; border-color: #a04e30;
+}
+
+/* "Son raporların" log card — editorial polish */
+.sv-mode .sv-log-card {
+  background: var(--tblr-bg-surface, #fff);
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 6px;
+  padding: 1.25rem 1.5rem !important;
+  margin-top: 1.25rem;
+}
+.sv-mode .sv-log-head {
+  font-family: "Lora", Georgia, serif;
+  font-size: 1.1rem;
+  margin: 0 0 .85rem;
+  padding-bottom: .6rem;
+  border-bottom: 1px solid var(--tblr-border-color);
+}
+
+/* --- Coordinator Bugün: PNB hero block --- */
+.manager-pnb-hero {
+  background: linear-gradient(135deg, var(--tblr-bg-surface, #fff) 0%, #fdf9f1 100%);
+  border: 1px solid var(--tblr-border-color);
+  border-left: 4px solid #b85c3a;
+  border-radius: 6px;
+  padding: 1.5rem 1.6rem 1.4rem;
+  margin-bottom: 1.25rem;
+}
+.manager-pnb-hero .bugun-section-h {
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 10px; font-weight: 500;
+  letter-spacing: .18em; text-transform: uppercase;
+  color: #94462a;
+}
+.manager-pnb-hero h2 {
+  font-family: "Lora", Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -.012em;
+}
+.manager-pnb-row {
+  display: flex; align-items: baseline; gap: 1rem;
+  flex-wrap: wrap;
+}
+.manager-pnb-pct {
+  font-family: "Lora", Georgia, serif;
+  font-weight: 600;
+  font-size: 2.4rem;
+  color: var(--tblr-body-color, #1d273b);
+  line-height: 1;
+}
+.manager-pnb-status {
+  font-family: "DM Mono", monospace;
+  font-size: 12px;
+  color: var(--tblr-secondary);
+}
+.manager-pnb-bar {
+  height: 8px;
+  background: #e8dfd2;
+  border-radius: 99px;
+  overflow: hidden;
+  margin: .65rem 0 1rem;
+}
+.manager-pnb-bar > span {
+  display: block; height: 100%;
+  background: linear-gradient(90deg, #b85c3a, #c89b3c);
+  border-radius: 99px;
+}
+.manager-pnb-facts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--tblr-border-color);
+}
+.manager-pnb-facts .l {
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--tblr-secondary);
+  margin: 0 0 .2rem;
+}
+.manager-pnb-facts .v {
+  font-family: "Lora", Georgia, serif;
+  font-weight: 600;
+  font-size: 1.3rem;
+  color: var(--tblr-body-color, #1d273b);
+  margin: 0;
+}
+@media (max-width: 720px) {
+  .manager-pnb-facts { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Bugun warnings / alerts — match the mockup's terracotta-left-edge look */
+.bugun-warnings .warning-item,
+.bugun-warnings .bugun-warning {
+  border-left: 3px solid #b85c3a !important;
+  background: rgba(184, 92, 58, .06) !important;
+  border-radius: 4px;
+  padding: .85rem 1rem;
+  margin-bottom: .55rem;
+}
+
+/* Coordinator panel head polish — eyebrow in terracotta-mono */
+.manager-panel .bugun-section-h {
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: #94462a;
+  margin: 0 0 .25rem;
+}
+.manager-panel h2 {
+  font-family: "Lora", Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -.008em;
+}
