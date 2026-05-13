@@ -1,919 +1,633 @@
-// Tarih Vakfı public landing — small, framework-less.
+// Tarih Vakfı · Sayım Defteri — landing renderer.
 //
-// Architecture (May 2026, post-Firebase migration):
-//   The site no longer talks to Firestore. All live data comes from a
-//   single Google Apps Script web app endpoint that reads the shared
-//   Google Sheet and returns a sanitised JSON projection.
+// Architecture:
+//   Sheet → Apps Script (?public=1) → js/snapshot.js → this script.
+//   Snapshot renders instantly on first paint; live fetch overlays
+//   newer data in the background.
 //
-//   Endpoint: window.__SHEETSYNC_URL__ + "?public=1"
-//   Response shape (see apps-script/SheetSync.gs#_buildPublicSitePayload_):
-//     {
-//       ok: true,
-//       generatedAt: "ISO timestamp",
-//       data: {
-//         stats: { projects: { pnb: { totalPages, donePages, totalUnits,
-//                                     totalFiles, cataloguedBoxes, boxes:[], ... } } },
-//         ticker: [{ slug, name, donePages, totalPages, percent, when, materialCategory }],
-//         content: { heroEyebrow, heroHeadline, heroSub, dailyNote, ... },
-//         activeVolunteers: ["Ali","Ayşe", ...],
-//         schedule: { monday: [...], tuesday: [...] }
-//       }
-//     }
+//   URL flag ?live=1 bypasses the snapshot — used for previewing
+//   sheet edits while authoring content.
 //
-// The page is fully usable without the network (static markup + sensible
-// fallbacks). When the fetch succeeds, hydrators overwrite the static
-// content with live numbers.
+// All text overrides live in the Apps Script payload's `content` map
+// (filled from the "Anasayfa Metinleri" sheet tab). Each editable
+// element on the page carries data-edit="<key>"; content[key] wins.
 
-(() => {
-  const PNB_TARGET_BOXES = 104;
+(function () {
+  // ---------- URL flags ----------
+  const params = new URLSearchParams(location.search);
+  const liveOnly = params.get('live') === '1';
 
-  // ---------- Nav ----------
-  const navWrap = document.getElementById("lpNavWrap");
-  if (navWrap) {
-    const onScroll = () => {
-      navWrap.classList.toggle("scrolled", window.scrollY > 8);
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-  }
-
-  const navToggle = document.getElementById("lpNavToggle");
-  const mobileNav = document.getElementById("lpMobileNav");
-  const mobileClose = document.getElementById("lpMobileClose");
-  function setMobileOpen(open) {
-    if (!mobileNav || !navToggle) return;
-    if (open) {
-      mobileNav.removeAttribute("hidden");
-      navToggle.setAttribute("aria-expanded", "true");
-      document.body.style.overflow = "hidden";
-    } else {
-      mobileNav.setAttribute("hidden", "");
-      navToggle.setAttribute("aria-expanded", "false");
-      document.body.style.overflow = "";
-    }
-  }
-  navToggle?.addEventListener("click", () => setMobileOpen(true));
-  mobileClose?.addEventListener("click", () => setMobileOpen(false));
-  document.querySelectorAll("[data-mn-link]").forEach((a) => {
-    a.addEventListener("click", () => setMobileOpen(false));
-  });
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && mobileNav && !mobileNav.hasAttribute("hidden")) {
-      setMobileOpen(false);
-    }
-  });
-
-  // ---------- Initial paint ----------
-  markRosterToday();
-  renderBoxesGridStatic();
-
-  // ---------- Instant render from snapshot ----------
-  // js/snapshot.js drops a snapshot of the Apps Script payload into
-  // window.__SNAPSHOT__. We render that immediately on first paint (no
-  // network round-trip, no "—" placeholders), then quietly fetch the live
-  // endpoint and overlay any newer numbers.
+  // ---------- Snapshot bootstrap (instant paint) ----------
   const snapshot = window.__SNAPSHOT__;
-  if (snapshot && snapshot.ok && snapshot.data) {
-    try { hydrateAll(snapshot.data); } catch (e) { /* fall through */ }
-  } else {
-    // No snapshot? Show "yükleniyor" briefly until the fetch completes.
-    setLedgerFallback();
-    setCollectiveFallback();
+  if (!liveOnly && snapshot && snapshot.ok && snapshot.data) {
+    try { hydrateAll(snapshot.data); } catch (e) { /* ignore */ }
   }
 
-  // ---------- Background live refresh ----------
+  // ---------- Live fetch ----------
   const url = window.__SHEETSYNC_URL__;
-  const looksConfigured = typeof url === "string"
-    && url.indexOf("script.google.com") >= 0
-    && url.indexOf("REPLACE_ME") === -1;
-  if (!looksConfigured) {
-    if (!snapshot) hideTicker();
-    return;
+  const configured = typeof url === 'string'
+    && url.indexOf('script.google.com') >= 0
+    && url.indexOf('REPLACE_ME') === -1;
+  if (configured) {
+    const sep = url.indexOf('?') >= 0 ? '&' : '?';
+    fetch(`${url}${sep}public=1&t=${Date.now()}`, {
+      method: 'GET', mode: 'cors', cache: 'no-store', redirect: 'follow'
+    })
+      .then((r) => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+      .then((body) => {
+        if (body && body.ok === true && body.data) hydrateAll(body.data);
+      })
+      .catch(() => { /* keep snapshot or empty state */ });
   }
 
-  fetchPayload(url)
-    .then((data) => hydrateAll(data))
-    .catch(() => {
-      if (!snapshot) {
-        setLedgerFallback();
-        setCollectiveFallback();
-        hideTicker();
-      }
-      // Else: snapshot is already on screen; silent failure is fine.
-    });
-
-  async function fetchPayload(base) {
-    const sep = base.indexOf("?") >= 0 ? "&" : "?";
-    const resp = await fetch(`${base}${sep}public=1&t=${Date.now()}`, {
-      method: "GET",
-      mode: "cors",
-      cache: "no-store",
-      redirect: "follow"
-    });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const body = await resp.json();
-    if (!body || body.ok !== true || !body.data) {
-      throw new Error("Bad payload");
-    }
-    return body.data;
-  }
-
-  // ---------- Combined hydrate ----------
-  // Receives the JSON payload from Apps Script and routes each piece to
-  // the section that consumes it.
+  // =========================================================================
+  // HYDRATE ALL
+  // =========================================================================
   function hydrateAll(payload) {
+    const content = (payload && payload.content) || {};
     const stats = projectStats(payload);
     const ticker = Array.isArray(payload.ticker) ? payload.ticker : [];
+    const boxes = Array.isArray(payload.boxes) ? payload.boxes : [];
+    const volunteers = Array.isArray(payload.volunteers) ? payload.volunteers : [];
+    const weekly = Array.isArray(payload.weeklyRhythm) ? payload.weeklyRhythm : [0,0,0,0,0,0,0];
 
-    hydrateLedger(stats, ticker);
-    hydrateCollective(ticker);
-    hydrateProjectCard(stats, ticker);
-    hydrateAreaBar(ticker);
-    hydrateBoxesGrid(stats);
-    hydrateTickerSection(ticker);
+    // Optional accent color override
+    if (content.accentColor && /^#[0-9a-f]{3,8}$/i.test(content.accentColor)) {
+      document.documentElement.style.setProperty('--accent', content.accentColor);
+    }
 
-    hydrateWall(payload.activeVolunteers);
-    hydrateRoster(payload.schedule);
-    hydrateSiteContent(payload.content);
-
-    // v4 — sheet-faithful additions
-    hydrateStream(payload.stream, ticker);
-    hydrateWeeklyRhythm(payload.weeklyRhythm);
-    hydrateTouchedBoxes(payload.boxes, ticker);
-    hydrateBoxTable(payload.boxes);
-    hydrateVolunteers(payload.volunteers);
+    applyContent(content);
+    hydrateMasthead(content);
+    hydrateNow(ticker, volunteers, boxes);
+    hydrateGlance(stats, ticker, boxes, weekly);
+    hydrateSignals(content, boxes, ticker, weekly);
+    hydrateMaterialBreakdown(ticker);
+    hydrateDays(ticker, boxes, volunteers);
+    hydrateActiveBoxes(boxes, ticker);
+    hydrateFirsts(boxes, ticker, volunteers);
+    hydratePullCite();
   }
 
-  // The payload supports two shapes for stats:
-  //   stats: { projects: { pnb: {...} } }     ← new direct-from-sheet shape
-  //   stats: { totalPages, donePages, ... }   ← legacy Firestore shape
   function projectStats(payload) {
     const s = payload && payload.stats;
     if (!s) return null;
     if (s.projects && s.projects.pnb) return s.projects.pnb;
-    if (typeof s.totalPages !== "undefined") return s;
+    if (typeof s.totalPages !== 'undefined') return s;
     return null;
   }
 
-  // ---------- Editorial copy overlay ----------
-  // The "Anasayfa Metinleri" sheet tab lets the foundation edit
-  // headlines, paragraphs, FAQ rows, etc. without touching code.
-  // Each row is { key | value }; we map the key to any
-  // [data-edit="<key>"] element on the page.
-  function hydrateSiteContent(content) {
-    if (!content || typeof content !== "object") return;
-
-    const TEXT_KEYS = ["heroEyebrow", "heroHeadline", "heroSub",
-                       "projectHeading", "projectPeople", "projectBlurb"];
-    TEXT_KEYS.forEach((key) => {
-      const value = content[key];
-      if (value == null || String(value).trim() === "") return;
-      document.querySelectorAll(`[data-edit="${key}"]`).forEach((el) => {
-        el.innerHTML = String(value);
-      });
-    });
-    // Generic pass — any other key with a [data-edit] target.
+  // Apply text overrides from content map to any [data-edit="<key>"] target.
+  function applyContent(content) {
     Object.keys(content).forEach((key) => {
-      if (TEXT_KEYS.indexOf(key) >= 0 || key === "dailyNote" || key === "dailyNoteVisible") return;
-      const value = content[key];
-      if (value == null || String(value).trim() === "") return;
+      const v = content[key];
+      if (v == null || String(v).trim() === '') return;
       document.querySelectorAll(`[data-edit="${key}"]`).forEach((el) => {
-        el.innerHTML = String(value);
+        el.innerHTML = String(v);
       });
     });
+  }
 
-    const note = document.getElementById("lpDailyNote");
-    const noteText = document.querySelector('[data-edit="dailyNote"]');
-    const text = content.dailyNote ? String(content.dailyNote).trim() : "";
-    const visibleFlag = content.dailyNoteVisible;
-    const visible = (visibleFlag === undefined || visibleFlag === true
-                     || String(visibleFlag).toLowerCase() === "true"
-                     || String(visibleFlag) === "1")
-                    && text.length > 0;
-    if (note && noteText) {
-      if (visible) {
-        noteText.innerHTML = text;
-        note.removeAttribute("hidden");
-      } else {
-        note.setAttribute("hidden", "");
+  // ---------- Masthead ----------
+  function hydrateMasthead(content) {
+    const now = new Date();
+    const weekStart = startOfWeek(now);
+    const weekEnd = endOfWeek(now);
+    const isoWeek = isoWeekNumber(now);
+    const lbl = document.getElementById('lpWeekLabel');
+    if (lbl) {
+      const wkLabel = content.weekLabel || `Hafta ${toRoman(isoWeek)} · ${formatRange(weekStart, weekEnd)}`;
+      lbl.innerHTML = wkLabel;
+    }
+  }
+
+  // ---------- Şu an (live moment) ----------
+  function hydrateNow(ticker, volunteers, boxes) {
+    const block = document.getElementById('lpNow');
+    if (!block) return;
+
+    // Most recent ticker entry — use its firstName if present, else fall
+    // back to the volunteer with the most recent lastActivity.
+    const latest = recentTickerEntry(ticker);
+    let name = '';
+    let box = '';
+    let pages = 0;
+
+    if (latest) {
+      name = (latest.firstName || '').trim();
+      const t = tsMillis(latest.when || latest.createdAt);
+      if (sameDay(t, Date.now())) {
+        pages = sumPagesForDay(ticker, t, latest.volunteerToken || latest.firstName);
       }
     }
+    if (!name) {
+      const v = volunteers.slice().sort((a, b) => tsMillis(b.lastActivity) - tsMillis(a.lastActivity))[0];
+      if (v) { name = v.firstName || ''; box = v.currentBox || ''; }
+    }
+    // Map name → currentBox via volunteers
+    if (!box && name) {
+      const v = volunteers.find((x) => (x.firstName || '').toLowerCase() === name.toLowerCase());
+      if (v) box = v.currentBox || '';
+    }
+    if (!name) { block.setAttribute('hidden', ''); return; }
+
+    document.getElementById('lpNowAvatar').textContent = initialOf(name);
+    document.getElementById('lpNowName').textContent = name;
+    const boxEl = document.getElementById('lpNowBox');
+    if (boxEl) boxEl.textContent = box ? `Kutu ${box}'da` : '';
+    const whatEl = document.getElementById('lpNowWhat');
+    if (whatEl) {
+      const what = boxDescription(boxes, box);
+      whatEl.innerHTML = what
+        ? `${escapeHtml(what)} · son hareket bugün<span class="cursor"></span>`
+        : `son hareket bugün<span class="cursor"></span>`;
+    }
+    const pagesEl = document.getElementById('lpNowPages');
+    if (pagesEl) pagesEl.textContent = pages > 0 ? `+${formatNum(pages)}` : '·';
+    const clockEl = document.getElementById('lpNowClock');
+    if (clockEl) {
+      const t = latest ? tsMillis(latest.when || latest.createdAt) : Date.now();
+      clockEl.textContent = formatTime(t);
+    }
+    block.removeAttribute('hidden');
   }
 
-  // ---------- Ledger strip (4 cells in hero) ----------
-  function hydrateLedger(stats, tickerItems) {
+  // ---------- Glance band + sparkline ----------
+  function hydrateGlance(stats, ticker, boxes, weekly) {
     const total = (stats && Number(stats.totalPages)) || 0;
     const done = (stats && Number(stats.donePages)) || 0;
     const pct = total > 0 ? (done / total) * 100 : 0;
+    const cat = (stats && Number(stats.cataloguedBoxes)) || 0;
 
-    setLedger("progress", {
-      val: pct > 0 ? `%${formatPct(pct)}` : "—",
-      foot: total > 0
-        ? `${formatNum(done)} / ${formatNum(total)} sayfa`
-        : "sayfa hedefi yükleniyor",
-    });
+    setText('lpPct', pct > 0 ? `%${formatPct(pct)}` : '—');
+    setText('lpProgressTotals', total > 0 ? `${formatNum(done)} / ${formatNum(total)} sayfa` : 'yükleniyor');
+    setText('lpBoxes', cat > 0 ? String(cat) : '—');
+    setText('lpBoxesOf', `/ 104`);
+    setText('lpBoxesFoot', cat > 0 ? `${Math.max(0, 104 - cat)} kutu sırada` : '');
 
-    const progSpan = document.getElementById("lpHeroProgress");
-    if (progSpan && pct > 0) {
-      progSpan.textContent = `Şu an %${formatPct(pct)}'ündeyiz.`;
+    // Tamamlanan bu hafta: boxes with status 'done' that received activity this week
+    const weekStart = startOfWeek(new Date()).getTime();
+    const doneThisWeek = boxes.filter((b) => b.status === 'done' && weeklyDelta(ticker, b, weekStart) > 0).length;
+    setText('lpDone', String(doneThisWeek));
+    setText('lpDoneFoot', doneThisWeek > 0 ? 'bu hafta · ilk %100' : 'henüz yok');
+
+    // Sparkline
+    const spark = document.getElementById('lpSpark');
+    if (spark) {
+      const totalWk = weekly.reduce((s, n) => s + n, 0);
+      setText('lpWeekTotal', totalWk > 0 ? formatNum(totalWk) : '—');
+      const max = Math.max(...weekly, 1);
+      const labels = ['Pa','Sa','Ça','Pe','Cu','Ct','Pz'];
+      const today = new Date().getDay();
+      const isoToday = today === 0 ? 6 : today - 1;
+      spark.innerHTML = weekly.map((n, i) => {
+        const pctH = Math.max(2, Math.round((n / max) * 100));
+        const cls = i === isoToday ? 'b today' : (n === 0 ? 'b quiet' : 'b');
+        return `<span class="${cls}" style="height:${pctH}%" title="${labels[i]} · ${n} kayıt"><small>${labels[i]}</small></span>`;
+      }).join('');
+    }
+  }
+
+  // ---------- Bu haftanın işaretleri (3 signal cards) ----------
+  function hydrateSignals(content, boxes, ticker, weekly) {
+    const block = document.getElementById('lpSignals');
+    if (!block) return;
+
+    // signal 1: first %100 box this week (status=done with weekly delta > 0)
+    const weekStart = startOfWeek(new Date()).getTime();
+    const completedThisWeek = boxes.filter((b) =>
+      b.status === 'done' && weeklyDelta(ticker, b, weekStart) > 0
+    );
+    if (completedThisWeek.length && !content.signal1Body) {
+      const b = completedThisWeek[0];
+      document.getElementById('lpSignal1Body').innerHTML = `<em>Kutu ${escapeHtml(b.kutu)} — ${escapeHtml(b.name)}</em> tamamlandı.`;
+      const workers = (b.workers || []).slice(0, 2).join(' · ');
+      document.getElementById('lpSignal1Meta').textContent = workers ? `${workers} · ${formatNum(b.totalPages)} sayfa` : `${formatNum(b.totalPages)} sayfa`;
+    } else if (!content.signal1Body) {
+      document.getElementById('lpSignal1Body').textContent = 'Henüz tamamlanan kutu yok.';
+      document.getElementById('lpSignal1Meta').textContent = '';
     }
 
-    const boxTargetEl = document.getElementById("lpLedgerBoxTarget");
-    if (boxTargetEl) boxTargetEl.textContent = String(PNB_TARGET_BOXES);
-    const catalogued = (stats && Number(stats.cataloguedBoxes)) || 0;
-    if (catalogued > 0) {
-      const remaining = Math.max(0, PNB_TARGET_BOXES - catalogued);
-      setLedger("boxes", {
-        val: String(catalogued),
-        foot: remaining > 0
-          ? `${remaining} kutu sırada bekliyor`
-          : "tüm kutular katalogda",
+    // signal 2: busiest day of the week
+    if (!content.signal2Body) {
+      const max = Math.max(...weekly);
+      if (max > 0) {
+        const idx = weekly.indexOf(max);
+        const dayNames = ['Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi','Pazar'];
+        document.getElementById('lpSignal2Body').innerHTML = `<em>${dayNames[idx]}</em> haftanın en yoğun günü — ${max} kayıt.`;
+        document.getElementById('lpSignal2Meta').textContent = `7 günün toplamı ${weekly.reduce((s,n)=>s+n,0)} kayıt`;
+      } else {
+        document.getElementById('lpSignal2Body').textContent = 'Bu hafta henüz aktivite yok.';
+        document.getElementById('lpSignal2Meta').textContent = '';
+      }
+    }
+
+    // signal 3: newly active box this week (a box whose only ticker entries fall in this week)
+    if (!content.signal3Body) {
+      const fresh = boxes.find((b) => {
+        if (b.status !== 'active') return false;
+        const wd = weeklyDelta(ticker, b, weekStart);
+        return wd > 0 && (b.donePages || 0) <= wd; // new = total done ~= this week's delta
       });
-    } else {
-      setLedger("boxes", { val: "—", foot: "kutu sayısı yükleniyor" });
+      if (fresh) {
+        const worker = (fresh.workers || [])[0];
+        document.getElementById('lpSignal3Body').innerHTML = `<em>Kutu ${escapeHtml(fresh.kutu)} — ${escapeHtml(fresh.name)}</em> ${worker ? `· ${escapeHtml(worker)} açtı` : 'açıldı'}.`;
+        document.getElementById('lpSignal3Meta').textContent = fresh.totalPages > 0 ? `${formatNum(fresh.totalPages)} sayfa hedef` : '';
+      } else {
+        document.getElementById('lpSignal3Body').textContent = 'Yeni kutu açılmadı.';
+        document.getElementById('lpSignal3Meta').textContent = '';
+      }
     }
 
-    const now = Date.now();
-    const since30d = now - 30 * 86400000;
-    const since7d = now - 7 * 86400000;
-    const tokens30d = new Set();
-    let count7d = 0;
-    tickerItems.forEach((r) => {
-      const t = tsMillis(r.when || r.createdAt);
-      if (!t) return;
-      const id = r.volunteerToken || r.slug || r.name;
-      if (t >= since30d && id) tokens30d.add(id);
-      if (t >= since7d) count7d += 1;
-    });
-    setLedger("people", {
-      val: tokens30d.size > 0 ? String(tokens30d.size) : "—",
-      foot: tokens30d.size > 0 ? "son 30 gün içinde katkı" : "henüz veri yok",
-    });
-    setLedger("week", {
-      val: count7d > 0 ? String(count7d) : "—",
-      foot: count7d > 0 ? "rapor / hareket" : "henüz veri yok",
-    });
+    block.removeAttribute('hidden');
   }
 
-  function setLedger(key, { val, foot }) {
-    const cell = document.querySelector(`#lpLedger .lp-ledger-cell[data-ledger="${key}"]`);
-    if (!cell) return;
-    const valEl = cell.querySelector(".lp-ledger-val");
-    const footEl = cell.querySelector(".lp-ledger-foot");
-    if (valEl) valEl.textContent = val;
-    if (footEl) footEl.textContent = foot;
-  }
-  function setLedgerFallback() {
-    setLedger("progress", { val: "—", foot: "sayfa hedefi yükleniyor" });
-    setLedger("boxes",    { val: "—", foot: "kutu sayısı yükleniyor" });
-    setLedger("people",   { val: "—", foot: "veri yükleniyor" });
-    setLedger("week",     { val: "—", foot: "veri yükleniyor" });
-  }
-
-  // ---------- Collective "Bu hafta birlikte" ----------
-  function hydrateCollective(tickerItems) {
-    const since7d = Date.now() - 7 * 86400000;
-    const week = tickerItems.filter((r) => tsMillis(r.when || r.createdAt) >= since7d);
-    if (!week.length) {
-      setCollectiveFallback();
-      return;
-    }
-
-    const days = new Set();
-    const tokens = new Set();
-    const areas = new Map();
-    week.forEach((r) => {
-      const t = tsMillis(r.when || r.createdAt);
-      if (!t) return;
-      days.add(dayKey(t));
-      const id = r.volunteerToken || r.slug || r.name;
-      if (id) tokens.add(id);
-      const cat = cleanCategory(r.materialCategory);
-      areas.set(cat, (areas.get(cat) || 0) + 1);
-    });
-
-    setCollect("days", { val: String(days.size), foot: "arşive girildi" });
-    setCollect("people", { val: String(tokens.size), foot: "paralel çalıştı" });
-    setCollect("contribs", { val: String(week.length), foot: "rapor yazıldı" });
-    setCollect("areas", { val: String(areas.size), foot: "alanda emek" });
-
-    const titleEl = document.getElementById("lpCollectTitle");
-    if (titleEl) {
-      titleEl.textContent = `Bu hafta birlikte ${week.length} kayıt düştü, ${areas.size} farklı alanda çalıştık.`;
-    }
-    const narrEl = document.getElementById("lpCollectNarr");
-    if (narrEl) {
-      const top = Array.from(areas.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3)
-        .map(([name]) => name);
-      const topText = joinTurkish(top);
-      narrEl.innerHTML = topText
-        ? `En çok zaman <b>${esc(topText)}</b> alanlarına ayrıldı. ${tokens.size} kişi, ${days.size} farklı günde arşive geldi — kimsenin tek başına yapamayacağı kadar.`
-        : `Bu hafta arşive ${tokens.size} kişi, ${days.size} farklı günde geldi.`;
-    }
-    const whenEl = document.getElementById("lpCollectWhen");
-    if (whenEl) whenEl.textContent = `son 7 gün`;
-  }
-  function setCollect(key, { val, foot }) {
-    const cell = document.querySelector(`#lpCollect .lp-collect-cell[data-collect="${key}"]`);
-    if (!cell) return;
-    const numEl = cell.querySelector(".lp-collect-num");
-    const footEl = cell.querySelector(".lp-collect-foot");
-    if (numEl) numEl.textContent = val;
-    if (footEl) footEl.textContent = foot;
-  }
-  function setCollectiveFallback() {
-    setCollect("days", { val: "—", foot: "veri bekleniyor" });
-    setCollect("people", { val: "—", foot: "veri bekleniyor" });
-    setCollect("contribs", { val: "—", foot: "veri bekleniyor" });
-    setCollect("areas", { val: "—", foot: "veri bekleniyor" });
-    const narrEl = document.getElementById("lpCollectNarr");
-    if (narrEl) narrEl.textContent = "Bu hafta henüz rapor yazılmadı — gönüllüler yakında.";
-  }
-
-  // ---------- Project card progress ----------
-  function hydrateProjectCard(stats, tickerItems) {
-    const total = (stats && Number(stats.totalPages)) || 0;
-    const done = (stats && Number(stats.donePages)) || 0;
-    const totalUnits = (stats && Number(stats.totalUnits)) || 0;
-    const totalFiles = (stats && Number(stats.totalFiles)) || 0;
-    const catalogued = (stats && Number(stats.cataloguedBoxes)) || 0;
-    const pct = total > 0 ? (done / total) * 100 : 0;
-
-    const bar = document.getElementById("lpPpBar");
-    if (bar) bar.style.width = clampPct(pct) + "%";
-
-    const doneEl = document.getElementById("lpPpDone");
-    if (doneEl) doneEl.textContent = pct > 0 ? `%${formatPct(pct)} tamamlandı` : "Henüz başlangıçta";
-
-    const targetEl = document.getElementById("lpPpTarget");
-    if (targetEl) {
-      targetEl.textContent = total > 0
-        ? `~${formatNum(done)} / ${formatNum(total)} sayfa`
-        : "hedef yükleniyor";
-    }
-
-    const msNow = document.getElementById("lpPpMsNow");
-    if (msNow) {
-      msNow.textContent = pct > 0 ? `Bugün · %${formatPct(pct)}` : "Bugün";
-    }
-
-    setFact("lpFactBoxes",
-      catalogued > 0 ? `${catalogued} / ${PNB_TARGET_BOXES}` : "—");
-    setFact("lpFactFiles",
-      totalFiles > 0 ? formatNum(totalFiles) : "—");
-    setFact("lpFactUnits",
-      totalUnits > 0 ? formatNum(totalUnits) : "—");
-
-    const monthEl = document.getElementById("lpProjectMonthly");
-    if (monthEl) {
-      const since30d = Date.now() - 30 * 86400000;
-      const monthCount = tickerItems.filter((r) => tsMillis(r.when || r.createdAt) >= since30d).length;
-      monthEl.textContent = monthCount > 0 ? `+${formatNum(monthCount)} kayıt` : "—";
-    }
-
-    const footPct = document.getElementById("lpBoxesFootPct");
-    if (footPct) footPct.textContent = pct > 0 ? `~%${formatPct(pct)} tamamlandı` : "veri bekleniyor";
-  }
-
-  function setFact(id, value) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = value;
-  }
-
-  // ---------- Box-by-box grid ----------
-  function renderBoxesGridStatic() {
-    const grid = document.getElementById("lpBoxesGrid");
-    if (!grid) return;
-    paintBoxGrid(grid, defaultBoxStates());
-  }
-  function hydrateBoxesGrid(stats) {
-    const grid = document.getElementById("lpBoxesGrid");
-    if (!grid) return;
-    const boxes = stats && Array.isArray(stats.boxes) ? stats.boxes : null;
-    if (!boxes || !boxes.length) return;
-    const states = boxes.map((b) => (b && typeof b.state === "number")
-      ? clampInt(b.state, 0, 4) : "future");
-    while (states.length < PNB_TARGET_BOXES) states.push("future");
-    paintBoxGrid(grid, states.slice(0, PNB_TARGET_BOXES));
-  }
-  function paintBoxGrid(grid, states) {
-    grid.innerHTML = states.map((s, idx) => {
-      const num = idx + 1;
-      const cls = s === "future" ? "lp-box lp-box-future" : `lp-box lp-box-${s}`;
-      const stateText = {
-        0: "sıraya alındı, %0",
-        1: "açıldı, %0–5",
-        2: "%5–25",
-        3: "%25–60",
-        4: "%60+",
-        future: "henüz katalogda değil",
-      }[s];
-      return `<span class="${cls}" title="Kutu ${num} — ${stateText}" role="img" aria-label="Kutu ${num} — ${stateText}"></span>`;
-    }).join("");
-  }
-  function defaultBoxStates() {
-    const states = [];
-    for (let i = 1; i <= 13; i++) states.push(i === 1 ? 2 : 1);
-    states.push(1);
-    states.push(3);
-    for (let i = 16; i <= 67; i++) states.push(0);
-    states.push(1);
-    for (let i = 69; i <= 76; i++) states.push(0);
-    states.push(0, 1, 0, 0);
-    for (let i = 0; i < 6; i++) states.push(0);
-    while (states.length < PNB_TARGET_BOXES) states.push("future");
-    return states.slice(0, PNB_TARGET_BOXES);
-  }
-
-  // ---------- Wall of contributors ----------
-  // Names are first-name-only and already sorted by Apps Script. When the
-  // sheet provides them we overwrite the static fallback; on miss we keep
-  // the static markup.
-  function hydrateWall(activeVolunteers) {
-    const wall = document.getElementById("lpWall");
-    const countEl = document.getElementById("lpWallCount");
-    if (!wall) return;
-    const names = Array.isArray(activeVolunteers) ? activeVolunteers.filter(Boolean) : [];
-    if (!names.length) return;
-    wall.innerHTML = names.map((n, i) => {
-      const sep = i < names.length - 1
-        ? `<span class="lp-wall-dot" aria-hidden="true">·</span>`
-        : "";
-      return `<span class="lp-wall-name">${esc(n)}</span>${sep}`;
-    }).join("");
-    if (countEl) countEl.textContent = `${names.length} isim`;
-  }
-
-  // ---------- Weekly roster ----------
-  // Schedule shape: { monday: [..first names..], tuesday: [...], ... }
-  function hydrateRoster(schedule) {
-    const section = document.getElementById("lpRosterSection");
-    if (!section) return;
-    if (!schedule || typeof schedule !== "object") return;
-    const dayKeys = ["monday", "tuesday", "wednesday", "thursday", "friday"];
-    const hasAny = dayKeys.some((k) => Array.isArray(schedule[k]) && schedule[k].length);
-    if (!hasAny) return;
-
-    const grid = section.querySelector(".lp-roster-grid");
-    if (!grid) return;
-    const dayHeaders = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma"];
-    const html = ['<div class="lp-roster-head"></div>'];
-    dayHeaders.forEach((d, i) => {
-      html.push(`<div class="lp-roster-head" data-roster-day="${i + 1}">${esc(d)}</div>`);
-    });
-    // Single "Arşiv" row showing day-by-day participants.
-    html.push(`<div class="lp-roster-loc">Arşiv<small>PNB</small></div>`);
-    for (let i = 0; i < 5; i++) {
-      const list = Array.isArray(schedule[dayKeys[i]]) ? schedule[dayKeys[i]] : [];
-      const text = list.length ? list.join(" · ") : "";
-      const cls = text ? "lp-roster-cell" : "lp-roster-cell lp-roster-empty";
-      html.push(`<div class="${cls}" data-roster-day="${i + 1}">${text ? esc(text) : "—"}</div>`);
-    }
-    grid.innerHTML = html.join("");
-    markRosterToday();
-  }
-
-  // ---------- Work-area stacked bar ----------
-  function hydrateAreaBar(tickerItems) {
-    const bar = document.getElementById("lpAreaBar");
-    const legend = document.getElementById("lpAreaLegend");
-    if (!bar || !legend) return;
-
-    const since30d = Date.now() - 30 * 86400000;
+  // ---------- Çalışma alanı dağılımı ----------
+  function hydrateMaterialBreakdown(ticker) {
+    const block = document.getElementById('lpMat');
+    if (!block) return;
+    const weekStart = startOfWeek(new Date()).getTime();
     const counts = new Map();
     let total = 0;
-    tickerItems.forEach((r) => {
+    ticker.forEach((r) => {
       const t = tsMillis(r.when || r.createdAt);
-      if (!t || t < since30d) return;
-      const cat = cleanCategory(r.materialCategory);
+      if (t < weekStart) return;
+      const cat = r.materialCategory || 'belgeler';
       counts.set(cat, (counts.get(cat) || 0) + 1);
       total += 1;
     });
+    if (total === 0) { block.setAttribute('hidden', ''); return; }
+    const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 6);
+    const palette = ['var(--accent)', 'var(--accent-deep)', '#6b4a2a', '#b8985a', 'rgba(10,10,10,0.4)', '#3b6463'];
+    const bar = document.getElementById('lpMatBar');
+    const legend = document.getElementById('lpMatLegend');
+    if (bar) {
+      bar.innerHTML = sorted.map(([_, n], i) => {
+        const w = (n / total) * 100;
+        return `<div class="seg" style="width:${w}%; background:${palette[i] || palette[5]};"></div>`;
+      }).join('');
+    }
+    if (legend) {
+      legend.innerHTML = sorted.map(([name, n], i) => {
+        const pct = ((n / total) * 100).toFixed(0);
+        return `<div class="row"><span class="dot" style="background:${palette[i] || palette[5]};"></span><span>${escapeHtml(capitalize(name))}</span><span class="pct">%${pct} · ${n}</span></div>`;
+      }).join('');
+    }
+    setText('lpMatMeta', `son 7 gün · ${formatNum(total)} kayıt`);
+    block.removeAttribute('hidden');
+  }
 
-    if (total === 0) {
-      bar.innerHTML = `<div class="lp-area-seg lp-area-seg-empty">Henüz veri yok</div>`;
-      legend.innerHTML = "";
-      return;
+  // ---------- Daily entries ----------
+  function hydrateDays(ticker, boxes, volunteers) {
+    const wrap = document.getElementById('lpDays');
+    if (!wrap) return;
+    const today = startOfDay(new Date());
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today); d.setDate(d.getDate() - i);
+      days.push(d);
+    }
+    wrap.innerHTML = days.map((d) => renderDayEntry(d, ticker, boxes)).join('');
+    const tag = document.getElementById('lpDaysTag');
+    if (tag) {
+      const last = recentTickerEntry(ticker);
+      const ts = last ? tsMillis(last.when || last.createdAt) : 0;
+      tag.textContent = ts ? `7 gün · son giriş ${formatLongTime(ts)}` : '7 gün · sıralı';
+    }
+  }
+
+  function renderDayEntry(date, ticker, boxes) {
+    const dayStart = date.getTime();
+    const dayEnd = dayStart + 86400000;
+    const todayStart = startOfDay(new Date()).getTime();
+    const isToday = dayStart === todayStart;
+    const dayNames = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+    const dn = dayNames[date.getDay()];
+    const dom = String(date.getDate()).padStart(2, '0');
+
+    const dayEntries = ticker.filter((r) => {
+      const t = tsMillis(r.when || r.createdAt);
+      return t >= dayStart && t < dayEnd;
+    });
+    const isQuiet = dayEntries.length === 0;
+    if (isQuiet) {
+      return `<article class="day quiet">
+        <div class="date"><div class="dn">${dn}</div><div class="dom">${dom}</div><div class="opens">—</div></div>
+        <div class="body"><p>Arşiv kapalı.</p></div>
+        <aside class="marg"><span class="stamp sessiz">kapalı</span></aside>
+      </article>`;
     }
 
-    const palette = ["#94462a", "#b85c3a", "#6b5d50", "#c89b3c", "#4a7c7e"];
-    const sorted = Array.from(counts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5);
+    // Aggregate
+    const names = uniqueFirstNames(dayEntries);
+    const boxesTouched = uniqueBoxesFromTicker(dayEntries, boxes);
+    const totalPages = dayEntries.length; // each entry = 1 page in detail tabs
+    const firstT = Math.min.apply(null, dayEntries.map((r) => tsMillis(r.when || r.createdAt)));
+    const lastT = Math.max.apply(null, dayEntries.map((r) => tsMillis(r.when || r.createdAt)));
 
-    bar.innerHTML = sorted.map(([name, n], i) => {
-      const bg = palette[i] || palette[palette.length - 1];
-      const color = i === 3 ? "var(--tv-ink)" : "white";
-      return `<div class="lp-area-seg" style="background:${bg}; flex:${n}; color:${color};">${esc(capitalize(name))} · ${n}</div>`;
-    }).join("");
+    const avs = names.slice(0, 5).map((n) => `<span class="av">${initialOf(n)}</span>`).join('');
+    const ana = synthesizeAna(boxesTouched, names);
+    const prose = synthesizeProse(dayEntries, names, boxesTouched, boxes);
+    const insight = synthesizeInsight(date, dayEntries, names, boxesTouched);
 
-    legend.innerHTML = sorted.map(([name, n], i) => {
-      const bg = palette[i] || palette[palette.length - 1];
-      const pct = ((n / total) * 100).toFixed(0);
-      return `<li><span class="lp-aw" style="background:${bg};"></span><span><b>${esc(capitalize(name))}</b> — %${pct} (${n} kayıt)</span></li>`;
-    }).join("");
+    const stamp = `<span class="stamp ${isToday ? 'sururyor' : (isQuiet ? 'sessiz' : 'sururyor')}">${isToday ? 'sürüyor' : 'sürdü'}</span>`;
+    const cls = 'day' + (isToday ? ' today' : '');
+
+    return `<article class="${cls}">
+      <div class="date">
+        <div class="dn">${dn}</div>
+        <div class="dom">${dom}</div>
+        <div class="opens">açılış · ${formatHM(firstT)}<br>son · ${formatHM(lastT)}</div>
+      </div>
+      <div class="body">
+        <div class="head">
+          <div class="avs">${avs}</div>
+          <span class="ana">${escapeHtml(ana)}</span>
+        </div>
+        ${prose}
+        ${insight ? `<div class="insight"><span class="k">ne söylüyor</span>${insight}</div>` : ''}
+      </div>
+      <aside class="marg">
+        <div class="stat-block">
+          <span><b>+${formatNum(totalPages)}</b> sayfa</span>
+          <span>${names.length} gönüllü</span>
+          <span>${boxesTouched.length} kutu</span>
+        </div>
+        ${stamp}
+      </aside>
+    </article>`;
   }
 
-  // ---------- Weekly roster — mark today's column ----------
-  function markRosterToday() {
-    const dow = new Date().getDay();
-    if (dow < 1 || dow > 5) return;
-    document.querySelectorAll(`.lp-roster [data-roster-day="${dow}"]`).forEach((el) => {
-      if (el.classList.contains("lp-roster-head")) {
-        el.classList.add("lp-roster-today");
-      } else if (el.classList.contains("lp-roster-cell")) {
-        el.classList.add("lp-roster-today-col");
-      }
+  function synthesizeAna(boxesTouched, names) {
+    if (!boxesTouched.length) return 'Arşivde sessizlik.';
+    if (boxesTouched.length === 1) return `${boxesTouched[0].name || ('Kutu ' + boxesTouched[0].kutu)}.`;
+    if (boxesTouched.length === 2) return `${boxesTouched.map((b) => b.name || 'Kutu ' + b.kutu).join(' ve ')}.`;
+    return `${boxesTouched.length} farklı kutu.`;
+  }
+
+  function synthesizeProse(entries, names, boxesTouched, allBoxes) {
+    // Group entries by (firstName, box) → count pages
+    const pairs = new Map();
+    entries.forEach((r) => {
+      const name = (r.firstName || '').trim();
+      const boxKey = bestBoxForEntry(r, allBoxes);
+      const key = `${name}|${boxKey}`;
+      pairs.set(key, (pairs.get(key) || 0) + 1);
     });
-  }
-
-  // ---------- Activity ticker (bottom) ----------
-  function hydrateTickerSection(items) {
-    if (!items.length) { hideTicker(); return; }
-    const list = document.getElementById("lpTicker");
-    if (!list) return;
-    const groups = summarizeTickerItems(items).slice(0, 6);
-    if (!groups.length) { hideTicker(); return; }
-    list.innerHTML = groups.map(renderTickerGroup).join("");
-    const section = list.closest(".lp-section");
-    if (section) section.removeAttribute("hidden");
-  }
-
-  function summarizeTickerItems(items) {
-    const byDay = new Map();
-    items.forEach((r) => {
-      const when = tsMillis(r.when || r.createdAt);
-      if (!when) return;
-      const key = dayKey(when);
-      if (!byDay.has(key)) {
-        byDay.set(key, {
-          when,
-          label: dayLabel(when),
-          count: 0,
-          categories: new Map()
-        });
-      }
-      const group = byDay.get(key);
-      group.when = Math.max(group.when, when);
-      group.count += 1;
-      const category = cleanCategory(r.materialCategory);
-      group.categories.set(category, (group.categories.get(category) || 0) + 1);
+    const groups = Array.from(pairs.entries())
+      .map(([k, n]) => {
+        const [name, boxKey] = k.split('|');
+        return { name, box: boxKey, pages: n };
+      })
+      .filter((g) => g.name)
+      .sort((a, b) => b.pages - a.pages)
+      .slice(0, 4);
+    if (!groups.length) {
+      return `<p>${escapeHtml(names.join(', '))} bugün arşive geldi.</p>`;
+    }
+    const parts = groups.map((g) => {
+      const boxTag = g.box ? `<span class="tag">Kutu ${escapeHtml(g.box)}</span>` : '';
+      return `<em class="name">${escapeHtml(g.name)}</em> ${boxTag} <span class="delta">(+${g.pages})</span>`;
     });
-    return Array.from(byDay.values())
-      .sort((a, b) => b.when - a.when)
-      .map((group) => {
-        const categories = Array.from(group.categories.entries())
-          .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "tr"))
-          .map(([name]) => name);
-        return { ...group, categories };
-      });
+    return `<p>${parts.join('; ')}.</p>`;
   }
 
-  function renderTickerGroup(group) {
-    const shownCategories = group.categories.slice(0, 4);
-    const hiddenCount = Math.max(0, group.categories.length - shownCategories.length);
-    const categoryText = joinTurkish(shownCategories);
-    const extraText = hiddenCount ? ` + ${hiddenCount} alan` : "";
-    return `<li>
-      <span class="lp-ticker-when">${esc(group.label)}</span>
-      <span class="lp-ticker-rest">${esc(formatNum(group.count))} katkı${categoryText ? ` · ${esc(categoryText)}${esc(extraText)}` : ""}</span>
-    </li>`;
-  }
-  function hideTicker() {
-    const section = document.getElementById("aktivite");
-    if (section) section.setAttribute("hidden", "");
+  function synthesizeInsight(date, entries, names, boxesTouched) {
+    if (!entries.length) return '';
+    const today = startOfDay(new Date()).getTime();
+    const total = entries.length;
+    if (date.getTime() === today) {
+      return `Bugün <b>${total} sayfa</b> arşive girdi · ${names.length} kişi, ${boxesTouched.length} kutu.`;
+    }
+    // For other days: pick the largest single-volunteer contribution
+    const byName = new Map();
+    entries.forEach((r) => {
+      const n = (r.firstName || '').trim();
+      if (!n) return;
+      byName.set(n, (byName.get(n) || 0) + 1);
+    });
+    const top = Array.from(byName.entries()).sort((a, b) => b[1] - a[1])[0];
+    if (top) return `<em class="name">${escapeHtml(top[0])}</em> bu gün <b>${top[1]} sayfa</b> taradı.`;
+    return '';
   }
 
-  // ---------- Helpers ----------
-  // Apps Script returns ISO strings or { _seconds, _nanoseconds } depending
-  // on the source. tsMillis handles both, plus raw numbers and Date objects.
+  // ---------- Active boxes this week ----------
+  function hydrateActiveBoxes(boxes, ticker) {
+    const block = document.getElementById('lpBoxesWeek');
+    const rows = document.getElementById('lpBoxesWeekRows');
+    if (!block || !rows) return;
+    const weekStart = startOfWeek(new Date()).getTime();
+    const enriched = boxes
+      .map((b) => Object.assign({}, b, { _delta: weeklyDelta(ticker, b, weekStart) }))
+      .filter((b) => b._delta > 0)
+      .sort((a, b) => b._delta - a._delta)
+      .slice(0, 8);
+    if (!enriched.length) { block.setAttribute('hidden', ''); return; }
+    setText('lpBoxesWeekMeta', `${enriched.length} kutu`);
+    rows.innerHTML = enriched.map((b) => {
+      const pct = b.totalPages > 0 ? Math.round((b.donePages / b.totalPages) * 100) : 0;
+      const pctCls = b.status === 'done' ? 'pct done' : 'pct';
+      const pctText = b.status === 'done' ? '%100 ✓' : (pct > 0 ? `%${pct}` : '—');
+      const workers = (b.workers || []).slice(0, 2).join(' + ') || '—';
+      return `<div class="box-row">
+        <span class="n">${escapeHtml(b.kutu)}</span>
+        <span class="desc">${escapeHtml(b.name || 'Kutu ' + b.kutu)}<small>${formatNum(b.dosya)} dosya · ${formatNum(b.belge)} belge</small></span>
+        <span class="who">${escapeHtml(workers)}</span>
+        <span class="delta">+${formatNum(b._delta)}</span>
+        <span class="${pctCls}">${pctText}</span>
+      </div>`;
+    }).join('');
+    block.removeAttribute('hidden');
+  }
+
+  // ---------- Bu hafta ilk kez ----------
+  function hydrateFirsts(boxes, ticker, volunteers) {
+    const block = document.getElementById('lpFirsts');
+    const list = document.getElementById('lpFirstsList');
+    if (!block || !list) return;
+    const items = [];
+    const weekStart = startOfWeek(new Date()).getTime();
+
+    // First %100 boxes this week
+    const completed = boxes.filter((b) => b.status === 'done' && weeklyDelta(ticker, b, weekStart) > 0);
+    completed.forEach((b) => {
+      const worker = (b.workers || [])[0];
+      items.push(`Projedeki ilk %100 tamamlandı — <em class="name">${escapeHtml(worker || '—')}</em>, Kutu ${escapeHtml(b.kutu)}.`);
+    });
+
+    // Newly opened boxes this week
+    const fresh = boxes.find((b) => b.status === 'active' && weeklyDelta(ticker, b, weekStart) > 0 && b.donePages > 0 && b.donePages <= weeklyDelta(ticker, b, weekStart) * 1.2);
+    if (fresh) {
+      const worker = (fresh.workers || [])[0];
+      items.push(`<em class="name">Kutu ${escapeHtml(fresh.kutu)} — ${escapeHtml(fresh.name)}</em> ilk satırını ${escapeHtml(worker || 'bir gönüllü')} bu hafta yazdı.`);
+    }
+
+    // Single-day single-volunteer record
+    const byDayVolunteer = new Map();
+    ticker.forEach((r) => {
+      const t = tsMillis(r.when || r.createdAt);
+      if (t < weekStart) return;
+      const k = `${dayKey(t)}|${r.firstName || r.volunteerToken || '?'}`;
+      byDayVolunteer.set(k, (byDayVolunteer.get(k) || 0) + 1);
+    });
+    let topN = 0; let topKey = '';
+    byDayVolunteer.forEach((v, k) => { if (v > topN) { topN = v; topKey = k; } });
+    if (topN >= 30) {
+      const [_, who] = topKey.split('|');
+      items.push(`Tek bir günde tek bir gönüllüden <em class="name">+${formatNum(topN)} sayfa</em> rekoru — ${escapeHtml(who)}.`);
+    }
+
+    if (!items.length) { block.setAttribute('hidden', ''); return; }
+    list.innerHTML = items.slice(0, 4).map((html) => `<li><span class="mark">·</span><span>${html}</span></li>`).join('');
+    block.removeAttribute('hidden');
+  }
+
+  function hydratePullCite() {
+    const cite = document.getElementById('lpPullCite');
+    if (cite) cite.textContent = `— Hafta ${toRoman(isoWeekNumber(new Date()))}`;
+  }
+
+  // =========================================================================
+  // Helpers
+  // =========================================================================
+  function setText(id, txt) { const el = document.getElementById(id); if (el) el.textContent = txt; }
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+  }
   function tsMillis(ts) {
     if (!ts) return 0;
-    if (typeof ts === "number") return ts;
-    if (typeof ts === "string") {
-      const t = Date.parse(ts);
-      return isNaN(t) ? 0 : t;
-    }
-    if (typeof ts.toMillis === "function") return ts.toMillis();
-    if (typeof ts.seconds === "number") return ts.seconds * 1000;
-    if (typeof ts._seconds === "number") return ts._seconds * 1000;
+    if (typeof ts === 'number') return ts;
+    if (typeof ts === 'string') { const t = Date.parse(ts); return isNaN(t) ? 0 : t; }
     if (ts instanceof Date) return ts.getTime();
+    if (typeof ts.seconds === 'number') return ts.seconds * 1000;
+    if (typeof ts._seconds === 'number') return ts._seconds * 1000;
     return 0;
   }
-  function clampPct(p) { return Math.max(0, Math.min(100, p)); }
-  function clampInt(n, lo, hi) { return Math.max(lo, Math.min(hi, Math.round(Number(n) || 0))); }
-  function formatPct(p) {
-    if (p < 10) return p.toFixed(1).replace(".", ",");
-    return Math.round(p).toString();
+  function startOfDay(d) { const x = new Date(d); x.setHours(0,0,0,0); return x; }
+  function sameDay(a, b) { return startOfDay(new Date(a)).getTime() === startOfDay(new Date(b)).getTime(); }
+  function startOfWeek(d) {
+    // Monday-start week
+    const x = startOfDay(d);
+    const day = x.getDay(); // 0=Sun..6=Sat
+    const diff = (day === 0 ? -6 : 1 - day);
+    x.setDate(x.getDate() + diff);
+    return x;
   }
-  function formatNum(n) {
-    return new Intl.NumberFormat("tr-TR").format(Number(n) || 0);
+  function endOfWeek(d) { const s = startOfWeek(d); const e = new Date(s); e.setDate(e.getDate() + 6); return e; }
+  function dayKey(t) { const d = new Date(t); return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; }
+  function isoWeekNumber(d) {
+    const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const day = t.getUTCDay() || 7;
+    t.setUTCDate(t.getUTCDate() + 4 - day);
+    const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+    return Math.ceil((((t - yearStart) / 86400000) + 1) / 7);
   }
-  function dayKey(when) {
-    const d = new Date(when);
-    return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  function toRoman(n) {
+    if (!n) return '';
+    const rn = [['M',1000],['CM',900],['D',500],['CD',400],['C',100],['XC',90],['L',50],['XL',40],['X',10],['IX',9],['V',5],['IV',4],['I',1]];
+    let s = '';
+    rn.forEach(([sym, val]) => { while (n >= val) { s += sym; n -= val; } });
+    return s;
   }
-  function dayLabel(when) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const d = new Date(when);
-    d.setHours(0, 0, 0, 0);
-    const days = Math.round((today.getTime() - d.getTime()) / 86400000);
-    if (days <= 0) return "Bugün";
-    if (days === 1) return "Dün";
-    if (days < 7) return `${days} gün önce`;
-    return d.toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
-  }
-  function cleanCategory(category) {
-    const value = String(category || "belgeler").trim();
-    if (!value) return "belgeler";
-    if (value === "genel") return "genel proje çalışması";
-    return value;
-  }
-  function capitalize(s) {
-    if (!s) return s;
-    return s.charAt(0).toLocaleUpperCase("tr") + s.slice(1);
-  }
-  function joinTurkish(items) {
-    const clean = items.filter(Boolean);
-    if (clean.length <= 1) return clean[0] || "";
-    if (clean.length === 2) return `${clean[0]} ve ${clean[1]}`;
-    return `${clean.slice(0, -1).join(", ")} ve ${clean[clean.length - 1]}`;
-  }
-  function esc(s) {
-    return String(s == null ? "" : s)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-  }
-  function initials(name) {
-    const s = String(name || "").trim();
-    return s ? s.charAt(0).toLocaleUpperCase("tr") : "·";
-  }
-
-  // ============================================================
-  // v4 — Stream slice + weekly rhythm + touched-boxes pills
-  // ============================================================
-
-  function hydrateStream(streamData, tickerItems) {
-    const wrap = document.getElementById("lpStream");
-    const section = document.getElementById("bugun");
-    if (!wrap) return;
-    let days = Array.isArray(streamData) ? streamData.slice(0, 4) : [];
-    // Fallback: derive from ticker if Apps Script didn't ship stream yet.
-    if (!days.length && tickerItems && tickerItems.length) {
-      const byDay = new Map();
-      tickerItems.forEach((r) => {
-        const t = tsMillis(r.when || r.createdAt);
-        if (!t) return;
-        const key = dayKey(t);
-        if (!byDay.has(key)) byDay.set(key, { date: new Date(t).toISOString(), items: [] });
-        byDay.get(key).items.push(r);
-      });
-      days = Array.from(byDay.values()).sort((a, b) => tsMillis(b.date) - tsMillis(a.date)).slice(0, 4);
+  function formatRange(start, end) {
+    const months = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+    const sM = months[start.getMonth()];
+    const eM = months[end.getMonth()];
+    if (start.getMonth() === end.getMonth()) {
+      return `${start.getDate()}–${end.getDate()} ${sM}`;
     }
-    if (!days.length) {
-      if (section) section.setAttribute("hidden", "");
-      return;
-    }
-    wrap.innerHTML = days.map((d) => {
-      const ts = tsMillis(d.date);
-      const lbl = dayLabel(ts);
-      const items = (d.items || []).slice(0, 4);
-      return `
-        <div class="lp-stream-day">
-          <div class="lp-stream-day-head">
-            <h3>${esc(lbl)}</h3>
-            <small>${esc(formatLongDate(ts))} · ${items.length} kayıt</small>
-          </div>
-          ${items.map((it) => renderStreamItem(it)).join("")}
-        </div>`;
-    }).join("");
-    if (section) section.removeAttribute("hidden");
+    return `${start.getDate()} ${sM} – ${end.getDate()} ${eM}`;
   }
-
-  function renderStreamItem(it) {
-    const token = it.volunteerToken || "";
-    const initial = initials(token);
-    const cat = cleanCategory(it.materialCategory);
-    const t = tsMillis(it.when || it.createdAt);
-    const hm = t ? new Date(t).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }) : "—";
-    return `
-      <div class="lp-stream-item">
-        <div class="lp-stream-avatar" aria-hidden="true">${esc(initial)}</div>
-        <div class="lp-stream-body">
-          <p class="who">Bir gönüllü</p>
-          <p class="what">${esc(capitalize(cat))} · kayıt düşüldü</p>
-        </div>
-        <div class="lp-stream-meta"><b>+1</b>${esc(hm)}</div>
-      </div>`;
+  function formatNum(n) { return new Intl.NumberFormat('tr-TR').format(Number(n) || 0); }
+  function formatPct(p) { if (p < 10) return p.toFixed(1).replace('.', ','); return Math.round(p).toString(); }
+  function formatHM(t) { if (!t) return '—'; const d = new Date(t); return d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }); }
+  function formatTime(t) { return formatHM(t) + ' TRT'; }
+  function formatLongTime(t) {
+    const d = new Date(t);
+    const today = startOfDay(new Date()).getTime();
+    const dayMid = startOfDay(d).getTime();
+    const diff = Math.floor((today - dayMid) / 86400000);
+    const hm = formatHM(t);
+    if (diff === 0) return `bugün ${hm}`;
+    if (diff === 1) return `dün ${hm}`;
+    return `${diff} gün önce`;
   }
-
-  function hydrateWeeklyRhythm(buckets) {
-    const wrap = document.getElementById("lpWeekBars");
-    const foot = document.getElementById("lpWeekFoot");
-    if (!wrap) return;
-    const arr = Array.isArray(buckets) && buckets.length === 7 ? buckets : [0,0,0,0,0,0,0];
-    const max = Math.max(...arr, 1);
-    const labels = ["Pa","Sa","Ça","Pe","Cu","Ct","Pz"];
-    const today = new Date().getDay(); // 0=Pz..6=Ct (JS) — adjust to ISO Pa=0
-    const isoToday = today === 0 ? 6 : today - 1; // 0=Pa..6=Pz
-    wrap.innerHTML = arr.map((n, i) => {
-      const pct = Math.max(2, Math.round((n / max) * 100));
-      const cls = i === isoToday ? "lp-week-bar today" : "lp-week-bar";
-      return `<div class="${cls}" style="height:${pct}%" title="${labels[i]} · ${n} kayıt"><small>${labels[i]}</small></div>`;
-    }).join("");
-    if (foot) {
-      const total = arr.reduce((s, n) => s + n, 0);
-      foot.innerHTML = total > 0
-        ? `Bu hafta toplam <b style="color:var(--lp-terra,#94462a);">${formatNum(total)} kayıt</b>`
-        : `Bu hafta henüz kayıt yok`;
-    }
-  }
-
-  function hydrateTouchedBoxes(boxes, tickerItems) {
-    const wrap = document.getElementById("lpTouchedBoxes");
-    if (!wrap) return;
-    // Prefer boxes flagged as 'active'. Otherwise derive from recent ticker.
-    let touched = [];
-    if (Array.isArray(boxes) && boxes.length) {
-      touched = boxes.filter((b) => b.status === "active").map((b) => `Kutu ${b.kutu}`);
-    }
-    if (!touched.length) {
-      wrap.textContent = "—";
-      return;
-    }
-    wrap.innerHTML = touched.slice(0, 12)
-      .map((name) => `<span class="lp-pill lp-pill-touch">${esc(name)}</span>`)
-      .join("");
-  }
-
-  // ============================================================
-  // v4 — Box table (sortable mirror of pnb_sayisallastirma)
-  // ============================================================
-  let _boxTableData = [];
-
-  function hydrateBoxTable(boxes) {
-    const tbody = document.getElementById("lpBoxTableBody");
-    const section = document.getElementById("kutular");
-    if (!tbody) return;
-    _boxTableData = Array.isArray(boxes) ? boxes.slice() : [];
-    if (!_boxTableData.length) {
-      if (section) section.setAttribute("hidden", "");
-      return;
-    }
-    if (section) section.removeAttribute("hidden");
-    renderBoxTable();
-    // Wire filter inputs (idempotent — replaceWith clones to drop previous listeners)
-    const search = document.getElementById("lpBoxSearch");
-    const status = document.getElementById("lpBoxStatus");
-    if (search) {
-      const fresh = search.cloneNode(true);
-      search.parentNode.replaceChild(fresh, search);
-      fresh.addEventListener("input", renderBoxTable);
-    }
-    if (status) {
-      const fresh = status.cloneNode(true);
-      status.parentNode.replaceChild(fresh, status);
-      fresh.addEventListener("change", renderBoxTable);
-    }
-  }
-
-  function renderBoxTable() {
-    const tbody = document.getElementById("lpBoxTableBody");
-    if (!tbody) return;
-    const searchEl = document.getElementById("lpBoxSearch");
-    const statusEl = document.getElementById("lpBoxStatus");
-    const q = (searchEl && searchEl.value || "").trim().toLocaleLowerCase("tr");
-    const filterStatus = (statusEl && statusEl.value) || "all";
-    const filtered = _boxTableData.filter((b) => {
-      if (filterStatus !== "all" && b.status !== filterStatus) return false;
-      if (!q) return true;
-      const hay = [
-        String(b.kutu || ""),
-        String(b.name || ""),
-        (b.workers || []).join(" "),
-      ].join(" ").toLocaleLowerCase("tr");
-      return hay.indexOf(q) >= 0;
+  function initialOf(name) { const s = String(name || '').trim(); return s ? s.charAt(0).toLocaleUpperCase('tr') : '·'; }
+  function capitalize(s) { if (!s) return ''; return s.charAt(0).toLocaleUpperCase('tr') + s.slice(1); }
+  function recentTickerEntry(ticker) {
+    let best = null; let bestT = 0;
+    ticker.forEach((r) => {
+      const t = tsMillis(r.when || r.createdAt);
+      if (t > bestT) { bestT = t; best = r; }
     });
-    if (!filtered.length) {
-      tbody.innerHTML = `<tr><td colspan="8" class="lp-bt-empty">Eşleşen kutu yok.</td></tr>`;
-      return;
+    return best;
+  }
+  function sumPagesForDay(ticker, dayMs, who) {
+    const start = startOfDay(new Date(dayMs)).getTime();
+    const end = start + 86400000;
+    return ticker.filter((r) => {
+      const t = tsMillis(r.when || r.createdAt);
+      if (t < start || t >= end) return false;
+      if (!who) return true;
+      return (r.volunteerToken && r.volunteerToken === who)
+          || (r.firstName && r.firstName === who);
+    }).length;
+  }
+  function uniqueFirstNames(entries) {
+    const seen = new Map();
+    entries.forEach((r) => {
+      const n = (r.firstName || '').trim();
+      if (!n) return;
+      seen.set(n.toLowerCase(), n);
+    });
+    return Array.from(seen.values()).sort();
+  }
+  function uniqueBoxesFromTicker(entries, allBoxes) {
+    const seen = new Map();
+    entries.forEach((r) => {
+      const boxKey = bestBoxForEntry(r, allBoxes);
+      if (!boxKey) return;
+      if (!seen.has(boxKey)) {
+        const found = allBoxes.find((b) => String(b.kutu) === String(boxKey));
+        seen.set(boxKey, found || { kutu: boxKey, name: 'Kutu ' + boxKey });
+      }
+    });
+    return Array.from(seen.values());
+  }
+  // Best-effort: extract box reference from the ticker entry id.
+  // Apps Script ticker ids look like: "sheet_pnb_14_betul_row42" → box 14
+  // For gunluk_akis entries, no box info; fall back to the volunteer's currentBox.
+  function bestBoxForEntry(r, allBoxes) {
+    const id = String(r.id || '');
+    const m = id.match(/sheet_pnb_([a-z0-9]+)_/i);
+    if (m) {
+      const key = m[1].toUpperCase().replace(/^I/, 'I·');
+      // try to find a matching box; if not found return the raw key
+      const found = allBoxes.find((b) => normalizeBoxKey(b.kutu) === normalizeBoxKey(m[1]));
+      return found ? found.kutu : m[1];
     }
-    tbody.innerHTML = filtered.map((b, i) => {
-      const pct = b.totalPages > 0 ? Math.round((b.donePages / b.totalPages) * 100) : 0;
-      const workers = (b.workers || []).slice(0, 3).map((w) => `<span class="lp-bt-chip">${esc(w)}</span>`).join("");
-      const more = (b.workers || []).length > 3 ? `<span class="lp-bt-chip">+${b.workers.length - 3}</span>` : "";
-      const stateLabel = b.status === "done" ? "tamamlandı" : b.status === "active" ? "devam" : "başlamadı";
-      return `<tr>
-        <td class="lp-bt-num">${esc(b.kutu)}</td>
-        <td class="lp-bt-name">${esc(b.name || `Kutu ${b.kutu}`)}</td>
-        <td class="lp-bt-num-r">${formatNum(b.dosya || 0)}</td>
-        <td class="lp-bt-num-r">${formatNum(b.belge || 0)}</td>
-        <td class="lp-bt-num-r">${formatNum(b.totalPages || 0)}</td>
-        <td class="lp-bt-progcell">
-          <div class="lp-bt-proglabel">%${pct} (${formatNum(b.donePages || 0)}/${formatNum(b.totalPages || 0)})</div>
-          <div class="lp-bt-bar"><span style="width:${pct}%"></span></div>
-        </td>
-        <td>${workers || `<span style="color:var(--lp-muted,#6b5d50); font-size:13px;">—</span>`}${more}</td>
-        <td><span class="lp-bt-state ${esc(b.status || "future")}">${esc(stateLabel)}</span></td>
-      </tr>`;
-    }).join("");
+    return '';
   }
-
-  // ============================================================
-  // v4 — Volunteer atlas (one card per gönüllü)
-  // ============================================================
-  let _volData = [];
-
-  function hydrateVolunteers(volunteers) {
-    const grid = document.getElementById("lpVolGrid");
-    const section = document.getElementById("gonulluler");
-    if (!grid) return;
-    _volData = Array.isArray(volunteers) ? volunteers.slice() : [];
-    if (!_volData.length) {
-      if (section) section.setAttribute("hidden", "");
-      return;
-    }
-    if (section) section.removeAttribute("hidden");
-    renderVolGrid("all");
-    const filter = document.getElementById("lpVolFilter");
-    if (filter) {
-      filter.querySelectorAll(".lp-vol-fchip").forEach((btn) => {
-        const fresh = btn.cloneNode(true);
-        btn.parentNode.replaceChild(fresh, btn);
-        fresh.addEventListener("click", () => {
-          filter.querySelectorAll(".lp-vol-fchip").forEach((b) => b.classList.remove("on"));
-          fresh.classList.add("on");
-          renderVolGrid(fresh.dataset.vf || "all");
-        });
-      });
-    }
+  function normalizeBoxKey(k) {
+    return String(k || '').toLowerCase().replace(/[·.\-_\s]/g, '');
   }
-
-  function renderVolGrid(mode) {
-    const grid = document.getElementById("lpVolGrid");
-    if (!grid) return;
-    let list = _volData.slice();
-    if (mode === "active") list = list.filter((v) => v.status === "active");
-    else if (mode === "quiet") list = list.filter((v) => v.status !== "active");
-    else if (mode === "top") list.sort((a, b) => (b.monthPages || 0) - (a.monthPages || 0));
-    if (!list.length) {
-      grid.innerHTML = `<p style="color: var(--lp-muted,#6b5d50); font-style:italic;">Bu kategoride gönüllü yok.</p>`;
-      return;
-    }
-    grid.innerHTML = list.map((v) => renderVolCard(v)).join("");
+  function boxDescription(boxes, kutu) {
+    if (!kutu) return '';
+    const b = boxes.find((x) => String(x.kutu) === String(kutu));
+    return b && b.name ? b.name : '';
   }
-
-  function renderVolCard(v) {
-    const last = v.lastActivity ? tsMillis(v.lastActivity) : 0;
-    const lastLbl = last > 0 ? dayLabel(last) : "—";
-    const spark = Array.isArray(v.spark) ? v.spark : [0,0,0,0];
-    const maxS = Math.max(...spark, 1);
-    const statusCls = v.status === "active" ? "active" : "quiet";
-    const statusLbl = v.status === "active" ? "aktif" : "sessiz";
-    return `
-      <article class="lp-vol-card">
-        <div class="lp-vol-head">
-          <div class="lp-vol-avatar">${esc(initials(v.firstName))}</div>
-          <div>
-            <h4 class="lp-vol-name">${esc(v.firstName || "—")}<span class="lp-vol-status ${statusCls}">${statusLbl}</span></h4>
-            ${v.currentBox ? `<small class="lp-vol-since">şu an Kutu ${esc(v.currentBox)}</small>` : ""}
-          </div>
-        </div>
-        <div class="lp-vol-stat"><span>Bu ay sayfa</span><span>${formatNum(v.monthPages || 0)}</span></div>
-        <div class="lp-vol-stat"><span>Toplam sayfa</span><span>${formatNum(v.totalPages || 0)}</span></div>
-        <div class="lp-vol-stat"><span>Son kayıt</span><span>${esc(lastLbl)}</span></div>
-        <div class="lp-vol-spark">${spark.map((n) => {
-          const h = Math.max(4, Math.round((n / maxS) * 100));
-          const hi = n > 0 && n >= (maxS * 0.5) ? "hi" : "";
-          return `<span class="${hi}" style="height:${h}%"></span>`;
-        }).join("")}</div>
-      </article>`;
-  }
-
-  function formatLongDate(ms) {
-    if (!ms) return "";
-    return new Date(ms).toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
-  }
-})();
-n><span>${formatNum(v.monthPages || 0)}</span></div>
-        <div class="lp-vol-stat"><span>Toplam sayfa</span><span>${formatNum(v.totalPages || 0)}</span></div>
-        <div class="lp-vol-stat"><span>Son kayıt</span><span>${esc(lastLbl)}</span></div>
-        <div class="lp-vol-spark">${spark.map((n) => {
-          const h = Math.max(4, Math.round((n / maxS) * 100));
-          const hi = n > 0 && n >= (maxS * 0.5) ? "hi" : "";
-          return `<span class="${hi}" style="height:${h}%"></span>`;
-        }).join("")}</div>
-      </article>`;
-  }
-
-  function formatLongDate(ms) {
-    if (!ms) return "";
-    return new Date(ms).toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
+  function weeklyDelta(ticker, box, weekStart) {
+    if (!box || !box.kutu) return 0;
+    const key = normalizeBoxKey(box.kutu);
+    let n = 0;
+    ticker.forEach((r) => {
+      const t = tsMillis(r.when || r.createdAt);
+      if (t < weekStart) return;
+      const id = String(r.id || '');
+      const m = id.match(/sheet_pnb_([a-z0-9]+)_/i);
+      if (m && normalizeBoxKey(m[1]) === key) n += 1;
+    });
+    return n;
   }
 })();
