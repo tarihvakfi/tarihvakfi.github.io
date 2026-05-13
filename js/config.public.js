@@ -8,7 +8,7 @@
 //   2. Deploy → Manage Deployments → New Deployment
 //   3. Type: Web App, Execute as: <foundation account>, Access: Anyone
 //   4. Copy the /exec URL below.
-window.__SHEETSYNC_URL__ = "https://script.google.com/macros/s/AKfycbxQz8r5DwK_PNB_REPLACE_ME/exec";
+window.__SHEETSYNC_URL__ = "https://script.google.com/macros/s/AKfycbzSGPTbBnrfhSDdw_iOrfxAfGLYp08qpZwl8rqZSb90o_x5cUK7Eo1HYnrjk-hvJWE/exec";
 
 window.__APP_CONFIG__ = {
   appName: "Tarih Vakfı Gönüllü Takip Sistemi"

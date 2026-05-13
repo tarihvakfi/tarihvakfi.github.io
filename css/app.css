@@ -1,5 +1,0 @@
-#tasksList .list-card,
-#reportsList .list-card,
-#announcementsList .list-card {
-  border-left: 4px solid var(--primary);
-}
