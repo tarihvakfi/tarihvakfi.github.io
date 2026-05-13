@@ -1565,5 +1565,3 @@ function getAccessToken_(scopeOverride) {
   }
   return JSON.parse(response.getContentText()).access_token;
 }
- return JSON.parse(response.getContentText()).access_token;
-}
