@@ -1264,8 +1264,8 @@ function _jsonResponse_(obj) {
 //     schedule: { monday: [...], tuesday: [...] }
 //   }
 function _buildPublicSitePayload_() {
-  const config = _loadConfig_();
-  const sheetId = (config && config.sheetId) || '';
+  const sheetId = PropertiesService.getScriptProperties()
+    .getProperty('TARIH_VAKFI_SHEET_ID') || '';
   if (!sheetId) {
     return {
       stats: { projects: { pnb: null } },
@@ -1290,16 +1290,34 @@ function _buildPublicSitePayload_() {
     };
   }
 
-  const projection = _buildPublicProjectionFromSheet_(sheetId, metadata);
-  const stats = (projection && projection.stats) || { projects: { pnb: null } };
-  const ticker = (projection && projection.ticker) || [];
+  const projection = _buildPublicProjectionFromSheet_(sheetId, metadata) || {};
+  const pnbStats = projection.hasStats || projection.totalPages || projection.cataloguedBoxes ? {
+    totalPages: projection.totalPages || 0,
+    donePages: projection.donePages || 0,
+    totalUnits: projection.totalUnits || 0,
+    doneUnits: projection.doneUnits || 0,
+    totalFiles: projection.totalFiles || 0,
+    cataloguedBoxes: projection.cataloguedBoxes || 0,
+    boxes: []
+  } : null;
+  const ticker = (projection.tickerEntries || []).map(function (e) {
+    return {
+      id: e.id,
+      when: (e.createdAt && e.createdAt.toISOString) ? e.createdAt.toISOString() : e.createdAt,
+      materialCategory: e.materialCategory,
+      projectId: e.projectId,
+      volunteerToken: e.volunteerToken,
+      effort: e.effort
+    };
+  });
+
   const content = _readPublicContentFromSheet_(sheetId, metadata);
   const activeVolunteers = _collectActiveFirstNames_(sheetId, metadata);
   const schedule = _readPublicScheduleFromSheet_(sheetId, metadata);
 
   return {
-    stats: stats,
-    ticker: ticker.slice(0, 60),
+    stats: { projects: { pnb: pnbStats } },
+    ticker: ticker.slice(0, 200),
     content: content,
     activeVolunteers: activeVolunteers,
     schedule: schedule
@@ -1443,6 +1461,29 @@ function _readPublicScheduleFromSheet_(sheetId, metadata) {
     if (!out[dayKey]) out[dayKey] = [];
     for (let i = 0; i < list.length; i++) {
       if (out[dayKey].indexOf(list[i]) === -1) out[dayKey].push(list[i]);
+    }
+  }
+  return out;
+}
+
+function _findOverviewTitle_(tabs) {
+  const candidates = ['pnb_gonullu_ozet', 'pnb_genel', 'pnb_ozet', 'gönüllüler', 'gonulluler', 'volunteers'];
+  for (let i = 0; i < tabs.length; i++) {
+    const title = String((tabs[i].properties && tabs[i].properties.title) || '');
+    const slug = _slugifyTabName_(title);
+    if (candidates.indexOf(slug) >= 0) return title;
+  }
+  return null;
+}
+
+function _firstIndexOf_(arr, candidates) {
+  for (let i = 0; i < candidates.length; i++) {
+    const idx = arr.indexOf(candidates[i]);
+    if (idx !== -1) return idx;
+  }
+  return -1;
+}
+dexOf(list[i]) === -1) out[dayKey].push(list[i]);
     }
   }
   return out;
