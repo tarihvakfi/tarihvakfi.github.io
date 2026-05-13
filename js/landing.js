@@ -121,6 +121,13 @@
     hydrateWall(payload.activeVolunteers);
     hydrateRoster(payload.schedule);
     hydrateSiteContent(payload.content);
+
+    // v4 — sheet-faithful additions
+    hydrateStream(payload.stream, ticker);
+    hydrateWeeklyRhythm(payload.weeklyRhythm);
+    hydrateTouchedBoxes(payload.boxes, ticker);
+    hydrateBoxTable(payload.boxes);
+    hydrateVolunteers(payload.volunteers);
   }
 
   // The payload supports two shapes for stats:
@@ -628,5 +635,255 @@
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
+  }
+  function initials(name) {
+    const s = String(name || "").trim();
+    return s ? s.charAt(0).toLocaleUpperCase("tr") : "·";
+  }
+
+  // ============================================================
+  // v4 — Stream slice + weekly rhythm + touched-boxes pills
+  // ============================================================
+
+  function hydrateStream(streamData, tickerItems) {
+    const wrap = document.getElementById("lpStream");
+    const section = document.getElementById("bugun");
+    if (!wrap) return;
+    let days = Array.isArray(streamData) ? streamData.slice(0, 4) : [];
+    // Fallback: derive from ticker if Apps Script didn't ship stream yet.
+    if (!days.length && tickerItems && tickerItems.length) {
+      const byDay = new Map();
+      tickerItems.forEach((r) => {
+        const t = tsMillis(r.when || r.createdAt);
+        if (!t) return;
+        const key = dayKey(t);
+        if (!byDay.has(key)) byDay.set(key, { date: new Date(t).toISOString(), items: [] });
+        byDay.get(key).items.push(r);
+      });
+      days = Array.from(byDay.values()).sort((a, b) => tsMillis(b.date) - tsMillis(a.date)).slice(0, 4);
+    }
+    if (!days.length) {
+      if (section) section.setAttribute("hidden", "");
+      return;
+    }
+    wrap.innerHTML = days.map((d) => {
+      const ts = tsMillis(d.date);
+      const lbl = dayLabel(ts);
+      const items = (d.items || []).slice(0, 4);
+      return `
+        <div class="lp-stream-day">
+          <div class="lp-stream-day-head">
+            <h3>${esc(lbl)}</h3>
+            <small>${esc(formatLongDate(ts))} · ${items.length} kayıt</small>
+          </div>
+          ${items.map((it) => renderStreamItem(it)).join("")}
+        </div>`;
+    }).join("");
+    if (section) section.removeAttribute("hidden");
+  }
+
+  function renderStreamItem(it) {
+    const token = it.volunteerToken || "";
+    const initial = initials(token);
+    const cat = cleanCategory(it.materialCategory);
+    const t = tsMillis(it.when || it.createdAt);
+    const hm = t ? new Date(t).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }) : "—";
+    return `
+      <div class="lp-stream-item">
+        <div class="lp-stream-avatar" aria-hidden="true">${esc(initial)}</div>
+        <div class="lp-stream-body">
+          <p class="who">Bir gönüllü</p>
+          <p class="what">${esc(capitalize(cat))} · kayıt düşüldü</p>
+        </div>
+        <div class="lp-stream-meta"><b>+1</b>${esc(hm)}</div>
+      </div>`;
+  }
+
+  function hydrateWeeklyRhythm(buckets) {
+    const wrap = document.getElementById("lpWeekBars");
+    const foot = document.getElementById("lpWeekFoot");
+    if (!wrap) return;
+    const arr = Array.isArray(buckets) && buckets.length === 7 ? buckets : [0,0,0,0,0,0,0];
+    const max = Math.max(...arr, 1);
+    const labels = ["Pa","Sa","Ça","Pe","Cu","Ct","Pz"];
+    const today = new Date().getDay(); // 0=Pz..6=Ct (JS) — adjust to ISO Pa=0
+    const isoToday = today === 0 ? 6 : today - 1; // 0=Pa..6=Pz
+    wrap.innerHTML = arr.map((n, i) => {
+      const pct = Math.max(2, Math.round((n / max) * 100));
+      const cls = i === isoToday ? "lp-week-bar today" : "lp-week-bar";
+      return `<div class="${cls}" style="height:${pct}%" title="${labels[i]} · ${n} kayıt"><small>${labels[i]}</small></div>`;
+    }).join("");
+    if (foot) {
+      const total = arr.reduce((s, n) => s + n, 0);
+      foot.innerHTML = total > 0
+        ? `Bu hafta toplam <b style="color:var(--lp-terra,#94462a);">${formatNum(total)} kayıt</b>`
+        : `Bu hafta henüz kayıt yok`;
+    }
+  }
+
+  function hydrateTouchedBoxes(boxes, tickerItems) {
+    const wrap = document.getElementById("lpTouchedBoxes");
+    if (!wrap) return;
+    // Prefer boxes flagged as 'active'. Otherwise derive from recent ticker.
+    let touched = [];
+    if (Array.isArray(boxes) && boxes.length) {
+      touched = boxes.filter((b) => b.status === "active").map((b) => `Kutu ${b.kutu}`);
+    }
+    if (!touched.length) {
+      wrap.textContent = "—";
+      return;
+    }
+    wrap.innerHTML = touched.slice(0, 12)
+      .map((name) => `<span class="lp-pill lp-pill-touch">${esc(name)}</span>`)
+      .join("");
+  }
+
+  // ============================================================
+  // v4 — Box table (sortable mirror of pnb_sayisallastirma)
+  // ============================================================
+  let _boxTableData = [];
+
+  function hydrateBoxTable(boxes) {
+    const tbody = document.getElementById("lpBoxTableBody");
+    const section = document.getElementById("kutular");
+    if (!tbody) return;
+    _boxTableData = Array.isArray(boxes) ? boxes.slice() : [];
+    if (!_boxTableData.length) {
+      if (section) section.setAttribute("hidden", "");
+      return;
+    }
+    if (section) section.removeAttribute("hidden");
+    renderBoxTable();
+    // Wire filter inputs (idempotent — replaceWith clones to drop previous listeners)
+    const search = document.getElementById("lpBoxSearch");
+    const status = document.getElementById("lpBoxStatus");
+    if (search) {
+      const fresh = search.cloneNode(true);
+      search.parentNode.replaceChild(fresh, search);
+      fresh.addEventListener("input", renderBoxTable);
+    }
+    if (status) {
+      const fresh = status.cloneNode(true);
+      status.parentNode.replaceChild(fresh, status);
+      fresh.addEventListener("change", renderBoxTable);
+    }
+  }
+
+  function renderBoxTable() {
+    const tbody = document.getElementById("lpBoxTableBody");
+    if (!tbody) return;
+    const searchEl = document.getElementById("lpBoxSearch");
+    const statusEl = document.getElementById("lpBoxStatus");
+    const q = (searchEl && searchEl.value || "").trim().toLocaleLowerCase("tr");
+    const filterStatus = (statusEl && statusEl.value) || "all";
+    const filtered = _boxTableData.filter((b) => {
+      if (filterStatus !== "all" && b.status !== filterStatus) return false;
+      if (!q) return true;
+      const hay = [
+        String(b.kutu || ""),
+        String(b.name || ""),
+        (b.workers || []).join(" "),
+      ].join(" ").toLocaleLowerCase("tr");
+      return hay.indexOf(q) >= 0;
+    });
+    if (!filtered.length) {
+      tbody.innerHTML = `<tr><td colspan="8" class="lp-bt-empty">Eşleşen kutu yok.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = filtered.map((b, i) => {
+      const pct = b.totalPages > 0 ? Math.round((b.donePages / b.totalPages) * 100) : 0;
+      const workers = (b.workers || []).slice(0, 3).map((w) => `<span class="lp-bt-chip">${esc(w)}</span>`).join("");
+      const more = (b.workers || []).length > 3 ? `<span class="lp-bt-chip">+${b.workers.length - 3}</span>` : "";
+      const stateLabel = b.status === "done" ? "tamamlandı" : b.status === "active" ? "devam" : "başlamadı";
+      return `<tr>
+        <td class="lp-bt-num">${esc(b.kutu)}</td>
+        <td class="lp-bt-name">${esc(b.name || `Kutu ${b.kutu}`)}</td>
+        <td class="lp-bt-num-r">${formatNum(b.dosya || 0)}</td>
+        <td class="lp-bt-num-r">${formatNum(b.belge || 0)}</td>
+        <td class="lp-bt-num-r">${formatNum(b.totalPages || 0)}</td>
+        <td class="lp-bt-progcell">
+          <div class="lp-bt-proglabel">%${pct} (${formatNum(b.donePages || 0)}/${formatNum(b.totalPages || 0)})</div>
+          <div class="lp-bt-bar"><span style="width:${pct}%"></span></div>
+        </td>
+        <td>${workers || `<span style="color:var(--lp-muted,#6b5d50); font-size:13px;">—</span>`}${more}</td>
+        <td><span class="lp-bt-state ${esc(b.status || "future")}">${esc(stateLabel)}</span></td>
+      </tr>`;
+    }).join("");
+  }
+
+  // ============================================================
+  // v4 — Volunteer atlas (one card per gönüllü)
+  // ============================================================
+  let _volData = [];
+
+  function hydrateVolunteers(volunteers) {
+    const grid = document.getElementById("lpVolGrid");
+    const section = document.getElementById("gonulluler");
+    if (!grid) return;
+    _volData = Array.isArray(volunteers) ? volunteers.slice() : [];
+    if (!_volData.length) {
+      if (section) section.setAttribute("hidden", "");
+      return;
+    }
+    if (section) section.removeAttribute("hidden");
+    renderVolGrid("all");
+    const filter = document.getElementById("lpVolFilter");
+    if (filter) {
+      filter.querySelectorAll(".lp-vol-fchip").forEach((btn) => {
+        const fresh = btn.cloneNode(true);
+        btn.parentNode.replaceChild(fresh, btn);
+        fresh.addEventListener("click", () => {
+          filter.querySelectorAll(".lp-vol-fchip").forEach((b) => b.classList.remove("on"));
+          fresh.classList.add("on");
+          renderVolGrid(fresh.dataset.vf || "all");
+        });
+      });
+    }
+  }
+
+  function renderVolGrid(mode) {
+    const grid = document.getElementById("lpVolGrid");
+    if (!grid) return;
+    let list = _volData.slice();
+    if (mode === "active") list = list.filter((v) => v.status === "active");
+    else if (mode === "quiet") list = list.filter((v) => v.status !== "active");
+    else if (mode === "top") list.sort((a, b) => (b.monthPages || 0) - (a.monthPages || 0));
+    if (!list.length) {
+      grid.innerHTML = `<p style="color: var(--lp-muted,#6b5d50); font-style:italic;">Bu kategoride gönüllü yok.</p>`;
+      return;
+    }
+    grid.innerHTML = list.map((v) => renderVolCard(v)).join("");
+  }
+
+  function renderVolCard(v) {
+    const last = v.lastActivity ? tsMillis(v.lastActivity) : 0;
+    const lastLbl = last > 0 ? dayLabel(last) : "—";
+    const spark = Array.isArray(v.spark) ? v.spark : [0,0,0,0];
+    const maxS = Math.max(...spark, 1);
+    const statusCls = v.status === "active" ? "active" : "quiet";
+    const statusLbl = v.status === "active" ? "aktif" : "sessiz";
+    return `
+      <article class="lp-vol-card">
+        <div class="lp-vol-head">
+          <div class="lp-vol-avatar">${esc(initials(v.firstName))}</div>
+          <div>
+            <h4 class="lp-vol-name">${esc(v.firstName || "—")}<span class="lp-vol-status ${statusCls}">${statusLbl}</span></h4>
+            ${v.currentBox ? `<small class="lp-vol-since">şu an Kutu ${esc(v.currentBox)}</small>` : ""}
+          </div>
+        </div>
+        <div class="lp-vol-stat"><span>Bu ay sayfa</span><span>${formatNum(v.monthPages || 0)}</span></div>
+        <div class="lp-vol-stat"><span>Toplam sayfa</span><span>${formatNum(v.totalPages || 0)}</span></div>
+        <div class="lp-vol-stat"><span>Son kayıt</span><span>${esc(lastLbl)}</span></div>
+        <div class="lp-vol-spark">${spark.map((n) => {
+          const h = Math.max(4, Math.round((n / maxS) * 100));
+          const hi = n > 0 && n >= (maxS * 0.5) ? "hi" : "";
+          return `<span class="${hi}" style="height:${h}%"></span>`;
+        }).join("")}</div>
+      </article>`;
+  }
+
+  function formatLongDate(ms) {
+    if (!ms) return "";
+    return new Date(ms).toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
   }
 })();

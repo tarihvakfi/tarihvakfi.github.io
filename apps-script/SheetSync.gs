@@ -1315,13 +1315,223 @@ function _buildPublicSitePayload_() {
   const activeVolunteers = _collectActiveFirstNames_(sheetId, metadata);
   const schedule = _readPublicScheduleFromSheet_(sheetId, metadata);
 
+  // v4 (May 2026): three new arrays so the landing page can render the
+  // sheet-mirror box table, the volunteer atlas, and the weekly rhythm.
+  const boxes = _readBoxesFromSheet_(sheetId, metadata);
+  const volunteers = _readVolunteersFromTabs_(sheetId, metadata);
+  const weeklyRhythm = _computeWeeklyRhythm_(projection.tickerEntries || []);
+  const stream = _groupStreamFromTicker_(projection.tickerEntries || [], boxes, volunteers);
+
   return {
     stats: { projects: { pnb: pnbStats } },
     ticker: ticker.slice(0, 200),
     content: content,
     activeVolunteers: activeVolunteers,
-    schedule: schedule
+    schedule: schedule,
+    boxes: boxes,
+    volunteers: volunteers,
+    weeklyRhythm: weeklyRhythm,
+    stream: stream
   };
+}
+
+// Reads the pnb_sayisallastirma overview tab and returns one entry per box
+// with the columns the landing page's box table needs. Volunteers working
+// on each box are inferred from per-volunteer detail tabs (matched by
+// "Kutu" cell). Returns [] on failure.
+function _readBoxesFromSheet_(sheetId, metadata) {
+  const tabs = ((metadata && metadata.sheets) || []).map(function (s) {
+    return (s.properties && s.properties.title) || '';
+  }).filter(Boolean);
+  const summaryTab = tabs.find(function (n) { return _slugifyTabName_(n) === 'pnb_sayisallastirma'; });
+  if (!summaryTab) return [];
+
+  let rows;
+  try { rows = _readPublicSheetRows_(sheetId, summaryTab); } catch (err) { return []; }
+
+  // Build a "who's on which box" map from per-volunteer detail tabs.
+  const workersByBox = {};
+  tabs.forEach(function (tabName) {
+    const slug = _slugifyTabName_(tabName);
+    if (slug.indexOf('pnb_') !== 0) return;
+    if (slug === 'pnb_sayisallastirma' || slug === 'pnb_zarf_calisma') return;
+    if (slug.indexOf('_zarf') !== -1) return;
+    // Volunteer first name from the tab title — "pnb_14_betul" → "betul"
+    const parts = slug.split('_');
+    const first = parts[parts.length - 1];
+    if (!first) return;
+    const cap = first.charAt(0).toUpperCase() + first.slice(1);
+    let detailRows;
+    try { detailRows = _readPublicSheetRows_(sheetId, tabName); } catch (e) { return; }
+    detailRows.forEach(function (row) {
+      const box = _stringValue_(row.kutu) || _stringValue_(row.kutuNo);
+      if (!box) return;
+      const key = String(box).trim();
+      if (!workersByBox[key]) workersByBox[key] = {};
+      workersByBox[key][cap] = true;
+    });
+  });
+
+  const boxes = [];
+  rows.forEach(function (row) {
+    const kutu = _stringValue_(row.kutu) || _stringValue_(row.kutuNo);
+    if (!kutu) return;
+    const pages = _parseDoneTotalCell_(row.sayfaSayisi);
+    const totalPages = pages.total || 0;
+    const dosyaSayisi = _numberOrZero_(row.dosyaSayisi);
+    const belgeSayisi = _numberOrZero_(row.belgeSayisi);
+    // donePages comes from pages.done if a "X/Y" format was used, else 0.
+    // The full done count per box is tracked by SheetSync separately; here
+    // we expose what the sheet itself states.
+    const donePages = pages.done || 0;
+    const workers = Object.keys(workersByBox[kutu] || {}).sort();
+    let status = 'future';
+    if (totalPages > 0) {
+      if (donePages >= totalPages) status = 'done';
+      else if (donePages > 0 || workers.length > 0) status = 'active';
+      else status = 'future';
+    } else if (workers.length > 0) {
+      status = 'active';
+    }
+    boxes.push({
+      kutu: kutu,
+      name: _stringValue_(row.aciklama) || _stringValue_(row.icerik) || _stringValue_(row.calismaAlani) || ('Kutu ' + kutu),
+      dosya: dosyaSayisi,
+      belge: belgeSayisi,
+      totalPages: totalPages,
+      donePages: donePages,
+      workers: workers,
+      status: status
+    });
+  });
+  return boxes;
+}
+
+// Iterates per-volunteer tabs and returns one entry per volunteer with the
+// stats the volunteer atlas card needs. The volunteer's first name is
+// extracted from the tab title (e.g. "PNB 14 Betül" → "Betül"). Tabs
+// flagged hidden via a row containing hideName=true are skipped.
+function _readVolunteersFromTabs_(sheetId, metadata) {
+  const tabs = ((metadata && metadata.sheets) || []);
+  const out = [];
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  tabs.forEach(function (sheetMeta) {
+    const title = (sheetMeta.properties && sheetMeta.properties.title) || '';
+    const slug = _slugifyTabName_(title);
+    if (slug.indexOf('pnb_') !== 0) return;
+    if (slug === 'pnb_sayisallastirma' || slug === 'pnb_zarf_calisma') return;
+    if (slug.indexOf('_zarf') !== -1) return;
+
+    let rows;
+    try { rows = _readPublicSheetRows_(sheetId, title); } catch (err) { return; }
+    if (!rows || rows.length === 0) return;
+
+    // Detect schema A (sum sayfaSayisi) vs schema B (count rows).
+    const hasSayfaSayisi = rows.some(function (r) {
+      return r.sayfaSayisi != null && String(r.sayfaSayisi).trim() !== '';
+    });
+    let monthPages = 0;
+    let totalPages = 0;
+    let lastDate = null;
+    const boxesTouched = {};
+    rows.forEach(function (row) {
+      const created = _parseSheetDate_(row.tarih);
+      const pageCount = hasSayfaSayisi
+        ? (_parseDoneTotalCell_(row.sayfaSayisi).done || _parseDoneTotalCell_(row.sayfaSayisi).total || 0)
+        : 1;
+      totalPages += pageCount;
+      if (created && !isNaN(created.getTime())) {
+        if (!lastDate || created.getTime() > lastDate.getTime()) lastDate = created;
+        if (created.getTime() >= monthStart) monthPages += pageCount;
+      }
+      const box = _stringValue_(row.kutu) || _stringValue_(row.kutuNo);
+      if (box) boxesTouched[String(box).trim()] = true;
+    });
+
+    // Extract first name from tab title: take everything after the last
+    // space (e.g. "PNB 14 Betül" → "Betül"). Fall back to the slug.
+    const parts = title.split(/\s+/);
+    const firstName = parts[parts.length - 1] || _capitalise_(slug.split('_').pop());
+
+    // 4-week sparkline: count rows per week for the last 4 ISO weeks.
+    const weekCounts = [0, 0, 0, 0];
+    rows.forEach(function (row) {
+      const created = _parseSheetDate_(row.tarih);
+      if (!created || isNaN(created.getTime())) return;
+      const daysAgo = Math.floor((now.getTime() - created.getTime()) / 86400000);
+      if (daysAgo < 0 || daysAgo > 27) return;
+      const bucket = 3 - Math.floor(daysAgo / 7); // 0..3, recent = 3
+      const pageCount = hasSayfaSayisi
+        ? (_parseDoneTotalCell_(row.sayfaSayisi).done || _parseDoneTotalCell_(row.sayfaSayisi).total || 0)
+        : 1;
+      weekCounts[bucket] += pageCount;
+    });
+
+    // Status: active if there's been activity in the last 7 days.
+    const lastMs = lastDate ? lastDate.getTime() : 0;
+    const sevenDaysAgo = now.getTime() - 7 * 86400000;
+    const status = lastMs >= sevenDaysAgo ? 'active' : 'quiet';
+
+    const currentBox = Object.keys(boxesTouched).pop() || null;
+
+    out.push({
+      firstName: firstName,
+      monthPages: monthPages,
+      totalPages: totalPages,
+      lastActivity: lastDate ? lastDate.toISOString() : null,
+      currentBox: currentBox,
+      status: status,
+      spark: weekCounts
+    });
+  });
+  out.sort(function (a, b) { return (b.monthPages || 0) - (a.monthPages || 0); });
+  return out;
+}
+
+// 7 day buckets of recent activity counts, oldest first, so the landing
+// page can render a small bar chart of the week's rhythm.
+function _computeWeeklyRhythm_(tickerEntries) {
+  const buckets = [0, 0, 0, 0, 0, 0, 0];
+  const now = new Date();
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  tickerEntries.forEach(function (e) {
+    if (!e.createdAt || !(e.createdAt instanceof Date)) return;
+    const daysAgo = Math.floor((todayMidnight - new Date(e.createdAt.getFullYear(), e.createdAt.getMonth(), e.createdAt.getDate()).getTime()) / 86400000);
+    if (daysAgo < 0 || daysAgo > 6) return;
+    buckets[6 - daysAgo] += 1;
+  });
+  return buckets;
+}
+
+// Groups the ticker into day buckets with friendly labels — what the
+// landing page's "Arşivde son hareketler" stream renders.
+function _groupStreamFromTicker_(tickerEntries, boxes, volunteers) {
+  const byDay = {};
+  const order = [];
+  tickerEntries.forEach(function (e) {
+    if (!e.createdAt || !(e.createdAt instanceof Date)) return;
+    const d = e.createdAt;
+    const key = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+    if (!byDay[key]) {
+      byDay[key] = {
+        date: new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString(),
+        items: []
+      };
+      order.push(key);
+    }
+    byDay[key].items.push({
+      when: d.toISOString(),
+      materialCategory: e.materialCategory,
+      volunteerToken: e.volunteerToken
+    });
+  });
+  return order.slice(0, 5).map(function (k) { return byDay[k]; });
+}
+
+function _capitalise_(s) {
+  if (!s) return '';
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 // Reads an optional "Anasayfa Metinleri" tab (key | value rows) so the
@@ -1501,6 +1711,257 @@ function _findOverviewTitle_(tabs) {
 
 function _firstIndexOf_(arr, candidates) {
   for (let i = 0; i < candidates.length; i++) {
+    const idx = arr.indexOf(candidates[i]);
+    if (idx !== -1) return idx;
+  }
+  return -1;
+}
+ (_parseDoneTotalCell_(row.sayfaSayisi).done || _parseDoneTotalCell_(row.sayfaSayisi).total || 0)
+        : 1;
+      weekCounts[bucket] += pageCount;
+    });
+
+    const lastMs = lastDate ? lastDate.getTime() : 0;
+    const sevenDaysAgo = now.getTime() - 7 * 86400000;
+    const status = lastMs >= sevenDaysAgo ? 'active' : 'quiet';
+    const currentBox = Object.keys(boxesTouched).pop() || null;
+
+    out.push({
+      firstName: firstName,
+      monthPages: monthPages,
+      totalPages: totalPages,
+      lastActivity: lastDate ? lastDate.toISOString() : null,
+      currentBox: currentBox,
+      status: status,
+      spark: weekCounts
+    });
+  });
+  out.sort(function (a, b) { return (b.monthPages || 0) - (a.monthPages || 0); });
+  return out;
+}
+
+// 7 day buckets of recent activity counts, oldest first.
+function _computeWeeklyRhythm_(tickerEntries) {
+  const buckets = [0, 0, 0, 0, 0, 0, 0];
+  const now = new Date();
+  const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  tickerEntries.forEach(function (e) {
+    if (!e.createdAt || !(e.createdAt instanceof Date)) return;
+    const d = e.createdAt;
+    const dayMid = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const daysAgo = Math.floor((todayMid - dayMid) / 86400000);
+    if (daysAgo < 0 || daysAgo > 6) return;
+    buckets[6 - daysAgo] += 1;
+  });
+  return buckets;
+}
+
+// Groups ticker entries by day (most recent 5 days), so the landing page
+// can render "Arşivde son hareketler" stream grouped under Bugün/Dün/etc.
+function _groupStreamFromTicker_(tickerEntries, boxes, volunteers) {
+  const byDay = {};
+  const order = [];
+  tickerEntries.forEach(function (e) {
+    if (!e.createdAt || !(e.createdAt instanceof Date)) return;
+    const d = e.createdAt;
+    const key = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+    if (!byDay[key]) {
+      byDay[key] = { date: new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString(), items: [] };
+      order.push(key);
+    }
+    byDay[key].items.push({
+      when: d.toISOString(),
+      materialCategory: e.materialCategory,
+      volunteerToken: e.volunteerToken
+    });
+  });
+  return order.slice(0, 5).map(function (k) { return byDay[k]; });
+}
+
+function _capitalise_(s) {
+  if (!s) return '';
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// Reads an optional "Anasayfa Metinleri" tab (key | value rows) so the
+// foundation team can edit headlines, copy, FAQ entries, etc. without
+// touching code. Returns {} if the tab doesn't exist.
+function _readPublicContentFromSheet_(sheetId, metadata) {
+  const out = {};
+  const tabs = (metadata && metadata.sheets) || [];
+  let target = null;
+  for (let i = 0; i < tabs.length; i++) {
+    const title = String((tabs[i].properties && tabs[i].properties.title) || '');
+    const slug = _slugifyTabName_(title);
+    if (slug === 'anasayfa_metinleri' || slug === 'site_metinleri' || slug === 'site_icerik') {
+      target = title;
+      break;
+    }
+  }
+  if (!target) return out;
+  let rows;
+  try { rows = _readPublicSheetRows_(sheetId, target); } catch (err) { return out; }
+  if (!rows || rows.length < 1) return out;
+  // The first row in our sheet read already has data; we look for two-column key/value pairs.
+  rows.forEach(function (row) {
+    const k = _stringValue_(row.anahtar) || _stringValue_(row.key) || _stringValue_(row._raw && row._raw[0]);
+    if (!k) return;
+    const v = row.deger != null ? row.deger
+      : row.value != null ? row.value
+      : (row._raw && row._raw[1]);
+    out[k] = v == null ? '' : String(v);
+  });
+  return out;
+}
+
+// First-name-only list of active volunteers, for the friendly "wall" of names.
+// Reads each per-volunteer tab and harvests the trailing name from the title.
+function _collectActiveFirstNames_(sheetId, metadata) {
+  const tabs = ((metadata && metadata.sheets) || []);
+  const seen = {};
+  const out = [];
+  tabs.forEach(function (s) {
+    const title = (s.properties && s.properties.title) || '';
+    const slug = _slugifyTabName_(title);
+    if (slug.indexOf('pnb_') !== 0) return;
+    if (slug === 'pnb_sayisallastirma' || slug === 'pnb_zarf_calisma') return;
+    if (slug.indexOf('_zarf') !== -1) return;
+    const parts = title.split(/\s+/);
+    const name = parts[parts.length - 1] || '';
+    if (!name) return;
+    const key = name.toLowerCase();
+    if (seen[key]) return;
+    seen[key] = true;
+    out.push(name);
+  });
+  out.sort(function (a, b) { return a.localeCompare(b, 'tr'); });
+  return out;
+}
+
+// Reads an optional "Haftalik Program" / "Nobet" tab. Returns {} if not found.
+function _readPublicScheduleFromSheet_(sheetId, metadata) {
+  const out = {};
+  const tabs = (metadata && metadata.sheets) || [];
+  let target = null;
+  const candidates = ['haftalik_program', 'nobet', 'haftalik', 'program'];
+  for (let i = 0; i < tabs.length; i++) {
+    const title = String((tabs[i].properties && tabs[i].properties.title) || '');
+    const slug = _slugifyTabName_(title);
+    if (candidates.indexOf(slug) >= 0) { target = title; break; }
+  }
+  if (!target) return out;
+  let rows;
+  try { rows = _readPublicSheetRows_(sheetId, target); } catch (err) { return out; }
+  if (!rows || rows.length < 1) return out;
+  const dayMap = {
+    'pazartesi': 'monday', 'pzt': 'monday',
+    'sali': 'tuesday',
+    'carsamba': 'wednesday',
+    'persembe': 'thursday',
+    'cuma': 'friday',
+    'cumartesi': 'saturday',
+    'pazar': 'sunday'
+  };
+  rows.forEach(function (row) {
+    const rawDay = _stringValue_(row.gun);
+    const folded = _asciiFold_(rawDay).toLowerCase();
+    const dayKey = dayMap[folded];
+    if (!dayKey) return;
+    const peopleRaw = _stringValue_(row.kisiler) || _stringValue_(row.gonulluler) || _stringValue_(row.isimler);
+    const list = peopleRaw.split(/[,;\n]/).map(function (s) {
+      return String(s || '').trim().split(/\s+/)[0];
+    }).filter(Boolean);
+    if (!out[dayKey]) out[dayKey] = [];
+    list.forEach(function (n) {
+      if (out[dayKey].indexOf(n) === -1) out[dayKey].push(n);
+    });
+  });
+  return out;
+}
+
+function _findOverviewTitle_(tabs) {
+  for (let i = 0; i < tabs.length; i++) {
+    const title = String((tabs[i].properties && tabs[i].properties.title) || '');
+    if (_slugifyTabName_(title) === 'pnb_sayisallastirma') return title;
+  }
+  return null;
+}
+
+function _firstIndexOf_(arr, candidates) {
+  for (let i = 0; i < candidates.length; i++) {
+    const idx = arr.indexOf(candidates[i]);
+    if (idx !== -1) return idx;
+  }
+  return -1;
+}
+ rows = _readPublicSheetRows_(sheetId, target); } catch (err) { return out; }
+  if (!rows || rows.length < 1) return out;
+  const dayMap = {
+    'pazartesi': 'monday', 'pzt': 'monday',
+    'sali': 'tuesday',
+    'carsamba': 'wednesday',
+    'persembe': 'thursday',
+    'cuma': 'friday',
+    'cumartesi': 'saturday',
+    'pazar': 'sunday'
+  };
+  rows.forEach(function (row) {
+    const rawDay = _stringValue_(row.gun);
+    const folded = _asciiFold_(rawDay).toLowerCase();
+    const dayKey = dayMap[folded];
+    if (!dayKey) return;
+    const peopleRaw = _stringValue_(row.kisiler) || _stringValue_(row.gonulluler) || _stringValue_(row.isimler);
+    const list = peopleRaw.split(/[,;\n]/).map(function (s) {
+      return String(s || '').trim().split(/\s+/)[0];
+    }).filter(Boolean);
+    if (!out[dayKey]) out[dayKey] = [];
+    list.forEach(function (n) {
+      if (out[dayKey].indexOf(n) === -1) out[dayKey].push(n);
+    });
+  });
+  return out;
+}
+
+function _findOverviewTitle_(tabs) {
+  for (let i = 0; i < tabs.length; i++) {
+    const title = String((tabs[i].properties && tabs[i].properties.title) || '');
+    if (_slugifyTabName_(title) === 'pnb_sayisallastirma') return title;
+  }
+  return null;
+}
+
+function _firstIndexOf_(arr, candidates) {
+  for (let i = 0; i < candidates.length; i++) {
+    const idx = arr.indexOf(candidates[i]);
+    if (idx !== -1) return idx;
+  }
+  return -1;
+}
+ean);
+    if (!out[dayKey]) out[dayKey] = [];
+    for (let i = 0; i < list.length; i++) {
+      if (out[dayKey].indexOf(list[i]) === -1) out[dayKey].push(list[i]);
+    }
+  }
+  return out;
+}
+
+function _findOverviewTitle_(tabs) {
+  for (let i = 0; i < tabs.length; i++) {
+    const title = String((tabs[i].properties && tabs[i].properties.title) || '');
+    if (_slugifyTabName_(title) === 'pnb_sayisallastirma') return title;
+  }
+  return null;
+}
+
+function _firstIndexOf_(arr, candidates) {
+  for (let i = 0; i < candidates.length; i++) {
+    const idx = arr.indexOf(candidates[i]);
+    if (idx !== -1) return idx;
+  }
+  return -1;
+}
+et i = 0; i < candidates.length; i++) {
     const idx = arr.indexOf(candidates[i]);
     if (idx !== -1) return idx;
   }

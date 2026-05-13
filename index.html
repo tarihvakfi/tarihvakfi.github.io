@@ -253,6 +253,33 @@
       </div>
     </section>
 
+    <!-- ============ Stream slice — recent activity ============ -->
+    <!-- Reads `stream` from the Apps Script payload: array of day buckets,
+         each with date + items[]. Falls back to hidden if there's nothing. -->
+    <section class="lp-section lp-stream-section" id="bugun" hidden>
+      <div class="lp-container">
+        <p class="lp-eyebrow">Bugün</p>
+        <h2>Arşivde son hareketler</h2>
+        <p class="lp-prose">Her satır, gönüllülerin Drive'taki ortak sheet'e bıraktığı bir kayıt. Sayfa açıldığında o anki halini okuruz.</p>
+        <div class="lp-stream-grid">
+          <div class="lp-stream-col" id="lpStream"></div>
+          <aside class="lp-stream-side">
+            <div class="lp-side-panel">
+              <h3>Haftanın ritmi</h3>
+              <p class="lp-side-lbl">son 7 günün kayıt sayısı</p>
+              <div class="lp-week-bars" id="lpWeekBars"></div>
+              <p class="lp-side-foot" id="lpWeekFoot">—</p>
+            </div>
+            <div class="lp-side-panel">
+              <h3>Bu hafta dokunulan kutular</h3>
+              <p class="lp-side-lbl">son 7 günde kayıt aldı</p>
+              <p class="lp-side-pills" id="lpTouchedBoxes">—</p>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
     <!-- ============ About strip ============ -->
     <section class="lp-section lp-about" id="hakkinda">
       <div class="lp-container">
@@ -505,6 +532,67 @@
             <span class="lp-pill lp-pill-soon">Yakında</span>
           </header>
         </article>
+      </div>
+    </section>
+
+    <!-- ============ Box-by-box sheet-faithful table ============ -->
+    <!-- Mirrors the pnb_sayisallastirma tab. Hydrated from payload.boxes
+         (extended in apps-script v4). Hidden until data lands. -->
+    <section class="lp-section lp-boxtable-section" id="kutular" hidden>
+      <div class="lp-container">
+        <div class="lp-table-head">
+          <div>
+            <p class="lp-eyebrow">Envanter</p>
+            <h2>Kutu kutu</h2>
+            <p class="lp-prose lp-tight">Sheet'in birebir aynası. Hangi kutuda kim çalışıyor, ne kadar yol katedildi — saatte bir tazeleniyor.</p>
+          </div>
+          <div class="lp-table-tools">
+            <input type="search" id="lpBoxSearch" placeholder="Kutu numarası veya gönüllü adı…" aria-label="Kutu tablosunda ara" />
+            <select id="lpBoxStatus" aria-label="Duruma göre filtrele">
+              <option value="all">Tüm durumlar</option>
+              <option value="future">Başlamadı</option>
+              <option value="active">Devam ediyor</option>
+              <option value="done">Tamamlandı</option>
+            </select>
+          </div>
+        </div>
+        <div class="lp-boxtable-wrap">
+          <table class="lp-boxtable" aria-label="Kutu bazlı ilerleme tablosu">
+            <thead>
+              <tr>
+                <th class="lp-bt-num">#</th>
+                <th>Kutu</th>
+                <th class="lp-bt-num-r">Dosya</th>
+                <th class="lp-bt-num-r">Belge</th>
+                <th class="lp-bt-num-r">Sayfa</th>
+                <th>İlerleme</th>
+                <th>Çalışan(lar)</th>
+                <th>Durum</th>
+              </tr>
+            </thead>
+            <tbody id="lpBoxTableBody">
+              <tr><td colspan="8" class="lp-bt-empty">yükleniyor…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ Volunteer atlas ============ -->
+    <!-- Per-volunteer cards. Hydrated from payload.volunteers. Hidden
+         until data lands. -->
+    <section class="lp-section lp-vol-section" id="gonulluler" hidden>
+      <div class="lp-container">
+        <p class="lp-eyebrow">Gönüllüler</p>
+        <h2>21 kişi, 88 kutu — her isim bir hikâye</h2>
+        <p class="lp-prose">Sayılar her gönüllünün kendi sekmesindeki "Sayfa Sayısı" sütunundan geliyor. Adını gizlemek isteyen sekmesine bir "Gizli" sütunu ekleyebilir.</p>
+        <div class="lp-vol-filter" id="lpVolFilter" role="tablist">
+          <button class="lp-vol-fchip on" data-vf="all" role="tab" aria-selected="true">Hepsi</button>
+          <button class="lp-vol-fchip" data-vf="active" role="tab">Bu hafta aktif</button>
+          <button class="lp-vol-fchip" data-vf="quiet" role="tab">Sessiz</button>
+          <button class="lp-vol-fchip" data-vf="top" role="tab">En çok sayfa</button>
+        </div>
+        <div class="lp-vol-grid" id="lpVolGrid"></div>
       </div>
     </section>
 

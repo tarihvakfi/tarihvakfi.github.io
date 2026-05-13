@@ -13,3 +13,5 @@ window.__SHEETSYNC_URL__ = "https://script.google.com/macros/s/AKfycbzSGPTbBnrfh
 window.__APP_CONFIG__ = {
   appName: "Tarih Vakfı Gönüllü Takip Sistemi"
 };
+arih Vakfı Gönüllü Takip Sistemi"
+};
