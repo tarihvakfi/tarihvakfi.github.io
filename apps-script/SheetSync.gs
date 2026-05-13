@@ -1196,37 +1196,20 @@ function _hashRow_(headers, row) {
   return hex;
 }
 
+
 // ============================================================
 // Live Web App endpoint (May 2026)
 // ============================================================
-// Two modes:
-//   1. ?public=1  → no auth, returns all public-site data so the landing
-//      page can render without ever touching Firebase. This is what
-//      js/landing.js fetches on page load.
-//   2. ?token=... → admin-only, runs sheetSyncRun() and returns the
-//      summary. Used by the "Şimdi senkronize et" button in /app/Bugün.
-//      The shared secret is the SYNC_WEBHOOK_TOKEN Script Property.
 function doGet(e) {
   const params = (e && e.parameter) || {};
-
-  // Mode 1: public read (no auth).
   if (params['public'] || params.mode === 'public') {
     try {
       const payload = _buildPublicSitePayload_();
-      return _jsonResponse_({
-        ok: true,
-        generatedAt: new Date().toISOString(),
-        data: payload
-      });
+      return _jsonResponse_({ ok: true, generatedAt: new Date().toISOString(), data: payload });
     } catch (err) {
-      return _jsonResponse_({
-        ok: false,
-        error: String((err && err.message) || err)
-      });
+      return _jsonResponse_({ ok: false, error: String((err && err.message) || err) });
     }
   }
-
-  // Mode 2: admin live sync (token-gated).
   const want = params.token || '';
   const have = PropertiesService.getScriptProperties().getProperty('SYNC_WEBHOOK_TOKEN') || '';
   if (!have || want !== have) {
@@ -1234,62 +1217,28 @@ function doGet(e) {
   }
   try {
     const result = sheetSyncRun();
-    return _jsonResponse_({
-      ok: true,
-      runAt: new Date().toISOString(),
-      result: result || null
-    });
+    return _jsonResponse_({ ok: true, runAt: new Date().toISOString(), result: result || null });
   } catch (err) {
-    return _jsonResponse_({
-      ok: false,
-      error: String((err && err.message) || err)
-    });
+    return _jsonResponse_({ ok: false, error: String((err && err.message) || err) });
   }
 }
 
 function _jsonResponse_(obj) {
-  return ContentService
-    .createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
-// Builds the complete payload that the public landing page consumes.
-// All data is read directly from the Google Sheet — no Firestore.
-// Shape:
-//   {
-//     stats:   { projects: { pnb: {...} } },
-//     ticker:  [{ slug, name, donePages, totalPages, percent, when }],
-//     content: { ...key-value overrides edited from the sheet... },
-//     activeVolunteers: ['Ali','Ayşe',...],
-//     schedule: { monday: [...], tuesday: [...] }
-//   }
 function _buildPublicSitePayload_() {
-  const sheetId = PropertiesService.getScriptProperties()
-    .getProperty('TARIH_VAKFI_SHEET_ID') || '';
+  const sheetId = PropertiesService.getScriptProperties().getProperty('TARIH_VAKFI_SHEET_ID') || '';
   if (!sheetId) {
-    return {
-      stats: { projects: { pnb: null } },
-      ticker: [],
-      content: {},
-      activeVolunteers: [],
-      schedule: {}
-    };
+    return { _debug: 'TARIH_VAKFI_SHEET_ID property not set', stats: { projects: { pnb: null } }, ticker: [], content: {}, activeVolunteers: [], schedule: {}, boxes: [], volunteers: [], weeklyRhythm: [0,0,0,0,0,0,0], stream: [] };
   }
-
   let metadata = null;
-  try {
-    metadata = _readSheetMetadata_(sheetId);
-  } catch (err) {
-    // Sheet inaccessible — return empty payload so the site renders gracefully.
-    return {
-      stats: { projects: { pnb: null } },
-      ticker: [],
-      content: {},
-      activeVolunteers: [],
-      schedule: {}
-    };
+  try { metadata = _readSheetMetadata_(sheetId); } catch (err) {
+    return { _debug: 'metadata read failed: ' + String((err && err.message) || err), _sheetId: sheetId, stats: { projects: { pnb: null } }, ticker: [], content: {}, activeVolunteers: [], schedule: {}, boxes: [], volunteers: [], weeklyRhythm: [0,0,0,0,0,0,0], stream: [] };
   }
-
+  const _tabTitles = ((metadata && metadata.sheets) || []).map(function (s) {
+    return (s.properties && s.properties.title) || '';
+  });
   const projection = _buildPublicProjectionFromSheet_(sheetId, metadata) || {};
   const pnbStats = projection.hasStats || projection.totalPages || projection.cataloguedBoxes ? {
     totalPages: projection.totalPages || 0,
@@ -1310,19 +1259,15 @@ function _buildPublicSitePayload_() {
       effort: e.effort
     };
   });
-
   const content = _readPublicContentFromSheet_(sheetId, metadata);
   const activeVolunteers = _collectActiveFirstNames_(sheetId, metadata);
   const schedule = _readPublicScheduleFromSheet_(sheetId, metadata);
-
-  // v4 (May 2026): three new arrays so the landing page can render the
-  // sheet-mirror box table, the volunteer atlas, and the weekly rhythm.
   const boxes = _readBoxesFromSheet_(sheetId, metadata);
   const volunteers = _readVolunteersFromTabs_(sheetId, metadata);
   const weeklyRhythm = _computeWeeklyRhythm_(projection.tickerEntries || []);
-  const stream = _groupStreamFromTicker_(projection.tickerEntries || [], boxes, volunteers);
-
+  const stream = _groupStreamFromTicker_(projection.tickerEntries || []);
   return {
+    _debug: { tabCount: _tabTitles.length, sampleTabs: _tabTitles.slice(0, 30), tickerEntries: (projection.tickerEntries || []).length, hasStats: !!projection.hasStats },
     stats: { projects: { pnb: pnbStats } },
     ticker: ticker.slice(0, 200),
     content: content,
@@ -1335,28 +1280,20 @@ function _buildPublicSitePayload_() {
   };
 }
 
-// Reads the pnb_sayisallastirma overview tab and returns one entry per box
-// with the columns the landing page's box table needs. Volunteers working
-// on each box are inferred from per-volunteer detail tabs (matched by
-// "Kutu" cell). Returns [] on failure.
 function _readBoxesFromSheet_(sheetId, metadata) {
   const tabs = ((metadata && metadata.sheets) || []).map(function (s) {
     return (s.properties && s.properties.title) || '';
   }).filter(Boolean);
   const summaryTab = tabs.find(function (n) { return _slugifyTabName_(n) === 'pnb_sayisallastirma'; });
   if (!summaryTab) return [];
-
   let rows;
   try { rows = _readPublicSheetRows_(sheetId, summaryTab); } catch (err) { return []; }
-
-  // Build a "who's on which box" map from per-volunteer detail tabs.
   const workersByBox = {};
   tabs.forEach(function (tabName) {
     const slug = _slugifyTabName_(tabName);
     if (slug.indexOf('pnb_') !== 0) return;
     if (slug === 'pnb_sayisallastirma' || slug === 'pnb_zarf_calisma') return;
     if (slug.indexOf('_zarf') !== -1) return;
-    // Volunteer first name from the tab title — "pnb_14_betul" → "betul"
     const parts = slug.split('_');
     const first = parts[parts.length - 1];
     if (!first) return;
@@ -1371,33 +1308,24 @@ function _readBoxesFromSheet_(sheetId, metadata) {
       workersByBox[key][cap] = true;
     });
   });
-
   const boxes = [];
   rows.forEach(function (row) {
     const kutu = _stringValue_(row.kutu) || _stringValue_(row.kutuNo);
     if (!kutu) return;
     const pages = _parseDoneTotalCell_(row.sayfaSayisi);
     const totalPages = pages.total || 0;
-    const dosyaSayisi = _numberOrZero_(row.dosyaSayisi);
-    const belgeSayisi = _numberOrZero_(row.belgeSayisi);
-    // donePages comes from pages.done if a "X/Y" format was used, else 0.
-    // The full done count per box is tracked by SheetSync separately; here
-    // we expose what the sheet itself states.
     const donePages = pages.done || 0;
     const workers = Object.keys(workersByBox[kutu] || {}).sort();
     let status = 'future';
     if (totalPages > 0) {
       if (donePages >= totalPages) status = 'done';
       else if (donePages > 0 || workers.length > 0) status = 'active';
-      else status = 'future';
-    } else if (workers.length > 0) {
-      status = 'active';
-    }
+    } else if (workers.length > 0) status = 'active';
     boxes.push({
       kutu: kutu,
       name: _stringValue_(row.aciklama) || _stringValue_(row.icerik) || _stringValue_(row.calismaAlani) || ('Kutu ' + kutu),
-      dosya: dosyaSayisi,
-      belge: belgeSayisi,
+      dosya: _numberOrZero_(row.dosyaSayisi),
+      belge: _numberOrZero_(row.belgeSayisi),
       totalPages: totalPages,
       donePages: donePages,
       workers: workers,
@@ -1407,10 +1335,6 @@ function _readBoxesFromSheet_(sheetId, metadata) {
   return boxes;
 }
 
-// Iterates per-volunteer tabs and returns one entry per volunteer with the
-// stats the volunteer atlas card needs. The volunteer's first name is
-// extracted from the tab title (e.g. "PNB 14 Betül" → "Betül"). Tabs
-// flagged hidden via a row containing hideName=true are skipped.
 function _readVolunteersFromTabs_(sheetId, metadata) {
   const tabs = ((metadata && metadata.sheets) || []);
   const out = [];
@@ -1422,12 +1346,9 @@ function _readVolunteersFromTabs_(sheetId, metadata) {
     if (slug.indexOf('pnb_') !== 0) return;
     if (slug === 'pnb_sayisallastirma' || slug === 'pnb_zarf_calisma') return;
     if (slug.indexOf('_zarf') !== -1) return;
-
     let rows;
     try { rows = _readPublicSheetRows_(sheetId, title); } catch (err) { return; }
     if (!rows || rows.length === 0) return;
-
-    // Detect schema A (sum sayfaSayisi) vs schema B (count rows).
     const hasSayfaSayisi = rows.some(function (r) {
       return r.sayfaSayisi != null && String(r.sayfaSayisi).trim() !== '';
     });
@@ -1437,9 +1358,8 @@ function _readVolunteersFromTabs_(sheetId, metadata) {
     const boxesTouched = {};
     rows.forEach(function (row) {
       const created = _parseSheetDate_(row.tarih);
-      const pageCount = hasSayfaSayisi
-        ? (_parseDoneTotalCell_(row.sayfaSayisi).done || _parseDoneTotalCell_(row.sayfaSayisi).total || 0)
-        : 1;
+      const pages = _parseDoneTotalCell_(row.sayfaSayisi);
+      const pageCount = hasSayfaSayisi ? (pages.done || pages.total || 0) : 1;
       totalPages += pageCount;
       if (created && !isNaN(created.getTime())) {
         if (!lastDate || created.getTime() > lastDate.getTime()) lastDate = created;
@@ -1448,33 +1368,23 @@ function _readVolunteersFromTabs_(sheetId, metadata) {
       const box = _stringValue_(row.kutu) || _stringValue_(row.kutuNo);
       if (box) boxesTouched[String(box).trim()] = true;
     });
-
-    // Extract first name from tab title: take everything after the last
-    // space (e.g. "PNB 14 Betül" → "Betül"). Fall back to the slug.
     const parts = title.split(/\s+/);
-    const firstName = parts[parts.length - 1] || _capitalise_(slug.split('_').pop());
-
-    // 4-week sparkline: count rows per week for the last 4 ISO weeks.
+    const firstName = parts[parts.length - 1] || '';
     const weekCounts = [0, 0, 0, 0];
     rows.forEach(function (row) {
       const created = _parseSheetDate_(row.tarih);
       if (!created || isNaN(created.getTime())) return;
       const daysAgo = Math.floor((now.getTime() - created.getTime()) / 86400000);
       if (daysAgo < 0 || daysAgo > 27) return;
-      const bucket = 3 - Math.floor(daysAgo / 7); // 0..3, recent = 3
-      const pageCount = hasSayfaSayisi
-        ? (_parseDoneTotalCell_(row.sayfaSayisi).done || _parseDoneTotalCell_(row.sayfaSayisi).total || 0)
-        : 1;
+      const bucket = 3 - Math.floor(daysAgo / 7);
+      const pages = _parseDoneTotalCell_(row.sayfaSayisi);
+      const pageCount = hasSayfaSayisi ? (pages.done || pages.total || 0) : 1;
       weekCounts[bucket] += pageCount;
     });
-
-    // Status: active if there's been activity in the last 7 days.
     const lastMs = lastDate ? lastDate.getTime() : 0;
     const sevenDaysAgo = now.getTime() - 7 * 86400000;
     const status = lastMs >= sevenDaysAgo ? 'active' : 'quiet';
-
     const currentBox = Object.keys(boxesTouched).pop() || null;
-
     out.push({
       firstName: firstName,
       monthPages: monthPages,
@@ -1489,258 +1399,6 @@ function _readVolunteersFromTabs_(sheetId, metadata) {
   return out;
 }
 
-// 7 day buckets of recent activity counts, oldest first, so the landing
-// page can render a small bar chart of the week's rhythm.
-function _computeWeeklyRhythm_(tickerEntries) {
-  const buckets = [0, 0, 0, 0, 0, 0, 0];
-  const now = new Date();
-  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  tickerEntries.forEach(function (e) {
-    if (!e.createdAt || !(e.createdAt instanceof Date)) return;
-    const daysAgo = Math.floor((todayMidnight - new Date(e.createdAt.getFullYear(), e.createdAt.getMonth(), e.createdAt.getDate()).getTime()) / 86400000);
-    if (daysAgo < 0 || daysAgo > 6) return;
-    buckets[6 - daysAgo] += 1;
-  });
-  return buckets;
-}
-
-// Groups the ticker into day buckets with friendly labels — what the
-// landing page's "Arşivde son hareketler" stream renders.
-function _groupStreamFromTicker_(tickerEntries, boxes, volunteers) {
-  const byDay = {};
-  const order = [];
-  tickerEntries.forEach(function (e) {
-    if (!e.createdAt || !(e.createdAt instanceof Date)) return;
-    const d = e.createdAt;
-    const key = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
-    if (!byDay[key]) {
-      byDay[key] = {
-        date: new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString(),
-        items: []
-      };
-      order.push(key);
-    }
-    byDay[key].items.push({
-      when: d.toISOString(),
-      materialCategory: e.materialCategory,
-      volunteerToken: e.volunteerToken
-    });
-  });
-  return order.slice(0, 5).map(function (k) { return byDay[k]; });
-}
-
-function _capitalise_(s) {
-  if (!s) return '';
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-// Reads an optional "Anasayfa Metinleri" tab (key | value rows) so the
-// foundation team can tweak headlines, copy, FAQ entries, etc. without
-// touching code. Returns {} if the tab doesn't exist.
-function _readPublicContentFromSheet_(sheetId, metadata) {
-  const out = {};
-  const tabs = (metadata && metadata.sheets) || [];
-  let target = null;
-  for (let i = 0; i < tabs.length; i++) {
-    const title = String((tabs[i].properties && tabs[i].properties.title) || '');
-    const slug = _slugifyTabName_(title);
-    if (slug === 'anasayfa_metinleri' || slug === 'site_metinleri' || slug === 'site_icerik') {
-      target = title;
-      break;
-    }
-  }
-  if (!target) return out;
-  let rows;
-  try {
-    rows = _readPublicSheetRows_(sheetId, target);
-  } catch (err) {
-    return out;
-  }
-  if (!rows || rows.length < 2) return out;
-  const headers = rows[0].map(function (h) { return _slugifyHeaderToKey_(String(h || '')); });
-  let keyCol = headers.indexOf('anahtar');
-  if (keyCol === -1) keyCol = headers.indexOf('key');
-  let valCol = headers.indexOf('deger');
-  if (valCol === -1) valCol = headers.indexOf('değer');
-  if (valCol === -1) valCol = headers.indexOf('value');
-  if (keyCol === -1 || valCol === -1) {
-    // Fall back to first two columns.
-    keyCol = 0;
-    valCol = 1;
-  }
-  for (let r = 1; r < rows.length; r++) {
-    const row = rows[r] || [];
-    const k = String(row[keyCol] || '').trim();
-    if (!k) continue;
-    const v = row[valCol];
-    out[k] = v == null ? '' : String(v);
-  }
-  return out;
-}
-
-// Collects first names of currently-active volunteers from the per-volunteer
-// tabs. Surnames are stripped to keep the wall friendly. Volunteers can
-// opt out by adding a "hideName" or "gizli" flag column (any truthy value).
-function _collectActiveFirstNames_(sheetId, metadata) {
-  const tabs = (metadata && metadata.sheets) || [];
-  const overview = _findOverviewTitle_(tabs);
-  if (!overview) return [];
-  let rows;
-  try {
-    rows = _readPublicSheetRows_(sheetId, overview);
-  } catch (err) {
-    return [];
-  }
-  if (!rows || rows.length < 2) return [];
-  const headers = rows[0].map(function (h) { return _slugifyHeaderToKey_(String(h || '')); });
-  const nameCol = _firstIndexOf_(headers, ['gonullu', 'gönüllü', 'isim', 'ad', 'adSoyad', 'volunteer']);
-  const statusCol = _firstIndexOf_(headers, ['durum', 'status', 'aktif']);
-  const hideCol = _firstIndexOf_(headers, ['hideName', 'gizli', 'gizle', 'hide']);
-  if (nameCol === -1) return [];
-  const seen = {};
-  const out = [];
-  for (let r = 1; r < rows.length; r++) {
-    const row = rows[r] || [];
-    if (hideCol !== -1) {
-      const h = String(row[hideCol] || '').trim().toLowerCase();
-      if (h && h !== '0' && h !== 'false' && h !== 'hayır' && h !== 'no') continue;
-    }
-    if (statusCol !== -1) {
-      const s = String(row[statusCol] || '').trim().toLowerCase();
-      if (s && (s.indexOf('pasif') >= 0 || s.indexOf('inactive') >= 0 || s === 'no')) continue;
-    }
-    const full = String(row[nameCol] || '').trim();
-    if (!full) continue;
-    const first = full.split(/\s+/)[0];
-    if (!first) continue;
-    const key = first.toLowerCase();
-    if (seen[key]) continue;
-    seen[key] = true;
-    out.push(first);
-  }
-  out.sort(function (a, b) { return a.localeCompare(b, 'tr'); });
-  return out;
-}
-
-// Reads an optional "Haftalık Program" / "Nöbet" tab and returns a
-// { monday: [...], tuesday: [...], ... } map of first names. Returns {}
-// if the tab doesn't exist.
-function _readPublicScheduleFromSheet_(sheetId, metadata) {
-  const out = {};
-  const tabs = (metadata && metadata.sheets) || [];
-  let target = null;
-  const candidates = ['haftalik_program', 'nobet', 'nöbet', 'haftalik', 'program'];
-  for (let i = 0; i < tabs.length; i++) {
-    const title = String((tabs[i].properties && tabs[i].properties.title) || '');
-    const slug = _slugifyTabName_(title);
-    if (candidates.indexOf(slug) >= 0) {
-      target = title;
-      break;
-    }
-  }
-  if (!target) return out;
-  let rows;
-  try {
-    rows = _readPublicSheetRows_(sheetId, target);
-  } catch (err) {
-    return out;
-  }
-  if (!rows || rows.length < 2) return out;
-  const headers = rows[0].map(function (h) { return _slugifyHeaderToKey_(String(h || '')); });
-  // Expect a "gun" / "day" column and a "kisiler"/"volunteers" column.
-  const dayCol = _firstIndexOf_(headers, ['gun', 'gün', 'day']);
-  const peopleCol = _firstIndexOf_(headers, ['kisiler', 'kişiler', 'gonulluler', 'gönüllüler', 'volunteers', 'isimler']);
-  if (dayCol === -1 || peopleCol === -1) return out;
-  const dayMap = {
-    'pazartesi': 'monday', 'pzt': 'monday', 'monday': 'monday',
-    'sali': 'tuesday', 'salı': 'tuesday', 'tuesday': 'tuesday',
-    'carsamba': 'wednesday', 'çarşamba': 'wednesday', 'wednesday': 'wednesday',
-    'persembe': 'thursday', 'perşembe': 'thursday', 'thursday': 'thursday',
-    'cuma': 'friday', 'friday': 'friday',
-    'cumartesi': 'saturday', 'saturday': 'saturday',
-    'pazar': 'sunday', 'sunday': 'sunday'
-  };
-  for (let r = 1; r < rows.length; r++) {
-    const row = rows[r] || [];
-    const rawDay = String(row[dayCol] || '').trim().toLowerCase();
-    const dayKey = dayMap[_asciiFold_(rawDay).toLowerCase()] || dayMap[rawDay];
-    if (!dayKey) continue;
-    const list = String(row[peopleCol] || '').split(/[,;\n]/).map(function (s) {
-      return String(s || '').trim().split(/\s+/)[0];
-    }).filter(Boolean);
-    if (!out[dayKey]) out[dayKey] = [];
-    for (let i = 0; i < list.length; i++) {
-      if (out[dayKey].indexOf(list[i]) === -1) out[dayKey].push(list[i]);
-    }
-  }
-  return out;
-}
-
-function _findOverviewTitle_(tabs) {
-  const candidates = ['pnb_gonullu_ozet', 'pnb_genel', 'pnb_ozet', 'gönüllüler', 'gonulluler', 'volunteers'];
-  for (let i = 0; i < tabs.length; i++) {
-    const title = String((tabs[i].properties && tabs[i].properties.title) || '');
-    const slug = _slugifyTabName_(title);
-    if (candidates.indexOf(slug) >= 0) return title;
-  }
-  return null;
-}
-
-function _firstIndexOf_(arr, candidates) {
-  for (let i = 0; i < candidates.length; i++) {
-    const idx = arr.indexOf(candidates[i]);
-    if (idx !== -1) return idx;
-  }
-  return -1;
-}
-dexOf(list[i]) === -1) out[dayKey].push(list[i]);
-    }
-  }
-  return out;
-}
-
-function _findOverviewTitle_(tabs) {
-  const candidates = ['pnb_gonullu_ozet', 'pnb_genel', 'pnb_ozet', 'gönüllüler', 'gonulluler', 'volunteers'];
-  for (let i = 0; i < tabs.length; i++) {
-    const title = String((tabs[i].properties && tabs[i].properties.title) || '');
-    const slug = _slugifyTabName_(title);
-    if (candidates.indexOf(slug) >= 0) return title;
-  }
-  return null;
-}
-
-function _firstIndexOf_(arr, candidates) {
-  for (let i = 0; i < candidates.length; i++) {
-    const idx = arr.indexOf(candidates[i]);
-    if (idx !== -1) return idx;
-  }
-  return -1;
-}
- (_parseDoneTotalCell_(row.sayfaSayisi).done || _parseDoneTotalCell_(row.sayfaSayisi).total || 0)
-        : 1;
-      weekCounts[bucket] += pageCount;
-    });
-
-    const lastMs = lastDate ? lastDate.getTime() : 0;
-    const sevenDaysAgo = now.getTime() - 7 * 86400000;
-    const status = lastMs >= sevenDaysAgo ? 'active' : 'quiet';
-    const currentBox = Object.keys(boxesTouched).pop() || null;
-
-    out.push({
-      firstName: firstName,
-      monthPages: monthPages,
-      totalPages: totalPages,
-      lastActivity: lastDate ? lastDate.toISOString() : null,
-      currentBox: currentBox,
-      status: status,
-      spark: weekCounts
-    });
-  });
-  out.sort(function (a, b) { return (b.monthPages || 0) - (a.monthPages || 0); });
-  return out;
-}
-
-// 7 day buckets of recent activity counts, oldest first.
 function _computeWeeklyRhythm_(tickerEntries) {
   const buckets = [0, 0, 0, 0, 0, 0, 0];
   const now = new Date();
@@ -1756,9 +1414,7 @@ function _computeWeeklyRhythm_(tickerEntries) {
   return buckets;
 }
 
-// Groups ticker entries by day (most recent 5 days), so the landing page
-// can render "Arşivde son hareketler" stream grouped under Bugün/Dün/etc.
-function _groupStreamFromTicker_(tickerEntries, boxes, volunteers) {
+function _groupStreamFromTicker_(tickerEntries) {
   const byDay = {};
   const order = [];
   tickerEntries.forEach(function (e) {
@@ -1778,14 +1434,6 @@ function _groupStreamFromTicker_(tickerEntries, boxes, volunteers) {
   return order.slice(0, 5).map(function (k) { return byDay[k]; });
 }
 
-function _capitalise_(s) {
-  if (!s) return '';
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-// Reads an optional "Anasayfa Metinleri" tab (key | value rows) so the
-// foundation team can edit headlines, copy, FAQ entries, etc. without
-// touching code. Returns {} if the tab doesn't exist.
 function _readPublicContentFromSheet_(sheetId, metadata) {
   const out = {};
   const tabs = (metadata && metadata.sheets) || [];
@@ -1802,20 +1450,15 @@ function _readPublicContentFromSheet_(sheetId, metadata) {
   let rows;
   try { rows = _readPublicSheetRows_(sheetId, target); } catch (err) { return out; }
   if (!rows || rows.length < 1) return out;
-  // The first row in our sheet read already has data; we look for two-column key/value pairs.
   rows.forEach(function (row) {
     const k = _stringValue_(row.anahtar) || _stringValue_(row.key) || _stringValue_(row._raw && row._raw[0]);
     if (!k) return;
-    const v = row.deger != null ? row.deger
-      : row.value != null ? row.value
-      : (row._raw && row._raw[1]);
+    const v = row.deger != null ? row.deger : row.value != null ? row.value : (row._raw && row._raw[1]);
     out[k] = v == null ? '' : String(v);
   });
   return out;
 }
 
-// First-name-only list of active volunteers, for the friendly "wall" of names.
-// Reads each per-volunteer tab and harvests the trailing name from the title.
 function _collectActiveFirstNames_(sheetId, metadata) {
   const tabs = ((metadata && metadata.sheets) || []);
   const seen = {};
@@ -1838,7 +1481,6 @@ function _collectActiveFirstNames_(sheetId, metadata) {
   return out;
 }
 
-// Reads an optional "Haftalik Program" / "Nobet" tab. Returns {} if not found.
 function _readPublicScheduleFromSheet_(sheetId, metadata) {
   const out = {};
   const tabs = (metadata && metadata.sheets) || [];
@@ -1855,12 +1497,8 @@ function _readPublicScheduleFromSheet_(sheetId, metadata) {
   if (!rows || rows.length < 1) return out;
   const dayMap = {
     'pazartesi': 'monday', 'pzt': 'monday',
-    'sali': 'tuesday',
-    'carsamba': 'wednesday',
-    'persembe': 'thursday',
-    'cuma': 'friday',
-    'cumartesi': 'saturday',
-    'pazar': 'sunday'
+    'sali': 'tuesday', 'carsamba': 'wednesday', 'persembe': 'thursday',
+    'cuma': 'friday', 'cumartesi': 'saturday', 'pazar': 'sunday'
   };
   rows.forEach(function (row) {
     const rawDay = _stringValue_(row.gun);
@@ -1879,91 +1517,54 @@ function _readPublicScheduleFromSheet_(sheetId, metadata) {
   return out;
 }
 
-function _findOverviewTitle_(tabs) {
-  for (let i = 0; i < tabs.length; i++) {
-    const title = String((tabs[i].properties && tabs[i].properties.title) || '');
-    if (_slugifyTabName_(title) === 'pnb_sayisallastirma') return title;
-  }
-  return null;
+// ============================================================
+// Service-account auth helpers (was in FirestoreClient.gs)
+// ============================================================
+// Reads FIREBASE_SERVICE_ACCOUNT Script Property (JSON service-account key)
+// and exchanges a JWT for a short-lived OAuth access token. SheetSync uses
+// the spreadsheets.readonly scope to read the shared volunteer sheet.
+
+function getServiceAccount_() {
+  const raw = PropertiesService.getScriptProperties().getProperty('FIREBASE_SERVICE_ACCOUNT');
+  if (!raw) return null;
+  try { return JSON.parse(raw); }
+  catch (err) { throw new Error('FIREBASE_SERVICE_ACCOUNT is not valid JSON: ' + err); }
 }
 
-function _firstIndexOf_(arr, candidates) {
-  for (let i = 0; i < candidates.length; i++) {
-    const idx = arr.indexOf(candidates[i]);
-    if (idx !== -1) return idx;
-  }
-  return -1;
+function base64UrlEncode_(bytes) {
+  return Utilities.base64EncodeWebSafe(bytes).replace(/=+$/, '');
 }
- rows = _readPublicSheetRows_(sheetId, target); } catch (err) { return out; }
-  if (!rows || rows.length < 1) return out;
-  const dayMap = {
-    'pazartesi': 'monday', 'pzt': 'monday',
-    'sali': 'tuesday',
-    'carsamba': 'wednesday',
-    'persembe': 'thursday',
-    'cuma': 'friday',
-    'cumartesi': 'saturday',
-    'pazar': 'sunday'
+
+function getAccessToken_(scopeOverride) {
+  const sa = getServiceAccount_();
+  if (!sa) throw new Error('FIREBASE_SERVICE_ACCOUNT missing from Script Properties');
+  const now = Math.floor(Date.now() / 1000);
+  const tokenUrl = 'https://oauth2.googleapis.com/token';
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const claim = {
+    iss: sa.client_email,
+    scope: scopeOverride || 'https://www.googleapis.com/auth/datastore',
+    aud: tokenUrl,
+    iat: now,
+    exp: now + 3600
   };
-  rows.forEach(function (row) {
-    const rawDay = _stringValue_(row.gun);
-    const folded = _asciiFold_(rawDay).toLowerCase();
-    const dayKey = dayMap[folded];
-    if (!dayKey) return;
-    const peopleRaw = _stringValue_(row.kisiler) || _stringValue_(row.gonulluler) || _stringValue_(row.isimler);
-    const list = peopleRaw.split(/[,;\n]/).map(function (s) {
-      return String(s || '').trim().split(/\s+/)[0];
-    }).filter(Boolean);
-    if (!out[dayKey]) out[dayKey] = [];
-    list.forEach(function (n) {
-      if (out[dayKey].indexOf(n) === -1) out[dayKey].push(n);
-    });
-  });
-  return out;
-}
-
-function _findOverviewTitle_(tabs) {
-  for (let i = 0; i < tabs.length; i++) {
-    const title = String((tabs[i].properties && tabs[i].properties.title) || '');
-    if (_slugifyTabName_(title) === 'pnb_sayisallastirma') return title;
-  }
-  return null;
-}
-
-function _firstIndexOf_(arr, candidates) {
-  for (let i = 0; i < candidates.length; i++) {
-    const idx = arr.indexOf(candidates[i]);
-    if (idx !== -1) return idx;
-  }
-  return -1;
-}
-ean);
-    if (!out[dayKey]) out[dayKey] = [];
-    for (let i = 0; i < list.length; i++) {
-      if (out[dayKey].indexOf(list[i]) === -1) out[dayKey].push(list[i]);
+  const headerB64 = base64UrlEncode_(Utilities.newBlob(JSON.stringify(header)).getBytes());
+  const claimB64 = base64UrlEncode_(Utilities.newBlob(JSON.stringify(claim)).getBytes());
+  const toSign = headerB64 + '.' + claimB64;
+  const signature = Utilities.computeRsaSha256Signature(toSign, sa.private_key);
+  const jwt = toSign + '.' + base64UrlEncode_(signature);
+  const response = UrlFetchApp.fetch(tokenUrl, {
+    method: 'post',
+    contentType: 'application/x-www-form-urlencoded',
+    muteHttpExceptions: true,
+    payload: {
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt
     }
+  });
+  const code = response.getResponseCode();
+  if (code !== 200) {
+    throw new Error('Token exchange failed (' + code + '): ' + response.getContentText());
   }
-  return out;
-}
-
-function _findOverviewTitle_(tabs) {
-  for (let i = 0; i < tabs.length; i++) {
-    const title = String((tabs[i].properties && tabs[i].properties.title) || '');
-    if (_slugifyTabName_(title) === 'pnb_sayisallastirma') return title;
-  }
-  return null;
-}
-
-function _firstIndexOf_(arr, candidates) {
-  for (let i = 0; i < candidates.length; i++) {
-    const idx = arr.indexOf(candidates[i]);
-    if (idx !== -1) return idx;
-  }
-  return -1;
-}
-et i = 0; i < candidates.length; i++) {
-    const idx = arr.indexOf(candidates[i]);
-    if (idx !== -1) return idx;
-  }
-  return -1;
+  return JSON.parse(response.getContentText()).access_token;
 }
