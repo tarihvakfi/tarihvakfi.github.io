@@ -1230,15 +1230,12 @@ function _jsonResponse_(obj) {
 function _buildPublicSitePayload_() {
   const sheetId = PropertiesService.getScriptProperties().getProperty('TARIH_VAKFI_SHEET_ID') || '';
   if (!sheetId) {
-    return { _debug: 'TARIH_VAKFI_SHEET_ID property not set', stats: { projects: { pnb: null } }, ticker: [], content: {}, activeVolunteers: [], schedule: {}, boxes: [], volunteers: [], weeklyRhythm: [0,0,0,0,0,0,0], stream: [] };
+    return { stats: { projects: { pnb: null } }, ticker: [], content: {}, activeVolunteers: [], schedule: {}, boxes: [], volunteers: [], weeklyRhythm: [0,0,0,0,0,0,0], stream: [] };
   }
   let metadata = null;
   try { metadata = _readSheetMetadata_(sheetId); } catch (err) {
-    return { _debug: 'metadata read failed: ' + String((err && err.message) || err), _sheetId: sheetId, stats: { projects: { pnb: null } }, ticker: [], content: {}, activeVolunteers: [], schedule: {}, boxes: [], volunteers: [], weeklyRhythm: [0,0,0,0,0,0,0], stream: [] };
+    return { stats: { projects: { pnb: null } }, ticker: [], content: {}, activeVolunteers: [], schedule: {}, boxes: [], volunteers: [], weeklyRhythm: [0,0,0,0,0,0,0], stream: [] };
   }
-  const _tabTitles = ((metadata && metadata.sheets) || []).map(function (s) {
-    return (s.properties && s.properties.title) || '';
-  });
   const projection = _buildPublicProjectionFromSheet_(sheetId, metadata) || {};
   const pnbStats = projection.hasStats || projection.totalPages || projection.cataloguedBoxes ? {
     totalPages: projection.totalPages || 0,
@@ -1267,7 +1264,6 @@ function _buildPublicSitePayload_() {
   const weeklyRhythm = _computeWeeklyRhythm_(projection.tickerEntries || []);
   const stream = _groupStreamFromTicker_(projection.tickerEntries || []);
   return {
-    _debug: { tabCount: _tabTitles.length, sampleTabs: _tabTitles.slice(0, 30), tickerEntries: (projection.tickerEntries || []).length, hasStats: !!projection.hasStats },
     stats: { projects: { pnb: pnbStats } },
     ticker: ticker.slice(0, 200),
     content: content,
