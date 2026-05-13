@@ -185,7 +185,6 @@
         <a href="#ilerleme">Gönüllülerimiz</a>
         <a href="#hakkinda">Hakkında</a>
         <a href="#sss">SSS</a>
-        <a class="lp-btn lp-btn-primary" href="./auth/">Giriş / Başvuru</a>
       </nav>
       <button class="lp-nav-toggle" id="lpNavToggle" aria-label="Menüyü aç" aria-expanded="false" aria-controls="lpMobileNav">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
@@ -201,18 +200,18 @@
       <a href="#ilerleme" data-mn-link>Gönüllülerimiz</a>
       <a href="#hakkinda" data-mn-link>Hakkında</a>
       <a href="#sss" data-mn-link>SSS</a>
-      <a class="lp-btn lp-btn-primary" href="./auth/">Giriş / Başvuru</a>
     </nav>
   </div>
 
   <main>
     <!-- ============ Hero (editorial: headline + inline live ledger) ============ -->
-    <!-- Editable text targets are marked with [data-edit="<key>"] — admins
-         can overwrite these via the /app/ Bakım panel which writes to
-         /publicSiteContent/landing. landing.js applies the overrides on load. -->
+    <!-- Editable text targets are marked with [data-edit="<key>"] — the
+         foundation can overwrite them by editing the "Anasayfa Metinleri"
+         tab in the shared Google Sheet. landing.js fetches those values
+         from Apps Script and applies the overrides on load. -->
 
-    <!-- Admin-editable daily note banner. Hidden by default; revealed when
-         publicSiteContent.dailyNote is non-empty. -->
+    <!-- Editable daily note banner. Hidden by default; revealed when the
+         sheet's `dailyNote` row is non-empty. -->
     <aside class="lp-daily-note" id="lpDailyNote" hidden>
       <span class="lp-daily-note-label">Bugün</span>
       <span class="lp-daily-note-text" data-edit="dailyNote"></span>
@@ -225,7 +224,7 @@
         <p class="lp-hero-sub" data-edit="heroSub">Pertev Naili Boratav'ın özel arşivi sayfa sayfa dijital ortama aktarılıyor. <b id="lpHeroProgress">Şu an yolculuğun başındayız.</b> Aşağıda — bu hafta neler oldu, ne yapıldı.</p>
         <div class="lp-hero-actions">
           <a class="lp-btn lp-btn-primary" href="#projeler">Çalışmalarımızı keşfet</a>
-          <a class="lp-btn lp-btn-secondary" href="./auth/">Gönüllü ol</a>
+          <a class="lp-btn lp-btn-secondary" href="#sss" data-edit="ctaSecondaryHref">Gönüllü olmak ister misin?</a>
         </div>
 
         <!-- Live ledger strip — 4 cells, replaces the old 3 stat tiles. Filled by landing.js. -->
@@ -562,7 +561,7 @@
             <div class="lp-roster-cell lp-roster-empty" data-roster-day="5">—</div>
           </div>
         </div>
-        <p class="lp-roster-foot" id="lpRosterFoot">Sarı şerit = bugün · katılmak isteyen <a href="./auth/">başvurabilir</a></p>
+        <p class="lp-roster-foot" id="lpRosterFoot">Sarı şerit = bugün · katılmak isteyen <a href="#sss">SSS bölümüne göz atabilir</a></p>
       </div>
     </section>
 
@@ -652,7 +651,7 @@
         <h4>Hızlı linkler</h4>
         <ul>
           <li><a href="https://tarihvakfi.org.tr/hakkimizda/">Hakkında</a></li>
-          <li><a href="./auth/">Gönüllü ol</a></li>
+          <li><a href="mailto:tarihvakfi@tarihvakfi.org.tr?subject=G%C3%B6n%C3%BCll%C3%BC%20olmak%20istiyorum">Gönüllü ol</a></li>
           <li><a href="https://fonzip.com/tarihvakfi/tarih-dostu" target="_blank" rel="noopener noreferrer">Bağış yap</a></li>
           <li><a href="#sss">SSS</a></li>
         </ul>
@@ -734,7 +733,7 @@
     })();
   </script>
 
-  <script src="./js/config.firebase.js"></script>
-  <script type="module" src="./js/landing.js"></script>
+  <script src="./js/config.public.js"></script>
+  <script src="./js/landing.js"></script>
 </body>
 </html>

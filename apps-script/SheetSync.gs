@@ -1197,30 +1197,271 @@ function _hashRow_(headers, row) {
 }
 
 // ============================================================
-// Live "Şimdi senkronize et" Web App endpoint (May 2026)
+// Live Web App endpoint (May 2026)
 // ============================================================
-// Lets the admin trigger sheetSyncRun() from /app/ Bugün without waiting
-// for the hourly trigger. Deploy as Web App ("execute as me, accessible
-// to anyone with the link") — the SYNC_WEBHOOK_TOKEN Script Property is
-// the auth gate.
+// Two modes:
+//   1. ?public=1  → no auth, returns all public-site data so the landing
+//      page can render without ever touching Firebase. This is what
+//      js/landing.js fetches on page load.
+//   2. ?token=... → admin-only, runs sheetSyncRun() and returns the
+//      summary. Used by the "Şimdi senkronize et" button in /app/Bugün.
+//      The shared secret is the SYNC_WEBHOOK_TOKEN Script Property.
 function doGet(e) {
-  const want = (e && e.parameter && e.parameter.token) || "";
-  const have = PropertiesService.getScriptProperties().getProperty("SYNC_WEBHOOK_TOKEN") || "";
+  const params = (e && e.parameter) || {};
+
+  // Mode 1: public read (no auth).
+  if (params['public'] || params.mode === 'public') {
+    try {
+      const payload = _buildPublicSitePayload_();
+      return _jsonResponse_({
+        ok: true,
+        generatedAt: new Date().toISOString(),
+        data: payload
+      });
+    } catch (err) {
+      return _jsonResponse_({
+        ok: false,
+        error: String((err && err.message) || err)
+      });
+    }
+  }
+
+  // Mode 2: admin live sync (token-gated).
+  const want = params.token || '';
+  const have = PropertiesService.getScriptProperties().getProperty('SYNC_WEBHOOK_TOKEN') || '';
   if (!have || want !== have) {
-    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "unauthorized" }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return _jsonResponse_({ ok: false, error: 'unauthorized' });
   }
   try {
     const result = sheetSyncRun();
-    return ContentService.createTextOutput(JSON.stringify({
+    return _jsonResponse_({
       ok: true,
       runAt: new Date().toISOString(),
       result: result || null
-    })).setMimeType(ContentService.MimeType.JSON);
+    });
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({
+    return _jsonResponse_({
       ok: false,
       error: String((err && err.message) || err)
-    })).setMimeType(ContentService.MimeType.JSON);
+    });
   }
+}
+
+function _jsonResponse_(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// Builds the complete payload that the public landing page consumes.
+// All data is read directly from the Google Sheet — no Firestore.
+// Shape:
+//   {
+//     stats:   { projects: { pnb: {...} } },
+//     ticker:  [{ slug, name, donePages, totalPages, percent, when }],
+//     content: { ...key-value overrides edited from the sheet... },
+//     activeVolunteers: ['Ali','Ayşe',...],
+//     schedule: { monday: [...], tuesday: [...] }
+//   }
+function _buildPublicSitePayload_() {
+  const config = _loadConfig_();
+  const sheetId = (config && config.sheetId) || '';
+  if (!sheetId) {
+    return {
+      stats: { projects: { pnb: null } },
+      ticker: [],
+      content: {},
+      activeVolunteers: [],
+      schedule: {}
+    };
+  }
+
+  let metadata = null;
+  try {
+    metadata = _readSheetMetadata_(sheetId);
+  } catch (err) {
+    // Sheet inaccessible — return empty payload so the site renders gracefully.
+    return {
+      stats: { projects: { pnb: null } },
+      ticker: [],
+      content: {},
+      activeVolunteers: [],
+      schedule: {}
+    };
+  }
+
+  const projection = _buildPublicProjectionFromSheet_(sheetId, metadata);
+  const stats = (projection && projection.stats) || { projects: { pnb: null } };
+  const ticker = (projection && projection.ticker) || [];
+  const content = _readPublicContentFromSheet_(sheetId, metadata);
+  const activeVolunteers = _collectActiveFirstNames_(sheetId, metadata);
+  const schedule = _readPublicScheduleFromSheet_(sheetId, metadata);
+
+  return {
+    stats: stats,
+    ticker: ticker.slice(0, 60),
+    content: content,
+    activeVolunteers: activeVolunteers,
+    schedule: schedule
+  };
+}
+
+// Reads an optional "Anasayfa Metinleri" tab (key | value rows) so the
+// foundation team can tweak headlines, copy, FAQ entries, etc. without
+// touching code. Returns {} if the tab doesn't exist.
+function _readPublicContentFromSheet_(sheetId, metadata) {
+  const out = {};
+  const tabs = (metadata && metadata.sheets) || [];
+  let target = null;
+  for (let i = 0; i < tabs.length; i++) {
+    const title = String((tabs[i].properties && tabs[i].properties.title) || '');
+    const slug = _slugifyTabName_(title);
+    if (slug === 'anasayfa_metinleri' || slug === 'site_metinleri' || slug === 'site_icerik') {
+      target = title;
+      break;
+    }
+  }
+  if (!target) return out;
+  let rows;
+  try {
+    rows = _readPublicSheetRows_(sheetId, target);
+  } catch (err) {
+    return out;
+  }
+  if (!rows || rows.length < 2) return out;
+  const headers = rows[0].map(function (h) { return _slugifyHeaderToKey_(String(h || '')); });
+  let keyCol = headers.indexOf('anahtar');
+  if (keyCol === -1) keyCol = headers.indexOf('key');
+  let valCol = headers.indexOf('deger');
+  if (valCol === -1) valCol = headers.indexOf('değer');
+  if (valCol === -1) valCol = headers.indexOf('value');
+  if (keyCol === -1 || valCol === -1) {
+    // Fall back to first two columns.
+    keyCol = 0;
+    valCol = 1;
+  }
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const k = String(row[keyCol] || '').trim();
+    if (!k) continue;
+    const v = row[valCol];
+    out[k] = v == null ? '' : String(v);
+  }
+  return out;
+}
+
+// Collects first names of currently-active volunteers from the per-volunteer
+// tabs. Surnames are stripped to keep the wall friendly. Volunteers can
+// opt out by adding a "hideName" or "gizli" flag column (any truthy value).
+function _collectActiveFirstNames_(sheetId, metadata) {
+  const tabs = (metadata && metadata.sheets) || [];
+  const overview = _findOverviewTitle_(tabs);
+  if (!overview) return [];
+  let rows;
+  try {
+    rows = _readPublicSheetRows_(sheetId, overview);
+  } catch (err) {
+    return [];
+  }
+  if (!rows || rows.length < 2) return [];
+  const headers = rows[0].map(function (h) { return _slugifyHeaderToKey_(String(h || '')); });
+  const nameCol = _firstIndexOf_(headers, ['gonullu', 'gönüllü', 'isim', 'ad', 'adSoyad', 'volunteer']);
+  const statusCol = _firstIndexOf_(headers, ['durum', 'status', 'aktif']);
+  const hideCol = _firstIndexOf_(headers, ['hideName', 'gizli', 'gizle', 'hide']);
+  if (nameCol === -1) return [];
+  const seen = {};
+  const out = [];
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r] || [];
+    if (hideCol !== -1) {
+      const h = String(row[hideCol] || '').trim().toLowerCase();
+      if (h && h !== '0' && h !== 'false' && h !== 'hayır' && h !== 'no') continue;
+    }
+    if (statusCol !== -1) {
+      const s = String(row[statusCol] || '').trim().toLowerCase();
+      if (s && (s.indexOf('pasif') >= 0 || s.indexOf('inactive') >= 0 || s === 'no')) continue;
+    }
+    const full = String(row[nameCol] || '').trim();
+    if (!full) continue;
+    const first = full.split(/\s+/)[0];
+    if (!first) continue;
+    const key = first.toLowerCase();
+    if (seen[key]) continue;
+    seen[key] = true;
+    out.push(first);
+  }
+  out.sort(function (a, b) { return a.localeCompare(b, 'tr'); });
+  return out;
+}
+
+// Reads an optional "Haftalık Program" / "Nöbet" tab and returns a
+// { monday: [...], tuesday: [...], ... } map of first names. Returns {}
+// if the tab doesn't exist.
+function _readPublicScheduleFromSheet_(sheetId, metadata) {
+  const out = {};
+  const tabs = (metadata && metadata.sheets) || [];
+  let target = null;
+  const candidates = ['haftalik_program', 'nobet', 'nöbet', 'haftalik', 'program'];
+  for (let i = 0; i < tabs.length; i++) {
+    const title = String((tabs[i].properties && tabs[i].properties.title) || '');
+    const slug = _slugifyTabName_(title);
+    if (candidates.indexOf(slug) >= 0) {
+      target = title;
+      break;
+    }
+  }
+  if (!target) return out;
+  let rows;
+  try {
+    rows = _readPublicSheetRows_(sheetId, target);
+  } catch (err) {
+    return out;
+  }
+  if (!rows || rows.length < 2) return out;
+  const headers = rows[0].map(function (h) { return _slugifyHeaderToKey_(String(h || '')); });
+  // Expect a "gun" / "day" column and a "kisiler"/"volunteers" column.
+  const dayCol = _firstIndexOf_(headers, ['gun', 'gün', 'day']);
+  const peopleCol = _firstIndexOf_(headers, ['kisiler', 'kişiler', 'gonulluler', 'gönüllüler', 'volunteers', 'isimler']);
+  if (dayCol === -1 || peopleCol === -1) return out;
+  const dayMap = {
+    'pazartesi': 'monday', 'pzt': 'monday', 'monday': 'monday',
+    'sali': 'tuesday', 'salı': 'tuesday', 'tuesday': 'tuesday',
+    'carsamba': 'wednesday', 'çarşamba': 'wednesday', 'wednesday': 'wednesday',
+    'persembe': 'thursday', 'perşembe': 'thursday', 'thursday': 'thursday',
+    'cuma': 'friday', 'friday': 'friday',
+    'cumartesi': 'saturday', 'saturday': 'saturday',
+    'pazar': 'sunday', 'sunday': 'sunday'
+  };
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const rawDay = String(row[dayCol] || '').trim().toLowerCase();
+    const dayKey = dayMap[_asciiFold_(rawDay).toLowerCase()] || dayMap[rawDay];
+    if (!dayKey) continue;
+    const list = String(row[peopleCol] || '').split(/[,;\n]/).map(function (s) {
+      return String(s || '').trim().split(/\s+/)[0];
+    }).filter(Boolean);
+    if (!out[dayKey]) out[dayKey] = [];
+    for (let i = 0; i < list.length; i++) {
+      if (out[dayKey].indexOf(list[i]) === -1) out[dayKey].push(list[i]);
+    }
+  }
+  return out;
+}
+
+function _findOverviewTitle_(tabs) {
+  const candidates = ['pnb_gonullu_ozet', 'pnb_genel', 'pnb_ozet', 'gönüllüler', 'gonulluler', 'volunteers'];
+  for (let i = 0; i < tabs.length; i++) {
+    const title = String((tabs[i].properties && tabs[i].properties.title) || '');
+    const slug = _slugifyTabName_(title);
+    if (candidates.indexOf(slug) >= 0) return title;
+  }
+  return null;
+}
+
+function _firstIndexOf_(arr, candidates) {
+  for (let i = 0; i < candidates.length; i++) {
+    const idx = arr.indexOf(candidates[i]);
+    if (idx !== -1) return idx;
+  }
+  return -1;
 }

@@ -1,36 +1,30 @@
 // Tarih Vakfı public landing — small, framework-less.
-// Responsibilities (v2 editorial redesign, May 2026):
-//   - sticky-nav scroll-aware backdrop
-//   - mobile nav toggle
-//   - smooth-scroll for in-page anchors (CSS handles the bulk; we just close
-//     the mobile sheet on click)
-//   - fetch publicProjectStats/pnb (ledger cells + project card progress)
-//   - fetch publicTicker (last N) — feeds ledger people/week counts,
-//     collective this-week summary, work-area stacked bar, and the activity
-//     ticker at the bottom
-//   - render box-by-box grid from a hardcoded state map until per-box state
-//     is wired from /publicProjectStats/pnb.boxes[]
-//   - mark today's column in the weekly roster (based on browser locale)
-// All Firestore reads are unauthenticated; rules permit public read on those
-// two collections only.
 //
-// Privacy guarantee: this file never reads /reports, /users, /archiveUnits, or
-// any other authenticated collection. The only data it touches is the public
-// denormalized surface defined in firestore.rules.
+// Architecture (May 2026, post-Firebase migration):
+//   The site no longer talks to Firestore. All live data comes from a
+//   single Google Apps Script web app endpoint that reads the shared
+//   Google Sheet and returns a sanitised JSON projection.
+//
+//   Endpoint: window.__SHEETSYNC_URL__ + "?public=1"
+//   Response shape (see apps-script/SheetSync.gs#_buildPublicSitePayload_):
+//     {
+//       ok: true,
+//       generatedAt: "ISO timestamp",
+//       data: {
+//         stats: { projects: { pnb: { totalPages, donePages, totalUnits,
+//                                     totalFiles, cataloguedBoxes, boxes:[], ... } } },
+//         ticker: [{ slug, name, donePages, totalPages, percent, when, materialCategory }],
+//         content: { heroEyebrow, heroHeadline, heroSub, dailyNote, ... },
+//         activeVolunteers: ["Ali","Ayşe", ...],
+//         schedule: { monday: [...], tuesday: [...] }
+//       }
+//     }
+//
+// The page is fully usable without the network (static markup + sensible
+// fallbacks). When the fetch succeeds, hydrators overwrite the static
+// content with live numbers.
 
 (() => {
-  const PROJECT_ID = "pnb";
-
-  // The website reads ONLY from /publicProjectStats/pnb and /publicTicker —
-  // both of which are populated by apps-script/SheetSync.gs from the live
-  // Google Sheet on an hourly trigger. Fields published there:
-  //   totalPages, donePages           — pages aggregate from PNB Sayısallaştırma
-  //   totalUnits, doneUnits           — belge count
-  //   totalFiles                      — dosya count
-  //   cataloguedBoxes                 — boxes with non-zero counts in the sheet
-  //   updatedAt
-  // PNB_TARGET_BOXES is the project ceiling (104) — not in the sheet.
-  // Everything else (display copy) comes from the user.
   const PNB_TARGET_BOXES = 104;
 
   // ---------- Nav ----------
@@ -70,114 +64,111 @@
   });
 
   // ---------- Initial paint ----------
-  // The mockup sections (wall, roster, box grid) ship with sensible static
-  // content already in the HTML. We:
-  //   - mark today's column in the roster immediately (no network needed)
-  //   - render the box-by-box grid from a static state map
-  // Firestore hydrators below will *overwrite* these with live data when the
-  // collections are populated; otherwise the page still feels alive.
   markRosterToday();
   renderBoxesGridStatic();
 
-  // ---------- Firestore (optional — page is fully usable without it) ----------
-  if (!window.__FIREBASE_CONFIG__) {
-    // No Firestore = use inventory fallbacks for ledger/collect so the strip
-    // doesn't look empty.
+  // ---------- Live data ----------
+  const url = window.__SHEETSYNC_URL__;
+  const looksConfigured = typeof url === "string"
+    && url.indexOf("script.google.com") >= 0
+    && url.indexOf("REPLACE_ME") === -1;
+
+  if (!looksConfigured) {
     setLedgerFallback();
     setCollectiveFallback();
+    hideTicker();
     return;
   }
 
-  const FB = "https://www.gstatic.com/firebasejs/10.12.5";
-  Promise.all([
-    import(`${FB}/firebase-app.js`),
-    import(`${FB}/firebase-firestore-lite.js`)
-  ])
-    .then(([{ initializeApp }, fs]) => {
-      const app = initializeApp(window.__FIREBASE_CONFIG__);
-      const db = fs.getFirestore(app);
-      hydrate(db, fs);
-    })
+  fetchPayload(url)
+    .then((data) => hydrateAll(data))
     .catch(() => {
       setLedgerFallback();
       setCollectiveFallback();
       hideTicker();
     });
 
-  // ---------- Combined hydrate ----------
-  // Fetches stats + ticker once and routes the data to all the sections that
-  // need it. Doing both in one go avoids the two-roundtrip cost the v1 version
-  // paid.
-  async function hydrate(db, fs) {
-    let stats = null;
-    let tickerItems = [];
-    try {
-      const ref = fs.doc(db, "publicProjectStats", PROJECT_ID);
-      const snap = await fs.getDoc(ref);
-      stats = snap.exists() ? (snap.data() || null) : null;
-    } catch (err) { stats = null; }
-    try {
-      const tickerSnap = await fs.getDocs(fs.query(
-        fs.collection(db, "publicTicker"),
-        fs.orderBy("createdAt", "desc"),
-        fs.limit(500)
-      ));
-      tickerItems = tickerSnap.docs.map((d) => d.data() || {}).filter((r) => r.createdAt);
-    } catch (err) { tickerItems = []; }
-
-    hydrateLedger(stats, tickerItems);
-    hydrateCollective(tickerItems);
-    hydrateProjectCard(stats, tickerItems);
-    hydrateAreaBar(tickerItems);
-    hydrateBoxesGrid(stats);
-    hydrateTickerSection(tickerItems);
-
-    // Wall + roster live in separate public collections (don't exist yet).
-    // Attempt to read them; on miss, they simply stay hidden.
-    hydrateWall(db, fs).catch(() => {});
-    hydrateRoster(db, fs).catch(() => {});
-
-    // Admin-editable copy overlay. Reads /publicSiteContent/landing if it
-    // exists and writes string values into any [data-edit="<key>"] target.
-    // Special-cased: dailyNote toggles its banner's visibility.
-    hydrateSiteContent(db, fs).catch(() => {});
+  async function fetchPayload(base) {
+    const sep = base.indexOf("?") >= 0 ? "&" : "?";
+    const resp = await fetch(`${base}${sep}public=1&t=${Date.now()}`, {
+      method: "GET",
+      mode: "cors",
+      cache: "no-store",
+      redirect: "follow"
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const body = await resp.json();
+    if (!body || body.ok !== true || !body.data) {
+      throw new Error("Bad payload");
+    }
+    return body.data;
   }
 
-  // ---------- publicSiteContent overlay ----------
-  // Doc shape (all keys optional):
-  //   heroEyebrow, heroHeadline, heroSub,
-  //   projectHeading, projectPeople, projectBlurb,
-  //   dailyNote, dailyNoteVisible (boolean),
-  //   updatedAt
-  // landing.js never strips HTML — admins editing rich strings (e.g. with
-  // <em>, <b>) get those rendered. Inputs are trusted because only admins
-  // can write to the doc (firestore.rules).
-  async function hydrateSiteContent(db, fs) {
-    let doc = null;
-    try {
-      const ref = fs.doc(db, "publicSiteContent", "landing");
-      const snap = await fs.getDoc(ref);
-      doc = snap.exists() ? snap.data() : null;
-    } catch (err) { doc = null; }
-    if (!doc) return;
+  // ---------- Combined hydrate ----------
+  // Receives the JSON payload from Apps Script and routes each piece to
+  // the section that consumes it.
+  function hydrateAll(payload) {
+    const stats = projectStats(payload);
+    const ticker = Array.isArray(payload.ticker) ? payload.ticker : [];
 
-    // Apply every key with a [data-edit] target except dailyNote, which
-    // gets its own visibility toggle.
+    hydrateLedger(stats, ticker);
+    hydrateCollective(ticker);
+    hydrateProjectCard(stats, ticker);
+    hydrateAreaBar(ticker);
+    hydrateBoxesGrid(stats);
+    hydrateTickerSection(ticker);
+
+    hydrateWall(payload.activeVolunteers);
+    hydrateRoster(payload.schedule);
+    hydrateSiteContent(payload.content);
+  }
+
+  // The payload supports two shapes for stats:
+  //   stats: { projects: { pnb: {...} } }     ← new direct-from-sheet shape
+  //   stats: { totalPages, donePages, ... }   ← legacy Firestore shape
+  function projectStats(payload) {
+    const s = payload && payload.stats;
+    if (!s) return null;
+    if (s.projects && s.projects.pnb) return s.projects.pnb;
+    if (typeof s.totalPages !== "undefined") return s;
+    return null;
+  }
+
+  // ---------- Editorial copy overlay ----------
+  // The "Anasayfa Metinleri" sheet tab lets the foundation edit
+  // headlines, paragraphs, FAQ rows, etc. without touching code.
+  // Each row is { key | value }; we map the key to any
+  // [data-edit="<key>"] element on the page.
+  function hydrateSiteContent(content) {
+    if (!content || typeof content !== "object") return;
+
     const TEXT_KEYS = ["heroEyebrow", "heroHeadline", "heroSub",
                        "projectHeading", "projectPeople", "projectBlurb"];
     TEXT_KEYS.forEach((key) => {
-      const value = doc[key];
+      const value = content[key];
+      if (value == null || String(value).trim() === "") return;
+      document.querySelectorAll(`[data-edit="${key}"]`).forEach((el) => {
+        el.innerHTML = String(value);
+      });
+    });
+    // Generic pass — any other key with a [data-edit] target.
+    Object.keys(content).forEach((key) => {
+      if (TEXT_KEYS.indexOf(key) >= 0 || key === "dailyNote" || key === "dailyNoteVisible") return;
+      const value = content[key];
       if (value == null || String(value).trim() === "") return;
       document.querySelectorAll(`[data-edit="${key}"]`).forEach((el) => {
         el.innerHTML = String(value);
       });
     });
 
-    // Daily note — show only when both text and visible flag are set.
     const note = document.getElementById("lpDailyNote");
     const noteText = document.querySelector('[data-edit="dailyNote"]');
-    const text = doc.dailyNote ? String(doc.dailyNote).trim() : "";
-    const visible = doc.dailyNoteVisible !== false && text.length > 0;
+    const text = content.dailyNote ? String(content.dailyNote).trim() : "";
+    const visibleFlag = content.dailyNoteVisible;
+    const visible = (visibleFlag === undefined || visibleFlag === true
+                     || String(visibleFlag).toLowerCase() === "true"
+                     || String(visibleFlag) === "1")
+                    && text.length > 0;
     if (note && noteText) {
       if (visible) {
         noteText.innerHTML = text;
@@ -189,16 +180,11 @@
   }
 
   // ---------- Ledger strip (4 cells in hero) ----------
-  // All numbers come from Firestore /publicProjectStats/pnb, which is fed
-  // by apps-script/SheetSync.gs hourly from the live Sheet. We render "—"
-  // anywhere the sync hasn't published yet (rather than hardcoded fallbacks)
-  // so stale UI never tells a different story than the sheet.
   function hydrateLedger(stats, tickerItems) {
-    const total = stats && Number(stats.totalPages) || 0;
-    const done = stats && Number(stats.donePages) || 0;
+    const total = (stats && Number(stats.totalPages)) || 0;
+    const done = (stats && Number(stats.donePages)) || 0;
     const pct = total > 0 ? (done / total) * 100 : 0;
 
-    // Cell: progress
     setLedger("progress", {
       val: pct > 0 ? `%${formatPct(pct)}` : "—",
       foot: total > 0
@@ -206,16 +192,14 @@
         : "sayfa hedefi yükleniyor",
     });
 
-    // Update hero sub-paragraph progress hint, if present.
     const progSpan = document.getElementById("lpHeroProgress");
     if (progSpan && pct > 0) {
       progSpan.textContent = `Şu an %${formatPct(pct)}'ündeyiz.`;
     }
 
-    // Cell: açılmış kutu — straight from sheet's PNB Sayısallaştırma summary.
     const boxTargetEl = document.getElementById("lpLedgerBoxTarget");
     if (boxTargetEl) boxTargetEl.textContent = String(PNB_TARGET_BOXES);
-    const catalogued = stats && Number(stats.cataloguedBoxes) || 0;
+    const catalogued = (stats && Number(stats.cataloguedBoxes)) || 0;
     if (catalogued > 0) {
       const remaining = Math.max(0, PNB_TARGET_BOXES - catalogued);
       setLedger("boxes", {
@@ -228,16 +212,16 @@
       setLedger("boxes", { val: "—", foot: "kutu sayısı yükleniyor" });
     }
 
-    // Cells: people 30d + week 7d — from ticker.
     const now = Date.now();
     const since30d = now - 30 * 86400000;
     const since7d = now - 7 * 86400000;
     const tokens30d = new Set();
     let count7d = 0;
     tickerItems.forEach((r) => {
-      const t = tsMillis(r.createdAt);
+      const t = tsMillis(r.when || r.createdAt);
       if (!t) return;
-      if (t >= since30d && r.volunteerToken) tokens30d.add(r.volunteerToken);
+      const id = r.volunteerToken || r.slug || r.name;
+      if (t >= since30d && id) tokens30d.add(id);
       if (t >= since7d) count7d += 1;
     });
     setLedger("people", {
@@ -268,21 +252,21 @@
   // ---------- Collective "Bu hafta birlikte" ----------
   function hydrateCollective(tickerItems) {
     const since7d = Date.now() - 7 * 86400000;
-    const week = tickerItems.filter((r) => tsMillis(r.createdAt) >= since7d);
+    const week = tickerItems.filter((r) => tsMillis(r.when || r.createdAt) >= since7d);
     if (!week.length) {
       setCollectiveFallback();
       return;
     }
 
-    // distinct days
     const days = new Set();
     const tokens = new Set();
     const areas = new Map();
     week.forEach((r) => {
-      const t = tsMillis(r.createdAt);
+      const t = tsMillis(r.when || r.createdAt);
       if (!t) return;
       days.add(dayKey(t));
-      if (r.volunteerToken) tokens.add(r.volunteerToken);
+      const id = r.volunteerToken || r.slug || r.name;
+      if (id) tokens.add(id);
       const cat = cleanCategory(r.materialCategory);
       areas.set(cat, (areas.get(cat) || 0) + 1);
     });
@@ -292,7 +276,6 @@
     setCollect("contribs", { val: String(week.length), foot: "rapor yazıldı" });
     setCollect("areas", { val: String(areas.size), foot: "alanda emek" });
 
-    // Title + narrative — keep it warm, no individual names.
     const titleEl = document.getElementById("lpCollectTitle");
     if (titleEl) {
       titleEl.textContent = `Bu hafta birlikte ${week.length} kayıt düştü, ${areas.size} farklı alanda çalıştık.`;
@@ -328,15 +311,13 @@
     if (narrEl) narrEl.textContent = "Bu hafta henüz rapor yazılmadı — gönüllüler yakında.";
   }
 
-  // ---------- Project card progress (editorial milestone version) ----------
-  // Hydrates the bar + four facts (kutu / dosya / belge / bu ay) from live
-  // /publicProjectStats fields. No inventory fallbacks — show "—" until sync.
+  // ---------- Project card progress ----------
   function hydrateProjectCard(stats, tickerItems) {
-    const total = stats && Number(stats.totalPages) || 0;
-    const done = stats && Number(stats.donePages) || 0;
-    const totalUnits = stats && Number(stats.totalUnits) || 0;
-    const totalFiles = stats && Number(stats.totalFiles) || 0;
-    const catalogued = stats && Number(stats.cataloguedBoxes) || 0;
+    const total = (stats && Number(stats.totalPages)) || 0;
+    const done = (stats && Number(stats.donePages)) || 0;
+    const totalUnits = (stats && Number(stats.totalUnits)) || 0;
+    const totalFiles = (stats && Number(stats.totalFiles)) || 0;
+    const catalogued = (stats && Number(stats.cataloguedBoxes)) || 0;
     const pct = total > 0 ? (done / total) * 100 : 0;
 
     const bar = document.getElementById("lpPpBar");
@@ -357,7 +338,6 @@
       msNow.textContent = pct > 0 ? `Bugün · %${formatPct(pct)}` : "Bugün";
     }
 
-    // Live project facts. Each one mirrors what's in publicProjectStats.
     setFact("lpFactBoxes",
       catalogued > 0 ? `${catalogued} / ${PNB_TARGET_BOXES}` : "—");
     setFact("lpFactFiles",
@@ -365,11 +345,10 @@
     setFact("lpFactUnits",
       totalUnits > 0 ? formatNum(totalUnits) : "—");
 
-    // "Bu ay sayfa" — count of public ticker items in last 30d.
     const monthEl = document.getElementById("lpProjectMonthly");
     if (monthEl) {
       const since30d = Date.now() - 30 * 86400000;
-      const monthCount = tickerItems.filter((r) => tsMillis(r.createdAt) >= since30d).length;
+      const monthCount = tickerItems.filter((r) => tsMillis(r.when || r.createdAt) >= since30d).length;
       monthEl.textContent = monthCount > 0 ? `+${formatNum(monthCount)} kayıt` : "—";
     }
 
@@ -383,11 +362,6 @@
   }
 
   // ---------- Box-by-box grid ----------
-  // The 104-box visualization is rendered twice:
-  //   1. renderBoxesGridStatic() on initial paint — uses a baked-in state
-  //      map (mirror of current sheet snapshot) so the grid always paints.
-  //   2. hydrateBoxesGrid() once Firestore lands — overlays per-box state
-  //      from /publicProjectStats/pnb.boxes[] if SheetSync has published it.
   function renderBoxesGridStatic() {
     const grid = document.getElementById("lpBoxesGrid");
     if (!grid) return;
@@ -397,10 +371,9 @@
     const grid = document.getElementById("lpBoxesGrid");
     if (!grid) return;
     const boxes = stats && Array.isArray(stats.boxes) ? stats.boxes : null;
-    if (!boxes || !boxes.length) return; // keep the static render
+    if (!boxes || !boxes.length) return;
     const states = boxes.map((b) => (b && typeof b.state === "number")
       ? clampInt(b.state, 0, 4) : "future");
-    // Pad to 104 if the sheet returns fewer entries.
     while (states.length < PNB_TARGET_BOXES) states.push("future");
     paintBoxGrid(grid, states.slice(0, PNB_TARGET_BOXES));
   }
@@ -419,46 +392,30 @@
       return `<span class="${cls}" title="Kutu ${num} — ${stateText}" role="img" aria-label="Kutu ${num} — ${stateText}"></span>`;
     }).join("");
   }
-  // Static map approximating the current PNB Sayısallaştırma snapshot. When
-  // SheetSync publishes a live boxes[] array it overrides this — until then
-  // the grid reflects the sheet state at the last manual sync.
   function defaultBoxStates() {
     const states = [];
     for (let i = 1; i <= 13; i++) states.push(i === 1 ? 2 : 1);
-    states.push(1);   // box 14
-    states.push(3);   // box 15
+    states.push(1);
+    states.push(3);
     for (let i = 16; i <= 67; i++) states.push(0);
-    states.push(1);   // box 68
+    states.push(1);
     for (let i = 69; i <= 76; i++) states.push(0);
-    states.push(0, 1, 0, 0); // I1, I2, F1, F2
+    states.push(0, 1, 0, 0);
     for (let i = 0; i < 6; i++) states.push(0);
     while (states.length < PNB_TARGET_BOXES) states.push("future");
     return states.slice(0, PNB_TARGET_BOXES);
   }
 
   // ---------- Wall of contributors ----------
-  // Reads /publicVolunteers/* (each doc { firstName, optIn:true }) if the
-  // collection exists. When live data is available we overwrite the static
-  // alphabetical list rendered server-side; on miss we leave the static
-  // markup in place so the section never goes blank.
-  async function hydrateWall(db, fs) {
+  // Names are first-name-only and already sorted by Apps Script. When the
+  // sheet provides them we overwrite the static fallback; on miss we keep
+  // the static markup.
+  function hydrateWall(activeVolunteers) {
     const wall = document.getElementById("lpWall");
     const countEl = document.getElementById("lpWallCount");
     if (!wall) return;
-    let names = [];
-    try {
-      const snap = await fs.getDocs(fs.query(
-        fs.collection(db, "publicVolunteers"),
-        fs.limit(500)
-      ));
-      names = snap.docs
-        .map((d) => d.data() || {})
-        .filter((d) => d.optIn !== false && d.firstName)
-        .map((d) => String(d.firstName).trim())
-        .filter(Boolean);
-    } catch (err) { names = []; }
-    if (!names.length) return; // keep the static markup
-    names.sort((a, b) => a.localeCompare(b, "tr"));
+    const names = Array.isArray(activeVolunteers) ? activeVolunteers.filter(Boolean) : [];
+    if (!names.length) return;
     wall.innerHTML = names.map((n, i) => {
       const sep = i < names.length - 1
         ? `<span class="lp-wall-dot" aria-hidden="true">·</span>`
@@ -469,20 +426,15 @@
   }
 
   // ---------- Weekly roster ----------
-  // Reads /publicSchedule/current — { rows: [{ loc, sublabel?, days:[..×5] }] }
-  // when SheetSync publishes the "Günlük Gönüllü Akışı" tab. On miss the
-  // section keeps the static grid from the HTML; on success the grid is
-  // replaced with live names and today's column re-highlighted.
-  async function hydrateRoster(db, fs) {
+  // Schedule shape: { monday: [..first names..], tuesday: [...], ... }
+  function hydrateRoster(schedule) {
     const section = document.getElementById("lpRosterSection");
     if (!section) return;
-    let doc = null;
-    try {
-      const ref = fs.doc(db, "publicSchedule", "current");
-      const snap = await fs.getDoc(ref);
-      doc = snap.exists() ? snap.data() : null;
-    } catch (err) { doc = null; }
-    if (!doc || !Array.isArray(doc.rows) || !doc.rows.length) return;
+    if (!schedule || typeof schedule !== "object") return;
+    const dayKeys = ["monday", "tuesday", "wednesday", "thursday", "friday"];
+    const hasAny = dayKeys.some((k) => Array.isArray(schedule[k]) && schedule[k].length);
+    if (!hasAny) return;
+
     const grid = section.querySelector(".lp-roster-grid");
     if (!grid) return;
     const dayHeaders = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma"];
@@ -490,17 +442,14 @@
     dayHeaders.forEach((d, i) => {
       html.push(`<div class="lp-roster-head" data-roster-day="${i + 1}">${esc(d)}</div>`);
     });
-    doc.rows.forEach((row) => {
-      const loc = (row && row.loc) || "";
-      const sub = (row && row.sublabel) || "";
-      html.push(`<div class="lp-roster-loc">${esc(loc)}${sub ? `<small>${esc(sub)}</small>` : ""}</div>`);
-      const days = (row && row.days) || [];
-      for (let i = 0; i < 5; i++) {
-        const name = days[i] ? String(days[i]).trim() : "";
-        const cls = name ? "lp-roster-cell" : "lp-roster-cell lp-roster-empty";
-        html.push(`<div class="${cls}" data-roster-day="${i + 1}">${name ? esc(name) : "—"}</div>`);
-      }
-    });
+    // Single "Arşiv" row showing day-by-day participants.
+    html.push(`<div class="lp-roster-loc">Arşiv<small>PNB</small></div>`);
+    for (let i = 0; i < 5; i++) {
+      const list = Array.isArray(schedule[dayKeys[i]]) ? schedule[dayKeys[i]] : [];
+      const text = list.length ? list.join(" · ") : "";
+      const cls = text ? "lp-roster-cell" : "lp-roster-cell lp-roster-empty";
+      html.push(`<div class="${cls}" data-roster-day="${i + 1}">${text ? esc(text) : "—"}</div>`);
+    }
     grid.innerHTML = html.join("");
     markRosterToday();
   }
@@ -515,7 +464,7 @@
     const counts = new Map();
     let total = 0;
     tickerItems.forEach((r) => {
-      const t = tsMillis(r.createdAt);
+      const t = tsMillis(r.when || r.createdAt);
       if (!t || t < since30d) return;
       const cat = cleanCategory(r.materialCategory);
       counts.set(cat, (counts.get(cat) || 0) + 1);
@@ -559,7 +508,7 @@
     });
   }
 
-  // ---------- Activity ticker (bottom) — de-personalized ----------
+  // ---------- Activity ticker (bottom) ----------
   function hydrateTickerSection(items) {
     if (!items.length) { hideTicker(); return; }
     const list = document.getElementById("lpTicker");
@@ -574,7 +523,7 @@
   function summarizeTickerItems(items) {
     const byDay = new Map();
     items.forEach((r) => {
-      const when = tsMillis(r.createdAt);
+      const when = tsMillis(r.when || r.createdAt);
       if (!when) return;
       const key = dayKey(when);
       if (!byDay.has(key)) {
@@ -617,10 +566,18 @@
   }
 
   // ---------- Helpers ----------
+  // Apps Script returns ISO strings or { _seconds, _nanoseconds } depending
+  // on the source. tsMillis handles both, plus raw numbers and Date objects.
   function tsMillis(ts) {
     if (!ts) return 0;
+    if (typeof ts === "number") return ts;
+    if (typeof ts === "string") {
+      const t = Date.parse(ts);
+      return isNaN(t) ? 0 : t;
+    }
     if (typeof ts.toMillis === "function") return ts.toMillis();
     if (typeof ts.seconds === "number") return ts.seconds * 1000;
+    if (typeof ts._seconds === "number") return ts._seconds * 1000;
     if (ts instanceof Date) return ts.getTime();
     return 0;
   }
