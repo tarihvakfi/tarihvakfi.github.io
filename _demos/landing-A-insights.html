@@ -1,0 +1,904 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<title>Sayım Defteri — A · insights</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #ffffff;
+    --paper-soft: #fafafa;
+    --ink: #0a0a0a;
+    --ink-soft: #1f1f1f;
+    --ink-mute: rgba(10,10,10,0.55);
+    --ink-faint: rgba(10,10,10,0.32);
+    --rule: rgba(10,10,10,0.18);
+    --rule-soft: rgba(10,10,10,0.08);
+    --accent: #d63a2a;
+    --accent-deep: #a02a1d;
+    --accent-soft: #f3dcd8;
+    --accent-bg: #fff7f5;
+    --live: #2e8b57;
+    --highlight: #f5d77a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Crimson Pro', Georgia, serif;
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 16.5px;
+    line-height: 1.6;
+  }
+  .display { font-family: 'Crimson Pro', Georgia, serif; }
+  .mono { font-family: 'DM Mono', ui-monospace, monospace; }
+
+  .demo-info {
+    background: var(--ink); color: var(--paper);
+    padding: 9px 24px; font-size: 12px; text-align: center;
+    font-family: 'DM Mono', monospace; letter-spacing: 0.06em;
+  }
+  .demo-info b { color: var(--accent); }
+
+  .page { max-width: 900px; margin: 0 auto; padding: 32px 28px 80px; }
+
+  /* ============ Masthead ============ */
+  .masthead {
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 14px;
+    margin-bottom: 32px;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 16px; align-items: baseline;
+    font-family: 'DM Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+  }
+  .masthead .l { text-align: left; }
+  .masthead .m { text-align: center; color: var(--ink); font-weight: 500; }
+  .masthead .m b { color: var(--accent); }
+  .masthead .r { text-align: right; }
+  .masthead .pulse {
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--live); margin-right: 5px; vertical-align: 1px;
+    box-shadow: 0 0 0 4px rgba(46,139,87,0.18);
+    animation: pulse-dot 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%,100% { box-shadow: 0 0 0 4px rgba(46,139,87,0.18); }
+    50%      { box-shadow: 0 0 0 8px rgba(46,139,87,0.04); }
+  }
+
+  /* ============ Hero ============ */
+  .intro { padding: 28px 0 6px; }
+  .intro .label {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink-mute); margin: 0 0 16px;
+  }
+  .intro h1 {
+    font-family: 'Crimson Pro', serif;
+    font-size: clamp(48px, 6.5vw, 72px);
+    line-height: 1; letter-spacing: -0.02em;
+    margin: 0 0 16px; font-weight: 500;
+  }
+  .intro h1 em { font-style: italic; color: var(--accent); }
+  .intro .lede {
+    font-size: 19px; line-height: 1.55;
+    max-width: 660px; margin: 0; color: var(--ink-soft);
+  }
+  .intro .lede b { font-weight: 600; color: var(--ink); }
+  .intro .lede em.acc { font-style: italic; color: var(--accent); font-weight: 500; }
+
+  /* ============ Şu an ============ */
+  .now {
+    margin: 36px 0 0; padding: 24px 28px;
+    background: var(--accent-bg);
+    border: 1px solid var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    position: relative;
+    display: grid;
+    grid-template-columns: 50px 1fr auto;
+    gap: 18px; align-items: center;
+  }
+  .now .badge {
+    position: absolute; top: -10px; left: 18px;
+    background: var(--paper); padding: 2px 10px;
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--accent); border: 1px solid var(--accent);
+  }
+  .now .clock {
+    position: absolute; top: -10px; right: 18px;
+    background: var(--paper); padding: 2px 10px;
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.08em; color: var(--ink-soft);
+    border: 1px solid var(--rule);
+  }
+  .now .av {
+    width: 46px; height: 46px; border-radius: 50%;
+    background: var(--accent); color: var(--paper);
+    display: grid; place-items: center;
+    font-family: 'Crimson Pro', serif; font-size: 22px;
+    font-weight: 500;
+  }
+  .now .who {
+    font-family: 'Crimson Pro', serif;
+    font-size: 22px; line-height: 1.15;
+    font-weight: 500; margin: 0 0 4px;
+  }
+  .now .who em { font-style: italic; color: var(--accent); }
+  .now .what {
+    font-style: italic; color: var(--ink-mute); font-size: 14.5px;
+  }
+  .now .what .cursor {
+    display: inline-block; width: 2px; height: 13px;
+    background: var(--accent); vertical-align: -2px;
+    margin-left: 2px; animation: blink 1.1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  .now .pages {
+    text-align: right;
+    font-family: 'Crimson Pro', serif; font-size: 38px;
+    color: var(--accent); line-height: 1;
+    font-style: italic;
+  }
+  .now .pages small {
+    display: block; font-size: 10px; color: var(--ink-mute);
+    font-family: 'DM Mono', monospace; letter-spacing: 0.16em;
+    text-transform: uppercase; margin-top: 5px; font-style: normal;
+  }
+
+  /* ============ Glance + sparkline ============ */
+  .glance {
+    margin: 36px 0 0;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    padding: 22px 0;
+    display: grid;
+    grid-template-columns: 1.3fr 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .glance > div { padding: 0 14px 0 0; border-right: 1px solid var(--rule-soft); }
+  .glance > div:last-child { border-right: 0; padding-right: 0; }
+  .glance .lbl {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--ink-mute); margin: 0 0 10px;
+  }
+  .glance .v {
+    font-family: 'Crimson Pro', serif; font-size: 34px;
+    font-weight: 500; line-height: 1; margin: 0;
+  }
+  .glance .v em { font-style: italic; color: var(--accent); }
+  .glance .v small {
+    font-size: 13px; color: var(--ink-mute);
+    margin-left: 3px; font-weight: normal;
+  }
+  .glance .f { font-size: 12.5px; color: var(--ink-mute); margin: 6px 0 0; font-style: italic; }
+  .glance .spark { display: flex; align-items: end; gap: 3px; height: 44px; margin-top: 10px; }
+  .glance .spark .b { flex: 1; background: var(--accent); opacity: 0.55; min-height: 2px; }
+  .glance .spark .b.today { opacity: 1; }
+  .glance .spark .b.quiet { opacity: 0.12; }
+  .glance .spark .b small {
+    display: block; margin-top: 6px; text-align: center;
+    font-family: 'DM Mono', monospace; font-size: 9px;
+    color: var(--ink-mute); letter-spacing: 0.04em;
+  }
+
+  /* ============ Bu haftanın işaretleri — insight cards ============ */
+  .signals {
+    margin: 44px 0 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  @media (max-width: 760px) { .signals { grid-template-columns: 1fr; } }
+  .signal {
+    border-left: 3px solid var(--accent);
+    padding: 6px 0 6px 16px;
+  }
+  .signal .l {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 4px;
+  }
+  .signal .h {
+    font-family: 'Crimson Pro', serif;
+    font-size: 17px; line-height: 1.3; margin: 0;
+    color: var(--ink);
+  }
+  .signal .h em { font-style: italic; color: var(--accent); font-weight: 600; }
+  .signal .meta {
+    font-size: 12.5px; color: var(--ink-mute);
+    font-style: italic; margin: 6px 0 0;
+  }
+
+  /* ============ Çalışma alanı dağılımı — material breakdown ============ */
+  .mat {
+    margin: 50px 0 0;
+    padding: 24px 28px;
+    border: 1px solid var(--rule);
+    background: var(--paper-soft);
+  }
+  .mat-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 18px; flex-wrap: wrap; gap: 8px;
+  }
+  .mat-head h3 {
+    font-family: 'Crimson Pro', serif;
+    font-size: 22px; font-weight: 500; margin: 0;
+  }
+  .mat-head h3 em { font-style: italic; color: var(--accent); }
+  .mat-head .meta {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-mute);
+  }
+  .mat-bar {
+    display: flex; height: 14px;
+    border-radius: 1px; overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .mat-bar .seg {
+    height: 100%; position: relative;
+    border-right: 2px solid var(--paper-soft);
+  }
+  .mat-bar .seg:last-child { border-right: 0; }
+  .mat-bar .seg-1 { background: var(--accent); }
+  .mat-bar .seg-2 { background: var(--accent-deep); }
+  .mat-bar .seg-3 { background: #6b4a2a; }
+  .mat-bar .seg-4 { background: #b8985a; }
+  .mat-bar .seg-5 { background: rgba(10,10,10,0.4); }
+  .mat-legend {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 8px 18px;
+    font-size: 13.5px;
+  }
+  .mat-legend .row {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .mat-legend .dot {
+    width: 10px; height: 10px; flex-shrink: 0;
+  }
+  .mat-legend .row .pct { color: var(--ink-mute); font-family: 'DM Mono', monospace; font-size: 11.5px; margin-left: auto; }
+
+  /* ============ Section heading ============ */
+  .section-head { padding: 56px 0 20px; text-align: center; }
+  .section-head h2 {
+    font-family: 'Crimson Pro', serif;
+    font-size: clamp(30px, 4.4vw, 42px);
+    line-height: 1.05; font-weight: 500; margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .section-head h2 em { font-style: italic; color: var(--accent); }
+  .section-head .tag {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink-mute); margin: 10px 0 0;
+  }
+
+  /* ============ Day entries ============ */
+  .days { margin-top: 4px; }
+  .day {
+    display: grid;
+    grid-template-columns: 100px 1fr 150px;
+    gap: 28px;
+    padding: 26px 0;
+    border-bottom: 1px dashed var(--rule);
+    align-items: start;
+  }
+  .day:last-child { border-bottom: 0; }
+  @media (max-width: 760px) {
+    .day { grid-template-columns: 90px 1fr; }
+    .day .marg { display: none; }
+  }
+  .day .date { border-top: 2px solid var(--ink); padding-top: 8px; }
+  .day .date .dn {
+    font-family: 'DM Mono', monospace; font-size: 10.5px;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--ink-mute);
+  }
+  .day .date .dom {
+    font-family: 'Crimson Pro', serif; font-size: 52px;
+    line-height: 0.95; color: var(--ink); margin-top: 4px;
+    font-weight: 500;
+    letter-spacing: -0.025em;
+  }
+  .day .date .opens {
+    margin-top: 12px;
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.08em; color: var(--ink-faint);
+    line-height: 1.7;
+  }
+
+  .day .body { padding-top: 4px; }
+  .day .body .head {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .day .body .head .avs { display: flex; gap: 0; }
+  .day .body .head .avs .av {
+    width: 24px; height: 24px; border-radius: 50%;
+    display: grid; place-items: center;
+    font-family: 'Crimson Pro', serif; font-size: 11px;
+    color: var(--paper); background: var(--accent);
+    margin-right: -5px; border: 2px solid var(--paper);
+    font-weight: 500;
+  }
+  .day .body .head .avs .av:nth-child(2) { background: #6e3a30; }
+  .day .body .head .avs .av:nth-child(3) { background: var(--ink-soft); }
+  .day .body .head .avs .av:nth-child(4) { background: #8b5e3a; }
+  .day .body .head .ana {
+    font-family: 'Crimson Pro', serif;
+    font-style: italic; font-size: 16px;
+    color: var(--ink);
+    border-left: 2px solid var(--accent);
+    padding-left: 10px; margin-left: 6px;
+  }
+  .day .body p {
+    margin: 0 0 10px; font-size: 16.5px; line-height: 1.7;
+  }
+  .day .body em.name { font-style: italic; color: var(--accent); font-weight: 600; }
+  .day .body .tag {
+    display: inline-block;
+    font-family: 'DM Mono', monospace; font-size: 10.5px;
+    letter-spacing: 0.06em;
+    background: var(--accent-bg); color: var(--accent-deep);
+    padding: 2px 8px; margin: 0 2px; vertical-align: 1px;
+    border: 1px solid var(--accent-soft);
+  }
+  .day .body .delta {
+    font-family: 'Crimson Pro', serif; font-style: italic;
+    color: var(--accent); font-weight: 500;
+    white-space: nowrap;
+  }
+
+  /* NEW — insight line per day */
+  .day .body .insight {
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: var(--paper-soft);
+    border-left: 2px solid var(--ink);
+    font-family: 'DM Mono', monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    line-height: 1.6;
+  }
+  .day .body .insight .k {
+    color: var(--accent); font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.14em;
+    font-size: 10px; margin-right: 6px;
+  }
+  .day .body .insight b {
+    font-family: 'Crimson Pro', serif; font-style: italic;
+    color: var(--ink); font-weight: 500; font-size: 13px;
+  }
+
+  /* RIGHT margin */
+  .day .marg {
+    padding-top: 6px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10.5px; line-height: 1.7;
+    color: var(--ink-mute);
+    border-left: 1px dashed var(--rule);
+    padding-left: 14px;
+  }
+  .day .marg .stat-block { display: grid; gap: 4px; margin-bottom: 12px; }
+  .day .marg .stat-block b {
+    color: var(--accent);
+    font-family: 'Crimson Pro', serif;
+    font-size: 17px; font-style: italic; font-weight: 600;
+    letter-spacing: 0;
+  }
+  .day .marg .note { margin: 8px 0; font-style: italic; font-family: 'Crimson Pro', serif; font-size: 12.5px; }
+  .day .marg .arrow { color: var(--accent); margin-right: 4px; }
+  .day .marg .stamp {
+    display: inline-block;
+    margin-top: 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px; letter-spacing: 0.14em;
+    text-transform: uppercase;
+    border: 1px solid;
+    padding: 3px 8px;
+    transform: rotate(-1.5deg);
+  }
+  .day .marg .stamp.sururyor { color: var(--accent); border-color: var(--accent); }
+  .day .marg .stamp.tamam { color: var(--accent-deep); border-color: var(--accent-deep); background: var(--accent-soft); }
+  .day .marg .stamp.sessiz { color: var(--ink-faint); border-color: var(--ink-faint); }
+
+  /* TODAY */
+  .day.today {
+    background: var(--accent-bg);
+    padding: 32px 24px 28px;
+    margin: 0 -24px;
+    border-top: 1px solid var(--accent);
+    border-bottom: 1px solid var(--accent);
+    position: relative;
+  }
+  .day.today::before {
+    content: '· bugün ·';
+    position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
+    background: var(--paper); padding: 2px 12px;
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.24em; text-transform: uppercase;
+    color: var(--accent); border: 1px solid var(--accent);
+  }
+  .day.today .date .dom { color: var(--accent); }
+  .day.today .body p:first-of-type::first-letter {
+    font-family: 'Crimson Pro', serif;
+    font-size: 52px;
+    float: left; line-height: 0.85;
+    margin: 4px 8px -4px 0;
+    color: var(--accent); font-weight: 500;
+  }
+  .day.today .body .head .ana { color: var(--accent); font-size: 17px; }
+
+  /* Quiet */
+  .day.quiet .body { color: var(--ink-mute); font-style: italic; }
+  .day.quiet .body p { font-size: 14.5px; margin: 0; }
+  .day.quiet .date .dom { opacity: 0.4; }
+
+  /* ============ Aktif kutular bu hafta ============ */
+  .boxes-week { margin-top: 50px; }
+  .boxes-week .boxes-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 18px; flex-wrap: wrap; gap: 8px;
+    border-bottom: 1px solid var(--rule); padding-bottom: 12px;
+  }
+  .boxes-week h3 {
+    font-family: 'Crimson Pro', serif;
+    font-size: 22px; font-weight: 500; margin: 0;
+  }
+  .boxes-week h3 em { font-style: italic; color: var(--accent); }
+  .boxes-week .meta {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-mute);
+  }
+  .box-row {
+    display: grid;
+    grid-template-columns: 50px 1fr 100px 90px 70px;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px dashed var(--rule-soft);
+    align-items: center;
+    font-size: 14.5px;
+  }
+  .box-row:last-child { border-bottom: 0; }
+  .box-row .n {
+    font-family: 'Crimson Pro', serif; font-size: 22px;
+    color: var(--accent); font-weight: 500;
+    font-style: italic;
+  }
+  .box-row .desc { line-height: 1.4; }
+  .box-row .desc small { display: block; color: var(--ink-mute); font-size: 12.5px; font-style: italic; }
+  .box-row .who { font-style: italic; color: var(--ink); font-size: 14px; }
+  .box-row .delta {
+    font-family: 'Crimson Pro', serif; font-style: italic;
+    color: var(--accent); font-weight: 500; font-size: 18px;
+    text-align: right;
+  }
+  .box-row .pct {
+    text-align: right;
+    font-family: 'Crimson Pro', serif; font-size: 18px;
+    font-style: italic; font-weight: 500;
+  }
+  .box-row .pct.done { color: var(--accent-deep); }
+
+  /* ============ Bu hafta ilk kez ============ */
+  .firsts {
+    margin-top: 56px; padding: 24px 28px;
+    background: var(--paper-soft); border: 1px solid var(--rule);
+    border-left: 3px solid var(--ink);
+  }
+  .firsts h3 {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink); margin: 0 0 14px;
+  }
+  .firsts ul { margin: 0; padding: 0; list-style: none; }
+  .firsts li {
+    padding: 9px 0; border-bottom: 1px dashed var(--rule-soft);
+    font-size: 15.5px; line-height: 1.55;
+    display: grid; grid-template-columns: 28px 1fr;
+    gap: 12px; align-items: baseline;
+  }
+  .firsts li:last-child { border-bottom: 0; }
+  .firsts li .mark {
+    color: var(--accent); font-family: 'Crimson Pro', serif;
+    font-style: italic; font-size: 17px; font-weight: 500;
+  }
+  .firsts li b { font-weight: 600; }
+  .firsts li em.name { font-style: italic; color: var(--accent); font-weight: 500; }
+
+  /* ============ Pull quote ============ */
+  .pull-week {
+    margin: 64px 0 0; text-align: center; padding: 40px 0;
+    border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
+  }
+  .pull-week q {
+    font-family: 'Crimson Pro', serif;
+    font-style: italic;
+    font-size: clamp(22px, 3.2vw, 30px);
+    line-height: 1.4;
+    display: block; max-width: 700px; margin: 0 auto;
+    quotes: '“' '”';
+  }
+  .pull-week q::before, .pull-week q::after {
+    color: var(--accent); font-size: 1.2em; vertical-align: -0.1em; margin: 0 4px;
+  }
+  .pull-week q em { font-style: normal; color: var(--accent); }
+  .pull-week .cite {
+    margin-top: 14px;
+    font-family: 'DM Mono', monospace; font-size: 10.5px;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--ink-mute);
+  }
+
+  /* ============ Colophon ============ */
+  .colophon { margin-top: 60px; padding-top: 26px; border-top: 1px solid var(--rule); text-align: center; }
+  .colophon p { margin: 0 0 6px; font-size: 13.5px; color: var(--ink-mute); }
+  .colophon a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent); padding-bottom: 1px; }
+  .colophon .signoff {
+    margin-top: 22px;
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-faint);
+  }
+</style>
+</head>
+<body>
+
+<div class="demo-info"><b>Sayım Defteri · A+ insights</b> — ink & vermillion · richer derived insights · week of 7–13 May 2026</div>
+
+<div class="page">
+
+  <!-- ============ Masthead ============ -->
+  <header class="masthead">
+    <div class="l"><span class="pulse"></span>az önce senkron</div>
+    <div class="m"><b>Tarih Vakfı</b> · Sayım Defteri</div>
+    <div class="r">Hafta XLVII · 7–13 Mayıs 2026</div>
+  </header>
+
+  <!-- ============ Intro ============ -->
+  <section class="intro">
+    <p class="label">Pertev Naili Boratav Arşivi · 153. hafta</p>
+    <h1>Bu hafta arşivde<br><em>ne yapıldı?</em></h1>
+    <p class="lede">7 günün özeti — <b>12 gönüllü</b>, <b>5 kutu</b>, <em class="acc">172 kayıt</em>. <b>İstanbul yazışmaları</b> kutusu tamamlandı, <b>İstanbul-2</b> açıldı, mektup ve ders notları yarıya yaklaştı.</p>
+  </section>
+
+  <!-- ============ Şu an ============ -->
+  <article class="now">
+    <span class="badge">Şu an</span>
+    <span class="clock">14:22 TRT</span>
+    <div class="av">S</div>
+    <div>
+      <p class="who"><em>Sibel-Lara</em> Kutu 16'da</p>
+      <p class="what">saha defterlerini tarıyor · öğleden beri arşivde<span class="cursor"></span></p>
+    </div>
+    <div class="pages">+21<small>Bugün</small></div>
+  </article>
+
+  <!-- ============ Glance + sparkline ============ -->
+  <section class="glance">
+    <div>
+      <p class="lbl">Haftanın ritmi</p>
+      <p class="v"><em>172</em><small>kayıt · 7 gün</small></p>
+      <div class="spark">
+        <span class="b" style="height:11%"><small>Pe</small></span>
+        <span class="b" style="height:8%"><small>Cu</small></span>
+        <span class="b quiet" style="height:5%"><small>Ct</small></span>
+        <span class="b quiet" style="height:5%"><small>Pz</small></span>
+        <span class="b" style="height:24%"><small>Pa</small></span>
+        <span class="b" style="height:60%"><small>Sa</small></span>
+        <span class="b today" style="height:62%"><small>Ça</small></span>
+      </div>
+    </div>
+    <div>
+      <p class="lbl">İlerleme</p>
+      <p class="v"><em>%2,3</em></p>
+      <p class="f">1.808 / 77.544</p>
+    </div>
+    <div>
+      <p class="lbl">Açılmış kutu</p>
+      <p class="v">86<small>/ 104</small></p>
+      <p class="f">18 sırada</p>
+    </div>
+    <div>
+      <p class="lbl">Tamamlanan</p>
+      <p class="v" style="color: var(--accent-deep);">1<small>kutu</small></p>
+      <p class="f">İlk %100 bu hafta</p>
+    </div>
+  </section>
+
+  <!-- ============ Bu haftanın işaretleri — derived insights ============ -->
+  <section class="signals">
+    <article class="signal">
+      <p class="l">Bu haftaki ilk %100</p>
+      <p class="h"><em>Kutu I·1 — İstanbul yazışmaları</em> tamamlandı. 149 sayfanın hepsi dijital.</p>
+      <p class="meta">Cem · Perşembe akşamüstü</p>
+    </article>
+    <article class="signal">
+      <p class="l">Haftanın en yoğun günü</p>
+      <p class="h"><em>Salı 12 Mayıs</em> ile bugün eşit — 100+ sayfa, üçer gönüllü.</p>
+      <p class="meta">Geçen Çar'a göre +89 sayfa</p>
+    </article>
+    <article class="signal">
+      <p class="l">Yeni açılan kutu</p>
+      <p class="h"><em>Kutu I·2 — İstanbul-2</em> ilk satırını Aysu yazdı.</p>
+      <p class="meta">Pazartesi · %29'a kadar geldi</p>
+    </article>
+  </section>
+
+  <!-- ============ Çalışma alanı dağılımı ============ -->
+  <section class="mat">
+    <div class="mat-head">
+      <h3>Çalışma alanı <em>dağılımı</em></h3>
+      <span class="meta">son 7 gün · 172 kayıt</span>
+    </div>
+    <div class="mat-bar" role="img" aria-label="Çalışma alanı dağılımı">
+      <div class="seg seg-1" style="width: 38%"></div>
+      <div class="seg seg-2" style="width: 24%"></div>
+      <div class="seg seg-3" style="width: 18%"></div>
+      <div class="seg seg-4" style="width: 12%"></div>
+      <div class="seg seg-5" style="width: 8%"></div>
+    </div>
+    <div class="mat-legend">
+      <div class="row"><span class="dot" style="background: var(--accent);"></span><span>Mektuplar</span><span class="pct">%38 · 65 kayıt</span></div>
+      <div class="row"><span class="dot" style="background: var(--accent-deep);"></span><span>Fotoğraflar</span><span class="pct">%24 · 42 kayıt</span></div>
+      <div class="row"><span class="dot" style="background: #6b4a2a;"></span><span>Ders notları</span><span class="pct">%18 · 31 kayıt</span></div>
+      <div class="row"><span class="dot" style="background: #b8985a;"></span><span>Saha defterleri</span><span class="pct">%12 · 20 kayıt</span></div>
+      <div class="row"><span class="dot" style="background: rgba(10,10,10,0.4);"></span><span>Yazışmalar</span><span class="pct">%8 · 14 kayıt</span></div>
+    </div>
+  </section>
+
+  <!-- ============ Section: Günlük ============ -->
+  <header class="section-head">
+    <h2>Haftanın <em>günlüğü</em></h2>
+    <p class="tag">7 gün · sıralı · son giriş bugün 14:22</p>
+  </header>
+
+  <section class="days">
+
+    <!-- BUGÜN -->
+    <article class="day today">
+      <div class="date">
+        <div class="dn">Çarşamba</div>
+        <div class="dom">13</div>
+        <div class="opens">açılış · 09:48<br>son · 14:22</div>
+      </div>
+      <div class="body">
+        <div class="head">
+          <div class="avs"><span class="av">S</span><span class="av">B</span><span class="av">A</span><span class="av">S</span></div>
+          <span class="ana">Saha defterleri açıldı.</span>
+        </div>
+        <p><em class="name">Sibel-Lara</em> <span class="tag">Kutu 16</span>'yı öğleden sonra açtı; saha defterlerinin ilk sayfaları tek tek geçirildi — bu kutudan gün toplamı <span class="delta">+21 sayfa</span>.</p>
+        <p>Aynı saatlerde <em class="name">Betül</em> <span class="tag">Kutu 14</span> mektuplarını sürdürdü <span class="delta">(+28)</span>, <em class="name">Ateş</em> <span class="tag">Kutu 15</span> ders notlarında <span class="delta">(+12)</span>, <em class="name">Seda</em> fotoğraflarda <span class="delta">(+44)</span>.</p>
+        <div class="insight">
+          <span class="k">ne söylüyor</span>Üç kişinin Kutu 14'te paralel çalışması bu ay <b>3. kez</b>; Betül+Seda eşleşmesi haftanın en sık tekrarlanan ikilisi. <b>Kutu 16</b> ilk satırına bugün başlandı.
+        </div>
+      </div>
+      <aside class="marg">
+        <div class="stat-block">
+          <b>+105 sayfa</b>
+          <span>4 gönüllü</span>
+          <span>3 kutu</span>
+        </div>
+        <p class="note"><span class="arrow">→</span>Sibel-Lara sürdürüyor.</p>
+        <p class="note"><span class="arrow">→</span>Kutu 14 Sa'dan beri açık.</p>
+        <span class="stamp sururyor">sürüyor</span>
+      </aside>
+    </article>
+
+    <!-- SALI -->
+    <article class="day">
+      <div class="date">
+        <div class="dn">Salı</div>
+        <div class="dom">12</div>
+        <div class="opens">açılış · 11:30<br>son · 16:30</div>
+      </div>
+      <div class="body">
+        <div class="head">
+          <div class="avs"><span class="av">M</span><span class="av">Z</span><span class="av">D</span></div>
+          <span class="ana">Yazışmalar ve müsveddeler.</span>
+        </div>
+        <p><em class="name">Mert</em> <span class="tag">Kutu 22</span> fotoğraflarına bir hafta aradan sonra döndü <span class="delta">(+18)</span>. <em class="name">Zeynep</em> <span class="tag">Kutu 31</span> yazışmalarında uzun bir öğleden sonra geçirdi — <span class="delta">+62 sayfa</span>. <em class="name">Deniz</em> Kutu 68 müsveddelerinde <span class="delta">(+21)</span>.</p>
+        <div class="insight">
+          <span class="k">ne söylüyor</span>Zeynep'in <b>+62 sayfa</b>'sı bu haftanın tek-gönüllü-tek-gün rekoru. Mert'in Kutu 22'ye dönüşü 9 günlük aradan sonra ilk.
+        </div>
+      </div>
+      <aside class="marg">
+        <div class="stat-block">
+          <b>+101 sayfa</b>
+          <span>3 gönüllü</span>
+          <span>3 kutu</span>
+        </div>
+        <p class="note"><span class="arrow">↓</span>Kutu 14 Çar'a devredildi.</p>
+        <span class="stamp sururyor">sürüyor</span>
+      </aside>
+    </article>
+
+    <!-- PAZARTESİ -->
+    <article class="day">
+      <div class="date">
+        <div class="dn">Pazartesi</div>
+        <div class="dom">11</div>
+        <div class="opens">açılış · 14:02<br>son · 18:10</div>
+      </div>
+      <div class="body">
+        <div class="head">
+          <div class="avs"><span class="av">A</span></div>
+          <span class="ana">İstanbul-2 açıldı.</span>
+        </div>
+        <p>Hafta sessiz başladı. <em class="name">Aysu</em> <span class="tag">Kutu I·2</span>'yi açtı, gün sonunda <span class="delta">+40 sayfa</span> kayıt düşürüldü — kutu artık <span class="delta">%29 tamam</span>.</p>
+        <div class="insight">
+          <span class="k">ne söylüyor</span>Aysu projedeki en yeni gönüllü (Nisan'dan beri). İlk açtığı kutuda <b>tek bir günde %29'a</b> ulaşması — proje hızının üzerinde.
+        </div>
+      </div>
+      <aside class="marg">
+        <div class="stat-block">
+          <b>+40 sayfa</b>
+          <span>1 gönüllü</span>
+          <span>1 kutu</span>
+        </div>
+        <p class="note">İlk İstanbul kutusu Per'de tamamlandı.</p>
+        <span class="stamp sururyor">sürüyor</span>
+      </aside>
+    </article>
+
+    <article class="day quiet">
+      <div class="date">
+        <div class="dn">Pazar</div>
+        <div class="dom">10</div>
+        <div class="opens">—</div>
+      </div>
+      <div class="body"><p>Arşiv kapalı.</p></div>
+      <aside class="marg"><span class="stamp sessiz">kapalı</span></aside>
+    </article>
+
+    <article class="day quiet">
+      <div class="date">
+        <div class="dn">Cumartesi</div>
+        <div class="dom">09</div>
+        <div class="opens">—</div>
+      </div>
+      <div class="body"><p>Arşiv kapalı.</p></div>
+      <aside class="marg"><span class="stamp sessiz">kapalı</span></aside>
+    </article>
+
+    <!-- CUMA -->
+    <article class="day">
+      <div class="date">
+        <div class="dn">Cuma</div>
+        <div class="dom">08</div>
+        <div class="opens">açılış · 15:00<br>son · 19:40</div>
+      </div>
+      <div class="body">
+        <div class="head">
+          <div class="avs"><span class="av">B</span><span class="av">H</span><span class="av">S</span></div>
+          <span class="ana">Koordinasyon, ön sayım.</span>
+        </div>
+        <p>Üç gönüllü öğleden sonra geldi — <em class="name">Burak</em>, <em class="name">Hülya</em>, <em class="name">Selin</em>. <span class="tag">Kutu 16</span> için ön sayım yapıldı; akşamüstü kısa bir koordinasyon toplantısı.</p>
+        <div class="insight">
+          <span class="k">ne söylüyor</span>Kutu 16 önce Cuma ön-sayıma alındı, Çar'da Sibel-Lara üstlendi — <b>5 günlük zincir</b>. Bu projedeki tipik kutu-devir hızı.
+        </div>
+      </div>
+      <aside class="marg">
+        <div class="stat-block">
+          <b>+13 sayfa</b>
+          <span>3 gönüllü</span>
+          <span>hazırlık</span>
+        </div>
+        <p class="note"><span class="arrow">→</span>Kutu 16, Çar'da geçti.</p>
+        <span class="stamp sururyor">hazırlık</span>
+      </aside>
+    </article>
+
+    <!-- PERŞEMBE -->
+    <article class="day">
+      <div class="date">
+        <div class="dn">Perşembe</div>
+        <div class="dom">07</div>
+        <div class="opens">açılış · 16:45<br>son · 19:02</div>
+      </div>
+      <div class="body">
+        <div class="head">
+          <div class="avs"><span class="av">C</span></div>
+          <span class="ana">İlk %100.</span>
+        </div>
+        <p><em class="name">Cem</em> <span class="tag">Kutu I·1</span>'in son sayfalarını tamamladı. İstanbul yazışmaları artık <span class="delta">%100 tamamlandı</span> — 149 sayfanın hepsi dijital.</p>
+        <div class="insight">
+          <span class="k">ne söylüyor</span>Cem Ocak'tan beri bu kutuyu çalışıyor — <b>4 ay 6 gün</b>. Projede tamamlanan ilk kutu. Bundan sonraki 87 kutu için bir kıyas noktası.
+        </div>
+      </div>
+      <aside class="marg">
+        <div class="stat-block">
+          <b>+18 sayfa</b>
+          <span>1 gönüllü</span>
+          <span style="color:var(--accent-deep);">1 kutu · tamam</span>
+        </div>
+        <p class="note"><span class="arrow">★</span>İlk %100.</p>
+        <span class="stamp tamam">tamam ✓</span>
+      </aside>
+    </article>
+
+  </section>
+
+  <!-- ============ Aktif kutular bu hafta ============ -->
+  <section class="boxes-week">
+    <div class="boxes-head">
+      <h3>Aktif kutular <em>bu hafta</em></h3>
+      <span class="meta">dokunulan 5 kutu</span>
+    </div>
+    <div class="box-row">
+      <span class="n">14</span>
+      <span class="desc">Mektuplar<small>Sa'da Zeynep, Çar'da Betül + Seda</small></span>
+      <span class="who">Betül + Seda</span>
+      <span class="delta">+72</span>
+      <span class="pct">%62</span>
+    </div>
+    <div class="box-row">
+      <span class="n">16</span>
+      <span class="desc">Saha defterleri<small>Cu ön-sayım, Çar'da Sibel-Lara</small></span>
+      <span class="who">Sibel-Lara</span>
+      <span class="delta">+34</span>
+      <span class="pct">%14</span>
+    </div>
+    <div class="box-row">
+      <span class="n">I·2</span>
+      <span class="desc">İstanbul-2<small>Pa'da açıldı</small></span>
+      <span class="who">Aysu</span>
+      <span class="delta">+40</span>
+      <span class="pct">%29</span>
+    </div>
+    <div class="box-row">
+      <span class="n">31</span>
+      <span class="desc">Yazışmalar<small>Sa'da tek-gün rekoru</small></span>
+      <span class="who">Zeynep</span>
+      <span class="delta">+62</span>
+      <span class="pct">%4</span>
+    </div>
+    <div class="box-row">
+      <span class="n">I·1</span>
+      <span class="desc">İstanbul yazışmaları<small>Per'de %100</small></span>
+      <span class="who">Cem</span>
+      <span class="delta">+18</span>
+      <span class="pct done">%100 ✓</span>
+    </div>
+  </section>
+
+  <!-- ============ Bu hafta ilk kez ============ -->
+  <section class="firsts">
+    <h3>Bu hafta <b>ilk kez</b></h3>
+    <ul>
+      <li><span class="mark">·</span><span>Projedeki ilk %100 tamamlandı — <em class="name">Cem</em>, Kutu I·1, Perşembe.</span></li>
+      <li><span class="mark">·</span><span><em class="name">Kutu I·2</em> ilk satırını aldı — Aysu, Pazartesi. Toplam katalog: 86 → 86 (yeni kutu eklenmedi, ama açıldı).</span></li>
+      <li><span class="mark">·</span><span>Tek bir günde tek bir gönüllüden <em class="name">+62 sayfa</em> rekoru — Zeynep, Salı, Kutu 31.</span></li>
+      <li><span class="mark">·</span><span>Üç kişinin aynı kutuda paralel çalıştığı 3. Çarşamba — Betül + Seda + Ateş eşleşmesi.</span></li>
+    </ul>
+  </section>
+
+  <!-- ============ Pull quote ============ -->
+  <section class="pull-week">
+    <q>Bir hafta — yedi gün, on iki kişi, yüz yetmiş iki kayıt — <em>ve ilk %100.</em></q>
+    <p class="cite">— Hafta XLVII'den</p>
+  </section>
+
+  <!-- ============ Colophon ============ -->
+  <footer class="colophon">
+    <p>Sayfa saatte bir, paylaşılan Google Sheet'ten tazeleniyor.<br>Veri, isimler, sayılar — sheet'te ne yazıyorsa burada o.</p>
+    <p style="margin-top:14px;"><a href="mailto:tarihvakfi@tarihvakfi.org.tr">Gönüllü olmak ister misin?</a></p>
+    <p class="signoff">Tarih Vakfı · 1991 · Eminönü, İstanbul · Hafta XLVII</p>
+  </footer>
+
+</div>
+
+</body>
+</html>

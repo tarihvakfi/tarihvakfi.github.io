@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<title>Landing B — refined</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --ink: #1e1612;
+    --ink-soft: #443330;
+    --paper: #fbf6ee;
+    --cream: #f3ead9;
+    --cream-warm: #efe1c4;
+    --line: #d9cdb6;
+    --line-soft: #ece2cd;
+    --terra: #94462a;
+    --terra-deep: #6f3320;
+    --terra-soft: #b85c3a;
+    --gold: #c89b3c;
+    --gold-deep: #8b6a1f;
+    --teal: #3f6f6f;
+    --muted: #6b5d50;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  h1, h2, h3, h4, .serif {
+    font-family: 'Lora', Georgia, serif;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+  .lp-container { max-width: 1200px; margin: 0 auto; padding: 0 28px; }
+
+  .demo-info {
+    background: var(--ink); color: var(--paper);
+    padding: 10px 24px; font-size: 12px;
+    text-align: center; font-family: 'DM Mono', monospace;
+    letter-spacing: 0.04em;
+  }
+  .demo-info b { color: var(--gold); }
+
+  /* Nav */
+  .lp-nav {
+    background: var(--paper);
+    padding: 20px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .lp-nav-row { display: flex; align-items: center; gap: 24px; }
+  .lp-brand { display: flex; align-items: center; gap: 12px; font-family: 'Lora', serif; font-weight: 500; font-size: 16px; }
+  .lp-brand-logo {
+    width: 36px; height: 36px;
+    background: var(--terra); color: var(--cream);
+    border-radius: 50%; display: grid; place-items: center;
+    font-family: 'Lora', serif; font-size: 14px;
+  }
+  .lp-nav-links { margin-left: auto; display: flex; gap: 22px; font-size: 14px; }
+  .lp-nav-links a { text-decoration: none; color: var(--ink); opacity: .75; transition: opacity .2s; }
+  .lp-nav-links a:hover { opacity: 1; color: var(--terra); }
+
+  /* Hero — editorial, generous, with a subtle archival flourish */
+  .hero {
+    padding: 64px 0 36px;
+    position: relative;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: 28px; left: 28px; right: 28px;
+    height: 1px;
+    background: linear-gradient(90deg, var(--terra), var(--gold), transparent);
+    opacity: 0.4;
+  }
+  .eyebrow {
+    font-family: 'DM Mono', monospace; font-size: 12px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--terra); margin: 0 0 14px;
+  }
+  .eyebrow .dot { color: var(--gold); margin: 0 8px; }
+  .hero h1 {
+    font-size: clamp(34px, 5vw, 56px);
+    line-height: 1.08;
+    margin: 0 0 18px;
+    max-width: 880px;
+    font-weight: 500;
+  }
+  .hero h1 em {
+    font-style: italic;
+    color: var(--terra);
+    position: relative;
+  }
+  .hero p.lede {
+    font-size: 17.5px;
+    color: var(--ink-soft);
+    max-width: 700px;
+    margin: 0;
+    line-height: 1.55;
+  }
+  .hero .sync {
+    margin-top: 26px;
+    display: inline-flex; align-items: center; gap: 9px;
+    font-family: 'DM Mono', monospace; font-size: 11.5px; color: var(--muted);
+    padding: 7px 14px; border: 1px solid var(--line);
+    border-radius: 999px; background: var(--cream);
+  }
+  .hero .sync::before {
+    content: ''; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--teal);
+    box-shadow: 0 0 0 4px rgba(63,111,111,0.15);
+    animation: pulse 2.6s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(63,111,111,0.15); }
+    50% { box-shadow: 0 0 0 7px rgba(63,111,111,0.03); }
+  }
+
+  /* Ledger — softer, more refined */
+  .ledger {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    margin: 32px 0 8px;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .ledger > div {
+    padding: 22px 26px 22px 0;
+    border-right: 1px solid var(--line-soft);
+  }
+  .ledger > div:last-child { border-right: none; padding-right: 0; }
+  .ledger > div + div { padding-left: 26px; }
+  .ledger .lbl {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--muted); margin: 0 0 10px;
+  }
+  .ledger .num {
+    font-family: 'Lora', serif; font-size: 38px; line-height: 1;
+    margin: 0; color: var(--ink);
+    font-weight: 500;
+  }
+  .ledger .num small {
+    font-family: 'Inter', sans-serif; font-size: 15px;
+    color: var(--muted); font-weight: normal; margin-left: 6px;
+  }
+  .ledger .num em {
+    font-style: normal;
+    font-family: 'Lora', serif;
+    font-size: 32px;
+    color: var(--terra);
+    font-weight: 500;
+  }
+  .ledger .foot {
+    font-size: 13px; color: var(--muted); margin: 8px 0 0;
+  }
+
+  /* Three card grid — asymmetric: hero card + two */
+  .cards {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr 1fr;
+    gap: 22px;
+    margin: 48px 0 32px;
+  }
+  @media (max-width: 980px) { .cards { grid-template-columns: 1fr; } }
+
+  .card {
+    border-radius: 8px;
+    padding: 32px 30px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 360px;
+  }
+  .card-eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin: 0 0 14px;
+    opacity: 0.85;
+  }
+  .card-title {
+    font-family: 'Lora', serif;
+    font-size: 24px;
+    line-height: 1.15;
+    margin: 0 0 24px;
+    font-weight: 500;
+  }
+  .card-headline {
+    font-family: 'Lora', serif;
+    font-size: 72px;
+    line-height: 1;
+    font-weight: 500;
+    margin: 0;
+  }
+  .card-headline small {
+    display: block;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: normal;
+    margin-top: 8px;
+    letter-spacing: 0;
+    opacity: 0.7;
+  }
+  .card-foot {
+    margin-top: auto;
+    padding-top: 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+  }
+  .card-foot a {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid currentColor;
+    padding-bottom: 2px;
+    opacity: 0.7;
+    transition: opacity .2s;
+  }
+  .card-foot a:hover { opacity: 1; }
+  .card-foot .meta {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.55;
+  }
+
+  /* Card 1 — BUGÜN — terracotta, hero card, editorial */
+  .card-bugun {
+    background: linear-gradient(160deg, var(--terra) 0%, var(--terra-deep) 100%);
+    color: var(--cream);
+    grid-row: span 1;
+  }
+  .card-bugun .card-eyebrow { color: var(--gold); }
+  .card-bugun::before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 180px; height: 180px;
+    background: radial-gradient(circle at center, rgba(200,155,60,0.18), transparent 60%);
+    pointer-events: none;
+  }
+  .bugun-feature {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 22px;
+  }
+  .bugun-avatar {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: var(--gold); color: var(--terra-deep);
+    display: grid; place-items: center;
+    font-family: 'Lora', serif; font-size: 20px; font-weight: 500;
+  }
+  .bugun-feature-text { line-height: 1.4; }
+  .bugun-feature-text b { font-family: 'Lora', serif; font-size: 17px; font-weight: 500; display: block; }
+  .bugun-feature-text small { font-size: 12.5px; opacity: 0.7; }
+  .bugun-list {
+    margin: 0; padding: 0; list-style: none;
+    font-size: 13.5px;
+    border-top: 1px solid rgba(243,234,217,0.15);
+  }
+  .bugun-list li {
+    padding: 9px 0;
+    border-bottom: 1px solid rgba(243,234,217,0.12);
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 10px;
+  }
+  .bugun-list li:last-child { border-bottom: 0; }
+  .bugun-list .who { font-weight: 500; }
+  .bugun-list .what { opacity: 0.75; font-size: 12.5px; }
+  .bugun-list .pages {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--gold);
+    white-space: nowrap;
+  }
+
+  /* Card 2 — KUTULAR — cream paper, archival ledger feel */
+  .card-kutular {
+    background: var(--cream);
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+  .card-kutular .card-eyebrow { color: var(--terra); }
+  .card-kutular .card-headline em {
+    font-style: normal;
+    color: var(--terra);
+  }
+  .kutu-list {
+    margin: 18px 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 13.5px;
+  }
+  .kutu-list li {
+    padding: 11px 0;
+    border-bottom: 1px dashed var(--line);
+    display: grid;
+    grid-template-columns: 32px 1fr 50px;
+    gap: 10px;
+    align-items: center;
+  }
+  .kutu-list li:last-child { border-bottom: 0; }
+  .kutu-list .n {
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .kutu-list .name { font-weight: 500; }
+  .kutu-list .name small { display: block; font-weight: normal; color: var(--muted); font-size: 12px; }
+  .kutu-list .pct {
+    font-family: 'Lora', serif;
+    font-size: 16px;
+    color: var(--terra);
+    text-align: right;
+    font-weight: 500;
+  }
+
+  /* Card 3 — GÖNÜLLÜLER — paper white, avatar mosaic */
+  .card-gonulluler {
+    background: white;
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+  .card-gonulluler .card-eyebrow { color: var(--teal); }
+  .vol-avatars {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    margin: 14px 0 18px;
+  }
+  .vol-av {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: var(--terra-soft);
+    color: var(--cream);
+    display: grid;
+    place-items: center;
+    font-family: 'Lora', serif;
+    font-size: 17px;
+    margin-right: -6px;
+    border: 2px solid white;
+    position: relative;
+  }
+  .vol-av.dim { background: var(--line); color: var(--muted); }
+  .vol-av:nth-child(2) { background: #b06440; }
+  .vol-av:nth-child(3) { background: var(--gold-deep); }
+  .vol-av:nth-child(4) { background: var(--teal); }
+  .vol-av:nth-child(5) { background: var(--ink-soft); }
+  .vol-av:nth-child(6) { background: #7a8b5e; }
+  .vol-av:nth-child(7) { background: #a86a4b; }
+  .vol-spotlight {
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+    margin: 16px 0 0;
+    font-family: 'Lora', serif;
+    font-style: italic;
+    border-left: 2px solid var(--gold);
+    padding-left: 12px;
+  }
+  .vol-spotlight b {
+    font-style: normal;
+    color: var(--terra);
+    font-weight: 500;
+  }
+
+  /* Narrative band — small section after cards summarising the week */
+  .narrative {
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 32px 0;
+    margin: 24px 0 0;
+    text-align: center;
+  }
+  .narrative .pull {
+    font-family: 'Lora', serif;
+    font-style: italic;
+    font-size: 22px;
+    line-height: 1.45;
+    color: var(--ink);
+    max-width: 760px;
+    margin: 0 auto;
+    font-weight: 400;
+    position: relative;
+  }
+  .narrative .pull::before, .narrative .pull::after {
+    content: '"';
+    color: var(--gold);
+    font-size: 38px;
+    line-height: 1;
+    vertical-align: -8px;
+    margin: 0 4px;
+  }
+  .narrative .meta {
+    margin-top: 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* Footer */
+  .lp-foot {
+    padding: 36px 0 48px;
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 14px;
+  }
+  .lp-foot small {
+    color: var(--muted); font-size: 12px;
+    font-family: 'DM Mono', monospace; letter-spacing: 0.06em;
+  }
+  .lp-foot a {
+    color: var(--terra); text-decoration: none; font-size: 14px;
+    font-weight: 500;
+  }
+  .lp-foot a:hover { color: var(--terra-deep); }
+</style>
+</head>
+<body>
+
+<div class="demo-info"><b>v2 mockup</b> — refined three-card layout · all three cards visible at a glance · ~1.5 screens scroll</div>
+
+<header class="lp-nav">
+  <div class="lp-container lp-nav-row">
+    <a class="lp-brand"><span class="lp-brand-logo">T</span><span>Tarih Vakfı</span></a>
+    <nav class="lp-nav-links">
+      <a href="#">Arşiv</a>
+      <a href="#">Hakkında</a>
+      <a href="#">SSS</a>
+    </nav>
+  </div>
+</header>
+
+<main class="lp-container">
+  <section class="hero">
+    <p class="eyebrow">Tarih Vakfı<span class="dot">·</span>Pertev Naili Boratav Arşivi</p>
+    <h1>Geçmişin sesini <em>birlikte</em> koruyoruz.</h1>
+    <p class="lede">88 kutu, 77.544 sayfa, devam eden bir kayıt. Aşağıda — bugün arşive kim girdi, hangi kutular ilerliyor, ne kadar yol katedildi.</p>
+    <span class="sync">12 dk önce senkron · saatte bir tazeleniyor</span>
+
+    <div class="ledger">
+      <div>
+        <p class="lbl">İlerleme</p>
+        <p class="num"><em>%2,3</em></p>
+        <p class="foot">1.808 / 77.544 sayfa</p>
+      </div>
+      <div>
+        <p class="lbl">Açılmış kutu</p>
+        <p class="num">86<small>/ 104</small></p>
+        <p class="foot">18 kutu sırada bekliyor</p>
+      </div>
+      <div>
+        <p class="lbl">Aktif gönüllü</p>
+        <p class="num">7<small>kişi</small></p>
+        <p class="foot">son 30 günde katkı</p>
+      </div>
+      <div>
+        <p class="lbl">Bu hafta</p>
+        <p class="num">172<small>kayıt</small></p>
+        <p class="foot">5 farklı kutuya dokunduk</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Three cards: BUGÜN (hero, terracotta) + KUTULAR (cream) + GÖNÜLLÜLER (white) -->
+  <section class="cards">
+
+    <article class="card card-bugun">
+      <p class="card-eyebrow">Bugün arşivde</p>
+      <div class="bugun-feature">
+        <div class="bugun-avatar">S</div>
+        <div class="bugun-feature-text">
+          <b>Sibel-Lara</b>
+          <small>Kutu 16 · saha defterleri · şu an çalışıyor</small>
+        </div>
+      </div>
+      <p class="card-headline">3<small>gönüllü, 4 farklı kutu</small></p>
+      <ul class="bugun-list">
+        <li>
+          <div><span class="who">Betül</span> <span class="what">· Kutu 14 mektuplar</span></div>
+          <span class="pages">+28</span>
+        </li>
+        <li>
+          <div><span class="who">Ateş</span> <span class="what">· Kutu 15 ders notları</span></div>
+          <span class="pages">+12</span>
+        </li>
+        <li>
+          <div><span class="who">Seda</span> <span class="what">· Kutu 14 fotoğraflar</span></div>
+          <span class="pages">+44</span>
+        </li>
+      </ul>
+      <div class="card-foot">
+        <span class="meta">13 Mayıs · 14:22</span>
+        <a href="#">tüm akış →</a>
+      </div>
+    </article>
+
+    <article class="card card-kutular">
+      <p class="card-eyebrow">Kutular</p>
+      <p class="card-title">88 kutu içinde, <em>en ileri gidenler</em></p>
+      <p class="card-headline"><em>%62</em><small>Kutu 14 · Mektuplar · Betül</small></p>
+      <ul class="kutu-list">
+        <li>
+          <span class="n">14</span>
+          <span class="name">Mektuplar<small>Betül + Seda</small></span>
+          <span class="pct">%62</span>
+        </li>
+        <li>
+          <span class="n">15</span>
+          <span class="name">Ders notları<small>Ateş</small></span>
+          <span class="pct">%48</span>
+        </li>
+        <li>
+          <span class="n">I2</span>
+          <span class="name">İstanbul-2<small>Aysu</small></span>
+          <span class="pct">%29</span>
+        </li>
+        <li>
+          <span class="n">68</span>
+          <span class="name">Müsvedde<small>Sibel</small></span>
+          <span class="pct">%2</span>
+        </li>
+      </ul>
+      <div class="card-foot">
+        <span class="meta">86 / 104 katalogda</span>
+        <a href="#">88 kutuya bak →</a>
+      </div>
+    </article>
+
+    <article class="card card-gonulluler">
+      <p class="card-eyebrow">Gönüllüler</p>
+      <p class="card-title">Bu çalışmayı yapan 7 isim</p>
+      <div class="vol-avatars" aria-label="Aktif gönüllüler">
+        <span class="vol-av">A</span>
+        <span class="vol-av">B</span>
+        <span class="vol-av">S</span>
+        <span class="vol-av">S</span>
+        <span class="vol-av">A</span>
+        <span class="vol-av">K</span>
+        <span class="vol-av">K</span>
+      </div>
+      <p class="card-headline">21<small>kişi, kollektif emek</small></p>
+      <p class="vol-spotlight">
+        Geçen ay <b>Ateş</b> 706 sayfa, <b>Betül</b> 732 sayfa taradı. Kollektif rakam: <b>1.808 sayfa</b>, <b>5 farklı alanda</b> çalışma.
+      </p>
+      <div class="card-foot">
+        <span class="meta">7 aktif · 14 sessiz</span>
+        <a href="#">tüm gönüllüler →</a>
+      </div>
+    </article>
+
+  </section>
+
+  <!-- Editorial narrative band -->
+  <section class="narrative">
+    <p class="pull">Bu hafta arşivde yedi kişi, beş farklı kutuda, yüz yetmiş iki kez kayıt düştü — kimsenin tek başına yapamayacağı kadar.</p>
+    <p class="meta">son 7 gün · 6–13 Mayıs 2026</p>
+  </section>
+
+  <footer class="lp-foot">
+    <small>Veri kaynağı: paylaşılan Google Sheet · saatte bir tazeleniyor · login yok</small>
+    <a href="mailto:tarihvakfi@tarihvakfi.org.tr">Gönüllü olmak ister misin? →</a>
+  </footer>
+</main>
+
+</body>
+</html>

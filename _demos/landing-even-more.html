@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<title>Even more directions — G / H / I</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Inter:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Lora:ital,wght@0,400;0,500;1,400;1,500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  /* Demo bar */
+  .demo-bar {
+    background: #0d0a07; color: #e6dab5;
+    padding: 12px 20px; position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    font-family: 'DM Mono', monospace; font-size: 12px;
+  }
+  .demo-bar h1 { font-size: 14px; margin: 0 8px 0 0; color: #d6b665; font-weight: 500; letter-spacing: 0.06em; }
+  .demo-bar button {
+    background: transparent; border: 1px solid rgba(230,218,181,0.3);
+    color: #e6dab5; padding: 6px 12px;
+    font: inherit; font-size: 11px; cursor: pointer; transition: all .2s;
+    letter-spacing: 0.06em;
+  }
+  .demo-bar button:hover { background: rgba(230,218,181,0.08); }
+  .demo-bar button.active { background: #d6b665; color: #0d0a07; border-color: #d6b665; }
+  .demo-bar .meta { margin-left: auto; opacity: .55; font-size: 11px; }
+
+  .demo { display: none; }
+  .demo.active { display: block; }
+
+  /* ============================================================
+   * G — CINEMATIC DARK
+   * Near-black background, parchment/gold type, dramatic scale,
+   * subtle vignettes. Feels like a film title card or museum
+   * exhibition entry panel.
+   * ============================================================ */
+  .alt-g {
+    background: #0d0a07;
+    color: #e6dab5;
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+    position: relative;
+    overflow: hidden;
+  }
+  .alt-g::before {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse at 20% 10%, rgba(214,182,101,0.10), transparent 50%),
+      radial-gradient(ellipse at 85% 70%, rgba(155,68,40,0.08), transparent 55%);
+    pointer-events: none;
+  }
+  .alt-g .container { max-width: 1180px; margin: 0 auto; padding: 0 40px; position: relative; }
+
+  .alt-g .top {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 28px 0; border-bottom: 1px solid rgba(230,218,181,0.14);
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: rgba(230,218,181,0.55);
+  }
+  .alt-g .top .brand { color: #d6b665; font-weight: 500; }
+  .alt-g .top .pulse-line { display: inline-flex; align-items: center; gap: 8px; }
+  .alt-g .pulse {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #5fa37b;
+    box-shadow: 0 0 0 4px rgba(95,163,123,0.18);
+    animation: pulse-g 2.6s ease-in-out infinite;
+  }
+  @keyframes pulse-g {
+    0%,100% { box-shadow: 0 0 0 4px rgba(95,163,123,0.18); }
+    50%      { box-shadow: 0 0 0 8px rgba(95,163,123,0.04); }
+  }
+
+  .alt-g .hero {
+    padding: 110px 0 70px;
+    text-align: left;
+  }
+  .alt-g .hero .label {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 0.24em; text-transform: uppercase;
+    color: #d6b665; margin: 0 0 24px;
+  }
+  .alt-g .hero h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(64px, 9vw, 140px);
+    line-height: 0.96;
+    letter-spacing: -0.025em;
+    font-weight: 400;
+    color: #f3e9c4;
+    margin: 0 0 32px;
+    max-width: 1000px;
+  }
+  .alt-g .hero h1 em {
+    font-style: italic;
+    color: #d6b665;
+    font-weight: 500;
+  }
+  .alt-g .hero .lede {
+    font-family: 'Lora', serif;
+    font-size: 18px;
+    line-height: 1.7;
+    color: rgba(230,218,181,0.75);
+    max-width: 580px;
+    margin: 0;
+  }
+
+  .alt-g .numbers {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    padding: 36px 0;
+    border-top: 1px solid rgba(230,218,181,0.14);
+    border-bottom: 1px solid rgba(230,218,181,0.14);
+    margin-top: 30px;
+  }
+  .alt-g .numbers > div { padding: 0 28px 0 0; }
+  .alt-g .numbers > div + div { border-left: 1px solid rgba(230,218,181,0.10); padding-left: 28px; }
+  .alt-g .numbers .lbl {
+    font-family: 'DM Mono', monospace; font-size: 10.5px;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: rgba(230,218,181,0.55); margin: 0 0 14px;
+  }
+  .alt-g .numbers .v {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 56px;
+    line-height: 1;
+    color: #f3e9c4;
+    font-weight: 400;
+    margin: 0;
+    font-variant-numeric: oldstyle-nums;
+  }
+  .alt-g .numbers .v em { font-style: italic; color: #d6b665; }
+  .alt-g .numbers .v small {
+    font-size: 18px; color: rgba(230,218,181,0.45);
+    margin-left: 4px; font-family: 'Inter', sans-serif;
+  }
+  .alt-g .numbers .f { font-size: 12.5px; color: rgba(230,218,181,0.55); margin: 12px 0 0; font-family: 'Lora', serif; font-style: italic; }
+
+  .alt-g .feat {
+    padding: 80px 0 50px;
+    display: grid; grid-template-columns: 1.1fr 1fr;
+    gap: 60px; align-items: start;
+  }
+  @media (max-width: 880px) { .alt-g .feat { grid-template-columns: 1fr; } }
+  .alt-g .feat h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 44px; line-height: 1.1; color: #f3e9c4;
+    margin: 0 0 20px; font-weight: 400;
+  }
+  .alt-g .feat h2 em { font-style: italic; color: #d6b665; }
+  .alt-g .feat p { font-family: 'Lora', serif; font-size: 16px; line-height: 1.75; color: rgba(230,218,181,0.78); margin: 0 0 16px; }
+  .alt-g .feat .pull {
+    font-family: 'Cormorant Garamond', serif; font-style: italic;
+    font-size: 24px; color: #d6b665;
+    border-left: 2px solid #d6b665; padding: 0 0 0 24px;
+    margin: 26px 0; line-height: 1.4;
+  }
+
+  .alt-g .reel {
+    background: rgba(230,218,181,0.03);
+    border: 1px solid rgba(230,218,181,0.12);
+    padding: 30px 32px;
+  }
+  .alt-g .reel h3 {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: #d6b665; margin: 0 0 22px;
+  }
+  .alt-g .reel .item {
+    padding: 14px 0; border-bottom: 1px solid rgba(230,218,181,0.10);
+    display: grid; grid-template-columns: 1fr auto; gap: 12px;
+  }
+  .alt-g .reel .item:last-child { border-bottom: 0; }
+  .alt-g .reel .item b { color: #f3e9c4; font-weight: 500; font-size: 15px; font-family: 'Lora', serif; }
+  .alt-g .reel .item .what { color: rgba(230,218,181,0.6); font-size: 13px; margin-top: 2px; }
+  .alt-g .reel .item .when { font-family: 'DM Mono', monospace; font-size: 12px; color: #d6b665; }
+
+  .alt-g .bot {
+    padding: 40px 0 60px; border-top: 1px solid rgba(230,218,181,0.14); margin-top: 50px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: rgba(230,218,181,0.55);
+  }
+  .alt-g .bot a { color: #d6b665; text-decoration: none; border-bottom: 1px solid #d6b665; padding-bottom: 1px; }
+
+  /* ============================================================
+   * H — SWISS MINIMAL
+   * Almost monochrome, lots of whitespace, strict grid, single
+   * accent dot. Inter throughout. Reads like a design school
+   * project. Minimal flourish.
+   * ============================================================ */
+  .alt-h {
+    background: #ffffff;
+    color: #111;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+    padding: 56px 56px 80px;
+  }
+  .alt-h .grid12 {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 24px;
+    max-width: 1240px;
+    margin: 0 auto;
+  }
+  .alt-h .top { grid-column: span 12; display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 24px; border-bottom: 1px solid #111; margin-bottom: 64px; }
+  .alt-h .top .brand { font-weight: 600; font-size: 13px; letter-spacing: -0.005em; }
+  .alt-h .top nav { display: flex; gap: 24px; font-size: 12px; }
+  .alt-h .top nav a { color: #111; text-decoration: none; opacity: 0.55; }
+  .alt-h .top nav a:hover { opacity: 1; }
+  .alt-h .top .accent { width: 12px; height: 12px; border-radius: 50%; background: #ff5a1f; }
+
+  .alt-h h1 {
+    grid-column: 1 / span 8;
+    font-family: 'Inter', sans-serif;
+    font-size: clamp(40px, 6vw, 88px);
+    line-height: 1;
+    letter-spacing: -0.04em;
+    font-weight: 500;
+    margin: 0 0 28px;
+  }
+  .alt-h h1 .accent { color: #ff5a1f; }
+  .alt-h .meta-strap {
+    grid-column: 9 / span 4;
+    font-size: 12px; line-height: 1.7; letter-spacing: 0.04em;
+    border-left: 1px solid #111; padding-left: 16px;
+  }
+  .alt-h .meta-strap .k { color: #666; }
+  .alt-h .meta-strap div { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dotted #ccc; }
+
+  .alt-h .lede {
+    grid-column: 1 / span 8;
+    font-size: 19px; line-height: 1.5;
+    color: #333;
+    margin: 0 0 60px;
+    font-weight: 400;
+  }
+  .alt-h .lede b { font-weight: 600; }
+
+  .alt-h .num-grid { grid-column: 1 / span 12; display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-bottom: 80px; padding-top: 32px; border-top: 1px solid #111; }
+  .alt-h .num-cell .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #666; margin-bottom: 10px; }
+  .alt-h .num-cell .v { font-size: 56px; font-weight: 500; line-height: 1; letter-spacing: -0.04em; }
+  .alt-h .num-cell .v .accent { color: #ff5a1f; }
+  .alt-h .num-cell .v small { font-size: 18px; color: #999; font-weight: 400; margin-left: 4px; }
+  .alt-h .num-cell .f { font-size: 13px; color: #666; margin-top: 8px; }
+
+  .alt-h .block { grid-column: span 6; }
+  .alt-h .block h2 { font-size: 22px; font-weight: 500; margin: 0 0 18px; letter-spacing: -0.01em; }
+  .alt-h .block-rows .r { padding: 12px 0; border-bottom: 1px solid #eee; display: grid; grid-template-columns: 60px 1fr 80px; gap: 14px; font-size: 14px; align-items: baseline; }
+  .alt-h .block-rows .r .k { color: #999; font-size: 12px; }
+  .alt-h .block-rows .r .v { font-weight: 500; }
+  .alt-h .block-rows .r .pct { text-align: right; font-variant-numeric: tabular-nums; color: #ff5a1f; }
+  .alt-h .block-rows .r:hover { background: #fafafa; }
+  .alt-h .block-foot { margin-top: 14px; font-size: 13px; }
+  .alt-h .block-foot a { color: #ff5a1f; text-decoration: none; border-bottom: 1px solid #ff5a1f; }
+
+  .alt-h .roll { grid-column: 1 / span 12; padding-top: 56px; margin-top: 40px; border-top: 1px solid #111; }
+  .alt-h .roll h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: #666; margin: 0 0 18px; font-weight: 500; }
+  .alt-h .roll .names {
+    font-size: 17px; line-height: 1.8; max-width: 900px;
+    letter-spacing: -0.005em;
+  }
+  .alt-h .roll .names .nm.on { color: #ff5a1f; font-weight: 500; }
+  .alt-h .roll .names .sp { color: #ccc; margin: 0 8px; }
+
+  .alt-h .foot { grid-column: 1 / span 12; padding-top: 32px; margin-top: 60px; border-top: 1px solid #111; display: flex; justify-content: space-between; font-size: 12px; color: #666; }
+  .alt-h .foot a { color: #ff5a1f; text-decoration: none; }
+
+  /* ============================================================
+   * I — WEEKLY JOURNAL (7 day-entries, narrative scroll)
+   * Reads top-to-bottom like flipping through a journal. Each
+   * day is one entry with date stamp + a sentence about who did
+   * what. Soft warm paper.
+   * ============================================================ */
+  .alt-i {
+    background: #f9f1e0;
+    color: #1f1813;
+    font-family: 'Lora', Georgia, serif;
+    font-size: 16px;
+    line-height: 1.7;
+    min-height: 100vh;
+    padding: 40px 24px 80px;
+  }
+  .alt-i .frame { max-width: 720px; margin: 0 auto; }
+  .alt-i .frame > * + * { margin-top: 40px; }
+
+  .alt-i .head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: rgba(31,24,19,0.55);
+    border-bottom: 1px solid rgba(31,24,19,0.18);
+    padding-bottom: 18px;
+  }
+  .alt-i .head b { color: #8e3d20; font-weight: 500; }
+
+  .alt-i .intro h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(42px, 6vw, 64px);
+    font-weight: 500; line-height: 1.05;
+    margin: 0 0 18px;
+    letter-spacing: -0.01em;
+  }
+  .alt-i .intro h1 em { font-style: italic; color: #8e3d20; }
+  .alt-i .intro p { font-size: 17.5px; line-height: 1.65; color: rgba(31,24,19,0.78); margin: 0; }
+  .alt-i .intro .sync {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin-top: 22px;
+    font-family: 'DM Mono', monospace; font-size: 11.5px;
+    letter-spacing: 0.06em; color: rgba(31,24,19,0.55);
+  }
+  .alt-i .intro .sync .pulse {
+    width: 7px; height: 7px; border-radius: 50%; background: #5a8169;
+    box-shadow: 0 0 0 4px rgba(90,129,105,0.18);
+  }
+
+  .alt-i .ledger-band {
+    border-top: 1px solid rgba(31,24,19,0.18);
+    border-bottom: 1px solid rgba(31,24,19,0.18);
+    padding: 26px 0;
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .alt-i .ledger-band > div { padding: 0 14px 0 0; border-right: 1px solid rgba(31,24,19,0.10); }
+  .alt-i .ledger-band > div:last-child { border-right: 0; }
+  .alt-i .ledger-band .lbl { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(31,24,19,0.5); margin-bottom: 6px; }
+  .alt-i .ledger-band .v {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 36px; line-height: 1; font-weight: 500;
+    font-variant-numeric: oldstyle-nums;
+  }
+  .alt-i .ledger-band .v em { font-style: italic; color: #8e3d20; }
+  .alt-i .ledger-band .v small { font-size: 14px; color: rgba(31,24,19,0.5); margin-left: 3px; font-family: 'Lora', serif; }
+  .alt-i .ledger-band .f { font-size: 12px; font-style: italic; color: rgba(31,24,19,0.55); margin-top: 6px; }
+
+  .alt-i .entries h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 30px; font-weight: 500;
+    margin: 0 0 26px;
+  }
+  .alt-i .entries h2 em { font-style: italic; color: #8e3d20; }
+
+  .alt-i .day {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 28px;
+    padding: 22px 0;
+    border-bottom: 1px dashed rgba(31,24,19,0.18);
+    align-items: start;
+  }
+  .alt-i .day:last-child { border-bottom: 0; }
+  .alt-i .day .date {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(31,24,19,0.5);
+    border-top: 2px solid #8e3d20;
+    padding-top: 8px;
+  }
+  .alt-i .day .date .dom {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 36px; color: #8e3d20;
+    margin-top: 4px; font-weight: 500;
+    line-height: 1; letter-spacing: -0.02em;
+    font-variant-numeric: oldstyle-nums;
+  }
+  .alt-i .day .body p { margin: 0 0 8px; }
+  .alt-i .day .body b { color: #8e3d20; font-weight: 500; font-style: italic; }
+  .alt-i .day .body .tag {
+    display: inline-block; font-family: 'DM Mono', monospace;
+    font-size: 10.5px; letter-spacing: 0.1em;
+    background: rgba(142,61,32,0.08);
+    color: #8e3d20;
+    padding: 2px 8px; border-radius: 2px;
+    margin-right: 4px;
+  }
+  .alt-i .day.today .date .dom { color: #8e3d20; }
+  .alt-i .day.today .body::before {
+    content: '· bugün';
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: #5a8169;
+    display: block; margin-bottom: 6px;
+  }
+
+  .alt-i .colophon {
+    text-align: center;
+    border-top: 1px solid rgba(31,24,19,0.18);
+    padding-top: 26px;
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: rgba(31,24,19,0.6);
+  }
+  .alt-i .colophon a { color: #8e3d20; text-decoration: underline; text-underline-offset: 3px; }
+</style>
+</head>
+<body>
+
+<div class="demo-bar">
+  <h1>even more</h1>
+  <button class="active" data-show="g">G · cinematic dark</button>
+  <button data-show="h">H · Swiss minimal</button>
+  <button data-show="i">I · weekly journal</button>
+  <span class="meta">tarihvakfi.github.io · v7 mockups · 88 kutu · 21 isim</span>
+</div>
+
+<!-- =====================================================================
+     G — CINEMATIC DARK
+     ===================================================================== -->
+<section class="demo alt-g active">
+  <div class="container">
+
+    <div class="top">
+      <span class="brand">TARİH VAKFI · PNB ARŞİVİ</span>
+      <span class="pulse-line"><span class="pulse"></span>canlı · 12 dk önce senkron</span>
+    </div>
+
+    <section class="hero">
+      <p class="label">Sergi salonu I · 2026 sayımı</p>
+      <h1>Geçmişin sesini<br><em>birlikte</em> koruyoruz.</h1>
+      <p class="lede">88 kutu, 21 isim, 77 bin sayfa. Pertev Naili Boratav'ın özel arşivi, gönüllüler eliyle sayfa sayfa dijital ortama aktarılıyor.</p>
+    </section>
+
+    <div class="numbers">
+      <div>
+        <p class="lbl">İlerleme</p>
+        <p class="v"><em>%2,3</em></p>
+        <p class="f">1.808 / 77.544 sayfa</p>
+      </div>
+      <div>
+        <p class="lbl">Açılmış kutu</p>
+        <p class="v">86<small>/ 104</small></p>
+        <p class="f">on sekiz kutu sırada</p>
+      </div>
+      <div>
+        <p class="lbl">Aktif gönüllü</p>
+        <p class="v">7<small>kişi</small></p>
+        <p class="f">son otuz günde katkı</p>
+      </div>
+      <div>
+        <p class="lbl">Bu hafta</p>
+        <p class="v">172<small>kayıt</small></p>
+        <p class="f">beş farklı kutuda</p>
+      </div>
+    </div>
+
+    <div class="feat">
+      <div>
+        <h2>Şu an arşivde<br><em>Kutu 16'da bir saha defteri</em></h2>
+        <p>Sibel-Lara öğleden sonra Kutu 16'yı açtı — bugün buradan <strong style="color:#d6b665;">+21 sayfa</strong> arşive girdi. Aynı saatlerde Betül Kutu 14'ten mektuplar, Seda fotoğraflar kataloglarken, Ateş Kutu 15'in ders notlarını tamamlamaya yakın.</p>
+        <p class="pull">"Yirmi bir kişi, dört yıldır, sayfa sayfa."</p>
+        <p>Geçen ay <strong style="color:#d6b665;">Ateş 706 sayfa, Betül 732 sayfa</strong> taradı. Kümülatif rakam: 1.808 sayfa, beş farklı çalışma alanında.</p>
+      </div>
+
+      <aside class="reel">
+        <h3>Bugün arşivde</h3>
+        <div class="item"><div><b>Betül</b><div class="what">Kutu 14 mektuplar</div></div><span class="when">+28</span></div>
+        <div class="item"><div><b>Ateş</b><div class="what">Kutu 15 ders notları</div></div><span class="when">+12</span></div>
+        <div class="item"><div><b>Seda</b><div class="what">Kutu 14 fotoğraflar</div></div><span class="when">+44</span></div>
+        <div class="item"><div><b>Sibel-Lara</b><div class="what">Kutu 16 saha · sürüyor</div></div><span class="when">+21</span></div>
+      </aside>
+    </div>
+
+    <div class="bot">
+      <span>Saatte bir tazeleniyor · paylaşılan Google Sheet</span>
+      <a href="mailto:tarihvakfi@tarihvakfi.org.tr">Gönüllü ol →</a>
+    </div>
+
+  </div>
+</section>
+
+<!-- =====================================================================
+     H — SWISS MINIMAL
+     ===================================================================== -->
+<section class="demo alt-h">
+  <div class="grid12">
+
+    <div class="top">
+      <div style="display:flex; align-items:center; gap:14px;"><span class="accent"></span><span class="brand">Tarih Vakfı / PNB Arşivi</span></div>
+      <nav>
+        <a href="#">Arşiv</a>
+        <a href="#">Hakkında</a>
+        <a href="#">SSS</a>
+      </nav>
+    </div>
+
+    <h1>Birlikte<br>koruyoruz.<br><span class="accent">88 kutu, 21 isim.</span></h1>
+
+    <div class="meta-strap">
+      <div><span class="k">Tarih</span><span>13 May 2026</span></div>
+      <div><span class="k">Senkron</span><span>12 dk önce</span></div>
+      <div><span class="k">Hedef</span><span>77.544 sayfa</span></div>
+      <div><span class="k">Bu hafta</span><span>172 kayıt</span></div>
+    </div>
+
+    <p class="lede">Pertev Naili Boratav'ın özel arşivi sayfa sayfa dijital ortama aktarılıyor. Bu sayfa yedi yedi gönüllünün çalışmasını paylaşılan Google Sheet'ten okuyor.</p>
+
+    <div class="num-grid">
+      <div class="num-cell">
+        <div class="k">İlerleme</div>
+        <div class="v"><span class="accent">2,3<small>%</small></span></div>
+        <div class="f">1.808 / 77.544 sayfa</div>
+      </div>
+      <div class="num-cell">
+        <div class="k">Açılmış kutu</div>
+        <div class="v">86<small>/ 104</small></div>
+        <div class="f">18 sırada</div>
+      </div>
+      <div class="num-cell">
+        <div class="k">Aktif gönüllü</div>
+        <div class="v">7</div>
+        <div class="f">son 30 gün</div>
+      </div>
+      <div class="num-cell">
+        <div class="k">Bu hafta</div>
+        <div class="v">172</div>
+        <div class="f">kayıt · 5 kutuda</div>
+      </div>
+    </div>
+
+    <div class="block">
+      <h2>İlerleyen kutular</h2>
+      <div class="block-rows">
+        <div class="r"><span class="k">I·1</span><span class="v">İstanbul Yazışmaları · Kadir</span><span class="pct">%100</span></div>
+        <div class="r"><span class="k">14</span><span class="v">Mektuplar · Betül + Seda</span><span class="pct">%62</span></div>
+        <div class="r"><span class="k">15</span><span class="v">Ders notları · Ateş</span><span class="pct">%48</span></div>
+        <div class="r"><span class="k">I·2</span><span class="v">İstanbul-2 · Aysu</span><span class="pct">%29</span></div>
+        <div class="r"><span class="k">16</span><span class="v">Saha defterleri · Sibel-Lara</span><span class="pct">%14</span></div>
+      </div>
+      <p class="block-foot"><a href="#">88 kutunun tamamı →</a></p>
+    </div>
+
+    <div class="block">
+      <h2>Bu hafta</h2>
+      <div class="block-rows">
+        <div class="r"><span class="k">Bugün</span><span class="v">Betül, Ateş, Seda, Sibel-Lara</span><span class="pct">+105</span></div>
+        <div class="r"><span class="k">Dün</span><span class="v">Mert, Zeynep, Deniz</span><span class="pct">+101</span></div>
+        <div class="r"><span class="k">3 gün</span><span class="v">Cem, Ayşe</span><span class="pct">+102</span></div>
+        <div class="r"><span class="k">7 gün</span><span class="v">Kümülatif</span><span class="pct">+172</span></div>
+      </div>
+      <p class="block-foot"><a href="#">akışın tamamı →</a></p>
+    </div>
+
+    <div class="roll">
+      <h3>Bu çalışmayı yapanlar — 21 isim</h3>
+      <p class="names">
+        <span class="nm">Ali</span><span class="sp">·</span>
+        <span class="nm on">Arda</span><span class="sp">·</span>
+        <span class="nm on">Ateş</span><span class="sp">·</span>
+        <span class="nm">Ayşe</span><span class="sp">·</span>
+        <span class="nm on">Aysu</span><span class="sp">·</span>
+        <span class="nm on">Betül</span><span class="sp">·</span>
+        <span class="nm">Burak</span><span class="sp">·</span>
+        <span class="nm">Can</span><span class="sp">·</span>
+        <span class="nm">Cem</span><span class="sp">·</span>
+        <span class="nm">Deniz</span><span class="sp">·</span>
+        <span class="nm">Ece</span><span class="sp">·</span>
+        <span class="nm">Elif</span><span class="sp">·</span>
+        <span class="nm">Esra</span><span class="sp">·</span>
+        <span class="nm on">Kadir</span><span class="sp">·</span>
+        <span class="nm on">Kübra</span><span class="sp">·</span>
+        <span class="nm">Mert</span><span class="sp">·</span>
+        <span class="nm">Seda</span><span class="sp">·</span>
+        <span class="nm on">Sibel</span><span class="sp">·</span>
+        <span class="nm on">Sibel-Lara</span><span class="sp">·</span>
+        <span class="nm">Şule</span><span class="sp">·</span>
+        <span class="nm">Zeynep</span>
+      </p>
+    </div>
+
+    <div class="foot">
+      <span>Saatte bir tazeleniyor · paylaşılan Google Sheet</span>
+      <span><a href="mailto:tarihvakfi@tarihvakfi.org.tr">Gönüllü ol →</a></span>
+    </div>
+
+  </div>
+</section>
+
+<!-- =====================================================================
+     I — WEEKLY JOURNAL
+     ===================================================================== -->
+<section class="demo alt-i">
+  <div class="frame">
+
+    <div class="head">
+      <span><b>Tarih Vakfı</b> · PNB Arşivi · Sayım Defteri</span>
+      <span>13–06 Mayıs 2026</span>
+    </div>
+
+    <section class="intro">
+      <h1>Bu hafta arşivde<br><em>ne yapıldı?</em></h1>
+      <p>Yedi günün kaydı, sıralı. Aşağıda Pazartesi'den bugüne — kim arşive geldi, hangi kutuyu açtı, kaç sayfa tarandı. Sayılar her saat tazeleniyor.</p>
+      <span class="sync"><span class="pulse"></span>az önce senkron</span>
+    </section>
+
+    <div class="ledger-band">
+      <div><p class="lbl">İlerleme</p><p class="v"><em>%2,3</em></p><p class="f">1.808 / 77.544</p></div>
+      <div><p class="lbl">Açılmış kutu</p><p class="v">86<small>/ 104</small></p><p class="f">18 sırada</p></div>
+      <div><p class="lbl">Aktif</p><p class="v">7<small>kişi</small></p><p class="f">son 30 gün</p></div>
+      <div><p class="lbl">Bu hafta</p><p class="v">172<small>kayıt</small></p><p class="f">5 kutuda</p></div>
+    </div>
+
+    <section class="entries">
+      <h2>Haftanın <em>günlüğü</em></h2>
+
+      <div class="day today">
+        <div class="date">Çarşamba<div class="dom">13</div></div>
+        <div class="body">
+          <p><b>Sibel-Lara</b> öğleden sonra Kutu 16'yı açtı. <span class="tag">Kutu 16</span> saha defterleri — bugün toplam <b>+44 sayfa</b>.</p>
+          <p><b>Betül</b> Kutu 14'ten <b>+28 sayfa</b>, <b>Ateş</b> Kutu 15'ten <b>+12 sayfa</b>. <b>Seda</b> fotoğraf kataloğunda <b>+44</b> — Kutu 14 ortak çalışıldı.</p>
+        </div>
+      </div>
+
+      <div class="day">
+        <div class="date">Salı<div class="dom">12</div></div>
+        <div class="body">
+          <p><b>Mert</b> Kutu 22 fotoğraflarına döndü (<b>+18</b>), <b>Zeynep</b> Kutu 31 yazışmalarında (<b>+62</b>), <b>Deniz</b> Kutu 68 müsveddelerinde (<b>+21</b>) çalıştı.</p>
+        </div>
+      </div>
+
+      <div class="day">
+        <div class="date">Pazartesi<div class="dom">11</div></div>
+        <div class="body">
+          <p>Hafta sessiz başladı. <b>Aysu</b> Kutu I·2'yi açtı, gün sonunda <b>+40 sayfa</b> kayıt düşürüldü.</p>
+        </div>
+      </div>
+
+      <div class="day">
+        <div class="date">Pazar<div class="dom">10</div></div>
+        <div class="body">
+          <p>Arşiv kapalı. Kayıt yok.</p>
+        </div>
+      </div>
+
+      <div class="day">
+        <div class="date">Cumartesi<div class="dom">09</div></div>
+        <div class="body">
+          <p>Arşiv kapalı. Kayıt yok.</p>
+        </div>
+      </div>
+
+      <div class="day">
+        <div class="date">Cuma<div class="dom">08</div></div>
+        <div class="body">
+          <p>Üç gönüllü geldi — <b>Burak</b>, <b>Hülya</b>, <b>Selin</b> — Kutu 16 ön sayım yapıldı, henüz kayıt düşmedi. Akşam toplantısı.</p>
+        </div>
+      </div>
+
+      <div class="day">
+        <div class="date">Perşembe<div class="dom">07</div></div>
+        <div class="body">
+          <p><b>Cem</b> Kutu I·1'in son sayfalarını tamamladı — İstanbul yazışmaları artık <b>%100 tamamlandı</b>. Tüm 149 sayfa dijital.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="colophon">
+      <p>Sayım Defteri saatte bir tazeleniyor · paylaşılan Google Sheet'ten<br><br><a href="mailto:tarihvakfi@tarihvakfi.org.tr">Gönüllü olmak ister misin?</a></p>
+    </div>
+
+  </div>
+</section>
+
+<script>
+  document.querySelectorAll('.demo-bar button[data-show]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.demo-bar button[data-show]').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      document.querySelectorAll('.demo').forEach(function (d) { d.classList.remove('active'); });
+      document.querySelector('.alt-' + btn.dataset.show).classList.add('active');
+      window.scrollTo({ top: 0 });
+    });
+  });
+</script>
+
+</body>
+</html>

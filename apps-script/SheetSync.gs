@@ -744,7 +744,8 @@ function _summarizePnbDetailRows_(tabSlug, rows) {
       effort: 'medium',
       materialCategory: _materialCategoryFromPublicRow_(row),
       projectId: 'pnb',
-      volunteerToken: _publicVolunteerToken_(person, createdAt)
+      volunteerToken: _publicVolunteerToken_(person, createdAt),
+      firstName: String(person).trim().split(/\s+/)[0] || ''
     });
   });
   return { donePages: donePages, doneUnits: doneUnits, tickerEntries: tickerEntries };
@@ -1563,4 +1564,6 @@ function getAccessToken_(scopeOverride) {
     throw new Error('Token exchange failed (' + code + '): ' + response.getContentText());
   }
   return JSON.parse(response.getContentText()).access_token;
+}
+ return JSON.parse(response.getContentText()).access_token;
 }

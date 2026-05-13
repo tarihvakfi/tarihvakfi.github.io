@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<title>Landing v3 — broadsheet / archival</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1410;
+    --ink-soft: #443330;
+    --paper:#fbf4e6;
+    --paper-warm: #f4ead1;
+    --cream: #efe4c5;
+    --rule: #c8b48a;
+    --rule-soft: #ddc99e;
+    --terra: #8e3d20;
+    --terra-deep: #5e2614;
+    --terra-soft: #b85c3a;
+    --gold: #b88a2a;
+    --gold-deep: #7a5713;
+    --teal: #3b6463;
+    --muted: #786648;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    color: var(--ink);
+    font-size: 15px;
+    line-height: 1.55;
+    background: var(--paper);
+    /* very subtle paper texture via repeating gradient */
+    background-image:
+      radial-gradient(circle at 30% 20%, rgba(184,138,42,0.04), transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(142,61,32,0.03), transparent 35%);
+    min-height: 100vh;
+  }
+  .serif { font-family: 'Lora', Georgia, serif; }
+  .display { font-family: 'Cormorant Garamond', 'Lora', Georgia, serif; }
+  .mono { font-family: 'DM Mono', ui-monospace, monospace; letter-spacing: 0.06em; }
+
+  .container { max-width: 1180px; margin: 0 auto; padding: 0 36px; }
+
+  .demo-info {
+    background: var(--ink); color: var(--paper);
+    padding: 9px 24px; font-size: 12px; text-align: center;
+    font-family: 'DM Mono', monospace; letter-spacing: 0.06em;
+  }
+  .demo-info b { color: var(--gold); }
+
+  /* ============ Masthead ============ */
+  .masthead {
+    border-bottom: 3px double var(--rule);
+    padding: 28px 0 22px;
+  }
+  .mast-meta {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 18px;
+  }
+  .mast-meta span { display: inline-flex; align-items: center; gap: 8px; }
+  .mast-meta .dot { color: var(--gold); }
+  .mast-meta .pulse {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--teal);
+    box-shadow: 0 0 0 4px rgba(59,100,99,0.18);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(59,100,99,0.18); }
+    50% { box-shadow: 0 0 0 7px rgba(59,100,99,0.04); }
+  }
+  .mast-name {
+    text-align: center;
+    font-family: 'Cormorant Garamond', 'Lora', serif;
+    font-weight: 500;
+    font-size: clamp(38px, 5.6vw, 72px);
+    line-height: 1;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    margin: 0;
+  }
+  .mast-name em {
+    font-style: italic;
+    font-weight: 500;
+    color: var(--terra);
+  }
+  .mast-tag {
+    text-align: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 14px 0 0;
+  }
+  .mast-tag::before, .mast-tag::after {
+    content: '·'; color: var(--gold); margin: 0 14px;
+  }
+
+  /* ============ Hero — chapter opening ============ */
+  .hero {
+    padding: 60px 0 32px;
+    text-align: center;
+    position: relative;
+  }
+  .hero .ornament {
+    color: var(--gold);
+    font-size: 22px;
+    letter-spacing: 0.4em;
+    margin: 0 0 14px;
+    opacity: 0.7;
+  }
+  .hero .eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 11.5px; letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 22px;
+  }
+  .hero h1 {
+    font-family: 'Cormorant Garamond', 'Lora', serif;
+    font-weight: 500;
+    font-size: clamp(44px, 6.5vw, 88px);
+    line-height: 1.02;
+    letter-spacing: -0.015em;
+    margin: 0 0 22px;
+    color: var(--ink);
+  }
+  .hero h1 em {
+    font-style: italic;
+    color: var(--terra);
+    font-weight: 500;
+  }
+  .hero .lede {
+    font-family: 'Lora', serif;
+    font-size: 18px;
+    color: var(--ink-soft);
+    max-width: 620px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+  .hero .lede em {
+    font-style: italic;
+    color: var(--terra);
+  }
+
+  /* ============ Big numbers strip ============ */
+  .ledger-strip {
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    margin: 56px 0 0;
+    padding: 32px 0;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    text-align: center;
+  }
+  .ledger-strip > div {
+    padding: 0 24px;
+    border-right: 1px solid var(--rule-soft);
+    position: relative;
+  }
+  .ledger-strip > div:last-child { border-right: 0; }
+  .ledger-strip .lbl {
+    font-family: 'DM Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 14px;
+  }
+  .ledger-strip .num {
+    font-family: 'Cormorant Garamond', 'Lora', serif;
+    font-size: 54px;
+    font-weight: 500;
+    line-height: 1;
+    margin: 0;
+    color: var(--ink);
+    font-variant-numeric: oldstyle-nums;
+  }
+  .ledger-strip .num em {
+    font-style: italic;
+    color: var(--terra);
+    font-weight: 500;
+  }
+  .ledger-strip .num .sm {
+    font-size: 18px;
+    color: var(--muted);
+    margin-left: 4px;
+    font-variant-numeric: oldstyle-nums;
+  }
+  .ledger-strip .foot {
+    font-size: 12.5px;
+    color: var(--muted);
+    margin: 12px 0 0;
+    font-family: 'Lora', serif;
+    font-style: italic;
+  }
+
+  /* ============ Feature article — today's page ============ */
+  .feature {
+    padding: 68px 0 0;
+    display: grid;
+    grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr);
+    gap: 56px;
+    align-items: start;
+  }
+  @media (max-width: 880px) { .feature { grid-template-columns: 1fr; gap: 32px; } }
+  .feature-aside { padding-top: 8px; }
+  .feature-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--terra);
+    margin: 0 0 20px;
+    border-top: 2px solid var(--terra);
+    padding-top: 12px;
+    display: inline-block;
+  }
+  .feature-aside h2 {
+    font-family: 'Cormorant Garamond', 'Lora', serif;
+    font-weight: 500;
+    font-size: clamp(28px, 3.2vw, 40px);
+    line-height: 1.1;
+    margin: 0 0 18px;
+    color: var(--ink);
+  }
+  .feature-aside h2 em {
+    font-style: italic;
+    color: var(--terra);
+  }
+  .feature-aside .byline {
+    font-family: 'Lora', serif;
+    font-style: italic;
+    font-size: 14px;
+    color: var(--muted);
+    margin: 0 0 24px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .feature-aside .byline b {
+    font-style: normal;
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  .feature-body {
+    font-family: 'Lora', serif;
+    font-size: 16.5px;
+    line-height: 1.7;
+    color: var(--ink-soft);
+  }
+  .feature-body p { margin: 0 0 18px; }
+  .feature-body p:first-of-type::first-letter {
+    font-family: 'Cormorant Garamond', 'Lora', serif;
+    font-size: 60px;
+    float: left;
+    line-height: 0.85;
+    margin: 4px 8px 0 0;
+    color: var(--terra);
+    font-weight: 500;
+  }
+  .feature-body b {
+    font-family: 'Lora', serif;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .pullquote {
+    margin: 36px 0;
+    padding: 0 0 0 24px;
+    border-left: 3px solid var(--gold);
+    font-family: 'Cormorant Garamond', 'Lora', serif;
+    font-style: italic;
+    font-size: 24px;
+    line-height: 1.4;
+    color: var(--ink);
+    font-weight: 400;
+  }
+
+  /* ============ Ledger of boxes ============ */
+  .registry {
+    padding: 72px 0 0;
+  }
+  .registry-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    border-bottom: 3px double var(--rule);
+    padding-bottom: 18px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .registry-head h3 {
+    font-family: 'Cormorant Garamond', 'Lora', serif;
+    font-weight: 500;
+    font-size: 32px;
+    margin: 0;
+    line-height: 1;
+  }
+  .registry-head h3 em { font-style: italic; color: var(--terra); }
+  .registry-head .meta {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .registry-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Lora', serif;
+  }
+  .registry-table th {
+    text-align: left;
+    font-family: 'DM Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 400;
+    padding: 10px 14px 10px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .registry-table td {
+    padding: 16px 14px 16px 0;
+    border-bottom: 1px solid var(--rule-soft);
+    font-size: 16px;
+    vertical-align: baseline;
+  }
+  .registry-table .col-n {
+    font-family: 'Cormorant Garamond', 'Lora', serif;
+    font-size: 24px;
+    color: var(--terra);
+    font-weight: 500;
+    width: 80px;
+    font-variant-numeric: oldstyle-nums;
+  }
+  .registry-table .col-name {
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .registry-table .col-name small {
+    display: block;
+    font-style: italic;
+    color: var(--muted);
+    font-size: 13.5px;
+    font-weight: normal;
+    margin-top: 2px;
+  }
+  .registry-table .col-pct {
+    font-family: 'Cormorant Garamond', 'Lora', serif;
+    font-size: 28px;
+    text-align: right;
+    color: var(--ink);
+    font-weight: 500;
+    font-variant-numeric: oldstyle-nums;
+  }
+  .registry-table .col-pct.done { color: var(--gold-deep); font-style: italic; }
+  .registry-table .col-pct.fresh { color: var(--terra); font-style: italic; }
+  .registry-table .col-volunteer {
+    font-family: 'Lora', serif;
+    font-style: italic;
+    color: var(--ink-soft);
+    width: 200px;
+  }
+  .registry-foot {
+    margin-top: 22px;
+    text-align: right;
+    font-family: 'Lora', serif;
+    font-style: italic;
+    font-size: 14px;
+  }
+  .registry-foot a {
+    color: var(--terra);
+    text-decoration: none;
+    border-bottom: 1px solid var(--terra);
+    padding-bottom: 1px;
+  }
+
+  /* ============ Roll call — volunteer masthead ============ */
+  .roll {
+    padding: 72px 0 0;
+    text-align: center;
+  }
+  .roll .label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 18px;
+  }
+  .roll h3 {
+    font-family: 'Cormorant Garamond', 'Lora', serif;
+    font-weight: 500;
+    font-size: clamp(30px, 4vw, 44px);
+    line-height: 1.1;
+    margin: 0 0 30px;
+  }
+  .roll h3 em {
+    font-style: italic;
+    color: var(--terra);
+  }
+  .roll-names {
+    font-family: 'Cormorant Garamond', 'Lora', serif;
+    font-size: clamp(22px, 2.6vw, 30px);
+    line-height: 1.6;
+    color: var(--ink);
+    max-width: 880px;
+    margin: 0 auto;
+    letter-spacing: 0.005em;
+  }
+  .roll-names .name {
+    display: inline;
+    font-weight: 500;
+  }
+  .roll-names .name.active {
+    font-style: italic;
+    color: var(--terra);
+  }
+  .roll-names .sep {
+    color: var(--gold);
+    margin: 0 8px;
+    opacity: 0.7;
+  }
+  .roll-foot {
+    font-family: 'Lora', serif;
+    font-style: italic;
+    font-size: 13.5px;
+    color: var(--muted);
+    margin: 24px 0 0;
+  }
+
+  /* ============ Colophon footer ============ */
+  .colophon {
+    margin-top: 80px;
+    border-top: 3px double var(--rule);
+    padding: 32px 0 48px;
+  }
+  .colophon-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    flex-wrap: wrap; gap: 16px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .colophon-row a {
+    color: var(--terra);
+    text-decoration: none;
+    border-bottom: 1px solid var(--terra);
+    padding-bottom: 1px;
+  }
+  .colophon-row .mid {
+    font-family: 'Lora', serif;
+    font-style: italic;
+    font-size: 13px;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--ink-soft);
+  }
+</style>
+</head>
+<body>
+
+<div class="demo-info"><b>v3 mockup</b> — editorial broadsheet · archival ledger · ~1 screen + scroll for registry</div>
+
+<div class="container">
+
+  <!-- ============ Masthead ============ -->
+  <header class="masthead">
+    <div class="mast-meta">
+      <span><span class="pulse"></span>13 Mayıs 2026 · Çarşamba · İstanbul</span>
+      <span>Sayı <span class="dot">·</span> XLVII</span>
+    </div>
+    <h1 class="mast-name">Tarih Vakf<em>ı</em></h1>
+    <p class="mast-tag">Pertev Naili Boratav Arşivi <span style="color:var(--gold);">·</span> Sayısallaştırma Defteri</p>
+  </header>
+
+  <!-- ============ Hero opening ============ -->
+  <section class="hero">
+    <p class="ornament">❦ &nbsp;&nbsp; ❦ &nbsp;&nbsp; ❦</p>
+    <p class="eyebrow">Bu sayfada — bugünkü sayım</p>
+    <h1>Geçmişin sesini<br><em>birlikte koruyoruz.</em></h1>
+    <p class="lede">Yirmi bir gönüllü, doksan iki kutu, yetmiş yedi bin sayfa — devam eden bir kayıt. <em>Bu hafta yüz yetmiş iki kez</em> arşive dokunuldu.</p>
+  </section>
+
+  <!-- ============ Big numbers strip ============ -->
+  <section class="ledger-strip">
+    <div>
+      <p class="lbl">İlerleme</p>
+      <p class="num"><em>%2,3</em></p>
+      <p class="foot">1.808 / 77.544 sayfa</p>
+    </div>
+    <div>
+      <p class="lbl">Açılmış kutu</p>
+      <p class="num">86<span class="sm">/ 104</span></p>
+      <p class="foot">on sekiz kutu sırada</p>
+    </div>
+    <div>
+      <p class="lbl">Aktif gönüllü</p>
+      <p class="num">7<span class="sm">kişi</span></p>
+      <p class="foot">son otuz günde</p>
+    </div>
+    <div>
+      <p class="lbl">Bu hafta</p>
+      <p class="num">172<span class="sm">kayıt</span></p>
+      <p class="foot">beş farklı kutuda</p>
+    </div>
+  </section>
+
+  <!-- ============ Feature article — today's page ============ -->
+  <article class="feature">
+    <aside class="feature-aside">
+      <p class="feature-label">Bugünün sayfası</p>
+      <h2>Kutu 16'da<br><em>saha defteri</em></h2>
+      <p class="byline">— <b>Sibel-Lara</b> ile · 13 Mayıs · 14:22</p>
+    </aside>
+    <div class="feature-body">
+      <p>Şu an Kutu 16 açık. Sibel-Lara saha defterlerini sayfa sayfa tarıyor — bugün buradan <b>21 sayfa</b> arşive girdi. Aynı saatlerde Betül Kutu 14'ten mektuplar geçiyor (<b>+28 sayfa</b>), Seda fotoğrafları kataloglarken Ateş Kutu 15'in ders notlarını tamamlamak üzere.</p>
+
+      <p class="pullquote">"Bu hafta arşivde yedi kişi, beş farklı kutuda, yüz yetmiş iki kez kayıt düştü."</p>
+
+      <p>Geçen ay tek başına <b>Ateş 706 sayfa</b>, <b>Betül 732 sayfa</b> taradı. Sayılar kümülatif: yirmi bir gönüllü, dört yıldır, sayfa sayfa. Arşiv açık olduğu sürece ekleme devam edecek.</p>
+    </div>
+  </article>
+
+  <!-- ============ Registry of boxes ============ -->
+  <section class="registry">
+    <div class="registry-head">
+      <h3>Kutu kütüğü <em>·</em> en ileri gidenler</h3>
+      <span class="meta">88 kutu içinden seçili 6</span>
+    </div>
+    <table class="registry-table">
+      <thead>
+        <tr>
+          <th>Kutu</th>
+          <th>İçerik</th>
+          <th>Gönüllü</th>
+          <th style="text-align:right;">Tamam</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="col-n">I·1</td>
+          <td class="col-name">İstanbul Yazışmaları<small>149 sayfa · tamamlandı</small></td>
+          <td class="col-volunteer">Kadir</td>
+          <td class="col-pct done">%100</td>
+        </tr>
+        <tr>
+          <td class="col-n">14</td>
+          <td class="col-name">Mektuplar<small>1.430 sayfa · devam ediyor</small></td>
+          <td class="col-volunteer">Betül + Seda</td>
+          <td class="col-pct fresh">%62</td>
+        </tr>
+        <tr>
+          <td class="col-n">15</td>
+          <td class="col-name">Ders notları<small>812 sayfa · devam ediyor</small></td>
+          <td class="col-volunteer">Ateş</td>
+          <td class="col-pct fresh">%48</td>
+        </tr>
+        <tr>
+          <td class="col-n">I·2</td>
+          <td class="col-name">İstanbul-2<small>139 sayfa · devam ediyor</small></td>
+          <td class="col-volunteer">Aysu</td>
+          <td class="col-pct fresh">%29</td>
+        </tr>
+        <tr>
+          <td class="col-n">16</td>
+          <td class="col-name">Saha defterleri<small>880 sayfa · yeni başladı</small></td>
+          <td class="col-volunteer">Sibel-Lara</td>
+          <td class="col-pct">%14</td>
+        </tr>
+        <tr>
+          <td class="col-n">68</td>
+          <td class="col-name">Kitap müsveddeleri<small>3.140 sayfa · yeni başladı</small></td>
+          <td class="col-volunteer">Sibel</td>
+          <td class="col-pct">%2</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="registry-foot"><a href="#">seksen sekiz kutunun tamamı →</a></p>
+  </section>
+
+  <!-- ============ Roll call ============ -->
+  <section class="roll">
+    <p class="label">Bu çalışmayı yapanlar</p>
+    <h3>Yirmi bir isim<br><em>devam eden bir kayıt için.</em></h3>
+    <p class="roll-names">
+      <span class="name">Ali</span><span class="sep">·</span>
+      <span class="name active">Arda</span><span class="sep">·</span>
+      <span class="name active">Ateş</span><span class="sep">·</span>
+      <span class="name">Ayşe</span><span class="sep">·</span>
+      <span class="name active">Aysu</span><span class="sep">·</span>
+      <span class="name active">Betül</span><span class="sep">·</span>
+      <span class="name">Burak</span><span class="sep">·</span>
+      <span class="name">Can</span><span class="sep">·</span>
+      <span class="name">Cem</span><span class="sep">·</span>
+      <span class="name">Deniz</span><span class="sep">·</span>
+      <span class="name">Ece</span><span class="sep">·</span>
+      <span class="name">Elif</span><span class="sep">·</span>
+      <span class="name">Esra</span><span class="sep">·</span>
+      <span class="name active">Kadir</span><span class="sep">·</span>
+      <span class="name active">Kübra</span><span class="sep">·</span>
+      <span class="name">Mert</span><span class="sep">·</span>
+      <span class="name">Seda</span><span class="sep">·</span>
+      <span class="name active">Sibel</span><span class="sep">·</span>
+      <span class="name active">Sibel-Lara</span><span class="sep">·</span>
+      <span class="name">Şule</span><span class="sep">·</span>
+      <span class="name">Zeynep</span>
+    </p>
+    <p class="roll-foot"><em>İtalik isimler son yedi gün içinde arşive girdi · adını çıkarmak isteyen <a href="mailto:tarihvakfi@tarihvakfi.org.tr" style="color:var(--terra);">bize yazabilir</a></em></p>
+  </section>
+
+  <!-- ============ Colophon ============ -->
+  <footer class="colophon">
+    <div class="colophon-row">
+      <span>Tarih Vakfı · 1991'den bu yana</span>
+      <span class="mid">Bu sayfa saatte bir, paylaşılan Google Sheet'ten tazeleniyor.</span>
+      <span><a href="mailto:tarihvakfi@tarihvakfi.org.tr">Gönüllü ol →</a></span>
+    </div>
+  </footer>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<title>Compact landing alternatives — Tarih Vakfı</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --ink: #1e1612;
+    --paper: #fbf6ee;
+    --cream: #f3ead9;
+    --line: #d9cdb6;
+    --line-soft: #ece2cd;
+    --terra: #94462a;
+    --terra-soft: #b85c3a;
+    --gold: #c89b3c;
+    --teal: #3f6f6f;
+    --muted: #6b5d50;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  h1, h2, h3, h4, .serif {
+    font-family: 'Lora', Georgia, serif;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+  .lp-container { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+  /* Demo bar */
+  .demo-bar {
+    background: var(--ink); color: var(--paper);
+    padding: 12px 20px; position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .demo-bar h1 { color: var(--cream); font-size: 15px; margin: 0 8px 0 0; }
+  .demo-bar button {
+    background: transparent; border: 1px solid rgba(255,255,255,0.25);
+    color: #f3ead9; padding: 7px 12px; border-radius: 18px;
+    font: inherit; font-size: 12.5px; cursor: pointer; transition: all .2s;
+  }
+  .demo-bar button:hover { background: rgba(255,255,255,0.08); }
+  .demo-bar button.active { background: var(--gold); color: var(--ink); border-color: var(--gold); }
+  .demo-meta { margin-left: auto; font-size: 11px; color: rgba(255,255,255,0.55); font-family: 'DM Mono', monospace; }
+  .demo-foot { padding: 18px 20px; background: var(--ink); color: var(--cream); font-size: 12.5px; opacity: .7; text-align: center; }
+
+  /* Shared nav */
+  .lp-nav {
+    border-bottom: 1px solid var(--line);
+    background: var(--paper);
+    padding: 16px 0;
+  }
+  .lp-nav-row { display: flex; align-items: center; gap: 22px; }
+  .lp-brand { display: flex; align-items: center; gap: 10px; font-family: 'Lora', serif; font-weight: 500; font-size: 15px; }
+  .lp-brand-logo {
+    width: 32px; height: 32px; background: var(--terra); color: var(--cream);
+    border-radius: 50%; display: grid; place-items: center; font-size: 13px;
+  }
+  .lp-nav-links { margin-left: auto; display: flex; gap: 18px; font-size: 13.5px; }
+  .lp-nav-links a { text-decoration: none; color: var(--ink); opacity: .8; }
+  .lp-nav-links a:hover { opacity: 1; color: var(--terra); }
+
+  /* Demo container */
+  .demo { display: none; }
+  .demo.active { display: block; }
+
+  /* Shared hero (compact) */
+  .hero { padding: 44px 0 24px; }
+  .eyebrow {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--muted); margin: 0 0 8px;
+  }
+  .hero h1 { font-size: clamp(26px, 3.6vw, 38px); line-height: 1.15; margin: 0 0 10px; max-width: 720px; }
+  .hero h1 em { font-style: italic; color: var(--terra); }
+  .hero p { font-size: 15.5px; color: var(--muted); max-width: 640px; margin: 0; }
+  .hero .sync {
+    margin-top: 18px; display: inline-flex; align-items: center; gap: 8px;
+    font-family: 'DM Mono', monospace; font-size: 11.5px; color: var(--muted);
+    padding: 5px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--cream);
+  }
+  .hero .sync::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--teal); box-shadow: 0 0 0 3px rgba(63,111,111,0.15);
+  }
+
+  /* Ledger strip */
+  .ledger {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+    border: 1px solid var(--line); border-radius: 4px; background: white;
+    margin: 20px 0 0; overflow: hidden;
+  }
+  .ledger > div { padding: 14px 18px; border-right: 1px solid var(--line-soft); }
+  .ledger > div:last-child { border-right: none; }
+  .ledger .lbl {
+    font-family: 'DM Mono', monospace; font-size: 10.5px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 6px;
+  }
+  .ledger .num { font-family: 'Lora', serif; font-size: 26px; line-height: 1; margin: 0; }
+  .ledger .num small {
+    font-family: 'Inter', sans-serif; font-size: 13px; color: var(--muted);
+    font-weight: normal; margin-left: 5px;
+  }
+  .ledger .foot { font-size: 12px; color: var(--muted); margin: 5px 0 0; }
+
+  /* ===================================================================
+   * ALT A — ONE-PAGER (single tabbed panel)
+   * =================================================================== */
+  .alt-a .panel {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    margin-top: 30px;
+    overflow: hidden;
+  }
+  .alt-a .panel-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--line);
+    background: var(--cream);
+  }
+  .alt-a .panel-tab {
+    flex: 1;
+    background: transparent;
+    border: 0;
+    padding: 14px 16px;
+    font: inherit;
+    font-size: 13.5px;
+    color: var(--muted);
+    cursor: pointer;
+    border-right: 1px solid var(--line);
+    transition: all .15s;
+  }
+  .alt-a .panel-tab:last-child { border-right: none; }
+  .alt-a .panel-tab.on {
+    background: white;
+    color: var(--terra);
+    font-weight: 500;
+    box-shadow: inset 0 -2px 0 var(--terra);
+  }
+  .alt-a .panel-tab small { display: block; font-family: 'DM Mono', monospace; font-size: 10.5px; opacity: .6; margin-top: 2px; }
+  .alt-a .panel-body { padding: 22px; min-height: 380px; }
+  .alt-a .panel-pane { display: none; }
+  .alt-a .panel-pane.on { display: block; }
+
+  /* Bugün pane */
+  .a-stream-item {
+    display: grid; grid-template-columns: 40px 1fr auto; gap: 12px;
+    padding: 10px 0; border-bottom: 1px dashed var(--line-soft); align-items: center;
+  }
+  .a-stream-item:last-child { border-bottom: 0; }
+  .a-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--terra); color: var(--cream); display: grid; place-items: center; font-family: 'Lora', serif; font-size: 13px; }
+  .a-who { font-weight: 500; font-size: 14px; }
+  .a-what { color: var(--muted); font-size: 12.5px; }
+  .a-meta { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); text-align: right; }
+  .a-meta b { color: var(--terra); display: block; font-size: 14px; }
+
+  /* Kutular pane */
+  .a-box-row {
+    display: grid; grid-template-columns: 48px 1fr 160px 80px; gap: 12px;
+    padding: 9px 0; border-bottom: 1px dashed var(--line-soft); align-items: center;
+    font-size: 13.5px;
+  }
+  .a-box-row.head { font-family: 'DM Mono', monospace; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+  .a-box-bar { height: 5px; background: var(--line-soft); border-radius: 3px; overflow: hidden; }
+  .a-box-bar > span { display: block; height: 100%; background: linear-gradient(90deg, var(--terra), var(--gold)); }
+  .a-box-foot { text-align: center; padding-top: 12px; font-size: 13px; color: var(--terra); }
+
+  /* Gönüllüler pane */
+  .a-vol-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+  .a-vol-mini {
+    background: var(--cream); border: 1px solid var(--line-soft); border-radius: 4px;
+    padding: 12px; display: grid; grid-template-columns: 36px 1fr; gap: 10px; align-items: center;
+  }
+  .a-vol-mini .av { width: 32px; height: 32px; border-radius: 50%; background: var(--terra-soft); color: var(--cream); display: grid; place-items: center; font-family: 'Lora', serif; font-size: 13px; }
+  .a-vol-mini b { font-family: 'Lora', serif; font-size: 14px; font-weight: 500; display: block; }
+  .a-vol-mini small { font-size: 11.5px; color: var(--muted); }
+
+  /* ===================================================================
+   * ALT B — THREE GLANCE CARDS (3 modular cards side by side)
+   * =================================================================== */
+  .alt-b .cards-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;
+    margin-top: 28px;
+  }
+  @media (max-width: 880px) { .alt-b .cards-grid { grid-template-columns: 1fr; } }
+  .alt-b .card {
+    background: white; border: 1px solid var(--line); border-radius: 6px;
+    padding: 22px; display: flex; flex-direction: column;
+  }
+  .alt-b .card-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
+  .alt-b .card-head h3 { margin: 0; font-size: 17px; }
+  .alt-b .card-head small { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+  .alt-b .card-body { flex: 1; }
+  .alt-b .card-foot { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line-soft); text-align: right; font-size: 12.5px; }
+  .alt-b .card-foot a { color: var(--terra); text-decoration: none; font-weight: 500; }
+  .alt-b .b-stream-item { padding: 6px 0; border-bottom: 1px dashed var(--line-soft); font-size: 13px; }
+  .alt-b .b-stream-item:last-child { border-bottom: 0; }
+  .alt-b .b-stream-item b { color: var(--terra); }
+  .alt-b .b-box-item { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; }
+  .alt-b .b-box-item .pct { font-family: 'DM Mono', monospace; color: var(--muted); }
+  .alt-b .b-vol-row { display: flex; flex-wrap: wrap; gap: 5px; }
+  .alt-b .b-vol-chip { background: var(--cream); border: 1px solid var(--line-soft); padding: 3px 9px; border-radius: 12px; font-size: 12.5px; }
+  .alt-b .b-vol-chip.active { background: var(--terra); color: var(--cream); border-color: var(--terra); }
+
+  /* ===================================================================
+   * ALT C — DASHBOARD GRID (2x2 dense info panel)
+   * =================================================================== */
+  .alt-c .dash {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 18px;
+    margin-top: 28px;
+  }
+  @media (max-width: 880px) { .alt-c .dash { grid-template-columns: 1fr; } }
+  .alt-c .tile {
+    background: white; border: 1px solid var(--line); border-radius: 6px;
+    padding: 20px;
+  }
+  .alt-c .tile h3 { margin: 0 0 4px; font-size: 16px; }
+  .alt-c .tile p.lbl { margin: 0 0 14px; font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; letter-spacing: 0.06em; text-transform: uppercase; }
+
+  /* Tile: weekly bars + sparkline (big) */
+  .c-week { display: flex; align-items: end; gap: 5px; height: 100px; margin-bottom: 28px; }
+  .c-week .bar { flex: 1; background: linear-gradient(180deg, var(--terra-soft), var(--terra)); border-radius: 2px 2px 0 0; position: relative; min-height: 3px; }
+  .c-week .bar small { position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%); font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); }
+  .c-week .bar.today { background: linear-gradient(180deg, var(--gold), #8b6a1f); }
+  .c-progress-bar { height: 8px; background: var(--line-soft); border-radius: 4px; overflow: hidden; margin: 4px 0; }
+  .c-progress-bar > span { display: block; height: 100%; background: linear-gradient(90deg, var(--terra), var(--gold)); }
+  .c-progress-meta { display: flex; justify-content: space-between; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+
+  /* Tile: top boxes */
+  .c-box-row { display: grid; grid-template-columns: 36px 1fr 50px; gap: 10px; padding: 7px 0; font-size: 13px; border-bottom: 1px dashed var(--line-soft); align-items: center; }
+  .c-box-row:last-child { border-bottom: 0; }
+  .c-box-row .n { font-family: 'DM Mono', monospace; color: var(--muted); }
+  .c-box-row .pct { text-align: right; font-family: 'DM Mono', monospace; color: var(--terra); font-weight: 600; font-size: 12.5px; }
+
+  /* Tile: volunteer chips */
+  .c-vol-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .c-vol-chip { background: var(--cream); border: 1px solid var(--line-soft); border-radius: 14px; padding: 4px 11px; font-size: 13px; }
+  .c-vol-chip.active { background: var(--terra); color: var(--cream); border-color: var(--terra); }
+
+  /* Tile: today */
+  .c-today { font-size: 13.5px; line-height: 1.7; color: var(--ink); }
+  .c-today b { color: var(--terra); }
+
+  /* Footer */
+  .lp-foot {
+    border-top: 1px solid var(--line); padding: 26px 0 40px; margin-top: 36px;
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+  }
+  .lp-foot small { color: var(--muted); font-size: 12px; font-family: 'DM Mono', monospace; }
+  .lp-foot a { color: var(--terra); text-decoration: none; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="demo-bar">
+  <h1>Compact alternatives</h1>
+  <button class="active" data-show="a">A · One-pager (tabs)</button>
+  <button data-show="b">B · Three glance cards</button>
+  <button data-show="c">C · Dashboard grid</button>
+  <span class="demo-meta">tarihvakfi.github.io · v5 mockup · 88 kutu · 21 gönüllü</span>
+</div>
+
+<!-- =====================================================================
+     ALT A — ONE-PAGER
+     Single tabbed panel below the hero. User picks Bugün / Kutular /
+     Gönüllüler. Total length: hero + ledger + one panel + tiny footer.
+     ===================================================================== -->
+<section class="demo alt-a active">
+  <header class="lp-nav">
+    <div class="lp-container lp-nav-row">
+      <a class="lp-brand"><span class="lp-brand-logo">T</span><span>Tarih Vakfı</span></a>
+      <nav class="lp-nav-links">
+        <a href="#">Arşiv</a>
+        <a href="#">Hakkında</a>
+        <a href="#">SSS</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lp-container">
+    <section class="hero">
+      <p class="eyebrow">Tarih Vakfı · Pertev Naili Boratav Arşivi</p>
+      <h1>Geçmişin sesini <em>birlikte</em> koruyoruz.</h1>
+      <p>Sayfa sayfa dijital ortama aktarıyoruz. Aşağıda — bu hafta ne yapıldı, hangi kutu, kim çalıştı.</p>
+      <span class="sync">12 dk önce senkron · saatte bir</span>
+
+      <div class="ledger">
+        <div><p class="lbl">İlerleme</p><p class="num">%2,3</p><p class="foot">1.808 / 77.544 sayfa</p></div>
+        <div><p class="lbl">Açılmış kutu</p><p class="num">86<small>/ 104</small></p><p class="foot">18 sırada</p></div>
+        <div><p class="lbl">Aktif gönüllü</p><p class="num">7<small>kişi</small></p><p class="foot">son 30 gün</p></div>
+        <div><p class="lbl">Bu hafta</p><p class="num">172<small>kayıt</small></p><p class="foot">5 farklı kutu</p></div>
+      </div>
+    </section>
+
+    <div class="panel">
+      <div class="panel-tabs">
+        <button class="panel-tab on" data-pane="a-bugun">Bugün<small>son hareketler</small></button>
+        <button class="panel-tab" data-pane="a-kutular">Kutular<small>86 kutuda durum</small></button>
+        <button class="panel-tab" data-pane="a-gonulluler">Gönüllüler<small>7 aktif gönüllü</small></button>
+      </div>
+      <div class="panel-body">
+
+        <div class="panel-pane on" id="a-bugun">
+          <div class="a-stream-item">
+            <div class="a-avatar">B</div>
+            <div><p class="a-who">Betül</p><p class="a-what">Kutu 14 · mektuplar · 28 sayfa</p></div>
+            <div class="a-meta"><b>+28</b>bugün 14:22</div>
+          </div>
+          <div class="a-stream-item">
+            <div class="a-avatar">A</div>
+            <div><p class="a-who">Ateş</p><p class="a-what">Kutu 15 · ders notları</p></div>
+            <div class="a-meta"><b>+12</b>bugün 11:48</div>
+          </div>
+          <div class="a-stream-item">
+            <div class="a-avatar">S</div>
+            <div><p class="a-who">Seda</p><p class="a-what">Kutu 14 · fotoğraflar · 6 belge</p></div>
+            <div class="a-meta"><b>+44</b>bugün 10:09</div>
+          </div>
+          <div class="a-stream-item">
+            <div class="a-avatar">M</div>
+            <div><p class="a-who">Mert</p><p class="a-what">Kutu 22 · fotoğraflar</p></div>
+            <div class="a-meta"><b>+18</b>dün 16:30</div>
+          </div>
+          <div class="a-stream-item">
+            <div class="a-avatar">Z</div>
+            <div><p class="a-who">Zeynep</p><p class="a-what">Kutu 31 · yazışmalar</p></div>
+            <div class="a-meta"><b>+62</b>dün 14:11</div>
+          </div>
+          <p class="a-box-foot"><a href="#" style="color:var(--terra);">tüm akışı gör →</a></p>
+        </div>
+
+        <div class="panel-pane" id="a-kutular">
+          <div class="a-box-row head"><span>#</span><span>Kutu</span><span>İlerleme</span><span>Çalışan</span></div>
+          <div class="a-box-row"><span>14</span><span>Mektuplar</span><div><div class="a-box-bar"><span style="width:62%"></span></div><small style="font-family:'DM Mono',monospace; font-size:10.5px; color:var(--muted);">%62 · 886/1430</small></div><span>Betül</span></div>
+          <div class="a-box-row"><span>15</span><span>Ders notları</span><div><div class="a-box-bar"><span style="width:48%"></span></div><small style="font-family:'DM Mono',monospace; font-size:10.5px; color:var(--muted);">%48 · 390/812</small></div><span>Ateş</span></div>
+          <div class="a-box-row"><span>16</span><span>Saha</span><div><div class="a-box-bar"><span style="width:0%"></span></div><small style="font-family:'DM Mono',monospace; font-size:10.5px; color:var(--muted);">%0 · 0/880</small></div><span>Lara</span></div>
+          <div class="a-box-row"><span>68</span><span>Müsvedde</span><div><div class="a-box-bar"><span style="width:2%"></span></div><small style="font-family:'DM Mono',monospace; font-size:10.5px; color:var(--muted);">%2 · 62/3140</small></div><span>Sibel</span></div>
+          <div class="a-box-row"><span>I1</span><span>İstanbul</span><div><div class="a-box-bar"><span style="width:100%"></span></div><small style="font-family:'DM Mono',monospace; font-size:10.5px; color:var(--muted);">%100 · 149/149</small></div><span>Kadir</span></div>
+          <div class="a-box-row"><span>I2</span><span>İstanbul-2</span><div><div class="a-box-bar"><span style="width:29%"></span></div><small style="font-family:'DM Mono',monospace; font-size:10.5px; color:var(--muted);">%29 · 40/139</small></div><span>Aysu</span></div>
+          <p class="a-box-foot"><a href="#" style="color:var(--terra);">80 kutu daha — tabloyu gör →</a></p>
+        </div>
+
+        <div class="panel-pane" id="a-gonulluler">
+          <div class="a-vol-grid">
+            <div class="a-vol-mini"><div class="av">A</div><div><b>Ateş</b><small>706 sayfa</small></div></div>
+            <div class="a-vol-mini"><div class="av">B</div><div><b>Betül</b><small>732 sayfa</small></div></div>
+            <div class="a-vol-mini"><div class="av">S</div><div><b>Sibel-Lara</b><small>120 sayfa</small></div></div>
+            <div class="a-vol-mini"><div class="av">S</div><div><b>Sibel</b><small>99 sayfa</small></div></div>
+            <div class="a-vol-mini"><div class="av">A</div><div><b>Aysu</b><small>40 sayfa</small></div></div>
+            <div class="a-vol-mini"><div class="av">K</div><div><b>Kadir</b><small>111 sayfa</small></div></div>
+            <div class="a-vol-mini"><div class="av">K</div><div><b>Kübra</b><small>2 sayfa</small></div></div>
+          </div>
+          <p class="a-box-foot" style="margin-top: 16px;"><a href="#" style="color:var(--terra);">tüm gönüllüleri gör →</a></p>
+        </div>
+
+      </div>
+    </div>
+
+    <footer class="lp-foot">
+      <small>Veri kaynağı: paylaşılan Google Sheet · saatte bir tazeleniyor</small>
+      <a href="mailto:tarihvakfi@tarihvakfi.org.tr">Gönüllü ol →</a>
+    </footer>
+  </main>
+</section>
+
+<!-- =====================================================================
+     ALT B — THREE GLANCE CARDS
+     Three side-by-side cards: Bugün / Kutular / Gönüllüler. Each shows 4-5
+     items + a "see all" link. Everything visible at once on desktop,
+     stacked on mobile. Total: hero + ledger + 3 cards + footer.
+     ===================================================================== -->
+<section class="demo alt-b">
+  <header class="lp-nav">
+    <div class="lp-container lp-nav-row">
+      <a class="lp-brand"><span class="lp-brand-logo">T</span><span>Tarih Vakfı</span></a>
+      <nav class="lp-nav-links">
+        <a href="#">Arşiv</a>
+        <a href="#">Hakkında</a>
+        <a href="#">SSS</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lp-container">
+    <section class="hero">
+      <p class="eyebrow">Tarih Vakfı · Pertev Naili Boratav Arşivi</p>
+      <h1>Geçmişin sesini <em>birlikte</em> koruyoruz.</h1>
+      <p>Sayfa sayfa dijital ortama aktarıyoruz. Aşağıda — bugün ne yapıldı, hangi kutular ilerliyor, kim çalışıyor.</p>
+      <span class="sync">12 dk önce senkron · saatte bir</span>
+
+      <div class="ledger">
+        <div><p class="lbl">İlerleme</p><p class="num">%2,3</p><p class="foot">1.808 / 77.544 sayfa</p></div>
+        <div><p class="lbl">Açılmış kutu</p><p class="num">86<small>/ 104</small></p><p class="foot">18 sırada</p></div>
+        <div><p class="lbl">Aktif gönüllü</p><p class="num">7<small>kişi</small></p><p class="foot">son 30 gün</p></div>
+        <div><p class="lbl">Bu hafta</p><p class="num">172<small>kayıt</small></p><p class="foot">5 farklı kutu</p></div>
+      </div>
+    </section>
+
+    <div class="cards-grid">
+      <article class="card">
+        <div class="card-head"><h3 class="serif">Bugün</h3><small>5 hareket</small></div>
+        <div class="card-body">
+          <div class="b-stream-item"><b>Betül</b> · Kutu 14 · +28 sayfa</div>
+          <div class="b-stream-item"><b>Ateş</b> · Kutu 15 · +12 sayfa</div>
+          <div class="b-stream-item"><b>Seda</b> · Kutu 14 · +44 sayfa</div>
+          <div class="b-stream-item"><b>Mert</b> · Kutu 22 · dün</div>
+          <div class="b-stream-item"><b>Zeynep</b> · Kutu 31 · dün</div>
+        </div>
+        <div class="card-foot"><a href="#">akışın tamamı →</a></div>
+      </article>
+
+      <article class="card">
+        <div class="card-head"><h3 class="serif">Kutular</h3><small>86 / 104</small></div>
+        <div class="card-body">
+          <div class="b-box-item"><span>Kutu 14 · Mektuplar</span><span class="pct">%62</span></div>
+          <div class="b-box-item"><span>Kutu 15 · Ders notları</span><span class="pct">%48</span></div>
+          <div class="b-box-item"><span>Kutu I2 · İstanbul-2</span><span class="pct">%29</span></div>
+          <div class="b-box-item"><span>Kutu 68 · Müsvedde</span><span class="pct">%2</span></div>
+          <div class="b-box-item"><span>Kutu I1 · İstanbul (bitti)</span><span class="pct">%100</span></div>
+        </div>
+        <div class="card-foot"><a href="#">88 kutuyu tablo halinde →</a></div>
+      </article>
+
+      <article class="card">
+        <div class="card-head"><h3 class="serif">Gönüllüler</h3><small>7 aktif</small></div>
+        <div class="card-body">
+          <div class="b-vol-row">
+            <span class="b-vol-chip active">Sibel-Lara</span>
+            <span class="b-vol-chip active">Aysu</span>
+            <span class="b-vol-chip">Ateş · 706s</span>
+            <span class="b-vol-chip">Betül · 732s</span>
+            <span class="b-vol-chip">Sibel</span>
+            <span class="b-vol-chip">Kadir</span>
+            <span class="b-vol-chip">Kübra</span>
+          </div>
+          <p style="font-size: 12.5px; color: var(--muted); margin-top: 14px; line-height: 1.5;">Turuncu = bu hafta aktif. Sayılar son 30 günde tarayan sayfa.</p>
+        </div>
+        <div class="card-foot"><a href="#">tüm gönüllüleri gör →</a></div>
+      </article>
+    </div>
+
+    <footer class="lp-foot">
+      <small>Veri kaynağı: paylaşılan Google Sheet · saatte bir tazeleniyor</small>
+      <a href="mailto:tarihvakfi@tarihvakfi.org.tr">Gönüllü ol →</a>
+    </footer>
+  </main>
+</section>
+
+<!-- =====================================================================
+     ALT C — DASHBOARD GRID
+     2x2 tile grid. Top-left big (progress + weekly chart), top-right
+     (top boxes), bottom-left (today brief), bottom-right (volunteer chips).
+     Everything visible without tabs or scrolling. Total: hero + ledger + dash + footer.
+     ===================================================================== -->
+<section class="demo alt-c">
+  <header class="lp-nav">
+    <div class="lp-container lp-nav-row">
+      <a class="lp-brand"><span class="lp-brand-logo">T</span><span>Tarih Vakfı</span></a>
+      <nav class="lp-nav-links">
+        <a href="#">Arşiv</a>
+        <a href="#">Hakkında</a>
+        <a href="#">SSS</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lp-container">
+    <section class="hero">
+      <p class="eyebrow">Tarih Vakfı · Pertev Naili Boratav Arşivi</p>
+      <h1>Geçmişin sesini <em>birlikte</em> koruyoruz.</h1>
+      <p>Sayfa sayfa dijital ortama aktarıyoruz. Aşağıda — projenin nabzı, tek bakışta.</p>
+      <span class="sync">12 dk önce senkron · saatte bir</span>
+
+      <div class="ledger">
+        <div><p class="lbl">İlerleme</p><p class="num">%2,3</p><p class="foot">1.808 / 77.544 sayfa</p></div>
+        <div><p class="lbl">Açılmış kutu</p><p class="num">86<small>/ 104</small></p><p class="foot">18 sırada</p></div>
+        <div><p class="lbl">Aktif gönüllü</p><p class="num">7<small>kişi</small></p><p class="foot">son 30 gün</p></div>
+        <div><p class="lbl">Bu hafta</p><p class="num">172<small>kayıt</small></p><p class="foot">5 farklı kutu</p></div>
+      </div>
+    </section>
+
+    <div class="dash">
+      <div class="tile" style="grid-row: 1 / 3;">
+        <h3 class="serif">Haftanın ritmi</h3>
+        <p class="lbl">son 7 günün kayıt sayısı</p>
+        <div class="c-week">
+          <div class="bar" style="height:1%"><small>Pa</small></div>
+          <div class="bar" style="height:3%"><small>Sa</small></div>
+          <div class="bar" style="height:1%"><small>Ça</small></div>
+          <div class="bar" style="height:1%"><small>Pe</small></div>
+          <div class="bar" style="height:42%"><small>Cu</small></div>
+          <div class="bar" style="height:100%"><small>Ct</small></div>
+          <div class="bar today" style="height:22%"><small>Bu</small></div>
+        </div>
+        <h3 class="serif" style="margin-top: 32px;">Projenin yolu</h3>
+        <p class="lbl">PNB · ~78 bin sayfa</p>
+        <div class="c-progress-bar"><span style="width:2.3%"></span></div>
+        <div class="c-progress-meta">
+          <span>başlangıç</span>
+          <span>1.808 / 77.544</span>
+          <span>hedef</span>
+        </div>
+      </div>
+
+      <div class="tile">
+        <h3 class="serif">İlerleyen kutular</h3>
+        <p class="lbl">en çok yol katedilen 5 kutu</p>
+        <div class="c-box-row"><span class="n">I1</span><span>İstanbul · Kadir</span><span class="pct">%100</span></div>
+        <div class="c-box-row"><span class="n">14</span><span>Mektuplar · Betül</span><span class="pct">%62</span></div>
+        <div class="c-box-row"><span class="n">15</span><span>Ders · Ateş</span><span class="pct">%48</span></div>
+        <div class="c-box-row"><span class="n">I2</span><span>İstanbul-2 · Aysu</span><span class="pct">%29</span></div>
+        <div class="c-box-row"><span class="n">68</span><span>Müsvedde · Sibel</span><span class="pct">%2</span></div>
+      </div>
+
+      <div class="tile">
+        <h3 class="serif">Bu hafta arşivde</h3>
+        <p class="lbl">son 7 günde dokunulan kutu + emek</p>
+        <p class="c-today" style="margin: 0;">
+          <b>Bugün</b> üç gönüllü çalıştı — Betül, Ateş, Seda. <br>
+          <b>Dün</b> Mert, Zeynep, Deniz. <br>
+          <b>Bu hafta</b> 5 farklı kutuya dokunduk, <b>172 sayfa</b> tarandı.
+        </p>
+        <div class="c-vol-row" style="margin-top: 14px;">
+          <span class="c-vol-chip active">Sibel-Lara</span>
+          <span class="c-vol-chip active">Aysu</span>
+          <span class="c-vol-chip">Ateş</span>
+          <span class="c-vol-chip">Betül</span>
+          <span class="c-vol-chip">Sibel</span>
+          <span class="c-vol-chip">Kadir</span>
+          <span class="c-vol-chip">Kübra</span>
+        </div>
+      </div>
+    </div>
+
+    <footer class="lp-foot">
+      <small>Veri kaynağı: paylaşılan Google Sheet · saatte bir tazeleniyor</small>
+      <a href="mailto:tarihvakfi@tarihvakfi.org.tr">Gönüllü ol →</a>
+    </footer>
+  </main>
+</section>
+
+<div class="demo-foot">all three options keep the hero + ledger · everything below the fold can fit in one screen on desktop · mobile stays scrollable</div>
+
+<script>
+  document.querySelectorAll('.demo-bar button[data-show]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.demo-bar button[data-show]').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      document.querySelectorAll('.demo').forEach(function (d) { d.classList.remove('active'); });
+      document.querySelector('.alt-' + btn.dataset.show).classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+  // Alt A: tab switcher inside the panel
+  document.querySelectorAll('.panel-tab').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.panel-tab').forEach(function (b) { b.classList.remove('on'); });
+      btn.classList.add('on');
+      document.querySelectorAll('.panel-pane').forEach(function (p) { p.classList.remove('on'); });
+      document.getElementById(btn.dataset.pane).classList.add('on');
+    });
+  });
+</script>
+
+</body>
+</html>
