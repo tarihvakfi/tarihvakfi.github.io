@@ -67,25 +67,39 @@
   markRosterToday();
   renderBoxesGridStatic();
 
-  // ---------- Live data ----------
+  // ---------- Instant render from snapshot ----------
+  // js/snapshot.js drops a snapshot of the Apps Script payload into
+  // window.__SNAPSHOT__. We render that immediately on first paint (no
+  // network round-trip, no "—" placeholders), then quietly fetch the live
+  // endpoint and overlay any newer numbers.
+  const snapshot = window.__SNAPSHOT__;
+  if (snapshot && snapshot.ok && snapshot.data) {
+    try { hydrateAll(snapshot.data); } catch (e) { /* fall through */ }
+  } else {
+    // No snapshot? Show "yükleniyor" briefly until the fetch completes.
+    setLedgerFallback();
+    setCollectiveFallback();
+  }
+
+  // ---------- Background live refresh ----------
   const url = window.__SHEETSYNC_URL__;
   const looksConfigured = typeof url === "string"
     && url.indexOf("script.google.com") >= 0
     && url.indexOf("REPLACE_ME") === -1;
-
   if (!looksConfigured) {
-    setLedgerFallback();
-    setCollectiveFallback();
-    hideTicker();
+    if (!snapshot) hideTicker();
     return;
   }
 
   fetchPayload(url)
     .then((data) => hydrateAll(data))
     .catch(() => {
-      setLedgerFallback();
-      setCollectiveFallback();
-      hideTicker();
+      if (!snapshot) {
+        setLedgerFallback();
+        setCollectiveFallback();
+        hideTicker();
+      }
+      // Else: snapshot is already on screen; silent failure is fine.
     });
 
   async function fetchPayload(base) {
@@ -872,6 +886,22 @@
           </div>
         </div>
         <div class="lp-vol-stat"><span>Bu ay sayfa</span><span>${formatNum(v.monthPages || 0)}</span></div>
+        <div class="lp-vol-stat"><span>Toplam sayfa</span><span>${formatNum(v.totalPages || 0)}</span></div>
+        <div class="lp-vol-stat"><span>Son kayıt</span><span>${esc(lastLbl)}</span></div>
+        <div class="lp-vol-spark">${spark.map((n) => {
+          const h = Math.max(4, Math.round((n / maxS) * 100));
+          const hi = n > 0 && n >= (maxS * 0.5) ? "hi" : "";
+          return `<span class="${hi}" style="height:${h}%"></span>`;
+        }).join("")}</div>
+      </article>`;
+  }
+
+  function formatLongDate(ms) {
+    if (!ms) return "";
+    return new Date(ms).toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
+  }
+})();
+n><span>${formatNum(v.monthPages || 0)}</span></div>
         <div class="lp-vol-stat"><span>Toplam sayfa</span><span>${formatNum(v.totalPages || 0)}</span></div>
         <div class="lp-vol-stat"><span>Son kayıt</span><span>${esc(lastLbl)}</span></div>
         <div class="lp-vol-spark">${spark.map((n) => {

@@ -1,0 +1,49 @@
+name: Refresh sheet snapshot
+
+# Fetches the Apps Script endpoint hourly, writes js/snapshot.js, and
+# commits if the contents changed. This is what makes the landing page
+# render with up-to-date numbers on first paint — no client-side fetch
+# needed before the page looks complete.
+
+on:
+  schedule:
+    - cron: '7 * * * *'  # 7 minutes past every hour
+  workflow_dispatch:     # also manually triggerable from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch snapshot from Apps Script
+        env:
+          SHEETSYNC_URL: https://script.google.com/macros/s/AKfycbzSGPTbBnrfhSDdw_iOrfxAfGLYp08qpZwl8rqZSb90o_x5cUK7Eo1HYnrjk-hvJWE/exec
+        run: |
+          {
+            echo "// Auto-generated snapshot — refreshed by .github/workflows/snapshot.yml"
+            echo "// landing.js renders this immediately on page load (zero network),"
+            echo "// then fetches the live Apps Script endpoint and overlays any changes."
+            printf "window.__SNAPSHOT__ = "
+            curl -sL "${SHEETSYNC_URL}?public=1"
+            printf ";\n"
+          } > js/snapshot.js
+          wc -c js/snapshot.js
+          # Sanity check the JSON parses
+          node --check js/snapshot.js
+
+      - name: Commit if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet js/snapshot.js; then
+            echo "No changes — sheet hasn't moved since last refresh."
+          else
+            git add js/snapshot.js
+            git commit -m "snapshot: refresh from sheet"
+            git push
+          fi

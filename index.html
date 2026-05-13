@@ -822,6 +822,12 @@
   </script>
 
   <script src="./js/config.public.js"></script>
+  <!-- Snapshot of the latest sheet data, auto-refreshed by the GitHub
+       Action at .github/workflows/snapshot.yml. landing.js renders this
+       immediately on first paint (no network), then fetches the live
+       Apps Script endpoint and overlays any updates that have landed
+       since the last snapshot. -->
+  <script src="./js/snapshot.js"></script>
   <script src="./js/landing.js"></script>
 </body>
 </html>
