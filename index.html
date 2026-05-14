@@ -26,86 +26,27 @@
     <section class="intro">
       <p class="label" data-edit="heroEyebrow">Pertev Naili Boratav Arşivi</p>
       <h1 data-edit="heroHeadline">Bu hafta arşivde<br><em>ne yapıldı?</em></h1>
-      <p class="lede" id="lpHeroLede" data-edit="heroLede">7 günün özeti, sayfa saatte bir tazeleniyor.</p>
+      <p class="hero-period" id="lpHeroPeriod">Hafta · —</p>
+      <p class="lede" id="lpHeroLede" data-edit="heroLede">Haftanın özeti, sayfa düzenli olarak tazeleniyor.</p>
     </section>
 
-    <!-- ============ Şu an — live moment ============ -->
-    <article class="now" id="lpNow" hidden>
-      <span class="badge">Şu an</span>
-      <span class="clock" id="lpNowClock">—</span>
-      <div class="av" id="lpNowAvatar">·</div>
-      <div>
-        <p class="who"><em id="lpNowName">—</em> <span id="lpNowBox"></span></p>
-        <p class="what" id="lpNowWhat">son hareket bekleniyor<span class="cursor"></span></p>
-      </div>
-      <div class="pages"><span id="lpNowPages">—</span><small>Son kayıt</small></div>
-    </article>
-
     <!-- ============ Truth strip — selected period aggregate ============ -->
-    <section class="truth-strip" aria-label="Dönemin doğru özeti">
-      <div class="truth-head">
-        <p class="lbl" id="lpTruthLabel">Bu hafta</p>
-        <p class="note">Özetler tam dönem verisinden hesaplanır; son hareket akışı ayrı ve sınırlıdır.</p>
-      </div>
+    <section class="truth-strip" aria-label="Haftanın kısa özeti">
       <div><p class="v" id="lpTruthRecords">—</p><p class="k">kayıt</p></div>
       <div><p class="v" id="lpTruthPages">—</p><p class="k">sayfa/detay</p></div>
       <div><p class="v" id="lpTruthActivities">—</p><p class="k">faaliyet</p></div>
-      <div><p class="v" id="lpTruthMaterials">—</p><p class="k">malzeme türü</p></div>
       <div><p class="v" id="lpTruthVolunteers">—</p><p class="k">gönüllü katkısı</p></div>
       <div><p class="v" id="lpTruthBoxes">—</p><p class="k">aktif kutu</p></div>
+      <div><p class="v" id="lpTruthProgress">—</p><p class="k">toplam ilerleme</p></div>
     </section>
 
-    <!-- ============ Glance + sparkline + 4 stats ============ -->
-    <section class="glance" aria-label="Haftanın özeti">
-      <div>
-        <p class="lbl">Haftanın ritmi · bugüne kadar</p>
-        <p class="v"><em id="lpWeekTotal">—</em><small> kayıt</small></p>
-        <div class="spark" id="lpSpark"><!-- bars filled by JS --></div>
+    <!-- ============ Gönüllü katkıları ============ -->
+    <section class="recognition" id="lpVolunteers" hidden>
+      <div class="boxes-head">
+        <h3>Gönüllü katkıları <em>ve koordinasyon</em></h3>
+        <span class="meta" id="lpVolunteersMeta">—</span>
       </div>
-      <div>
-        <p class="lbl">Toplam ilerleme</p>
-        <p class="v"><em id="lpPct">—</em></p>
-        <p class="f"><span id="lpProgressTotals">— / —</span></p>
-      </div>
-      <div>
-        <p class="lbl">Envanteri girilmiş kutu</p>
-        <p class="v"><span id="lpBoxes">—</span><small id="lpBoxesOf"></small></p>
-        <p class="f"><span id="lpBoxesFoot">—</span></p>
-      </div>
-      <div>
-        <p class="lbl">Tamamlanan kutu</p>
-        <p class="v" style="color: var(--accent-deep);"><span id="lpDone">—</span><small> kutu</small></p>
-        <p class="f" id="lpDoneFoot">toplam</p>
-      </div>
-    </section>
-
-    <!-- ============ Bu haftanın işaretleri — 3 derived insights ============ -->
-    <section class="signals" id="lpSignals" hidden>
-      <article class="signal">
-        <p class="l" data-edit="signal1Label">Kayıt ayrımı</p>
-        <p class="h" id="lpSignal1Body" data-edit="signal1Body">—</p>
-        <p class="meta" id="lpSignal1Meta" data-edit="signal1Meta">—</p>
-      </article>
-      <article class="signal">
-        <p class="l" data-edit="signal2Label">En yoğun gün</p>
-        <p class="h" id="lpSignal2Body" data-edit="signal2Body">—</p>
-        <p class="meta" id="lpSignal2Meta" data-edit="signal2Meta">—</p>
-      </article>
-      <article class="signal">
-        <p class="l" data-edit="signal3Label">Malzeme odağı</p>
-        <p class="h" id="lpSignal3Body" data-edit="signal3Body">—</p>
-        <p class="meta" id="lpSignal3Meta" data-edit="signal3Meta">—</p>
-      </article>
-    </section>
-
-    <!-- ============ Çalışma alanı dağılımı ============ -->
-    <section class="mat" id="lpMat" hidden>
-      <div class="mat-head">
-        <h3>Malzeme <em>dağılımı</em></h3>
-        <span class="meta" id="lpMatMeta">bu hafta</span>
-      </div>
-      <div class="mat-bar" id="lpMatBar"></div>
-      <div class="mat-legend" id="lpMatLegend"></div>
+      <div class="vol-list" id="lpVolunteerRows"></div>
     </section>
 
     <!-- ============ Section: Haftanın günlüğü ============ -->
@@ -115,28 +56,23 @@
     </header>
     <section class="days" id="lpDays"></section>
 
-    <!-- ============ Gönüllü katkıları ============ -->
-    <section class="recognition" id="lpVolunteers" hidden>
-      <div class="boxes-head">
-        <h3>Gönüllü <em>katkıları</em></h3>
-        <span class="meta" id="lpVolunteersMeta">—</span>
-      </div>
-      <div class="vol-list" id="lpVolunteerRows"></div>
-    </section>
-
     <!-- ============ Aktif kutular bu hafta ============ -->
     <section class="boxes-week" id="lpBoxesWeek" hidden>
       <div class="boxes-head">
-        <h3>Aktif kutular <em>bu dönem</em></h3>
+        <h3>Aktif <em>kutular</em></h3>
         <span class="meta" id="lpBoxesWeekMeta">—</span>
       </div>
       <div id="lpBoxesWeekRows"></div>
     </section>
 
-    <!-- ============ Bu hafta ilk kez ============ -->
-    <section class="firsts" id="lpFirsts" hidden>
-      <h3>Veri <b>notları</b></h3>
-      <ul id="lpFirstsList"></ul>
+    <!-- ============ Malzeme dağılımı ============ -->
+    <section class="mat" id="lpMat" hidden>
+      <div class="mat-head">
+        <h3>Malzeme <em>dağılımı</em></h3>
+        <span class="meta" id="lpMatMeta">bu dönem</span>
+      </div>
+      <div class="mat-bar" id="lpMatBar"></div>
+      <div class="mat-legend" id="lpMatLegend"></div>
     </section>
 
     <!-- ============ Latest capped feed ============ -->

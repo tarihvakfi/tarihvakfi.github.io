@@ -30,6 +30,9 @@ TR_WEEKDAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumarte
 TR_MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
 UNNAMED = "Adı belirtilmeyen gönüllü"
 HIDDEN = "İsmini gizlemeyi tercih eden gönüllü"
+PUBLIC_ROLE_BY_NAME = {
+    "gulistan eren": "Gönüllü Koordinatörü",
+}
 
 
 def ascii_fold(value: Any) -> str:
@@ -298,6 +301,58 @@ def preferred_label(labels: list[str]) -> str:
     )[0]
 
 
+def is_public_named_label(label: Any) -> bool:
+    text = str(label or "").strip()
+    return bool(text and text not in {UNNAMED, HIDDEN} and not is_unsafe_public_identifier(text))
+
+
+def normalize_public_role(value: Any) -> str:
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
+    if not text:
+        return ""
+    folded = ascii_fold(text).lower()
+    if folded in {"false", "0", "no", "hayir", "hayır", "yok", "none", "null"}:
+        return ""
+    if is_unsafe_public_identifier(text) or len(text) > 80:
+        return ""
+    if not re.search(r"[A-Za-zÇĞİÖŞÜçğıöşü]", text):
+        return ""
+    return text
+
+
+def get_public_role(row: dict[str, Any], label: str) -> str:
+    role_keys = (
+        "role",
+        "gorev",
+        "public_role",
+        "publicrole",
+        "display_role",
+        "displayrole",
+        "coordinator",
+        "koordinator",
+        "koordinatör",
+    )
+    for key in role_keys:
+        if key not in row:
+            continue
+        raw = row.get(key)
+        folded = ascii_fold(raw).lower().strip()
+        if key in {"coordinator", "koordinator", "koordinatör"}:
+            if folded in {"true", "1", "yes", "evet", "x"} or "koordinator" in folded:
+                return "Gönüllü Koordinatörü"
+        role = normalize_public_role(raw)
+        if role:
+            return role
+    return PUBLIC_ROLE_BY_NAME.get(ascii_fold(label).lower().strip(), "")
+
+
+def preferred_role(roles: list[str], label: str) -> str:
+    clean = [normalize_public_role(role) for role in roles if normalize_public_role(role)]
+    if clean:
+        return Counter(clean).most_common(1)[0][0]
+    return PUBLIC_ROLE_BY_NAME.get(ascii_fold(label).lower().strip(), "")
+
+
 def sheet_person_from_title(title: str) -> str:
     parts = str(title or "").split()
     if not parts or parts[0].upper() != "PNB":
@@ -410,6 +465,7 @@ class SourceRecord:
     project_id: str
     private_key: str
     public_label: str
+    public_role: str
     credit_status: str
     box: str = ""
     page_units: int = 0
@@ -537,6 +593,7 @@ def collect_records(rows_by_sheet: dict[str, list[dict[str, Any]]], boxes: dict[
                 enriched = dict(row)
                 enriched["_sheet_person"] = sheet_person
                 label, status = get_volunteer_display_name(enriched)
+                role = get_public_role(enriched, label)
                 key = private_contributor_key(label, enriched)
                 box = public_box_label(row.get("kutu") or row.get("kutu_no"))
                 when = parse_sheet_datetime(row.get("tarih"))
@@ -549,6 +606,7 @@ def collect_records(rows_by_sheet: dict[str, list[dict[str, Any]]], boxes: dict[
                     project_id=PROJECT_ID,
                     private_key=key,
                     public_label=label,
+                    public_role=role,
                     credit_status=status,
                     box=box,
                     page_units=max(1, page_units),
@@ -567,6 +625,7 @@ def collect_records(rows_by_sheet: dict[str, list[dict[str, Any]]], boxes: dict[
         elif classification == "activity":
             for row in rows:
                 label, status = get_volunteer_display_name(row)
+                role = get_public_role(row, label)
                 key = private_contributor_key(label, row)
                 when = parse_sheet_datetime(row.get("tarih"))
                 records.append(SourceRecord(
@@ -578,6 +637,7 @@ def collect_records(rows_by_sheet: dict[str, list[dict[str, Any]]], boxes: dict[
                     project_id=row_project_id(row),
                     private_key=key,
                     public_label=label,
+                    public_role=role,
                     credit_status=status,
                     page_units=0,
                 ))
@@ -637,14 +697,29 @@ def material_list(counter: Counter[str]) -> list[dict[str, Any]]:
 def summarize_day(day: date, rows: list[SourceRecord]) -> dict[str, Any]:
     page_rows = [r for r in rows if r.kind == "page"]
     activity_rows = [r for r in rows if r.kind == "activity"]
-    by_volunteer_key: dict[str, list[str]] = defaultdict(list)
+    by_volunteer_key: dict[str, list[SourceRecord]] = defaultdict(list)
     for rec in rows:
         if rec.private_key:
-            by_volunteer_key[rec.private_key].append(rec.public_label)
-    volunteers = sorted(
-        [preferred_label(labels) for labels in by_volunteer_key.values()],
-        key=lambda s: ascii_fold(s).lower(),
-    )
+            by_volunteer_key[rec.private_key].append(rec)
+    contributors = []
+    for recs in by_volunteer_key.values():
+        label = preferred_label([r.public_label for r in recs])
+        if not is_public_named_label(label):
+            continue
+        role = preferred_role([r.public_role for r in recs], label)
+        c_page_rows = [r for r in recs if r.kind == "page"]
+        c_activity_rows = [r for r in recs if r.kind == "activity"]
+        contributors.append({
+            "label": label,
+            "publicRole": role,
+            "records": len(recs),
+            "pageRows": len(c_page_rows),
+            "activityRows": len(c_activity_rows),
+            "pagesDone": sum(r.page_units for r in c_page_rows),
+        })
+    contributors.sort(key=lambda item: ascii_fold(item["label"]).lower())
+    volunteers = [item["label"] for item in contributors if not item["publicRole"]]
+    coordination = [item for item in contributors if item["publicRole"]]
     boxes = sorted({public_box_label(r.box) for r in page_rows if r.box}, key=lambda s: ascii_fold(s))
     materials = Counter(r.material for r in rows if r.material)
     first = min((r.when for r in rows if r.when), default=None)
@@ -655,8 +730,8 @@ def summarize_day(day: date, rows: list[SourceRecord]) -> dict[str, Any]:
             parts.append(f"{len(page_rows)} sayfa/detay satırı")
         if activity_rows:
             parts.append(f"{len(activity_rows)} faaliyet kaydı")
-        if volunteers:
-            parts.append(f"{len(volunteers)} gönüllü")
+        if contributors:
+            parts.append(f"{len(contributors)} kişi")
         if boxes:
             parts.append(f"{len(boxes)} kutu")
         sentence = "Bugün " + ", ".join(parts) + " işlendi."
@@ -670,8 +745,10 @@ def summarize_day(day: date, rows: list[SourceRecord]) -> dict[str, Any]:
         "pageRows": len(page_rows),
         "activityRows": len(activity_rows),
         "pagesDone": sum(r.page_units for r in page_rows),
-        "volunteersCount": len(volunteers),
+        "volunteersCount": len(contributors),
         "volunteerNames": volunteers,
+        "coordination": coordination,
+        "contributors": contributors,
         "boxesCount": len(boxes),
         "boxLabels": [f"Kutu {box}" for box in boxes],
         "materials": material_list(materials),
@@ -717,8 +794,11 @@ def build_public_summary(
         contributors = []
         for private_key, count in contributor_counts.most_common(5):
             label = info.contributor_labels.get(private_key) or preferred_label([r.public_label for r in recs if r.private_key == private_key])
+            if not is_public_named_label(label):
+                continue
+            role = preferred_role([r.public_role for r in recs if r.private_key == private_key], label)
             page_count = sum(r.page_units for r in recs if r.private_key == private_key)
-            contributors.append({"label": label, "records": count, "pageRows": count, "pagesDone": page_count})
+            contributors.append({"label": label, "publicRole": role, "records": count, "pageRows": count, "pagesDone": page_count})
         boxes_payload.append({
             "box": info.box,
             "boxLabel": f"Kutu {info.box}",
@@ -738,7 +818,7 @@ def build_public_summary(
             "materials": material_list(Counter(r.material for r in recs)),
             "contributors": contributors,
             "topContributors": contributors,
-            "contributorsCount": len(contributor_counts),
+            "contributorsCount": len(contributors),
             "lastActivityDate": info.last_activity.isoformat() if info.last_activity else None,
             "lastActivityLabel": format_day_month(info.last_activity) if info.last_activity else None,
             "status": info.status,
@@ -754,6 +834,9 @@ def build_public_summary(
     volunteer_payload = []
     for private_key, recs in sorted(by_volunteer.items(), key=lambda item: (-len(item[1]), ascii_fold(item[0]))):
         label = preferred_label([r.public_label for r in recs if r.public_label])
+        if not is_public_named_label(label):
+            continue
+        role = preferred_role([r.public_role for r in recs], label)
         page_rows = [r for r in recs if r.kind == "page"]
         activity_rows = [r for r in recs if r.kind == "activity"]
         box_counts = Counter(public_box_label(r.box) for r in page_rows if r.box)
@@ -763,6 +846,7 @@ def build_public_summary(
         ]
         volunteer_payload.append({
             "label": label,
+            "publicRole": role,
             "records": len(recs),
             "pageRows": len(page_rows),
             "activityRows": len(activity_rows),
@@ -777,7 +861,7 @@ def build_public_summary(
     progress_percent = round((done_pages / target_pages) * 100, 1) if target_pages else 0
     inventory_boxes = [info for info in boxes.values() if info.target_pages or info.files or info.documents]
     completed_boxes = [info for info in inventory_boxes if info.status == "completed"]
-    named_period = {r.private_key for r in period_records if r.private_key}
+    named_period = {r.private_key for r in period_records if r.private_key and is_public_named_label(r.public_label)}
 
     warnings = []
     if done_pages > target_pages > 0:
@@ -846,7 +930,7 @@ def build_public_summary(
 
 
 def latest_activity(records: list[SourceRecord], limit: int = 50) -> list[dict[str, Any]]:
-    dated = [r for r in records if r.when]
+    dated = [r for r in records if r.when and is_public_named_label(r.public_label)]
     dated.sort(key=lambda r: r.when or datetime.min.replace(tzinfo=PUBLIC_TZ), reverse=True)
     return [{
         "when": rec.when.astimezone(timezone.utc).isoformat().replace("+00:00", "Z") if rec.when else None,
@@ -856,6 +940,7 @@ def latest_activity(records: list[SourceRecord], limit: int = 50) -> list[dict[s
         "material": rec.material,
         "projectId": rec.project_id,
         "volunteerLabel": rec.public_label,
+        "publicRole": rec.public_role,
         "boxLabel": f"Kutu {rec.box}" if rec.box else None,
         "pagesDone": rec.page_units,
     } for rec in dated[:limit]]
@@ -926,8 +1011,9 @@ def validate_summary(summary: dict[str, Any], payload: dict[str, Any] | None = N
         parsed = date.fromisoformat(day["dateISO"])
         if TR_WEEKDAYS[parsed.weekday()] != day.get("weekdayTR"):
             errors.append(f"weekday mismatch for {day.get('dateISO')}")
-        if day.get("records", 0) > 0 and day.get("volunteersCount", 0) == 0:
-            errors.append(f"{day.get('dateISO')} has records but 0 volunteers")
+        for label in day.get("volunteerNames") or []:
+            if label in {UNNAMED, HIDDEN} or is_unsafe_public_identifier(label):
+                errors.append(f"non-public volunteer label in day {day.get('dateISO')}: {label}")
     busiest = max(by_day, key=lambda d: d.get("records", 0), default=None)
     highlight = (summary.get("highlights") or {}).get("busiestDay") or {}
     if busiest and highlight and busiest.get("dateISO") != highlight.get("dateISO"):
@@ -943,8 +1029,12 @@ def validate_summary(summary: dict[str, Any], payload: dict[str, Any] | None = N
         errors.append("progress percent is not correctly rounded")
     for row in by_volunteer:
         label = row.get("label", "")
-        if is_unsafe_public_identifier(label):
+        if label in {UNNAMED, HIDDEN} or is_unsafe_public_identifier(label):
             errors.append(f"unsafe public volunteer label: {label}")
+    for row in latest:
+        label = row.get("volunteerLabel", "")
+        if label in {UNNAMED, HIDDEN} or is_unsafe_public_identifier(label):
+            errors.append(f"non-public volunteer label in latestActivity: {label}")
     for box in summary.get("byBox") or []:
         if box.get("target") and box.get("percent") != round((min(box.get("done", 0), box.get("target", 0)) / box.get("target")) * 100, 1):
             errors.append(f"active box percent mismatch: {box.get('label')}")

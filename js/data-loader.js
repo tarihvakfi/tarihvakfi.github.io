@@ -6,7 +6,7 @@
 
   const params = new URLSearchParams(location.search);
   const liveOnly = params.get('live') === '1';
-  const debug = params.get('debug') === '1' || U.isLocalPreview();
+  const debug = params.get('debug') === '1';
   let rendered = false;
 
   function renderPayload(raw, allowLegacy) {

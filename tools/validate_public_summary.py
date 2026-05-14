@@ -9,7 +9,7 @@ import re
 from datetime import date
 from pathlib import Path
 
-from audit_public_dashboard import TR_WEEKDAYS, is_unsafe_public_identifier
+from audit_public_dashboard import HIDDEN, TR_WEEKDAYS, UNNAMED, is_unsafe_public_identifier
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -58,8 +58,9 @@ def validate(payload: dict) -> list[str]:
         parsed = date.fromisoformat(day["dateISO"])
         if day.get("weekdayTR") != TR_WEEKDAYS[parsed.weekday()]:
             errors.append(f"weekday label mismatch for {day['dateISO']}")
-        if day.get("records", 0) > 0 and day.get("volunteersCount", 0) == 0:
-            errors.append(f"{day['dateISO']} has records but 0 volunteers")
+        for label in day.get("volunteerNames") or []:
+            if label in {UNNAMED, HIDDEN} or is_unsafe_public_identifier(label):
+                errors.append(f"non-public volunteer label in day {day['dateISO']}: {label}")
 
     busiest = max(by_day, key=lambda item: item.get("records", 0), default=None)
     highlighted = (summary.get("highlights") or {}).get("busiestDay") or {}
@@ -81,10 +82,19 @@ def validate(payload: dict) -> list[str]:
 
     for row in by_volunteer:
         label = row.get("label") or ""
-        if is_unsafe_public_identifier(label):
+        if label in {UNNAMED, HIDDEN} or is_unsafe_public_identifier(label):
             errors.append(f"unsafe public volunteer label: {label}")
         if re.search(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", label):
             errors.append(f"email-like volunteer label: {label}")
+    for row in latest:
+        label = row.get("volunteerLabel") or ""
+        if label in {UNNAMED, HIDDEN} or is_unsafe_public_identifier(label):
+            errors.append(f"non-public volunteer label in latestActivity: {label}")
+    for box in summary.get("byBox") or []:
+        for contributor in box.get("contributors") or []:
+            label = contributor.get("label") or ""
+            if label in {UNNAMED, HIDDEN} or is_unsafe_public_identifier(label):
+                errors.append(f"non-public volunteer label in box contributors: {label}")
 
     for box in summary.get("byBox") or []:
         if box.get("pageRows", 0) > 0 and box.get("done") is None:

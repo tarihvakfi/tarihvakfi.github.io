@@ -88,6 +88,14 @@ body.journal {
 }
 .intro .lede b { font-weight: 600; color: var(--ink); }
 .intro .lede em { font-style: italic; color: var(--accent); font-weight: 500; }
+.intro .hero-period {
+  margin: -4px 0 12px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
 
 /* Şu an */
 .now {
@@ -152,7 +160,7 @@ body.journal {
   border-bottom: 1px solid var(--rule);
   padding: 18px 0;
   display: grid;
-  grid-template-columns: 1.4fr repeat(6, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 14px;
   align-items: stretch;
 }
@@ -189,7 +197,6 @@ body.journal {
 }
 @media (max-width: 860px) {
   .truth-strip { grid-template-columns: repeat(3, 1fr); }
-  .truth-strip .truth-head { grid-column: 1 / -1; }
 }
 @media (max-width: 560px) {
   .truth-strip { grid-template-columns: repeat(2, 1fr); }
@@ -289,7 +296,7 @@ body.journal {
 
 /* Day entries */
 .days { margin-top: 4px; }
-.day { display: grid; grid-template-columns: 100px 1fr 150px; gap: 28px; padding: 26px 0; border-bottom: 1px dashed var(--rule); align-items: start; }
+.day { display: grid; grid-template-columns: 100px 1fr; gap: 28px; padding: 26px 0; border-bottom: 1px dashed var(--rule); align-items: start; }
 .day:last-child { border-bottom: 0; }
 @media (max-width: 760px) { .day { grid-template-columns: 90px 1fr; } .day .marg { display: none; } }
 .day .date { border-top: 2px solid var(--ink); padding-top: 8px; }
@@ -316,6 +323,11 @@ body.journal {
   padding-left: 10px; margin-left: 6px;
 }
 .day .body p { margin: 0 0 10px; font-size: 16.5px; line-height: 1.7; }
+.day .body .day-metrics {
+  font-size: 17px;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+}
 .day .body em.name { font-style: italic; color: var(--accent); font-weight: 600; }
 .day .body .tag {
   display: inline-block;
@@ -374,7 +386,7 @@ body.journal {
   color: var(--accent); border: 1px solid var(--accent);
 }
 .day.today .date .dom { color: var(--accent); }
-.day.today .body p:first-of-type::first-letter {
+.day.today:not(.quiet) .body p:first-of-type::first-letter {
   font-family: 'Crimson Pro', serif; font-size: 52px;
   float: left; line-height: 0.85;
   margin: 4px 8px -4px 0;
@@ -392,7 +404,7 @@ body.journal {
 .boxes-week h3 em { font-style: italic; color: var(--accent); }
 .boxes-week .meta { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
 .box-card {
-  padding: 18px 0 16px;
+  padding: 22px 0 20px;
   border-bottom: 1px dashed var(--rule-soft);
 }
 .box-card:last-child { border-bottom: 0; }
@@ -433,14 +445,32 @@ body.journal {
   height: 100%;
   background: var(--accent);
 }
-.box-card-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
+.box-card-body {
+  display: grid;
+  gap: 6px;
   font-family: 'DM Mono', monospace;
   font-size: 10.5px;
   letter-spacing: 0.08em;
   color: var(--ink-mute);
+}
+.box-card-body p { margin: 0; }
+.box-contributors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 12px;
+  align-items: baseline;
+}
+.box-contributors .box-minihead {
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+.box-contributors b {
+  font-family: 'Crimson Pro', serif;
+  color: var(--accent);
+  font-size: 14px;
+  font-style: italic;
+  letter-spacing: 0;
 }
 .box-row { display: grid; grid-template-columns: 60px 1fr 130px 80px 70px; gap: 14px; padding: 12px 0; border-bottom: 1px dashed var(--rule-soft); align-items: center; font-size: 14.5px; }
 .box-row:last-child { border-bottom: 0; }
@@ -453,21 +483,21 @@ body.journal {
 .box-row .pct.done { color: var(--accent-deep); }
 
 /* Volunteer recognition */
-.recognition { margin-top: 54px; }
+.recognition { margin-top: 48px; }
 .recognition h3 { font-family: 'Crimson Pro', serif; font-size: 22px; font-weight: 500; margin: 0; }
 .recognition h3 em { font-style: italic; color: var(--accent); }
 .recognition .meta { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
 .vol-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 18px;
+  gap: 14px 24px;
 }
 .vol-row {
   display: grid;
   grid-template-columns: 38px 1fr auto;
   gap: 12px;
   align-items: center;
-  padding: 13px 0;
+  padding: 15px 0;
   border-bottom: 1px dashed var(--rule-soft);
 }
 .vol-avatar {
@@ -569,6 +599,13 @@ body.journal {
 .latest-main {
   font-size: 14.5px;
   color: var(--ink-soft);
+}
+.latest-main strong {
+  font-family: 'Crimson Pro', serif;
+  font-size: 16px;
+  font-style: italic;
+  font-weight: 500;
+  color: var(--ink);
 }
 .latest-count {
   color: var(--accent);

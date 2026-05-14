@@ -17,6 +17,9 @@ const TVF_TR_WEEKDAYS = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma'
 const TVF_TR_MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
 const TVF_UNNAMED = 'Adı belirtilmeyen gönüllü';
 const TVF_HIDDEN = 'İsmini gizlemeyi tercih eden gönüllü';
+const TVF_PUBLIC_ROLE_BY_NAME = {
+  'gulistan eren': 'Gönüllü Koordinatörü'
+};
 
 function doGet(e) {
   try {
@@ -101,21 +104,25 @@ function buildPublicSummaryFromRows(records, inventory, inventoryTotals, now, mo
     const contributorCounts = {};
     rows.forEach(function (record) {
       const ckey = record.privateKey || 'unnamed';
-      if (!contributorCounts[ckey]) contributorCounts[ckey] = { labels: [], records: 0, pagesDone: 0 };
+      if (!contributorCounts[ckey]) contributorCounts[ckey] = { labels: [], roles: [], records: 0, pagesDone: 0 };
       contributorCounts[ckey].labels.push(record.publicLabel);
+      contributorCounts[ckey].roles.push(record.publicRole || '');
       contributorCounts[ckey].records += 1;
       contributorCounts[ckey].pagesDone += Number(record.pageUnits || 0);
     });
     const contributors = Object.keys(contributorCounts).sort(function (a, b) {
       return contributorCounts[b].records - contributorCounts[a].records;
-    }).slice(0, 5).map(function (ckey) {
+    }).map(function (ckey) {
+      const label = preferredVolunteerLabel_(contributorCounts[ckey].labels);
+      if (!isPublicNamedLabel_(label)) return null;
       return {
-        label: preferredVolunteerLabel_(contributorCounts[ckey].labels),
+        label: label,
+        publicRole: preferredPublicRole_(contributorCounts[ckey].roles || [], label),
         records: contributorCounts[ckey].records,
         pageRows: contributorCounts[ckey].records,
         pagesDone: contributorCounts[ckey].pagesDone
       };
-    });
+    }).filter(Boolean).slice(0, 5);
     const material = {};
     rows.forEach(function (record) { inc_(material, record.material || 'belgeler', 1); });
     const done = Math.max(Number(info.summaryDonePages || 0), Number(info.detailDonePages || 0));
@@ -160,6 +167,9 @@ function buildPublicSummaryFromRows(records, inventory, inventoryTotals, now, mo
     return byVolunteerGroups[b].length - byVolunteerGroups[a].length || a.localeCompare(b);
   }).map(function (key) {
     const rows = byVolunteerGroups[key];
+    const label = preferredVolunteerLabel_(rows.map(function (record) { return record.publicLabel; }));
+    if (!isPublicNamedLabel_(label)) return null;
+    const role = preferredPublicRole_(rows.map(function (record) { return record.publicRole; }), label);
     const pageRows = rows.filter(function (record) { return record.kind === 'page'; });
     const boxCounts = {};
     pageRows.forEach(function (record) {
@@ -167,7 +177,8 @@ function buildPublicSummaryFromRows(records, inventory, inventoryTotals, now, mo
     });
     const boxes = Object.keys(boxCounts).sort(function (a, b) { return boxCounts[b] - boxCounts[a]; });
     return {
-      label: preferredVolunteerLabel_(rows.map(function (record) { return record.publicLabel; })),
+      label: label,
+      publicRole: role,
       records: rows.length,
       pageRows: pageRows.length,
       activityRows: rows.length - pageRows.length,
@@ -178,6 +189,10 @@ function buildPublicSummaryFromRows(records, inventory, inventoryTotals, now, mo
         return { boxLabel: boxLabel, records: boxCounts[boxLabel] };
       })
     };
+  }).filter(Boolean);
+  const namedVolunteerKeys = {};
+  periodRecords.forEach(function (record) {
+    if (record.privateKey && isPublicNamedLabel_(record.publicLabel)) namedVolunteerKeys[record.privateKey] = true;
   });
 
   const targetPages = Number(inventoryTotals.totalPages || 0);
@@ -216,8 +231,8 @@ function buildPublicSummaryFromRows(records, inventory, inventoryTotals, now, mo
       boxesActive: Object.keys(recordsByBox).length,
       boxesCompleted: completedBoxes.length,
       boxesRemaining: inventoryBoxes.length ? Math.max(0, inventoryBoxes.length - completedBoxes.length) : null,
-      volunteersActive: Object.keys(byVolunteerGroups).length,
-      volunteers: Object.keys(byVolunteerGroups).length,
+      volunteersActive: Object.keys(namedVolunteerKeys).length,
+      volunteers: Object.keys(namedVolunteerKeys).length,
       materials: byMaterial.length
     },
     byDay: byDay,
@@ -348,6 +363,7 @@ function collectPublicRecords_(rowsBySheet, inventory) {
         const enriched = copyObject_(row);
         enriched._sheetPerson = sheetPerson;
         const label = getVolunteerDisplayName_(enriched);
+        const publicRole = getPublicRole_(enriched, label);
         const when = parseSheetDate_(row.tarih);
         const pageUnits = hasSayfaSayisi ? Math.max(1, Math.round(parseDoneTotal_(row.sayfaSayisi).done || parseDoneTotal_(row.sayfaSayisi).total || 1)) : 1;
         const box = publicBoxLabel_(row.kutu || row.kutuNo);
@@ -360,6 +376,7 @@ function collectPublicRecords_(rowsBySheet, inventory) {
           projectId: TVF_PROJECT_ID,
           privateKey: contributorKey_(label),
           publicLabel: label,
+          publicRole: publicRole,
           creditStatus: creditStatus_(enriched),
           box: box,
           pageUnits: pageUnits
@@ -380,6 +397,7 @@ function collectPublicRecords_(rowsBySheet, inventory) {
     } else if (classification === 'activity') {
       rows.forEach(function (row) {
         const label = getVolunteerDisplayName_(row);
+        const publicRole = getPublicRole_(row, label);
         const when = parseSheetDate_(row.tarih);
         records.push({
           kind: 'activity',
@@ -390,6 +408,7 @@ function collectPublicRecords_(rowsBySheet, inventory) {
           projectId: projectIdFromRow_(row),
           privateKey: contributorKey_(label),
           publicLabel: label,
+          publicRole: publicRole,
           creditStatus: creditStatus_(row),
           box: '',
           pageUnits: 0
@@ -402,7 +421,7 @@ function collectPublicRecords_(rowsBySheet, inventory) {
 
 function latestActivity_(records, limit) {
   return records.filter(function (record) {
-    return record.when instanceof Date && !isNaN(record.when.getTime());
+    return record.when instanceof Date && !isNaN(record.when.getTime()) && isPublicNamedLabel_(record.publicLabel);
   }).sort(function (a, b) {
     return b.when.getTime() - a.when.getTime();
   }).slice(0, limit || TVF_LATEST_LIMIT).map(function (record) {
@@ -414,6 +433,7 @@ function latestActivity_(records, limit) {
       material: record.material,
       projectId: record.projectId,
       volunteerLabel: record.publicLabel,
+      publicRole: record.publicRole || '',
       boxLabel: record.box ? ('Kutu ' + record.box) : null,
       pagesDone: record.pageUnits
     };
@@ -430,19 +450,35 @@ function daySummary_(dateISO, rows) {
   let last = null;
   rows.forEach(function (record) {
     if (!volunteers[record.privateKey]) volunteers[record.privateKey] = [];
-    volunteers[record.privateKey].push(record.publicLabel);
+    volunteers[record.privateKey].push(record);
     if (record.box) boxes[normalizeBox_(record.box)] = 'Kutu ' + record.box;
     inc_(materials, record.material || 'belgeler', 1);
     if (record.when && (!first || record.when.getTime() < first.getTime())) first = record.when;
     if (record.when && (!last || record.when.getTime() > last.getTime())) last = record.when;
   });
-  const volunteerNames = Object.keys(volunteers).map(function (key) {
-    return preferredVolunteerLabel_(volunteers[key]);
-  }).sort(function (a, b) { return asciiFold_(a).localeCompare(asciiFold_(b)); });
+  const contributors = Object.keys(volunteers).map(function (key) {
+    const recs = volunteers[key];
+    const label = preferredVolunteerLabel_(recs.map(function (record) { return record.publicLabel; }));
+    if (!isPublicNamedLabel_(label)) return null;
+    const contributorPageRows = recs.filter(function (record) { return record.kind === 'page'; });
+    const contributorActivityRows = recs.filter(function (record) { return record.kind === 'activity'; });
+    return {
+      label: label,
+      publicRole: preferredPublicRole_(recs.map(function (record) { return record.publicRole; }), label),
+      records: recs.length,
+      pageRows: contributorPageRows.length,
+      activityRows: contributorActivityRows.length,
+      pagesDone: contributorPageRows.reduce(function (sum, record) { return sum + Number(record.pageUnits || 1); }, 0)
+    };
+  }).filter(Boolean).sort(function (a, b) { return asciiFold_(a.label).localeCompare(asciiFold_(b.label)); });
+  const volunteerNames = contributors.filter(function (item) {
+    return !item.publicRole;
+  }).map(function (item) { return item.label; });
+  const coordination = contributors.filter(function (item) { return item.publicRole; });
   const parts = [];
   if (pageRows.length) parts.push(pageRows.length + ' sayfa/detay satırı');
   if (activityRows.length) parts.push(activityRows.length + ' faaliyet kaydı');
-  if (volunteerNames.length) parts.push(volunteerNames.length + ' gönüllü');
+  if (contributors.length) parts.push(contributors.length + ' kişi');
   if (Object.keys(boxes).length) parts.push(Object.keys(boxes).length + ' kutu');
   return {
     dateISO: dateISO,
@@ -452,8 +488,10 @@ function daySummary_(dateISO, rows) {
     pageRows: pageRows.length,
     activityRows: activityRows.length,
     pagesDone: pageRows.reduce(function (sum, record) { return sum + Number(record.pageUnits || 1); }, 0),
-    volunteersCount: volunteerNames.length,
+    volunteersCount: contributors.length,
     volunteerNames: volunteerNames,
+    coordination: coordination,
+    contributors: contributors,
     boxesCount: Object.keys(boxes).length,
     boxLabels: Object.keys(boxes).map(function (key) { return boxes[key]; }).sort(),
     materials: counterToRows_(materials),
@@ -546,6 +584,57 @@ function isUnsafePublicIdentifier_(value) {
     if (words.length < 2 || vowels.length < 2) return true;
   }
   return false;
+}
+
+function isPublicNamedLabel_(label) {
+  const text = String(label == null ? '' : label).trim();
+  return !!(text && text !== TVF_UNNAMED && text !== TVF_HIDDEN && !isUnsafePublicIdentifier_(text));
+}
+
+function normalizePublicRole_(value) {
+  const text = String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+  const folded = asciiFold_(text).toLowerCase();
+  if (['false', '0', 'no', 'hayir', 'hayır', 'yok', 'none', 'null'].indexOf(folded) >= 0) return '';
+  if (isUnsafePublicIdentifier_(text) || text.length > 80) return '';
+  if (!/[A-Za-zÇĞİÖŞÜçğıöşü]/.test(text)) return '';
+  return text;
+}
+
+function getPublicRole_(row, label) {
+  const candidates = [
+    row.role,
+    row.gorev,
+    row.publicRole,
+    row.publicrole,
+    row.public_role,
+    row.displayRole,
+    row.displayrole,
+    row.display_role
+  ];
+  for (let i = 0; i < candidates.length; i++) {
+    const role = normalizePublicRole_(candidates[i]);
+    if (role) return role;
+  }
+  const coordinator = row.coordinator || row.koordinator || row.koordinatör;
+  const folded = asciiFold_(coordinator).toLowerCase().trim();
+  if (['true', '1', 'yes', 'evet', 'x'].indexOf(folded) >= 0 || folded.indexOf('koordinator') >= 0) {
+    return 'Gönüllü Koordinatörü';
+  }
+  return TVF_PUBLIC_ROLE_BY_NAME[asciiFold_(label).toLowerCase().trim()] || '';
+}
+
+function preferredPublicRole_(roles, label) {
+  const counts = {};
+  (roles || []).forEach(function (role) {
+    const clean = normalizePublicRole_(role);
+    if (clean) inc_(counts, clean, 1);
+  });
+  const keys = Object.keys(counts);
+  if (keys.length) {
+    return keys.sort(function (a, b) { return counts[b] - counts[a] || a.localeCompare(b); })[0];
+  }
+  return TVF_PUBLIC_ROLE_BY_NAME[asciiFold_(label).toLowerCase().trim()] || '';
 }
 
 function contributorKey_(label) {

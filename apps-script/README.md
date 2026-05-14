@@ -31,9 +31,10 @@ The public display mode is **credit-visible, ID-safe volunteer display**:
 
 - real names in `Paydaş` / `Kaydı Oluşuran` are shown;
 - explicit public display names are honored;
+- public roles in `role`, `görev`, `publicRole`, `displayRole`, `coordinator`, or `koordinatör` are shown with the credited person;
 - explicit opt-out fields hide the name;
 - emails, UUIDs, hashes, opaque IDs, and tokens are suppressed;
-- missing names become `Adı belirtilmeyen gönüllü`.
+- rows without a usable name remain in totals, but do not create a public volunteer identity.
 
 The endpoint must not emit emails, raw row IDs, private notes, URLs, scanner labels, private volunteer IDs, credentials, or raw spreadsheet rows.
 

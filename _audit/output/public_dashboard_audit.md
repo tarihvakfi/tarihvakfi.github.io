@@ -1,7 +1,7 @@
 # Public Dashboard Audit
 
 - Workbook: `Tarih Vakfı Gönüllü Ağı.xlsx`
-- Generated at: `2026-05-14T21:03:06.791327Z`
+- Generated at: `2026-05-14T22:23:42.668841Z`
 - Selected public period: `11–17 Mayıs haftası · bugüne kadar` (`calendar_week_to_date`)
 - Volunteer credit mode: **credit-visible, ID-safe volunteer display**
 
@@ -34,17 +34,17 @@
 
 | Period | Records | Page/detail | Activity | Volunteers | Active boxes |
 |---|---:|---:|---:|---:|---:|
-| 11–17 Mayıs haftası · bugüne kadar | 219 | 205 | 14 | 6 | 2 |
-| Son 7 gün | 219 | 205 | 14 | 6 | 2 |
+| 11–17 Mayıs haftası · bugüne kadar | 219 | 205 | 14 | 5 | 2 |
+| Son 7 gün | 219 | 205 | 14 | 5 | 2 |
 
 ## Daily Ledger
 
 | Date | Weekday | Records | Page/detail | Activity | Volunteers | Names | Boxes |
 |---|---|---:|---:|---:|---:|---|---|
-| 2026-05-11 | Pazartesi | 44 | 40 | 4 | 4 | Arda Tuzkapı, Aysu Balta, Gülistan Eren, Lara Gülmez | Kutu I2 |
-| 2026-05-12 | Salı | 103 | 99 | 4 | 4 | Aysu Balta, Gülistan Eren, Lara Gülmez, Sibel Dağ | Kutu 16 |
-| 2026-05-13 | Çarşamba | 69 | 66 | 3 | 3 | Adı belirtilmeyen gönüllü, Gülistan Eren, Lara Gülmez | Kutu 16 |
-| 2026-05-14 | Perşembe | 3 | 0 | 3 | 2 | Adı belirtilmeyen gönüllü, Gülistan Eren |  |
+| 2026-05-11 | Pazartesi | 44 | 40 | 4 | 4 | Arda Tuzkapı, Aysu Balta, Lara Gülmez | Kutu I2 |
+| 2026-05-12 | Salı | 103 | 99 | 4 | 4 | Aysu Balta, Lara Gülmez, Sibel Dağ | Kutu 16 |
+| 2026-05-13 | Çarşamba | 69 | 66 | 3 | 2 | Lara Gülmez | Kutu 16 |
+| 2026-05-14 | Perşembe | 3 | 0 | 3 | 1 |  |  |
 | 2026-05-15 | Cuma | 0 | 0 | 0 | 0 |  |  |
 
 ## Material Distribution
@@ -66,7 +66,6 @@
 | Lara Gülmez | 69 | 66 | 3 | Kutu 16 |
 | Aysu Balta | 42 | 40 | 2 | Kutu I2 |
 | Gülistan Eren | 4 | 0 | 4 |  |
-| Adı belirtilmeyen gönüllü | 3 | 0 | 3 |  |
 | Arda Tuzkapı | 1 | 0 | 1 |  |
 
 ## Box-Progress Completeness

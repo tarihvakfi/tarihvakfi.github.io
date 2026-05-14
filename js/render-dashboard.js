@@ -45,11 +45,12 @@
 
   function hydrateMasthead(summary) {
     setText('lpWeekLabel', summary.period && summary.period.label ? summary.period.label : 'Bu hafta');
+    setText('lpHeroPeriod', summary.period && summary.period.label ? summary.period.label : 'Bu hafta');
     const sync = document.getElementById('lpSyncLabel');
     if (sync) sync.textContent = summary.generatedAt ? `son güncelleme ${U.relativeDate(summary.generatedAt)}` : 'senkron bekleniyor';
     const lede = document.getElementById('lpHeroLede');
     if (lede && summary.totals) {
-      lede.innerHTML = `${U.escapeHtml(summary.period.label || 'Bu hafta')}: <b>${U.formatNum(summary.totals.records)} kayıt</b>, ${U.formatNum(summary.totals.pageRows)} sayfa/detay satırı ve ${U.formatNum(summary.totals.activityRows)} faaliyet kaydı.`;
+      lede.innerHTML = `Bu hafta <b>${U.formatNum(summary.totals.records)} kayıt</b> girildi: ${U.formatNum(summary.totals.pageRows)} sayfa/detay satırı ve ${U.formatNum(summary.totals.activityRows)} faaliyet kaydı.`;
     }
   }
 
@@ -61,7 +62,11 @@
       block.setAttribute('hidden', '');
       return;
     }
-    const label = safeVolunteerLabel(latest.volunteerLabel);
+    const label = publicVolunteerLabel(latest.volunteerLabel);
+    if (!label) {
+      block.setAttribute('hidden', '');
+      return;
+    }
     setText('lpNowAvatar', U.initialOf(label));
     setText('lpNowName', label);
     setText('lpNowBox', latest.boxLabel ? `${latest.boxLabel} üzerinde` : '');
@@ -78,14 +83,13 @@
 
   function hydrateTruth(summary) {
     const totals = summary.totals || {};
-    const periodLabel = summary.period && summary.period.mode === 'rolling_7_days' ? 'Son 7 gün' : 'Bu hafta';
-    setText('lpTruthLabel', periodLabel);
+    const publicVolunteerCount = publicVolunteerRows(summary).length || totals.volunteersActive || totals.volunteers || 0;
     setText('lpTruthRecords', U.formatNum(totals.records));
     setText('lpTruthPages', U.formatNum(totals.pageRows));
     setText('lpTruthActivities', U.formatNum(totals.activityRows));
-    setText('lpTruthMaterials', U.formatNum(totals.materials));
-    setText('lpTruthVolunteers', U.formatNum(totals.volunteersActive || totals.volunteers || 0));
+    setText('lpTruthVolunteers', U.formatNum(publicVolunteerCount));
     setText('lpTruthBoxes', U.formatNum(totals.boxesActive));
+    setText('lpTruthProgress', totals.pagesTarget > 0 ? `%${U.formatPct(totals.progressPercent)}` : '—');
   }
 
   function hydrateGlance(summary) {
@@ -101,7 +105,7 @@
       ? `${U.formatNum(totals.boxesActive)} kutuda bu dönem hareket var`
       : 'bu dönem hareket yok');
     setText('lpDone', U.formatNum(totals.boxesCompleted || 0));
-    setText('lpDoneFoot', 'tamamlanan kutu');
+    setText('lpDoneFoot', totals.boxesCompleted ? 'tamamlanan kutu' : 'Henüz tamamlanan kutu yok');
 
     const spark = document.getElementById('lpSpark');
     if (!spark) return;
@@ -171,7 +175,7 @@
         `<div class="row"><span class="dot" style="background:${palette[idx] || palette[5]};"></span><span>${U.escapeHtml(row.label || row.material)}</span><span class="pct">%${U.formatPct(row.percent)} · ${U.formatNum(row.count)}</span></div>`
       )).join('');
     }
-    setText('lpMatMeta', `${summary.period.label} · ${U.formatNum(total)} kayıt`);
+    setText('lpMatMeta', 'bu dönem');
     block.removeAttribute('hidden');
   }
 
@@ -180,7 +184,7 @@
     if (!wrap) return;
     const days = Array.isArray(summary.byDay) ? summary.byDay : [];
     wrap.innerHTML = days.map(renderDay).join('');
-    setText('lpDaysTag', `${summary.period.label} · ${days.length} gün`);
+    setText('lpDaysTag', `${days.length} gün`);
   }
 
   function renderDay(day) {
@@ -191,13 +195,25 @@
       return `<article class="${cls}">
         <div class="date"><div class="dn">${U.escapeHtml(day.weekdayTR)}</div><div class="dom">${String(day.dayNumber).padStart(2, '0')}</div><div class="opens">—</div></div>
         <div class="body"><p>Bu gün için kayıt görünmüyor.</p></div>
-        <aside class="marg"><span class="stamp sessiz">sessiz</span></aside>
       </article>`;
     }
-    const names = Array.isArray(day.volunteerNames) ? day.volunteerNames.map(safeVolunteerLabel).filter(Boolean) : [];
-    const nameLine = names.length ? `${U.formatNum(day.volunteersCount)} gönüllü: ${names.slice(0, 5).map(U.escapeHtml).join(', ')}${names.length > 5 ? '…' : ''}` : `${U.formatNum(day.volunteersCount)} gönüllü`;
-    const materialText = (day.materials || []).slice(0, 2).map((item) => `${item.label}: ${U.formatNum(item.count)}`).join(' · ');
+    const contributors = publicContributorRows(day.contributors || []);
+    const coordination = publicContributorRows(day.coordination || contributors.filter((item) => item.publicRole));
+    const names = contributors.length
+      ? contributors.filter((item) => !item.publicRole).map((item) => item.label)
+      : uniquePublicNames(day.volunteerNames || []);
+    const nameLine = names.length ? `Gönüllüler: ${names.map(U.escapeHtml).join(', ')}` : '';
+    const coordinationLine = coordination.length
+      ? `Koordinasyon: ${coordination.map(formatRoleContributor).join(', ')}`
+      : '';
+    const materialText = (day.materials || []).slice(0, 3).map(materialPhrase).join(' · ');
     const boxText = (day.boxLabels || []).slice(0, 3).join(', ');
+    const boxCount = Number(day.boxesCount || (day.boxLabels || []).length || 0);
+    const dailyBits = [
+      `${U.formatNum(day.pageRows)} sayfa/detay`,
+      `${U.formatNum(day.activityRows)} faaliyet`
+    ];
+    if (boxCount) dailyBits.push(`${U.formatNum(boxCount)} kutu`);
     return `<article class="${cls}">
       <div class="date">
         <div class="dn">${U.escapeHtml(day.weekdayTR)}</div>
@@ -206,23 +222,15 @@
       </div>
       <div class="body">
         <div class="head">
-          <div class="avs">${avatarDots(day.volunteersCount, names)}</div>
-          <span class="ana">${U.formatNum(day.records)} kayıt · ${U.escapeHtml(nameLine)}</span>
+          ${contributors.length || names.length ? `<div class="avs">${avatarDots(contributors.length || names.length, (contributors.length ? contributors.map((item) => item.label) : names))}</div>` : ''}
+          <span class="ana">${U.formatNum(day.records)} kayıt</span>
         </div>
-        <p>${U.escapeHtml(day.summarySentence)}</p>
-        ${boxText ? `<p class="ledger-meta">Kutular: ${U.escapeHtml(boxText)}</p>` : ''}
-        ${materialText ? `<p class="ledger-meta">${U.escapeHtml(materialText)}</p>` : ''}
-        <div class="insight"><span class="k">özet</span>Bugün <b>${U.formatNum(day.pageRows)} sayfa/detay</b> ve <b>${U.formatNum(day.activityRows)} faaliyet</b> kaydı var.</div>
+        <p class="day-metrics">${U.escapeHtml(dailyBits.join(' · '))}</p>
+        ${nameLine ? `<p class="ledger-meta">${nameLine}</p>` : ''}
+        ${coordinationLine ? `<p class="ledger-meta">${coordinationLine}</p>` : ''}
+        ${boxText ? `<p class="ledger-meta">Kutu: ${U.escapeHtml(boxText)}</p>` : ''}
+        ${materialText ? `<p class="ledger-meta">Malzeme: ${U.escapeHtml(materialText)}</p>` : ''}
       </div>
-      <aside class="marg">
-        <div class="stat-block">
-          <span><b>${U.formatNum(day.records)}</b> kayıt</span>
-          <span>${U.formatNum(day.pageRows)} sayfa/detay</span>
-          <span>${U.formatNum(day.activityRows)} faaliyet</span>
-          <span>${U.formatNum(day.boxesCount)} kutu</span>
-        </div>
-        <span class="stamp sururyor">${today ? 'bugün' : 'işlendi'}</span>
-      </aside>
     </article>`;
   }
 
@@ -230,25 +238,29 @@
     const block = document.getElementById('lpVolunteers');
     const list = document.getElementById('lpVolunteerRows');
     if (!block || !list) return;
-    const rows = Array.isArray(summary.byVolunteer) ? summary.byVolunteer.slice(0, 12) : [];
+    const rows = publicVolunteerRows(summary).slice(0, 12);
     if (!rows.length) {
       block.setAttribute('hidden', '');
       return;
     }
-    setText('lpVolunteersMeta', `${summary.period.label} · ${U.formatNum(summary.totals.volunteersActive || rows.length)} gönüllü`);
+    setText('lpVolunteersMeta', `${U.formatNum(rows.length)} kişi`);
     list.innerHTML = rows.map((row) => {
-      const label = safeVolunteerLabel(row.label);
+      const label = publicVolunteerLabel(row.label);
       const boxBreakdown = Array.isArray(row.boxBreakdown) && row.boxBreakdown.length
-        ? row.boxBreakdown.slice(0, 3).map((item) => `${item.boxLabel} · ${U.formatNum(item.records)} sayfa/detay`).join(' · ')
+        ? row.boxBreakdown.slice(0, 3).map((item) => `${item.boxLabel}`).join(' · ')
         : (row.topBox || 'Genel faaliyet');
       const unitParts = [];
-      if (row.activityRows) unitParts.push(`${U.formatNum(row.activityRows)} faaliyet`);
-      unitParts.push(`${U.formatNum(row.records)} kayıt`);
+      if (row.pageRows) unitParts.push(`${U.formatNum(row.pageRows)} sayfa/detay`);
+      if (row.activityRows) unitParts.push(`${U.formatNum(row.activityRows)} faaliyet kaydı`);
+      if (!unitParts.length) unitParts.push(`${U.formatNum(row.records)} kayıt`);
+      const meta = row.publicRole
+        ? `${row.publicRole} · ${unitParts.join(' · ')}`
+        : `${boxBreakdown} · ${unitParts.join(' · ')}`;
       return `<article class="vol-row">
         <div class="vol-avatar">${U.escapeHtml(U.initialOf(label))}</div>
         <div>
           <p class="vol-name">${U.escapeHtml(label)}</p>
-          <p class="vol-meta">${U.escapeHtml(boxBreakdown)} · ${U.escapeHtml(unitParts.join(' · '))}</p>
+          <p class="vol-meta">${U.escapeHtml(meta)}</p>
         </div>
         <span class="vol-pages">${U.formatNum(row.pagesDone || row.records)}</span>
       </article>`;
@@ -265,7 +277,7 @@
       block.setAttribute('hidden', '');
       return;
     }
-    setText('lpBoxesWeekMeta', `${summary.period.label} · ${U.formatNum(boxes.length)} kutu`);
+    setText('lpBoxesWeekMeta', `${U.formatNum(boxes.length)} kutu`);
     rows.innerHTML = boxes.map((box) => {
       const pct = box.percent == null ? null : Number(box.percent);
       const progressWidth = pct == null ? 100 : Math.max(2, Math.min(100, pct));
@@ -274,10 +286,11 @@
         : `${U.formatNum(box.done)} sayfa işlendi · hedef eksik`;
       const remaining = box.target ? `Kalan: ${U.formatNum(box.remaining)} sayfa` : 'Hedef eksik';
       const contributors = (box.contributors || box.topContributors || [])
+        .filter((item) => isPublicVolunteerName(item.label))
         .slice(0, 4)
-        .map((item) => `${safeVolunteerLabel(item.label)} +${U.formatNum(item.records || item.pageRows || 0)}`)
-        .join(' · ');
-      const material = (box.materialCounts || box.materials || []).slice(0, 2).map((item) => `${item.label}: ${U.formatNum(item.count)}`).join(' · ');
+        .map((item) => `<span>${U.escapeHtml(publicVolunteerLabel(item.label))} <b>+${U.formatNum(item.pageRows || item.records || 0)}</b></span>`)
+        .join('');
+      const material = (box.materialCounts || box.materials || []).slice(0, 2).map(materialPhrase).join(' · ');
       return `<article class="box-card">
         <div class="box-card-head">
           <div>
@@ -287,12 +300,11 @@
           <span class="box-period">+${U.formatNum(box.periodPageRows || box.pageRows || box.periodRecords || 0)} kayıt</span>
         </div>
         <div class="box-progress" aria-hidden="true"><span style="width:${progressWidth}%"></span></div>
-        <div class="box-card-meta">
-          <span>${U.formatNum(box.contributorsCount || (box.contributors || []).length || 0)} gönüllü katkı verdi</span>
-          <span>Son hareket: ${U.escapeHtml(U.formatDayMonth(box.lastActivityDate))}</span>
-          <span>${U.escapeHtml(remaining)}</span>
-          ${contributors ? `<span>${U.escapeHtml(contributors)}</span>` : ''}
-          ${material ? `<span>${U.escapeHtml(material)}</span>` : ''}
+        <div class="box-card-body">
+          <p>${U.escapeHtml(remaining)}</p>
+          ${contributors ? `<div class="box-contributors"><span class="box-minihead">Gönüllüler</span>${contributors}</div>` : ''}
+          <p>Son hareket: ${U.escapeHtml(U.formatDayMonth(box.lastActivityDate))}</p>
+          ${material ? `<p>Malzeme: ${U.escapeHtml(material)}</p>` : ''}
         </div>
       </article>`;
     }).join('');
@@ -303,20 +315,25 @@
     const block = document.getElementById('lpLatest');
     const list = document.getElementById('lpLatestRows');
     if (!block || !list) return;
-    const rows = latestActivity.slice(0, 50);
+    const rows = groupLatestActivity(latestActivity.filter((row) => isPublicVolunteerName(row.volunteerLabel)));
     if (!rows.length) {
       block.setAttribute('hidden', '');
       return;
     }
-    setText('lpLatestMeta', `Son ${U.formatNum(rows.length)} hareket`);
-    list.innerHTML = rows.slice(0, 12).map((row) => {
-      const label = safeVolunteerLabel(row.volunteerLabel);
+    const visible = rows.slice(0, 12);
+    setText('lpLatestMeta', `Son ${U.formatNum(visible.length)} özet`);
+    list.innerHTML = visible.map((row) => {
+      const label = publicVolunteerLabel(row.volunteerLabel);
       const kind = row.kind === 'activity' ? 'faaliyet' : 'sayfa/detay';
+      const role = row.publicRole ? ` · ${row.publicRole}` : '';
       const box = row.boxLabel ? ` · ${row.boxLabel}` : '';
+      const countText = row.kind === 'activity'
+        ? `${U.formatNum(row.records)} faaliyet`
+        : `${U.formatNum(row.pagesDone || row.records)} sayfa/detay`;
       return `<article class="latest-row">
         <span class="latest-date">${U.escapeHtml(U.formatDayMonth(row.dateISO || row.when))}</span>
-        <span class="latest-main">${U.escapeHtml(label)} — ${U.escapeHtml(kind)}${U.escapeHtml(box)}</span>
-        <span class="latest-count">${row.kind === 'activity' ? '+1' : '+' + U.formatNum(row.pagesDone || 1)}</span>
+        <span class="latest-main"><strong>${U.escapeHtml(label)}</strong>${U.escapeHtml(role)}${U.escapeHtml(box)} · ${U.escapeHtml(kind)}</span>
+        <span class="latest-count">${U.escapeHtml(countText)}</span>
       </article>`;
     }).join('');
     block.removeAttribute('hidden');
@@ -326,23 +343,11 @@
     const block = document.getElementById('lpFirsts');
     const list = document.getElementById('lpFirstsList');
     if (!block || !list) return;
-    const notes = [];
-    (summary.warnings || []).forEach((warning) => {
-      if (warning.code === 'missing_box_targets') notes.push('Bazı aktif kutularda hedef sayfa toplamı eksik; görünen ilerleme kayıt sayısına göre veriliyor.');
-      if (warning.code === 'unknown_dates') notes.push('Tarih alanı boş olan eski satırlar dönem grafiğine alınmadı, toplam ilerlemede korundu.');
-      if (warning.code === 'unsafe_public_identifiers_suppressed') notes.push('Kimlik gibi görünen teknik değerler isim olarak gösterilmedi.');
-      if (warning.code === 'missing_volunteer_names') notes.push('Bazı katkı satırlarında kullanılabilir gönüllü adı yok; emek “Adı belirtilmeyen gönüllü” olarak korunuyor.');
-    });
-    if (!notes.length) {
-      block.setAttribute('hidden', '');
-      return;
-    }
-    list.innerHTML = notes.slice(0, 5).map((note) => `<li><span class="mark">·</span><span>${U.escapeHtml(note)}</span></li>`).join('');
-    block.removeAttribute('hidden');
+    block.setAttribute('hidden', '');
   }
 
   function hydratePullCite(summary) {
-    setText('lpPullCite', `— ${summary.period.label}`);
+    setText('lpPullCite', '— Tarih Vakfı');
   }
 
   function hydrateDiagnostics(summary, latestActivity, enabled) {
@@ -365,12 +370,106 @@
       `tam özetten hesaplandı: ${summary.source && summary.source.recordsAreFullAggregate ? 'evet' : 'hayır'}`
     ];
     (summary.warnings || []).forEach((warning) => diagnostics.push(`${warning.code}: ${warning.message}`));
+    if ((summary.warnings || []).some((warning) => warning.code === 'missing_volunteer_names')) {
+      diagnostics.push('normal görünümden gizlenen etiket: Adı belirtilmeyen gönüllü');
+    }
     list.innerHTML = diagnostics.map((item) => `<li>${U.escapeHtml(item)}</li>`).join('');
     block.removeAttribute('hidden');
   }
 
-  function safeVolunteerLabel(label) {
-    return Credit.isUnsafePublicIdentifier(label) ? Credit.UNNAMED : (label || Credit.UNNAMED);
+  function publicVolunteerLabel(label) {
+    const value = String(label || '').trim();
+    if (!value || value === Credit.UNNAMED || value === Credit.HIDDEN) return '';
+    if (Credit.isUnsafePublicIdentifier(value)) return '';
+    return value;
+  }
+
+  function isPublicVolunteerName(label) {
+    return Boolean(publicVolunteerLabel(label));
+  }
+
+  function uniquePublicNames(labels) {
+    const seen = new Set();
+    const names = [];
+    (labels || []).forEach((label) => {
+      const safe = publicVolunteerLabel(label);
+      const key = U.asciiFold ? U.asciiFold(safe).toLowerCase() : safe.toLowerCase();
+      if (safe && !seen.has(key)) {
+        seen.add(key);
+        names.push(safe);
+      }
+    });
+    return names;
+  }
+
+  function publicVolunteerRows(summary) {
+    return Array.isArray(summary.byVolunteer)
+      ? summary.byVolunteer.filter((row) => isPublicVolunteerName(row.label))
+      : [];
+  }
+
+  function publicContributorRows(rows) {
+    return (Array.isArray(rows) ? rows : [])
+      .map((row) => ({
+        label: publicVolunteerLabel(row.label),
+        publicRole: String(row.publicRole || '').trim(),
+        records: Number(row.records || 0),
+        pageRows: Number(row.pageRows || 0),
+        activityRows: Number(row.activityRows || 0)
+      }))
+      .filter((row) => row.label);
+  }
+
+  function formatRoleContributor(row) {
+    const parts = [];
+    if (row.publicRole) parts.push(row.publicRole);
+    if (row.activityRows) parts.push(`${U.formatNum(row.activityRows)} faaliyet`);
+    if (row.pageRows) parts.push(`${U.formatNum(row.pageRows)} sayfa/detay`);
+    return `${U.escapeHtml(row.label)} — ${U.escapeHtml(parts.join(' · '))}`;
+  }
+
+  function groupLatestActivity(rows) {
+    const groups = new Map();
+    rows.forEach((row) => {
+      const key = [
+        row.dateISO || '',
+        publicVolunteerLabel(row.volunteerLabel),
+        row.boxLabel || '',
+        row.kind || '',
+        row.material || '',
+        row.publicRole || ''
+      ].join('|');
+      if (!groups.has(key)) {
+        groups.set(key, {
+          dateISO: row.dateISO,
+          when: row.when,
+          volunteerLabel: publicVolunteerLabel(row.volunteerLabel),
+          publicRole: row.publicRole || '',
+          boxLabel: row.boxLabel,
+          kind: row.kind,
+          material: row.material,
+          records: 0,
+          pagesDone: 0
+        });
+      }
+      const group = groups.get(key);
+      group.records += 1;
+      group.pagesDone += Number(row.pagesDone || (row.kind === 'page' ? 1 : 0));
+      if (row.when && (!group.when || String(row.when) > String(group.when))) group.when = row.when;
+    });
+    return Array.from(groups.values()).sort((a, b) => String(b.when || b.dateISO || '').localeCompare(String(a.when || a.dateISO || '')));
+  }
+
+  function materialPhrase(item) {
+    const label = String(item.label || item.material || '').toLocaleLowerCase('tr');
+    const singular = {
+      'belgeler': 'belge',
+      'fotoğraflar': 'fotoğraf',
+      'mektuplar': 'mektup',
+      'ders notları': 'ders notu',
+      'kitap metinleri': 'kitap metni'
+    }[label] || label;
+    return `${U.formatNum(item.count)} ${singular}`;
   }
 
   function avatarDots(count, names) {
