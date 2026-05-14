@@ -7,3 +7,7 @@ supabase/.temp/
 Codex.dmg
 imports/
 data/pnb-import-preview*.json
+_audit/input/
+*.xlsx
+*.xls
+__pycache__/

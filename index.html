@@ -38,47 +38,61 @@
         <p class="who"><em id="lpNowName">—</em> <span id="lpNowBox"></span></p>
         <p class="what" id="lpNowWhat">son hareket bekleniyor<span class="cursor"></span></p>
       </div>
-      <div class="pages"><span id="lpNowPages">—</span><small>Bugün</small></div>
+      <div class="pages"><span id="lpNowPages">—</span><small>Son kayıt</small></div>
     </article>
+
+    <!-- ============ Truth strip — selected period aggregate ============ -->
+    <section class="truth-strip" aria-label="Dönemin doğru özeti">
+      <div class="truth-head">
+        <p class="lbl" id="lpTruthLabel">Bu hafta</p>
+        <p class="note">Özetler tam dönem verisinden hesaplanır; son hareket akışı ayrı sınırlıdır.</p>
+      </div>
+      <div><p class="v" id="lpTruthRecords">—</p><p class="k">kayıt</p></div>
+      <div><p class="v" id="lpTruthPages">—</p><p class="k">sayfa/detay</p></div>
+      <div><p class="v" id="lpTruthActivities">—</p><p class="k">faaliyet</p></div>
+      <div><p class="v" id="lpTruthMaterials">—</p><p class="k">malzeme türü</p></div>
+      <div><p class="v" id="lpTruthVolunteers">—</p><p class="k">gönüllü katkısı</p></div>
+      <div><p class="v" id="lpTruthBoxes">—</p><p class="k">aktif kutu</p></div>
+    </section>
 
     <!-- ============ Glance + sparkline + 4 stats ============ -->
     <section class="glance" aria-label="Haftanın özeti">
       <div>
         <p class="lbl">Haftanın ritmi</p>
-        <p class="v"><em id="lpWeekTotal">—</em><small>kayıt · 7 gün</small></p>
+        <p class="v"><em id="lpWeekTotal">—</em><small>kayıt</small></p>
         <div class="spark" id="lpSpark"><!-- bars filled by JS --></div>
       </div>
       <div>
-        <p class="lbl">İlerleme</p>
+        <p class="lbl">Toplam ilerleme</p>
         <p class="v"><em id="lpPct">—</em></p>
         <p class="f"><span id="lpProgressTotals">— / —</span></p>
       </div>
       <div>
-        <p class="lbl">Açılmış kutu</p>
-        <p class="v"><span id="lpBoxes">—</span><small id="lpBoxesOf">/ 104</small></p>
+        <p class="lbl">Envanteri girilmiş kutu</p>
+        <p class="v"><span id="lpBoxes">—</span><small id="lpBoxesOf"></small></p>
         <p class="f"><span id="lpBoxesFoot">—</span></p>
       </div>
       <div>
-        <p class="lbl">Tamamlanan</p>
+        <p class="lbl">Tamamlanan kutu</p>
         <p class="v" style="color: var(--accent-deep);"><span id="lpDone">—</span><small>kutu</small></p>
-        <p class="f" id="lpDoneFoot">bu hafta</p>
+        <p class="f" id="lpDoneFoot">toplam</p>
       </div>
     </section>
 
     <!-- ============ Bu haftanın işaretleri — 3 derived insights ============ -->
     <section class="signals" id="lpSignals" hidden>
       <article class="signal">
-        <p class="l" data-edit="signal1Label">Bu haftaki ilk %100</p>
+        <p class="l" data-edit="signal1Label">Kayıt ayrımı</p>
         <p class="h" id="lpSignal1Body" data-edit="signal1Body">—</p>
         <p class="meta" id="lpSignal1Meta" data-edit="signal1Meta">—</p>
       </article>
       <article class="signal">
-        <p class="l" data-edit="signal2Label">Haftanın en yoğun günü</p>
+        <p class="l" data-edit="signal2Label">En yoğun gün</p>
         <p class="h" id="lpSignal2Body" data-edit="signal2Body">—</p>
         <p class="meta" id="lpSignal2Meta" data-edit="signal2Meta">—</p>
       </article>
       <article class="signal">
-        <p class="l" data-edit="signal3Label">Yeni açılan kutu</p>
+        <p class="l" data-edit="signal3Label">Malzeme odağı</p>
         <p class="h" id="lpSignal3Body" data-edit="signal3Body">—</p>
         <p class="meta" id="lpSignal3Meta" data-edit="signal3Meta">—</p>
       </article>
@@ -87,8 +101,8 @@
     <!-- ============ Çalışma alanı dağılımı ============ -->
     <section class="mat" id="lpMat" hidden>
       <div class="mat-head">
-        <h3>Çalışma alanı <em>dağılımı</em></h3>
-        <span class="meta" id="lpMatMeta">son 7 gün</span>
+        <h3>Malzeme <em>dağılımı</em></h3>
+        <span class="meta" id="lpMatMeta">bu hafta</span>
       </div>
       <div class="mat-bar" id="lpMatBar"></div>
       <div class="mat-legend" id="lpMatLegend"></div>
@@ -101,10 +115,19 @@
     </header>
     <section class="days" id="lpDays"></section>
 
+    <!-- ============ Bu haftanın katkıları ============ -->
+    <section class="recognition" id="lpVolunteers" hidden>
+      <div class="boxes-head">
+        <h3>Bu haftanın <em>katkıları</em></h3>
+        <span class="meta" id="lpVolunteersMeta">—</span>
+      </div>
+      <div class="vol-list" id="lpVolunteerRows"></div>
+    </section>
+
     <!-- ============ Aktif kutular bu hafta ============ -->
     <section class="boxes-week" id="lpBoxesWeek" hidden>
       <div class="boxes-head">
-        <h3>Aktif kutular <em>bu hafta</em></h3>
+        <h3>Aktif kutular <em>bu dönem</em></h3>
         <span class="meta" id="lpBoxesWeekMeta">—</span>
       </div>
       <div id="lpBoxesWeekRows"></div>
@@ -112,8 +135,13 @@
 
     <!-- ============ Bu hafta ilk kez ============ -->
     <section class="firsts" id="lpFirsts" hidden>
-      <h3>Bu hafta <b>ilk kez</b></h3>
+      <h3>Veri <b>notları</b></h3>
       <ul id="lpFirstsList"></ul>
+    </section>
+
+    <section class="diagnostics" id="lpDiagnostics" hidden>
+      <h3>Yerel tanı</h3>
+      <ul id="lpDiagnosticsList"></ul>
     </section>
 
     <!-- ============ Pull quote ============ -->
@@ -124,7 +152,7 @@
 
     <!-- ============ Colophon ============ -->
     <footer class="colophon">
-      <p data-edit="colophonNote">Sayfa saatte bir, paylaşılan Google Sheet'ten tazeleniyor.<br>Veri, isimler, sayılar — sheet'te ne yazıyorsa burada o.</p>
+      <p data-edit="colophonNote">Sayfa saatte bir, paylaşılan Google Sheet'ten tazeleniyor.<br>Kamuya açık özetler kişisel kimlikleri ve ham satır tanımlarını göstermez.</p>
       <p style="margin-top:14px;"><a href="mailto:tarihvakfi@tarihvakfi.org.tr">Gönüllü olmak ister misin?</a></p>
       <p class="signoff" data-edit="colophonSignoff">Tarih Vakfı · 1991 · Eminönü, İstanbul</p>
     </footer>

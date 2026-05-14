@@ -38,14 +38,31 @@ jobs:
         env:
           SHEETSYNC_URL: https://script.google.com/macros/s/AKfycbzSGPTbBnrfhSDdw_iOrfxAfGLYp08qpZwl8rqZSb90o_x5cUK7Eo1HYnrjk-hvJWE/exec
         run: |
-          {
-            echo "// Auto-generated snapshot — refreshed by .github/workflows/deploy.yml"
-            echo "// landing.js renders this immediately on page load (zero network),"
-            echo "// then fetches the live Apps Script endpoint and overlays any changes."
-            printf "window.__SNAPSHOT__ = "
-            curl -sL "${SHEETSYNC_URL}?public=1"
-            printf ";\n"
-          } > js/snapshot.js
+          tmp="$(mktemp)"
+          curl -fsSL "${SHEETSYNC_URL}?public=1" > "$tmp"
+          if node - "$tmp" <<'NODE'
+          const fs = require('fs');
+          const payload = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if (!payload || payload.ok !== true || !payload.data || !payload.data.publicSummary) {
+            process.exit(1);
+          }
+          const text = JSON.stringify(payload);
+          if (/volunteerToken|"id":"sheet_|sheet_[a-z0-9_]*row\d+/i.test(text)) {
+            process.exit(1);
+          }
+          NODE
+          then
+            {
+              echo "// Auto-generated privacy-safe snapshot — refreshed by .github/workflows/deploy.yml"
+              echo "// landing.js renders this immediately on page load (zero network),"
+              echo "// then fetches the live Apps Script endpoint and overlays newer aggregate data."
+              printf "window.__SNAPSHOT__ = "
+              cat "$tmp"
+              printf ";\n"
+            } > js/snapshot.js
+          else
+            echo "Apps Script endpoint has not deployed the publicSummary contract yet; keeping checked-in snapshot."
+          fi
           wc -c js/snapshot.js
           node --check js/snapshot.js
 

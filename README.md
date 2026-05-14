@@ -1,125 +1,124 @@
-# Tarih Vakfı Gönüllü Takip Sistemi
+# Tarih Vakfı · Sayım Defteri
 
-Bu repo, Tarih Vakfı için GitHub Pages üzerinde çalışacak ücretsiz gönüllü takip sistemi iskeletini içerir.
+Bu repo şu anda GitHub Pages üzerinde çalışan kamuya açık, statik bir **Sayım Defteri** panosu içerir. Pano, Pertev Naili Boratav arşivi için paylaşılan Google Sheet / Excel verisini özetler; kişisel kimlikleri, e-posta adreslerini, ham satır kimliklerini ve özel notları kamuya açmaz.
 
-## Mimari
+## Güncel Mimari
 
-- **GitHub Pages** → statik web arayüzü
-- **Firebase Authentication** → Google ile giriş
-- **Cloud Firestore** → veri tabanı
-- **Google Apps Script + Google Sheets** → e-posta otomasyonları ve özetler
+- `/` → statik GitHub Pages panosu (`index.html`, `css/landing.css`, `js/landing.js`)
+- `apps-script/SheetSync.gs` → Google Sheet'i okuyan ve `?public=1` ile kamuya güvenli özet dönen Apps Script
+- `js/snapshot.js` → GitHub Actions veya yerel audit script tarafından üretilen, ilk boyamada kullanılan güvenli yedek veri
+- `.github/workflows/deploy.yml` → saatlik snapshot yenileme ve GitHub Pages dağıtımı
+- `tools/audit_public_dashboard.py` → yerel Excel denetimi, Markdown audit raporu, snapshot üretimi ve doğrulama
 
-## Uygulama alanları
+Firebase / Firestore tabanlı gönüllü yönetimi bu repo geçmişinde tasarlanmış daha geniş bir mimaridir. Kamuya açık Sayım Defteri bugün login gerektirmez ve canlı sayfa özetlerini Google Sheet / Apps Script hattından alır.
 
-- `/` → kamuya açık ana sayfa
-- `/auth/` → giriş ve ilk başvuru akışı
-- `/app/` → gönüllü paneli
-- `/admin/` → koordinatör / yönetici paneli
+## Veri Sözleşmesi
 
-## Gönüllü akışı (rapor-öncelikli)
+Apps Script ve yerel audit script aynı kamuya güvenli şekli üretir:
 
-Sistem rapor-öncelikli (report-first) bir model kullanır. Gönüllüler sıraya alınmış işleri beklemez; üzerinde çalışmak istedikleri iş paketini kendileri seçer ve çalıştıktan sonra kısa bir rapor bırakır. Birim durumu en son rapordan otomatik türetilir.
-
-1. Gönüllü Google ile giriş yapar, başvurusu onaylanır.
-2. Panel açıldığında büyük bir **Rapor Yaz** birincil butonu ve son üç raporun listesi karşılar.
-3. Modaldan iş paketini typeahead ile arar (kaynak / kutu / seri / içerik), ne yaptığını yazar, efor (Biraz / Normal / Epey) ve durum (Başladım / Devam ediyor / Gözden geçirme için hazır / Bitirdim / Takıldım) seçer, isteğe bağlı link bırakır.
-4. Kayıt tek bir Firestore batch'i ile `reports` dokümanını yazar, ilgili `archiveUnits` kaydının durum + son aktivite alanlarını günceller, gönüllünün `users.lastReportAt` damgasını tazeler.
-5. "Liste dışı / yeni bir iş" yoluyla gönüllü `pending_review` statüsüyle yeni bir kayıt da oluşturabilir; admin Bakım sekmesinde onaylar veya birleştirir.
-
-## PNB arşiv operasyonları
-
-Sistem bütün gönüllü işleri için tek yönetim ortamıdır. Pertev Naili Boratav çalışması ilk ayrıntılı arşiv vaka çalışması olarak desteklenir:
-
-- Proje başlıkları `projects` koleksiyonunda tutulur.
-- PNB arşiv iş paketleri `archiveUnits` koleksiyonunda tutulur; her birim `sourceIdentifier`, `priority`, `suitableFor`, `city`, `digitized`, `lastActivityAt`, `lastReporterId/Name`, `lastReportNotePreview` gibi alanlar taşır.
-- Raporlar `reports` koleksiyonunda tutulur ve bir arşiv birimine bağlanır.
-- Gönüllüler `Rapor Yaz` modalindeki typeahead aracılığıyla tüm PNB iş paketlerine erişir; Ankara'daki gönüllüler yalnızca `digitized == true` kutuları görür. Atanmış / atanmamış ayrımı artık akışın belirleyici unsuru değildir.
-- Koordinatör/admin rolleri operasyonel takip için **Pano** (sadece görüntüleme), **Son raporlar** akışı, **Dikkat** paneli (engelliler, uzun süredir dokunulmamış birimler, sessiz gönüllüler) ve **Yönetim** drawer'ları üzerinden çalışır.
-- Excel dosyaları doğrudan canlı veritabanına yazılmaz; önce `tools/pnb_excel_to_import.py` ile JSON önizleme üretilir, sonra `/app/` içindeki admin-only `Bakım` ekranından aktarılır.
-- PNB dışındaki gönüllü işleri aynı `İşler` ekranındaki `Diğer işler`, `Rapor Yaz`, `Duyurular` ve staff-only `Yönetim` akışıyla yönetilir.
-
-> Eski "atama-merkezli" akış (self-claim banner + sıradan iş seçimi) kod tabanında muhafaza edilmiştir ve `window.FEATURE_FLAGS.selfClaim` bayrağı ile geri açılabilir; ayrıntılar için `AGENTS.md` içindeki "Self-claim is deprecated but retained" bölümüne bakın.
-
-## Roller
-
-- `volunteer`
-- `coordinator`
-- `admin`
-
-## Durumlar
-
-- `pending`
-- `approved`
-- `blocked`
-
-PNB arşiv iş durumları:
-
-- `not_started`
-- `assigned`
-- `in_progress`
-- `review`
-- `done`
-- `blocked`
-
-## Dosya yapısı
-
-```text
-.
-├─ index.html
-├─ 404.html
-├─ css/
-├─ js/
-├─ auth/
-├─ app/
-├─ admin/
-├─ firebase/
-├─ apps-script/
-├─ docs/
-└─ prompts/
+```js
+publicSummary = {
+  generatedAt,
+  period,
+  totals,
+  byDay,
+  byMaterial,
+  byBox,
+  byVolunteer,
+  highlights,
+  warnings
+}
 ```
 
-## Hızlı başlangıç
+`latestActivity` yalnızca son hareket satırı için sınırlı bir akıştır. Toplamlar, günlük kartlar, malzeme dağılımı, gönüllü sayıları ve kutu ilerlemesi bu sınırlı akıştan hesaplanmaz.
 
-1. `js/config.firebase.example.js` dosyasını `js/config.firebase.js` olarak kopyalayın.
-2. Firebase proje bilgilerinizi `js/config.firebase.js` içine ekleyin.
-3. Firebase Console'da:
-   - Authentication > Google sağlayıcısını açın
-   - Firestore veritabanını oluşturun
-   - `firebase/firestore.rules` kurallarını yayınlayın
-4. `apps-script/` altındaki dosyaları yeni bir Apps Script projesine kopyalayın.
-5. GitHub Pages'i repo ayarlarından etkinleştirin.
+## Dönem Mantığı
 
-## Yerel önizleme
+Kamu panosu tek bir dönem kullanır:
 
-Statik dosya olduğu için doğrudan açabilirsiniz; yine de en sağlıklısı yerel bir sunucu ile test etmektir.
+- `period.mode = "calendar_week"`
+- Etiket örneği: `11–17 Mayıs haftası · bugüne kadar`
+- Günlük haftanın adı doğrudan `dateISO` değerinden türetilir.
 
-Örnek:
+Audit script rolling 7 günü ayrıca hesaplar, fakat kamu panosunda haftalık özetle karıştırmaz.
+
+## Gizlilik
+
+Gönüllü görünümü şu sırayla seçilir:
+
+1. `publicDisplayName` / `kamusalAd` gibi açık kamu adı varsa onu kullanır.
+2. Adın gösterilmesine açık izin veren bir alan varsa yalnızca ilk adı kullanır.
+3. İzin yoksa `Bir gönüllü` veya `Gönüllü katkısı` gösterir.
+
+E-posta, UUID, uzun hex değer, opaque alfanümerik ID ve ham sheet satır tanımları kamu payload'ına yazılmaz. Katkı sayıları korunur; bu yüzden gerçek emek hiçbir zaman `0 gönüllü` gibi görünmez.
+
+Önerilen sheet alanları:
+
+- `publicDisplayName`
+- `publicDisplayAllowed`
+- `publicConsent`
+- `adGorunsun`
+
+Bu alanlar yoksa pano güvenli varsayılan olarak anonim gösterir.
+
+## Yerel Audit Ve Snapshot
+
+Özel workbook dosyaları repoya konmaz. Yerel giriş dosyası şu klasöre bırakılır:
+
+```bash
+_audit/input/
+```
+
+Audit raporu ve doğrulama:
+
+```bash
+/Users/arf/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 tools/audit_public_dashboard.py
+```
+
+Yerel Excel'den `js/snapshot.js` üretmek:
+
+```bash
+/Users/arf/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 tools/audit_public_dashboard.py --write-snapshot
+```
+
+Sadece doğrulama:
+
+```bash
+/Users/arf/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 tools/audit_public_dashboard.py --validate-only
+```
+
+Doğrulama şunları kontrol eder:
+
+- `sum(byDay.records) == totals.records`
+- malzeme toplamları dönem kayıtlarıyla uyumlu
+- kamu gönüllü etiketlerinde e-posta, UUID, hash veya opaque ID yok
+- kayıt bulunan hiçbir gün `0 gönüllü` göstermiyor
+- en yoğun gün etiketi gerçek tarihle eşleşiyor
+- özetler sınırlı feed'den hesaplanmıyor
+- toplam ilerleme yüzdesi doğru yuvarlanıyor
+- `js/snapshot.js` geçerli JS ve güvenli JSON taşıyor
+
+## Yerel Önizleme
+
+Statik dosya olduğu için basit bir sunucu yeterlidir:
 
 ```bash
 python3 -m http.server 8000
 ```
 
 Sonra:
-- `http://localhost:8000/`
-- `http://localhost:8000/auth/`
-- `http://localhost:8000/app/`
-- `http://localhost:8000/admin/`
 
-## Önemli not
+```text
+http://localhost:8000/
+http://localhost:8000/?debug=1
+```
 
-Bu repo iskelet bir başlangıç sürümüdür. Canlıya almadan önce şu adımlar manuel olarak yapılmalıdır:
+`?debug=1` veya localhost üzerinde veri kalitesi notları görünür.
 
-- Firebase projesi oluşturma
-- Yetkili domain ekleme
-- Google sign-in etkinleştirme
-- Firestore security rules yayınlama
-- Apps Script trigger kurma (`createTriggers()` saatlik Sheet sync dahil)
-- Yönetici kullanıcılarının ilk rol atamalarını yapma
+## Dağıtım
 
-Detaylı kurulum için:
-- `docs/SETUP.md`
-- `docs/FIRESTORE_SCHEMA.md`
-- `docs/SECURITY_RULES.md`
-- `docs/PNB_IMPORT.md`
-- `docs/APPS_SCRIPT_SETUP.md`
-- `docs/DEPLOYMENT.md`
+1. `apps-script/SheetSync.gs` içeriğini Apps Script projesine yayınlayın.
+2. Web app deployment'ını yenileyin.
+3. GitHub Actions `Deploy to GitHub Pages` workflow'unu çalıştırın.
+
+Workflow, Apps Script endpoint'i henüz `publicSummary` üretmiyorsa mevcut güvenli `js/snapshot.js` dosyasını korur.

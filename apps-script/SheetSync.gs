@@ -613,6 +613,7 @@ function _buildPublicProjectionFromSheet_(sheetId, metadata) {
   let donePages = 0;
   let doneUnits = 0;
   let tickerEntries = [];
+  let unknownDateRows = 0;
   tabs.forEach(function (tabName) {
     const slug = _slugifyTabName_(tabName);
     const rows = _readPublicSheetRows_(sheetId, tabName);
@@ -633,27 +634,30 @@ function _buildPublicProjectionFromSheet_(sheetId, metadata) {
       donePages += detail.donePages;
       doneUnits += detail.doneUnits;
       tickerEntries = tickerEntries.concat(detail.tickerEntries);
+      unknownDateRows += detail.unknownDateRows || 0;
     }
   });
 
   tickerEntries = _dedupePublicTickerEntries_(tickerEntries)
-    .sort(function (a, b) { return b.createdAt.getTime() - a.createdAt.getTime(); })
-    .slice(0, 500);
+    .sort(function (a, b) { return b.createdAt.getTime() - a.createdAt.getTime(); });
 
   return {
     hasStats: totalPages > 0 || totalUnits > 0,
     totalPages: Math.max(0, Math.round(totalPages)),
-    donePages: Math.max(0, Math.round(totalPages > 0 ? Math.min(donePages, totalPages) : donePages)),
+    donePages: Math.max(0, Math.round(donePages)),
     totalUnits: Math.max(0, Math.round(totalUnits)),
-    doneUnits: Math.max(0, Math.round(totalUnits > 0 ? Math.min(doneUnits, totalUnits) : doneUnits)),
+    doneUnits: Math.max(0, Math.round(doneUnits)),
     totalFiles: Math.max(0, Math.round(totalFiles)),
     cataloguedBoxes: Math.max(0, Math.round(cataloguedBoxes)),
+    unknownDateRows: Math.max(0, Math.round(unknownDateRows)),
     tickerEntries: tickerEntries
   };
 }
 
 function _readPublicSheetRows_(sheetId, tabName) {
-  const range = tabName + '!A1:J1000';
+  // Public aggregate reads must be complete. Keep this comfortably above the
+  // current workbook size so summaries are never calculated from a capped feed.
+  const range = tabName + '!A1:Z5000';
   const matrix = _readSheetValues_(sheetId, range);
   if (!matrix || matrix.length < 2) return [];
   const headers = (matrix[0] || []).map(function (h, idx) {
@@ -717,6 +721,7 @@ function _summarizePnbOverviewRows_(rows) {
 function _summarizePnbDetailRows_(tabSlug, rows) {
   let donePages = 0;
   let doneUnits = 0;
+  let unknownDateRows = 0;
   const tickerEntries = [];
 
   const hasSayfaSayisi = rows.some(function (r) {
@@ -736,19 +741,29 @@ function _summarizePnbDetailRows_(tabSlug, rows) {
     doneUnits += 1;
 
     const createdAt = _parseSheetDate_(row.tarih);
-    const person = _stringValue_(row.kaydiOlusuran || row.kaydiOlusturan || row.paydas);
-    if (!createdAt || !person) return;
+    const fallbackPerson = _personHintFromPublicTabSlug_(tabSlug);
+    const person = _stringValue_(row.kaydiOlusuran || row.kaydiOlusturan || row.paydas || fallbackPerson);
+    if (!createdAt) {
+      unknownDateRows += 1;
+      return;
+    }
     tickerEntries.push({
       id: _publicTickerDocId_('sheet_' + tabSlug + '_row' + row._sourceRow),
       createdAt: createdAt,
       effort: 'medium',
       materialCategory: _materialCategoryFromPublicRow_(row),
       projectId: 'pnb',
-      volunteerToken: _publicVolunteerToken_(person, createdAt),
-      firstName: String(person).trim().split(/\s+/)[0] || ''
+      volunteerToken: person ? _publicVolunteerToken_(person, createdAt) : '',
+      recordKind: 'page',
+      sourceType: 'page_detail',
+      box: _publicBoxLabel_(row.kutu || row.kutuNo),
+      pageUnits: hasSayfaSayisi ? Math.max(1, _parseDetailPageUnits_(row)) : 1,
+      privateContributorKey: _privateContributorKey_(person || fallbackPerson || tabSlug),
+      publicVolunteerLabel: _publicVolunteerLabelFromRow_(row, person),
+      unsafeVolunteerIdentifier: _isUnsafePublicIdentifier_(person)
     });
   });
-  return { donePages: donePages, doneUnits: doneUnits, tickerEntries: tickerEntries };
+  return { donePages: donePages, doneUnits: doneUnits, unknownDateRows: unknownDateRows, tickerEntries: tickerEntries };
 }
 
 function _tickerFromDailyFlowRows_(tabSlug, rows) {
@@ -756,7 +771,7 @@ function _tickerFromDailyFlowRows_(tabSlug, rows) {
   rows.forEach(function (row) {
     const createdAt = _parseSheetDate_(row.tarih);
     const person = _stringValue_(row.paydas || row.kaydiOlusuran || row.kaydiOlusturan);
-    if (!createdAt || !person) return;
+    if (!createdAt) return;
     const scope = _publicProjectIdFromRow_(row);
     entries.push({
       id: _publicTickerDocId_('sheet_' + tabSlug + '_row' + row._sourceRow),
@@ -764,7 +779,14 @@ function _tickerFromDailyFlowRows_(tabSlug, rows) {
       effort: 'medium',
       materialCategory: _materialCategoryFromPublicRow_(row),
       projectId: scope,
-      volunteerToken: _publicVolunteerToken_(person, createdAt)
+      volunteerToken: person ? _publicVolunteerToken_(person, createdAt) : '',
+      recordKind: 'activity',
+      sourceType: 'activity',
+      box: '',
+      pageUnits: 0,
+      privateContributorKey: _privateContributorKey_(person),
+      publicVolunteerLabel: _publicVolunteerLabelFromRow_(row, person),
+      unsafeVolunteerIdentifier: _isUnsafePublicIdentifier_(person)
     });
   });
   return entries;
@@ -873,6 +895,91 @@ function _publicProjectIdFromRow_(row) {
     row.notlar
   ].join(' ')).toLowerCase();
   return haystack.indexOf('pnb') >= 0 || haystack.indexOf('boratav') >= 0 ? 'pnb' : 'foundation';
+}
+
+function _parseDetailPageUnits_(row) {
+  const pages = _parseDoneTotalCell_(row.sayfaSayisi);
+  const value = pages.done || pages.total || 0;
+  return Math.max(0, Math.round(value));
+}
+
+function _personHintFromPublicTabSlug_(slug) {
+  const parts = String(slug || '').split('_').filter(Boolean);
+  if (!parts.length) return '';
+  const last = parts[parts.length - 1] || '';
+  return last ? (last.charAt(0).toUpperCase() + last.slice(1)) : '';
+}
+
+function _publicBoxLabel_(value) {
+  if (value == null || value === '') return '';
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    // Excel/Sheets sometimes coerces labels such as "1-2" to a date.
+    if (value.getFullYear() === 2026) return (value.getMonth() + 1) + '-' + value.getDate();
+    return _publicIsoDate_(value);
+  }
+  if (typeof value === 'number' && isFinite(value)) {
+    return Math.floor(value) === value ? String(value) : String(value).replace('.', ',');
+  }
+  const text = String(value).trim();
+  const dateLike = text.match(/^(\d{1,2})[./](\d{1,2})[./]2026$/);
+  if (dateLike) return dateLike[1] + '-' + dateLike[2];
+  return text;
+}
+
+function _normalizePublicBoxKey_(value) {
+  const label = _asciiFold_(_publicBoxLabel_(value)).toLowerCase().trim();
+  const range = label.match(/^(\d+)\s*-\s*(\d+)$/);
+  if (range) return 'range_' + range[1] + '_' + range[2];
+  return label.replace(/[^a-z0-9]+/g, '');
+}
+
+function _privateContributorKey_(value) {
+  return _asciiFold_(value).toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function _publicVolunteerLabelFromRow_(row, rawName) {
+  const explicit = _stringValue_(row.publicDisplayName || row.publicdisplayname || row.kamusalAd);
+  if (explicit && !_isUnsafePublicIdentifier_(explicit)) return explicit;
+  const consent = _publicConsentFlag_(row.publicDisplayAllowed)
+    || _publicConsentFlag_(row.publicConsent)
+    || _publicConsentFlag_(row.adGorunsun)
+    || _publicConsentFlag_(row.adYayinIzni)
+    || _publicConsentFlag_(row.kamusalAdIzni);
+  const name = _stringValue_(rawName || row.paydas || row.kaydiOlusuran || row.kaydiOlusturan);
+  if (name && _isUnsafePublicIdentifier_(name)) return 'Gönüllü katkısı';
+  if (name && consent) return _publicFirstName_(name) || 'Bir gönüllü';
+  if (name) return 'Bir gönüllü';
+  return 'Gönüllü katkısı';
+}
+
+function _publicConsentFlag_(value) {
+  const text = _asciiFold_(value).toLowerCase().trim();
+  return ['1','true','evet','yes','y','var','izinli','public','acik'].indexOf(text) >= 0;
+}
+
+function _publicFirstName_(value) {
+  const text = _stringValue_(value);
+  if (!text || _isUnsafePublicIdentifier_(text)) return '';
+  return text.split(/\s+/)[0] || '';
+}
+
+function _isUnsafePublicIdentifier_(value) {
+  const text = _stringValue_(value);
+  if (!text) return false;
+  if (/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/.test(text)) return true;
+  if (/^[0-9a-fA-F]{12,}$/.test(text)) return true;
+  if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(text)) return true;
+  const compact = text.replace(/[^A-Za-z0-9]/g, '');
+  if (compact.length >= 18) {
+    const letters = compact.replace(/[^A-Za-z]/g, '');
+    const vowels = (_asciiFold_(text).match(/[aeiou]/gi) || []).length;
+    if (vowels <= 1 || letters.length / Math.max(compact.length, 1) < 0.7) return true;
+  }
+  if (compact.length >= 14 && /[0-9]/.test(compact) && /[A-Za-z]/.test(compact)) {
+    const words = text.match(/[A-Za-zÇĞİÖŞÜçğıöşü]{2,}/g) || [];
+    if (words.length < 2) return true;
+  }
+  return false;
 }
 
 function _publicVolunteerToken_(name, date) {
@@ -1231,11 +1338,11 @@ function _jsonResponse_(obj) {
 function _buildPublicSitePayload_() {
   const sheetId = PropertiesService.getScriptProperties().getProperty('TARIH_VAKFI_SHEET_ID') || '';
   if (!sheetId) {
-    return { stats: { projects: { pnb: null } }, ticker: [], content: {}, activeVolunteers: [], schedule: {}, boxes: [], volunteers: [], weeklyRhythm: [0,0,0,0,0,0,0], stream: [] };
+    return { publicSummary: null, latestActivity: [], stats: { projects: { pnb: null } }, ticker: [], content: {}, boxes: [] };
   }
   let metadata = null;
   try { metadata = _readSheetMetadata_(sheetId); } catch (err) {
-    return { stats: { projects: { pnb: null } }, ticker: [], content: {}, activeVolunteers: [], schedule: {}, boxes: [], volunteers: [], weeklyRhythm: [0,0,0,0,0,0,0], stream: [] };
+    return { publicSummary: null, latestActivity: [], stats: { projects: { pnb: null } }, ticker: [], content: {}, boxes: [] };
   }
   const projection = _buildPublicProjectionFromSheet_(sheetId, metadata) || {};
   const pnbStats = projection.hasStats || projection.totalPages || projection.cataloguedBoxes ? {
@@ -1247,34 +1354,365 @@ function _buildPublicSitePayload_() {
     cataloguedBoxes: projection.cataloguedBoxes || 0,
     boxes: []
   } : null;
-  const ticker = (projection.tickerEntries || []).map(function (e) {
+  const content = _readPublicContentFromSheet_(sheetId, metadata);
+  const boxes = _readBoxesFromSheet_(sheetId, metadata);
+  const publicSummary = _buildPublicSummary_(projection, boxes, new Date());
+  const latestActivity = _latestPublicActivity_(projection.tickerEntries || [], 50);
+  return {
+    publicSummary: publicSummary,
+    latestActivity: latestActivity,
+    stats: { projects: { pnb: pnbStats } },
+    // Legacy fields intentionally remain empty so the public payload no longer
+    // exposes sheet row IDs or volunteer tokens.
+    ticker: [],
+    content: content,
+    activeVolunteers: [],
+    schedule: {},
+    boxes: boxes,
+    volunteers: [],
+    weeklyRhythm: [],
+    stream: []
+  };
+}
+
+function _buildPublicSummary_(projection, boxes, now) {
+  const period = _publicPeriod_(now || new Date(), 'calendar_week');
+  const records = (projection.tickerEntries || []).filter(function (entry) {
+    return entry && entry.createdAt instanceof Date && !isNaN(entry.createdAt.getTime());
+  });
+  const periodRecords = records.filter(function (entry) {
+    const iso = _publicIsoDate_(entry.createdAt);
+    return iso >= period.startDate && iso <= period.endDate;
+  });
+  const pageRecords = periodRecords.filter(function (entry) { return entry.recordKind === 'page'; });
+  const activityRecords = periodRecords.filter(function (entry) { return entry.recordKind === 'activity'; });
+  const byDay = _publicDateRange_(period.startDate, period.endDate).map(function (iso) {
+    return _publicDaySummary_(iso, periodRecords.filter(function (entry) {
+      return _publicIsoDate_(entry.createdAt) === iso;
+    }));
+  });
+
+  const materialCounts = {};
+  periodRecords.forEach(function (entry) {
+    const material = entry.materialCategory || 'belgeler';
+    materialCounts[material] = (materialCounts[material] || 0) + 1;
+  });
+
+  const boxesByKey = {};
+  (boxes || []).forEach(function (box) {
+    boxesByKey[_normalizePublicBoxKey_(box.kutu)] = box;
+  });
+  const recordsByBox = {};
+  pageRecords.forEach(function (entry) {
+    const key = _normalizePublicBoxKey_(entry.box);
+    if (!key) return;
+    if (!recordsByBox[key]) recordsByBox[key] = [];
+    recordsByBox[key].push(entry);
+  });
+
+  const byBox = Object.keys(recordsByBox).map(function (key) {
+    const rows = recordsByBox[key];
+    const box = boxesByKey[key] || { kutu: rows[0].box, donePages: 0, totalPages: 0, workers: [] };
+    const contributorCounts = {};
+    rows.forEach(function (entry) {
+      const privateKey = entry.privateContributorKey || '';
+      if (!privateKey) return;
+      if (!contributorCounts[privateKey]) {
+        contributorCounts[privateKey] = { label: entry.publicVolunteerLabel || 'Bir gönüllü', records: 0 };
+      }
+      contributorCounts[privateKey].records += 1;
+    });
+    const materialObj = {};
+    rows.forEach(function (entry) {
+      const material = entry.materialCategory || 'belgeler';
+      materialObj[material] = (materialObj[material] || 0) + 1;
+    });
+    const topContributors = Object.keys(contributorCounts).sort(function (a, b) {
+      return contributorCounts[b].records - contributorCounts[a].records;
+    }).slice(0, 3).map(function (privateKey) {
+      return contributorCounts[privateKey];
+    });
+    const target = Number(box.totalPages || 0);
+    const done = Number(box.donePages || 0);
     return {
-      id: e.id,
-      when: (e.createdAt && e.createdAt.toISOString) ? e.createdAt.toISOString() : e.createdAt,
-      materialCategory: e.materialCategory,
-      projectId: e.projectId,
-      volunteerToken: e.volunteerToken,
-      effort: e.effort
+      box: box.kutu || rows[0].box || '',
+      label: 'Kutu ' + (box.kutu || rows[0].box || ''),
+      done: done,
+      target: target > 0 ? target : null,
+      percent: target > 0 ? Math.round((Math.min(done, target) / target) * 1000) / 10 : null,
+      remaining: target > 0 ? Math.max(0, target - done) : null,
+      lastActivityDate: box.lastActivityDate || _publicIsoDate_(rows[0].createdAt),
+      periodRecords: rows.length,
+      periodPageRows: rows.length,
+      periodPagesDone: rows.reduce(function (sum, entry) { return sum + Number(entry.pageUnits || 1); }, 0),
+      contributorsCount: Object.keys(contributorCounts).length,
+      topContributors: topContributors,
+      materials: _counterObjectToArray_(materialObj),
+      targetMissing: target <= 0,
+      overTarget: target > 0 && done > target
+    };
+  }).sort(function (a, b) {
+    return b.periodPagesDone - a.periodPagesDone;
+  });
+
+  const contributorGroups = {};
+  periodRecords.forEach(function (entry) {
+    const key = entry.privateContributorKey || '';
+    if (!key) return;
+    if (!contributorGroups[key]) contributorGroups[key] = [];
+    contributorGroups[key].push(entry);
+  });
+  const byVolunteer = Object.keys(contributorGroups).sort(function (a, b) {
+    return contributorGroups[b].length - contributorGroups[a].length;
+  }).map(function (key, idx) {
+    const rows = contributorGroups[key];
+    const pageRows = rows.filter(function (entry) { return entry.recordKind === 'page'; });
+    const label = _rankedPublicVolunteerLabel_(rows[0].publicVolunteerLabel || 'Bir gönüllü', idx);
+    const boxCounts = {};
+    pageRows.forEach(function (entry) {
+      if (!entry.box) return;
+      const label = 'Kutu ' + entry.box;
+      boxCounts[label] = (boxCounts[label] || 0) + 1;
+    });
+    const boxesTouched = Object.keys(boxCounts).sort(function (a, b) { return boxCounts[b] - boxCounts[a]; });
+    return {
+      label: label,
+      records: rows.length,
+      pageRows: pageRows.length,
+      activityRows: rows.length - pageRows.length,
+      pagesDone: pageRows.reduce(function (sum, entry) { return sum + Number(entry.pageUnits || 1); }, 0),
+      topBox: boxesTouched[0] || null,
+      boxes: boxesTouched.slice(0, 3)
     };
   });
-  const content = _readPublicContentFromSheet_(sheetId, metadata);
-  const activeVolunteers = _collectActiveFirstNames_(sheetId, metadata);
-  const schedule = _readPublicScheduleFromSheet_(sheetId, metadata);
-  const boxes = _readBoxesFromSheet_(sheetId, metadata);
-  const volunteers = _readVolunteersFromTabs_(sheetId, metadata);
-  const weeklyRhythm = _computeWeeklyRhythm_(projection.tickerEntries || []);
-  const stream = _groupStreamFromTicker_(projection.tickerEntries || []);
+
+  const volunteersSeen = {};
+  periodRecords.forEach(function (entry) {
+    if (entry.privateContributorKey) volunteersSeen[entry.privateContributorKey] = true;
+  });
+  const activeBoxesSeen = {};
+  pageRecords.forEach(function (entry) {
+    const key = _normalizePublicBoxKey_(entry.box);
+    if (key) activeBoxesSeen[key] = true;
+  });
+  const completedBoxes = (boxes || []).filter(function (box) { return box.status === 'done'; }).length;
+  const warnings = [];
+  const dayTotal = byDay.reduce(function (sum, day) { return sum + day.records; }, 0);
+  if (dayTotal !== periodRecords.length) {
+    warnings.push({ code: 'by_day_total_mismatch', message: 'The by-day total does not equal the period record total.' });
+  }
+  const missingTargets = (boxes || []).filter(function (box) { return box.targetMissing; }).map(function (box) { return box.kutu; });
+  if (missingTargets.length) {
+    warnings.push({
+      code: 'missing_box_targets',
+      message: missingTargets.length + ' active boxes have no page target.',
+      boxes: missingTargets.slice(0, 8)
+    });
+  }
+  const unsafeCount = records.filter(function (entry) { return entry.unsafeVolunteerIdentifier; }).length;
+  if (unsafeCount) {
+    warnings.push({
+      code: 'unsafe_public_identifiers_redacted',
+      message: unsafeCount + ' contributor values looked unsafe and were anonymized.'
+    });
+  }
+  if (projection.unknownDateRows) {
+    warnings.push({
+      code: 'unknown_dates',
+      message: projection.unknownDateRows + ' rows could not be assigned to a public period.'
+    });
+  }
+  const busiestDay = byDay.slice().sort(function (a, b) { return b.records - a.records; })[0] || null;
+  const byMaterial = _counterObjectToArray_(materialCounts);
   return {
-    stats: { projects: { pnb: pnbStats } },
-    ticker: ticker.slice(0, 200),
-    content: content,
-    activeVolunteers: activeVolunteers,
-    schedule: schedule,
-    boxes: boxes,
-    volunteers: volunteers,
-    weeklyRhythm: weeklyRhythm,
-    stream: stream
+    generatedAt: _publicIsoDateTime_(now || new Date()),
+    period: period,
+    totals: {
+      records: periodRecords.length,
+      pageRows: pageRecords.length,
+      activityRows: activityRecords.length,
+      periodPagesDone: pageRecords.reduce(function (sum, entry) { return sum + Number(entry.pageUnits || 1); }, 0),
+      pagesDone: Math.max(0, Math.round(Number(projection.donePages || 0))),
+      pagesTarget: Math.max(0, Math.round(Number(projection.totalPages || 0))),
+      progressPercent: projection.totalPages > 0
+        ? Math.round((Number(projection.donePages || 0) / Number(projection.totalPages || 1)) * 1000) / 10
+        : 0,
+      boxesTotal: projection.cataloguedBoxes || ((boxes || []).length || null),
+      boxesCatalogued: projection.cataloguedBoxes || ((boxes || []).length || 0),
+      boxesActive: Object.keys(activeBoxesSeen).length,
+      boxesCompleted: completedBoxes,
+      boxesRemaining: null,
+      volunteers: Object.keys(volunteersSeen).length,
+      materials: byMaterial.length
+    },
+    byDay: byDay,
+    byMaterial: byMaterial,
+    byBox: byBox,
+    byVolunteer: byVolunteer,
+    highlights: {
+      busiestDay: busiestDay,
+      latestDate: periodRecords.length ? _publicIsoDate_(periodRecords[0].createdAt) : null,
+      topMaterial: byMaterial[0] || null
+    },
+    warnings: warnings,
+    source: {
+      recordsAreFullAggregate: true,
+      latestActivityCap: 50,
+      privacy: 'Contributor names are anonymized unless an explicit public display field/consent exists.'
+    }
   };
+}
+
+function _latestPublicActivity_(records, limit) {
+  return (records || []).filter(function (entry) {
+    return entry && entry.createdAt instanceof Date && !isNaN(entry.createdAt.getTime());
+  }).sort(function (a, b) {
+    return b.createdAt.getTime() - a.createdAt.getTime();
+  }).slice(0, limit || 50).map(function (entry) {
+    return {
+      when: _publicIsoDateTime_(entry.createdAt),
+      dateISO: _publicIsoDate_(entry.createdAt),
+      kind: entry.recordKind || 'page',
+      recordType: entry.sourceType || '',
+      material: entry.materialCategory || 'belgeler',
+      projectId: entry.projectId || 'pnb',
+      volunteerLabel: entry.publicVolunteerLabel || 'Bir gönüllü',
+      boxLabel: entry.box ? ('Kutu ' + entry.box) : null,
+      pagesDone: Number(entry.pageUnits || 0)
+    };
+  });
+}
+
+function _publicDaySummary_(dateISO, rows) {
+  const pageRows = rows.filter(function (entry) { return entry.recordKind === 'page'; });
+  const activityRows = rows.filter(function (entry) { return entry.recordKind === 'activity'; });
+  const volunteers = {};
+  const boxes = {};
+  const materials = {};
+  let firstTime = null;
+  let lastTime = null;
+  rows.forEach(function (entry) {
+    if (entry.privateContributorKey) volunteers[entry.privateContributorKey] = true;
+    const boxKey = _normalizePublicBoxKey_(entry.box);
+    if (boxKey) boxes[boxKey] = true;
+    const material = entry.materialCategory || 'belgeler';
+    materials[material] = (materials[material] || 0) + 1;
+    if (!firstTime || entry.createdAt.getTime() < firstTime.getTime()) firstTime = entry.createdAt;
+    if (!lastTime || entry.createdAt.getTime() > lastTime.getTime()) lastTime = entry.createdAt;
+  });
+  const parts = [];
+  if (pageRows.length) parts.push(pageRows.length + ' sayfa/detay satırı');
+  if (activityRows.length) parts.push(activityRows.length + ' faaliyet kaydı');
+  if (Object.keys(volunteers).length) parts.push(Object.keys(volunteers).length + ' gönüllü katkısı');
+  if (Object.keys(boxes).length) parts.push(Object.keys(boxes).length + ' kutu');
+  return {
+    dateISO: dateISO,
+    weekdayTR: _publicWeekdayTR_(dateISO),
+    dayNumber: Number(dateISO.split('-')[2]),
+    records: rows.length,
+    pageRows: pageRows.length,
+    activityRows: activityRows.length,
+    pagesDone: pageRows.reduce(function (sum, entry) { return sum + Number(entry.pageUnits || 1); }, 0),
+    volunteersCount: Object.keys(volunteers).length,
+    boxesCount: Object.keys(boxes).length,
+    materials: _counterObjectToArray_(materials),
+    firstTime: firstTime ? _publicIsoDateTime_(firstTime) : null,
+    lastTime: lastTime ? _publicIsoDateTime_(lastTime) : null,
+    summarySentence: rows.length
+      ? ('Bugün ' + parts.join(', ') + ' işlendi.')
+      : 'Bu gün için kayıt görünmüyor.'
+  };
+}
+
+function _publicPeriod_(now, mode) {
+  const todayISO = _publicIsoDate_(now || new Date());
+  const today = _publicDateFromIso_(todayISO);
+  if (mode === 'rolling_7_days') {
+    const start = _publicAddDays_(today, -6);
+    return {
+      mode: 'rolling_7_days',
+      startDate: _publicIsoDate_(start),
+      endDate: todayISO,
+      label: 'Son 7 gün',
+      isPartial: false
+    };
+  }
+  const day = today.getUTCDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  const start = _publicAddDays_(today, diff);
+  const fullEnd = _publicAddDays_(start, 6);
+  return {
+    mode: 'calendar_week',
+    startDate: _publicIsoDate_(start),
+    endDate: todayISO,
+    fullEndDate: _publicIsoDate_(fullEnd),
+    label: _publicPeriodLabel_(start, fullEnd),
+    isPartial: today.getTime() < fullEnd.getTime()
+  };
+}
+
+function _publicPeriodLabel_(start, fullEnd) {
+  const months = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+  const startMonth = months[start.getUTCMonth()];
+  const endMonth = months[fullEnd.getUTCMonth()];
+  const range = start.getUTCMonth() === fullEnd.getUTCMonth()
+    ? (start.getUTCDate() + '–' + fullEnd.getUTCDate() + ' ' + startMonth)
+    : (start.getUTCDate() + ' ' + startMonth + ' – ' + fullEnd.getUTCDate() + ' ' + endMonth);
+  return range + ' haftası · bugüne kadar';
+}
+
+function _publicDateRange_(startISO, endISO) {
+  const out = [];
+  let current = _publicDateFromIso_(startISO);
+  const end = _publicDateFromIso_(endISO);
+  while (current.getTime() <= end.getTime()) {
+    out.push(_publicIsoDate_(current));
+    current = _publicAddDays_(current, 1);
+  }
+  return out;
+}
+
+function _publicDateFromIso_(iso) {
+  return new Date(String(iso).slice(0, 10) + 'T12:00:00+03:00');
+}
+
+function _publicAddDays_(dateObj, days) {
+  return new Date(dateObj.getTime() + (days * 86400000));
+}
+
+function _publicIsoDate_(dateObj) {
+  return Utilities.formatDate(dateObj, SHEET_SYNC_TIMEZONE_, 'yyyy-MM-dd');
+}
+
+function _publicIsoDateTime_(dateObj) {
+  return Utilities.formatDate(dateObj, 'UTC', "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+}
+
+function _publicWeekdayTR_(dateISO) {
+  const names = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+  return names[_publicDateFromIso_(dateISO).getUTCDay()];
+}
+
+function _counterObjectToArray_(obj) {
+  const total = Object.keys(obj || {}).reduce(function (sum, key) { return sum + Number(obj[key] || 0); }, 0);
+  return Object.keys(obj || {}).sort(function (a, b) {
+    return Number(obj[b] || 0) - Number(obj[a] || 0);
+  }).map(function (key) {
+    const count = Number(obj[key] || 0);
+    return {
+      material: key,
+      label: key ? (key.charAt(0).toLocaleUpperCase('tr') + key.slice(1)) : '',
+      count: count,
+      percent: total > 0 ? Math.round((count / total) * 1000) / 10 : 0
+    };
+  });
+}
+
+function _rankedPublicVolunteerLabel_(label, idx) {
+  if (label !== 'Bir gönüllü') return label;
+  if (idx === 0) return 'Bir gönüllü';
+  if (idx === 1) return 'Bir gönüllü daha';
+  return 'Başka bir gönüllü';
 }
 
 function _readBoxesFromSheet_(sheetId, metadata) {
@@ -1285,34 +1723,72 @@ function _readBoxesFromSheet_(sheetId, metadata) {
   if (!summaryTab) return [];
   let rows;
   try { rows = _readPublicSheetRows_(sheetId, summaryTab); } catch (err) { return []; }
-  const workersByBox = {};
+  const detailByBox = {};
   tabs.forEach(function (tabName) {
     const slug = _slugifyTabName_(tabName);
     if (slug.indexOf('pnb_') !== 0) return;
     if (slug === 'pnb_sayisallastirma' || slug === 'pnb_zarf_calisma') return;
     if (slug.indexOf('_zarf') !== -1) return;
-    const parts = slug.split('_');
-    const first = parts[parts.length - 1];
-    if (!first) return;
-    const cap = first.charAt(0).toUpperCase() + first.slice(1);
     let detailRows;
     try { detailRows = _readPublicSheetRows_(sheetId, tabName); } catch (e) { return; }
+    const hasSayfaSayisi = detailRows.some(function (r) {
+      return r.sayfaSayisi != null && String(r.sayfaSayisi).trim() !== '';
+    });
+    const fallbackPerson = _personHintFromPublicTabSlug_(slug);
     detailRows.forEach(function (row) {
-      const box = _stringValue_(row.kutu) || _stringValue_(row.kutuNo);
+      const box = _publicBoxLabel_(row.kutu || row.kutuNo);
       if (!box) return;
-      const key = String(box).trim();
-      if (!workersByBox[key]) workersByBox[key] = {};
-      workersByBox[key][cap] = true;
+      const key = _normalizePublicBoxKey_(box);
+      if (!detailByBox[key]) {
+        detailByBox[key] = {
+          box: box,
+          pageRows: 0,
+          donePages: 0,
+          materials: {},
+          contributors: {},
+          labels: {},
+          lastActivity: null
+        };
+      }
+      const pageUnits = hasSayfaSayisi ? Math.max(1, _parseDetailPageUnits_(row)) : 1;
+      const person = _stringValue_(row.kaydiOlusuran || row.kaydiOlusturan || row.paydas || fallbackPerson);
+      const privateKey = _privateContributorKey_(person || fallbackPerson || slug);
+      const label = _publicVolunteerLabelFromRow_(row, person);
+      const material = _materialCategoryFromPublicRow_(row);
+      const createdAt = _parseSheetDate_(row.tarih);
+      detailByBox[key].pageRows += 1;
+      detailByBox[key].donePages += pageUnits;
+      detailByBox[key].materials[material] = (detailByBox[key].materials[material] || 0) + 1;
+      if (privateKey) {
+        detailByBox[key].contributors[privateKey] = (detailByBox[key].contributors[privateKey] || 0) + 1;
+        detailByBox[key].labels[privateKey] = label;
+      }
+      if (createdAt && (!detailByBox[key].lastActivity || createdAt.getTime() > detailByBox[key].lastActivity.getTime())) {
+        detailByBox[key].lastActivity = createdAt;
+      }
     });
   });
   const boxes = [];
   rows.forEach(function (row) {
-    const kutu = _stringValue_(row.kutu) || _stringValue_(row.kutuNo);
+    const kutu = _publicBoxLabel_(row.kutu || row.kutuNo);
     if (!kutu) return;
+    const key = _normalizePublicBoxKey_(kutu);
+    const detail = detailByBox[key] || {
+      pageRows: 0,
+      donePages: 0,
+      materials: {},
+      contributors: {},
+      labels: {},
+      lastActivity: null
+    };
     const pages = _parseDoneTotalCell_(row.sayfaSayisi);
     const totalPages = pages.total || 0;
-    const donePages = pages.done || 0;
-    const workers = Object.keys(workersByBox[kutu] || {}).sort();
+    const donePages = Math.max(pages.done || 0, detail.donePages || 0);
+    const workers = Object.keys(detail.contributors || {}).sort(function (a, b) {
+      return (detail.contributors[b] || 0) - (detail.contributors[a] || 0);
+    }).map(function (privateKey) {
+      return detail.labels[privateKey] || 'Bir gönüllü';
+    });
     let status = 'future';
     if (totalPages > 0) {
       if (donePages >= totalPages) status = 'done';
@@ -1325,6 +1801,13 @@ function _readBoxesFromSheet_(sheetId, metadata) {
       belge: _numberOrZero_(row.belgeSayisi),
       totalPages: totalPages,
       donePages: donePages,
+      pageRows: detail.pageRows || 0,
+      materials: _counterObjectToArray_(detail.materials || {}),
+      contributorsCount: Object.keys(detail.contributors || {}).length,
+      lastActivityDate: detail.lastActivity ? _publicIsoDate_(detail.lastActivity) : null,
+      targetMissing: totalPages <= 0 && (detail.donePages || 0) > 0,
+      remaining: totalPages > 0 ? Math.max(0, totalPages - donePages) : null,
+      percent: totalPages > 0 ? Math.round((Math.min(donePages, totalPages) / totalPages) * 1000) / 10 : null,
       workers: workers,
       status: status
     });
