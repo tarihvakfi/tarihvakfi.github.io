@@ -1,124 +1,102 @@
 # Tarih Vakfı · Sayım Defteri
 
-Bu repo şu anda GitHub Pages üzerinde çalışan kamuya açık, statik bir **Sayım Defteri** panosu içerir. Pano, Pertev Naili Boratav arşivi için paylaşılan Google Sheet / Excel verisini özetler; kişisel kimlikleri, e-posta adreslerini, ham satır kimliklerini ve özel notları kamuya açmaz.
+Bu repo, Pertev Naili Boratav arşivi için kamuya açık ve tamamen statik bir **Sayım Defteri** panosu yayınlar. Amaç, paylaşılan Google Sheet / Excel verisindeki çalışmayı doğru özetlemek, gönüllü emeğini isimleriyle görünür kılmak ve teknik kimlikleri kamuya açmamaktır.
 
-## Güncel Mimari
+## Mimari
 
-- `/` → statik GitHub Pages panosu (`index.html`, `css/landing.css`, `js/landing.js`)
-- `apps-script/SheetSync.gs` → Google Sheet'i okuyan ve `?public=1` ile kamuya güvenli özet dönen Apps Script
-- `js/snapshot.js` → GitHub Actions veya yerel audit script tarafından üretilen, ilk boyamada kullanılan güvenli yedek veri
-- `.github/workflows/deploy.yml` → saatlik snapshot yenileme ve GitHub Pages dağıtımı
-- `tools/audit_public_dashboard.py` → yerel Excel denetimi, Markdown audit raporu, snapshot üretimi ve doğrulama
+- `index.html` GitHub Pages üzerinde çalışan statik pano.
+- `apps-script/SheetSync.gs` Google Sheet’i okur ve `?public=1` endpoint’iyle güvenli kamu payload’ı üretir.
+- `js/snapshot.js` ilk boyama için statik yedek veridir; GitHub Actions veya yerel audit script ile yenilenir.
+- `js/data-loader.js` önce snapshot’ı kullanır, sonra yapılandırılmış Apps Script endpoint’inden canlı veriyi dener.
+- `tools/audit_public_dashboard.py` yerel Excel kopyasından aynı kamu özetini üretir ve denetim raporu yazar.
 
-Firebase / Firestore tabanlı gönüllü yönetimi bu repo geçmişinde tasarlanmış daha geniş bir mimaridir. Kamuya açık Sayım Defteri bugün login gerektirmez ve canlı sayfa özetlerini Google Sheet / Apps Script hattından alır.
+Üretim runtime’ında Firebase, oturum açma, özel backend, Node/Express sunucu veya ücretli servis gerekmez.
 
-## Veri Sözleşmesi
-
-Apps Script ve yerel audit script aynı kamuya güvenli şekli üretir:
+## Kamuya Açık Veri Sözleşmesi
 
 ```js
-publicSummary = {
+window.TVF_PUBLIC_DATA = {
   generatedAt,
-  period,
-  totals,
-  byDay,
-  byMaterial,
-  byBox,
-  byVolunteer,
-  highlights,
-  warnings
-}
+  publicSummary,
+  latestActivity
+};
 ```
 
-`latestActivity` yalnızca son hareket satırı için sınırlı bir akıştır. Toplamlar, günlük kartlar, malzeme dağılımı, gönüllü sayıları ve kutu ilerlemesi bu sınırlı akıştan hesaplanmaz.
+`publicSummary` tüm toplamların kaynağıdır. `latestActivity` yalnızca “Son 50 hareket” akışıdır ve hiçbir toplam bu sınırlı feed’den hesaplanmaz.
 
-## Dönem Mantığı
+## Gönüllü Kredisi
 
-Kamu panosu tek bir dönem kullanır:
+Pano **credit-visible, ID-safe volunteer display** kullanır:
 
-- `period.mode = "calendar_week"`
-- Etiket örneği: `11–17 Mayıs haftası · bugüne kadar`
-- Günlük haftanın adı doğrudan `dateISO` değerinden türetilir.
+- Sheet’te gerçek insan adı varsa gösterilir.
+- `publicDisplayName` / `kamusal_ad` gibi açık kamu adı varsa önceliklidir.
+- E-posta, UUID, uzun hex hash, opaque veritabanı ID’si veya machine token isim olarak gösterilmez.
+- Kullanılabilir ad yoksa `Adı belirtilmeyen gönüllü` yazılır.
+- Açık opt-out alanı varsa `İsmini gizlemeyi tercih eden gönüllü` yazılır.
 
-Audit script rolling 7 günü ayrıca hesaplar, fakat kamu panosunda haftalık özetle karıştırmaz.
+Önerilen opt-out alanları: `public_credit = no`, `credit_visible = false`, `hide_name = yes`.
 
-## Gizlilik
+## Kamuya Açılmayanlar
 
-Gönüllü görünümü şu sırayla seçilir:
+- e-posta adresleri
+- raw volunteer/user IDs
+- UUID, hash, token, sheet row IDs
+- özel notlar
+- ham spreadsheet export’u
+- Apps Script veya Google credential/secrets
 
-1. `publicDisplayName` / `kamusalAd` gibi açık kamu adı varsa onu kullanır.
-2. Adın gösterilmesine açık izin veren bir alan varsa yalnızca ilk adı kullanır.
-3. İzin yoksa `Bir gönüllü` veya `Gönüllü katkısı` gösterir.
-
-E-posta, UUID, uzun hex değer, opaque alfanümerik ID ve ham sheet satır tanımları kamu payload'ına yazılmaz. Katkı sayıları korunur; bu yüzden gerçek emek hiçbir zaman `0 gönüllü` gibi görünmez.
-
-Önerilen sheet alanları:
-
-- `publicDisplayName`
-- `publicDisplayAllowed`
-- `publicConsent`
-- `adGorunsun`
-
-Bu alanlar yoksa pano güvenli varsayılan olarak anonim gösterir.
-
-## Yerel Audit Ve Snapshot
-
-Özel workbook dosyaları repoya konmaz. Yerel giriş dosyası şu klasöre bırakılır:
+## Yerel Kurulum
 
 ```bash
-_audit/input/
-```
-
-Audit raporu ve doğrulama:
-
-```bash
-/Users/arf/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 tools/audit_public_dashboard.py
-```
-
-Yerel Excel'den `js/snapshot.js` üretmek:
-
-```bash
-/Users/arf/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 tools/audit_public_dashboard.py --write-snapshot
-```
-
-Sadece doğrulama:
-
-```bash
-/Users/arf/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 tools/audit_public_dashboard.py --validate-only
-```
-
-Doğrulama şunları kontrol eder:
-
-- `sum(byDay.records) == totals.records`
-- malzeme toplamları dönem kayıtlarıyla uyumlu
-- kamu gönüllü etiketlerinde e-posta, UUID, hash veya opaque ID yok
-- kayıt bulunan hiçbir gün `0 gönüllü` göstermiyor
-- en yoğun gün etiketi gerçek tarihle eşleşiyor
-- özetler sınırlı feed'den hesaplanmıyor
-- toplam ilerleme yüzdesi doğru yuvarlanıyor
-- `js/snapshot.js` geçerli JS ve güvenli JSON taşıyor
-
-## Yerel Önizleme
-
-Statik dosya olduğu için basit bir sunucu yeterlidir:
-
-```bash
+python -m pip install -r tools/requirements.txt
+python tools/audit_public_dashboard.py
+python tools/validate_public_summary.py
 python3 -m http.server 8000
 ```
 
-Sonra:
+Önizleme:
 
 ```text
 http://localhost:8000/
 http://localhost:8000/?debug=1
 ```
 
-`?debug=1` veya localhost üzerinde veri kalitesi notları görünür.
+Yerel Excel’den snapshot yenilemek:
 
-## Dağıtım
+```bash
+python tools/audit_public_dashboard.py --write-snapshot
+python tools/validate_public_summary.py --snapshot
+```
 
-1. `apps-script/SheetSync.gs` içeriğini Apps Script projesine yayınlayın.
-2. Web app deployment'ını yenileyin.
-3. GitHub Actions `Deploy to GitHub Pages` workflow'unu çalıştırın.
+## Dosya Yapısı
 
-Workflow, Apps Script endpoint'i henüz `publicSummary` üretmiyorsa mevcut güvenli `js/snapshot.js` dosyasını korur.
+```text
+.
+├─ index.html
+├─ 404.html
+├─ .github/workflows/deploy.yml
+├─ assets/
+├─ css/site.css
+├─ js/
+│  ├─ config.public.js
+│  ├─ snapshot.js
+│  ├─ data-loader.js
+│  ├─ aggregate.js
+│  ├─ volunteer-credit.js
+│  ├─ render-dashboard.js
+│  └─ utils.js
+├─ apps-script/
+├─ tools/
+├─ docs/
+└─ _audit/
+```
+
+## Bakım Kontrol Listesi
+
+1. Sheet yapısı değiştiyse `python tools/audit_public_dashboard.py` çalıştırın.
+2. `_audit/output/public_dashboard_audit.md` içindeki uyarıları okuyun.
+3. `python tools/validate_public_summary.py --snapshot` ile snapshot’ı doğrulayın.
+4. Yerelde `/?debug=1` ile adların, dönem etiketinin, günlük toplamların ve aktif kutuların doğru göründüğünü kontrol edin.
+5. Apps Script endpoint’i değişirse `js/config.public.js` ve `.github/workflows/deploy.yml` içindeki URL’yi güncelleyin.
+
+Dağıtım ayrıntıları için [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) dosyasına bakın.

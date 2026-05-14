@@ -1,41 +1,52 @@
-# Apps Script kurulumu
+# Apps Script Public Sync
 
-Bu klasördeki `.gs` dosyalarını yeni bir Google Apps Script projesine kopyalayın.
+`SheetSync.gs` reads the shared Google Sheet and exposes a public `?public=1` JSON payload for the static dashboard.
 
-## Gerekli sheet sekmeleri
+## Public Payload
 
-- `MailQueue`
-- `Logs`
-- `WeeklySummary`
+```js
+{
+  publicSummary: {
+    generatedAt,
+    source,
+    period,
+    totals,
+    byDay,
+    byMaterial,
+    byBox,
+    byVolunteer,
+    highlights,
+    warnings
+  },
+  latestActivity: [],
+  content: {}
+}
+```
 
-## İlk satır başlık önerileri
+`publicSummary` is the full aggregate. `latestActivity` is capped at 50 rows and is used only for the latest-feed section.
 
-### MailQueue
-- createdAt
-- type
-- recipient
-- subject
-- body
-- status
-- metadata
+## Privacy And Credit
 
-### Logs
-- timestamp
-- email
-- action
-- detail
+The public display mode is **credit-visible, ID-safe volunteer display**:
 
-### WeeklySummary
-Bu sekme script tarafından doldurulur.
+- real names in `Paydaş` / `Kaydı Oluşuran` are shown;
+- explicit public display names are honored;
+- explicit opt-out fields hide the name;
+- emails, UUIDs, hashes, opaque IDs, and tokens are suppressed;
+- missing names become `Adı belirtilmeyen gönüllü`.
 
-## Kurulum
+The endpoint must not emit emails, raw row IDs, private notes, URLs, scanner labels, private volunteer IDs, credentials, or raw spreadsheet rows.
 
-1. Yeni bir Google Spreadsheet oluşturun.
-2. Yukarıdaki sekmeleri açın.
-3. Apps Script projesi ekleyin.
-4. Bu klasördeki dosyaları yapıştırın.
-5. Script Properties içinde `FIREBASE_SERVICE_ACCOUNT`, `TARIH_VAKFI_SHEET_ID` ve `SYNC_ALERT_EMAIL` değerlerini ayarlayın. Public ticker token'ları için opsiyonel `PUBLIC_TICKER_TOKEN_SALT` da eklenebilir.
-6. Kaynak gönüllü ağı Google Sheet'ini service account e-postasıyla Viewer olarak paylaşın.
-7. `sheetSyncRun()` fonksiyonunu bir kez manuel çalıştırın.
-8. `createTriggers()` fonksiyonunu bir kez manuel çalıştırın.
-9. Yetkileri onaylayın.
+## Deployment
+
+1. Open the Apps Script project.
+2. Paste/update `SheetSync.gs`.
+3. Ensure `appsscript.json` uses the listed readonly spreadsheet scope.
+4. Deploy as Web App.
+5. Execute as the foundation account.
+6. Access: Anyone.
+7. Copy the `/exec` URL into `js/config.public.js` and `.github/workflows/deploy.yml`.
+
+## Refresh Schedule
+
+GitHub Actions calls `?public=1` hourly and bakes the response into `js/snapshot.js`. The page also tries the live endpoint in the browser after rendering the snapshot.

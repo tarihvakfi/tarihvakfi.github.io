@@ -2,30 +2,60 @@
 
 ## GitHub Pages
 
-1. Repo ayarlarında Pages bölümünü açın.
-2. Source olarak `Deploy from a branch` seçin.
-3. Branch olarak `main` ve folder olarak `/root` seçin.
-4. Yayınlandıktan sonra bağlantılar:
-   - `/`
-   - `/auth/`
-   - `/app/`
-   - `/admin/`
+Repo `main` branch’ine push edildiğinde `.github/workflows/deploy.yml` çalışır.
 
-## Firebase tarafı
+Workflow:
 
-- Authentication > Google aktif
-- Authorized domains içinde GitHub Pages domaini ekli
-- Firestore rules yayınlandı
-- En az bir admin kullanıcı manuel atandı
+1. Repo’yu checkout eder.
+2. `.nojekyll` ekler.
+3. Apps Script endpoint’inden `?public=1` payload’ını çeker.
+4. Payload `publicSummary` içeriyorsa `js/snapshot.js` dosyasını üretir.
+5. Snapshot içinde e-posta, `volunteerToken`, raw sheet row ID gibi yasaklı değerleri arar.
+6. Statik siteyi GitHub Pages artifact’i olarak yükler.
 
-## Canlıya almadan önce kontrol listesi
+## Apps Script Endpoint
 
-- `js/config.firebase.js` repoda commit edilmesin
-- Tüm linkler relative path kullansın
-- `firestore.rules` yayınlanmış olsun
-- İlk test kullanıcılarıyla giriş denensin
-- Yetkisiz kullanıcı admin paneline giremesin
-- Pending kullanıcı app/admin verilerini göremesin
-- `tools/pnb_excel_to_import.py` ile üretilen `imports/pnb-import-preview.json` repoya commit edilmesin
-- Admin panelinde PNB import önizlemesi kontrol edilmeden Firestore aktarımı yapılmasın
-- PNB sekmesinde gönüllü hesabı yalnızca atanmış arşiv birimlerini görebilsin
+Canlı endpoint `js/config.public.js` içinde:
+
+```js
+window.__SHEETSYNC_URL__ = "https://script.google.com/macros/s/.../exec";
+```
+
+Aynı URL `.github/workflows/deploy.yml` içindeki `SHEETSYNC_URL` ortam değişkeninde de bulunur. Endpoint değişirse ikisi birlikte güncellenmelidir.
+
+## Snapshot Refresh
+
+Yerel Excel kopyasından snapshot üretmek:
+
+```bash
+python tools/audit_public_dashboard.py --write-snapshot
+python tools/validate_public_summary.py --snapshot
+```
+
+GitHub Actions canlı Apps Script endpoint’inden snapshot üretir. Endpoint geçici olarak başarısız olursa checked-in snapshot korunur.
+
+## Local Testing
+
+```bash
+python -m pip install -r tools/requirements.txt
+python tools/audit_public_dashboard.py
+python tools/validate_public_summary.py
+python tools/validate_public_summary.py --snapshot
+python3 -m http.server 8000
+```
+
+Sonra:
+
+```text
+http://localhost:8000/
+http://localhost:8000/?debug=1
+```
+
+## After Deploy Checks
+
+- Dönem etiketi tek mantıkla görünmeli: `11–17 Mayıs haftası · bugüne kadar` veya `Son 7 gün`.
+- Gönüllü isimleri gerçek adlarla görünmeli.
+- Teknik ID, e-posta, UUID, hash görünmemeli.
+- Günlük toplamlar headline toplamıyla eşleşmeli.
+- Aktif kutular done/target/remaining göstermeli.
+- “Son 50 hareket” dışındaki hiçbir bölüm capped feed’den hesaplanmamalı.

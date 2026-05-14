@@ -11,5 +11,5 @@
 window.__SHEETSYNC_URL__ = "https://script.google.com/macros/s/AKfycbzSGPTbBnrfhSDdw_iOrfxAfGLYp08qpZwl8rqZSb90o_x5cUK7Eo1HYnrjk-hvJWE/exec";
 
 window.__APP_CONFIG__ = {
-  appName: "Tarih Vakfı Gönüllü Takip Sistemi"
+  appName: "Tarih Vakfı · Sayım Defteri"
 };

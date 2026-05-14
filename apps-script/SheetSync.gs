@@ -1,1548 +1,223 @@
 /**
- * Live one-way sync from the shared "Tarih Vakfı Gönüllü Ağı" Google Sheet
- * into Firestore. The sheet is owned by a foundation colleague (the user
- * has Editor + sharing rights but is not the owner), so the sync is
- * deliberately defensive:
+ * Tarih Vakfı · Sayım Defteri public sheet endpoint.
  *
- *   1. Sheet → Firestore only. We never write back to the sheet.
- *   2. Additive only. A row that disappears from the sheet does NOT trigger
- *      a Firestore delete. The mirror doc stays in place; the latest sheet
- *      state is what new dashboard reads see, but history is preserved.
- *   3. Schema-tolerant. Renamed tabs, missing columns, or extra columns
- *      produce a "degraded" sync log + an email alert; they don't crash the
- *      run and they don't silently drop data.
- *   4. Structure-change detection. Each run captures a snapshot of every
- *      tab's name + header row + row count and diffs it against the last
- *      known-good state. Any drift triggers a single email per 24h.
- *   5. Sharing-loss detection. Three consecutive permission failures pause
- *      the sync (config.enabled = false) and email the admin.
+ * Reads the shared Google Sheet and emits only a public dashboard payload:
+ *   - publicSummary: full aggregate object
+ *   - latestActivity: capped latest feed
+ *   - content: optional public copy overrides
  *
- * Required Script Properties:
- *   - FIREBASE_SERVICE_ACCOUNT  (already wired via FirestoreClient.gs)
- *   - TARIH_VAKFI_SHEET_ID       the Google Sheet ID
- *   - SYNC_ALERT_EMAIL           admin email for alerts
- *
- * Setup (manual, see SHEET_SYNC_README.md for the full runbook):
- *   1. Talk to the sheet owner; explain that an automatic reader is being
- *      added and ask them to ping you if they restructure tabs/columns.
- *   2. Add the service account email (FIREBASE_SERVICE_ACCOUNT.client_email)
- *      as Viewer on the sheet.
- *   3. Set TARIH_VAKFI_SHEET_ID and SYNC_ALERT_EMAIL Script Properties.
- *   4. Run sheetSyncRun() once manually to verify access + write the
- *      initial baseline. Subsequent runs come from the hourly trigger
- *      registered by Triggers.gs::createTriggers.
+ * It does not expose raw spreadsheet rows, emails, technical IDs, private
+ * notes, scanner/computer fields, URLs, credentials, or volunteer tokens.
  */
 
-const SHEETS_SCOPE_ = 'https://www.googleapis.com/auth/spreadsheets.readonly';
-const SHEET_SYNC_CONFIG_PATH_ = 'config/sheetSync';
-const SHEET_SYNC_LOGS_COLLECTION_ = 'syncLogs';
-const SHEET_SYNC_INTERVAL_MIN_ = 60;       // matches the Triggers.gs cadence
-const ACCESS_FAILURE_PAUSE_THRESHOLD_ = 3; // 3 consecutive failures → pause
-const ALERT_COOLDOWN_HOURS_ = 24;
-const SHEET_SYNC_TIMEZONE_ = 'Europe/Istanbul';
+const TVF_TIMEZONE = 'Europe/Istanbul';
+const TVF_PROJECT_ID = 'pnb';
+const TVF_LATEST_LIMIT = 50;
+const TVF_TR_WEEKDAYS = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
+const TVF_TR_MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+const TVF_UNNAMED = 'Adı belirtilmeyen gönüllü';
+const TVF_HIDDEN = 'İsmini gizlemeyi tercih eden gönüllü';
 
-// ---------------------------------------------------------------------------
-// Public entry point — invoked by the time trigger AND by the user via the
-// Apps Script editor for the initial test run.
-// ---------------------------------------------------------------------------
-
-function sheetSyncRun() {
-  const startedAt = new Date();
-  const props = PropertiesService.getScriptProperties();
-  const sheetId = props.getProperty('TARIH_VAKFI_SHEET_ID');
-  const alertEmail = props.getProperty('SYNC_ALERT_EMAIL');
-
-  if (!sheetId) {
-    _logSyncEvent_('error', { stage: 'startup', error: 'TARIH_VAKFI_SHEET_ID not set' });
-    return;
-  }
-  if (!alertEmail) {
-    _logSyncEvent_('warning', { stage: 'startup', warning: 'SYNC_ALERT_EMAIL not set; alerts will be skipped' });
-  }
-
-  const config = _loadConfig_();
-
-  // Manual pause via Bakım panel: respect it and bail out without contacting
-  // Sheets. The admin re-enables sync after they've reviewed whatever
-  // structure change or access loss caused the pause.
-  if (config.enabled === false) {
-    _logSyncEvent_('skipped', { reason: 'sync paused (config.enabled=false)' });
-    return;
-  }
-
-  // Step 1 — sharing-loss check. A tiny read of the spreadsheet metadata is
-  // the cheapest probe; if the service account lost access, this throws and
-  // we bump the consecutive-failure counter.
-  let metadata;
-  try {
-    metadata = _readSheetMetadata_(sheetId);
-  } catch (err) {
-    return _handleAccessFailure_(err, config, alertEmail);
-  }
-  // Any successful read resets the counter — even if no rows changed.
-  if ((config.consecutiveAccessFailures || 0) > 0) {
-    config.consecutiveAccessFailures = 0;
-  }
-
-  // Step 2 — structure snapshot. Captured BEFORE we read row contents so a
-  // partial / fast-fail pass still records what we saw.
-  const currentSnapshot = _captureStructureSnapshot_(sheetId, metadata);
-
-  // First run after deploy: write baseline, no alert.
-  let degraded = false;
-  let structureChanges = [];
-  if (!config.lastGoodStructure || !Array.isArray(config.lastGoodStructure.tabs)) {
-    config.lastGoodStructure = currentSnapshot;
-    _logSyncEvent_('baseline_set', { tabCount: currentSnapshot.tabs.length });
-  } else {
-    structureChanges = detectStructureChange_(currentSnapshot, config.lastGoodStructure);
-    if (structureChanges.length > 0) {
-      degraded = true;
-      _logSyncEvent_('structure_changed', {
-        changes: structureChanges,
-        currentTabs: currentSnapshot.tabs.map(function (t) { return t.name; })
-      });
-      _sendAlertIfFresh_(config, alertEmail,
-        '[Tarih Vakfı] Sheet structure changed',
-        _composeStructureChangeBody_(structureChanges, currentSnapshot, config.lastGoodStructure)
-      );
-      // We do NOT update lastGoodStructure on a degraded run. The admin
-      // accepts the new structure via the "Yapıyı yeniden kabul et" button
-      // in the Bakım panel, which writes the current snapshot as the new
-      // baseline and clears the alert cooldown.
-    } else {
-      // No drift — bump the baseline forward (rowCount may have grown, that's fine).
-      config.lastGoodStructure = currentSnapshot;
-    }
-  }
-
-  // Step 3 — sync each tab. Schema-tolerant: each tab handler catches its
-  // own errors so a single broken tab doesn't poison the rest of the run.
-  const perTabSummary = [];
-  let totalWritten = 0;
-  let totalSkipped = 0;
-  metadata.sheets.forEach(function (sheetMeta) {
-    const props = sheetMeta.properties || {};
-    const tabName = props.title;
-    const rowCount = (props.gridProperties && props.gridProperties.rowCount) || 0;
-    const colCount = (props.gridProperties && props.gridProperties.columnCount) || 0;
-    if (!tabName || rowCount < 1 || colCount < 1) return;
-    try {
-      const result = _syncTab_(sheetId, tabName, rowCount, colCount);
-      perTabSummary.push({
-        tab: tabName,
-        rowsRead: result.rowsRead,
-        written: result.written,
-        skipped: result.skipped,
-        warnings: result.warnings
-      });
-      totalWritten += result.written;
-      totalSkipped += result.skipped;
-      if (result.warnings.length > 0) degraded = true;
-    } catch (err) {
-      degraded = true;
-      perTabSummary.push({ tab: tabName, error: String(err) });
-      _logSyncEvent_('tab_error', { tab: tabName, error: String(err) });
-    }
-  });
-
-  let publicProjectionSummary = null;
-  try {
-    publicProjectionSummary = _publishPublicProjectionFromSheet_(sheetId, metadata);
-  } catch (err) {
-    degraded = true;
-    publicProjectionSummary = { error: String(err) };
-    _logSyncEvent_('public_projection_error', { error: String(err) });
-  }
-
-  // Step 4 — write the run summary and persist updated config.
-  const status = degraded ? 'degraded' : 'ok';
-  config.lastSyncAt = startedAt.toISOString();
-  config.lastSyncStatus = status;
-  config.lastSyncSummary = {
-    durationMs: Date.now() - startedAt.getTime(),
-    tabs: perTabSummary,
-    totalWritten: totalWritten,
-    totalSkipped: totalSkipped,
-    structureChanges: structureChanges,
-    publicProjection: publicProjectionSummary
-  };
-  _saveConfig_(config);
-
-  _logSyncEvent_(status, {
-    durationMs: Date.now() - startedAt.getTime(),
-    tabs: perTabSummary,
-    totalWritten: totalWritten,
-    totalSkipped: totalSkipped,
-    structureChangesCount: structureChanges.length
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Public helper: accept the current sheet state as the new structural baseline.
-// Called by the "Yapıyı yeniden kabul et" button in the Bakım panel after the
-// admin verifies the structure was changed intentionally. Resets the alert
-// cooldown so the next genuine drift can re-alert.
-// ---------------------------------------------------------------------------
-
-function sheetSyncAcceptCurrentStructure() {
-  const props = PropertiesService.getScriptProperties();
-  const sheetId = props.getProperty('TARIH_VAKFI_SHEET_ID');
-  if (!sheetId) throw new Error('TARIH_VAKFI_SHEET_ID not set');
-  const metadata = _readSheetMetadata_(sheetId);
-  const snapshot = _captureStructureSnapshot_(sheetId, metadata);
-  const config = _loadConfig_();
-  config.lastGoodStructure = snapshot;
-  config.consecutiveAccessFailures = 0;
-  config.alertCooldown = {}; // clear cooldowns so future drift re-alerts immediately
-  config.enabled = true;
-  _saveConfig_(config);
-  _logSyncEvent_('baseline_accepted', { tabCount: snapshot.tabs.length });
-  // Run a normal sync now so the mirror picks up any data shifted around by
-  // the restructure (e.g. a column rename that maps to a new field key).
-  sheetSyncRun();
-}
-
-// ---------------------------------------------------------------------------
-// Public helper: re-enable sync after access loss has been resolved.
-// Mirrored on the Bakım panel button for a one-click recovery.
-// ---------------------------------------------------------------------------
-
-function sheetSyncResume() {
-  const config = _loadConfig_();
-  config.enabled = true;
-  config.consecutiveAccessFailures = 0;
-  _saveConfig_(config);
-  _logSyncEvent_('resumed', {});
-}
-
-// ---------------------------------------------------------------------------
-// Structure snapshot + diff
-// ---------------------------------------------------------------------------
-
-/**
- * Returns { tabs: [{ name, headers: [...], rowCount }, ...] } for the given
- * spreadsheet. Reads each tab's first row (the header) via the values API.
- */
-function _captureStructureSnapshot_(sheetId, metadataOverride) {
-  const metadata = metadataOverride || _readSheetMetadata_(sheetId);
-  const tabs = [];
-  metadata.sheets.forEach(function (sheetMeta) {
-    const props = sheetMeta.properties || {};
-    const tabName = props.title;
-    const colCount = (props.gridProperties && props.gridProperties.columnCount) || 0;
-    const rowCount = (props.gridProperties && props.gridProperties.rowCount) || 0;
-    if (!tabName) return;
-    let headers = [];
-    if (colCount > 0 && rowCount > 0) {
-      try {
-        const headerRow = _readSheetValues_(sheetId, tabName + '!A1:' + _columnLetter_(colCount) + '1');
-        headers = (headerRow[0] || []).map(function (h) { return h == null ? '' : String(h).trim(); });
-        // Trim trailing empties (sheets often report grid columns wider than
-        // actually-used columns — keep only the named-header prefix).
-        while (headers.length > 0 && headers[headers.length - 1] === '') headers.pop();
-      } catch (err) {
-        headers = [];
-      }
-    }
-    tabs.push({ name: tabName, headers: headers, rowCount: rowCount });
-  });
-  return { tabs: tabs };
-}
-
-// Public alias — matches the spec's name for callers in the Bakım panel.
-function captureStructureSnapshot_(sheetId) {
-  return _captureStructureSnapshot_(sheetId);
-}
-
-/**
- * Returns an array of human-readable change descriptions. Empty array means
- * the structure is unchanged (rowCount may differ; that's not a structure
- * change). Detects:
- *   - tabs added / removed / renamed (best-effort: same headers + similar
- *     name → rename; otherwise added/removed)
- *   - columns added / removed / renamed within a known tab
- *   - column reorder within a known tab
- */
-function detectStructureChange_(currentSnapshot, lastSnapshot) {
-  const changes = [];
-  const currTabs = (currentSnapshot && currentSnapshot.tabs) || [];
-  const lastTabs = (lastSnapshot && lastSnapshot.tabs) || [];
-  const currByName = {};
-  const lastByName = {};
-  currTabs.forEach(function (t) { currByName[t.name] = t; });
-  lastTabs.forEach(function (t) { lastByName[t.name] = t; });
-
-  // Tabs that disappeared from current. We try a best-effort rename match
-  // before declaring them gone: a removed tab whose headers exactly match an
-  // added tab is reported as a rename.
-  const removedTabs = lastTabs.filter(function (t) { return !currByName[t.name]; });
-  const addedTabs = currTabs.filter(function (t) { return !lastByName[t.name]; });
-  const matchedRenames = {};
-  removedTabs.forEach(function (rem) {
-    for (let i = 0; i < addedTabs.length; i++) {
-      const add = addedTabs[i];
-      if (matchedRenames[add.name]) continue;
-      if (_arraysEqual_(rem.headers, add.headers)) {
-        changes.push("Tab '" + rem.name + "' renamed to '" + add.name + "'");
-        matchedRenames[add.name] = rem.name;
-        break;
-      }
-    }
-  });
-  removedTabs.forEach(function (rem) {
-    const renamedTo = Object.keys(matchedRenames).find(function (k) { return matchedRenames[k] === rem.name; });
-    if (!renamedTo) changes.push("Tab '" + rem.name + "' removed");
-  });
-  addedTabs.forEach(function (add) {
-    if (!matchedRenames[add.name]) changes.push("Tab '" + add.name + "' added");
-  });
-
-  // Tabs present in both: compare headers.
-  currTabs.forEach(function (curr) {
-    const last = lastByName[curr.name];
-    if (!last) return; // already flagged as added or rename
-    const a = last.headers || [];
-    const b = curr.headers || [];
-    const added = b.filter(function (h) { return a.indexOf(h) === -1; });
-    const removed = a.filter(function (h) { return b.indexOf(h) === -1; });
-    if (added.length === 0 && removed.length === 0) {
-      // Same set, possibly reordered.
-      if (!_arraysEqual_(a, b)) {
-        changes.push("Tab '" + curr.name + "' columns reordered");
-      }
-      return;
-    }
-    // Try column-rename heuristic: if exactly one removed and one added, treat
-    // as rename. More complex multi-rename gets reported as add+remove pairs.
-    if (added.length === 1 && removed.length === 1) {
-      changes.push("Tab '" + curr.name + "' column '" + removed[0] + "' renamed to '" + added[0] + "'");
-      return;
-    }
-    removed.forEach(function (h) { changes.push("Tab '" + curr.name + "' lost column '" + h + "'"); });
-    added.forEach(function (h) { changes.push("Tab '" + curr.name + "' gained column '" + h + "'"); });
-  });
-  return changes;
-}
-
-function _arraysEqual_(a, b) {
-  if (!a || !b || a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
-  return true;
-}
-
-// ---------------------------------------------------------------------------
-// Per-tab sync — read rows, hash, compare to mirror, write only diffs.
-// ---------------------------------------------------------------------------
-
-function _syncTab_(sheetId, tabName, rowCount, colCount) {
-  const warnings = [];
-  // Cap the read range at the metadata's row/col counts; the values API
-  // will truncate to last-non-empty anyway.
-  const range = tabName + '!A1:' + _columnLetter_(colCount) + Math.max(rowCount, 1);
-  const matrix = _readSheetValues_(sheetId, range);
-  if (!matrix || matrix.length < 1) {
-    return { rowsRead: 0, written: 0, skipped: 0, warnings: warnings };
-  }
-  const rawHeaders = (matrix[0] || []).map(function (h) { return h == null ? '' : String(h).trim(); });
-  // Trim trailing empty header columns.
-  while (rawHeaders.length > 0 && rawHeaders[rawHeaders.length - 1] === '') rawHeaders.pop();
-  if (rawHeaders.length === 0) {
-    warnings.push('header row is empty; nothing synced');
-    return { rowsRead: 0, written: 0, skipped: 0, warnings: warnings };
-  }
-
-  // Camel-case header → field-key mapping. Duplicates within a single tab
-  // are renamed to {key}_2, {key}_3 etc. so we don't silently drop a column.
-  const fieldKeys = [];
-  const seenKeys = {};
-  rawHeaders.forEach(function (h, idx) {
-    if (h === '') {
-      fieldKeys.push('column' + (idx + 1));
-      return;
-    }
-    let key = _slugifyHeaderToKey_(h);
-    if (!key) key = 'column' + (idx + 1);
-    if (seenKeys[key]) {
-      seenKeys[key] += 1;
-      key = key + '_' + seenKeys[key];
-      warnings.push("duplicate header '" + h + "' → key " + key);
-    } else {
-      seenKeys[key] = 1;
-    }
-    fieldKeys.push(key);
-  });
-
-  const slug = _slugifyTabName_(tabName);
-  // Per-tab subcollection layout: /sheets/{tabSlug}/rows/{rowId}. The
-  // parent doc /sheets/{tabSlug} carries tab metadata (name, headers,
-  // lastSyncAt) so an admin reading just /sheets sees the tab list.
-  const tabDocPath = 'sheets/' + slug;
-  const collectionPath = tabDocPath + '/rows';
-
-  // Pre-load the existing mirror docs in this tab. We only care about
-  // content hashes here so we can skip writing rows whose content hasn't
-  // changed since last sync.
-  const existing = _listMirrorDocs_(collectionPath);
-  const existingByRow = {};
-  existing.forEach(function (d) {
-    const rowField = d.data && d.data._sourceRow;
-    if (typeof rowField === 'number') existingByRow[rowField] = d;
-  });
-
-  const writes = [];
-  let written = 0;
-  let skipped = 0;
-  for (let r = 1; r < matrix.length; r++) { // skip header
-    const row = matrix[r] || [];
-    const sourceRow = r + 1; // 1-based, matches what the sheet UI shows
-    // Skip rows that are entirely empty so we don't fill the mirror with
-    // garbage when the owner pre-pads tabs with blank rows.
-    const allBlank = row.every(function (v) { return v == null || String(v).trim() === ''; });
-    if (allBlank) { skipped += 1; continue; }
-
-    const fields = {};
-    fieldKeys.forEach(function (key, idx) {
-      const cell = row[idx];
-      fields[key] = (cell === undefined || cell === null) ? null : cell;
-    });
-    const hash = _hashRow_(rawHeaders, row);
-    const existingDoc = existingByRow[sourceRow];
-    const existingHash = existingDoc && existingDoc.data ? existingDoc.data._contentHash : null;
-
-    if (existingHash === hash) { skipped += 1; continue; }
-
-    // Build the full doc payload. _history captures the prior shape so we
-    // never lose information even on overwrite (additive guarantee).
-    const docId = 'row' + sourceRow;
-    const docPath = collectionPath + '/' + docId;
-    const newDoc = Object.assign({}, fields, {
-      _sourceTab: tabName,
-      _sourceRow: sourceRow,
-      _sourceHeaders: rawHeaders,
-      _contentHash: hash,
-      _syncedAt: fsServerTimestamp()
-    });
-    if (existingDoc && existingDoc.data) {
-      const priorHistory = Array.isArray(existingDoc.data._history) ? existingDoc.data._history : [];
-      const priorSnapshot = _stripMetaForHistory_(existingDoc.data);
-      // Cap history at 10 entries so a chatty cell can't blow up the doc.
-      newDoc._history = (priorHistory.concat([priorSnapshot])).slice(-10);
-    } else {
-      newDoc._history = [];
-    }
-
-    // Use a setDocument-style write (overwrite). Apps Script REST: a write
-    // with `update` and no precondition is an upsert.
-    writes.push(_buildSetWrite_(docPath, newDoc));
-    written += 1;
-  }
-
-  // Always refresh the parent tab metadata doc (cheap — single write per
-  // tab per run) so admin reads of /sheets/{slug} return current headers
-  // and an up-to-date lastSyncAt without touching every row.
-  writes.push(_buildSetWrite_(tabDocPath, {
-    name: tabName,
-    headers: rawHeaders,
-    rowCount: matrix.length - 1,
-    lastSyncAt: fsServerTimestamp()
-  }));
-
-  // Flush writes in batches of 400 to stay under Firestore's 500-write commit
-  // limit while leaving headroom for retry overhead.
-  while (writes.length > 0) {
-    const chunk = writes.splice(0, 400);
-    fsCommit_(chunk);
-  }
-
-  return { rowsRead: matrix.length - 1, written: written, skipped: skipped, warnings: warnings };
-}
-
-// Build a Firestore commit write entry from a plain JS doc, honoring the
-// fsServerTimestamp() sentinel for any timestamp fields. Mirrors the helper
-// shape inside FirestoreClient.gs::createDocument but skips the
-// currentDocument: { exists: false } precondition so we get upsert semantics.
-function _buildSetWrite_(docPath, data) {
-  const docName = fsDocBasePath_() + '/' + docPath;
-  const tsFields = collectTimestampFields_(data || {});
-  const write = {
-    update: {
-      name: docName,
-      fields: encodeFields_(data || {})
-    }
-  };
-  if (tsFields.length) {
-    write.updateTransforms = tsFields.map(function (path) {
-      return { fieldPath: path, setToServerValue: 'REQUEST_TIME' };
-    });
-  }
-  return write;
-}
-
-// Strip the synthetic _ fields before pushing onto _history — the history
-// array should only contain the original cell-content snapshot, not nested
-// _history of _history.
-function _stripMetaForHistory_(doc) {
-  const out = {};
-  Object.keys(doc).forEach(function (key) {
-    if (key === '_history') return;
-    if (key === '_syncedAt') {
-      out[key] = doc[key]; // preserve the previous synced timestamp
-      return;
-    }
-    out[key] = doc[key];
-  });
-  return out;
-}
-
-function _listMirrorDocs_(collectionPath) {
-  // Read the concrete collection path directly. Firestore structured queries
-  // take a collection *id*, not "sheets/foo/rows"; using a direct documents
-  // list keeps nested row collections working reliably.
-  const token = getAccessToken_();
-  const out = [];
-  let nextPageToken = null;
-  let safety = 10; // hard cap at 10 pages = 3000 docs
-  do {
-    const u = _collectionListUrl_(collectionPath, nextPageToken);
-    const response = UrlFetchApp.fetch(u, {
-      method: 'get',
-      headers: { Authorization: 'Bearer ' + token },
-      muteHttpExceptions: true
-    });
-    const code = response.getResponseCode();
-    if (code === 404) return out; // collection doesn't exist yet
-    if (code !== 200) {
-      throw new Error('Firestore listDocuments failed (' + code + '): ' + response.getContentText());
-    }
-    const body = JSON.parse(response.getContentText());
-    (body.documents || []).forEach(function (d) {
-      const segs = d.name.split('/');
-      out.push({
-        id: segs[segs.length - 1],
-        fields: d.fields || {},
-        data: decodeFields(d.fields || {})
-      });
-    });
-    nextPageToken = body.nextPageToken || null;
-    safety -= 1;
-  } while (nextPageToken && safety > 0);
-  return out;
-}
-
-// ---------------------------------------------------------------------------
-// Public landing projection
-// ---------------------------------------------------------------------------
-//
-// The raw /sheets mirror is admin-only because the source sheet contains names,
-// internal notes, equipment labels, and other operational context. The public
-// homepage reads only /publicProjectStats and /publicTicker, so each sync also
-// publishes a tiny, privacy-safe projection:
-//   - aggregate PNB page/unit counts
-//   - anonymous recent activity rows with coarse material categories
-//
-// No volunteer names, notes, sheet row ids, links, scanner labels, or raw unit
-// identifiers are written to the public collections.
-
-function _publishPublicProjectionFromSheet_(sheetId, metadata) {
-  const projection = _buildPublicProjectionFromSheet_(sheetId, metadata);
-  const writes = [];
-
-  if (projection.hasStats) {
-    writes.push(_buildSetWrite_('publicProjectStats/pnb', {
-      totalPages: projection.totalPages,
-      donePages: projection.donePages,
-      totalUnits: projection.totalUnits,
-      doneUnits: projection.doneUnits,
-      // v2 (May 2026): box + file counts so the public ledger / project card
-      // can show "açılmış kutu: 88 / 104" and "toplam dosya: 1.207" without
-      // hardcoding inventory numbers in the website. The website still needs
-      // a fallback for cases where this sync hasn't run yet.
-      totalFiles: projection.totalFiles,
-      cataloguedBoxes: projection.cataloguedBoxes,
-      updatedAt: fsServerTimestamp()
-    }));
-  }
-
-  projection.tickerEntries.forEach(function (entry) {
-    writes.push(_buildSetWrite_('publicTicker/' + entry.id, {
-      createdAt: entry.createdAt,
-      effort: entry.effort,
-      materialCategory: entry.materialCategory,
-      projectId: entry.projectId,
-      volunteerToken: entry.volunteerToken
-    }));
-  });
-
-  while (writes.length > 0) {
-    fsCommit_(writes.splice(0, 400));
-  }
-  return {
-    totalPages: projection.totalPages,
-    donePages: projection.donePages,
-    totalUnits: projection.totalUnits,
-    doneUnits: projection.doneUnits,
-    totalFiles: projection.totalFiles,
-    cataloguedBoxes: projection.cataloguedBoxes,
-    statsWritten: projection.hasStats,
-    tickerWritten: projection.tickerEntries.length
-  };
-}
-
-function _buildPublicProjectionFromSheet_(sheetId, metadata) {
-  const tabs = ((metadata && metadata.sheets) || []).map(function (s) {
-    return (s.properties && s.properties.title) || '';
-  }).filter(Boolean);
-
-  let totalPages = 0;
-  let totalUnits = 0;
-  let totalFiles = 0;
-  let cataloguedBoxes = 0;
-  const summaryTab = tabs.find(function (name) {
-    return _slugifyTabName_(name) === 'pnb_sayisallastirma';
-  });
-  if (summaryTab) {
-    const summaryRows = _readPublicSheetRows_(sheetId, summaryTab);
-    const summary = _summarizePnbOverviewRows_(summaryRows);
-    totalPages = summary.totalPages;
-    totalUnits = summary.totalUnits;
-    totalFiles = summary.totalFiles;
-    cataloguedBoxes = summary.cataloguedBoxes;
-  }
-
-  let donePages = 0;
-  let doneUnits = 0;
-  let tickerEntries = [];
-  let unknownDateRows = 0;
-  tabs.forEach(function (tabName) {
-    const slug = _slugifyTabName_(tabName);
-    const rows = _readPublicSheetRows_(sheetId, tabName);
-    if (slug === 'gunluk_akis') {
-      tickerEntries = tickerEntries.concat(_tickerFromDailyFlowRows_(slug, rows));
-      return;
-    }
-    // Per-volunteer detail tabs only. Skip the two summary/tracking tabs
-    // (pnb_sayisallastirma = inventory, pnb_zarf_calisma = box-level scanning
-    // tracker). Including pnb_zarf_calisma here would double-count: its
-    // "Sayfa Sayısı" column repeats the inventory totals, so the donePages
-    // sum would clamp to totalPages → %100 progress (the May 2026 bug).
-    if (slug.indexOf('pnb_') === 0
-        && slug !== 'pnb_sayisallastirma'
-        && slug !== 'pnb_zarf_calisma'
-        && slug.indexOf('_zarf') === -1) {
-      const detail = _summarizePnbDetailRows_(slug, rows);
-      donePages += detail.donePages;
-      doneUnits += detail.doneUnits;
-      tickerEntries = tickerEntries.concat(detail.tickerEntries);
-      unknownDateRows += detail.unknownDateRows || 0;
-    }
-  });
-
-  tickerEntries = _dedupePublicTickerEntries_(tickerEntries)
-    .sort(function (a, b) { return b.createdAt.getTime() - a.createdAt.getTime(); });
-
-  return {
-    hasStats: totalPages > 0 || totalUnits > 0,
-    totalPages: Math.max(0, Math.round(totalPages)),
-    donePages: Math.max(0, Math.round(donePages)),
-    totalUnits: Math.max(0, Math.round(totalUnits)),
-    doneUnits: Math.max(0, Math.round(doneUnits)),
-    totalFiles: Math.max(0, Math.round(totalFiles)),
-    cataloguedBoxes: Math.max(0, Math.round(cataloguedBoxes)),
-    unknownDateRows: Math.max(0, Math.round(unknownDateRows)),
-    tickerEntries: tickerEntries
-  };
-}
-
-function _readPublicSheetRows_(sheetId, tabName) {
-  // Public aggregate reads must be complete. Keep this comfortably above the
-  // current workbook size so summaries are never calculated from a capped feed.
-  const range = tabName + '!A1:Z5000';
-  const matrix = _readSheetValues_(sheetId, range);
-  if (!matrix || matrix.length < 2) return [];
-  const headers = (matrix[0] || []).map(function (h, idx) {
-    const key = _slugifyHeaderToKey_(h);
-    return key || ('column' + (idx + 1));
-  });
-  const rows = [];
-  for (let i = 1; i < matrix.length; i++) {
-    const raw = matrix[i] || [];
-    const allBlank = raw.every(function (v) { return v == null || String(v).trim() === ''; });
-    if (allBlank) continue;
-    const row = { _sourceRow: i + 1, _raw: raw };
-    headers.forEach(function (key, idx) {
-      row[key] = raw[idx] == null ? null : raw[idx];
-    });
-    rows.push(row);
-  }
-  return rows;
-}
-
-function _summarizePnbOverviewRows_(rows) {
-  let totalPages = 0;
-  let totalUnits = 0;
-  let totalFiles = 0;
-  let cataloguedBoxes = 0;
-  rows.forEach(function (row) {
-    const pages = _parseDoneTotalCell_(row.sayfaSayisi);
-    totalPages += pages.total;
-    totalUnits += _numberOrZero_(row.belgeSayisi);
-    totalFiles += _numberOrZero_(row.dosyaSayisi);
-    // A box counts as catalogued when its Kutu cell carries a value AND at
-    // least one of the dosya/belge/sayfa columns is non-zero. This avoids
-    // counting placeholder rows with only a Kutu number filled in.
-    const kutu = _stringValue_(row.kutu);
-    if (kutu && (_numberOrZero_(row.dosyaSayisi) > 0 ||
-                 _numberOrZero_(row.belgeSayisi) > 0 ||
-                 pages.total > 0)) {
-      cataloguedBoxes += 1;
-    }
-  });
-  return {
-    totalPages: totalPages,
-    totalUnits: totalUnits,
-    totalFiles: totalFiles,
-    cataloguedBoxes: cataloguedBoxes
-  };
-}
-
-// Per-volunteer detail tabs come in two schemas:
-//   A. "Sayfa Sayısı" column = pages-per-document count
-//      (e.g. PNB 14 Betül: 1 row = 1 doc with N pages; sum the column)
-//   B. "Sayfa" column = page index within a document
-//      (e.g. PNB 15 Ateş: 1 row = 1 scanned page; count rows, never sum the column)
-//
-// The pre-May-2026 code used `row.sayfaSayisi || row.sayfa` and summed
-// indiscriminately — which produced wildly inflated donePages for Schema B
-// tabs (e.g. Ateş tab with 704 rows of page indices 1..37 summed to ~13k).
-// Detection here: if *any* row in the tab has a non-null sayfaSayisi value,
-// the tab is Schema A and we sum that column. Otherwise it's Schema B and
-// each row contributes exactly 1 scanned page to donePages.
-function _summarizePnbDetailRows_(tabSlug, rows) {
-  let donePages = 0;
-  let doneUnits = 0;
-  let unknownDateRows = 0;
-  const tickerEntries = [];
-
-  const hasSayfaSayisi = rows.some(function (r) {
-    return r.sayfaSayisi != null && String(r.sayfaSayisi).trim() !== '';
-  });
-
-  rows.forEach(function (row) {
-    // Schema A: sum the per-doc page count.
-    // Schema B: each row is one scanned page.
-    if (hasSayfaSayisi) {
-      const pages = _parseDoneTotalCell_(row.sayfaSayisi);
-      const pageCount = pages.done || pages.total;
-      if (pageCount > 0) donePages += pageCount;
-    } else {
-      donePages += 1;
-    }
-    doneUnits += 1;
-
-    const createdAt = _parseSheetDate_(row.tarih);
-    const fallbackPerson = _personHintFromPublicTabSlug_(tabSlug);
-    const person = _stringValue_(row.kaydiOlusuran || row.kaydiOlusturan || row.paydas || fallbackPerson);
-    if (!createdAt) {
-      unknownDateRows += 1;
-      return;
-    }
-    tickerEntries.push({
-      id: _publicTickerDocId_('sheet_' + tabSlug + '_row' + row._sourceRow),
-      createdAt: createdAt,
-      effort: 'medium',
-      materialCategory: _materialCategoryFromPublicRow_(row),
-      projectId: 'pnb',
-      volunteerToken: person ? _publicVolunteerToken_(person, createdAt) : '',
-      recordKind: 'page',
-      sourceType: 'page_detail',
-      box: _publicBoxLabel_(row.kutu || row.kutuNo),
-      pageUnits: hasSayfaSayisi ? Math.max(1, _parseDetailPageUnits_(row)) : 1,
-      privateContributorKey: _privateContributorKey_(person || fallbackPerson || tabSlug),
-      publicVolunteerLabel: _publicVolunteerLabelFromRow_(row, person),
-      unsafeVolunteerIdentifier: _isUnsafePublicIdentifier_(person)
-    });
-  });
-  return { donePages: donePages, doneUnits: doneUnits, unknownDateRows: unknownDateRows, tickerEntries: tickerEntries };
-}
-
-function _tickerFromDailyFlowRows_(tabSlug, rows) {
-  const entries = [];
-  rows.forEach(function (row) {
-    const createdAt = _parseSheetDate_(row.tarih);
-    const person = _stringValue_(row.paydas || row.kaydiOlusuran || row.kaydiOlusturan);
-    if (!createdAt) return;
-    const scope = _publicProjectIdFromRow_(row);
-    entries.push({
-      id: _publicTickerDocId_('sheet_' + tabSlug + '_row' + row._sourceRow),
-      createdAt: createdAt,
-      effort: 'medium',
-      materialCategory: _materialCategoryFromPublicRow_(row),
-      projectId: scope,
-      volunteerToken: person ? _publicVolunteerToken_(person, createdAt) : '',
-      recordKind: 'activity',
-      sourceType: 'activity',
-      box: '',
-      pageUnits: 0,
-      privateContributorKey: _privateContributorKey_(person),
-      publicVolunteerLabel: _publicVolunteerLabelFromRow_(row, person),
-      unsafeVolunteerIdentifier: _isUnsafePublicIdentifier_(person)
-    });
-  });
-  return entries;
-}
-
-function _dedupePublicTickerEntries_(entries) {
-  const seen = {};
-  const out = [];
-  entries.forEach(function (entry) {
-    if (!entry || !entry.id || seen[entry.id]) return;
-    seen[entry.id] = true;
-    out.push(entry);
-  });
-  return out;
-}
-
-function _parseDoneTotalCell_(value) {
-  if (value == null || value === '') return { done: 0, total: 0 };
-  if (typeof value === 'number') return { done: 0, total: value };
-  const s = String(value).trim();
-  const fraction = s.match(/^([\d.,]+)\s*\/\s*([\d.,]+)$/);
-  if (fraction) {
-    return {
-      done: _parseLocaleNumber_(fraction[1]),
-      total: _parseLocaleNumber_(fraction[2])
-    };
-  }
-  const n = _parseLocaleNumber_(s);
-  return { done: 0, total: n };
-}
-
-function _parseLocaleNumber_(value) {
-  if (value == null || value === '') return 0;
-  if (typeof value === 'number') return isFinite(value) ? value : 0;
-  const s = String(value).trim().replace(/\s+/g, '');
-  if (!s) return 0;
-  const normalized = s.indexOf(',') >= 0 && s.indexOf('.') >= 0
-    ? s.replace(/\./g, '').replace(',', '.')
-    : s.replace(',', '.');
-  const n = Number(normalized.replace(/[^\d.-]/g, ''));
-  return isFinite(n) ? n : 0;
-}
-
-function _numberOrZero_(value) {
-  return _parseLocaleNumber_(value);
-}
-
-function _parseSheetDate_(value) {
-  if (!value && value !== 0) return null;
-  if (value instanceof Date && !isNaN(value.getTime())) return value;
-  if (typeof value === 'number' && isFinite(value)) {
-    // Google Sheets serial date: days since 1899-12-30.
-    const ms = Math.round((value - 25569) * 86400000);
-    const d = new Date(ms);
-    return isNaN(d.getTime()) ? null : d;
-  }
-  const s = String(value).trim();
-  if (!s) return null;
-  const turkishLong = s.match(/^(\d{1,2})\s+([A-Za-zÇĞİÖŞÜçğıöşü]+)\s+(\d{4})$/);
-  if (turkishLong) {
-    const month = _turkishMonthIndex_(turkishLong[2]);
-    if (month >= 0) return new Date(Number(turkishLong[3]), month, Number(turkishLong[1]), 12, 0, 0);
-  }
-  const numeric = s.match(/^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{2,4})$/);
-  if (numeric) {
-    let year = Number(numeric[3]);
-    if (year < 100) year += 2000;
-    return new Date(year, Number(numeric[2]) - 1, Number(numeric[1]), 12, 0, 0);
-  }
-  const d = new Date(s);
-  return isNaN(d.getTime()) ? null : d;
-}
-
-function _turkishMonthIndex_(monthName) {
-  const key = _asciiFold_(monthName).toLowerCase();
-  const months = {
-    ocak: 0, subat: 1, mart: 2, nisan: 3, mayis: 4, haziran: 5,
-    temmuz: 6, agustos: 7, eylul: 8, ekim: 9, kasim: 10, aralik: 11
-  };
-  return Object.prototype.hasOwnProperty.call(months, key) ? months[key] : -1;
-}
-
-function _materialCategoryFromPublicRow_(row) {
-  const haystack = _asciiFold_([
-    row.calismaAlani,
-    row.devamEdenCalisma,
-    row.dijitalBelgeKodu,
-    row.notlar
-  ].join(' ')).toLowerCase();
-  if (haystack.indexOf('foto') >= 0 || haystack.indexOf('gorsel') >= 0) return 'fotoğraflar';
-  if (haystack.indexOf('mektup') >= 0) return 'mektuplar';
-  if (haystack.indexOf('kitap') >= 0) return 'kitap metinleri';
-  if (haystack.indexOf('ders') >= 0) return 'ders notları';
-  if (haystack.indexOf('envanter') >= 0) return 'envanter';
-  if (haystack.indexOf('toplanti') >= 0 || haystack.indexOf('koordinasyon') >= 0) return 'genel';
-  return 'belgeler';
-}
-
-function _publicProjectIdFromRow_(row) {
-  const haystack = _asciiFold_([
-    row.fon,
-    row.fonAdi,
-    row.calismaAlani,
-    row.devamEdenCalisma,
-    row.dijitalBelgeKodu,
-    row.notlar
-  ].join(' ')).toLowerCase();
-  return haystack.indexOf('pnb') >= 0 || haystack.indexOf('boratav') >= 0 ? 'pnb' : 'foundation';
-}
-
-function _parseDetailPageUnits_(row) {
-  const pages = _parseDoneTotalCell_(row.sayfaSayisi);
-  const value = pages.done || pages.total || 0;
-  return Math.max(0, Math.round(value));
-}
-
-function _personHintFromPublicTabSlug_(slug) {
-  const parts = String(slug || '').split('_').filter(Boolean);
-  if (!parts.length) return '';
-  const last = parts[parts.length - 1] || '';
-  return last ? (last.charAt(0).toUpperCase() + last.slice(1)) : '';
-}
-
-function _publicBoxLabel_(value) {
-  if (value == null || value === '') return '';
-  if (value instanceof Date && !isNaN(value.getTime())) {
-    // Excel/Sheets sometimes coerces labels such as "1-2" to a date.
-    if (value.getFullYear() === 2026) return (value.getMonth() + 1) + '-' + value.getDate();
-    return _publicIsoDate_(value);
-  }
-  if (typeof value === 'number' && isFinite(value)) {
-    return Math.floor(value) === value ? String(value) : String(value).replace('.', ',');
-  }
-  const text = String(value).trim();
-  const dateLike = text.match(/^(\d{1,2})[./](\d{1,2})[./]2026$/);
-  if (dateLike) return dateLike[1] + '-' + dateLike[2];
-  return text;
-}
-
-function _normalizePublicBoxKey_(value) {
-  const label = _asciiFold_(_publicBoxLabel_(value)).toLowerCase().trim();
-  const range = label.match(/^(\d+)\s*-\s*(\d+)$/);
-  if (range) return 'range_' + range[1] + '_' + range[2];
-  return label.replace(/[^a-z0-9]+/g, '');
-}
-
-function _privateContributorKey_(value) {
-  return _asciiFold_(value).toLowerCase().replace(/\s+/g, ' ').trim();
-}
-
-function _publicVolunteerLabelFromRow_(row, rawName) {
-  const explicit = _stringValue_(row.publicDisplayName || row.publicdisplayname || row.kamusalAd);
-  if (explicit && !_isUnsafePublicIdentifier_(explicit)) return explicit;
-  const consent = _publicConsentFlag_(row.publicDisplayAllowed)
-    || _publicConsentFlag_(row.publicConsent)
-    || _publicConsentFlag_(row.adGorunsun)
-    || _publicConsentFlag_(row.adYayinIzni)
-    || _publicConsentFlag_(row.kamusalAdIzni);
-  const name = _stringValue_(rawName || row.paydas || row.kaydiOlusuran || row.kaydiOlusturan);
-  if (name && _isUnsafePublicIdentifier_(name)) return 'Gönüllü katkısı';
-  if (name && consent) return _publicFirstName_(name) || 'Bir gönüllü';
-  if (name) return 'Bir gönüllü';
-  return 'Gönüllü katkısı';
-}
-
-function _publicConsentFlag_(value) {
-  const text = _asciiFold_(value).toLowerCase().trim();
-  return ['1','true','evet','yes','y','var','izinli','public','acik'].indexOf(text) >= 0;
-}
-
-function _publicFirstName_(value) {
-  const text = _stringValue_(value);
-  if (!text || _isUnsafePublicIdentifier_(text)) return '';
-  return text.split(/\s+/)[0] || '';
-}
-
-function _isUnsafePublicIdentifier_(value) {
-  const text = _stringValue_(value);
-  if (!text) return false;
-  if (/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/.test(text)) return true;
-  if (/^[0-9a-fA-F]{12,}$/.test(text)) return true;
-  if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(text)) return true;
-  const compact = text.replace(/[^A-Za-z0-9]/g, '');
-  if (compact.length >= 18) {
-    const letters = compact.replace(/[^A-Za-z]/g, '');
-    const vowels = (_asciiFold_(text).match(/[aeiou]/gi) || []).length;
-    if (vowels <= 1 || letters.length / Math.max(compact.length, 1) < 0.7) return true;
-  }
-  if (compact.length >= 14 && /[0-9]/.test(compact) && /[A-Za-z]/.test(compact)) {
-    const words = text.match(/[A-Za-zÇĞİÖŞÜçğıöşü]{2,}/g) || [];
-    if (words.length < 2) return true;
-  }
-  return false;
-}
-
-function _publicVolunteerToken_(name, date) {
-  const normalized = _asciiFold_(name).toLowerCase().replace(/\s+/g, ' ').trim();
-  if (!normalized) return '';
-  const d = date instanceof Date && !isNaN(date.getTime()) ? date : new Date();
-  const monthSalt = Utilities.formatDate(d, SHEET_SYNC_TIMEZONE_, 'yyyy-MM');
-  const secret = _publicTickerSecret_();
-  const payload = normalized + '|' + monthSalt + '|tarih-vakfi-public-ticker';
-  const bytes = Utilities.computeHmacSha256Signature(payload, secret);
-  return _bytesToHex_(bytes).slice(0, 16);
-}
-
-function _publicTickerSecret_() {
-  const props = PropertiesService.getScriptProperties();
-  const explicit = props.getProperty('PUBLIC_TICKER_TOKEN_SALT');
-  if (explicit) return explicit;
-  const sa = getServiceAccount_();
-  return (sa && sa.private_key) || 'tarih-vakfi-public-ticker-fallback';
-}
-
-function _publicTickerDocId_(value) {
-  return _slugifyTabName_(value).slice(0, 120) || ('sheet_' + _hashText_(value).slice(0, 16));
-}
-
-function _hashText_(value) {
-  const bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_1, String(value || ''));
-  return _bytesToHex_(bytes);
-}
-
-function _bytesToHex_(bytes) {
-  let hex = '';
-  for (let i = 0; i < bytes.length; i++) {
-    const b = (bytes[i] + 256) % 256;
-    hex += (b < 16 ? '0' : '') + b.toString(16);
-  }
-  return hex;
-}
-
-function _stringValue_(value) {
-  return value == null ? '' : String(value).trim();
-}
-
-function _collectionListUrl_(collectionPath, pageToken) {
-  const segments = String(collectionPath || '').split('/').filter(Boolean);
-  if (segments.length === 0 || segments.length % 2 === 0) {
-    throw new Error('Expected a Firestore collection path, got: ' + collectionPath);
-  }
-  const collectionId = segments.pop();
-  const parentPath = segments.join('/');
-  let url = 'https://firestore.googleapis.com/v1/' + fsDocBasePath_();
-  if (parentPath) url += '/' + _encodeFirestorePath_(parentPath);
-  url += '/' + encodeURIComponent(collectionId) + '?pageSize=300';
-  if (pageToken) url += '&pageToken=' + encodeURIComponent(pageToken);
-  return url;
-}
-
-function _encodeFirestorePath_(path) {
-  return String(path || '').split('/').filter(Boolean).map(function (seg) {
-    return encodeURIComponent(seg);
-  }).join('/');
-}
-
-// ---------------------------------------------------------------------------
-// Sheets API REST wrappers
-// ---------------------------------------------------------------------------
-
-function _readSheetMetadata_(sheetId) {
-  const url = 'https://sheets.googleapis.com/v4/spreadsheets/' + encodeURIComponent(sheetId)
-    + '?includeGridData=false';
-  const response = UrlFetchApp.fetch(url, {
-    method: 'get',
-    headers: { Authorization: 'Bearer ' + getAccessToken_(SHEETS_SCOPE_) },
-    muteHttpExceptions: true
-  });
-  const code = response.getResponseCode();
-  if (code === 403 || code === 404) {
-    const err = new Error('Sheets API access denied (' + code + '): ' + response.getContentText());
-    err.code = code;
-    err.accessDenied = true;
-    throw err;
-  }
-  if (code !== 200) {
-    throw new Error('Sheets API error (' + code + '): ' + response.getContentText());
-  }
-  return JSON.parse(response.getContentText());
-}
-
-function _readSheetValues_(sheetId, range) {
-  const url = 'https://sheets.googleapis.com/v4/spreadsheets/' + encodeURIComponent(sheetId)
-    + '/values/' + encodeURIComponent(range)
-    + '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING';
-  const response = UrlFetchApp.fetch(url, {
-    method: 'get',
-    headers: { Authorization: 'Bearer ' + getAccessToken_(SHEETS_SCOPE_) },
-    muteHttpExceptions: true
-  });
-  const code = response.getResponseCode();
-  if (code === 403 || code === 404) {
-    const err = new Error('Sheets API access denied on range ' + range + ' (' + code + ')');
-    err.code = code;
-    err.accessDenied = true;
-    throw err;
-  }
-  if (code !== 200) {
-    throw new Error('Sheets API range read failed (' + code + '): ' + response.getContentText());
-  }
-  const body = JSON.parse(response.getContentText());
-  return body.values || [];
-}
-
-// ---------------------------------------------------------------------------
-// Config + logging
-// ---------------------------------------------------------------------------
-
-function _loadConfig_() {
-  try {
-    const doc = getDocument(SHEET_SYNC_CONFIG_PATH_);
-    if (!doc) return _defaultConfig_();
-    return Object.assign(_defaultConfig_(), decodeFields(doc.fields));
-  } catch (err) {
-    return _defaultConfig_();
-  }
-}
-
-function _defaultConfig_() {
-  return {
-    enabled: true,
-    consecutiveAccessFailures: 0,
-    lastGoodStructure: null,
-    lastSyncAt: null,
-    lastSyncStatus: null,
-    lastSyncSummary: null,
-    alertCooldown: {} // { subject → ISO timestamp of last send }
-  };
-}
-
-function _saveConfig_(config) {
-  const payload = Object.assign({}, config, { updatedAt: fsServerTimestamp() });
-  // Use updateDocument (patch with field mask) so we don't blow away unknown
-  // future fields if a manual edit added some.
-  try {
-    updateDocument(SHEET_SYNC_CONFIG_PATH_, payload);
-  } catch (err) {
-    // updateDocument will fail with "no document to update" the very first
-    // time. Fall back to createDocument with the same id.
-    createDocument('config', payload, 'sheetSync');
-  }
-}
-
-function _logSyncEvent_(status, details) {
-  try {
-    createDocument(SHEET_SYNC_LOGS_COLLECTION_, {
-      status: status,
-      details: details || {},
-      createdAt: fsServerTimestamp()
-    });
-  } catch (err) {
-    // Logging must never throw — fall back to console only.
-    console.warn('syncLog write failed: ' + err);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Alert email — gated by 24h per-subject cooldown so a persistent issue
-// doesn't flood the admin's inbox.
-// ---------------------------------------------------------------------------
-
-function _sendAlertIfFresh_(config, alertEmail, subject, body) {
-  if (!alertEmail) return;
-  const cooldown = config.alertCooldown || {};
-  const lastSent = cooldown[subject];
-  if (lastSent) {
-    const lastMs = new Date(lastSent).getTime();
-    if (!isNaN(lastMs) && Date.now() - lastMs < ALERT_COOLDOWN_HOURS_ * 3600 * 1000) {
-      return; // within cooldown — log but don't email
-    }
-  }
-  try {
-    MailApp.sendEmail({ to: alertEmail, subject: subject, body: body });
-    cooldown[subject] = new Date().toISOString();
-    config.alertCooldown = cooldown;
-  } catch (err) {
-    _logSyncEvent_('alert_email_failed', { subject: subject, error: String(err) });
-  }
-}
-
-function _composeStructureChangeBody_(changes, currentSnapshot, lastSnapshot) {
-  const lines = [];
-  lines.push('Hello,');
-  lines.push('');
-  lines.push('The Tarih Vakfı volunteer sheet structure changed since the last sync.');
-  lines.push('Sync continues in degraded mode and will keep mirroring rows, but');
-  lines.push('any renamed columns will land under their new field-name keys until');
-  lines.push('you confirm the new structure from the Bakım panel.');
-  lines.push('');
-  lines.push('Detected changes:');
-  changes.forEach(function (c) { lines.push('  • ' + c); });
-  lines.push('');
-  lines.push('Current tabs in the sheet:');
-  (currentSnapshot.tabs || []).forEach(function (t) {
-    lines.push('  - ' + t.name + ' (' + (t.headers || []).length + ' columns, ' + t.rowCount + ' rows)');
-  });
-  lines.push('');
-  lines.push('Open the Bakım panel and click "Yapıyı yeniden kabul et" once you have');
-  lines.push('verified the new structure is intentional. The sync will then take the');
-  lines.push('current state as the new baseline and stop alerting.');
-  lines.push('');
-  lines.push('— Tarih Vakfı sheet sync');
-  return lines.join('\n');
-}
-
-function _composeAccessLossBody_(consecutive) {
-  return [
-    'Hello,',
-    '',
-    'The Tarih Vakfı sheet sync has lost access to the source spreadsheet.',
-    'After ' + consecutive + ' consecutive failed reads (about ' + (consecutive * SHEET_SYNC_INTERVAL_MIN_) + ' minutes),',
-    'the sync has been paused automatically.',
-    '',
-    'What probably happened:',
-    '  • The sheet owner removed the service account from the share list',
-    '  • The sheet was moved into a Drive that the service account cannot reach',
-    '  • The sheet was deleted',
-    '',
-    'Next steps:',
-    '  1. Confirm with the sheet owner whether the share was changed intentionally.',
-    '  2. Re-add the service account email as Viewer if needed.',
-    '  3. From the Bakım panel, click "Senkronizasyonu yeniden başlat" to resume sync.',
-    '',
-    '— Tarih Vakfı sheet sync'
-  ].join('\n');
-}
-
-// ---------------------------------------------------------------------------
-// Access-failure handling
-// ---------------------------------------------------------------------------
-
-function _handleAccessFailure_(err, config, alertEmail) {
-  const consecutive = (config.consecutiveAccessFailures || 0) + 1;
-  config.consecutiveAccessFailures = consecutive;
-  config.lastSyncAt = new Date().toISOString();
-  config.lastSyncStatus = 'access_denied';
-  _logSyncEvent_('access_denied', {
-    error: String(err),
-    consecutive: consecutive,
-    threshold: ACCESS_FAILURE_PAUSE_THRESHOLD_
-  });
-  if (consecutive >= ACCESS_FAILURE_PAUSE_THRESHOLD_) {
-    config.enabled = false;
-    _sendAlertIfFresh_(config, alertEmail,
-      '[Tarih Vakfı] Sheet access lost — sync stopped',
-      _composeAccessLossBody_(consecutive)
-    );
-    _logSyncEvent_('paused', { reason: 'access_denied threshold reached' });
-  }
-  _saveConfig_(config);
-}
-
-// ---------------------------------------------------------------------------
-// Tiny helpers
-// ---------------------------------------------------------------------------
-
-// "Tab Name" → "tab_name" (ASCII-folded, lower-cased, underscored). Matches
-// the slug used in the Firestore mirror collection name (sheet_<slug>).
-function _slugifyTabName_(name) {
-  return _asciiFold_(name).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-}
-
-// "Çalışma Alanı" → "calismaAlani" (ASCII-folded, camel-cased). Used for
-// per-row field keys.
-function _slugifyHeaderToKey_(header) {
-  const folded = _asciiFold_(header).trim();
-  if (!folded) return '';
-  const parts = folded.split(/[^a-zA-Z0-9]+/).filter(Boolean);
-  if (parts.length === 0) return '';
-  return parts.map(function (p, i) {
-    const lower = p.toLowerCase();
-    return i === 0 ? lower : (lower.charAt(0).toUpperCase() + lower.slice(1));
-  }).join('');
-}
-
-// Turkish-aware ASCII folding for slug generation.
-function _asciiFold_(s) {
-  if (s == null) return '';
-  return String(s)
-    .replace(/ç/g, 'c').replace(/Ç/g, 'C')
-    .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
-    .replace(/ı/g, 'i').replace(/I/g, 'I')
-    .replace(/İ/g, 'I')
-    .replace(/ö/g, 'o').replace(/Ö/g, 'O')
-    .replace(/ş/g, 's').replace(/Ş/g, 'S')
-    .replace(/ü/g, 'u').replace(/Ü/g, 'U')
-    .replace(/â/g, 'a').replace(/î/g, 'i').replace(/û/g, 'u');
-}
-
-// Column index (1-based) → A1 letter ("A", "Z", "AA", ...). We cap at ZZ
-// (702 columns) which is far beyond anything the volunteer sheet needs.
-function _columnLetter_(n) {
-  if (n < 1) n = 1;
-  if (n > 702) n = 702;
-  let s = '';
-  while (n > 0) {
-    const m = (n - 1) % 26;
-    s = String.fromCharCode(65 + m) + s;
-    n = Math.floor((n - 1) / 26);
-  }
-  return s;
-}
-
-// Stable hash of a row's contents — used to skip writes when the row hasn't
-// changed since the last sync. Includes the raw header set so a column
-// rename invalidates the cached hash and forces a re-write.
-function _hashRow_(headers, row) {
-  const payload = JSON.stringify({ h: headers, r: row.map(function (v) { return v == null ? null : v; }) });
-  const bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_1, payload);
-  let hex = '';
-  for (let i = 0; i < bytes.length; i++) {
-    const b = (bytes[i] + 256) % 256;
-    hex += (b < 16 ? '0' : '') + b.toString(16);
-  }
-  return hex;
-}
-
-
-// ============================================================
-// Live Web App endpoint (May 2026)
-// ============================================================
 function doGet(e) {
-  const params = (e && e.parameter) || {};
-  if (params['public'] || params.mode === 'public') {
-    try {
-      const payload = _buildPublicSitePayload_();
-      return _jsonResponse_({ ok: true, generatedAt: new Date().toISOString(), data: payload });
-    } catch (err) {
-      return _jsonResponse_({ ok: false, error: String((err && err.message) || err) });
-    }
-  }
-  const want = params.token || '';
-  const have = PropertiesService.getScriptProperties().getProperty('SYNC_WEBHOOK_TOKEN') || '';
-  if (!have || want !== have) {
-    return _jsonResponse_({ ok: false, error: 'unauthorized' });
-  }
   try {
-    const result = sheetSyncRun();
-    return _jsonResponse_({ ok: true, runAt: new Date().toISOString(), result: result || null });
+    const params = (e && e.parameter) || {};
+    if (params.public !== '1') {
+      return tvfJson_({ ok: true, service: 'Tarih Vakfı · Sayım Defteri', hint: 'Add ?public=1' });
+    }
+    const data = buildPublicDashboardPayload_();
+    return tvfJson_({ ok: true, generatedAt: data.generatedAt, data: data });
   } catch (err) {
-    return _jsonResponse_({ ok: false, error: String((err && err.message) || err) });
+    return tvfJson_({ ok: false, error: String((err && err.message) || err) });
   }
 }
 
-function _jsonResponse_(obj) {
-  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
-}
-
-function _buildPublicSitePayload_() {
-  const sheetId = PropertiesService.getScriptProperties().getProperty('TARIH_VAKFI_SHEET_ID') || '';
-  if (!sheetId) {
-    return { publicSummary: null, latestActivity: [], stats: { projects: { pnb: null } }, ticker: [], content: {}, boxes: [] };
-  }
-  let metadata = null;
-  try { metadata = _readSheetMetadata_(sheetId); } catch (err) {
-    return { publicSummary: null, latestActivity: [], stats: { projects: { pnb: null } }, ticker: [], content: {}, boxes: [] };
-  }
-  const projection = _buildPublicProjectionFromSheet_(sheetId, metadata) || {};
-  const pnbStats = projection.hasStats || projection.totalPages || projection.cataloguedBoxes ? {
-    totalPages: projection.totalPages || 0,
-    donePages: projection.donePages || 0,
-    totalUnits: projection.totalUnits || 0,
-    doneUnits: projection.doneUnits || 0,
-    totalFiles: projection.totalFiles || 0,
-    cataloguedBoxes: projection.cataloguedBoxes || 0,
-    boxes: []
-  } : null;
-  const content = _readPublicContentFromSheet_(sheetId, metadata);
-  const boxes = _readBoxesFromSheet_(sheetId, metadata);
-  const publicSummary = _buildPublicSummary_(projection, boxes, new Date());
-  const latestActivity = _latestPublicActivity_(projection.tickerEntries || [], 50);
+function buildPublicDashboardPayload_() {
+  const sheetId = PropertiesService.getScriptProperties().getProperty('TARIH_VAKFI_SHEET_ID');
+  if (!sheetId) throw new Error('TARIH_VAKFI_SHEET_ID is not set');
+  const workbook = readWorkbook_(sheetId);
+  const inventory = buildInventory_(workbook.rowsBySheet);
+  const inventoryTotals = computeInventoryTotals_(workbook.rowsBySheet);
+  const records = collectPublicRecords_(workbook.rowsBySheet, inventory);
+  const generatedAt = new Date();
+  const summary = buildPublicSummaryFromRows(records, inventory, inventoryTotals, generatedAt, 'calendar_week_to_date');
   return {
-    publicSummary: publicSummary,
-    latestActivity: latestActivity,
-    stats: { projects: { pnb: pnbStats } },
-    // Legacy fields intentionally remain empty so the public payload no longer
-    // exposes sheet row IDs or volunteer tokens.
-    ticker: [],
-    content: content,
-    activeVolunteers: [],
-    schedule: {},
-    boxes: boxes,
-    volunteers: [],
-    weeklyRhythm: [],
-    stream: []
+    generatedAt: summary.generatedAt,
+    publicSummary: summary,
+    latestActivity: latestActivity_(records, TVF_LATEST_LIMIT),
+    content: {},
+    stats: {
+      projects: {
+        pnb: {
+          totalPages: summary.totals.pagesTarget,
+          donePages: summary.totals.pagesDone,
+          cataloguedBoxes: summary.totals.boxesCatalogued,
+          doneUnits: null,
+          totalUnits: null
+        }
+      }
+    },
+    ticker: []
   };
 }
 
-function _buildPublicSummary_(projection, boxes, now) {
-  const period = _publicPeriod_(now || new Date(), 'calendar_week');
-  const records = (projection.tickerEntries || []).filter(function (entry) {
-    return entry && entry.createdAt instanceof Date && !isNaN(entry.createdAt.getTime());
+function buildPublicSummaryFromRows(records, inventory, inventoryTotals, now, mode) {
+  const period = selectedPeriod_(now, mode || 'calendar_week_to_date');
+  const periodRecords = records.filter(function (record) {
+    return record.dateISO && record.dateISO >= period.startDate && record.dateISO <= period.endDate;
   });
-  const periodRecords = records.filter(function (entry) {
-    const iso = _publicIsoDate_(entry.createdAt);
-    return iso >= period.startDate && iso <= period.endDate;
+  const pageRecords = periodRecords.filter(function (record) { return record.kind === 'page'; });
+  const activityRecords = periodRecords.filter(function (record) { return record.kind === 'activity'; });
+  const allPageRecords = records.filter(function (record) { return record.kind === 'page'; });
+
+  const rowsByDay = {};
+  periodRecords.forEach(function (record) {
+    if (!rowsByDay[record.dateISO]) rowsByDay[record.dateISO] = [];
+    rowsByDay[record.dateISO].push(record);
   });
-  const pageRecords = periodRecords.filter(function (entry) { return entry.recordKind === 'page'; });
-  const activityRecords = periodRecords.filter(function (entry) { return entry.recordKind === 'activity'; });
-  const byDay = _publicDateRange_(period.startDate, period.endDate).map(function (iso) {
-    return _publicDaySummary_(iso, periodRecords.filter(function (entry) {
-      return _publicIsoDate_(entry.createdAt) === iso;
-    }));
+  const byDay = dateRange_(period.startDate, period.endDate).map(function (iso) {
+    return daySummary_(iso, rowsByDay[iso] || []);
   });
 
   const materialCounts = {};
-  periodRecords.forEach(function (entry) {
-    const material = entry.materialCategory || 'belgeler';
-    materialCounts[material] = (materialCounts[material] || 0) + 1;
-  });
+  periodRecords.forEach(function (record) { inc_(materialCounts, record.material || 'belgeler', 1); });
 
-  const boxesByKey = {};
-  (boxes || []).forEach(function (box) {
-    boxesByKey[_normalizePublicBoxKey_(box.kutu)] = box;
-  });
   const recordsByBox = {};
-  pageRecords.forEach(function (entry) {
-    const key = _normalizePublicBoxKey_(entry.box);
+  pageRecords.forEach(function (record) {
+    const key = normalizeBox_(record.box);
     if (!key) return;
     if (!recordsByBox[key]) recordsByBox[key] = [];
-    recordsByBox[key].push(entry);
+    recordsByBox[key].push(record);
   });
 
   const byBox = Object.keys(recordsByBox).map(function (key) {
     const rows = recordsByBox[key];
-    const box = boxesByKey[key] || { kutu: rows[0].box, donePages: 0, totalPages: 0, workers: [] };
+    const info = inventory[key] || {
+      box: rows[0].box,
+      targetPages: 0,
+      summaryDonePages: 0,
+      detailDonePages: 0,
+      lastActivityDate: null
+    };
     const contributorCounts = {};
-    rows.forEach(function (entry) {
-      const privateKey = entry.privateContributorKey || '';
-      if (!privateKey) return;
-      if (!contributorCounts[privateKey]) {
-        contributorCounts[privateKey] = { label: entry.publicVolunteerLabel || 'Bir gönüllü', records: 0 };
-      }
-      contributorCounts[privateKey].records += 1;
+    rows.forEach(function (record) {
+      const ckey = record.privateKey || 'unnamed';
+      if (!contributorCounts[ckey]) contributorCounts[ckey] = { labels: [], records: 0, pagesDone: 0 };
+      contributorCounts[ckey].labels.push(record.publicLabel);
+      contributorCounts[ckey].records += 1;
+      contributorCounts[ckey].pagesDone += Number(record.pageUnits || 0);
     });
-    const materialObj = {};
-    rows.forEach(function (entry) {
-      const material = entry.materialCategory || 'belgeler';
-      materialObj[material] = (materialObj[material] || 0) + 1;
-    });
-    const topContributors = Object.keys(contributorCounts).sort(function (a, b) {
+    const contributors = Object.keys(contributorCounts).sort(function (a, b) {
       return contributorCounts[b].records - contributorCounts[a].records;
-    }).slice(0, 3).map(function (privateKey) {
-      return contributorCounts[privateKey];
+    }).slice(0, 5).map(function (ckey) {
+      return {
+        label: preferredVolunteerLabel_(contributorCounts[ckey].labels),
+        records: contributorCounts[ckey].records,
+        pageRows: contributorCounts[ckey].records,
+        pagesDone: contributorCounts[ckey].pagesDone
+      };
     });
-    const target = Number(box.totalPages || 0);
-    const done = Number(box.donePages || 0);
+    const material = {};
+    rows.forEach(function (record) { inc_(material, record.material || 'belgeler', 1); });
+    const done = Math.max(Number(info.summaryDonePages || 0), Number(info.detailDonePages || 0));
+    const target = Number(info.targetPages || 0);
     return {
-      box: box.kutu || rows[0].box || '',
-      label: 'Kutu ' + (box.kutu || rows[0].box || ''),
+      box: info.box || rows[0].box,
+      boxLabel: 'Kutu ' + (info.box || rows[0].box),
+      label: 'Kutu ' + (info.box || rows[0].box),
+      boxTitle: 'Kutu ' + (info.box || rows[0].box),
       done: done,
       target: target > 0 ? target : null,
-      percent: target > 0 ? Math.round((Math.min(done, target) / target) * 1000) / 10 : null,
+      percent: target > 0 ? round1_((Math.min(done, target) / target) * 100) : null,
       remaining: target > 0 ? Math.max(0, target - done) : null,
-      lastActivityDate: box.lastActivityDate || _publicIsoDate_(rows[0].createdAt),
+      records: rows.length,
+      pageRows: rows.length,
+      activityRows: 0,
       periodRecords: rows.length,
       periodPageRows: rows.length,
-      periodPagesDone: rows.reduce(function (sum, entry) { return sum + Number(entry.pageUnits || 1); }, 0),
-      contributorsCount: Object.keys(contributorCounts).length,
-      topContributors: topContributors,
-      materials: _counterObjectToArray_(materialObj),
+      periodPagesDone: rows.reduce(function (sum, record) { return sum + Number(record.pageUnits || 1); }, 0),
+      materialCounts: counterToRows_(material),
+      materials: counterToRows_(material),
+      contributors: contributors,
+      topContributors: contributors,
+      contributorsCount: contributors.length,
+      lastActivityDate: info.lastActivityDate || rows[0].dateISO,
+      lastActivityLabel: info.lastActivityDate ? formatDayMonth_(parseIsoDate_(info.lastActivityDate)) : null,
+      status: target > 0 && done >= target ? 'completed' : (done > 0 || rows.length > 0 ? 'active' : 'inventory'),
       targetMissing: target <= 0,
       overTarget: target > 0 && done > target
     };
   }).sort(function (a, b) {
-    return b.periodPagesDone - a.periodPagesDone;
+    return b.periodPagesDone - a.periodPagesDone || String(a.box).localeCompare(String(b.box));
   });
 
-  const contributorGroups = {};
-  periodRecords.forEach(function (entry) {
-    const key = entry.privateContributorKey || '';
-    if (!key) return;
-    if (!contributorGroups[key]) contributorGroups[key] = [];
-    contributorGroups[key].push(entry);
+  const byVolunteerGroups = {};
+  periodRecords.forEach(function (record) {
+    const key = record.privateKey || 'unnamed';
+    if (!byVolunteerGroups[key]) byVolunteerGroups[key] = [];
+    byVolunteerGroups[key].push(record);
   });
-  const byVolunteer = Object.keys(contributorGroups).sort(function (a, b) {
-    return contributorGroups[b].length - contributorGroups[a].length;
-  }).map(function (key, idx) {
-    const rows = contributorGroups[key];
-    const pageRows = rows.filter(function (entry) { return entry.recordKind === 'page'; });
-    const label = _rankedPublicVolunteerLabel_(rows[0].publicVolunteerLabel || 'Bir gönüllü', idx);
+  const byVolunteer = Object.keys(byVolunteerGroups).sort(function (a, b) {
+    return byVolunteerGroups[b].length - byVolunteerGroups[a].length || a.localeCompare(b);
+  }).map(function (key) {
+    const rows = byVolunteerGroups[key];
+    const pageRows = rows.filter(function (record) { return record.kind === 'page'; });
     const boxCounts = {};
-    pageRows.forEach(function (entry) {
-      if (!entry.box) return;
-      const label = 'Kutu ' + entry.box;
-      boxCounts[label] = (boxCounts[label] || 0) + 1;
+    pageRows.forEach(function (record) {
+      if (record.box) inc_(boxCounts, 'Kutu ' + record.box, 1);
     });
-    const boxesTouched = Object.keys(boxCounts).sort(function (a, b) { return boxCounts[b] - boxCounts[a]; });
+    const boxes = Object.keys(boxCounts).sort(function (a, b) { return boxCounts[b] - boxCounts[a]; });
     return {
-      label: label,
+      label: preferredVolunteerLabel_(rows.map(function (record) { return record.publicLabel; })),
       records: rows.length,
       pageRows: pageRows.length,
       activityRows: rows.length - pageRows.length,
-      pagesDone: pageRows.reduce(function (sum, entry) { return sum + Number(entry.pageUnits || 1); }, 0),
-      topBox: boxesTouched[0] || null,
-      boxes: boxesTouched.slice(0, 3)
+      pagesDone: pageRows.reduce(function (sum, record) { return sum + Number(record.pageUnits || 1); }, 0),
+      topBox: boxes[0] || null,
+      boxes: boxes.slice(0, 4),
+      boxBreakdown: boxes.slice(0, 4).map(function (boxLabel) {
+        return { boxLabel: boxLabel, records: boxCounts[boxLabel] };
+      })
     };
   });
 
-  const volunteersSeen = {};
-  periodRecords.forEach(function (entry) {
-    if (entry.privateContributorKey) volunteersSeen[entry.privateContributorKey] = true;
+  const targetPages = Number(inventoryTotals.totalPages || 0);
+  const pagesDone = allPageRecords.reduce(function (sum, record) { return sum + Number(record.pageUnits || 0); }, 0);
+  const inventoryBoxes = Object.keys(inventory).map(function (key) { return inventory[key]; }).filter(function (box) {
+    return box.targetPages || box.files || box.documents;
   });
-  const activeBoxesSeen = {};
-  pageRecords.forEach(function (entry) {
-    const key = _normalizePublicBoxKey_(entry.box);
-    if (key) activeBoxesSeen[key] = true;
+  const completedBoxes = inventoryBoxes.filter(function (box) {
+    const done = Math.max(Number(box.summaryDonePages || 0), Number(box.detailDonePages || 0));
+    return Number(box.targetPages || 0) > 0 && done >= Number(box.targetPages || 0);
   });
-  const completedBoxes = (boxes || []).filter(function (box) { return box.status === 'done'; }).length;
-  const warnings = [];
-  const dayTotal = byDay.reduce(function (sum, day) { return sum + day.records; }, 0);
-  if (dayTotal !== periodRecords.length) {
-    warnings.push({ code: 'by_day_total_mismatch', message: 'The by-day total does not equal the period record total.' });
-  }
-  const missingTargets = (boxes || []).filter(function (box) { return box.targetMissing; }).map(function (box) { return box.kutu; });
-  if (missingTargets.length) {
-    warnings.push({
-      code: 'missing_box_targets',
-      message: missingTargets.length + ' active boxes have no page target.',
-      boxes: missingTargets.slice(0, 8)
-    });
-  }
-  const unsafeCount = records.filter(function (entry) { return entry.unsafeVolunteerIdentifier; }).length;
-  if (unsafeCount) {
-    warnings.push({
-      code: 'unsafe_public_identifiers_redacted',
-      message: unsafeCount + ' contributor values looked unsafe and were anonymized.'
-    });
-  }
-  if (projection.unknownDateRows) {
-    warnings.push({
-      code: 'unknown_dates',
-      message: projection.unknownDateRows + ' rows could not be assigned to a public period.'
-    });
-  }
+  const warnings = buildWarnings_(records, inventory, byDay, periodRecords, pagesDone, targetPages);
+  const byMaterial = counterToRows_(materialCounts);
   const busiestDay = byDay.slice().sort(function (a, b) { return b.records - a.records; })[0] || null;
-  const byMaterial = _counterObjectToArray_(materialCounts);
+
   return {
-    generatedAt: _publicIsoDateTime_(now || new Date()),
+    generatedAt: isoDateTime_(now),
+    source: {
+      name: 'Tarih Vakfı Gönüllü Ağı',
+      projectId: TVF_PROJECT_ID,
+      recordsAreFullAggregate: true,
+      latestActivityCap: TVF_LATEST_LIMIT,
+      volunteerCredit: 'credit-visible, ID-safe volunteer display'
+    },
     period: period,
     totals: {
       records: periodRecords.length,
       pageRows: pageRecords.length,
       activityRows: activityRecords.length,
-      periodPagesDone: pageRecords.reduce(function (sum, entry) { return sum + Number(entry.pageUnits || 1); }, 0),
-      pagesDone: Math.max(0, Math.round(Number(projection.donePages || 0))),
-      pagesTarget: Math.max(0, Math.round(Number(projection.totalPages || 0))),
-      progressPercent: projection.totalPages > 0
-        ? Math.round((Number(projection.donePages || 0) / Number(projection.totalPages || 1)) * 1000) / 10
-        : 0,
-      boxesTotal: projection.cataloguedBoxes || ((boxes || []).length || null),
-      boxesCatalogued: projection.cataloguedBoxes || ((boxes || []).length || 0),
-      boxesActive: Object.keys(activeBoxesSeen).length,
-      boxesCompleted: completedBoxes,
-      boxesRemaining: null,
-      volunteers: Object.keys(volunteersSeen).length,
+      periodPagesDone: pageRecords.reduce(function (sum, record) { return sum + Number(record.pageUnits || 1); }, 0),
+      pagesDone: pagesDone,
+      pagesTarget: targetPages,
+      progressPercent: targetPages > 0 ? round1_((pagesDone / targetPages) * 100) : 0,
+      boxesTotal: inventoryBoxes.length || null,
+      boxesCatalogued: inventoryTotals.cataloguedBoxes || inventoryBoxes.length,
+      boxesActive: Object.keys(recordsByBox).length,
+      boxesCompleted: completedBoxes.length,
+      boxesRemaining: inventoryBoxes.length ? Math.max(0, inventoryBoxes.length - completedBoxes.length) : null,
+      volunteersActive: Object.keys(byVolunteerGroups).length,
+      volunteers: Object.keys(byVolunteerGroups).length,
       materials: byMaterial.length
     },
     byDay: byDay,
@@ -1551,500 +226,554 @@ function _buildPublicSummary_(projection, boxes, now) {
     byVolunteer: byVolunteer,
     highlights: {
       busiestDay: busiestDay,
-      latestDate: periodRecords.length ? _publicIsoDate_(periodRecords[0].createdAt) : null,
-      topMaterial: byMaterial[0] || null
+      latestDate: periodRecords.length ? periodRecords[0].dateISO : null,
+      topMaterial: byMaterial[0] || null,
+      firstCompletedBox: null
     },
-    warnings: warnings,
-    source: {
-      recordsAreFullAggregate: true,
-      latestActivityCap: 50,
-      privacy: 'Contributor names are anonymized unless an explicit public display field/consent exists.'
-    }
+    warnings: warnings
   };
 }
 
-function _latestPublicActivity_(records, limit) {
-  return (records || []).filter(function (entry) {
-    return entry && entry.createdAt instanceof Date && !isNaN(entry.createdAt.getTime());
+function readWorkbook_(sheetId) {
+  const metadata = fetchSheetsApi_(sheetId, '?fields=sheets(properties(title))');
+  const titles = ((metadata.sheets || []).map(function (sheet) {
+    return sheet.properties && sheet.properties.title;
+  }) || []).filter(Boolean);
+  const rowsBySheet = {};
+  const sheetInfo = [];
+  titles.forEach(function (title) {
+    const matrix = readSheetValues_(sheetId, title + '!A1:Z5000');
+    const rows = rowsFromMatrix_(title, matrix);
+    rowsBySheet[title] = rows.rows;
+    sheetInfo.push({ title: title, classification: classifySheet_(title), rows: rows.rows.length, headers: rows.headers });
+  });
+  return { sheetInfo: sheetInfo, rowsBySheet: rowsBySheet };
+}
+
+function readSheetValues_(sheetId, range) {
+  const encoded = '/values/' + encodeURIComponent(range);
+  const result = fetchSheetsApi_(sheetId, encoded);
+  return result.values || [];
+}
+
+function fetchSheetsApi_(sheetId, suffix) {
+  const url = 'https://sheets.googleapis.com/v4/spreadsheets/' + encodeURIComponent(sheetId) + suffix;
+  const response = UrlFetchApp.fetch(url, {
+    method: 'get',
+    muteHttpExceptions: true,
+    headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }
+  });
+  const code = response.getResponseCode();
+  if (code < 200 || code >= 300) throw new Error('Sheets API failed (' + code + '): ' + response.getContentText());
+  return JSON.parse(response.getContentText());
+}
+
+function rowsFromMatrix_(title, matrix) {
+  if (!matrix || matrix.length < 1) return { headers: [], rows: [] };
+  const rawHeaders = matrix[0] || [];
+  const headers = rawHeaders.map(function (header, idx) {
+    return headerToKey_(header) || ('column' + (idx + 1));
+  });
+  const rows = [];
+  for (let i = 1; i < matrix.length; i++) {
+    const raw = matrix[i] || [];
+    if (raw.every(function (value) { return value == null || String(value).trim() === ''; })) continue;
+    const row = { _sourceRow: i + 1, _sheet: title, _sheetSlug: slugify_(title) };
+    headers.forEach(function (key, idx) { row[key] = raw[idx] == null ? null : raw[idx]; });
+    rows.push(row);
+  }
+  return {
+    headers: rawHeaders.filter(function (header) { return header != null && String(header).trim() !== ''; }),
+    rows: rows
+  };
+}
+
+function buildInventory_(rowsBySheet) {
+  const inventory = {};
+  Object.keys(rowsBySheet).forEach(function (title) {
+    if (classifySheet_(title) !== 'pnb_inventory') return;
+    rowsBySheet[title].forEach(function (row) {
+      const box = publicBoxLabel_(row.kutu || row.kutuNo);
+      const key = normalizeBox_(box);
+      if (!key) return;
+      const pages = parseDoneTotal_(row.sayfaSayisi);
+      inventory[key] = {
+        box: box,
+        targetPages: Math.round(pages.total || 0),
+        summaryDonePages: Math.round(pages.done || 0),
+        detailDonePages: 0,
+        pageRows: 0,
+        files: Math.round(numberOrZero_(row.dosyaSayisi)),
+        documents: Math.round(numberOrZero_(row.belgeSayisi)),
+        lastActivityDate: null,
+        labels: {}
+      };
+    });
+  });
+  return inventory;
+}
+
+function computeInventoryTotals_(rowsBySheet) {
+  const totals = { totalPages: 0, totalUnits: 0, totalFiles: 0, cataloguedBoxes: 0 };
+  Object.keys(rowsBySheet).forEach(function (title) {
+    if (classifySheet_(title) !== 'pnb_inventory') return;
+    rowsBySheet[title].forEach(function (row) {
+      const pages = parseDoneTotal_(row.sayfaSayisi);
+      totals.totalPages += pages.total;
+      totals.totalUnits += numberOrZero_(row.belgeSayisi);
+      totals.totalFiles += numberOrZero_(row.dosyaSayisi);
+      const box = publicBoxLabel_(row.kutu || row.kutuNo);
+      if (box && (pages.total > 0 || numberOrZero_(row.belgeSayisi) > 0 || numberOrZero_(row.dosyaSayisi) > 0)) {
+        totals.cataloguedBoxes += 1;
+      }
+    });
+  });
+  return {
+    totalPages: Math.round(totals.totalPages),
+    totalUnits: Math.round(totals.totalUnits),
+    totalFiles: Math.round(totals.totalFiles),
+    cataloguedBoxes: totals.cataloguedBoxes
+  };
+}
+
+function collectPublicRecords_(rowsBySheet, inventory) {
+  const records = [];
+  Object.keys(rowsBySheet).forEach(function (title) {
+    const classification = classifySheet_(title);
+    const rows = rowsBySheet[title];
+    if (classification === 'pnb_detail') {
+      const hasSayfaSayisi = rows.some(function (row) { return row.sayfaSayisi != null && String(row.sayfaSayisi).trim() !== ''; });
+      const sheetPerson = personFromTitle_(title);
+      rows.forEach(function (row) {
+        const enriched = copyObject_(row);
+        enriched._sheetPerson = sheetPerson;
+        const label = getVolunteerDisplayName_(enriched);
+        const when = parseSheetDate_(row.tarih);
+        const pageUnits = hasSayfaSayisi ? Math.max(1, Math.round(parseDoneTotal_(row.sayfaSayisi).done || parseDoneTotal_(row.sayfaSayisi).total || 1)) : 1;
+        const box = publicBoxLabel_(row.kutu || row.kutuNo);
+        const rec = {
+          kind: 'page',
+          sourceType: 'page_detail',
+          dateISO: when ? isoDate_(when) : null,
+          when: when,
+          material: materialCategory_(row),
+          projectId: TVF_PROJECT_ID,
+          privateKey: contributorKey_(label),
+          publicLabel: label,
+          creditStatus: creditStatus_(enriched),
+          box: box,
+          pageUnits: pageUnits
+        };
+        records.push(rec);
+        const boxKey = normalizeBox_(box);
+        if (boxKey) {
+          if (!inventory[boxKey]) {
+            inventory[boxKey] = { box: box, targetPages: 0, summaryDonePages: 0, detailDonePages: 0, pageRows: 0, files: 0, documents: 0, lastActivityDate: null, labels: {} };
+          }
+          inventory[boxKey].detailDonePages += pageUnits;
+          inventory[boxKey].pageRows += 1;
+          if (when && (!inventory[boxKey].lastActivityDate || isoDate_(when) > inventory[boxKey].lastActivityDate)) {
+            inventory[boxKey].lastActivityDate = isoDate_(when);
+          }
+        }
+      });
+    } else if (classification === 'activity') {
+      rows.forEach(function (row) {
+        const label = getVolunteerDisplayName_(row);
+        const when = parseSheetDate_(row.tarih);
+        records.push({
+          kind: 'activity',
+          sourceType: 'activity',
+          dateISO: when ? isoDate_(when) : null,
+          when: when,
+          material: materialCategory_(row),
+          projectId: projectIdFromRow_(row),
+          privateKey: contributorKey_(label),
+          publicLabel: label,
+          creditStatus: creditStatus_(row),
+          box: '',
+          pageUnits: 0
+        });
+      });
+    }
+  });
+  return records;
+}
+
+function latestActivity_(records, limit) {
+  return records.filter(function (record) {
+    return record.when instanceof Date && !isNaN(record.when.getTime());
   }).sort(function (a, b) {
-    return b.createdAt.getTime() - a.createdAt.getTime();
-  }).slice(0, limit || 50).map(function (entry) {
+    return b.when.getTime() - a.when.getTime();
+  }).slice(0, limit || TVF_LATEST_LIMIT).map(function (record) {
     return {
-      when: _publicIsoDateTime_(entry.createdAt),
-      dateISO: _publicIsoDate_(entry.createdAt),
-      kind: entry.recordKind || 'page',
-      recordType: entry.sourceType || '',
-      material: entry.materialCategory || 'belgeler',
-      projectId: entry.projectId || 'pnb',
-      volunteerLabel: entry.publicVolunteerLabel || 'Bir gönüllü',
-      boxLabel: entry.box ? ('Kutu ' + entry.box) : null,
-      pagesDone: Number(entry.pageUnits || 0)
+      when: isoDateTime_(record.when),
+      dateISO: record.dateISO,
+      kind: record.kind,
+      recordType: record.sourceType,
+      material: record.material,
+      projectId: record.projectId,
+      volunteerLabel: record.publicLabel,
+      boxLabel: record.box ? ('Kutu ' + record.box) : null,
+      pagesDone: record.pageUnits
     };
   });
 }
 
-function _publicDaySummary_(dateISO, rows) {
-  const pageRows = rows.filter(function (entry) { return entry.recordKind === 'page'; });
-  const activityRows = rows.filter(function (entry) { return entry.recordKind === 'activity'; });
+function daySummary_(dateISO, rows) {
+  const pageRows = rows.filter(function (record) { return record.kind === 'page'; });
+  const activityRows = rows.filter(function (record) { return record.kind === 'activity'; });
   const volunteers = {};
   const boxes = {};
   const materials = {};
-  let firstTime = null;
-  let lastTime = null;
-  rows.forEach(function (entry) {
-    if (entry.privateContributorKey) volunteers[entry.privateContributorKey] = true;
-    const boxKey = _normalizePublicBoxKey_(entry.box);
-    if (boxKey) boxes[boxKey] = true;
-    const material = entry.materialCategory || 'belgeler';
-    materials[material] = (materials[material] || 0) + 1;
-    if (!firstTime || entry.createdAt.getTime() < firstTime.getTime()) firstTime = entry.createdAt;
-    if (!lastTime || entry.createdAt.getTime() > lastTime.getTime()) lastTime = entry.createdAt;
+  let first = null;
+  let last = null;
+  rows.forEach(function (record) {
+    if (!volunteers[record.privateKey]) volunteers[record.privateKey] = [];
+    volunteers[record.privateKey].push(record.publicLabel);
+    if (record.box) boxes[normalizeBox_(record.box)] = 'Kutu ' + record.box;
+    inc_(materials, record.material || 'belgeler', 1);
+    if (record.when && (!first || record.when.getTime() < first.getTime())) first = record.when;
+    if (record.when && (!last || record.when.getTime() > last.getTime())) last = record.when;
   });
+  const volunteerNames = Object.keys(volunteers).map(function (key) {
+    return preferredVolunteerLabel_(volunteers[key]);
+  }).sort(function (a, b) { return asciiFold_(a).localeCompare(asciiFold_(b)); });
   const parts = [];
   if (pageRows.length) parts.push(pageRows.length + ' sayfa/detay satırı');
   if (activityRows.length) parts.push(activityRows.length + ' faaliyet kaydı');
-  if (Object.keys(volunteers).length) parts.push(Object.keys(volunteers).length + ' gönüllü katkısı');
+  if (volunteerNames.length) parts.push(volunteerNames.length + ' gönüllü');
   if (Object.keys(boxes).length) parts.push(Object.keys(boxes).length + ' kutu');
   return {
     dateISO: dateISO,
-    weekdayTR: _publicWeekdayTR_(dateISO),
-    dayNumber: Number(dateISO.split('-')[2]),
+    weekdayTR: TVF_TR_WEEKDAYS[parseIsoDate_(dateISO).getDay() === 0 ? 6 : parseIsoDate_(dateISO).getDay() - 1],
+    dayNumber: Number(dateISO.slice(8, 10)),
     records: rows.length,
     pageRows: pageRows.length,
     activityRows: activityRows.length,
-    pagesDone: pageRows.reduce(function (sum, entry) { return sum + Number(entry.pageUnits || 1); }, 0),
-    volunteersCount: Object.keys(volunteers).length,
+    pagesDone: pageRows.reduce(function (sum, record) { return sum + Number(record.pageUnits || 1); }, 0),
+    volunteersCount: volunteerNames.length,
+    volunteerNames: volunteerNames,
     boxesCount: Object.keys(boxes).length,
-    materials: _counterObjectToArray_(materials),
-    firstTime: firstTime ? _publicIsoDateTime_(firstTime) : null,
-    lastTime: lastTime ? _publicIsoDateTime_(lastTime) : null,
-    summarySentence: rows.length
-      ? ('Bugün ' + parts.join(', ') + ' işlendi.')
-      : 'Bu gün için kayıt görünmüyor.'
+    boxLabels: Object.keys(boxes).map(function (key) { return boxes[key]; }).sort(),
+    materials: counterToRows_(materials),
+    firstTime: first ? isoDateTime_(first) : null,
+    lastTime: last ? isoDateTime_(last) : null,
+    summarySentence: rows.length ? ('Bugün ' + parts.join(', ') + ' işlendi.') : 'Bu gün için kayıt görünmüyor.'
   };
 }
 
-function _publicPeriod_(now, mode) {
-  const todayISO = _publicIsoDate_(now || new Date());
-  const today = _publicDateFromIso_(todayISO);
-  if (mode === 'rolling_7_days') {
-    const start = _publicAddDays_(today, -6);
-    return {
-      mode: 'rolling_7_days',
-      startDate: _publicIsoDate_(start),
-      endDate: todayISO,
-      label: 'Son 7 gün',
-      isPartial: false
-    };
+function buildWarnings_(records, inventory, byDay, periodRecords, pagesDone, targetPages) {
+  const warnings = [];
+  if (targetPages > 0 && pagesDone > targetPages) {
+    warnings.push({ code: 'pages_done_exceeds_target', message: 'Kaydedilen sayfa birimleri hedef toplamı aşıyor.' });
   }
-  const day = today.getUTCDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  const start = _publicAddDays_(today, diff);
-  const fullEnd = _publicAddDays_(start, 6);
+  const missingTargets = Object.keys(inventory).map(function (key) { return inventory[key]; }).filter(function (box) {
+    return Number(box.pageRows || 0) > 0 && Number(box.targetPages || 0) <= 0;
+  }).map(function (box) { return box.box; });
+  if (missingTargets.length) {
+    warnings.push({ code: 'missing_box_targets', message: missingTargets.length + ' aktif kutuda hedef sayfa toplamı yok.', boxes: missingTargets.slice(0, 8) });
+  }
+  const unsafe = records.filter(function (record) { return record.creditStatus === 'unsafe_identifier'; }).length;
+  if (unsafe) {
+    warnings.push({ code: 'unsafe_public_identifiers_suppressed', message: unsafe + ' katkı alanı teknik kimlik gibi göründüğü için isim olarak gösterilmedi.' });
+  }
+  const missing = records.filter(function (record) { return record.creditStatus === 'missing'; }).length;
+  if (missing) {
+    warnings.push({ code: 'missing_volunteer_names', message: missing + ' katkı satırında kullanılabilir gönüllü adı yok.' });
+  }
+  const unknownDates = records.filter(function (record) { return !record.dateISO; }).length;
+  if (unknownDates) {
+    warnings.push({ code: 'unknown_dates', message: unknownDates + ' satır dönem/gün grafiğine atanabilecek tarih taşımıyor.' });
+  }
+  if (byDay.reduce(function (sum, day) { return sum + day.records; }, 0) !== periodRecords.length) {
+    warnings.push({ code: 'by_day_total_mismatch', message: 'Günlük toplam dönem kayıt toplamıyla eşleşmiyor.' });
+  }
+  return warnings;
+}
+
+function getVolunteerDisplayName_(row) {
+  if (explicitOptOut_(row)) return TVF_HIDDEN;
+  const explicit = normalizeVolunteerName_(row.publicDisplayName || row.publicdisplayname || row.kamusalAd || row.kamusalad);
+  if (explicit) return explicit;
+  const name = normalizeVolunteerName_(row.paydas || row.kaydiOlusuran || row.kaydiOlusturan || row._sheetPerson || row.volunteerName || row.adSoyad);
+  if (name) return name;
+  const first = normalizeVolunteerName_(row.firstName || row.first_name || row.ad || row.isim);
+  const last = normalizeVolunteerName_(row.lastName || row.last_name || row.soyad || row.soyisim);
+  const combined = normalizeVolunteerName_((first + ' ' + last).trim());
+  if (combined) return combined;
+  if (first) return first;
+  return TVF_UNNAMED;
+}
+
+function creditStatus_(row) {
+  if (explicitOptOut_(row)) return 'opt_out';
+  const raw = row.publicDisplayName || row.publicdisplayname || row.kamusalAd || row.kamusalad || row.paydas || row.kaydiOlusuran || row.kaydiOlusturan || row._sheetPerson || '';
+  if (raw && isUnsafePublicIdentifier_(raw)) return 'unsafe_identifier';
+  if (normalizeVolunteerName_(raw)) return 'name';
+  return 'missing';
+}
+
+function explicitOptOut_(row) {
+  const publicCredit = asciiFold_(row.publicCredit || row.public_credit).toLowerCase().trim();
+  if (['no', 'false', '0', 'hayir', 'hayır'].indexOf(publicCredit) >= 0) return true;
+  const creditVisible = asciiFold_(row.creditVisible || row.credit_visible).toLowerCase().trim();
+  if (['no', 'false', '0', 'hayir', 'hayır'].indexOf(creditVisible) >= 0) return true;
+  const hideName = asciiFold_(row.hideName || row.hide_name || row.adGizli || row.ad_gizli).toLowerCase().trim();
+  return ['yes', 'true', '1', 'evet', 'gizli', 'hide', 'hidden'].indexOf(hideName) >= 0;
+}
+
+function normalizeVolunteerName_(value) {
+  const text = String(value == null ? '' : value).replace(/\s+/g, ' ').trim().replace(/^[\s:;,\-–—]+|[\s:;,\-–—]+$/g, '');
+  if (!text || isUnsafePublicIdentifier_(text)) return '';
+  if (!/[A-Za-zÇĞİÖŞÜçğıöşü]/.test(text)) return '';
+  if (text.length > 64) return '';
+  return text;
+}
+
+function isUnsafePublicIdentifier_(value) {
+  const text = String(value == null ? '' : value).trim();
+  if (!text) return false;
+  if (/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/.test(text)) return true;
+  if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(text)) return true;
+  if (/^[0-9a-fA-F]{12,}$/.test(text)) return true;
+  if (/^(sheet|row|uid|user|firebase|google|apps?|script|token|id)[_:-]/i.test(text)) return true;
+  const compact = text.replace(/[^A-Za-z0-9]/g, '');
+  if (compact.length >= 24) return true;
+  if (compact.length >= 16 && /[0-9]/.test(compact) && /[A-Za-z]/.test(compact)) {
+    const words = text.match(/[A-Za-zÇĞİÖŞÜçğıöşü]{2,}/g) || [];
+    const vowels = text.match(/[aeıioöuüAEIİOÖUÜ]/g) || [];
+    if (words.length < 2 || vowels.length < 2) return true;
+  }
+  return false;
+}
+
+function contributorKey_(label) {
+  if (!label || label === TVF_UNNAMED) return 'unnamed';
+  if (label === TVF_HIDDEN) return 'hidden';
+  return asciiFold_(label).toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function preferredVolunteerLabel_(labels) {
+  const clean = (labels || []).filter(Boolean);
+  if (!clean.length) return TVF_UNNAMED;
+  if (clean.indexOf(TVF_HIDDEN) >= 0) return TVF_HIDDEN;
+  const human = clean.filter(function (label) { return label !== TVF_UNNAMED && label !== TVF_HIDDEN; });
+  if (!human.length) return TVF_UNNAMED;
+  const counts = {};
+  human.forEach(function (label) { inc_(counts, label, 1); });
+  return Object.keys(counts).sort(function (a, b) {
+    const ta = (a.match(/[ÇĞİÖŞÜçğıöşü]/g) || []).length;
+    const tb = (b.match(/[ÇĞİÖŞÜçğıöşü]/g) || []).length;
+    if (ta !== tb) return tb - ta;
+    if (counts[a] !== counts[b]) return counts[b] - counts[a];
+    if (a.length !== b.length) return b.length - a.length;
+    return asciiFold_(a).localeCompare(asciiFold_(b));
+  })[0];
+}
+
+function materialCategory_(row) {
+  const haystack = asciiFold_([
+    row.calismaAlani, row.devamEdenCalisma, row.dijitalBelgeKodu, row.notlar, row.fon, row.fonAdi
+  ].join(' ')).toLowerCase();
+  if (haystack.indexOf('foto') >= 0 || haystack.indexOf('gorsel') >= 0 || haystack.indexOf('dia') >= 0) return 'fotoğraflar';
+  if (haystack.indexOf('mektup') >= 0) return 'mektuplar';
+  if (haystack.indexOf('kitap') >= 0) return 'kitap metinleri';
+  if (haystack.indexOf('ders') >= 0) return 'ders notları';
+  if (haystack.indexOf('envanter') >= 0) return 'envanter';
+  return 'belgeler';
+}
+
+function projectIdFromRow_(row) {
+  const haystack = asciiFold_([row.fon, row.fonAdi, row.calismaAlani, row.devamEdenCalisma, row.dijitalBelgeKodu, row.notlar].join(' ')).toLowerCase();
+  return haystack.indexOf('pnb') >= 0 || haystack.indexOf('boratav') >= 0 ? TVF_PROJECT_ID : 'foundation';
+}
+
+function selectedPeriod_(now, mode) {
+  const today = parseIsoDate_(isoDate_(now));
+  if (mode === 'rolling_7_days') {
+    const start = addDays_(today, -6);
+    return { mode: 'rolling_7_days', startDate: isoDate_(start), endDate: isoDate_(today), label: 'Son 7 gün', isPartial: false };
+  }
+  const mondayOffset = today.getDay() === 0 ? -6 : 1 - today.getDay();
+  const start = addDays_(today, mondayOffset);
+  const fullEnd = addDays_(start, 6);
   return {
-    mode: 'calendar_week',
-    startDate: _publicIsoDate_(start),
-    endDate: todayISO,
-    fullEndDate: _publicIsoDate_(fullEnd),
-    label: _publicPeriodLabel_(start, fullEnd),
+    mode: 'calendar_week_to_date',
+    startDate: isoDate_(start),
+    endDate: isoDate_(today),
+    fullEndDate: isoDate_(fullEnd),
+    label: periodLabel_(start, fullEnd),
     isPartial: today.getTime() < fullEnd.getTime()
   };
 }
 
-function _publicPeriodLabel_(start, fullEnd) {
-  const months = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
-  const startMonth = months[start.getUTCMonth()];
-  const endMonth = months[fullEnd.getUTCMonth()];
-  const range = start.getUTCMonth() === fullEnd.getUTCMonth()
-    ? (start.getUTCDate() + '–' + fullEnd.getUTCDate() + ' ' + startMonth)
-    : (start.getUTCDate() + ' ' + startMonth + ' – ' + fullEnd.getUTCDate() + ' ' + endMonth);
-  return range + ' haftası · bugüne kadar';
+function classifySheet_(title) {
+  const slug = slugify_(title);
+  if (slug === 'pnb_sayisallastirma') return 'pnb_inventory';
+  if (slug === 'gunluk_akis') return 'activity';
+  if (slug === 'gunluk_gonullu_akisi') return 'schedule';
+  if (slug.indexOf('pnb_') === 0 && slug.indexOf('_zarf') < 0 && slug !== 'pnb_sayisallastirma') return 'pnb_detail';
+  return 'other';
 }
 
-function _publicDateRange_(startISO, endISO) {
+function personFromTitle_(title) {
+  const parts = String(title || '').split(/\s+/).filter(Boolean);
+  if (!parts.length || parts[0].toUpperCase() !== 'PNB') return '';
+  return parts[parts.length - 1].replace(/-/g, ' - ');
+}
+
+function parseSheetDate_(value) {
+  if (value == null || value === '') return null;
+  if (value instanceof Date && !isNaN(value.getTime())) return value;
+  if (typeof value === 'number' && isFinite(value)) return new Date(Date.UTC(1899, 11, 30 + Math.floor(value), 12, 0, 0));
+  const text = String(value).trim();
+  let match = text.match(/^(\d{1,2})\s+([A-Za-zÇĞİÖŞÜçğıöşü]+)\s+(\d{4})$/);
+  if (match) {
+    const month = monthNumber_(match[2]);
+    if (month) return new Date(Number(match[3]), month - 1, Number(match[1]), 12, 0, 0);
+  }
+  match = text.match(/^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{2,4})$/);
+  if (match) {
+    let year = Number(match[3]);
+    if (year < 100) year += 2000;
+    return new Date(year, Number(match[2]) - 1, Number(match[1]), 12, 0, 0);
+  }
+  const parsed = new Date(text);
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function parseDoneTotal_(value) {
+  if (value == null || value === '') return { done: 0, total: 0 };
+  if (typeof value === 'number') return { done: 0, total: value };
+  const text = String(value).trim();
+  const match = text.match(/^([\d.,]+)\s*\/\s*([\d.,]+)$/);
+  if (match) return { done: parseLocaleNumber_(match[1]), total: parseLocaleNumber_(match[2]) };
+  return { done: 0, total: parseLocaleNumber_(text) };
+}
+
+function parseLocaleNumber_(value) {
+  if (value == null || value === '') return 0;
+  if (typeof value === 'number') return isFinite(value) ? value : 0;
+  let text = String(value).trim().replace(/\s+/g, '');
+  if (!text) return 0;
+  text = text.indexOf(',') >= 0 && text.indexOf('.') >= 0 ? text.replace(/\./g, '').replace(',', '.') : text.replace(',', '.');
+  const n = Number(text.replace(/[^\d.-]/g, ''));
+  return isFinite(n) ? n : 0;
+}
+
+function numberOrZero_(value) {
+  return parseLocaleNumber_(value);
+}
+
+function publicBoxLabel_(value) {
+  if (value == null || value === '') return '';
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    if (value.getFullYear() === 2026) return (value.getMonth() + 1) + '-' + value.getDate();
+    return isoDate_(value);
+  }
+  if (typeof value === 'number' && isFinite(value)) return Math.floor(value) === value ? String(value) : String(value).replace('.', ',');
+  return String(value).trim();
+}
+
+function normalizeBox_(value) {
+  const label = asciiFold_(publicBoxLabel_(value)).toLowerCase().trim();
+  const range = label.match(/^(\d+)\s*-\s*(\d+)$/);
+  if (range) return 'range_' + range[1] + '_' + range[2];
+  return label.replace(/[^a-z0-9]+/g, '');
+}
+
+function counterToRows_(obj) {
+  const total = Object.keys(obj || {}).reduce(function (sum, key) { return sum + Number(obj[key] || 0); }, 0);
+  return Object.keys(obj || {}).sort(function (a, b) {
+    return Number(obj[b] || 0) - Number(obj[a] || 0) || a.localeCompare(b);
+  }).map(function (key) {
+    const count = Number(obj[key] || 0);
+    return { material: key, label: key.charAt(0).toLocaleUpperCase('tr') + key.slice(1), count: count, percent: total ? round1_((count / total) * 100) : 0 };
+  });
+}
+
+function dateRange_(startISO, endISO) {
   const out = [];
-  let current = _publicDateFromIso_(startISO);
-  const end = _publicDateFromIso_(endISO);
+  let current = parseIsoDate_(startISO);
+  const end = parseIsoDate_(endISO);
   while (current.getTime() <= end.getTime()) {
-    out.push(_publicIsoDate_(current));
-    current = _publicAddDays_(current, 1);
+    out.push(isoDate_(current));
+    current = addDays_(current, 1);
   }
   return out;
 }
 
-function _publicDateFromIso_(iso) {
-  return new Date(String(iso).slice(0, 10) + 'T12:00:00+03:00');
+function addDays_(dateObj, days) {
+  const d = new Date(dateObj.getTime());
+  d.setDate(d.getDate() + days);
+  return d;
 }
 
-function _publicAddDays_(dateObj, days) {
-  return new Date(dateObj.getTime() + (days * 86400000));
+function parseIsoDate_(iso) {
+  const parts = String(iso).slice(0, 10).split('-').map(Number);
+  return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
 }
 
-function _publicIsoDate_(dateObj) {
-  return Utilities.formatDate(dateObj, SHEET_SYNC_TIMEZONE_, 'yyyy-MM-dd');
+function isoDate_(dateObj) {
+  return Utilities.formatDate(dateObj, TVF_TIMEZONE, 'yyyy-MM-dd');
 }
 
-function _publicIsoDateTime_(dateObj) {
+function isoDateTime_(dateObj) {
   return Utilities.formatDate(dateObj, 'UTC', "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
 }
 
-function _publicWeekdayTR_(dateISO) {
-  const names = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
-  return names[_publicDateFromIso_(dateISO).getUTCDay()];
+function formatDayMonth_(dateObj) {
+  return dateObj.getDate() + ' ' + TVF_TR_MONTHS[dateObj.getMonth()];
 }
 
-function _counterObjectToArray_(obj) {
-  const total = Object.keys(obj || {}).reduce(function (sum, key) { return sum + Number(obj[key] || 0); }, 0);
-  return Object.keys(obj || {}).sort(function (a, b) {
-    return Number(obj[b] || 0) - Number(obj[a] || 0);
-  }).map(function (key) {
-    const count = Number(obj[key] || 0);
-    return {
-      material: key,
-      label: key ? (key.charAt(0).toLocaleUpperCase('tr') + key.slice(1)) : '',
-      count: count,
-      percent: total > 0 ? Math.round((count / total) * 1000) / 10 : 0
-    };
-  });
+function periodLabel_(start, fullEnd) {
+  const sameMonth = start.getMonth() === fullEnd.getMonth();
+  const range = sameMonth
+    ? (start.getDate() + '–' + fullEnd.getDate() + ' ' + TVF_TR_MONTHS[start.getMonth()])
+    : (start.getDate() + ' ' + TVF_TR_MONTHS[start.getMonth()] + ' – ' + fullEnd.getDate() + ' ' + TVF_TR_MONTHS[fullEnd.getMonth()]);
+  return range + ' haftası · bugüne kadar';
 }
 
-function _rankedPublicVolunteerLabel_(label, idx) {
-  if (label !== 'Bir gönüllü') return label;
-  if (idx === 0) return 'Bir gönüllü';
-  if (idx === 1) return 'Bir gönüllü daha';
-  return 'Başka bir gönüllü';
+function monthNumber_(name) {
+  const folded = asciiFold_(name).toLowerCase();
+  for (let i = 0; i < TVF_TR_MONTHS.length; i++) {
+    if (asciiFold_(TVF_TR_MONTHS[i]).toLowerCase() === folded) return i + 1;
+  }
+  return 0;
 }
 
-function _readBoxesFromSheet_(sheetId, metadata) {
-  const tabs = ((metadata && metadata.sheets) || []).map(function (s) {
-    return (s.properties && s.properties.title) || '';
-  }).filter(Boolean);
-  const summaryTab = tabs.find(function (n) { return _slugifyTabName_(n) === 'pnb_sayisallastirma'; });
-  if (!summaryTab) return [];
-  let rows;
-  try { rows = _readPublicSheetRows_(sheetId, summaryTab); } catch (err) { return []; }
-  const detailByBox = {};
-  tabs.forEach(function (tabName) {
-    const slug = _slugifyTabName_(tabName);
-    if (slug.indexOf('pnb_') !== 0) return;
-    if (slug === 'pnb_sayisallastirma' || slug === 'pnb_zarf_calisma') return;
-    if (slug.indexOf('_zarf') !== -1) return;
-    let detailRows;
-    try { detailRows = _readPublicSheetRows_(sheetId, tabName); } catch (e) { return; }
-    const hasSayfaSayisi = detailRows.some(function (r) {
-      return r.sayfaSayisi != null && String(r.sayfaSayisi).trim() !== '';
-    });
-    const fallbackPerson = _personHintFromPublicTabSlug_(slug);
-    detailRows.forEach(function (row) {
-      const box = _publicBoxLabel_(row.kutu || row.kutuNo);
-      if (!box) return;
-      const key = _normalizePublicBoxKey_(box);
-      if (!detailByBox[key]) {
-        detailByBox[key] = {
-          box: box,
-          pageRows: 0,
-          donePages: 0,
-          materials: {},
-          contributors: {},
-          labels: {},
-          lastActivity: null
-        };
-      }
-      const pageUnits = hasSayfaSayisi ? Math.max(1, _parseDetailPageUnits_(row)) : 1;
-      const person = _stringValue_(row.kaydiOlusuran || row.kaydiOlusturan || row.paydas || fallbackPerson);
-      const privateKey = _privateContributorKey_(person || fallbackPerson || slug);
-      const label = _publicVolunteerLabelFromRow_(row, person);
-      const material = _materialCategoryFromPublicRow_(row);
-      const createdAt = _parseSheetDate_(row.tarih);
-      detailByBox[key].pageRows += 1;
-      detailByBox[key].donePages += pageUnits;
-      detailByBox[key].materials[material] = (detailByBox[key].materials[material] || 0) + 1;
-      if (privateKey) {
-        detailByBox[key].contributors[privateKey] = (detailByBox[key].contributors[privateKey] || 0) + 1;
-        detailByBox[key].labels[privateKey] = label;
-      }
-      if (createdAt && (!detailByBox[key].lastActivity || createdAt.getTime() > detailByBox[key].lastActivity.getTime())) {
-        detailByBox[key].lastActivity = createdAt;
-      }
-    });
-  });
-  const boxes = [];
-  rows.forEach(function (row) {
-    const kutu = _publicBoxLabel_(row.kutu || row.kutuNo);
-    if (!kutu) return;
-    const key = _normalizePublicBoxKey_(kutu);
-    const detail = detailByBox[key] || {
-      pageRows: 0,
-      donePages: 0,
-      materials: {},
-      contributors: {},
-      labels: {},
-      lastActivity: null
-    };
-    const pages = _parseDoneTotalCell_(row.sayfaSayisi);
-    const totalPages = pages.total || 0;
-    const donePages = Math.max(pages.done || 0, detail.donePages || 0);
-    const workers = Object.keys(detail.contributors || {}).sort(function (a, b) {
-      return (detail.contributors[b] || 0) - (detail.contributors[a] || 0);
-    }).map(function (privateKey) {
-      return detail.labels[privateKey] || 'Bir gönüllü';
-    });
-    let status = 'future';
-    if (totalPages > 0) {
-      if (donePages >= totalPages) status = 'done';
-      else if (donePages > 0 || workers.length > 0) status = 'active';
-    } else if (workers.length > 0) status = 'active';
-    boxes.push({
-      kutu: kutu,
-      name: _stringValue_(row.aciklama) || _stringValue_(row.icerik) || _stringValue_(row.calismaAlani) || ('Kutu ' + kutu),
-      dosya: _numberOrZero_(row.dosyaSayisi),
-      belge: _numberOrZero_(row.belgeSayisi),
-      totalPages: totalPages,
-      donePages: donePages,
-      pageRows: detail.pageRows || 0,
-      materials: _counterObjectToArray_(detail.materials || {}),
-      contributorsCount: Object.keys(detail.contributors || {}).length,
-      lastActivityDate: detail.lastActivity ? _publicIsoDate_(detail.lastActivity) : null,
-      targetMissing: totalPages <= 0 && (detail.donePages || 0) > 0,
-      remaining: totalPages > 0 ? Math.max(0, totalPages - donePages) : null,
-      percent: totalPages > 0 ? Math.round((Math.min(donePages, totalPages) / totalPages) * 1000) / 10 : null,
-      workers: workers,
-      status: status
-    });
-  });
-  return boxes;
+function headerToKey_(header) {
+  const parts = asciiFold_(header).trim().split(/[^A-Za-z0-9]+/).filter(Boolean);
+  if (!parts.length) return '';
+  return parts.map(function (part, idx) {
+    const lower = part.toLowerCase();
+    return idx === 0 ? lower : lower.charAt(0).toUpperCase() + lower.slice(1);
+  }).join('');
 }
 
-function _readVolunteersFromTabs_(sheetId, metadata) {
-  const tabs = ((metadata && metadata.sheets) || []);
-  const out = [];
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-  tabs.forEach(function (sheetMeta) {
-    const title = (sheetMeta.properties && sheetMeta.properties.title) || '';
-    const slug = _slugifyTabName_(title);
-    if (slug.indexOf('pnb_') !== 0) return;
-    if (slug === 'pnb_sayisallastirma' || slug === 'pnb_zarf_calisma') return;
-    if (slug.indexOf('_zarf') !== -1) return;
-    let rows;
-    try { rows = _readPublicSheetRows_(sheetId, title); } catch (err) { return; }
-    if (!rows || rows.length === 0) return;
-    const hasSayfaSayisi = rows.some(function (r) {
-      return r.sayfaSayisi != null && String(r.sayfaSayisi).trim() !== '';
-    });
-    let monthPages = 0;
-    let totalPages = 0;
-    let lastDate = null;
-    const boxesTouched = {};
-    rows.forEach(function (row) {
-      const created = _parseSheetDate_(row.tarih);
-      const pages = _parseDoneTotalCell_(row.sayfaSayisi);
-      const pageCount = hasSayfaSayisi ? (pages.done || pages.total || 0) : 1;
-      totalPages += pageCount;
-      if (created && !isNaN(created.getTime())) {
-        if (!lastDate || created.getTime() > lastDate.getTime()) lastDate = created;
-        if (created.getTime() >= monthStart) monthPages += pageCount;
-      }
-      const box = _stringValue_(row.kutu) || _stringValue_(row.kutuNo);
-      if (box) boxesTouched[String(box).trim()] = true;
-    });
-    const parts = title.split(/\s+/);
-    const firstName = parts[parts.length - 1] || '';
-    const weekCounts = [0, 0, 0, 0];
-    rows.forEach(function (row) {
-      const created = _parseSheetDate_(row.tarih);
-      if (!created || isNaN(created.getTime())) return;
-      const daysAgo = Math.floor((now.getTime() - created.getTime()) / 86400000);
-      if (daysAgo < 0 || daysAgo > 27) return;
-      const bucket = 3 - Math.floor(daysAgo / 7);
-      const pages = _parseDoneTotalCell_(row.sayfaSayisi);
-      const pageCount = hasSayfaSayisi ? (pages.done || pages.total || 0) : 1;
-      weekCounts[bucket] += pageCount;
-    });
-    const lastMs = lastDate ? lastDate.getTime() : 0;
-    const sevenDaysAgo = now.getTime() - 7 * 86400000;
-    const status = lastMs >= sevenDaysAgo ? 'active' : 'quiet';
-    const currentBox = Object.keys(boxesTouched).pop() || null;
-    out.push({
-      firstName: firstName,
-      monthPages: monthPages,
-      totalPages: totalPages,
-      lastActivity: lastDate ? lastDate.toISOString() : null,
-      currentBox: currentBox,
-      status: status,
-      spark: weekCounts
-    });
-  });
-  out.sort(function (a, b) { return (b.monthPages || 0) - (a.monthPages || 0); });
-  return out;
+function slugify_(value) {
+  return asciiFold_(value).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }
 
-function _computeWeeklyRhythm_(tickerEntries) {
-  const buckets = [0, 0, 0, 0, 0, 0, 0];
-  const now = new Date();
-  const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  tickerEntries.forEach(function (e) {
-    if (!e.createdAt || !(e.createdAt instanceof Date)) return;
-    const d = e.createdAt;
-    const dayMid = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-    const daysAgo = Math.floor((todayMid - dayMid) / 86400000);
-    if (daysAgo < 0 || daysAgo > 6) return;
-    buckets[6 - daysAgo] += 1;
-  });
-  return buckets;
+function asciiFold_(value) {
+  return String(value == null ? '' : value).replace(/ı/g, 'i').replace(/İ/g, 'I').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
-function _groupStreamFromTicker_(tickerEntries) {
-  const byDay = {};
-  const order = [];
-  tickerEntries.forEach(function (e) {
-    if (!e.createdAt || !(e.createdAt instanceof Date)) return;
-    const d = e.createdAt;
-    const key = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
-    if (!byDay[key]) {
-      byDay[key] = { date: new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString(), items: [] };
-      order.push(key);
-    }
-    byDay[key].items.push({
-      when: d.toISOString(),
-      materialCategory: e.materialCategory,
-      volunteerToken: e.volunteerToken
-    });
-  });
-  return order.slice(0, 5).map(function (k) { return byDay[k]; });
+function inc_(obj, key, amount) {
+  obj[key] = (obj[key] || 0) + (amount == null ? 1 : amount);
 }
 
-function _readPublicContentFromSheet_(sheetId, metadata) {
+function round1_(n) {
+  return Math.round(Number(n || 0) * 10) / 10;
+}
+
+function copyObject_(obj) {
   const out = {};
-  const tabs = (metadata && metadata.sheets) || [];
-  let target = null;
-  for (let i = 0; i < tabs.length; i++) {
-    const title = String((tabs[i].properties && tabs[i].properties.title) || '');
-    const slug = _slugifyTabName_(title);
-    if (slug === 'anasayfa_metinleri' || slug === 'site_metinleri' || slug === 'site_icerik') {
-      target = title;
-      break;
-    }
-  }
-  if (!target) return out;
-  let rows;
-  try { rows = _readPublicSheetRows_(sheetId, target); } catch (err) { return out; }
-  if (!rows || rows.length < 1) return out;
-  rows.forEach(function (row) {
-    const k = _stringValue_(row.anahtar) || _stringValue_(row.key) || _stringValue_(row._raw && row._raw[0]);
-    if (!k) return;
-    const v = row.deger != null ? row.deger : row.value != null ? row.value : (row._raw && row._raw[1]);
-    out[k] = v == null ? '' : String(v);
-  });
+  Object.keys(obj || {}).forEach(function (key) { out[key] = obj[key]; });
   return out;
 }
 
-function _collectActiveFirstNames_(sheetId, metadata) {
-  const tabs = ((metadata && metadata.sheets) || []);
-  const seen = {};
-  const out = [];
-  tabs.forEach(function (s) {
-    const title = (s.properties && s.properties.title) || '';
-    const slug = _slugifyTabName_(title);
-    if (slug.indexOf('pnb_') !== 0) return;
-    if (slug === 'pnb_sayisallastirma' || slug === 'pnb_zarf_calisma') return;
-    if (slug.indexOf('_zarf') !== -1) return;
-    const parts = title.split(/\s+/);
-    const name = parts[parts.length - 1] || '';
-    if (!name) return;
-    const key = name.toLowerCase();
-    if (seen[key]) return;
-    seen[key] = true;
-    out.push(name);
-  });
-  out.sort(function (a, b) { return a.localeCompare(b, 'tr'); });
-  return out;
-}
-
-function _readPublicScheduleFromSheet_(sheetId, metadata) {
-  const out = {};
-  const tabs = (metadata && metadata.sheets) || [];
-  let target = null;
-  const candidates = ['haftalik_program', 'nobet', 'haftalik', 'program'];
-  for (let i = 0; i < tabs.length; i++) {
-    const title = String((tabs[i].properties && tabs[i].properties.title) || '');
-    const slug = _slugifyTabName_(title);
-    if (candidates.indexOf(slug) >= 0) { target = title; break; }
-  }
-  if (!target) return out;
-  let rows;
-  try { rows = _readPublicSheetRows_(sheetId, target); } catch (err) { return out; }
-  if (!rows || rows.length < 1) return out;
-  const dayMap = {
-    'pazartesi': 'monday', 'pzt': 'monday',
-    'sali': 'tuesday', 'carsamba': 'wednesday', 'persembe': 'thursday',
-    'cuma': 'friday', 'cumartesi': 'saturday', 'pazar': 'sunday'
-  };
-  rows.forEach(function (row) {
-    const rawDay = _stringValue_(row.gun);
-    const folded = _asciiFold_(rawDay).toLowerCase();
-    const dayKey = dayMap[folded];
-    if (!dayKey) return;
-    const peopleRaw = _stringValue_(row.kisiler) || _stringValue_(row.gonulluler) || _stringValue_(row.isimler);
-    const list = peopleRaw.split(/[,;\n]/).map(function (s) {
-      return String(s || '').trim().split(/\s+/)[0];
-    }).filter(Boolean);
-    if (!out[dayKey]) out[dayKey] = [];
-    list.forEach(function (n) {
-      if (out[dayKey].indexOf(n) === -1) out[dayKey].push(n);
-    });
-  });
-  return out;
-}
-
-// ============================================================
-// Service-account auth helpers (was in FirestoreClient.gs)
-// ============================================================
-// Reads FIREBASE_SERVICE_ACCOUNT Script Property (JSON service-account key)
-// and exchanges a JWT for a short-lived OAuth access token. SheetSync uses
-// the spreadsheets.readonly scope to read the shared volunteer sheet.
-
-function getServiceAccount_() {
-  const raw = PropertiesService.getScriptProperties().getProperty('FIREBASE_SERVICE_ACCOUNT');
-  if (!raw) return null;
-  try { return JSON.parse(raw); }
-  catch (err) { throw new Error('FIREBASE_SERVICE_ACCOUNT is not valid JSON: ' + err); }
-}
-
-function base64UrlEncode_(bytes) {
-  return Utilities.base64EncodeWebSafe(bytes).replace(/=+$/, '');
-}
-
-function getAccessToken_(scopeOverride) {
-  const sa = getServiceAccount_();
-  if (!sa) throw new Error('FIREBASE_SERVICE_ACCOUNT missing from Script Properties');
-  const now = Math.floor(Date.now() / 1000);
-  const tokenUrl = 'https://oauth2.googleapis.com/token';
-  const header = { alg: 'RS256', typ: 'JWT' };
-  const claim = {
-    iss: sa.client_email,
-    scope: scopeOverride || 'https://www.googleapis.com/auth/datastore',
-    aud: tokenUrl,
-    iat: now,
-    exp: now + 3600
-  };
-  const headerB64 = base64UrlEncode_(Utilities.newBlob(JSON.stringify(header)).getBytes());
-  const claimB64 = base64UrlEncode_(Utilities.newBlob(JSON.stringify(claim)).getBytes());
-  const toSign = headerB64 + '.' + claimB64;
-  const signature = Utilities.computeRsaSha256Signature(toSign, sa.private_key);
-  const jwt = toSign + '.' + base64UrlEncode_(signature);
-  const response = UrlFetchApp.fetch(tokenUrl, {
-    method: 'post',
-    contentType: 'application/x-www-form-urlencoded',
-    muteHttpExceptions: true,
-    payload: {
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: jwt
-    }
-  });
-  const code = response.getResponseCode();
-  if (code !== 200) {
-    throw new Error('Token exchange failed (' + code + '): ' + response.getContentText());
-  }
-  return JSON.parse(response.getContentText()).access_token;
+function tvfJson_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }

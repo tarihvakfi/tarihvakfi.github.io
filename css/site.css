@@ -40,8 +40,7 @@ body.journal {
   gap: 16px; align-items: baseline;
   font-family: 'DM Mono', monospace;
   font-size: 10.5px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  letter-spacing: 0.12em;
   color: var(--ink-mute);
 }
 .masthead .l { text-align: left; }
@@ -263,7 +262,7 @@ body.journal {
 .mat-head h3 em { font-style: italic; color: var(--accent); }
 .mat-head .meta {
   font-family: 'DM Mono', monospace; font-size: 11px;
-  letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-mute);
+  letter-spacing: 0.08em; color: var(--ink-mute);
 }
 .mat-bar { display: flex; height: 14px; border-radius: 1px; overflow: hidden; margin-bottom: 16px; background: var(--rule-soft); }
 .mat-bar .seg { height: 100%; border-right: 2px solid var(--paper-soft); }
@@ -284,7 +283,7 @@ body.journal {
 .section-head h2 em { font-style: italic; color: var(--accent); }
 .section-head .tag {
   font-family: 'DM Mono', monospace; font-size: 11px;
-  letter-spacing: 0.22em; text-transform: uppercase;
+  letter-spacing: 0.1em;
   color: var(--ink-mute); margin: 10px 0 0;
 }
 
@@ -294,7 +293,7 @@ body.journal {
 .day:last-child { border-bottom: 0; }
 @media (max-width: 760px) { .day { grid-template-columns: 90px 1fr; } .day .marg { display: none; } }
 .day .date { border-top: 2px solid var(--ink); padding-top: 8px; }
-.day .date .dn { font-family: 'DM Mono', monospace; font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-mute); }
+.day .date .dn { font-family: 'DM Mono', monospace; font-size: 10.5px; letter-spacing: 0.08em; color: var(--ink-mute); }
 .day .date .dom { font-family: 'Crimson Pro', serif; font-size: 52px; line-height: 0.95; color: var(--ink); margin-top: 4px; font-weight: 500; letter-spacing: -0.025em; }
 .day .date .opens { margin-top: 12px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.08em; color: var(--ink-faint); line-height: 1.7; }
 .day .body { padding-top: 4px; }
@@ -391,7 +390,7 @@ body.journal {
 .boxes-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 18px; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid var(--rule); padding-bottom: 12px; }
 .boxes-week h3 { font-family: 'Crimson Pro', serif; font-size: 22px; font-weight: 500; margin: 0; }
 .boxes-week h3 em { font-style: italic; color: var(--accent); }
-.boxes-week .meta { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-mute); }
+.boxes-week .meta { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
 .box-card {
   padding: 18px 0 16px;
   border-bottom: 1px dashed var(--rule-soft);
@@ -457,7 +456,7 @@ body.journal {
 .recognition { margin-top: 54px; }
 .recognition h3 { font-family: 'Crimson Pro', serif; font-size: 22px; font-weight: 500; margin: 0; }
 .recognition h3 em { font-style: italic; color: var(--accent); }
-.recognition .meta { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-mute); }
+.recognition .meta { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
 .vol-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -546,12 +545,53 @@ body.journal {
   margin: 4px 0;
 }
 
+/* Latest capped feed */
+.latest { margin-top: 48px; }
+.latest h3 { font-family: 'Crimson Pro', serif; font-size: 22px; font-weight: 500; margin: 0; }
+.latest h3 em { font-style: italic; color: var(--accent); }
+.latest .meta { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
+.latest-list { border-top: 1px solid var(--rule-soft); }
+.latest-row {
+  display: grid;
+  grid-template-columns: 96px 1fr auto;
+  gap: 14px;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--rule-soft);
+}
+.latest-date,
+.latest-count {
+  font-family: 'DM Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--ink-mute);
+}
+.latest-main {
+  font-size: 14.5px;
+  color: var(--ink-soft);
+}
+.latest-count {
+  color: var(--accent);
+  text-align: right;
+}
+@media (max-width: 560px) {
+  .latest-row { grid-template-columns: 1fr auto; }
+  .latest-date { grid-column: 1 / -1; }
+}
+
+/* 404 */
+.not-found { min-height: 70vh; display: grid; place-items: center; }
+.not-found-card { text-align: center; border-top: 2px solid var(--ink); border-bottom: 1px solid var(--rule); padding: 36px 0; width: min(460px, 100%); }
+.not-found-card h1 { font-family: 'Crimson Pro', serif; font-size: 72px; line-height: 1; margin: 0 0 12px; color: var(--accent); font-style: italic; }
+.not-found-card p { margin: 0 0 20px; color: var(--ink-mute); }
+.not-found-card a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent); }
+
 /* Pull quote */
 .pull-week { margin: 64px 0 0; text-align: center; padding: 40px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
 .pull-week q { font-family: 'Crimson Pro', serif; font-style: italic; font-size: clamp(22px, 3.2vw, 30px); line-height: 1.4; display: block; max-width: 700px; margin: 0 auto; quotes: '“' '”'; }
 .pull-week q::before, .pull-week q::after { color: var(--accent); font-size: 1.2em; vertical-align: -0.1em; margin: 0 4px; }
 .pull-week q em { font-style: normal; color: var(--accent); }
-.pull-week .cite { margin-top: 14px; font-family: 'DM Mono', monospace; font-size: 10.5px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-mute); }
+.pull-week .cite { margin-top: 14px; font-family: 'DM Mono', monospace; font-size: 10.5px; letter-spacing: 0.08em; color: var(--ink-mute); }
 
 /* Colophon */
 .colophon { margin-top: 60px; padding-top: 26px; border-top: 1px solid var(--rule); text-align: center; }

@@ -43,22 +43,29 @@ jobs:
           if node - "$tmp" <<'NODE'
           const fs = require('fs');
           const payload = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
-          if (!payload || payload.ok !== true || !payload.data || !payload.data.publicSummary) {
+          const data = payload && payload.ok === true ? payload.data : payload;
+          if (!data || !data.publicSummary) {
             process.exit(1);
           }
-          const text = JSON.stringify(payload);
-          if (/volunteerToken|"id":"sheet_|sheet_[a-z0-9_]*row\d+/i.test(text)) {
+          if (!data.publicSummary.source || data.publicSummary.source.volunteerCredit !== 'credit-visible, ID-safe volunteer display') {
+            process.exit(1);
+          }
+          const text = JSON.stringify(data);
+          if (/volunteerToken|"id":"sheet_|sheet_[a-z0-9_]*row\d+|[\w.+-]+@[\w-]+(?:\.[\w-]+)+/i.test(text)) {
             process.exit(1);
           }
           NODE
           then
             {
-              echo "// Auto-generated privacy-safe snapshot — refreshed by .github/workflows/deploy.yml"
-              echo "// landing.js renders this immediately on page load (zero network),"
-              echo "// then fetches the live Apps Script endpoint and overlays newer aggregate data."
-              printf "window.__SNAPSHOT__ = "
-              cat "$tmp"
-              printf ";\n"
+              echo "// Auto-generated public Sayım Defteri snapshot — refreshed by .github/workflows/deploy.yml"
+              echo "// Contains full aggregates plus a capped latestActivity feed; no raw workbook rows."
+              node - "$tmp" <<'NODE'
+              const fs = require('fs');
+              const payload = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+              const data = payload && payload.ok === true ? payload.data : payload;
+              process.stdout.write('window.TVF_PUBLIC_DATA = ' + JSON.stringify(data) + ';\n');
+              process.stdout.write('window.__SNAPSHOT__ = {ok:true,generatedAt:window.TVF_PUBLIC_DATA.generatedAt,data:window.TVF_PUBLIC_DATA};\n');
+              NODE
             } > js/snapshot.js
           else
             echo "Apps Script endpoint has not deployed the publicSummary contract yet; keeping checked-in snapshot."

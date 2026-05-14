@@ -1,6 +1,8 @@
 node_modules/
 .next/
 out/
+.env
+.env.*
 .env.local
 .DS_Store
 supabase/.temp/
@@ -8,6 +10,17 @@ Codex.dmg
 imports/
 data/pnb-import-preview*.json
 _audit/input/
+_audit/*.xlsx
+_audit/*.xls
 *.xlsx
 *.xls
+secrets.*
+credentials.*
+service-account*.json
+token*.json
+_archive/
 __pycache__/
+
+!_audit/README.md
+!_audit/output/
+!_audit/output/.gitkeep

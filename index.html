@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./css/landing.css" />
+  <link rel="stylesheet" href="./css/site.css?v=20260515-public-dashboard" />
 </head>
 <body class="journal">
 
@@ -45,7 +45,7 @@
     <section class="truth-strip" aria-label="Dönemin doğru özeti">
       <div class="truth-head">
         <p class="lbl" id="lpTruthLabel">Bu hafta</p>
-        <p class="note">Özetler tam dönem verisinden hesaplanır; son hareket akışı ayrı sınırlıdır.</p>
+        <p class="note">Özetler tam dönem verisinden hesaplanır; son hareket akışı ayrı ve sınırlıdır.</p>
       </div>
       <div><p class="v" id="lpTruthRecords">—</p><p class="k">kayıt</p></div>
       <div><p class="v" id="lpTruthPages">—</p><p class="k">sayfa/detay</p></div>
@@ -58,8 +58,8 @@
     <!-- ============ Glance + sparkline + 4 stats ============ -->
     <section class="glance" aria-label="Haftanın özeti">
       <div>
-        <p class="lbl">Haftanın ritmi</p>
-        <p class="v"><em id="lpWeekTotal">—</em><small>kayıt</small></p>
+        <p class="lbl">Haftanın ritmi · bugüne kadar</p>
+        <p class="v"><em id="lpWeekTotal">—</em><small> kayıt</small></p>
         <div class="spark" id="lpSpark"><!-- bars filled by JS --></div>
       </div>
       <div>
@@ -74,7 +74,7 @@
       </div>
       <div>
         <p class="lbl">Tamamlanan kutu</p>
-        <p class="v" style="color: var(--accent-deep);"><span id="lpDone">—</span><small>kutu</small></p>
+        <p class="v" style="color: var(--accent-deep);"><span id="lpDone">—</span><small> kutu</small></p>
         <p class="f" id="lpDoneFoot">toplam</p>
       </div>
     </section>
@@ -115,10 +115,10 @@
     </header>
     <section class="days" id="lpDays"></section>
 
-    <!-- ============ Bu haftanın katkıları ============ -->
+    <!-- ============ Gönüllü katkıları ============ -->
     <section class="recognition" id="lpVolunteers" hidden>
       <div class="boxes-head">
-        <h3>Bu haftanın <em>katkıları</em></h3>
+        <h3>Gönüllü <em>katkıları</em></h3>
         <span class="meta" id="lpVolunteersMeta">—</span>
       </div>
       <div class="vol-list" id="lpVolunteerRows"></div>
@@ -139,6 +139,15 @@
       <ul id="lpFirstsList"></ul>
     </section>
 
+    <!-- ============ Latest capped feed ============ -->
+    <section class="latest" id="lpLatest" hidden>
+      <div class="boxes-head">
+        <h3>Son <em>hareketler</em></h3>
+        <span class="meta" id="lpLatestMeta">Son 50 hareket</span>
+      </div>
+      <div class="latest-list" id="lpLatestRows"></div>
+    </section>
+
     <section class="diagnostics" id="lpDiagnostics" hidden>
       <h3>Yerel tanı</h3>
       <ul id="lpDiagnosticsList"></ul>
@@ -152,18 +161,22 @@
 
     <!-- ============ Colophon ============ -->
     <footer class="colophon">
-      <p data-edit="colophonNote">Sayfa saatte bir, paylaşılan Google Sheet'ten tazeleniyor.<br>Kamuya açık özetler kişisel kimlikleri ve ham satır tanımlarını göstermez.</p>
+      <p data-edit="colophonNote">Veriler Google Sheet’ten düzenli olarak güncellenir; gönüllü katkıları sayfadaki isimlerle görünür kılınır.<br>Kamuya açık özetler e-posta, teknik kimlik, ham satır tanımı ve özel not göstermez.</p>
       <p style="margin-top:14px;"><a href="mailto:tarihvakfi@tarihvakfi.org.tr">Gönüllü olmak ister misin?</a></p>
       <p class="signoff" data-edit="colophonSignoff">Tarih Vakfı · 1991 · Eminönü, İstanbul</p>
     </footer>
 
   </main>
 
-  <script src="./js/config.public.js"></script>
+  <script src="./js/config.public.js?v=20260515-public-dashboard"></script>
   <!-- Snapshot of latest sheet data, refreshed hourly by .github/workflows/deploy.yml.
-       landing.js renders this immediately on first paint (no network); then fetches
+       data-loader.js renders this immediately on first paint (no network); then fetches
        live data in the background. Add ?live=1 to URL to bypass snapshot for editing preview. -->
-  <script src="./js/snapshot.js"></script>
-  <script src="./js/landing.js"></script>
+  <script src="./js/snapshot.js?v=20260515-public-dashboard"></script>
+  <script src="./js/utils.js?v=20260515-public-dashboard"></script>
+  <script src="./js/volunteer-credit.js?v=20260515-public-dashboard"></script>
+  <script src="./js/aggregate.js?v=20260515-public-dashboard"></script>
+  <script src="./js/render-dashboard.js?v=20260515-public-dashboard"></script>
+  <script src="./js/data-loader.js?v=20260515-public-dashboard"></script>
 </body>
 </html>
