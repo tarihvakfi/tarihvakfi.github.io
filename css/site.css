@@ -296,7 +296,7 @@ body.journal {
 
 /* Day entries */
 .days { margin-top: 4px; }
-.day { display: grid; grid-template-columns: 100px 1fr; gap: 28px; padding: 26px 0; border-bottom: 1px dashed var(--rule); align-items: start; }
+.day { display: grid; grid-template-columns: 100px 1fr; gap: 30px; padding: 32px 0; border-bottom: 1px dashed var(--rule); align-items: start; }
 .day:last-child { border-bottom: 0; }
 @media (max-width: 760px) { .day { grid-template-columns: 90px 1fr; } .day .marg { display: none; } }
 .day .date { border-top: 2px solid var(--ink); padding-top: 8px; }
@@ -343,6 +343,12 @@ body.journal {
   font-size: 11px;
   letter-spacing: 0.08em;
   color: var(--ink-mute);
+}
+.day .body .ledger-meta.coord-line {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule-soft);
+  color: var(--ink-soft);
 }
 .day .body .insight {
   margin-top: 14px; padding: 10px 14px;
@@ -404,16 +410,11 @@ body.journal {
 .boxes-week h3 em { font-style: italic; color: var(--accent); }
 .boxes-week .meta { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
 .box-card {
-  padding: 22px 0 20px;
+  padding: 26px 0 24px;
   border-bottom: 1px dashed var(--rule-soft);
 }
 .box-card:last-child { border-bottom: 0; }
-.box-card-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-}
+.box-card-head { display: grid; gap: 8px; }
 .box-label {
   font-family: 'Crimson Pro', serif;
   font-size: 25px;
@@ -428,11 +429,10 @@ body.journal {
   color: var(--ink);
 }
 .box-period {
-  font-family: 'Crimson Pro', serif;
-  font-size: 19px;
-  font-style: italic;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
   color: var(--accent-deep);
-  white-space: nowrap;
 }
 .box-progress {
   height: 8px;
@@ -447,7 +447,7 @@ body.journal {
 }
 .box-card-body {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   font-family: 'DM Mono', monospace;
   font-size: 10.5px;
   letter-spacing: 0.08em;
@@ -462,8 +462,7 @@ body.journal {
 }
 .box-contributors .box-minihead {
   color: var(--accent);
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.06em;
 }
 .box-contributors b {
   font-family: 'Crimson Pro', serif;
@@ -582,15 +581,12 @@ body.journal {
 .latest .meta { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
 .latest-list { border-top: 1px solid var(--rule-soft); }
 .latest-row {
-  display: grid;
-  grid-template-columns: 96px 1fr auto;
-  gap: 14px;
+  display: block;
   align-items: baseline;
-  padding: 10px 0;
+  padding: 12px 0;
   border-bottom: 1px dashed var(--rule-soft);
 }
-.latest-date,
-.latest-count {
+.latest-date-inline {
   font-family: 'DM Mono', monospace;
   font-size: 10.5px;
   letter-spacing: 0.08em;
@@ -607,13 +603,8 @@ body.journal {
   font-weight: 500;
   color: var(--ink);
 }
-.latest-count {
-  color: var(--accent);
-  text-align: right;
-}
 @media (max-width: 560px) {
-  .latest-row { grid-template-columns: 1fr auto; }
-  .latest-date { grid-column: 1 / -1; }
+  .latest-row { display: block; }
 }
 
 /* 404 */

@@ -1,7 +1,7 @@
 # Public Dashboard Audit
 
 - Workbook: `Tarih Vakfı Gönüllü Ağı.xlsx`
-- Generated at: `2026-05-14T22:23:42.668841Z`
+- Generated at: `2026-05-14T22:33:15.107704Z`
 - Selected public period: `11–17 Mayıs haftası · bugüne kadar` (`calendar_week_to_date`)
 - Volunteer credit mode: **credit-visible, ID-safe volunteer display**
 

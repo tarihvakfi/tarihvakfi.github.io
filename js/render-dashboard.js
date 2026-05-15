@@ -227,7 +227,7 @@
         </div>
         <p class="day-metrics">${U.escapeHtml(dailyBits.join(' · '))}</p>
         ${nameLine ? `<p class="ledger-meta">${nameLine}</p>` : ''}
-        ${coordinationLine ? `<p class="ledger-meta">${coordinationLine}</p>` : ''}
+        ${coordinationLine ? `<p class="ledger-meta coord-line">${coordinationLine}</p>` : ''}
         ${boxText ? `<p class="ledger-meta">Kutu: ${U.escapeHtml(boxText)}</p>` : ''}
         ${materialText ? `<p class="ledger-meta">Malzeme: ${U.escapeHtml(materialText)}</p>` : ''}
       </div>
@@ -282,8 +282,9 @@
       const pct = box.percent == null ? null : Number(box.percent);
       const progressWidth = pct == null ? 100 : Math.max(2, Math.min(100, pct));
       const progressLabel = box.target
-        ? `${U.formatNum(box.done)} / ${U.formatNum(box.target)} sayfa · %${U.formatPct(pct)}`
-        : `${U.formatNum(box.done)} sayfa işlendi · hedef eksik`;
+        ? `Toplam ilerleme: ${U.formatNum(box.done)} / ${U.formatNum(box.target)} sayfa · %${U.formatPct(pct)}`
+        : `Toplam ilerleme: ${U.formatNum(box.done)} sayfa işlendi · hedef eksik`;
+      const periodPageRows = box.periodPageRows || box.pageRows || box.periodRecords || 0;
       const remaining = box.target ? `Kalan: ${U.formatNum(box.remaining)} sayfa` : 'Hedef eksik';
       const contributors = (box.contributors || box.topContributors || [])
         .filter((item) => isPublicVolunteerName(item.label))
@@ -297,7 +298,7 @@
             <p class="box-label">${U.escapeHtml(box.label || box.boxLabel || ('Kutu ' + box.box))}</p>
             <p class="box-progress-text">${U.escapeHtml(progressLabel)}</p>
           </div>
-          <span class="box-period">+${U.formatNum(box.periodPageRows || box.pageRows || box.periodRecords || 0)} kayıt</span>
+          <span class="box-period">Bu hafta: +${U.formatNum(periodPageRows)} sayfa/detay</span>
         </div>
         <div class="box-progress" aria-hidden="true"><span style="width:${progressWidth}%"></span></div>
         <div class="box-card-body">
@@ -324,16 +325,13 @@
     setText('lpLatestMeta', `Son ${U.formatNum(visible.length)} özet`);
     list.innerHTML = visible.map((row) => {
       const label = publicVolunteerLabel(row.volunteerLabel);
-      const kind = row.kind === 'activity' ? 'faaliyet' : 'sayfa/detay';
       const role = row.publicRole ? ` · ${row.publicRole}` : '';
       const box = row.boxLabel ? ` · ${row.boxLabel}` : '';
       const countText = row.kind === 'activity'
         ? `${U.formatNum(row.records)} faaliyet`
         : `${U.formatNum(row.pagesDone || row.records)} sayfa/detay`;
       return `<article class="latest-row">
-        <span class="latest-date">${U.escapeHtml(U.formatDayMonth(row.dateISO || row.when))}</span>
-        <span class="latest-main"><strong>${U.escapeHtml(label)}</strong>${U.escapeHtml(role)}${U.escapeHtml(box)} · ${U.escapeHtml(kind)}</span>
-        <span class="latest-count">${U.escapeHtml(countText)}</span>
+        <span class="latest-main"><span class="latest-date-inline">${U.escapeHtml(U.formatDayMonth(row.dateISO || row.when))}</span> — <strong>${U.escapeHtml(label)}</strong>${U.escapeHtml(role)}${U.escapeHtml(box)} · ${U.escapeHtml(countText)}</span>
       </article>`;
     }).join('');
     block.removeAttribute('hidden');
