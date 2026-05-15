@@ -1,10 +1,10 @@
-# Public Dashboard
+# Boratav Arşivi Gönüllü Emek Günlüğü
 
 ## Sections
 
-1. Brand masthead: Tarih Vakfı logo, Sayım Defteri title, last sync, selected period.
-2. Hero: weekly headline and one-sentence record/page/activity summary.
-3. KPI strip: records, page/detail rows, activity rows, visible people, active boxes, total progress.
+1. Brand masthead: Tarih Vakfı logo, Gönüllü Emek Günlüğü title, last sync, selected period.
+2. Hero: weekly archive-work headline and one-sentence contribution/page/activity summary.
+3. KPI strip: contribution records, archive detail rows, activity records, visible contributors, active boxes, total progress.
 4. Pertev Naili Boratav Arşivi context: short public explanation of the archive.
 5. Gönüllü katkıları ve koordinasyon: credit-visible named contributors and coordinator roles.
 6. Haftanın günlüğü: date-driven daily ledger with volunteer and coordination lines separated.
@@ -20,7 +20,7 @@ Debug diagnostics are hidden in normal public mode and appear only with `?debug=
 
 All summaries use `publicSummary`. The latest feed is never used for totals.
 
-`kayıt` means all public rows/events in the selected period.
+`katkı kaydı` means all public rows/events in the selected period.
 
 `sayfa/detay` means PNB detail rows.
 

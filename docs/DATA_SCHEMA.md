@@ -54,4 +54,4 @@ Target/done fields:
 
 The public payload shows real names unless the value is unsafe or an explicit opt-out is present. Unsafe values include emails, UUIDs, long hex strings, opaque database IDs, Apps Script/Firebase/Google tokens, and values with too little human-readable name structure.
 
-Rows without usable names are counted and displayed as `Adı belirtilmeyen gönüllü`.
+Rows without usable names are counted in totals, hidden from normal public recognition lists, and surfaced only in `?debug=1` diagnostics.

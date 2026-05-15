@@ -1,4 +1,4 @@
-// Tarih Vakfı · Sayım Defteri — public aggregate renderer.
+// Boratav Arşivi Gönüllü Emek Günlüğü — public aggregate renderer.
 (function () {
   const U = window.TVFUtils;
   const Credit = window.TVFVolunteerCredit;
@@ -50,7 +50,7 @@
     if (sync) sync.textContent = summary.generatedAt ? `son güncelleme ${U.relativeDate(summary.generatedAt)}` : 'senkron bekleniyor';
     const lede = document.getElementById('lpHeroLede');
     if (lede && summary.totals) {
-      lede.innerHTML = `Bu hafta <b>${U.formatNum(summary.totals.records)} kayıt</b> girildi: ${U.formatNum(summary.totals.pageRows)} sayfa/detay satırı ve ${U.formatNum(summary.totals.activityRows)} faaliyet kaydı.`;
+      lede.innerHTML = `Bu hafta gönüllüler ve koordinasyon ekibi Boratav Arşivi için <b>${U.formatNum(summary.totals.records)} katkı kaydı</b> oluşturdu: ${U.formatNum(summary.totals.pageRows)} sayfa/detay satırı ve ${U.formatNum(summary.totals.activityRows)} faaliyet kaydı.`;
     }
   }
 
@@ -194,7 +194,7 @@
     if (quiet) {
       return `<article class="${cls}">
         <div class="date"><div class="dn">${U.escapeHtml(day.weekdayTR)}</div><div class="dom">${String(day.dayNumber).padStart(2, '0')}</div><div class="opens">—</div></div>
-        <div class="body"><p>Bu gün için kayıt görünmüyor.</p></div>
+        <div class="body"><p>Bu gün için görünür katkı yok.</p></div>
       </article>`;
     }
     const contributors = publicContributorRows(day.contributors || []);
@@ -223,7 +223,7 @@
       <div class="body">
         <div class="head">
           ${contributors.length || names.length ? `<div class="avs">${avatarDots(contributors.length || names.length, (contributors.length ? contributors.map((item) => item.label) : names))}</div>` : ''}
-          <span class="ana">${U.formatNum(day.records)} kayıt</span>
+          <span class="ana">${U.escapeHtml(day.weekdayTR)} günü ${U.formatNum(day.records)} katkı kaydı görünür oldu.</span>
         </div>
         <p class="day-metrics">${U.escapeHtml(dailyBits.join(' · '))}</p>
         ${nameLine ? `<p class="ledger-meta">${nameLine}</p>` : ''}
@@ -243,7 +243,7 @@
       block.setAttribute('hidden', '');
       return;
     }
-    setText('lpVolunteersMeta', `${U.formatNum(rows.length)} kişi`);
+    setText('lpVolunteersMeta', `${U.formatNum(rows.length)} katkı veren`);
     list.innerHTML = rows.map((row) => {
       const label = publicVolunteerLabel(row.label);
       const boxBreakdown = Array.isArray(row.boxBreakdown) && row.boxBreakdown.length
@@ -252,7 +252,7 @@
       const unitParts = [];
       if (row.pageRows) unitParts.push(`${U.formatNum(row.pageRows)} sayfa/detay`);
       if (row.activityRows) unitParts.push(`${U.formatNum(row.activityRows)} faaliyet kaydı`);
-      if (!unitParts.length) unitParts.push(`${U.formatNum(row.records)} kayıt`);
+      if (!unitParts.length) unitParts.push(`${U.formatNum(row.records)} katkı kaydı`);
       const meta = row.publicRole
         ? `${row.publicRole} · ${unitParts.join(' · ')}`
         : `${boxBreakdown} · ${unitParts.join(' · ')}`;
@@ -282,10 +282,10 @@
       const pct = box.percent == null ? null : Number(box.percent);
       const progressWidth = pct == null ? 100 : Math.max(2, Math.min(100, pct));
       const progressLabel = box.target
-        ? `Toplam ilerleme: ${U.formatNum(box.done)} / ${U.formatNum(box.target)} sayfa · %${U.formatPct(pct)}`
-        : `Toplam ilerleme: ${U.formatNum(box.done)} sayfa işlendi · hedef eksik`;
+        ? `Toplam arşiv ilerlemesi: ${U.formatNum(box.done)} / ${U.formatNum(box.target)} sayfa · %${U.formatPct(pct)}`
+        : `Toplam arşiv ilerlemesi: ${U.formatNum(box.done)} sayfa işlendi · hedef eksik`;
       const periodPageRows = box.periodPageRows || box.pageRows || box.periodRecords || 0;
-      const remaining = box.target ? `Kalan: ${U.formatNum(box.remaining)} sayfa` : 'Hedef eksik';
+      const remaining = box.target ? `Kalan çalışma: ${U.formatNum(box.remaining)} sayfa` : 'Hedef eksik';
       const contributors = (box.contributors || box.topContributors || [])
         .filter((item) => isPublicVolunteerName(item.label))
         .slice(0, 4)
@@ -298,12 +298,12 @@
             <p class="box-label">${U.escapeHtml(box.label || box.boxLabel || ('Kutu ' + box.box))}</p>
             <p class="box-progress-text">${U.escapeHtml(progressLabel)}</p>
           </div>
-          <span class="box-period">Bu hafta: +${U.formatNum(periodPageRows)} sayfa/detay</span>
+          <span class="box-period">Bu hafta görünür olan emek: +${U.formatNum(periodPageRows)} sayfa/detay</span>
         </div>
         <div class="box-progress" aria-hidden="true"><span style="width:${progressWidth}%"></span></div>
         <div class="box-card-body">
           <p>${U.escapeHtml(remaining)}</p>
-          ${contributors ? `<div class="box-contributors"><span class="box-minihead">Gönüllüler</span>${contributors}</div>` : ''}
+          ${contributors ? `<div class="box-contributors"><span class="box-minihead">Katkı verenler</span>${contributors}</div>` : ''}
           <p>Son hareket: ${U.escapeHtml(U.formatDayMonth(box.lastActivityDate))}</p>
           ${material ? `<p>Malzeme: ${U.escapeHtml(material)}</p>` : ''}
         </div>

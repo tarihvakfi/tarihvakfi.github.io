@@ -1,4 +1,4 @@
-// Tarih Vakfı · Sayım Defteri shared browser utilities.
+// Boratav Arşivi Gönüllü Emek Günlüğü shared browser utilities.
 (function () {
   const TR_MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
   const TR_WEEKDAYS = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];

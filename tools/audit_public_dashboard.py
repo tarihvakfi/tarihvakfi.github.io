@@ -971,7 +971,7 @@ def build_payload(summary: dict[str, Any], records: list[SourceRecord]) -> dict[
 def write_snapshot(payload: dict[str, Any], path: Path) -> None:
     safe_payload = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     text = (
-        "// Auto-generated public Sayım Defteri snapshot.\n"
+        "// Auto-generated public Gönüllü Emek Günlüğü snapshot.\n"
         "// Contains full aggregates plus a capped latestActivity feed; no raw workbook rows.\n"
         "window.TVF_PUBLIC_DATA = "
         + safe_payload

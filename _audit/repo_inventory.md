@@ -1,6 +1,6 @@
 # Repo Inventory
 
-Generated before cleanup during the public Sayım Defteri refactor.
+Generated before cleanup during the public Gönüllü Emek Günlüğü refactor.
 
 ## Current Top-Level Tree
 
