@@ -497,7 +497,7 @@ function daySummary_(dateISO, rows) {
     materials: counterToRows_(materials),
     firstTime: first ? isoDateTime_(first) : null,
     lastTime: last ? isoDateTime_(last) : null,
-    summarySentence: rows.length ? ('Bugün ' + parts.join(', ') + ' işlendi.') : 'Bu gün için kayıt görünmüyor.'
+    summarySentence: rows.length ? ('Bugün ' + parts.join(', ') + ' işlendi.') : 'Bugün için görünür katkı yok.'
   };
 }
 

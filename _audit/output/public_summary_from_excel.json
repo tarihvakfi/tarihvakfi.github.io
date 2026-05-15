@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-15T05:42:32.754459Z",
+  "generatedAt": "2026-05-15T05:53:34.730097Z",
   "selectedMode": "calendar_week_to_date",
   "workbook": {
     "sheets": [
@@ -373,7 +373,7 @@
   },
   "summaries": {
     "calendar_week_to_date": {
-      "generatedAt": "2026-05-15T05:42:32.754459Z",
+      "generatedAt": "2026-05-15T05:53:34.730097Z",
       "source": {
         "name": "Tarih Vakfı Gönüllü Ağı",
         "projectId": "pnb",
@@ -684,7 +684,7 @@
           "materials": [],
           "firstTime": null,
           "lastTime": null,
-          "summarySentence": "Bu gün için kayıt görünmüyor."
+          "summarySentence": "Bugün için görünür katkı yok."
         }
       ],
       "byMaterial": [
@@ -1021,7 +1021,7 @@
       ]
     },
     "rolling_7_days": {
-      "generatedAt": "2026-05-15T05:42:32.754459Z",
+      "generatedAt": "2026-05-15T05:53:34.730097Z",
       "source": {
         "name": "Tarih Vakfı Gönüllü Ağı",
         "projectId": "pnb",
@@ -1071,7 +1071,7 @@
           "materials": [],
           "firstTime": null,
           "lastTime": null,
-          "summarySentence": "Bu gün için kayıt görünmüyor."
+          "summarySentence": "Bugün için görünür katkı yok."
         },
         {
           "dateISO": "2026-05-10",
@@ -1090,7 +1090,7 @@
           "materials": [],
           "firstTime": null,
           "lastTime": null,
-          "summarySentence": "Bu gün için kayıt görünmüyor."
+          "summarySentence": "Bugün için görünür katkı yok."
         },
         {
           "dateISO": "2026-05-11",
@@ -1369,7 +1369,7 @@
           "materials": [],
           "firstTime": null,
           "lastTime": null,
-          "summarySentence": "Bu gün için kayıt görünmüyor."
+          "summarySentence": "Bugün için görünür katkı yok."
         }
       ],
       "byMaterial": [
@@ -1707,7 +1707,7 @@
     }
   },
   "publicSummary": {
-    "generatedAt": "2026-05-15T05:42:32.754459Z",
+    "generatedAt": "2026-05-15T05:53:34.730097Z",
     "source": {
       "name": "Tarih Vakfı Gönüllü Ağı",
       "projectId": "pnb",
@@ -2018,7 +2018,7 @@
         "materials": [],
         "firstTime": null,
         "lastTime": null,
-        "summarySentence": "Bu gün için kayıt görünmüyor."
+        "summarySentence": "Bugün için görünür katkı yok."
       }
     ],
     "byMaterial": [

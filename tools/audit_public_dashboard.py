@@ -736,7 +736,7 @@ def summarize_day(day: date, rows: list[SourceRecord]) -> dict[str, Any]:
             parts.append(f"{len(boxes)} kutu")
         sentence = "Bugün " + ", ".join(parts) + " işlendi."
     else:
-        sentence = "Bu gün için kayıt görünmüyor."
+        sentence = "Bugün için görünür katkı yok."
     return {
         "dateISO": day.isoformat(),
         "weekdayTR": TR_WEEKDAYS[day.weekday()],

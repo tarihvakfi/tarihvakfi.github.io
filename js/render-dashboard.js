@@ -50,7 +50,7 @@
     if (sync) sync.textContent = summary.generatedAt ? `son güncelleme ${U.relativeDate(summary.generatedAt)}` : 'senkron bekleniyor';
     const lede = document.getElementById('lpHeroLede');
     if (lede && summary.totals) {
-      lede.innerHTML = `Bu hafta gönüllüler ve koordinasyon ekibi Boratav Arşivi için <b>${U.formatNum(summary.totals.records)} katkı kaydı</b> oluşturdu: ${U.formatNum(summary.totals.pageRows)} sayfa/detay satırı ve ${U.formatNum(summary.totals.activityRows)} faaliyet kaydı.`;
+      lede.innerHTML = `Bu hafta Boratav Arşivi için <b>${U.formatNum(summary.totals.records)} katkı</b> görünür oldu: ${U.formatNum(summary.totals.pageRows)} sayfa/detay satırı ve ${U.formatNum(summary.totals.activityRows)} faaliyet kaydı.`;
     }
   }
 
@@ -194,7 +194,7 @@
     if (quiet) {
       return `<article class="${cls}">
         <div class="date"><div class="dn">${U.escapeHtml(day.weekdayTR)}</div><div class="dom">${String(day.dayNumber).padStart(2, '0')}</div><div class="opens">—</div></div>
-        <div class="body"><p>Bu gün için görünür katkı yok.</p></div>
+        <div class="body"><p>Bugün için görünür katkı yok.</p></div>
       </article>`;
     }
     const contributors = publicContributorRows(day.contributors || []);
@@ -248,7 +248,7 @@
       const label = publicVolunteerLabel(row.label);
       const boxBreakdown = Array.isArray(row.boxBreakdown) && row.boxBreakdown.length
         ? row.boxBreakdown.slice(0, 3).map((item) => `${item.boxLabel}`).join(' · ')
-        : (row.topBox || 'Genel faaliyet');
+        : (row.topBox || 'Genel destek');
       const unitParts = [];
       if (row.pageRows) unitParts.push(`${U.formatNum(row.pageRows)} sayfa/detay`);
       if (row.activityRows) unitParts.push(`${U.formatNum(row.activityRows)} faaliyet kaydı`);
@@ -289,7 +289,7 @@
       const contributors = (box.contributors || box.topContributors || [])
         .filter((item) => isPublicVolunteerName(item.label))
         .slice(0, 4)
-        .map((item) => `<span>${U.escapeHtml(publicVolunteerLabel(item.label))} <b>+${U.formatNum(item.pageRows || item.records || 0)}</b></span>`)
+        .map((item) => `<li>${U.escapeHtml(publicVolunteerLabel(item.label))} <b>+${U.formatNum(item.pageRows || item.records || 0)}</b></li>`)
         .join('');
       const material = (box.materialCounts || box.materials || []).slice(0, 2).map(materialPhrase).join(' · ');
       return `<article class="box-card">
@@ -303,7 +303,7 @@
         <div class="box-progress" aria-hidden="true"><span style="width:${progressWidth}%"></span></div>
         <div class="box-card-body">
           <p>${U.escapeHtml(remaining)}</p>
-          ${contributors ? `<div class="box-contributors"><span class="box-minihead">Katkı verenler</span>${contributors}</div>` : ''}
+          ${contributors ? `<div class="box-contributors"><span class="box-minihead">Katkı verenler:</span><ul>${contributors}</ul></div>` : ''}
           <p>Son hareket: ${U.escapeHtml(U.formatDayMonth(box.lastActivityDate))}</p>
           ${material ? `<p>Malzeme: ${U.escapeHtml(material)}</p>` : ''}
         </div>
@@ -322,7 +322,7 @@
       return;
     }
     const visible = rows.slice(0, 12);
-    setText('lpLatestMeta', `Son ${U.formatNum(visible.length)} özet`);
+    setText('lpLatestMeta', `${U.formatNum(visible.length)} özet`);
     list.innerHTML = visible.map((row) => {
       const label = publicVolunteerLabel(row.volunteerLabel);
       const role = row.publicRole ? ` · ${row.publicRole}` : '';
@@ -353,9 +353,12 @@
     const list = document.getElementById('lpDiagnosticsList');
     if (!block || !list) return;
     if (!enabled) {
-      block.setAttribute('hidden', '');
+      setText('lpDiagnosticsTitle', '');
+      list.innerHTML = '';
+      block.hidden = true;
       return;
     }
+    block.hidden = false;
     setText('lpDiagnosticsTitle', 'Yerel tanı');
     const byDayTotal = (summary.byDay || []).reduce((sum, day) => sum + Number(day.records || 0), 0);
     const materialTotal = (summary.byMaterial || []).reduce((sum, row) => sum + Number(row.count || 0), 0);
