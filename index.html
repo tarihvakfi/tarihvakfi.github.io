@@ -17,9 +17,17 @@
 
     <!-- ============ Masthead ============ -->
     <header class="masthead">
-      <div class="l"><span class="pulse" id="lpPulse"></span><span id="lpSyncLabel">az önce senkron</span></div>
-      <div class="m"><b>Tarih Vakfı</b> · <span data-edit="mastheadLabel">Sayım Defteri</span></div>
-      <div class="r"><span id="lpWeekLabel">Hafta · —</span></div>
+      <div class="brand-lockup">
+        <img src="./assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" class="brand-logo" />
+        <div>
+          <b>Tarih Vakfı</b>
+          <span data-edit="mastheadLabel">Sayım Defteri</span>
+        </div>
+      </div>
+      <div class="mast-meta">
+        <span><span class="pulse" id="lpPulse"></span><span id="lpSyncLabel">az önce senkron</span></span>
+        <span id="lpWeekLabel">Hafta · —</span>
+      </div>
     </header>
 
     <!-- ============ Intro / hero ============ -->
@@ -38,6 +46,15 @@
       <div><p class="v" id="lpTruthVolunteers">—</p><p class="k">kişi</p></div>
       <div><p class="v" id="lpTruthBoxes">—</p><p class="k">aktif kutu</p></div>
       <div><p class="v" id="lpTruthProgress">—</p><p class="k">toplam ilerleme</p></div>
+    </section>
+
+    <!-- ============ Archive context ============ -->
+    <section class="context-card archive-context" aria-labelledby="boratav-title">
+      <p class="context-eyebrow">Arşiv bağlamı</p>
+      <h2 id="boratav-title">Pertev Naili Boratav Arşivi</h2>
+      <p>Pertev Naili Boratav (1907–1998), Türkiye’de halkbilimi ve halk edebiyatı çalışmalarının öncü isimlerinden biridir. Masallar, halk hikâyeleri, sözlü kültür ve arşiv belleği üzerine yaptığı çalışmalar folklor araştırmalarının kurumsallaşmasında önemli bir yer tutar.</p>
+      <p>Bu sayım defteri, Boratav arşivindeki malzemenin düzenlenmesi ve görünür kılınması için yürütülen gönüllü emeği izler.</p>
+      <p class="context-links"><a href="https://tr.wikipedia.org/wiki/Pertev_Naili_Boratav" target="_blank" rel="noopener">Kaynak / daha fazla bilgi</a></p>
     </section>
 
     <!-- ============ Gönüllü katkıları ============ -->
@@ -84,22 +101,41 @@
       <div class="latest-list" id="lpLatestRows"></div>
     </section>
 
-    <section class="diagnostics" id="lpDiagnostics" hidden>
-      <h3>Yerel tanı</h3>
-      <ul id="lpDiagnosticsList"></ul>
+    <!-- ============ Institutional context ============ -->
+    <section class="context-card about-foundation" aria-labelledby="foundation-title">
+      <div class="context-mark">
+        <img src="./assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" />
+      </div>
+      <div>
+        <p class="context-eyebrow">Kurum bilgisi</p>
+        <h2 id="foundation-title">Tarih Vakfı hakkında</h2>
+        <p>Tarih Vakfı, 1991 yılında 12 kişilik Girişim Kurulu ve 264 Kurucu Mütevelli ile kuruldu. İlk adı Türkiye Ekonomik ve Toplumsal Tarih Vakfı olan kurum, 2005 yılında Tarih Vakfı adını aldı.</p>
+        <p>Vakıf, tarihsel bilgiye ve belgelere kamusal erişimi güçlendirmeyi; arşiv, yayın, araştırma ve bellek çalışmalarını desteklemeyi amaçlar. Tarih Vakfı Bilgi Belge Merkezi, Türkiye’nin ekonomik ve toplumsal tarihine ışık tutan malzemelerin korunması, düzenlenmesi ve araştırmacılarla buluşturulması için çalışır.</p>
+        <p class="context-links">
+          <a href="https://tarihvakfi.org.tr/hakkimizda/" target="_blank" rel="noopener">Tarih Vakfı hakkında</a>
+          <a href="https://tarihvakfi.org.tr/bilgi-belge-merkezi-hakkinda/" target="_blank" rel="noopener">Bilgi Belge Merkezi</a>
+        </p>
+      </div>
     </section>
 
-    <!-- ============ Pull quote ============ -->
-    <section class="pull-week">
-      <q data-edit="pullQuote">Bir hafta — yedi gün, birçok kişi, birlikte koruyoruz.</q>
-      <p class="cite" id="lpPullCite">— Hafta · —</p>
+    <section class="diagnostics" id="lpDiagnostics" hidden>
+      <h3 id="lpDiagnosticsTitle"></h3>
+      <ul id="lpDiagnosticsList"></ul>
     </section>
 
     <!-- ============ Colophon ============ -->
     <footer class="colophon">
+      <div class="footer-brand">
+        <img src="./assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" />
+        <p class="signoff" data-edit="colophonSignoff">Tarih Vakfı · 1991 · Eminönü, İstanbul</p>
+      </div>
+      <p>Zindankapı Değirmen Sok. No: 10, Eminönü, İstanbul · <a href="https://tarihvakfi.org.tr/" target="_blank" rel="noopener">tarihvakfi.org.tr</a></p>
       <p data-edit="colophonNote">Veriler Google Sheet’ten düzenli olarak güncellenir; gönüllü katkıları sayfadaki isimlerle görünür kılınır.<br>Kamuya açık özetler e-posta, teknik kimlik, ham satır tanımı ve özel not göstermez.</p>
-      <p style="margin-top:14px;"><a href="mailto:tarihvakfi@tarihvakfi.org.tr">Gönüllü olmak ister misin?</a></p>
-      <p class="signoff" data-edit="colophonSignoff">Tarih Vakfı · 1991 · Eminönü, İstanbul</p>
+      <p class="footer-links">
+        <a href="https://tarihvakfi.org.tr/hakkimizda/" target="_blank" rel="noopener">Tarih Vakfı hakkında</a>
+        <a href="https://tarihvakfi.org.tr/bilgi-belge-merkezi-hakkinda/" target="_blank" rel="noopener">Bilgi Belge Merkezi</a>
+        <a href="https://tarihvakfi.org.tr/" target="_blank" rel="noopener">Gönüllü olmak ister misin?</a>
+      </p>
     </footer>
 
   </main>

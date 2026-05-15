@@ -161,7 +161,7 @@
       block.setAttribute('hidden', '');
       return;
     }
-    const palette = ['var(--accent)', 'var(--accent-deep)', '#6b4a2a', '#b8985a', 'rgba(10,10,10,0.4)', '#3b6463'];
+    const palette = ['var(--accent)', 'var(--accent-deep)', 'var(--tv-burgundy-soft)', 'var(--tv-muted)', '#9b7d8d', '#5f6f64'];
     const bar = document.getElementById('lpMatBar');
     if (bar) {
       bar.innerHTML = rows.map((row, idx) => {
@@ -356,6 +356,7 @@
       block.setAttribute('hidden', '');
       return;
     }
+    setText('lpDiagnosticsTitle', 'Yerel tanı');
     const byDayTotal = (summary.byDay || []).reduce((sum, day) => sum + Number(day.records || 0), 0);
     const materialTotal = (summary.byMaterial || []).reduce((sum, row) => sum + Number(row.count || 0), 0);
     const diagnostics = [

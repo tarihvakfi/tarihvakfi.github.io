@@ -2,16 +2,19 @@
 
 ## Sections
 
-- Masthead and hero: selected period and last sync.
-- Truth strip: records, page/detail rows, activity rows, material count, active volunteers, active boxes.
-- KPI row: total progress, pages done/target, inventory-known boxes, active boxes, completed boxes.
-- Signals: record split, busiest day, material focus.
-- Material distribution: full selected-period counts.
-- Daily ledger: date-driven weekdays, records, page/detail, activity, volunteers and names, boxes.
-- Gönüllü katkıları: credit-visible volunteer totals and box breakdowns.
-- Active boxes: done/target/percent/remaining, contributors, last activity, material counts.
-- Son 50 hareket: capped latest feed only.
-- Debug diagnostics: visible on localhost or `?debug=1`.
+1. Brand masthead: Tarih Vakfı logo, Sayım Defteri title, last sync, selected period.
+2. Hero: weekly headline and one-sentence record/page/activity summary.
+3. KPI strip: records, page/detail rows, activity rows, visible people, active boxes, total progress.
+4. Pertev Naili Boratav Arşivi context: short public explanation of the archive.
+5. Gönüllü katkıları ve koordinasyon: credit-visible named contributors and coordinator roles.
+6. Haftanın günlüğü: date-driven daily ledger with volunteer and coordination lines separated.
+7. Aktif kutular: all-time progress, this-week page/detail contribution, remaining pages, contributors, last activity, material.
+8. Malzeme dağılımı: full selected-period material counts.
+9. Son hareketler: short grouped movement summaries.
+10. Tarih Vakfı hakkında: concise institutional boilerplate and official source links.
+11. Footer: website, address, public-data note, source links.
+
+Debug diagnostics are hidden in normal public mode and appear only with `?debug=1`.
 
 ## Aggregation Logic
 
@@ -22,6 +25,8 @@ All summaries use `publicSummary`. The latest feed is never used for totals.
 `sayfa/detay` means PNB detail rows.
 
 `faaliyet` means rows from `Günlük Akış`.
+
+Rows without a usable public name remain in totals but do not create a public person card or latest-feed identity.
 
 ## Period Logic
 
@@ -41,4 +46,17 @@ Rolling 7 days is computed by the audit script for comparison but not mixed into
 
 ## Visual Principles
 
-The site keeps an archival/newspaper tone: strong typography, restrained rules, quiet red accent, dense but readable operations data. Cards are used for repeated operational items; sections remain editorial and unframed.
+The site keeps an archival/newspaper tone with the Tarih Vakfı visual identity: serif headlines, thin rules, cream paper tones, burgundy accents from `assets/img/tarih-vakfi-logo.png`, and restrained operational density.
+
+Core CSS identity variables:
+
+```css
+--tv-burgundy: #601040;
+--tv-burgundy-dark: #3f0929;
+--tv-burgundy-soft: #8a2a62;
+--tv-cream: #fbf7f1;
+--tv-paper: #fffdf8;
+--tv-ink: #211a1d;
+--tv-muted: #74686e;
+--tv-line: #e8dbe2;
+```
