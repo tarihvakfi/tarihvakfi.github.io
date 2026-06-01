@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./css/site.css?v=20260601-summer-planning" />
+  <link rel="stylesheet" href="./css/site.css?v=20260601-summer-planning-dateranges" />
 
   <style>
     /* Page-local additions for Yaz Planlaması */
@@ -613,20 +613,21 @@
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw5TmJjxF_vVBhCeeuX3IFaFWY6QogdWr0esEPfY-8BiGV0C8NhjnFdFB7HgOO6AjPPDg/exec";
 
     const weeks = [
-      { month: "Haziran", week: "1. Hafta" },
-      { month: "Haziran", week: "2. Hafta" },
-      { month: "Haziran", week: "3. Hafta" },
-      { month: "Haziran", week: "4. Hafta" },
-      { month: "Haziran", week: "5. Hafta" },
-      { month: "Temmuz", week: "1. Hafta" },
-      { month: "Temmuz", week: "2. Hafta" },
-      { month: "Temmuz", week: "3. Hafta" },
-      { month: "Temmuz", week: "4. Hafta" },
-      { month: "Temmuz", week: "5. Hafta" },
-      { month: "Ağustos", week: "1. Hafta" },
-      { month: "Ağustos", week: "2. Hafta" },
-      { month: "Ağustos", week: "3. Hafta" },
-      { month: "Ağustos", week: "4. Hafta" }
+      { month: "Haziran", week: "1 - 5 Haziran", label: "1 - 5 Haziran" },
+      { month: "Haziran", week: "8 - 12 Haziran", label: "8 - 12 Haziran" },
+      { month: "Haziran", week: "15 - 19 Haziran", label: "15 - 19 Haziran" },
+      { month: "Haziran", week: "22 - 26 Haziran", label: "22 - 26 Haziran" },
+      { month: "Haziran", week: "29 Haziran - 3 Temmuz", label: "29 Haziran - 3 Temmuz" },
+    
+      { month: "Temmuz", week: "6 - 10 Temmuz", label: "6 - 10 Temmuz" },
+      { month: "Temmuz", week: "13 - 17 Temmuz", label: "13 - 17 Temmuz" },
+      { month: "Temmuz", week: "20 - 24 Temmuz", label: "20 - 24 Temmuz" },
+      { month: "Temmuz", week: "27 - 31 Temmuz", label: "27 - 31 Temmuz" },
+    
+      { month: "Ağustos", week: "3 - 7 Ağustos", label: "3 - 7 Ağustos" },
+      { month: "Ağustos", week: "10 - 14 Ağustos", label: "10 - 14 Ağustos" },
+      { month: "Ağustos", week: "17 - 21 Ağustos", label: "17 - 21 Ağustos" },
+      { month: "Ağustos", week: "24 - 28 Ağustos", label: "24 - 28 Ağustos" }
     ];
 
     const days = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma"];
@@ -742,7 +743,7 @@
         const tr = document.createElement("tr");
 
         const labelCell = document.createElement("td");
-        labelCell.textContent = `${weekItem.month} ${weekItem.week}`;
+        labelCell.textContent = weekItem.label;
         tr.appendChild(labelCell);
 
         days.forEach((day) => {
@@ -754,7 +755,7 @@
           checkbox.dataset.month = weekItem.month;
           checkbox.dataset.week = weekItem.week;
           checkbox.dataset.day = day;
-          checkbox.value = `${weekItem.month} ${weekItem.week} - ${day}`;
+          checkbox.value = `${weekItem.label} - ${day}`;
           checkbox.setAttribute("aria-label", checkbox.value);
 
           td.appendChild(checkbox);
