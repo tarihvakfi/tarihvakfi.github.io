@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Arşiv | Tarih Vakfı Dijital Kronolojisi</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+  </head>
+  <body data-page="archive">
+    <header class="site-header">
+      <nav class="nav" aria-label="Ana gezinme">
+        <a class="brand" href="index.html"><span class="brand-mark">TV</span> Tarih Vakfı Dijital Kronolojisi</a>
+        <div class="nav-links">
+          <a href="timeline.html" data-page="timeline">Kronoloji</a>
+          <a href="archive.html" data-page="archive">Arşiv</a>
+          <a href="dashboard.html" data-page="dashboard">Görsel Özet</a>
+          <a href="methodology.html" data-page="methodology">Yöntem</a>
+          <a href="data.html" data-page="data">Veri</a>
+        </div>
+      </nav>
+    </header>
+
+    <main class="page-shell">
+      <section class="section">
+        <p class="eyebrow">Araştırma arayüzü</p>
+        <h1>Arşivde Ara</h1>
+        <p class="lead">Tam metin arama, dönem, tür, kategori ve doğrulama durumu ile bütün kamu kronolojisi taranabilir.</p>
+      </section>
+
+      <section class="section">
+        <form class="filters" aria-label="Arşiv filtreleri">
+          <label>
+            Arama
+            <input id="archiveSearch" type="search" placeholder="Örn. Toplumsal Tarih, seminer, İstanbul">
+          </label>
+          <label>
+            Tür
+            <select id="archiveKind"></select>
+          </label>
+          <label>
+            Dönem
+            <select id="archivePeriod"></select>
+          </label>
+          <label>
+            Durum
+            <select id="archiveStatus"></select>
+          </label>
+          <label>
+            Başlangıç yılı
+            <input id="archiveYearFrom" type="number" min="1900" max="2100">
+          </label>
+          <label>
+            Bitiş yılı
+            <input id="archiveYearTo" type="number" min="1900" max="2100">
+          </label>
+        </form>
+        <div class="archive-toolbar">
+          <p class="result-note" id="archiveCount">Veri yükleniyor.</p>
+          <div class="hero-actions">
+            <label>
+              Sıralama
+              <select id="archiveSort">
+                <option value="chronological">Kronolojik</option>
+                <option value="reverse">Yeni tarih önce</option>
+                <option value="category">Kategori</option>
+                <option value="period">Dönem</option>
+              </select>
+            </label>
+            <div class="segmented" aria-label="Görünüm">
+              <button class="active" type="button" data-archive-view="cards">Kart</button>
+              <button type="button" data-archive-view="table">Tablo</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="archiveResults" aria-live="polite"></section>
+      <nav class="pagination" id="archivePagination" aria-label="Sayfalama"></nav>
+      <p class="copy-status" id="copyStatus"></p>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <span>Atıf biçimi: Tarih Vakfı Dijital Kronolojisi, kayıt ID, erişim tarihi.</span>
+        <a href="data.html">Veriyi indir</a>
+      </div>
+    </footer>
+
+    <script src="assets/js/config.js"></script>
+    <script src="assets/js/site.js"></script>
+  </body>
+</html>

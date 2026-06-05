@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tarih Vakfı Dijital Kronolojisi</title>
+    <meta name="description" content="Tarih Vakfı kurumsal hafızası için açık, aranabilir ve görselleştirilebilir dijital kronoloji.">
+    <link rel="stylesheet" href="assets/css/style.css">
+  </head>
+  <body data-page="home">
+    <header class="site-header">
+      <nav class="nav" aria-label="Ana gezinme">
+        <a class="brand" href="index.html"><span class="brand-mark">TV</span> Tarih Vakfı Dijital Kronolojisi</a>
+        <div class="nav-links">
+          <a href="timeline.html" data-page="timeline">Kronoloji</a>
+          <a href="archive.html" data-page="archive">Arşiv</a>
+          <a href="dashboard.html" data-page="dashboard">Görsel Özet</a>
+          <a href="methodology.html" data-page="methodology">Yöntem</a>
+          <a href="data.html" data-page="data">Veri</a>
+        </div>
+      </nav>
+    </header>
+
+    <main class="page-shell">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Açık kurumsal hafıza</p>
+          <h1>Tarih Vakfı Dijital Kronolojisi</h1>
+          <p class="lead">Kurumsal hafıza, yayınlar, etkinlikler ve projeler için açık, aranabilir ve geliştirilebilir kronoloji.</p>
+          <p class="lead" id="overviewSentence">Veri yükleniyor.</p>
+          <div class="hero-actions">
+            <a class="button" href="archive.html">Tüm kayıtlarda ara</a>
+            <a class="button secondary" href="timeline.html">Kronolojiyi gör</a>
+            <a class="button ghost" href="dashboard.html">Grafikleri incele</a>
+          </div>
+        </div>
+        <aside class="summary-panel" aria-label="Kronoloji özeti">
+          <div class="summary-title">
+            <div>
+              <p class="eyebrow">Veri özeti</p>
+              <h2>Kapsam</h2>
+            </div>
+            <a href="data.html">Veriyi indir</a>
+          </div>
+          <div class="metric-grid" id="homeMetrics"></div>
+        </aside>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <h2>Kronolojinin Tam Görsel Resmi</h2>
+            <p>Bu ilk ekran örnek seçki değil; grafikler kamuya açılan tüm kayıtların dağılımından hesaplanır.</p>
+          </div>
+        </div>
+        <div class="grid-2">
+          <article class="chart-panel">
+            <div class="chart-title"><strong>Yıllara göre kayıtlar</strong><span>Tüm kayıtlar</span></div>
+            <div id="homeYearChart"></div>
+          </article>
+          <article class="chart-panel">
+            <div class="chart-title"><strong>Dönemlere göre dağılım</strong><span>Etkinlik, yayın, örgütsel iş</span></div>
+            <div id="homePeriodChart"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="grid-2">
+          <article class="chart-panel">
+            <div class="chart-title"><strong>Kayıt türleri</strong><span>Genel ağırlık</span></div>
+            <div id="homeKindChart"></div>
+          </article>
+          <article class="chart-panel">
+            <div class="chart-title"><strong>Veri kalitesi</strong><span>Yayın öncesi gözden geçirme</span></div>
+            <div id="homeQualityChart"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <h2>Üç Kullanım Biçimi</h2>
+            <p>Site; genel ziyaretçi için kronolojik akış, araştırmacı için arama arşivi, editörler için veri kalitesi ve dağılım panellerini birlikte sunar.</p>
+          </div>
+        </div>
+        <div class="grid-3">
+          <a class="feature-card" href="timeline.html">
+            <h3>Kronoloji Hikayesi</h3>
+            <p>Bütün kayıtları yıllara göre akıtır; tür, dönem ve durum filtreleriyle daraltılır.</p>
+          </a>
+          <a class="feature-card" href="archive.html">
+            <h3>Arşivde Ara</h3>
+            <p>Her kayıt aranabilir, filtrelenebilir, tek kayıt sayfasına açılır ve atıfı kopyalanabilir.</p>
+          </a>
+          <a class="feature-card" href="dashboard.html">
+            <h3>Görsel Özet</h3>
+            <p>Kurumun dönemsel ritmini, yayın/etkinlik ağırlığını ve temizlik gerektiren alanları gösterir.</p>
+          </a>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <h2>İlk Kayıtlar</h2>
+            <p>Arşiv ve kronoloji sayfalarında kamu verisinin tamamı listelenir. Burada yalnızca ilk kayıtlar hızlı yönelim için gösterilir.</p>
+          </div>
+          <a class="button secondary" href="archive.html">Tam arşive git</a>
+        </div>
+        <div id="homeRecords"></div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <span>Bu kronoloji çalışma sürümüdür; tarih, sınıflandırma ve açıklama alanları sürekli geliştirilebilir.</span>
+        <a href="contribute.html">Düzeltme öner</a>
+      </div>
+    </footer>
+
+    <script src="assets/js/config.js"></script>
+    <script src="assets/js/site.js"></script>
+  </body>
+</html>

@@ -4,6 +4,11 @@ Bu depo, Tarih Vakfı Pertev Naili Boratav Arşivi için hazırlanan kamuya aç�
 
 Kamu sayfası statik GitHub Pages olarak çalışır; üretim runtime’ında Firebase, oturum açma, özel backend, Node/Express sunucu veya ücretli servis gerekmez.
 
+Ek kamu sayfası:
+
+- `/kronoloji/`: Tarih Vakfı Dijital Kronolojisi. Excel’den temizlenmiş kamu kronoloji verisini zaman çizelgesi, arşiv, dashboard, tekil kayıt ve veri indirme sayfalarıyla sunar.
+- `/kronoloji/apps-script/`: Drive/Google Sheets kaynak dosyasından yalnızca public-safe JSON üretmek için Apps Script şablonu.
+
 ## Veri Akışı
 
 - `apps-script/SheetSync.gs` Google Sheet’i okur ve `?public=1` endpoint’iyle güvenli kamu payload’ı üretir.
@@ -68,6 +73,7 @@ python3 -m http.server 8000
 ```text
 http://localhost:8000/
 http://localhost:8000/?debug=1
+http://localhost:8000/kronoloji/
 ```
 
 Yerel Excel’den snapshot yenilemek:
@@ -95,6 +101,13 @@ python3 tools/validate_public_summary.py --snapshot
 │  ├─ volunteer-credit.js
 │  ├─ render-dashboard.js
 │  └─ utils.js
+├─ kronoloji/
+│  ├─ index.html
+│  ├─ timeline.html
+│  ├─ archive.html
+│  ├─ dashboard.html
+│  ├─ item.html
+│  └─ assets/
 ├─ apps-script/
 ├─ tools/
 ├─ docs/
@@ -108,5 +121,6 @@ python3 tools/validate_public_summary.py --snapshot
 3. `python3 tools/validate_public_summary.py --snapshot` ile snapshot’ı doğrulayın.
 4. Yerelde `/` ve `/?debug=1` ile adların, dönem etiketinin, günlük toplamların ve aktif kutuların doğru göründüğünü kontrol edin.
 5. Apps Script endpoint’i değişirse `js/config.public.js` ve `.github/workflows/deploy.yml` içindeki URL’yi güncelleyin.
+6. Kronoloji çalışma dosyası `.xlsx` olarak kalacaksa `kronoloji/apps-script/XlsxMirrorSync.gs` ile native Google Sheets mirror oluşturun, `kronoloji/apps-script/ChronologyPublicApi.gs` ile public-safe endpoint üretin ve endpoint URL’sini `kronoloji/assets/js/config.js` içine yazın.
 
 Dağıtım ayrıntıları için [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) dosyasına bakın.

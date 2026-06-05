@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Kronoloji | Tarih Vakfı Dijital Kronolojisi</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+  </head>
+  <body data-page="timeline">
+    <header class="site-header">
+      <nav class="nav" aria-label="Ana gezinme">
+        <a class="brand" href="index.html"><span class="brand-mark">TV</span> Tarih Vakfı Dijital Kronolojisi</a>
+        <div class="nav-links">
+          <a href="timeline.html" data-page="timeline">Kronoloji</a>
+          <a href="archive.html" data-page="archive">Arşiv</a>
+          <a href="dashboard.html" data-page="dashboard">Görsel Özet</a>
+          <a href="methodology.html" data-page="methodology">Yöntem</a>
+          <a href="data.html" data-page="data">Veri</a>
+        </div>
+      </nav>
+    </header>
+
+    <main class="page-shell">
+      <section class="section">
+        <p class="eyebrow">Tam kronolojik akış</p>
+        <h1>Kronoloji</h1>
+        <p class="lead">Bu sayfa kamuya açılan bütün kayıtları yıllara göre gösterir. Filtreler yalnızca görünümü daraltır; veri setinden kayıt çıkarmaz.</p>
+      </section>
+
+      <section class="section">
+        <form class="filters" aria-label="Kronoloji filtreleri">
+          <label>
+            Arama
+            <input id="timelineSearch" type="search" placeholder="Başlık, açıklama, kategori, yıl...">
+          </label>
+          <label>
+            Tür
+            <select id="timelineKind"></select>
+          </label>
+          <label>
+            Dönem
+            <select id="timelinePeriod"></select>
+          </label>
+          <label>
+            Durum
+            <select id="timelineStatus"></select>
+          </label>
+          <label>
+            Başlangıç yılı
+            <input id="timelineYearFrom" type="number" min="1900" max="2100" placeholder="1990">
+          </label>
+          <label>
+            Bitiş yılı
+            <input id="timelineYearTo" type="number" min="1900" max="2100" placeholder="2026">
+          </label>
+        </form>
+        <p class="result-note" id="timelineCount">Veri yükleniyor.</p>
+      </section>
+
+      <section class="timeline-list" id="timelineList" aria-live="polite"></section>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <span>Kaynak satırı ve doğrulama durumu tekil kayıt sayfalarında korunur.</span>
+        <a href="archive.html">Arşiv görünümüne geç</a>
+      </div>
+    </footer>
+
+    <script src="assets/js/config.js"></script>
+    <script src="assets/js/site.js"></script>
+  </body>
+</html>

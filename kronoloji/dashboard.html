@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Görsel Özet | Tarih Vakfı Dijital Kronolojisi</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+  </head>
+  <body data-page="dashboard">
+    <header class="site-header">
+      <nav class="nav" aria-label="Ana gezinme">
+        <a class="brand" href="index.html"><span class="brand-mark">TV</span> Tarih Vakfı Dijital Kronolojisi</a>
+        <div class="nav-links">
+          <a href="timeline.html" data-page="timeline">Kronoloji</a>
+          <a href="archive.html" data-page="archive">Arşiv</a>
+          <a href="dashboard.html" data-page="dashboard">Görsel Özet</a>
+          <a href="methodology.html" data-page="methodology">Yöntem</a>
+          <a href="data.html" data-page="data">Veri</a>
+        </div>
+      </nav>
+    </header>
+
+    <main class="page-shell">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Görsel analiz</p>
+          <h1>Tarih Vakfı Kronolojisi: Görsel Özet</h1>
+          <p class="lead">Yayınlar, etkinlikler, örgütsel işler ve dönemler üzerinden kurumsal hafızanın görsel keşfi.</p>
+        </div>
+        <aside class="summary-panel">
+          <div class="summary-title">
+            <div>
+              <p class="eyebrow">Seçili veri</p>
+              <h2>Ölçüler</h2>
+            </div>
+          </div>
+          <div class="metric-grid" id="dashboardMetrics"></div>
+        </aside>
+      </section>
+
+      <section class="section">
+        <form class="filters" aria-label="Dashboard filtreleri">
+          <label>
+            Arama
+            <input id="dashboardSearch" type="search" placeholder="Grafikleri daralt">
+          </label>
+          <label>
+            Tür
+            <select id="dashboardKind"></select>
+          </label>
+          <label>
+            Dönem
+            <select id="dashboardPeriod"></select>
+          </label>
+          <label>
+            Durum
+            <select id="dashboardStatus"></select>
+          </label>
+          <label>
+            Başlangıç yılı
+            <input id="dashboardYearFrom" type="number" min="1900" max="2100">
+          </label>
+          <label>
+            Bitiş yılı
+            <input id="dashboardYearTo" type="number" min="1900" max="2100">
+          </label>
+        </form>
+        <p class="result-note" id="dashboardCount">Veri yükleniyor.</p>
+      </section>
+
+      <section class="section grid-2">
+        <article class="chart-panel">
+          <div class="chart-title"><strong>Yıllara göre kayıt yoğunluğu</strong><span>Ne zaman en yoğun?</span></div>
+          <div id="dashboardYearChart"></div>
+          <p>Bu grafik her yılın toplam kayıt hacmini ve tür dağılımını gösterir.</p>
+        </article>
+        <article class="chart-panel">
+          <div class="chart-title"><strong>Dönemlere göre türler</strong><span>Hangi dönem ne üretmiş?</span></div>
+          <div id="dashboardPeriodChart"></div>
+          <p>Etkinlik, yayın ve örgütsel işlerin dönemler arasında nasıl değiştiğini karşılaştırır.</p>
+        </article>
+      </section>
+
+      <section class="section grid-2">
+        <article class="chart-panel">
+          <div class="chart-title"><strong>En sık kategoriler</strong><span>İlk 16 kategori</span></div>
+          <div id="dashboardCategoryChart"></div>
+          <p>Kategori standardizasyonu tamamlandıkça bu grafik daha açıklayıcı hale gelir.</p>
+        </article>
+        <article class="chart-panel">
+          <div class="chart-title"><strong>Veri kalitesi</strong><span>Yayın öncesi kontrol</span></div>
+          <div id="dashboardQualityChart"></div>
+          <p>Belirsiz tarih, kategori ve gözden geçirme gerektiren kayıtların görünür kalmasını sağlar.</p>
+        </article>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <h2>Seçili Kayıtlar</h2>
+            <p>Dashboard filtreleriyle eşleşen kayıtlar burada tablo olarak listelenir.</p>
+          </div>
+        </div>
+        <div id="dashboardTable"></div>
+        <nav class="pagination" id="dashboardPagination" aria-label="Dashboard tablo sayfalama"></nav>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <span>Dashboard özetler; ayrıntı ve atıf için arşiv kayıtları temel alınmalıdır.</span>
+        <a href="archive.html">Arşivde ara</a>
+      </div>
+    </footer>
+
+    <script src="assets/js/config.js"></script>
+    <script src="assets/js/site.js"></script>
+  </body>
+</html>

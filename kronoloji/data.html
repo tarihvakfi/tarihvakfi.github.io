@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Veri | Tarih Vakfı Dijital Kronolojisi</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+  </head>
+  <body data-page="data">
+    <header class="site-header">
+      <nav class="nav" aria-label="Ana gezinme">
+        <a class="brand" href="index.html"><span class="brand-mark">TV</span> Tarih Vakfı Dijital Kronolojisi</a>
+        <div class="nav-links">
+          <a href="timeline.html" data-page="timeline">Kronoloji</a>
+          <a href="archive.html" data-page="archive">Arşiv</a>
+          <a href="dashboard.html" data-page="dashboard">Görsel Özet</a>
+          <a href="methodology.html" data-page="methodology">Yöntem</a>
+          <a href="data.html" data-page="data">Veri</a>
+        </div>
+      </nav>
+    </header>
+
+    <main class="page-shell">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Açık veri</p>
+          <h1>Veri Dosyaları</h1>
+          <p class="lead">Site yalnızca kamuya açık, temizlenmiş veri dosyalarını kullanır. Belirsiz kayıtlar gizlenmez; doğrulama durumu ile işaretlenir.</p>
+          <div class="hero-actions">
+            <a class="button" href="assets/data/chronology_public.csv" download>CSV indir</a>
+            <a class="button secondary" href="assets/data/chronology_public.json" download>JSON indir</a>
+          </div>
+        </div>
+        <aside class="summary-panel">
+          <div class="summary-title">
+            <div>
+              <p class="eyebrow">Kamu veri seti</p>
+              <h2>Kapsam</h2>
+            </div>
+          </div>
+          <div class="metric-grid" id="dataMetrics"></div>
+        </aside>
+      </section>
+
+      <section class="section grid-2">
+        <article class="feature-card">
+          <h3>chronology_public.csv</h3>
+          <p>Tablo programları, araştırma iş akışları ve arşiv kontrolü için uygundur.</p>
+          <a href="assets/data/chronology_public.csv" download>CSV dosyasını indir</a>
+        </article>
+        <article class="feature-card">
+          <h3>chronology_public.json</h3>
+          <p>Bu statik sitenin ana veri kaynağıdır; web uygulamaları için uygundur.</p>
+          <a href="assets/data/chronology_public.json" download>JSON dosyasını indir</a>
+        </article>
+        <article class="feature-card">
+          <h3>year_summary.csv</h3>
+          <p>Yıllara göre kayıt sayıları ve tür dağılımı.</p>
+          <a href="assets/data/year_summary.csv" download>Yıl özetini indir</a>
+        </article>
+        <article class="feature-card">
+          <h3>period_summary.csv</h3>
+          <p>Dönemlere göre kayıt türleri ve doğrulama durumları.</p>
+          <a href="assets/data/period_summary.csv" download>Dönem özetini indir</a>
+        </article>
+      </section>
+
+      <section class="section">
+        <div class="note">
+          Lisans bilgisi kurum tarafından kesinleştirilmelidir. Ham Excel dosyası ve kurum içi yorumlar bu sayfada yayınlanmaz.
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <span>Veri sürümü: çalışma prototipi.</span>
+        <a href="methodology.html">Yöntemi oku</a>
+      </div>
+    </footer>
+
+    <script src="assets/js/config.js"></script>
+    <script src="assets/js/site.js"></script>
+  </body>
+</html>
