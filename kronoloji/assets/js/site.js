@@ -33,6 +33,53 @@ const STATUS_COLORS = {
   empty_or_invalid: "#7b7169",
 };
 
+const ACTIVITY_CODE_INFO = {
+  "İÇ": ["Toplantılar", "İç toplantı"],
+  "İKO": ["Toplantılar", "İç kongre ve genel kurul"],
+  KON: ["Toplantılar", "Konuşma / konferans / söyleşi"],
+  PAN: ["Toplantılar", "Panel / forum / açık oturum"],
+  ATA: ["Toplantılar", "Atölye / çalıştay"],
+  SMN: ["Toplantılar", "Seminer / kurs"],
+  SEM: ["Toplantılar", "Sempozyum"],
+  KGR: ["Toplantılar", "Kongre"],
+  YYA: ["Yayınlar", "Yurt Yayınları"],
+  TVY: ["Yayınlar", "Tarih Vakfı yayınları"],
+  ANS: ["Yayınlar", "Ansiklopediler"],
+  DER: ["Yayınlar", "Dergiler"],
+  "İST": ["Yayınlar", "İstanbul dergisi"],
+  TT: ["Yayınlar", "Toplumsal Tarih"],
+  TTA: ["Yayınlar", "Toplumsal Tarih Akademi"],
+  NPT: ["Yayınlar", "New Perspectives on Turkey"],
+  "BÜL": ["Yayınlar", "Bültenler"],
+  TVH: ["Yayınlar", "Tarih Vakfı’ndan Haberler Bülteni"],
+  "DŞE": ["Yayınlar", "Deniz Şenliği Bülteni"],
+  YTB: ["Yayınlar", "Yerel Tarih Bülteni"],
+  "TÇE": ["Yayınlar", "Tarihçe Gençler Tarih Yazıyor Yarışması Bülteni"],
+  BRO: ["Yayınlar", "Broşürler"],
+  BEL: ["Yayınlar", "Belgeseller"],
+  SER: ["Toplantı ve yayın dışı etkinlikler", "Sergiler"],
+  GEZ: ["Toplantı ve yayın dışı etkinlikler", "Kültür gezileri"],
+  FES: ["Toplantı ve yayın dışı etkinlikler", "Festival / şenlik"],
+  YAR: ["Toplantı ve yayın dışı etkinlikler", "Yarışmalar"],
+  ANM: ["Toplantı ve yayın dışı etkinlikler", "Anma"],
+  KNS: ["Toplantı ve yayın dışı etkinlikler", "Konser"],
+  "SİN": ["Toplantı ve yayın dışı etkinlikler", "Sinema gösterimi"],
+  YER: ["Projeler", "Yerel tarih projesi"],
+  KUT: ["Projeler", "Kurum tarihi projesi"],
+  KNT: ["Projeler", "Kent tarihi / kent müzesi projesi"],
+  TEP: ["Projeler", "Tarih eğitimi projesi"],
+  ARB: ["BBM", "Arşiv bağışı"],
+  "KİB": ["BBM", "Kitap bağışı"],
+};
+
+const FALLBACK_ACTIVITY_CODES = {
+  meeting: ["ÖTY", "Toplantılar", "Öteki toplantı"],
+  publication: ["ÖTY", "Yayınlar", "Öteki yayın"],
+  event: ["ÖTG", "Toplantı ve yayın dışı etkinlikler", "Öteki gösteri / etkinlik"],
+  project: ["ÖTP", "Projeler", "Öteki proje"],
+  bbm: ["ÖTB", "BBM", "Öteki BBM faaliyeti"],
+};
+
 const PAGE_SIZE = 100;
 let allRecords = [];
 let archivePage = 1;
@@ -100,24 +147,31 @@ function extractRows(payload) {
 }
 
 function normalizeRows(rows) {
-  return rows.map((row) => ({
-    ...row,
-    _year: /^\d+$/.test(row.year || "") ? Number(row.year) : null,
-    _sourceRow: Number(row.source_row || 0),
-    _search: normalize(
-      [
-        row.id,
-        row.period,
-        row.item_kind,
-        row.category,
-        row.title,
-        row.description,
-        row.date_display,
-        row.year,
-        row.verification_status,
-      ].join(" "),
-    ),
-  }));
+  return rows.map((row) => {
+    const enriched = row.activity_code ? row : { ...row, ...assignActivityCode(row.item_kind, row.category, row.raw_text, row.description) };
+    return {
+      ...enriched,
+      _year: /^\d+$/.test(enriched.year || "") ? Number(enriched.year) : null,
+      _sourceRow: Number(enriched.source_row || 0),
+      _search: normalize(
+        [
+          enriched.id,
+          enriched.period,
+          enriched.item_kind,
+          enriched.category,
+          enriched.activity_code,
+          enriched.activity_code_base,
+          enriched.activity_group,
+          enriched.activity_label,
+          enriched.title,
+          enriched.description,
+          enriched.date_display,
+          enriched.year,
+          enriched.verification_status,
+        ].join(" "),
+      ),
+    };
+  });
 }
 
 function appendCacheBust(url) {
@@ -144,7 +198,7 @@ function initHome() {
 
 function initTimeline() {
   setupFilterOptions("timeline", allRecords);
-  ["timelineSearch", "timelineKind", "timelinePeriod", "timelineStatus", "timelineYearFrom", "timelineYearTo"].forEach(
+  ["timelineSearch", "timelineKind", "timelinePeriod", "timelineStatus", "timelineCode", "timelineYearFrom", "timelineYearTo"].forEach(
     (id) => document.getElementById(id)?.addEventListener("input", renderTimeline),
   );
   renderTimeline();
@@ -152,7 +206,7 @@ function initTimeline() {
 
 function initArchive() {
   setupFilterOptions("archive", allRecords);
-  ["archiveSearch", "archiveKind", "archivePeriod", "archiveStatus", "archiveYearFrom", "archiveYearTo", "archiveSort"].forEach(
+  ["archiveSearch", "archiveKind", "archivePeriod", "archiveStatus", "archiveCode", "archiveYearFrom", "archiveYearTo", "archiveSort"].forEach(
     (id) => document.getElementById(id)?.addEventListener("input", () => {
       archivePage = 1;
       renderArchive();
@@ -171,7 +225,7 @@ function initArchive() {
 function initDashboard() {
   renderMetrics("dashboardMetrics", allRecords);
   setupFilterOptions("dashboard", allRecords);
-  ["dashboardSearch", "dashboardKind", "dashboardPeriod", "dashboardStatus", "dashboardYearFrom", "dashboardYearTo"].forEach(
+  ["dashboardSearch", "dashboardKind", "dashboardPeriod", "dashboardStatus", "dashboardCode", "dashboardYearFrom", "dashboardYearTo"].forEach(
     (id) => document.getElementById(id)?.addEventListener("input", () => {
       dashboardPage = 1;
       renderDashboard();
@@ -200,6 +254,7 @@ function initItem() {
         <div class="item-meta">
           ${badge(record.item_kind, "kind")}
           ${badge(record.verification_status, "status")}
+          ${activityBadge(record)}
           <span class="badge">${escapeHtml(record.period || "")}</span>
           <span class="badge">${escapeHtml(record.category || "Kategori yok")}</span>
         </div>
@@ -213,6 +268,8 @@ function initItem() {
           ${detailRow("Dönem", record.period)}
           ${detailRow("Tür", KIND_LABELS[record.item_kind] || record.item_kind)}
           ${detailRow("Kategori", record.category || "Belirtilmemiş")}
+          ${detailRow("Faaliyet kodu", activityText(record))}
+          ${detailRow("Kod durumu", activityStatusText(record))}
           ${detailRow("Tarih", record.date_display || record.year || "Belirtilmemiş")}
           ${detailRow("Kaynak", `${record.source_sheet}, satır ${record.source_row}`)}
           ${detailRow("Durum", STATUS_LABELS[record.verification_status] || record.verification_status)}
@@ -263,6 +320,12 @@ function setupFilterOptions(prefix, records) {
   fillSelect(`${prefix}Kind`, unique(records.map((row) => row.item_kind)), "Tüm türler", KIND_LABELS);
   fillSelect(`${prefix}Period`, unique(records.map((row) => row.period)), "Tüm dönemler");
   fillSelect(`${prefix}Status`, unique(records.map((row) => row.verification_status)), "Tüm durumlar", STATUS_LABELS);
+  fillSelect(
+    `${prefix}Code`,
+    unique(records.map((row) => row.activity_code_base || row.activity_code)),
+    "Tüm faaliyet kodları",
+    activityCodeLabels(records),
+  );
 }
 
 function renderTimeline() {
@@ -344,6 +407,7 @@ function filterRecords(prefix, records) {
   const kind = document.getElementById(`${prefix}Kind`)?.value || "";
   const period = document.getElementById(`${prefix}Period`)?.value || "";
   const status = document.getElementById(`${prefix}Status`)?.value || "";
+  const activityCode = document.getElementById(`${prefix}Code`)?.value || "";
   const yearFrom = Number(document.getElementById(`${prefix}YearFrom`)?.value || "");
   const yearTo = Number(document.getElementById(`${prefix}YearTo`)?.value || "");
   return records.filter((row) => {
@@ -351,6 +415,7 @@ function filterRecords(prefix, records) {
     if (kind && row.item_kind !== kind) return false;
     if (period && row.period !== period) return false;
     if (status && row.verification_status !== status) return false;
+    if (activityCode && (row.activity_code_base || row.activity_code) !== activityCode) return false;
     if (yearFrom && (!row._year || row._year < yearFrom)) return false;
     if (yearTo && (!row._year || row._year > yearTo)) return false;
     return true;
@@ -383,6 +448,7 @@ function renderItemCard(row) {
         <span class="badge">${escapeHtml(row.date_display || row.year || "Tarih belirsiz")}</span>
         ${badge(row.item_kind, "kind")}
         ${badge(row.verification_status, "status")}
+        ${activityBadge(row)}
         <span class="badge">${escapeHtml(row.period || "")}</span>
       </div>
       <p class="item-title">${escapeHtml(row.title || row.raw_text || row.id)}</p>
@@ -398,6 +464,7 @@ function renderItemCardWithActions(row) {
         <span class="badge">${escapeHtml(row.date_display || row.year || "Tarih belirsiz")}</span>
         ${badge(row.item_kind, "kind")}
         ${badge(row.verification_status, "status")}
+        ${activityBadge(row)}
         <span class="badge">${escapeHtml(row.period || "")}</span>
       </div>
       <p class="item-title"><a href="item.html?id=${encodeURIComponent(row.id)}">${escapeHtml(row.title || row.raw_text || row.id)}</a></p>
@@ -419,6 +486,7 @@ function renderArchiveTable(rows) {
             <th>Tarih</th>
             <th>Başlık</th>
             <th>Tür</th>
+            <th>Faaliyet kodu</th>
             <th>Kategori</th>
             <th>Dönem</th>
             <th>Durum</th>
@@ -433,6 +501,7 @@ function renderArchiveTable(rows) {
                   <td>${escapeHtml(row.date_display || row.year || "")}</td>
                   <td><a href="item.html?id=${encodeURIComponent(row.id)}">${escapeHtml(row.title || row.id)}</a></td>
                   <td>${escapeHtml(KIND_LABELS[row.item_kind] || row.item_kind)}</td>
+                  <td>${escapeHtml(activityText(row))}</td>
                   <td>${escapeHtml(row.category || "")}</td>
                   <td>${escapeHtml(row.period || "")}</td>
                   <td>${escapeHtml(STATUS_LABELS[row.verification_status] || row.verification_status)}</td>
@@ -508,7 +577,7 @@ function renderKindChart(targetId, records) {
 function renderCategoryChart(targetId, records) {
   const target = document.getElementById(targetId);
   if (!target) return;
-  const counts = countBy(records, (row) => row.category || "Kategori belirtilmemiş");
+  const counts = countBy(records, (row) => activityText(row) || "Kod belirtilmemiş");
   const data = Object.entries(counts)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 16)
@@ -524,6 +593,109 @@ function renderQualityChart(targetId, records) {
     .sort((a, b) => b[1] - a[1])
     .map(([key, value]) => ({ label: STATUS_LABELS[key] || key, value, color: STATUS_COLORS[key] || "#7b7169" }));
   target.innerHTML = horizontalBarSvg(data, { height: 230 });
+}
+
+function codeKey(value) {
+  return String(value || "")
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ı/g, "i")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function hasAnyCodeTerm(haystack, ...terms) {
+  return terms.some((term) => {
+    const key = codeKey(term);
+    return key && new RegExp(`\\b${escapeRegExp(key)}\\b`).test(haystack);
+  });
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function detectLocationCode(haystack) {
+  if (hasAnyCodeTerm(haystack, "ankara")) return "ANK";
+  if (hasAnyCodeTerm(haystack, "izmir")) return "İZM";
+  if (hasAnyCodeTerm(haystack, "antalya")) return "ANT";
+  if (hasAnyCodeTerm(haystack, "yurtdışı", "yurt dışı", "diyarbakır", "eskişehir", "adana", "bodrum", "çanakkale")) return "ÖTE";
+  return "";
+}
+
+function activityChoice(baseCode, haystack, group, label, status = "mapped", note = "") {
+  const info = ACTIVITY_CODE_INFO[baseCode] || ["", ""];
+  const locationCode = detectLocationCode(haystack);
+  return {
+    activity_code: locationCode ? `${baseCode} ${locationCode}` : baseCode,
+    activity_code_base: baseCode,
+    activity_location_code: locationCode,
+    activity_group: group || info[0],
+    activity_label: label || info[1],
+    activity_code_status: status,
+    activity_code_note: note,
+  };
+}
+
+function fallbackActivity(kind, haystack, note) {
+  const fallback = FALLBACK_ACTIVITY_CODES[kind];
+  return activityChoice(fallback[0], haystack, fallback[1], fallback[2], "needs_review", note);
+}
+
+function assignActivityCode(itemKind, category, rawText, description) {
+  const haystack = codeKey([itemKind, category, rawText, description].join(" "));
+  const fallbackNote = "Kod, kaynak kategori/metinden otomatik önerildi; elle kontrol edilmeli.";
+
+  if (itemKind === "publication") {
+    if (hasAnyCodeTerm(haystack, "toplumsal tarih akademi", "tta")) return activityChoice("TTA", haystack);
+    if (hasAnyCodeTerm(haystack, "toplumsal tarih", "d toplumsal tarih", "d toplumsal tarihi")) return activityChoice("TT", haystack);
+    if (hasAnyCodeTerm(haystack, "istanbul dergisi", "d istanbul dergisi")) return activityChoice("İST", haystack);
+    if (hasAnyCodeTerm(haystack, "new perspectives", "npt")) return activityChoice("NPT", haystack);
+    if (hasAnyCodeTerm(haystack, "tarih vakfindan haberler", "haberler bulteni")) return activityChoice("TVH", haystack);
+    if (hasAnyCodeTerm(haystack, "deniz senligi bulteni")) return activityChoice("DŞE", haystack);
+    if (hasAnyCodeTerm(haystack, "yerel tarih bulteni")) return activityChoice("YTB", haystack);
+    if (hasAnyCodeTerm(haystack, "tarihce gencler", "tarihce")) return activityChoice("TÇE", haystack);
+    if (hasAnyCodeTerm(haystack, "bulten")) return activityChoice("BÜL", haystack);
+    if (hasAnyCodeTerm(haystack, "yurt yayinlari", "yurt yayin")) return activityChoice("YYA", haystack);
+    if (hasAnyCodeTerm(haystack, "vakif yayinlari", "tarih vakfi yayinlari")) return activityChoice("TVY", haystack);
+    if (hasAnyCodeTerm(haystack, "ansiklopedi")) return activityChoice("ANS", haystack);
+    if (hasAnyCodeTerm(haystack, "brosur")) return activityChoice("BRO", haystack);
+    if (hasAnyCodeTerm(haystack, "belgesel")) return activityChoice("BEL", haystack);
+    if (hasAnyCodeTerm(haystack, "dergi")) return activityChoice("DER", haystack);
+    return fallbackActivity("publication", haystack, fallbackNote);
+  }
+
+  if (hasAnyCodeTerm(haystack, "arsiv")) return activityChoice("ARB", haystack);
+  if (hasAnyCodeTerm(haystack, "kitap bagisi", "kitap bagis")) return activityChoice("KİB", haystack);
+  if (hasAnyCodeTerm(haystack, "bagis")) return fallbackActivity("bbm", haystack, fallbackNote);
+
+  if (hasAnyCodeTerm(haystack, "kurum tarihi", "p kurum")) return activityChoice("KUT", haystack);
+  if (hasAnyCodeTerm(haystack, "yerel tarih projesi", "yerel tarih")) return activityChoice("YER", haystack);
+  if (hasAnyCodeTerm(haystack, "kent muzesi", "kent tarihi", "kent bellegi")) return activityChoice("KNT", haystack);
+  if (hasAnyCodeTerm(haystack, "tarih egitimi", "ders kitabi", "ders kitaplari", "ogrenci")) return activityChoice("TEP", haystack);
+  if (hasAnyCodeTerm(haystack, "proje", "p diger", "arastirma")) return fallbackActivity("project", haystack, fallbackNote);
+
+  if (hasAnyCodeTerm(haystack, "ic toplanti")) return activityChoice("İÇ", haystack);
+  if (hasAnyCodeTerm(haystack, "genel kurul", "olagan genel kurul", "ic kongre")) return activityChoice("İKO", haystack);
+  if (hasAnyCodeTerm(haystack, "kongre")) return activityChoice("KGR", haystack);
+  if (hasAnyCodeTerm(haystack, "konferans", "konusma", "soylesi")) return activityChoice("KON", haystack);
+  if (hasAnyCodeTerm(haystack, "panel", "forum", "acik oturum")) return activityChoice("PAN", haystack);
+  if (hasAnyCodeTerm(haystack, "atolye", "calistay", "workshop")) return activityChoice("ATA", haystack);
+  if (hasAnyCodeTerm(haystack, "seminer", "kurs")) return activityChoice("SMN", haystack);
+  if (hasAnyCodeTerm(haystack, "sempozyum")) return activityChoice("SEM", haystack);
+  if (hasAnyCodeTerm(haystack, "sergi")) return activityChoice("SER", haystack);
+  if (hasAnyCodeTerm(haystack, "gezi")) return activityChoice("GEZ", haystack);
+  if (hasAnyCodeTerm(haystack, "festival", "senlik")) return activityChoice("FES", haystack);
+  if (hasAnyCodeTerm(haystack, "yarisma", "yaris", "odul")) {
+    return activityChoice("YAR", haystack, null, null, hasAnyCodeTerm(haystack, "odul") ? "needs_review" : "mapped");
+  }
+  if (hasAnyCodeTerm(haystack, "anma")) return activityChoice("ANM", haystack);
+  if (hasAnyCodeTerm(haystack, "konser")) return activityChoice("KNS", haystack);
+  if (hasAnyCodeTerm(haystack, "sinema", "film gosterimi")) return activityChoice("SİN", haystack);
+
+  if (itemKind === "organizational") return fallbackActivity("meeting", haystack, fallbackNote);
+  return fallbackActivity("event", haystack, fallbackNote);
 }
 
 function stackedBarSvg(data, keys, options = {}) {
@@ -614,6 +786,32 @@ function badge(value, type) {
   const label = type === "kind" ? KIND_LABELS[value] || value : STATUS_LABELS[value] || value;
   const css = type === "kind" ? `kind-${value}` : `status-${value}`;
   return `<span class="badge ${css}">${escapeHtml(label || "")}</span>`;
+}
+
+function activityBadge(row) {
+  if (!row.activity_code) return `<span class="badge">Kod yok</span>`;
+  const review = row.activity_code_status === "needs_review" ? " kod-review" : "";
+  return `<span class="badge activity-code${review}" title="${escapeAttr(row.activity_label || "")}">${escapeHtml(row.activity_code)}</span>`;
+}
+
+function activityText(row) {
+  if (!row.activity_code) return "";
+  const label = row.activity_label ? ` - ${row.activity_label}` : "";
+  return `${row.activity_code}${label}`;
+}
+
+function activityStatusText(row) {
+  if (!row.activity_code_status) return "";
+  const status = row.activity_code_status === "needs_review" ? "Elle kontrol edilmeli" : "Eşlendi";
+  return row.activity_code_note ? `${status}. ${row.activity_code_note}` : status;
+}
+
+function activityCodeLabels(records) {
+  return records.reduce((labels, row) => {
+    const code = row.activity_code_base || row.activity_code;
+    if (code && !labels[code]) labels[code] = row.activity_label ? `${code} - ${row.activity_label}` : code;
+    return labels;
+  }, {});
 }
 
 function detailRow(label, value) {

@@ -378,7 +378,7 @@ h3 {
 
 .filters {
   display: grid;
-  grid-template-columns: minmax(240px, 1.7fr) repeat(5, minmax(112px, 1fr));
+  grid-template-columns: minmax(240px, 1.7fr) repeat(6, minmax(112px, 1fr));
   gap: 10px;
   align-items: end;
   border: 1px solid var(--line);
@@ -494,6 +494,17 @@ h3 {
 .badge.status-uncertain_date,
 .badge.status-uncertain_category {
   border-color: rgba(162, 111, 38, 0.38);
+  color: var(--gold);
+}
+
+.badge.activity-code {
+  border-color: rgba(35, 31, 28, 0.22);
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.badge.activity-code.kod-review {
+  border-color: rgba(162, 111, 38, 0.45);
   color: var(--gold);
 }
 

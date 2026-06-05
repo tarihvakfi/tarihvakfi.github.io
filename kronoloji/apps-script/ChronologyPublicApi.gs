@@ -12,7 +12,7 @@
  * metadata, private Drive links, or the original workbook.
  */
 
-const SOURCE_SPREADSHEET_ID = "PASTE_STABLE_MIRROR_GOOGLE_SHEET_ID_HERE";
+const SOURCE_SPREADSHEET_ID = "1_UxaP20_KQjjhBhOKY-UBX2DdnkMMelAQh7dIPcCUFs";
 
 const ITEM_COLUMNS = {
   organizational: { text: 1, category: 3, count: 4 },
@@ -52,6 +52,53 @@ const TURKISH_MONTHS = {
 };
 
 const REVIEW_MARKERS = ["???", "??", "xxxx", "xxx", "say4", "npt", "belirtilmemiş", "yanlış"];
+
+const ACTIVITY_CODE_INFO = {
+  "İÇ": ["Toplantılar", "İç toplantı"],
+  "İKO": ["Toplantılar", "İç kongre ve genel kurul"],
+  KON: ["Toplantılar", "Konuşma / konferans / söyleşi"],
+  PAN: ["Toplantılar", "Panel / forum / açık oturum"],
+  ATA: ["Toplantılar", "Atölye / çalıştay"],
+  SMN: ["Toplantılar", "Seminer / kurs"],
+  SEM: ["Toplantılar", "Sempozyum"],
+  KGR: ["Toplantılar", "Kongre"],
+  YYA: ["Yayınlar", "Yurt Yayınları"],
+  TVY: ["Yayınlar", "Tarih Vakfı yayınları"],
+  ANS: ["Yayınlar", "Ansiklopediler"],
+  DER: ["Yayınlar", "Dergiler"],
+  "İST": ["Yayınlar", "İstanbul dergisi"],
+  TT: ["Yayınlar", "Toplumsal Tarih"],
+  TTA: ["Yayınlar", "Toplumsal Tarih Akademi"],
+  NPT: ["Yayınlar", "New Perspectives on Turkey"],
+  "BÜL": ["Yayınlar", "Bültenler"],
+  TVH: ["Yayınlar", "Tarih Vakfı’ndan Haberler Bülteni"],
+  "DŞE": ["Yayınlar", "Deniz Şenliği Bülteni"],
+  YTB: ["Yayınlar", "Yerel Tarih Bülteni"],
+  "TÇE": ["Yayınlar", "Tarihçe Gençler Tarih Yazıyor Yarışması Bülteni"],
+  BRO: ["Yayınlar", "Broşürler"],
+  BEL: ["Yayınlar", "Belgeseller"],
+  SER: ["Toplantı ve yayın dışı etkinlikler", "Sergiler"],
+  GEZ: ["Toplantı ve yayın dışı etkinlikler", "Kültür gezileri"],
+  FES: ["Toplantı ve yayın dışı etkinlikler", "Festival / şenlik"],
+  YAR: ["Toplantı ve yayın dışı etkinlikler", "Yarışmalar"],
+  ANM: ["Toplantı ve yayın dışı etkinlikler", "Anma"],
+  KNS: ["Toplantı ve yayın dışı etkinlikler", "Konser"],
+  "SİN": ["Toplantı ve yayın dışı etkinlikler", "Sinema gösterimi"],
+  YER: ["Projeler", "Yerel tarih projesi"],
+  KUT: ["Projeler", "Kurum tarihi projesi"],
+  KNT: ["Projeler", "Kent tarihi / kent müzesi projesi"],
+  TEP: ["Projeler", "Tarih eğitimi projesi"],
+  ARB: ["BBM", "Arşiv bağışı"],
+  "KİB": ["BBM", "Kitap bağışı"],
+};
+
+const FALLBACK_ACTIVITY_CODES = {
+  meeting: ["ÖTY", "Toplantılar", "Öteki toplantı"],
+  publication: ["ÖTY", "Yayınlar", "Öteki yayın"],
+  event: ["ÖTG", "Toplantı ve yayın dışı etkinlikler", "Öteki gösteri / etkinlik"],
+  project: ["ÖTP", "Projeler", "Öteki proje"],
+  bbm: ["ÖTB", "BBM", "Öteki BBM faaliyeti"],
+};
 
 function doGet(event) {
   try {
@@ -110,6 +157,7 @@ function normalizeChronology() {
 
         const category = publicText(displays[rowIndex][columns.category]);
         const description = publicText(rawText);
+        const activity = assignActivityCode(itemKind, category, rawText, description);
         const title = makeTitle(description);
         const id = `tvk-${pad(periodNumber, 2)}-${pad(sourceRow, 4)}-${itemKind.slice(0, 3)}`;
         const outsideExpectedPeriod = yearOutsideExpectedPeriod(periodNumber, effectiveDate.year);
@@ -131,6 +179,7 @@ function normalizeChronology() {
           sheet_name: sheet.getName(),
           item_kind: itemKind,
           category,
+          ...activity,
           title,
           description,
           date_display: effectiveDate.display,
@@ -147,6 +196,110 @@ function normalizeChronology() {
     }
   });
   return records;
+}
+
+function activityKey(value) {
+  return cleanText(value)
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ı/g, "i")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function hasAnyCodeTerm(haystack) {
+  const terms = Array.prototype.slice.call(arguments, 1);
+  return terms.some((term) => {
+    const key = activityKey(term);
+    return key && new RegExp(`\\b${escapeRegExp(key)}\\b`).test(haystack);
+  });
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function detectLocationCode(haystack) {
+  if (hasAnyCodeTerm(haystack, "ankara")) return "ANK";
+  if (hasAnyCodeTerm(haystack, "izmir")) return "İZM";
+  if (hasAnyCodeTerm(haystack, "antalya")) return "ANT";
+  if (hasAnyCodeTerm(haystack, "yurtdışı", "yurt dışı", "diyarbakır", "eskişehir", "adana", "bodrum", "çanakkale")) return "ÖTE";
+  return "";
+}
+
+function activityChoice(baseCode, haystack, group, label, status, note) {
+  const info = ACTIVITY_CODE_INFO[baseCode] || ["", ""];
+  const locationCode = detectLocationCode(haystack);
+  return {
+    activity_code: locationCode ? `${baseCode} ${locationCode}` : baseCode,
+    activity_code_base: baseCode,
+    activity_location_code: locationCode,
+    activity_group: group || info[0],
+    activity_label: label || info[1],
+    activity_code_status: status || "mapped",
+    activity_code_note: note || "",
+  };
+}
+
+function fallbackActivity(kind, haystack, note) {
+  const fallback = FALLBACK_ACTIVITY_CODES[kind];
+  return activityChoice(fallback[0], haystack, fallback[1], fallback[2], "needs_review", note);
+}
+
+function assignActivityCode(itemKind, category, rawText, description) {
+  const haystack = activityKey([itemKind, category, rawText, description].join(" "));
+  const fallbackNote = "Kod, kaynak kategori/metinden otomatik önerildi; elle kontrol edilmeli.";
+
+  if (itemKind === "publication") {
+    if (hasAnyCodeTerm(haystack, "toplumsal tarih akademi", "tta")) return activityChoice("TTA", haystack);
+    if (hasAnyCodeTerm(haystack, "toplumsal tarih", "d toplumsal tarih", "d toplumsal tarihi")) return activityChoice("TT", haystack);
+    if (hasAnyCodeTerm(haystack, "istanbul dergisi", "d istanbul dergisi")) return activityChoice("İST", haystack);
+    if (hasAnyCodeTerm(haystack, "new perspectives", "npt")) return activityChoice("NPT", haystack);
+    if (hasAnyCodeTerm(haystack, "tarih vakfindan haberler", "haberler bulteni")) return activityChoice("TVH", haystack);
+    if (hasAnyCodeTerm(haystack, "deniz senligi bulteni")) return activityChoice("DŞE", haystack);
+    if (hasAnyCodeTerm(haystack, "yerel tarih bulteni")) return activityChoice("YTB", haystack);
+    if (hasAnyCodeTerm(haystack, "tarihce gencler", "tarihce")) return activityChoice("TÇE", haystack);
+    if (hasAnyCodeTerm(haystack, "bulten")) return activityChoice("BÜL", haystack);
+    if (hasAnyCodeTerm(haystack, "yurt yayinlari", "yurt yayin")) return activityChoice("YYA", haystack);
+    if (hasAnyCodeTerm(haystack, "vakif yayinlari", "tarih vakfi yayinlari")) return activityChoice("TVY", haystack);
+    if (hasAnyCodeTerm(haystack, "ansiklopedi")) return activityChoice("ANS", haystack);
+    if (hasAnyCodeTerm(haystack, "brosur")) return activityChoice("BRO", haystack);
+    if (hasAnyCodeTerm(haystack, "belgesel")) return activityChoice("BEL", haystack);
+    if (hasAnyCodeTerm(haystack, "dergi")) return activityChoice("DER", haystack);
+    return fallbackActivity("publication", haystack, fallbackNote);
+  }
+
+  if (hasAnyCodeTerm(haystack, "arsiv")) return activityChoice("ARB", haystack);
+  if (hasAnyCodeTerm(haystack, "kitap bagisi", "kitap bagis")) return activityChoice("KİB", haystack);
+  if (hasAnyCodeTerm(haystack, "bagis")) return fallbackActivity("bbm", haystack, fallbackNote);
+
+  if (hasAnyCodeTerm(haystack, "kurum tarihi", "p kurum")) return activityChoice("KUT", haystack);
+  if (hasAnyCodeTerm(haystack, "yerel tarih projesi", "yerel tarih")) return activityChoice("YER", haystack);
+  if (hasAnyCodeTerm(haystack, "kent muzesi", "kent tarihi", "kent bellegi")) return activityChoice("KNT", haystack);
+  if (hasAnyCodeTerm(haystack, "tarih egitimi", "ders kitabi", "ders kitaplari", "ogrenci")) return activityChoice("TEP", haystack);
+  if (hasAnyCodeTerm(haystack, "proje", "p diger", "arastirma")) return fallbackActivity("project", haystack, fallbackNote);
+
+  if (hasAnyCodeTerm(haystack, "ic toplanti")) return activityChoice("İÇ", haystack);
+  if (hasAnyCodeTerm(haystack, "genel kurul", "olagan genel kurul", "ic kongre")) return activityChoice("İKO", haystack);
+  if (hasAnyCodeTerm(haystack, "kongre")) return activityChoice("KGR", haystack);
+  if (hasAnyCodeTerm(haystack, "konferans", "konusma", "soylesi")) return activityChoice("KON", haystack);
+  if (hasAnyCodeTerm(haystack, "panel", "forum", "acik oturum")) return activityChoice("PAN", haystack);
+  if (hasAnyCodeTerm(haystack, "atolye", "calistay", "workshop")) return activityChoice("ATA", haystack);
+  if (hasAnyCodeTerm(haystack, "seminer", "kurs")) return activityChoice("SMN", haystack);
+  if (hasAnyCodeTerm(haystack, "sempozyum")) return activityChoice("SEM", haystack);
+  if (hasAnyCodeTerm(haystack, "sergi")) return activityChoice("SER", haystack);
+  if (hasAnyCodeTerm(haystack, "gezi")) return activityChoice("GEZ", haystack);
+  if (hasAnyCodeTerm(haystack, "festival", "senlik")) return activityChoice("FES", haystack);
+  if (hasAnyCodeTerm(haystack, "yarisma", "yaris", "odul")) {
+    return activityChoice("YAR", haystack, null, null, hasAnyCodeTerm(haystack, "odul") ? "needs_review" : "mapped");
+  }
+  if (hasAnyCodeTerm(haystack, "anma")) return activityChoice("ANM", haystack);
+  if (hasAnyCodeTerm(haystack, "konser")) return activityChoice("KNS", haystack);
+  if (hasAnyCodeTerm(haystack, "sinema", "film gosterimi")) return activityChoice("SİN", haystack);
+
+  if (itemKind === "organizational") return fallbackActivity("meeting", haystack, fallbackNote);
+  return fallbackActivity("event", haystack, fallbackNote);
 }
 
 function parseDateValue(value, displayValue, contextYear) {

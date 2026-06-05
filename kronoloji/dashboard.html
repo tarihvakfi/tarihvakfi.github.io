@@ -57,6 +57,10 @@
             <select id="dashboardStatus"></select>
           </label>
           <label>
+            Faaliyet kodu
+            <select id="dashboardCode"></select>
+          </label>
+          <label>
             Başlangıç yılı
             <input id="dashboardYearFrom" type="number" min="1900" max="2100">
           </label>
@@ -83,9 +87,9 @@
 
       <section class="section grid-2">
         <article class="chart-panel">
-          <div class="chart-title"><strong>En sık kategoriler</strong><span>İlk 16 kategori</span></div>
+          <div class="chart-title"><strong>En sık faaliyet kodları</strong><span>İlk 16 kod</span></div>
           <div id="dashboardCategoryChart"></div>
-          <p>Kategori standardizasyonu tamamlandıkça bu grafik daha açıklayıcı hale gelir.</p>
+          <p>Kaynak kategorileri korunur; bu grafik aynı kayıtları standart faaliyet kodlarıyla özetler.</p>
         </article>
         <article class="chart-panel">
           <div class="chart-title"><strong>Veri kalitesi</strong><span>Yayın öncesi kontrol</span></div>

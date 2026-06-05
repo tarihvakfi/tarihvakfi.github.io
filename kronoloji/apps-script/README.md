@@ -14,6 +14,8 @@ Current Drive .xlsx file
 ```
 
 The public site never reads the raw `.xlsx` directly.
+The endpoint also adds standardized `Faaliyet Kodları` fields to every public
+chronology record while preserving the original source category.
 
 ## One-Time Setup
 
