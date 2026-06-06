@@ -4,194 +4,95 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Görsel Özet | Tarih Vakfı Dijital Kronolojisi</title>
-  <meta name="description" content="Tarih Vakfı'nın 35 yıllık faaliyetlerinin görsel analizi — dönem karşılaştırması, kategori dağılımı, yıllık ritim ve veri kalitesi.">
+  <meta name="description" content="Tarih Vakfı'nın 35 yıllık faaliyetlerinin görsel analizi — dönem, kategori, yıllık ritim ve veri kalitesi.">
   <link rel="stylesheet" href="assets/css/style.css">
   <style>
-/* ── Design tokens supplement ────────────────────────── */
-:root {
-  --db-red:    #8a2f2f;
-  --db-slate:  #4d6475;
-  --db-olive:  #626b45;
-  --db-amber:  #a26f26;
-  --db-purple: #7b6b8f;
-  --db-muted:  #9d8e7e;
-}
+/* ── Dashboard-only additions ──────────────────────────── */
 
-/* ── Hero ── */
+/* Hero */
 .db-hero {
-  background: linear-gradient(135deg, #1a1410 0%, #2e1e14 55%, #3d2318 100%);
-  color: #f7f3ec;
-  padding: 48px 24px 44px;
-  position: relative;
-  overflow: hidden;
+  background: linear-gradient(135deg,#1a1410 0%,#2e1e14 55%,#3d2318 100%);
+  color: #f7f3ec; padding: 48px 20px 44px; position: relative; overflow: hidden;
 }
 .db-hero::before {
-  content: '';
-  position: absolute; inset: 0; pointer-events: none;
+  content:''; position:absolute; inset:0; pointer-events:none;
   background-image: repeating-linear-gradient(
-    -45deg,
-    rgba(255,255,255,0.018) 0px, rgba(255,255,255,0.018) 1px,
-    transparent 1px, transparent 14px
-  );
+    -45deg,rgba(255,255,255,.018) 0px,rgba(255,255,255,.018) 1px,
+    transparent 1px,transparent 14px);
 }
 .db-hero-inner {
-  max-width: 1200px; margin: 0 auto;
-  display: grid; grid-template-columns: 1fr auto;
-  gap: 32px; align-items: end; position: relative;
+  max-width:1220px; margin:0 auto; position:relative;
+  display:grid; grid-template-columns:1fr auto; gap:32px; align-items:end;
 }
 .db-hero .eyebrow {
-  color: #c9a87e; font-size: 11px; letter-spacing: .15em;
-  font-weight: 800; text-transform: uppercase;
-  margin: 0 0 14px; display: block;
+  color:#c9a87e; font-size:11px; letter-spacing:.15em;
+  font-weight:800; text-transform:uppercase; margin:0 0 14px; display:block;
 }
-.db-hero h1 {
-  color: #f7f3ec; margin: 0 0 12px;
-  font-size: clamp(28px, 4.5vw, 52px); line-height: 1.08;
-}
-.db-hero p { color: #c5b9ab; margin: 0; font-size: 16px; line-height: 1.65; max-width: 540px; }
-.db-hero-num { text-align: right; }
+.db-hero h1 { color:#f7f3ec; margin:0 0 12px; font-size:clamp(26px,4.5vw,50px); line-height:1.08; }
+.db-hero p  { color:#c5b9ab; margin:0; font-size:16px; line-height:1.65; max-width:540px; }
+.db-hero-num { text-align:right; }
 .db-hero-num strong {
-  display: block; font-family: Georgia, serif;
-  font-size: clamp(44px, 6vw, 68px); color: #c9a87e; line-height: 1;
+  display:block; font-family:Georgia,serif;
+  font-size:clamp(40px,6vw,68px); color:#c9a87e; line-height:1;
 }
-.db-hero-num span { font-size: 13px; color: #9d8e7e; margin-top: 4px; display: block; }
+.db-hero-num span { font-size:13px; color:#9d8e7e; margin-top:4px; display:block; }
 
-/* ── KPI metrics strip ── */
-.db-metrics-strip { background: var(--paper, #faf8f4); border-bottom: 1px solid var(--line, #e4ddd5); }
+/* Panel card */
+.db-panel { background:var(--paper-strong); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; }
+.db-panel-head {
+  padding:16px 20px 12px; border-bottom:1px solid var(--line);
+  display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;
+}
+.db-panel-head strong { font-family:Georgia,serif; font-size:18px; display:block; margin-bottom:3px; }
+.db-panel-head p { margin:0; font-size:13px; color:var(--muted); line-height:1.5; }
+.db-panel-body { padding:20px; overflow-x:auto; }
+.db-panel-foot { padding:10px 20px 14px; font-size:12px; color:var(--muted); border-top:1px solid var(--line); }
+
+/* Legend pills */
+.db-legend { display:flex; flex-wrap:wrap; gap:10px; font-size:12px; color:var(--muted); align-items:center; }
+.db-legend-item { display:flex; align-items:center; gap:5px; }
+.db-legend-dot { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+
+/* 2-column grid for panels */
+.db-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+
+/* Chart SVGs from site.js */
+.db-panel-body [id$="Chart"] svg { max-width:100%; height:auto; }
+
+/* Metrics strip — use existing .metric class from style.css */
+.db-metrics-strip { background:var(--paper); border-bottom:1px solid var(--line); }
 .db-metrics-strip #dashboardMetrics {
-  max-width: 1200px; margin: 0 auto;
-  display: grid; grid-template-columns: repeat(6, 1fr);
+  max-width:1220px; margin:0 auto;
+  display:grid; grid-template-columns:repeat(6,1fr);
 }
 .db-metrics-strip .metric {
-  padding: 18px 20px; border-right: 1px solid var(--line, #e4ddd5);
-  display: flex; flex-direction: column; gap: 4px;
+  border-radius:0; border:none;
+  border-right:1px solid var(--line); padding:16px 18px;
 }
-.db-metrics-strip .metric:last-child { border-right: none; }
-.db-metrics-strip .metric strong {
-  font-family: Georgia, serif; font-size: 28px; font-weight: 700;
-  color: var(--db-red); line-height: 1;
-}
-.db-metrics-strip .metric span { font-size: 12px; color: var(--db-muted); }
+.db-metrics-strip .metric:last-child { border-right:none; }
 
-/* ── Layout body ── */
-.db-body { max-width: 1200px; margin: 0 auto; padding: 28px 24px 72px; display: grid; gap: 20px; }
-
-/* ── Filter bar ── */
-.db-filter-bar {
-  background: var(--paper-strong, #f5f1eb);
-  border: 1px solid var(--line, #e4ddd5);
-  border-radius: 10px; padding: 16px 20px;
-  display: grid;
-  grid-template-columns: minmax(180px, 1.6fr) repeat(4, 1fr) 80px 80px auto;
-  gap: 12px; align-items: end;
-}
-.db-filter-bar label {
-  display: grid; gap: 5px;
-  font-size: 10px; font-weight: 800; text-transform: uppercase;
-  letter-spacing: .08em; color: var(--db-muted);
-}
-.db-filter-bar input,
-.db-filter-bar select {
-  border: 1px solid var(--line, #e4ddd5); border-radius: 6px;
-  padding: 8px 10px; background: white; color: var(--ink, #2c2217);
-  width: 100%; font-size: 13px;
-}
+/* Filter result count */
 .db-filter-count {
-  padding-top: 18px; font-size: 13px; color: var(--db-muted);
-  white-space: nowrap;
+  display:flex; align-items:center; gap:6px;
+  font-size:13px; color:var(--muted); padding-top:2px;
+  white-space:nowrap;
 }
-.db-filter-count strong { color: var(--ink, #2c2217); font-size: 17px; font-family: Georgia, serif; }
+.db-filter-count strong { font-family:Georgia,serif; font-size:18px; color:var(--ink); }
 
-/* ── Panel card ── */
-.db-panel {
-  background: var(--paper-strong, #f5f1eb);
-  border: 1px solid var(--line, #e4ddd5);
-  border-radius: 10px; overflow: hidden;
-}
-.db-panel-head {
-  padding: 18px 22px 14px; border-bottom: 1px solid var(--line, #e4ddd5);
-  display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
-}
-.db-panel-head-left strong {
-  font-family: Georgia, serif; font-size: 19px; display: block; margin-bottom: 3px;
-}
-.db-panel-head-left p { margin: 0; font-size: 13px; color: var(--db-muted); line-height: 1.5; }
-.db-panel-body { padding: 20px 22px; }
-.db-panel-foot {
-  padding: 10px 22px 14px; font-size: 12px; color: var(--db-muted);
-  border-top: 1px solid var(--line, #e4ddd5);
-}
+/* Table inside dashboard */
+#dashboardTable table { min-width: unset; }
 
-/* ── Chart label pill ── */
-.chart-legend {
-  display: flex; flex-wrap: wrap; gap: 10px;
-  font-size: 12px; color: var(--db-muted); align-items: center;
+/* Responsive adjustments */
+@media (max-width:960px) {
+  .db-grid-2 { grid-template-columns:1fr; }
+  .db-metrics-strip #dashboardMetrics { grid-template-columns:repeat(3,1fr); }
 }
-.chart-legend-item {
-  display: flex; align-items: center; gap: 5px;
-}
-.chart-legend-dot {
-  width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0;
-}
-
-/* ── 2-column grid ── */
-.db-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-
-/* ── Chart containers — let site.js SVGs breathe ── */
-.db-panel-body [id$="Chart"] { overflow-x: auto; }
-.db-panel-body [id$="Chart"] svg {
-  max-width: 100%; height: auto; display: block;
-  border-radius: 4px;
-}
-
-/* ── Dashboard table ── */
-#dashboardTable table { width: 100%; border-collapse: collapse; font-size: 13px; }
-#dashboardTable th {
-  text-align: left; padding: 9px 12px;
-  border-bottom: 2px solid var(--line, #e4ddd5);
-  font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
-  color: var(--db-muted); font-weight: 700;
-}
-#dashboardTable td { padding: 9px 12px; border-bottom: 1px solid var(--line, #e4ddd5); vertical-align: top; }
-#dashboardTable tbody tr:hover td { background: rgba(138,47,47,.04); }
-#dashboardTable a { color: var(--db-red); font-weight: 600; text-decoration: none; }
-#dashboardTable a:hover { text-decoration: underline; }
-
-/* ── Pagination ── */
-#dashboardPagination {
-  display: flex; gap: 6px; justify-content: center;
-  margin-top: 16px; flex-wrap: wrap;
-}
-#dashboardPagination button {
-  border: 1px solid var(--line, #e4ddd5); border-radius: 6px;
-  background: none; padding: 5px 12px; cursor: pointer;
-  font-size: 13px; color: var(--db-muted); transition: all .12s;
-}
-#dashboardPagination button:hover,
-#dashboardPagination button[aria-current="page"],
-#dashboardPagination .page-current {
-  background: rgba(138,47,47,.1); color: var(--db-red);
-  border-color: rgba(138,47,47,.25);
-}
-
-/* ── Loading state ── */
-.db-loading { text-align: center; padding: 40px; color: var(--db-muted); font-size: 14px; }
-
-/* ── Responsive ── */
-@media (max-width: 1024px) {
-  .db-filter-bar { grid-template-columns: 1fr 1fr 1fr; }
-  .db-metrics-strip #dashboardMetrics { grid-template-columns: repeat(3, 1fr); }
-}
-@media (max-width: 768px) {
-  .db-hero-inner { grid-template-columns: 1fr; }
-  .db-hero-num { text-align: left; }
-  .db-grid-2 { grid-template-columns: 1fr; }
-  .db-filter-bar { grid-template-columns: 1fr 1fr; }
-  .db-metrics-strip #dashboardMetrics { grid-template-columns: 1fr 1fr 1fr; }
-}
-@media (max-width: 480px) {
-  .db-filter-bar { grid-template-columns: 1fr; }
-  .db-metrics-strip #dashboardMetrics { grid-template-columns: 1fr 1fr; }
+@media (max-width:680px) {
+  .db-hero-inner { grid-template-columns:1fr; }
+  .db-hero-num { text-align:left; }
+  .db-metrics-strip #dashboardMetrics { grid-template-columns:repeat(2,1fr); }
+  .db-metrics-strip .metric { border-right:1px solid var(--line) !important; }
+  .db-metrics-strip .metric:nth-child(even) { border-right:none !important; }
 }
   </style>
 </head>
@@ -204,6 +105,17 @@
         <span class="brand-mark">TV</span>
         Tarih Vakfı Dijital Kronolojisi
       </a>
+      <!-- hamburger for mobile -->
+      <button class="nav-toggle" aria-label="Menüyü aç/kapat" aria-expanded="false"
+              onclick="this.setAttribute('aria-expanded',
+                this.getAttribute('aria-expanded')==='true'?'false':'true');
+                document.querySelector('.nav-links').classList.toggle('open')">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="6"  x2="19" y2="6"/>
+          <line x1="3" y1="11" x2="19" y2="11"/>
+          <line x1="3" y1="16" x2="19" y2="16"/>
+        </svg>
+      </button>
       <div class="nav-links">
         <a href="timeline.html">Kronoloji</a>
         <a href="archive.html">Arşiv</a>
@@ -224,12 +136,12 @@
       </div>
       <div class="db-hero-num">
         <strong id="dbHeroTotal">—</strong>
-        <span>kayıt · filtre uygulandı</span>
+        <span>kayıt seçili</span>
       </div>
     </div>
   </div>
 
-  <!-- ── KPI metrics strip ── -->
+  <!-- ── KPI strip: site.js fills #dashboardMetrics ── -->
   <div class="db-metrics-strip">
     <div id="dashboardMetrics" aria-label="Özet istatistikler">
       <div class="metric"><strong>—</strong><span>Yükleniyor…</span></div>
@@ -237,149 +149,154 @@
   </div>
 
   <!-- ── Body ── -->
-  <div class="db-body">
+  <div class="page-shell" style="padding-top:24px;">
 
-    <!-- ── Filters ── -->
-    <div class="db-filter-bar" role="search" aria-label="Kayıt filtreleri">
-      <label>Arama
+    <!-- Filters — uses the shared .filters class from style.css -->
+    <div class="filters" role="search" aria-label="Kayıt filtreleri">
+      <label>
+        <span>Arama</span>
         <input id="dashboardSearch" type="search" placeholder="Başlık, kategori, yıl…" autocomplete="off">
       </label>
-      <label>Tür
+      <label>
+        <span>Tür</span>
         <select id="dashboardKind"></select>
       </label>
-      <label>Dönem
+      <label>
+        <span>Dönem</span>
         <select id="dashboardPeriod"></select>
       </label>
-      <label>Durum
+      <label>
+        <span>Durum</span>
         <select id="dashboardStatus"></select>
       </label>
-      <label>Faaliyet kodu
+      <label>
+        <span>Faaliyet kodu</span>
         <select id="dashboardCode"></select>
       </label>
-      <label>Başlangıç
+      <label>
+        <span>Başlangıç yılı</span>
         <input id="dashboardYearFrom" type="number" min="1990" max="2026">
       </label>
-      <label>Bitiş
-        <input id="dashboardYearTo"   type="number" min="1990" max="2026">
+      <label>
+        <span>Bitiş yılı</span>
+        <input id="dashboardYearTo" type="number" min="1990" max="2026">
       </label>
-      <div class="db-filter-count">
-        <strong id="dbHeroCount">—</strong><br>kayıt seçili
-      </div>
     </div>
 
-    <!-- dashboardCount: hidden relay for site.js setText() -->
+    <!-- Result count (site.js target + visible display) -->
     <p id="dashboardCount" style="display:none"></p>
+    <div class="result-note" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <span class="db-filter-count">
+        <strong id="dbHeroCount">—</strong> kayıt · filtre uygulandı
+      </span>
+      <a href="archive.html" class="button ghost" style="font-size:13px;padding:8px 18px;">Arşiv görünümü →</a>
+    </div>
 
-    <!-- ── Panel 1: Year chart (full width) ── -->
-    <div class="db-panel">
+    <!-- ── Panel 1: Year chart ── -->
+    <div class="db-panel section" style="margin-top:16px;">
       <div class="db-panel-head">
-        <div class="db-panel-head-left">
+        <div>
           <strong>Yıllık Faaliyet Ritmi — 1991–2026</strong>
-          <p>Her sütun bir yılı gösterir; renk katmanları etkinlik · yayın · örgütsel iş oranını temsil eder.</p>
+          <p>Her sütun bir yılı gösterir; renkler etkinlik · yayın · örgütsel iş oranını temsil eder.</p>
         </div>
-        <div class="chart-legend">
-          <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#4d6475"></span>Etkinlik</span>
-          <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#8a2f2f"></span>Yayın</span>
-          <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#626b45"></span>Örgütsel iş</span>
+        <div class="db-legend">
+          <span class="db-legend-item"><span class="db-legend-dot" style="background:#4d6475"></span>Etkinlik</span>
+          <span class="db-legend-item"><span class="db-legend-dot" style="background:#8a2f2f"></span>Yayın</span>
+          <span class="db-legend-item"><span class="db-legend-dot" style="background:#626b45"></span>Örgütsel</span>
         </div>
       </div>
       <div class="db-panel-body">
-        <div id="dashboardYearChart" class="db-loading">Veri yükleniyor…</div>
+        <div id="dashboardYearChart" class="loading">Veri yükleniyor…</div>
       </div>
-      <div class="db-panel-foot">Sütuna tıklayarak o yılı filtreleyin. Yıl etiketi her 3 yılda bir gösterilir.</div>
+      <div class="db-panel-foot">Seçili filtrelere göre güncellenir.</div>
     </div>
 
-    <!-- ── Row 2: Period + Category side by side ── -->
-    <div class="db-grid-2">
+    <!-- ── Row 2: Period + Quality side by side ── -->
+    <div class="db-grid-2 section">
 
-      <!-- Period chart -->
       <div class="db-panel">
         <div class="db-panel-head">
-          <div class="db-panel-head-left">
+          <div>
             <strong>Dönem Karşılaştırması</strong>
             <p>7 dönem · faaliyet grubu katmanları</p>
           </div>
-          <div class="chart-legend">
-            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#4d6475"></span>Toplantılar</span>
-            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#8a2f2f"></span>Yayınlar</span>
-            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#a26f26"></span>Etkinlikler</span>
-            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#626b45"></span>Projeler</span>
+          <div class="db-legend">
+            <span class="db-legend-item"><span class="db-legend-dot" style="background:#4d6475"></span>Toplantılar</span>
+            <span class="db-legend-item"><span class="db-legend-dot" style="background:#8a2f2f"></span>Yayınlar</span>
+            <span class="db-legend-item"><span class="db-legend-dot" style="background:#a26f26"></span>Etkinlikler</span>
           </div>
         </div>
         <div class="db-panel-body">
-          <div id="dashboardPeriodChart" class="db-loading">Veri yükleniyor…</div>
+          <div id="dashboardPeriodChart" class="loading">Veri yükleniyor…</div>
         </div>
-        <div class="db-panel-foot">Dönem adına tıklayarak filtreye ekleyin.</div>
+        <div class="db-panel-foot">7 dönemin etkinlik / yayın / proje dağılımı.</div>
       </div>
 
-      <!-- Quality chart -->
       <div class="db-panel">
         <div class="db-panel-head">
-          <div class="db-panel-head-left">
-            <strong>Veri Kalitesi Dağılımı</strong>
-            <p>Doğrulama durumu · yayın öncesi kontrol için</p>
+          <div>
+            <strong>Veri Kalitesi</strong>
+            <p>Doğrulama durumu · yayın öncesi kontrol</p>
           </div>
-          <div class="chart-legend">
-            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#4f7b5b"></span>Doğrulanmış</span>
-            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#a26f26"></span>İnceleme</span>
-            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#b56a5e"></span>Tarih belirsiz</span>
+          <div class="db-legend">
+            <span class="db-legend-item"><span class="db-legend-dot" style="background:#4f7b5b"></span>Doğrulanmış</span>
+            <span class="db-legend-item"><span class="db-legend-dot" style="background:#a26f26"></span>İnceleme</span>
+            <span class="db-legend-item"><span class="db-legend-dot" style="background:#b56a5e"></span>Tarih belirsiz</span>
           </div>
         </div>
         <div class="db-panel-body">
-          <div id="dashboardQualityChart" class="db-loading">Veri yükleniyor…</div>
+          <div id="dashboardQualityChart" class="loading">Veri yükleniyor…</div>
         </div>
-        <div class="db-panel-foot">Yeşil = doğrulanmış · Sarı = inceleme bekliyor · Turuncu = tarih belirsiz</div>
+        <div class="db-panel-foot">Tüm durum gruplarının oransal dağılımı.</div>
       </div>
 
     </div>
 
-    <!-- ── Panel 3: Category chart (full width) ── -->
-    <div class="db-panel">
+    <!-- ── Panel 3: Category chart ── -->
+    <div class="db-panel section">
       <div class="db-panel-head">
-        <div class="db-panel-head-left">
-          <strong>Faaliyet Kategorisi Dağılımı</strong>
+        <div>
+          <strong>Faaliyet Kodu Dağılımı</strong>
           <p>En sık 16 faaliyet kodu — seçili filtrelere göre güncellenir</p>
         </div>
-        <div class="chart-legend">
-          <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#4d6475"></span>Toplantılar</span>
-          <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#8a2f2f"></span>Yayınlar</span>
-          <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#a26f26"></span>Etkinlikler</span>
-          <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#626b45"></span>Projeler</span>
-          <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#7b7169"></span>BBM</span>
+        <div class="db-legend">
+          <span class="db-legend-item"><span class="db-legend-dot" style="background:#4d6475"></span>Toplantılar</span>
+          <span class="db-legend-item"><span class="db-legend-dot" style="background:#8a2f2f"></span>Yayınlar</span>
+          <span class="db-legend-item"><span class="db-legend-dot" style="background:#a26f26"></span>Etkinlikler</span>
+          <span class="db-legend-item"><span class="db-legend-dot" style="background:#626b45"></span>Projeler</span>
+          <span class="db-legend-item"><span class="db-legend-dot" style="background:#7b7169"></span>BBM</span>
         </div>
       </div>
-      <div class="db-panel-body" style="overflow-x: auto;">
-        <div id="dashboardCategoryChart" class="db-loading">Veri yükleniyor…</div>
+      <div class="db-panel-body">
+        <div id="dashboardCategoryChart" class="loading">Veri yükleniyor…</div>
       </div>
-      <div class="db-panel-foot">Her çubuk bir faaliyet kodunu gösterir. Kod renklerle gruba göre sınıflandırılmıştır.</div>
+      <div class="db-panel-foot">Renk: faaliyet grubu. Uzunluk: kayıt sayısı.</div>
     </div>
 
-    <!-- ── Panel 4: Filtered records table ── -->
-    <div class="db-panel">
+    <!-- ── Panel 4: Records table ── -->
+    <div class="db-panel section">
       <div class="db-panel-head">
-        <div class="db-panel-head-left">
+        <div>
           <strong>Filtrelenmiş Kayıtlar</strong>
-          <p>Aktif filtrelere uyan kayıtlar — başlığa tıklayarak tekil kayıt sayfasını açın</p>
+          <p>Aktif filtrelere uyan kayıtlar — başlığa tıklayarak tekil sayfayı açın</p>
         </div>
-        <a href="archive.html" class="button" style="font-size:13px;padding:8px 16px;white-space:nowrap;">
+        <a href="archive.html" class="button secondary" style="font-size:13px;padding:8px 18px;white-space:nowrap;">
           Arşiv görünümü →
         </a>
       </div>
-      <div class="db-panel-body" style="padding: 0 0 4px;">
-        <div id="dashboardTable" class="db-loading" style="padding: 20px 22px;">
-          Veri yükleniyor…
-        </div>
+      <div class="db-panel-body" style="padding:0;">
+        <div id="dashboardTable" class="loading" style="padding:20px;">Veri yükleniyor…</div>
       </div>
       <div class="db-panel-foot">
         <div id="dashboardPagination"></div>
       </div>
     </div>
 
-  </div><!-- /.db-body -->
+  </div><!-- /.page-shell -->
 
   <footer class="footer">
     <div class="footer-inner">
-      <span>Tüm görseller seçili filtrelere göre anlık olarak güncellenir. Veri kaynağı: <code>chronology_public.json</code></span>
+      <span>Tüm görseller seçili filtrelere göre anlık güncellenir. Veri: <code>chronology_public.json</code></span>
       <a href="archive.html">Arşivde ara</a>
     </div>
   </footer>
@@ -387,26 +304,23 @@
   <script src="assets/js/config.js"></script>
   <script src="assets/js/site.js"></script>
   <script>
-  // ── Sync hero counter with site.js dashboardCount setText ──────────
-  // site.js calls setText('dashboardCount', '… N kayıt seçili …')
-  // We observe that element and mirror the number to our hero display.
+  /* Mirror dashboardCount → hero numbers */
   (function () {
-    const syncHero = () => {
+    function sync() {
       const el = document.getElementById('dashboardCount');
       if (!el) return;
-      const m = el.textContent.match(/[\d.,\s]+/);
-      if (m) {
-        const n = m[0].trim();
-        const heroCount = document.getElementById('dbHeroCount');
-        const heroTotal = document.getElementById('dbHeroTotal');
-        if (heroCount) heroCount.textContent = n;
-        if (heroTotal) heroTotal.textContent = n;
-      }
-    };
-    const obs = new MutationObserver(syncHero);
-    document.addEventListener('DOMContentLoaded', () => {
+      const m = el.textContent.match(/[\d.]+(?:[.,]\d+)*/);
+      if (!m) return;
+      const n = m[0];
+      const a = document.getElementById('dbHeroCount');
+      const b = document.getElementById('dbHeroTotal');
+      if (a) a.textContent = n;
+      if (b) b.textContent = n;
+    }
+    const obs = new MutationObserver(sync);
+    document.addEventListener('DOMContentLoaded', function () {
       const el = document.getElementById('dashboardCount');
-      if (el) obs.observe(el, { childList: true, subtree: true, characterData: true });
+      if (el) obs.observe(el, { childList:true, subtree:true, characterData:true });
     });
   })();
   </script>
