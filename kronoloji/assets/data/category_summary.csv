@@ -1,183 +1,31 @@
-﻿category,count,item_kind,verification_status
-(missing),35,event,uncertain_category
-*****,1,event,uncertain_date
-1,1,event,uncertain_date
-15. YIL KUTLAMASI,1,event,verified
-? ***,1,event,uncertain_date
-??????,1,event,needs_review
-Anket,1,event,verified
-Anma,1,event,verified
-Ansiklopedi,1,event,uncertain_date
-Araştırma,1,event,uncertain_date
-Araştırma,3,event,verified
-Arşiv,6,event,verified
-Atölye,2,event,uncertain_date
-Atölye,45,event,verified
-Atölye ÖĞR.,3,event,verified
-Basın,6,event,verified
-Basın Açıklaması,2,event,verified
-Basın Toplantıları,4,event,verified
-Basın Toplantısı,4,event,verified
-Belgesel,3,event,uncertain_date
-Belgesel,4,event,verified
-Broşür,1,event,uncertain_date
-CD,1,event,verified
-Dans,2,event,verified
-Diğer,1,event,verified
-Festival,1,event,verified
-Fuar,25,event,verified
-Gezi,30,event,verified
-Gösteri,6,event,verified
-Katalog,1,event,verified
-Kokteyl,1,event,verified
-Konferans,3,event,needs_review
-Konferans,8,event,uncertain_date
-Konferans,345,event,verified
-Konferans AKL,24,event,verified
-Konferans Ada,24,event,verified
-Konferans Bilim,2,event,verified
-Konferans Minerva,11,event,verified
-Konferans Perşembe,16,event,verified
-Konferans Sinema,12,event,verified
-Konferans Sos Bil,4,event,verified
-Konferans Öğrenci,2,event,verified
-Konfrens,1,event,verified
-Kongre,9,event,verified
-Konser,1,event,needs_review
-Konser,12,event,verified
-Konser Online,7,event,verified
-Kurs,3,event,needs_review
-Kurs,4,event,uncertain_date
-Kurs,23,event,verified
-P_,1,event,verified
-P_Diğer,9,event,uncertain_date
-P_Diğer,22,event,verified
-P_Kurum Arşivi,1,event,verified
-P_Kurum Tarihi,6,event,uncertain_date
-P_Kurum Tarihi,23,event,verified
-P_Sözlü Tarih,1,event,verified
-Panel,2,event,needs_review
-Panel,1,event,uncertain_date
-Panel,38,event,verified
-Panel Cum100,9,event,verified
-Panel Minerva,10,event,verified
-Panel Online,4,event,verified
-Performans,1,event,verified
-Proje,9,event,uncertain_date
-Proje,22,event,verified
-Seminer,2,event,uncertain_date
-Seminer,53,event,verified
-Seminer Online,5,event,verified
-Sempozyum,1,event,uncertain_date
-Sempozyum,54,event,verified
-Sergi,2,event,uncertain_date
-Sergi,68,event,verified
-Sinema,1,event,verified
-T-Diğer,1,event,verified
-TT,1,event,verified
-T_Diğer,3,event,uncertain_date
-T_Diğer,51,event,verified
-Tiyatro,1,event,verified
-Vakıf Yayınları,1,event,verified
-Web,4,event,verified
-Yarış,3,event,uncertain_date
-Yarış,2,event,verified
-Yarışma,2,event,uncertain_date
-Yarışma,6,event,verified
-anma ??,1,event,needs_review
-atölye ******,1,event,verified
-atölye pro,1,event,uncertain_date
-basın TVyay,1,event,uncertain_date
-dans,1,event,verified
-kardeş kuruluş,1,event,verified
-kon ******,3,event,verified
-kon ?,2,event,verified
-kon ????,1,event,needs_review
-kon ada ****,1,event,verified
-konferans /kongre,1,event,verified
-konferans /kongre ???,1,event,needs_review
-panel ****,2,event,verified
-panel *****,1,event,verified
-seminerzümrüdüankanın peşinde: baharatın tarihte,1,event,verified
-sergi,1,event,uncertain_date
-sinema özel göst,1,event,verified
-tar3,1,event,verified
-tarih dostu xxxx,1,event,needs_review
-tartışmaları,1,event,verified
-Çağdaşkart,1,event,verified
-Çeşitli Etkinlik,1,event,verified
-Ödül,2,event,verified
-Ödül Töreni,3,event,verified
-Ödül Töreni ?,1,event,verified
-İç Toplantı,1,event,uncertain_date
-İç Toplantı,28,event,verified
-Şenlik,3,event,verified
-(missing),25,organizational,uncertain_category
-1,1,organizational,uncertain_date
-Arşiv,2,organizational,uncertain_date
-Arşiv,15,organizational,verified
-Basın,1,organizational,verified
-Basın Açıklaması,1,organizational,verified
-Bağış,2,organizational,uncertain_date
-Bağış,1,organizational,verified
-Genel Kurul,5,organizational,verified
-Proje,1,organizational,needs_review
-Proje,2,organizational,uncertain_date
-T_Diğer,1,organizational,uncertain_date
-T_Diğer,2,organizational,verified
-Vakıf Yayınları,1,organizational,verified
-genel ?,1,organizational,verified
-genel kurul,6,organizational,verified
-kardeş kuruluş,1,organizational,verified
-yemek ???,1,organizational,needs_review
-İç Toplantı,8,organizational,uncertain_date
-İç Toplantı,9,organizational,verified
-İç Toplantısı,1,organizational,verified
-(missing),26,publication,uncertain_category
-???????,1,publication,needs_review
-Ansiklopedi,1,publication,uncertain_date
-Ansiklopedi,3,publication,verified
-Araştırma,1,publication,uncertain_date
-Basın Toplantısı,2,publication,verified
-Broşür,1,publication,uncertain_date
-Bülten,2,publication,uncertain_date
-Bülten,10,publication,verified
-CD,1,publication,verified
-D_ Toplumsal Tarih,1,publication,verified
-D_ İstanbul Dergisi,3,publication,verified
-D_NPT,20,publication,needs_review
-D_Toplumsal Tarih,7,publication,needs_review
-D_Toplumsal Tarih,43,publication,uncertain_date
-D_Toplumsal Tarih,223,publication,verified
-D_Toplumsal Tarihi,2,publication,uncertain_date
-D_Toplumsal Tarihi,2,publication,verified
-D_Yerel Tarih,5,publication,verified
-D_İstanbul Dergisi,2,publication,needs_review
-D_İstanbul Dergisi,8,publication,uncertain_date
-D_İstanbul Dergisi,42,publication,verified
-Konferans,1,publication,verified
-P_Diğer,1,publication,verified
-T_Diğer,1,publication,verified
-Vakıf Yayınları,11,publication,uncertain_date
-Vakıf Yayınları,125,publication,verified
-Vakıf Yayınları ?,3,publication,verified
-Yurt Yayınları,60,publication,uncertain_date
-Yurt Yayınları,108,publication,verified
-arşiv,1,publication,verified
-basın tekrar??,1,publication,needs_review
-cap4,1,publication,verified
-hay4,1,publication,uncertain_date
-imk4,1,publication,uncertain_date
-kit 100,10,publication,uncertain_date
-kit arşiv ?,1,publication,uncertain_date
-kit pro,1,publication,uncertain_date
-kiy,1,publication,uncertain_date
-müc4,1,publication,uncertain_date
-osm4,1,publication,verified
-resmi top,1,publication,verified
-ve 4,1,publication,uncertain_date
-çift******* olarak kaydedilmiş ancak diğerinin nerede olduğunu bulamadım.,1,publication,verified
-İstanbul Dergisi,1,publication,uncertain_date
-İstanbul Dergisi,1,publication,verified
-İç,1,publication,verified
-– m4,1,publication,uncertain_date
+category,count
+Konferans/Söyleşi,461
+Dergi (Toplumsal Tarih),279
+Yayın (Yurt Yayınları),168
+Yayın (Vakıf),140
+Sergi,71
+Panel,67
+Diğer Etkinlik,61
+Seminer,61
+Sempozyum,55
+D_İstanbul Dergisi,52
+Atölye,52
+Proje,32
+Proje (Diğer),32
+İç Toplantı,31
+Gezi,30
+Kurs/Seminer,30
+Proje (Kurum Tarihi),29
+Fuar,25
+Konser,20
+Dergi (NPT),20
+Yarışma,13
+Bülten,12
+Basın Açıklaması,10
+Basın Toplantısı,10
+kit  100,10
+Kongre,9
+Arşiv Bağışı,7
+Belgesel,7
+Gösteri,6
+Anket/Araştırma,6
