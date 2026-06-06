@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Arşiv | Tarih Vakfı Dijital Kronolojisi</title>
     <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="preload" href="assets/data/chronology_public.json" as="fetch">
+    <link rel="preload" href="assets/data/site_content.json" as="fetch">
   </head>
   <body data-page="archive">
     <header class="site-header">
@@ -22,39 +24,39 @@
 
     <main class="page-shell">
       <section class="section">
-        <p class="eyebrow">Araştırma arayüzü</p>
-        <h1>Arşivde Ara</h1>
-        <p class="lead">Tam metin arama, dönem, tür, kategori ve doğrulama durumu ile bütün kamu kronolojisi taranabilir.</p>
+        <p class="eyebrow" data-content="archive.hero.eyebrow">Araştırma arayüzü</p>
+        <h1 data-content="archive.hero.title">Arşivde Ara</h1>
+        <p class="lead" data-content="archive.hero.lead">Tam metin arama, dönem, tür, kategori ve doğrulama durumu ile bütün kamu kronolojisi taranabilir.</p>
       </section>
 
       <section class="section">
         <form class="filters" aria-label="Arşiv filtreleri">
           <label>
-            Arama
-            <input id="archiveSearch" type="search" placeholder="Örn. Toplumsal Tarih, seminer, İstanbul">
+            <span data-content="filters.search">Arama</span>
+            <input id="archiveSearch" type="search" placeholder="Örn. Toplumsal Tarih, seminer, İstanbul" data-content-placeholder="archive.search.placeholder">
           </label>
           <label>
-            Tür
+            <span data-content="filters.kind">Tür</span>
             <select id="archiveKind"></select>
           </label>
           <label>
-            Dönem
+            <span data-content="filters.period">Dönem</span>
             <select id="archivePeriod"></select>
           </label>
           <label>
-            Durum
+            <span data-content="filters.status">Durum</span>
             <select id="archiveStatus"></select>
           </label>
           <label>
-            Faaliyet kodu
+            <span data-content="filters.activity_code">Faaliyet kodu</span>
             <select id="archiveCode"></select>
           </label>
           <label>
-            Başlangıç yılı
+            <span data-content="filters.year_from">Başlangıç yılı</span>
             <input id="archiveYearFrom" type="number" min="1900" max="2100">
           </label>
           <label>
-            Bitiş yılı
+            <span data-content="filters.year_to">Bitiş yılı</span>
             <input id="archiveYearTo" type="number" min="1900" max="2100">
           </label>
         </form>
@@ -62,17 +64,17 @@
           <p class="result-note" id="archiveCount">Veri yükleniyor.</p>
           <div class="hero-actions">
             <label>
-              Sıralama
+              <span data-content="archive.sort.label">Sıralama</span>
               <select id="archiveSort">
-                <option value="chronological">Kronolojik</option>
-                <option value="reverse">Yeni tarih önce</option>
-                <option value="category">Kategori</option>
-                <option value="period">Dönem</option>
+                <option value="chronological" data-content="archive.sort.chronological">Kronolojik</option>
+                <option value="reverse" data-content="archive.sort.reverse">Yeni tarih önce</option>
+                <option value="category" data-content="archive.sort.category">Kategori</option>
+                <option value="period" data-content="archive.sort.period">Dönem</option>
               </select>
             </label>
             <div class="segmented" aria-label="Görünüm">
-              <button class="active" type="button" data-archive-view="cards">Kart</button>
-              <button type="button" data-archive-view="table">Tablo</button>
+              <button class="active" type="button" data-archive-view="cards" data-content="archive.view.cards">Kart</button>
+              <button type="button" data-archive-view="table" data-content="archive.view.table">Tablo</button>
             </div>
           </div>
         </div>
@@ -85,8 +87,8 @@
 
     <footer class="footer">
       <div class="footer-inner">
-        <span>Atıf biçimi: Tarih Vakfı Dijital Kronolojisi, kayıt ID, erişim tarihi.</span>
-        <a href="data.html">Veriyi indir</a>
+        <span data-content="archive.footer.note">Atıf biçimi: Tarih Vakfı Dijital Kronolojisi, kayıt ID, erişim tarihi.</span>
+        <a href="data.html" data-content="archive.footer.link">Veriyi indir</a>
       </div>
     </footer>
 

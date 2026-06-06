@@ -13,6 +13,7 @@
  */
 
 const SOURCE_SPREADSHEET_ID = "1_UxaP20_KQjjhBhOKY-UBX2DdnkMMelAQh7dIPcCUFs";
+const SITE_CONTENT_SHEET_NAME = "Site Metinleri";
 
 const ITEM_COLUMNS = {
   organizational: { text: 1, category: 3, count: 4 },
@@ -110,9 +111,11 @@ function doGet(event) {
       });
     }
     const records = normalizeChronology();
+    const content = readSiteContent();
     return jsonResponse({
       generatedAt: new Date().toISOString(),
       recordCount: records.length,
+      content,
       records,
     });
   } catch (error) {
@@ -196,6 +199,22 @@ function normalizeChronology() {
     }
   });
   return records;
+}
+
+function readSiteContent() {
+  if (!SOURCE_SPREADSHEET_ID || SOURCE_SPREADSHEET_ID.indexOf("PASTE_") === 0) return {};
+  const spreadsheet = SpreadsheetApp.openById(SOURCE_SPREADSHEET_ID);
+  const sheet = spreadsheet.getSheetByName(SITE_CONTENT_SHEET_NAME);
+  if (!sheet) return {};
+  const values = sheet.getDataRange().getDisplayValues();
+  const content = {};
+  values.slice(1).forEach((row) => {
+    const key = cleanText(row[0]);
+    const value = cleanText(row[1]);
+    if (!key || key.indexOf("#") === 0) return;
+    content[key] = value;
+  });
+  return content;
 }
 
 function activityKey(value) {

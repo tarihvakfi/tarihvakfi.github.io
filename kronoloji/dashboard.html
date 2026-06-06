@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Görsel Özet | Tarih Vakfı Dijital Kronolojisi</title>
     <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="preload" href="assets/data/chronology_public.json" as="fetch">
+    <link rel="preload" href="assets/data/site_content.json" as="fetch">
   </head>
   <body data-page="dashboard">
     <header class="site-header">
@@ -23,15 +25,15 @@
     <main class="page-shell">
       <section class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">Görsel analiz</p>
-          <h1>Tarih Vakfı Kronolojisi: Görsel Özet</h1>
-          <p class="lead">Yayınlar, etkinlikler, örgütsel işler ve dönemler üzerinden kurumsal hafızanın görsel keşfi.</p>
+          <p class="eyebrow" data-content="dashboard.hero.eyebrow">Görsel analiz</p>
+          <h1 data-content="dashboard.hero.title">Tarih Vakfı Kronolojisi: Görsel Özet</h1>
+          <p class="lead" data-content="dashboard.hero.lead">Yayınlar, etkinlikler, örgütsel işler ve dönemler üzerinden kurumsal hafızanın görsel keşfi.</p>
         </div>
         <aside class="summary-panel">
           <div class="summary-title">
             <div>
-              <p class="eyebrow">Seçili veri</p>
-              <h2>Ölçüler</h2>
+              <p class="eyebrow" data-content="dashboard.summary.eyebrow">Seçili veri</p>
+              <h2 data-content="dashboard.summary.title">Ölçüler</h2>
             </div>
           </div>
           <div class="metric-grid" id="dashboardMetrics"></div>
@@ -41,31 +43,31 @@
       <section class="section">
         <form class="filters" aria-label="Dashboard filtreleri">
           <label>
-            Arama
-            <input id="dashboardSearch" type="search" placeholder="Grafikleri daralt">
+            <span data-content="filters.search">Arama</span>
+            <input id="dashboardSearch" type="search" placeholder="Grafikleri daralt" data-content-placeholder="dashboard.search.placeholder">
           </label>
           <label>
-            Tür
+            <span data-content="filters.kind">Tür</span>
             <select id="dashboardKind"></select>
           </label>
           <label>
-            Dönem
+            <span data-content="filters.period">Dönem</span>
             <select id="dashboardPeriod"></select>
           </label>
           <label>
-            Durum
+            <span data-content="filters.status">Durum</span>
             <select id="dashboardStatus"></select>
           </label>
           <label>
-            Faaliyet kodu
+            <span data-content="filters.activity_code">Faaliyet kodu</span>
             <select id="dashboardCode"></select>
           </label>
           <label>
-            Başlangıç yılı
+            <span data-content="filters.year_from">Başlangıç yılı</span>
             <input id="dashboardYearFrom" type="number" min="1900" max="2100">
           </label>
           <label>
-            Bitiş yılı
+            <span data-content="filters.year_to">Bitiş yılı</span>
             <input id="dashboardYearTo" type="number" min="1900" max="2100">
           </label>
         </form>
@@ -74,35 +76,35 @@
 
       <section class="section grid-2">
         <article class="chart-panel">
-          <div class="chart-title"><strong>Yıllara göre kayıt yoğunluğu</strong><span>Ne zaman en yoğun?</span></div>
+          <div class="chart-title"><strong data-content="dashboard.chart.year.title">Yıllara göre kayıt yoğunluğu</strong><span data-content="dashboard.chart.year.subtitle">Ne zaman en yoğun?</span></div>
           <div id="dashboardYearChart"></div>
-          <p>Bu grafik her yılın toplam kayıt hacmini ve tür dağılımını gösterir.</p>
+          <p data-content="dashboard.chart.year.text">Bu grafik her yılın toplam kayıt hacmini ve tür dağılımını gösterir.</p>
         </article>
         <article class="chart-panel">
-          <div class="chart-title"><strong>Dönemlere göre türler</strong><span>Hangi dönem ne üretmiş?</span></div>
+          <div class="chart-title"><strong data-content="dashboard.chart.period.title">Dönemlere göre faaliyet alanları</strong><span data-content="dashboard.chart.period.subtitle">Kod grupları</span></div>
           <div id="dashboardPeriodChart"></div>
-          <p>Etkinlik, yayın ve örgütsel işlerin dönemler arasında nasıl değiştiğini karşılaştırır.</p>
+          <p data-content="dashboard.chart.period.text">Toplantılar, yayınlar, projeler, BBM ve diğer etkinliklerin dönemler arasında nasıl değiştiğini karşılaştırır.</p>
         </article>
       </section>
 
       <section class="section grid-2">
         <article class="chart-panel">
-          <div class="chart-title"><strong>En sık faaliyet kodları</strong><span>İlk 16 kod</span></div>
+          <div class="chart-title"><strong data-content="dashboard.chart.activity.title">En sık faaliyet türleri</strong><span data-content="dashboard.chart.activity.subtitle">Kod anlamlarına göre</span></div>
           <div id="dashboardCategoryChart"></div>
-          <p>Kaynak kategorileri korunur; bu grafik aynı kayıtları standart faaliyet kodlarıyla özetler.</p>
+          <p data-content="dashboard.chart.activity.text">Grafik kodları değil, kodların anlamlarını gösterir: panel, seminer, sergi, yayın dizileri ve benzeri türler.</p>
         </article>
         <article class="chart-panel">
-          <div class="chart-title"><strong>Veri kalitesi</strong><span>Yayın öncesi kontrol</span></div>
+          <div class="chart-title"><strong data-content="dashboard.chart.quality.title">Veri kalitesi</strong><span data-content="dashboard.chart.quality.subtitle">Yayın öncesi kontrol</span></div>
           <div id="dashboardQualityChart"></div>
-          <p>Belirsiz tarih, kategori ve gözden geçirme gerektiren kayıtların görünür kalmasını sağlar.</p>
+          <p data-content="dashboard.chart.quality.text">Belirsiz tarih, kategori ve gözden geçirme gerektiren kayıtların görünür kalmasını sağlar.</p>
         </article>
       </section>
 
       <section class="section">
         <div class="section-header">
           <div>
-            <h2>Seçili Kayıtlar</h2>
-            <p>Dashboard filtreleriyle eşleşen kayıtlar burada tablo olarak listelenir.</p>
+            <h2 data-content="dashboard.selected.title">Seçili Kayıtlar</h2>
+            <p data-content="dashboard.selected.text">Dashboard filtreleriyle eşleşen kayıtlar burada tablo olarak listelenir.</p>
           </div>
         </div>
         <div id="dashboardTable"></div>
@@ -112,8 +114,8 @@
 
     <footer class="footer">
       <div class="footer-inner">
-        <span>Dashboard özetler; ayrıntı ve atıf için arşiv kayıtları temel alınmalıdır.</span>
-        <a href="archive.html">Arşivde ara</a>
+        <span data-content="dashboard.footer.note">Dashboard özetler; ayrıntı ve atıf için arşiv kayıtları temel alınmalıdır.</span>
+        <a href="archive.html" data-content="dashboard.footer.link">Arşivde ara</a>
       </div>
     </footer>
 

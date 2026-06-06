@@ -16,6 +16,8 @@ Current Drive .xlsx file
 The public site never reads the raw `.xlsx` directly.
 The endpoint also adds standardized `Faaliyet Kodları` fields to every public
 chronology record while preserving the original source category.
+Site headings, captions, footer notes, and similar public copy can be edited in
+the mirrored workbook through a `Site Metinleri` sheet.
 
 ## One-Time Setup
 
@@ -25,6 +27,16 @@ Editors keep using their existing Drive file and link.
 
 Also keep the `Faaliyet Kodları` tab in this `.xlsx`, because the mirror will
 copy whatever is in the editor master.
+
+Add a `Site Metinleri` tab with these columns:
+
+```text
+key | value | note
+```
+
+The site reads `key` from column A and `value` from column B. Column C is only
+for editor notes. The checked-in fallback file
+`kronoloji/assets/data/site_content.json` lists the supported keys.
 
 ### 2. Create a blank mirror Google Sheet
 

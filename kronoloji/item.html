@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Kayıt | Tarih Vakfı Dijital Kronolojisi</title>
     <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="preload" href="assets/data/chronology_public.json" as="fetch">
+    <link rel="preload" href="assets/data/site_content.json" as="fetch">
   </head>
   <body data-page="item">
     <header class="site-header">
@@ -21,13 +23,13 @@
     </header>
 
     <main class="page-shell" id="itemDetail">
-      <div class="loading">Kayıt yükleniyor.</div>
+      <div class="loading" data-content="item.loading">Kayıt yükleniyor.</div>
     </main>
 
     <footer class="footer">
       <div class="footer-inner">
-        <a href="archive.html">Arşive dön</a>
-        <a href="contribute.html">Düzeltme öner</a>
+        <a href="archive.html" data-content="item.footer.archive">Arşive dön</a>
+        <a href="contribute.html" data-content="item.footer.contribute">Düzeltme öner</a>
       </div>
     </footer>
 

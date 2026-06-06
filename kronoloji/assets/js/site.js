@@ -1,5 +1,6 @@
 const DATA_URL = "assets/data/chronology_public.json";
 const CSV_URL = "assets/data/chronology_public.csv";
+const CONTENT_URL = "assets/data/site_content.json";
 
 const KIND_LABELS = {
   event: "Etkinlik",
@@ -31,6 +32,24 @@ const STATUS_COLORS = {
   uncertain_date: "#b56a5e",
   uncertain_category: "#6f5f8f",
   empty_or_invalid: "#7b7169",
+};
+
+const ACTIVITY_GROUPS = ["Toplantılar", "Yayınlar", "Toplantı ve yayın dışı etkinlikler", "Projeler", "BBM"];
+
+const ACTIVITY_GROUP_LABELS = {
+  Toplantılar: "Toplantılar",
+  Yayınlar: "Yayınlar",
+  "Toplantı ve yayın dışı etkinlikler": "Etkinlikler",
+  Projeler: "Projeler",
+  BBM: "BBM",
+};
+
+const ACTIVITY_GROUP_COLORS = {
+  Toplantılar: "#4d6475",
+  Yayınlar: "#8a2f2f",
+  "Toplantı ve yayın dışı etkinlikler": "#a26f26",
+  Projeler: "#626b45",
+  BBM: "#7b7169",
 };
 
 const ACTIVITY_CODE_INFO = {
@@ -81,10 +100,13 @@ const FALLBACK_ACTIVITY_CODES = {
 };
 
 const PAGE_SIZE = 100;
+const LIVE_REFRESH_TIMEOUT_MS = 12000;
 let allRecords = [];
+let siteContent = {};
 let archivePage = 1;
 let dashboardPage = 1;
 let archiveView = "cards";
+let currentPage = "";
 
 document.addEventListener("DOMContentLoaded", () => {
   markCurrentNav();
@@ -97,33 +119,30 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function boot() {
-  allRecords = await loadData();
-  const page = document.body.dataset.page;
-  if (page === "home") initHome();
-  if (page === "timeline") initTimeline();
-  if (page === "archive") initArchive();
-  if (page === "dashboard") initDashboard();
-  if (page === "item") initItem();
-  if (page === "methodology") initMethodology();
-  if (page === "data") initDataPage();
+  currentPage = document.body.dataset.page;
+  const [records, content] = await Promise.all([loadData(), loadSiteContent()]);
+  allRecords = records;
+  siteContent = content;
+  applySiteContent();
+  if (currentPage === "home") initHome();
+  if (currentPage === "timeline") initTimeline();
+  if (currentPage === "archive") initArchive();
+  if (currentPage === "dashboard") initDashboard();
+  if (currentPage === "item") initItem();
+  if (currentPage === "methodology") initMethodology();
+  if (currentPage === "data") initDataPage();
+  refreshLiveDataInBackground();
 }
 
 async function loadData() {
-  const config = window.TVK_CHRONOLOGY_CONFIG || {};
-  const sources = [];
-  if (config.liveDataUrl && config.preferLiveData !== false) {
-    sources.push({ label: "live", url: appendCacheBust(config.liveDataUrl), options: { cache: "no-store" } });
-  }
-  sources.push({ label: "static", url: DATA_URL, options: {} });
+  const sources = [{ label: "static", url: DATA_URL, options: {} }];
+  const liveSource = getLiveSource();
+  if (liveSource) sources.push(liveSource);
 
   let lastError;
   for (const source of sources) {
     try {
-      const response = await fetch(source.url, source.options);
-      if (!response.ok) {
-        throw new Error(`${source.label}: ${response.status} ${response.statusText}`);
-      }
-      const payload = await response.json();
+      const payload = await fetchPayload(source);
       const rows = extractRows(payload);
       if (!Array.isArray(rows)) {
         throw new Error(`${source.label}: response does not contain a record array`);
@@ -138,12 +157,113 @@ async function loadData() {
   throw lastError || new Error("No chronology data source available");
 }
 
+async function loadSiteContent() {
+  try {
+    const response = await fetch(CONTENT_URL);
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+    const payload = await response.json();
+    return extractContent(payload);
+  } catch (error) {
+    console.warn("Site content source failed", error);
+    return {};
+  }
+}
+
+function getLiveSource() {
+  const config = window.TVK_CHRONOLOGY_CONFIG || {};
+  if (!config.liveDataUrl || config.preferLiveData === false) return null;
+  return {
+    label: "live",
+    url: appendCacheBust(config.liveDataUrl),
+    options: { cache: "no-store" },
+    timeoutMs: LIVE_REFRESH_TIMEOUT_MS,
+  };
+}
+
+async function fetchPayload(source) {
+  const response = await fetchWithTimeout(source.url, source.options || {}, source.timeoutMs);
+  if (!response.ok) {
+    throw new Error(`${source.label}: ${response.status} ${response.statusText}`);
+  }
+  return response.json();
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 0) {
+  if (!timeoutMs) return fetch(url, options);
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+async function refreshLiveDataInBackground() {
+  const liveSource = getLiveSource();
+  if (!liveSource || window.TVK_CHRONOLOGY_DATA_SOURCE === "live") return;
+  try {
+    const payload = await fetchPayload(liveSource);
+    const rows = extractRows(payload);
+    if (!Array.isArray(rows)) {
+      throw new Error("live: response does not contain a record array");
+    }
+    allRecords = normalizeRows(rows);
+    const liveContent = extractContent(payload);
+    if (Object.keys(liveContent).length) {
+      siteContent = { ...siteContent, ...liveContent };
+      applySiteContent();
+    }
+    window.TVK_CHRONOLOGY_DATA_SOURCE = "live";
+    refreshCurrentPage();
+  } catch (error) {
+    console.warn("Chronology live refresh failed", error);
+  }
+}
+
+function refreshCurrentPage() {
+  if (currentPage === "home") {
+    renderMetrics("homeMetrics", allRecords);
+    renderOverviewText();
+    renderYearChart("homeYearChart", allRecords);
+    renderPeriodChart("homePeriodChart", allRecords);
+    renderKindChart("homeKindChart", allRecords);
+    renderQualityChart("homeQualityChart", allRecords);
+    renderRecentRecords("homeRecords", sortRecords(allRecords).slice(0, 8));
+  }
+  if (currentPage === "timeline") {
+    setupFilterOptions("timeline", allRecords);
+    renderTimeline();
+  }
+  if (currentPage === "archive") {
+    setupFilterOptions("archive", allRecords);
+    renderArchive();
+  }
+  if (currentPage === "dashboard") {
+    setupFilterOptions("dashboard", allRecords);
+    renderDashboard();
+  }
+  if (currentPage === "item") initItem();
+  if (currentPage === "methodology") renderMetrics("methodMetrics", allRecords);
+  if (currentPage === "data") renderMetrics("dataMetrics", allRecords);
+}
+
 function extractRows(payload) {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.records)) return payload.records;
   if (Array.isArray(payload?.data)) return payload.data;
   if (Array.isArray(payload?.chronology_public)) return payload.chronology_public;
   return null;
+}
+
+function extractContent(payload) {
+  if (!payload || Array.isArray(payload)) return {};
+  const source = payload.content || payload.siteContent || payload.site_content || payload;
+  if (!source || Array.isArray(source) || typeof source !== "object") return {};
+  return Object.entries(source).reduce((acc, [key, value]) => {
+    if (key && value !== undefined && value !== null) acc[String(key).trim()] = String(value);
+    return acc;
+  }, {});
 }
 
 function normalizeRows(rows) {
@@ -184,6 +304,68 @@ function markCurrentNav() {
   document.querySelectorAll(".nav-links a").forEach((link) => {
     if (link.dataset.page === page) link.setAttribute("aria-current", "page");
   });
+}
+
+function applySiteContent() {
+  const pageTitle = contentText(`${currentPage}.meta.title`, document.title);
+  if (pageTitle) document.title = pageTitle;
+
+  const metaDescription = document.querySelector('meta[name="description"]');
+  if (metaDescription) {
+    metaDescription.setAttribute("content", contentText(`${currentPage}.meta.description`, contentText("site.description", metaDescription.getAttribute("content") || "")));
+  }
+
+  document.querySelectorAll(".brand").forEach((brand) => {
+    const mark = brand.querySelector(".brand-mark");
+    brand.textContent = contentText("nav.brand", "Tarih Vakfı Dijital Kronolojisi");
+    if (mark) brand.prepend(mark, " ");
+  });
+
+  const navLabels = {
+    timeline: "nav.timeline",
+    archive: "nav.archive",
+    dashboard: "nav.dashboard",
+    methodology: "nav.methodology",
+    data: "nav.data",
+  };
+  Object.entries(navLabels).forEach(([pageName, key]) => {
+    document.querySelectorAll(`.nav-links a[data-page="${pageName}"]`).forEach((link) => {
+      link.textContent = contentText(key, link.textContent);
+    });
+  });
+
+  document.querySelectorAll("[data-content]").forEach((element) => {
+    const key = element.getAttribute("data-content") || "";
+    element.textContent = contentText(key, compactText(element.textContent));
+  });
+  document.querySelectorAll("[data-content-html]").forEach((element) => {
+    const key = element.getAttribute("data-content-html") || "";
+    element.innerHTML = contentText(key, element.innerHTML);
+  });
+  document.querySelectorAll("[data-content-placeholder]").forEach((element) => {
+    const key = element.getAttribute("data-content-placeholder") || "";
+    element.setAttribute("placeholder", contentText(key, element.getAttribute("placeholder") || ""));
+  });
+  document.querySelectorAll("[data-content-aria-label]").forEach((element) => {
+    const key = element.getAttribute("data-content-aria-label") || "";
+    element.setAttribute("aria-label", contentText(key, element.getAttribute("aria-label") || ""));
+  });
+}
+
+function contentText(key, fallback = "") {
+  const value = siteContent[key];
+  if (value === undefined || value === null || value === "") return fallback;
+  return String(value);
+}
+
+function contentFormat(key, values, fallback = "") {
+  return contentText(key, fallback).replace(/\{([a-zA-Z0-9_]+)\}/g, (match, name) => {
+    return values[name] === undefined || values[name] === null ? match : values[name];
+  });
+}
+
+function compactText(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
 }
 
 function initHome() {
@@ -241,7 +423,7 @@ function initItem() {
   const target = document.getElementById("itemDetail");
   if (!target) return;
   if (!record) {
-    target.innerHTML = `<div class="error">Bu kimlikle kayıt bulunamadı: <code>${escapeHtml(id || "")}</code></div>`;
+    target.innerHTML = `<div class="error">${escapeHtml(contentFormat("item.not_found", { id: id || "" }, `Bu kimlikle kayıt bulunamadı: ${id || ""}`))}</div>`;
     return;
   }
   document.title = `${record.title || record.id} | Tarih Vakfı Dijital Kronolojisi`;
@@ -262,21 +444,21 @@ function initItem() {
         ${record.public_note ? `<div class="note">${escapeHtml(record.public_note)}</div>` : ""}
       </article>
       <aside class="detail-box">
-        <h2>Kayıt Bilgisi</h2>
+        <h2>${escapeHtml(contentText("item.info.title", "Kayıt Bilgisi"))}</h2>
         <dl class="detail-list">
-          ${detailRow("Kayıt ID", record.id)}
-          ${detailRow("Dönem", record.period)}
-          ${detailRow("Tür", KIND_LABELS[record.item_kind] || record.item_kind)}
-          ${detailRow("Kategori", record.category || "Belirtilmemiş")}
-          ${detailRow("Faaliyet kodu", activityText(record))}
-          ${detailRow("Kod durumu", activityStatusText(record))}
-          ${detailRow("Tarih", record.date_display || record.year || "Belirtilmemiş")}
-          ${detailRow("Kaynak", `${record.source_sheet}, satır ${record.source_row}`)}
-          ${detailRow("Durum", STATUS_LABELS[record.verification_status] || record.verification_status)}
+          ${detailRow(contentText("item.field.id", "Kayıt ID"), record.id)}
+          ${detailRow(contentText("item.field.period", "Dönem"), record.period)}
+          ${detailRow(contentText("item.field.kind", "Tür"), KIND_LABELS[record.item_kind] || record.item_kind)}
+          ${detailRow(contentText("item.field.category", "Kategori"), record.category || contentText("common.unspecified", "Belirtilmemiş"))}
+          ${detailRow(contentText("item.field.activity_code", "Faaliyet kodu"), activityText(record))}
+          ${detailRow(contentText("item.field.activity_status", "Kod durumu"), activityStatusText(record))}
+          ${detailRow(contentText("item.field.date", "Tarih"), record.date_display || record.year || contentText("common.unspecified", "Belirtilmemiş"))}
+          ${detailRow(contentText("item.field.source", "Kaynak"), contentFormat("item.source_format", { sheet: record.source_sheet, row: record.source_row }, `${record.source_sheet}, satır ${record.source_row}`))}
+          ${detailRow(contentText("item.field.status", "Durum"), STATUS_LABELS[record.verification_status] || record.verification_status)}
         </dl>
-        <button class="button" type="button" data-copy="${escapeAttr(citation)}">Atıfı kopyala</button>
+        <button class="button" type="button" data-copy="${escapeAttr(citation)}">${escapeHtml(contentText("record.copy_citation", "Atıfı kopyala"))}</button>
         <p class="copy-status" id="copyStatus"></p>
-        <p><a href="contribute.html">Bu kayıt için düzeltme öner</a></p>
+        <p><a href="contribute.html">${escapeHtml(contentText("item.suggest_correction", "Bu kayıt için düzeltme öner"))}</a></p>
       </aside>
     </section>
   `;
@@ -294,7 +476,14 @@ function initDataPage() {
 function renderOverviewText() {
   const total = allRecords.length;
   const yearRange = getYearRange(allRecords).join("-");
-  setText("overviewSentence", `${total.toLocaleString("tr-TR")} kayıt, ${yearRange} aralığındaki dönemler ve kaynak satırları korunarak yayınlanıyor.`);
+  setText(
+    "overviewSentence",
+    contentFormat(
+      "home.overview_sentence",
+      { total: total.toLocaleString("tr-TR"), year_range: yearRange },
+      `${total.toLocaleString("tr-TR")} kayıt, ${yearRange} aralığındaki dönemler ve kaynak satırları korunarak yayınlanıyor.`,
+    ),
+  );
 }
 
 function renderMetrics(targetId, records) {
@@ -304,12 +493,15 @@ function renderMetrics(targetId, records) {
   const statuses = countBy(records, (row) => row.verification_status);
   const [minYear, maxYear] = getYearRange(records);
   const cards = [
-    ["Toplam kayıt", records.length.toLocaleString("tr-TR")],
-    ["Yıl aralığı", minYear && maxYear ? `${minYear}-${maxYear}` : "-"],
-    ["Etkinlik", (counts.event || 0).toLocaleString("tr-TR")],
-    ["Yayın", (counts.publication || 0).toLocaleString("tr-TR")],
-    ["Örgütsel iş", (counts.organizational || 0).toLocaleString("tr-TR")],
-    ["Gözden geçirme", ((statuses.needs_review || 0) + (statuses.uncertain_date || 0) + (statuses.uncertain_category || 0)).toLocaleString("tr-TR")],
+    [contentText("metrics.total_records", "Toplam kayıt"), records.length.toLocaleString("tr-TR")],
+    [contentText("metrics.year_range", "Yıl aralığı"), minYear && maxYear ? `${minYear}-${maxYear}` : "-"],
+    [contentText("metrics.events", "Etkinlik"), (counts.event || 0).toLocaleString("tr-TR")],
+    [contentText("metrics.publications", "Yayın"), (counts.publication || 0).toLocaleString("tr-TR")],
+    [contentText("metrics.organizational", "Örgütsel iş"), (counts.organizational || 0).toLocaleString("tr-TR")],
+    [
+      contentText("metrics.review", "Gözden geçirme"),
+      ((statuses.needs_review || 0) + (statuses.uncertain_date || 0) + (statuses.uncertain_category || 0)).toLocaleString("tr-TR"),
+    ],
   ];
   target.innerHTML = cards
     .map(([label, value]) => `<div class="metric"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></div>`)
@@ -317,13 +509,13 @@ function renderMetrics(targetId, records) {
 }
 
 function setupFilterOptions(prefix, records) {
-  fillSelect(`${prefix}Kind`, unique(records.map((row) => row.item_kind)), "Tüm türler", KIND_LABELS);
-  fillSelect(`${prefix}Period`, unique(records.map((row) => row.period)), "Tüm dönemler");
-  fillSelect(`${prefix}Status`, unique(records.map((row) => row.verification_status)), "Tüm durumlar", STATUS_LABELS);
+  fillSelect(`${prefix}Kind`, unique(records.map((row) => row.item_kind)), contentText("filters.all_kinds", "Tüm türler"), KIND_LABELS);
+  fillSelect(`${prefix}Period`, unique(records.map((row) => row.period)), contentText("filters.all_periods", "Tüm dönemler"));
+  fillSelect(`${prefix}Status`, unique(records.map((row) => row.verification_status)), contentText("filters.all_statuses", "Tüm durumlar"), STATUS_LABELS);
   fillSelect(
     `${prefix}Code`,
     unique(records.map((row) => row.activity_code_base || row.activity_code)),
-    "Tüm faaliyet kodları",
+    contentText("filters.all_activity_codes", "Tüm faaliyet kodları"),
     activityCodeLabels(records),
   );
 }
@@ -331,10 +523,17 @@ function setupFilterOptions(prefix, records) {
 function renderTimeline() {
   const filtered = sortRecords(filterRecords("timeline", allRecords));
   const target = document.getElementById("timelineList");
-  setText("timelineCount", `${filtered.length.toLocaleString("tr-TR")} kayıt gösteriliyor. Filtre uygulanmadığında tüm kamu verisi listelenir.`);
+  setText(
+    "timelineCount",
+    contentFormat(
+      "timeline.result_count",
+      { count: filtered.length.toLocaleString("tr-TR") },
+      `${filtered.length.toLocaleString("tr-TR")} kayıt gösteriliyor. Filtre uygulanmadığında tüm kamu verisi listelenir.`,
+    ),
+  );
   if (!target) return;
   if (!filtered.length) {
-    target.innerHTML = `<div class="error">Bu filtrelerle kayıt bulunamadı.</div>`;
+    target.innerHTML = `<div class="error">${escapeHtml(contentText("common.no_results", "Bu filtrelerle kayıt bulunamadı."))}</div>`;
     return;
   }
   const groups = groupBy(filtered, (row) => row.year || "Tarihsiz");
@@ -359,12 +558,20 @@ function renderArchive() {
   const visible = filtered.slice(start, start + PAGE_SIZE);
   setText(
     "archiveCount",
-    `${filtered.length.toLocaleString("tr-TR")} kayıt bulundu. ${start + 1}-${Math.min(start + PAGE_SIZE, filtered.length)} arası gösteriliyor.`,
+    contentFormat(
+      "archive.result_count",
+      {
+        count: filtered.length.toLocaleString("tr-TR"),
+        start: (start + 1).toLocaleString("tr-TR"),
+        end: Math.min(start + PAGE_SIZE, filtered.length).toLocaleString("tr-TR"),
+      },
+      `${filtered.length.toLocaleString("tr-TR")} kayıt bulundu. ${start + 1}-${Math.min(start + PAGE_SIZE, filtered.length)} arası gösteriliyor.`,
+    ),
   );
   const target = document.getElementById("archiveResults");
   if (!target) return;
   if (!filtered.length) {
-    target.innerHTML = `<div class="error">Bu filtrelerle kayıt bulunamadı.</div>`;
+    target.innerHTML = `<div class="error">${escapeHtml(contentText("common.no_results", "Bu filtrelerle kayıt bulunamadı."))}</div>`;
     renderPagination("archivePagination", 1, 1, () => {});
     return;
   }
@@ -379,7 +586,14 @@ function renderArchive() {
 function renderDashboard() {
   const filtered = filterRecords("dashboard", allRecords);
   renderMetrics("dashboardMetrics", filtered);
-  setText("dashboardCount", `${filtered.length.toLocaleString("tr-TR")} kayıt seçili. Grafikler ve tablo aynı filtreleri kullanır.`);
+  setText(
+    "dashboardCount",
+    contentFormat(
+      "dashboard.result_count",
+      { count: filtered.length.toLocaleString("tr-TR") },
+      `${filtered.length.toLocaleString("tr-TR")} kayıt seçili. Grafikler ve tablo aynı filtreleri kullanır.`,
+    ),
+  );
   renderYearChart("dashboardYearChart", filtered);
   renderPeriodChart("dashboardPeriodChart", filtered);
   renderCategoryChart("dashboardCategoryChart", filtered);
@@ -470,8 +684,8 @@ function renderItemCardWithActions(row) {
       <p class="item-title"><a href="item.html?id=${encodeURIComponent(row.id)}">${escapeHtml(row.title || row.raw_text || row.id)}</a></p>
       <p class="item-description">${escapeHtml(trimText(row.description || row.raw_text || "", 320))}</p>
       <div class="hero-actions">
-        <a class="button secondary" href="item.html?id=${encodeURIComponent(row.id)}">Kaydı aç</a>
-        <button class="button ghost" type="button" data-copy="${escapeAttr(makeCitation(row))}">Atıfı kopyala</button>
+        <a class="button secondary" href="item.html?id=${encodeURIComponent(row.id)}">${escapeHtml(contentText("record.open", "Kaydı aç"))}</a>
+        <button class="button ghost" type="button" data-copy="${escapeAttr(makeCitation(row))}">${escapeHtml(contentText("record.copy_citation", "Atıfı kopyala"))}</button>
       </div>
     </article>
   `;
@@ -483,14 +697,14 @@ function renderArchiveTable(rows) {
       <table>
         <thead>
           <tr>
-            <th>Tarih</th>
-            <th>Başlık</th>
-            <th>Tür</th>
-            <th>Faaliyet kodu</th>
-            <th>Kategori</th>
-            <th>Dönem</th>
-            <th>Durum</th>
-            <th>Kaynak</th>
+            <th>${escapeHtml(contentText("table.date", "Tarih"))}</th>
+            <th>${escapeHtml(contentText("table.title", "Başlık"))}</th>
+            <th>${escapeHtml(contentText("table.kind", "Tür"))}</th>
+            <th>${escapeHtml(contentText("table.activity_code", "Faaliyet kodu"))}</th>
+            <th>${escapeHtml(contentText("table.category", "Kategori"))}</th>
+            <th>${escapeHtml(contentText("table.period", "Dönem"))}</th>
+            <th>${escapeHtml(contentText("table.status", "Durum"))}</th>
+            <th>${escapeHtml(contentText("table.source", "Kaynak"))}</th>
           </tr>
         </thead>
         <tbody>
@@ -526,9 +740,9 @@ function renderPagination(targetId, current, total, onChange) {
   const target = document.getElementById(targetId);
   if (!target) return;
   target.innerHTML = `
-    <button class="button ghost" type="button" data-page-prev ${current <= 1 ? "disabled" : ""}>Önceki</button>
+    <button class="button ghost" type="button" data-page-prev ${current <= 1 ? "disabled" : ""}>${escapeHtml(contentText("pagination.previous", "Önceki"))}</button>
     <span>${current} / ${total}</span>
-    <button class="button ghost" type="button" data-page-next ${current >= total ? "disabled" : ""}>Sonraki</button>
+    <button class="button ghost" type="button" data-page-next ${current >= total ? "disabled" : ""}>${escapeHtml(contentText("pagination.next", "Sonraki"))}</button>
   `;
   target.querySelector("[data-page-prev]")?.addEventListener("click", () => onChange(Math.max(1, current - 1)));
   target.querySelector("[data-page-next]")?.addEventListener("click", () => onChange(Math.min(total, current + 1)));
@@ -553,15 +767,14 @@ function renderPeriodChart(targetId, records) {
   const target = document.getElementById(targetId);
   if (!target) return;
   const periods = unique(records.map((row) => row.period)).sort((a, b) => a.localeCompare(b, "tr"));
-  const kinds = ["event", "publication", "organizational"];
   const data = periods.map((period) => {
     const rows = records.filter((row) => row.period === period);
     return {
       label: period.replace(" DÖNEM", ""),
-      values: Object.fromEntries(kinds.map((kind) => [kind, rows.filter((row) => row.item_kind === kind).length])),
+      values: Object.fromEntries(ACTIVITY_GROUPS.map((group) => [group, rows.filter((row) => row.activity_group === group).length])),
     };
   });
-  target.innerHTML = stackedBarSvg(data, kinds, { height: 280 });
+  target.innerHTML = stackedBarSvg(data, ACTIVITY_GROUPS, { height: 310, labels: ACTIVITY_GROUP_LABELS, colors: ACTIVITY_GROUP_COLORS });
 }
 
 function renderKindChart(targetId, records) {
@@ -577,12 +790,17 @@ function renderKindChart(targetId, records) {
 function renderCategoryChart(targetId, records) {
   const target = document.getElementById(targetId);
   if (!target) return;
-  const counts = countBy(records, (row) => activityText(row) || "Kod belirtilmemiş");
-  const data = Object.entries(counts)
-    .sort((a, b) => b[1] - a[1])
+  const byLabel = records.reduce((acc, row) => {
+    const label = activityChartLabel(row);
+    if (!acc[label]) acc[label] = { value: 0, code: row.activity_code_base || "", group: row.activity_group || "" };
+    acc[label].value += 1;
+    return acc;
+  }, {});
+  const data = Object.entries(byLabel)
+    .sort((a, b) => b[1].value - a[1].value)
     .slice(0, 16)
-    .map(([label, value]) => ({ label, value, color: "#8a2f2f" }));
-  target.innerHTML = horizontalBarSvg(data, { height: Math.max(280, data.length * 30) });
+    .map(([label, item]) => ({ label, value: item.value, color: ACTIVITY_GROUP_COLORS[item.group] || "#8a2f2f", detail: item.code }));
+  target.innerHTML = horizontalBarSvg(data, { height: Math.max(390, data.length * 42), labelWidth: 285, width: 980, rowHeight: 42, barHeight: 24 });
 }
 
 function renderQualityChart(targetId, records) {
@@ -593,6 +811,54 @@ function renderQualityChart(targetId, records) {
     .sort((a, b) => b[1] - a[1])
     .map(([key, value]) => ({ label: STATUS_LABELS[key] || key, value, color: STATUS_COLORS[key] || "#7b7169" }));
   target.innerHTML = horizontalBarSvg(data, { height: 230 });
+}
+
+function activityChartLabel(row) {
+  const baseCode = row.activity_code_base || row.activity_code || "";
+  const compactLabels = {
+    "İÇ": "İç toplantı",
+    "İKO": "Genel kurul / iç kongre",
+    KON: "Konferans / söyleşi",
+    PAN: "Panel / forum",
+    ATA: "Atölye / çalıştay",
+    SMN: "Seminer / kurs",
+    SEM: "Sempozyum",
+    KGR: "Kongre",
+    YYA: "Yurt Yayınları",
+    TVY: "Tarih Vakfı yayınları",
+    ANS: "Ansiklopediler",
+    DER: "Dergiler",
+    "İST": "İstanbul dergisi",
+    TT: "Toplumsal Tarih",
+    TTA: "Toplumsal Tarih Akademi",
+    NPT: "New Perspectives on Turkey",
+    "BÜL": "Bültenler",
+    TVH: "Haberler bülteni",
+    "DŞE": "Deniz Şenliği bülteni",
+    YTB: "Yerel Tarih bülteni",
+    "TÇE": "Tarihçe bülteni",
+    BRO: "Broşürler",
+    BEL: "Belgeseller",
+    SER: "Sergiler",
+    GEZ: "Kültür gezileri",
+    FES: "Festival / şenlik",
+    YAR: "Yarışmalar",
+    ANM: "Anma",
+    KNS: "Konser",
+    "SİN": "Sinema gösterimi",
+    YER: "Yerel tarih projesi",
+    KUT: "Kurum tarihi projesi",
+    KNT: "Kent tarihi / müze",
+    TEP: "Tarih eğitimi projesi",
+    ARB: "Arşiv bağışı",
+    "KİB": "Kitap bağışı",
+    "ÖTG": "Diğer etkinlikler",
+    "ÖTP": "Diğer projeler",
+    "ÖTB": "Diğer BBM",
+  };
+  if (baseCode === "ÖTY" && row.activity_group === "Yayınlar") return "Diğer yayınlar";
+  if (baseCode === "ÖTY" && row.activity_group === "Toplantılar") return "Diğer toplantılar";
+  return compactLabels[baseCode] || row.activity_label || baseCode || "Kod belirtilmemiş";
 }
 
 function codeKey(value) {
@@ -701,6 +967,8 @@ function assignActivityCode(itemKind, category, rawText, description) {
 function stackedBarSvg(data, keys, options = {}) {
   if (!data.length) return `<div class="loading">Bu filtrelerle grafik verisi yok.</div>`;
   const height = options.height || 280;
+  const labels = options.labels || KIND_LABELS;
+  const colors = options.colors || KIND_COLORS;
   const width = Math.max(760, data.length * 34 + 90);
   const chartTop = 22;
   const chartBottom = height - 58;
@@ -720,7 +988,7 @@ function stackedBarSvg(data, keys, options = {}) {
           const value = item.values[key] || 0;
           const h = (value / max) * chartHeight;
           y -= h;
-          return `<rect x="${x}" y="${y}" width="${barWidth}" height="${h}" fill="${KIND_COLORS[key] || "#7b7169"}"><title>${escapeHtml(item.label)} ${escapeHtml(KIND_LABELS[key] || key)}: ${value}</title></rect>`;
+          return `<rect x="${x}" y="${y}" width="${barWidth}" height="${h}" fill="${colors[key] || "#7b7169"}"><title>${escapeHtml(item.label)} ${escapeHtml(labels[key] || key)}: ${value}</title></rect>`;
         })
         .join("");
       const labelY = chartBottom + 18;
@@ -732,39 +1000,35 @@ function stackedBarSvg(data, keys, options = {}) {
     .join("");
   return `
     <div style="overflow-x:auto">
-      <svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Kayıt sayısı grafiği">
+      <svg class="chart" style="min-width:${width}px" viewBox="0 0 ${width} ${height}" role="img" aria-label="Kayıt sayısı grafiği">
         <line x1="${chartLeft}" y1="${chartBottom}" x2="${chartRight}" y2="${chartBottom}" stroke="#ded4c7" />
         ${bars}
       </svg>
     </div>
-    ${legend(keys.map((key) => ({ label: KIND_LABELS[key] || key, color: KIND_COLORS[key] || "#7b7169" })))}
+    ${legend(keys.map((key) => ({ label: labels[key] || key, color: colors[key] || "#7b7169" })))}
   `;
 }
 
 function horizontalBarSvg(data, options = {}) {
   if (!data.length) return `<div class="loading">Bu filtrelerle grafik verisi yok.</div>`;
-  const width = 760;
-  const rowHeight = 30;
-  const height = options.height || Math.max(220, data.length * rowHeight + 34);
-  const left = 190;
-  const right = width - 58;
   const max = Math.max(...data.map((item) => item.value), 1);
-  const rows = data
+  return `
+    <div class="bar-list" role="img" aria-label="Yatay çubuk grafik">
+      ${data
     .map((item, index) => {
-      const y = 22 + index * rowHeight;
-      const barWidth = ((right - left) * item.value) / max;
+      const percent = Math.max(1.5, (item.value / max) * 100);
+      const value = Number(item.value).toLocaleString("tr-TR");
       return `
-        <text class="bar-label" x="${left - 10}" y="${y + 14}" text-anchor="end">${escapeHtml(trimText(item.label, 26))}</text>
-        <rect x="${left}" y="${y}" width="${barWidth}" height="18" rx="3" fill="${item.color}" />
-        <text class="bar-value" x="${left + barWidth + 7}" y="${y + 14}">${item.value}</text>
+        <div class="bar-row" title="${escapeAttr(item.detail ? `${item.label} (${item.detail}): ${value}` : `${item.label}: ${value}`)}">
+          <span class="bar-list-label">${escapeHtml(trimText(item.label, options.labelMax || 34))}</span>
+          <span class="bar-track">
+            <span class="bar-fill" style="width:${percent}%; background:${escapeAttr(item.color)}"></span>
+          </span>
+          <strong class="bar-list-value">${escapeHtml(value)}</strong>
+        </div>
       `;
     })
-    .join("");
-  return `
-    <div style="overflow-x:auto">
-      <svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Yatay çubuk grafik">
-        ${rows}
-      </svg>
+    .join("")}
     </div>
   `;
 }
@@ -776,10 +1040,12 @@ function legend(items) {
 function fillSelect(id, values, allLabel, labels = {}) {
   const select = document.getElementById(id);
   if (!select) return;
+  const selected = select.value;
   const sorted = values.filter(Boolean).sort((a, b) => String(a).localeCompare(String(b), "tr"));
   select.innerHTML = `<option value="">${escapeHtml(allLabel)}</option>${sorted
     .map((value) => `<option value="${escapeAttr(value)}">${escapeHtml(labels[value] || value)}</option>`)
     .join("")}`;
+  if ([...select.options].some((option) => option.value === selected)) select.value = selected;
 }
 
 function badge(value, type) {
@@ -802,14 +1068,15 @@ function activityText(row) {
 
 function activityStatusText(row) {
   if (!row.activity_code_status) return "";
-  const status = row.activity_code_status === "needs_review" ? "Elle kontrol edilmeli" : "Eşlendi";
+  const status =
+    row.activity_code_status === "needs_review" ? contentText("activity.status.needs_review", "Elle kontrol edilmeli") : contentText("activity.status.mapped", "Eşlendi");
   return row.activity_code_note ? `${status}. ${row.activity_code_note}` : status;
 }
 
 function activityCodeLabels(records) {
   return records.reduce((labels, row) => {
     const code = row.activity_code_base || row.activity_code;
-    if (code && !labels[code]) labels[code] = row.activity_label ? `${code} - ${row.activity_label}` : code;
+    if (code && !labels[code]) labels[code] = `${code} - ${activityChartLabel(row)}`;
     return labels;
   }, {});
 }
@@ -820,7 +1087,11 @@ function detailRow(label, value) {
 
 function makeCitation(row) {
   const accessed = new Date().toLocaleDateString("tr-TR");
-  return `Tarih Vakfı Dijital Kronolojisi, kayıt ${row.id}, erişim tarihi ${accessed}.`;
+  return contentFormat(
+    "citation.format",
+    { id: row.id, accessed },
+    `Tarih Vakfı Dijital Kronolojisi, kayıt ${row.id}, erişim tarihi ${accessed}.`,
+  );
 }
 
 function attachCopyButtons() {
@@ -829,7 +1100,7 @@ function attachCopyButtons() {
       const text = button.getAttribute("data-copy") || "";
       try {
         await navigator.clipboard.writeText(text);
-        setText("copyStatus", "Atıf kopyalandı.");
+        setText("copyStatus", contentText("copy.success", "Atıf kopyalandı."));
       } catch {
         setText("copyStatus", text);
       }

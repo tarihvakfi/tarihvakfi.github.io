@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Kronoloji | Tarih Vakfı Dijital Kronolojisi</title>
     <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="preload" href="assets/data/chronology_public.json" as="fetch">
+    <link rel="preload" href="assets/data/site_content.json" as="fetch">
   </head>
   <body data-page="timeline">
     <header class="site-header">
@@ -22,39 +24,39 @@
 
     <main class="page-shell">
       <section class="section">
-        <p class="eyebrow">Tam kronolojik akış</p>
-        <h1>Kronoloji</h1>
-        <p class="lead">Bu sayfa kamuya açılan bütün kayıtları yıllara göre gösterir. Filtreler yalnızca görünümü daraltır; veri setinden kayıt çıkarmaz.</p>
+        <p class="eyebrow" data-content="timeline.hero.eyebrow">Tam kronolojik akış</p>
+        <h1 data-content="timeline.hero.title">Kronoloji</h1>
+        <p class="lead" data-content="timeline.hero.lead">Bu sayfa kamuya açılan bütün kayıtları yıllara göre gösterir. Filtreler yalnızca görünümü daraltır; veri setinden kayıt çıkarmaz.</p>
       </section>
 
       <section class="section">
         <form class="filters" aria-label="Kronoloji filtreleri">
           <label>
-            Arama
-            <input id="timelineSearch" type="search" placeholder="Başlık, açıklama, kategori, yıl...">
+            <span data-content="filters.search">Arama</span>
+            <input id="timelineSearch" type="search" placeholder="Başlık, açıklama, kategori, yıl..." data-content-placeholder="timeline.search.placeholder">
           </label>
           <label>
-            Tür
+            <span data-content="filters.kind">Tür</span>
             <select id="timelineKind"></select>
           </label>
           <label>
-            Dönem
+            <span data-content="filters.period">Dönem</span>
             <select id="timelinePeriod"></select>
           </label>
           <label>
-            Durum
+            <span data-content="filters.status">Durum</span>
             <select id="timelineStatus"></select>
           </label>
           <label>
-            Faaliyet kodu
+            <span data-content="filters.activity_code">Faaliyet kodu</span>
             <select id="timelineCode"></select>
           </label>
           <label>
-            Başlangıç yılı
+            <span data-content="filters.year_from">Başlangıç yılı</span>
             <input id="timelineYearFrom" type="number" min="1900" max="2100" placeholder="1990">
           </label>
           <label>
-            Bitiş yılı
+            <span data-content="filters.year_to">Bitiş yılı</span>
             <input id="timelineYearTo" type="number" min="1900" max="2100" placeholder="2026">
           </label>
         </form>
@@ -66,8 +68,8 @@
 
     <footer class="footer">
       <div class="footer-inner">
-        <span>Kaynak satırı ve doğrulama durumu tekil kayıt sayfalarında korunur.</span>
-        <a href="archive.html">Arşiv görünümüne geç</a>
+        <span data-content="timeline.footer.note">Kaynak satırı ve doğrulama durumu tekil kayıt sayfalarında korunur.</span>
+        <a href="archive.html" data-content="timeline.footer.link">Arşiv görünümüne geç</a>
       </div>
     </footer>
 

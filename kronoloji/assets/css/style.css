@@ -341,18 +341,62 @@ h3 {
 
 .chart {
   width: 100%;
-  min-height: 210px;
+  min-height: 250px;
 }
 
 .bar-label {
   fill: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
+  font-weight: 650;
 }
 
 .bar-value {
   fill: var(--ink);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.bar-list {
+  display: grid;
+  gap: 13px;
+  padding: 4px 0;
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 230px) minmax(120px, 1fr) minmax(52px, auto);
+  gap: 10px;
+  align-items: center;
+}
+
+.bar-list-label {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.2;
+  text-align: right;
+}
+
+.bar-track {
+  display: block;
+  height: 24px;
+  border-radius: 4px;
+  background: #efe4d5;
+  overflow: hidden;
+}
+
+.bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+
+.bar-list-value {
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .legend {
@@ -713,6 +757,15 @@ td {
   .archive-toolbar {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .bar-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .bar-list-label {
+    grid-column: 1 / -1;
+    text-align: left;
   }
 
   .year-group {

@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Veri | Tarih Vakfı Dijital Kronolojisi</title>
     <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="preload" href="assets/data/chronology_public.json" as="fetch">
+    <link rel="preload" href="assets/data/site_content.json" as="fetch">
   </head>
   <body data-page="data">
     <header class="site-header">
@@ -23,19 +25,19 @@
     <main class="page-shell">
       <section class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">Açık veri</p>
-          <h1>Veri Dosyaları</h1>
-          <p class="lead">Site yalnızca kamuya açık, temizlenmiş veri dosyalarını kullanır. Belirsiz kayıtlar gizlenmez; doğrulama durumu ile işaretlenir.</p>
+          <p class="eyebrow" data-content="data.hero.eyebrow">Açık veri</p>
+          <h1 data-content="data.hero.title">Veri Dosyaları</h1>
+          <p class="lead" data-content="data.hero.lead">Site yalnızca kamuya açık, temizlenmiş veri dosyalarını kullanır. Belirsiz kayıtlar gizlenmez; doğrulama durumu ile işaretlenir.</p>
           <div class="hero-actions">
-            <a class="button" href="assets/data/chronology_public.csv" download>CSV indir</a>
-            <a class="button secondary" href="assets/data/chronology_public.json" download>JSON indir</a>
+            <a class="button" href="assets/data/chronology_public.csv" download data-content="data.action.csv">CSV indir</a>
+            <a class="button secondary" href="assets/data/chronology_public.json" download data-content="data.action.json">JSON indir</a>
           </div>
         </div>
         <aside class="summary-panel">
           <div class="summary-title">
             <div>
-              <p class="eyebrow">Kamu veri seti</p>
-              <h2>Kapsam</h2>
+              <p class="eyebrow" data-content="data.summary.eyebrow">Kamu veri seti</p>
+              <h2 data-content="data.summary.title">Kapsam</h2>
             </div>
           </div>
           <div class="metric-grid" id="dataMetrics"></div>
@@ -45,37 +47,37 @@
       <section class="section grid-2">
         <article class="feature-card">
           <h3>chronology_public.csv</h3>
-          <p>Tablo programları, araştırma iş akışları ve arşiv kontrolü için uygundur.</p>
-          <a href="assets/data/chronology_public.csv" download>CSV dosyasını indir</a>
+          <p data-content="data.file.public_csv.text">Tablo programları, araştırma iş akışları ve arşiv kontrolü için uygundur.</p>
+          <a href="assets/data/chronology_public.csv" download data-content="data.file.public_csv.link">CSV dosyasını indir</a>
         </article>
         <article class="feature-card">
           <h3>chronology_public.json</h3>
-          <p>Bu statik sitenin ana veri kaynağıdır; web uygulamaları için uygundur.</p>
-          <a href="assets/data/chronology_public.json" download>JSON dosyasını indir</a>
+          <p data-content="data.file.public_json.text">Bu statik sitenin ana veri kaynağıdır; web uygulamaları için uygundur.</p>
+          <a href="assets/data/chronology_public.json" download data-content="data.file.public_json.link">JSON dosyasını indir</a>
         </article>
         <article class="feature-card">
           <h3>year_summary.csv</h3>
-          <p>Yıllara göre kayıt sayıları ve tür dağılımı.</p>
-          <a href="assets/data/year_summary.csv" download>Yıl özetini indir</a>
+          <p data-content="data.file.year_summary.text">Yıllara göre kayıt sayıları ve tür dağılımı.</p>
+          <a href="assets/data/year_summary.csv" download data-content="data.file.year_summary.link">Yıl özetini indir</a>
         </article>
         <article class="feature-card">
           <h3>period_summary.csv</h3>
-          <p>Dönemlere göre kayıt türleri ve doğrulama durumları.</p>
-          <a href="assets/data/period_summary.csv" download>Dönem özetini indir</a>
+          <p data-content="data.file.period_summary.text">Dönemlere göre kayıt türleri ve doğrulama durumları.</p>
+          <a href="assets/data/period_summary.csv" download data-content="data.file.period_summary.link">Dönem özetini indir</a>
         </article>
       </section>
 
       <section class="section">
         <div class="note">
-          Lisans bilgisi kurum tarafından kesinleştirilmelidir. Ham Excel dosyası ve kurum içi yorumlar bu sayfada yayınlanmaz.
+          <span data-content="data.note">Lisans bilgisi kurum tarafından kesinleştirilmelidir. Ham Excel dosyası ve kurum içi yorumlar bu sayfada yayınlanmaz.</span>
         </div>
       </section>
     </main>
 
     <footer class="footer">
       <div class="footer-inner">
-        <span>Veri sürümü: çalışma prototipi.</span>
-        <a href="methodology.html">Yöntemi oku</a>
+        <span data-content="data.footer.note">Veri sürümü: çalışma prototipi.</span>
+        <a href="methodology.html" data-content="data.footer.link">Yöntemi oku</a>
       </div>
     </footer>
 

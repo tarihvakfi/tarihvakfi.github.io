@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Düzeltme Öner | Tarih Vakfı Dijital Kronolojisi</title>
     <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="preload" href="assets/data/chronology_public.json" as="fetch">
+    <link rel="preload" href="assets/data/site_content.json" as="fetch">
   </head>
   <body data-page="contribute">
     <header class="site-header">
@@ -22,35 +24,35 @@
 
     <main class="page-shell">
       <section class="section">
-        <p class="eyebrow">Katkı ve düzeltme</p>
-        <h1>Düzeltme Öner</h1>
-        <p class="lead">Kronoloji çalışma sürümüdür. Tarih, kategori, açıklama veya kaynak bilgisi için düzeltme önerileri kayıt ID'siyle birlikte toplanmalıdır.</p>
+        <p class="eyebrow" data-content="contribute.hero.eyebrow">Katkı ve düzeltme</p>
+        <h1 data-content="contribute.hero.title">Düzeltme Öner</h1>
+        <p class="lead" data-content="contribute.hero.lead">Kronoloji çalışma sürümüdür. Tarih, kategori, açıklama veya kaynak bilgisi için düzeltme önerileri kayıt ID'siyle birlikte toplanmalıdır.</p>
       </section>
 
       <section class="section grid-2">
         <article class="detail-box">
-          <h2>Öneri Formu</h2>
-          <p>Google Form bağlantısı kesinleştiğinde buraya eklenebilir.</p>
-          <a class="button" href="https://forms.gle/REPLACE_WITH_FORM_ID">Form bağlantısı yer tutucu</a>
+          <h2 data-content="contribute.form.title">Öneri Formu</h2>
+          <p data-content="contribute.form.text">Google Form bağlantısı kesinleştiğinde buraya eklenebilir.</p>
+          <a class="button" href="https://forms.gle/REPLACE_WITH_FORM_ID" data-content="contribute.form.link">Form bağlantısı yer tutucu</a>
         </article>
         <article class="detail-box">
-          <h2>E-posta ile Bildir</h2>
-          <p>Öneride şu bilgiler bulunmalıdır: kayıt ID, önerilen düzeltme, kaynak/kanıt, ad ve e-posta isteğe bağlı.</p>
-          <a class="button secondary" href="mailto:info@tarihvakfi.org.tr?subject=Tarih%20Vakf%C4%B1%20Dijital%20Kronoloji%20D%C3%BCzeltme%20%C3%96nerisi">E-posta gönder</a>
+          <h2 data-content="contribute.email.title">E-posta ile Bildir</h2>
+          <p data-content="contribute.email.text">Öneride şu bilgiler bulunmalıdır: kayıt ID, önerilen düzeltme, kaynak/kanıt, ad ve e-posta isteğe bağlı.</p>
+          <a class="button secondary" href="mailto:info@tarihvakfi.org.tr?subject=Tarih%20Vakf%C4%B1%20Dijital%20Kronoloji%20D%C3%BCzeltme%20%C3%96nerisi" data-content="contribute.email.link">E-posta gönder</a>
         </article>
       </section>
 
       <section class="section">
         <div class="note">
-          Düzeltme süreci, belirsiz kayıtları gizlemek yerine kaynak ve kanıtla iyileştirmeyi amaçlar.
+          <span data-content="contribute.note">Düzeltme süreci, belirsiz kayıtları gizlemek yerine kaynak ve kanıtla iyileştirmeyi amaçlar.</span>
         </div>
       </section>
     </main>
 
     <footer class="footer">
       <div class="footer-inner">
-        <a href="archive.html">Kayıt ID bulmak için arşive dön</a>
-        <a href="methodology.html">Yöntem notu</a>
+        <a href="archive.html" data-content="contribute.footer.archive">Kayıt ID bulmak için arşive dön</a>
+        <a href="methodology.html" data-content="contribute.footer.methodology">Yöntem notu</a>
       </div>
     </footer>
 
