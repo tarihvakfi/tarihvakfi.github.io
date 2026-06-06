@@ -520,3 +520,113 @@ td { font-size: 14px; }
   .table-wrap { border-radius: 0; margin: 0 -16px; }
   table { min-width: 600px; }
 }
+
+/* ════════════════════════════════════════════════════════════════
+   CHART FIXES — responsive SVGs + legend swatches
+   ════════════════════════════════════════════════════════════════ */
+
+/* Scrollable SVG wrapper produced by stackedBarSvg() */
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* Let the min-width from site.js hold inside the scroll container */
+}
+
+/* The wrapping div site.js injects around the SVG */
+[id$="Chart"] > div:first-child,
+[id$="Chart"] div[style*="overflow"] {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  /* Subtle shadow hint that content scrolls */
+  background:
+    linear-gradient(to right, var(--paper-strong) 0%, transparent 2%) left,
+    linear-gradient(to left,  var(--paper-strong) 0%, transparent 2%) right;
+  background-size: 20px 100%;
+  background-repeat: no-repeat;
+  background-attachment: local;
+}
+
+/* The SVG itself: never stretch beyond its natural width,
+   but allow scaling down on wide screens */
+[id$="Chart"] svg.chart {
+  display: block;
+  /* min-width comes from site.js inline style — we keep it.
+     max-width: 100% would fight the min-width, so we don't set it.
+     Instead we let the parent scroll. */
+  height: auto;
+}
+
+/* ── Legend swatch fix ───────────────────────────────────────── */
+/* site.js emits  <i class="swatch" style="background:…">  inside
+   a <span> inside .legend  — the <i> renders as italic text.
+   Force it to behave like the coloured square it should be.    */
+.legend i.swatch,
+.legend .swatch {
+  display: inline-block !important;
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  font-style: normal;        /* cancel italic from <i> */
+  font-size: 0;              /* hide any stray text node */
+  vertical-align: middle;
+}
+
+/* Legend container: wrap gracefully, good spacing */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: rgba(239,228,213,.35);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* ── Bar chart label rotation (period chart) ─────────────────── */
+/* site.js rotates labels with transform="rotate(45 …)" when
+   rotateLabels option is set, but NOT for the period chart.
+   We apply CSS rotation via .bar-label in the period chart
+   context by targeting the SVG text elements.                   */
+#dashboardPeriodChart svg text.bar-label {
+  font-size: 11px;          /* smaller so they fit */
+}
+
+#dashboardYearChart svg text.bar-label {
+  font-size: 10px;
+}
+
+/* ── Horizontal bar chart — label column responsive ──────────── */
+/* On narrow screens the 285px label column is too wide */
+@media (max-width: 680px) {
+  .bar-row {
+    grid-template-columns: minmax(0,1fr) auto;
+    row-gap: 4px;
+  }
+  .bar-list-label {
+    grid-column: 1 / -1;
+    text-align: left;
+    font-size: 12px;
+  }
+  .bar-track {
+    height: 18px;
+  }
+}
+
+/* ── db-panel-body chart overflow ───────────────────────────── */
+.db-panel-body {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}

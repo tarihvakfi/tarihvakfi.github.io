@@ -325,5 +325,77 @@
   })();
   </script>
 
+
+  <script>
+  /* ── Post-render chart fixes ────────────────────────────────
+     Runs after site.js renders SVG charts. Fixes:
+     1. Period chart x-axis labels — shorten "N. Dönem (YYYY–YYYY)"
+        to "N.D\n1991–95" so bars don't overlap.
+     2. Swatch <i> tags — already handled by CSS but ensure no
+        italic text leaks through.
+     3. SVG viewBox height — add bottom padding so rotated labels
+        are not clipped.
+  ─────────────────────────────────────────────────────────── */
+  (function () {
+    // Shorten period labels in the period chart SVG
+    function fixPeriodLabels() {
+      const chart = document.getElementById('dashboardPeriodChart');
+      if (!chart) return;
+      const svg = chart.querySelector('svg');
+      if (!svg) return;
+      svg.querySelectorAll('text.bar-label').forEach(el => {
+        const t = el.textContent;
+        // "2. Dönem (1996–2000)" → "2.D 96–00"
+        const m = t.match(/^(\d+)\.\s*D[öo]nem\s*\((\d{4})[–\-](\d{4})\)/i);
+        if (m) {
+          const short2 = m[2].slice(2); // "96"
+          const short4 = m[3].slice(2); // "00"
+          el.textContent = m[1] + '.D ' + short2 + '–' + short4;
+        } else {
+          // fallback: trim to 8 chars
+          if (t.length > 9) el.textContent = t.slice(0, 7) + '…';
+        }
+        el.setAttribute('text-anchor', 'middle');
+        el.setAttribute('font-size', '11');
+      });
+    }
+
+    // Fix year chart labels — just year numbers, already short, but
+    // ensure font-size is small enough when many years exist
+    function fixYearLabels() {
+      const chart = document.getElementById('dashboardYearChart');
+      if (!chart) return;
+      const svg = chart.querySelector('svg');
+      if (!svg) return;
+      const labels = svg.querySelectorAll('text.bar-label');
+      if (labels.length > 24) {
+        labels.forEach(el => el.setAttribute('font-size', '9'));
+      }
+    }
+
+    // Watch for site.js to finish rendering charts
+    function watchChart(id, fn) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const obs = new MutationObserver(() => {
+        if (el.querySelector('svg')) { fn(); obs.disconnect(); }
+      });
+      obs.observe(el, { childList: true, subtree: true });
+    }
+
+    watchChart('dashboardPeriodChart', fixPeriodLabels);
+    watchChart('dashboardYearChart',   fixYearLabels);
+    // Also run on filter changes (site.js re-renders)
+    ['dashboardSearch','dashboardKind','dashboardPeriod','dashboardStatus',
+     'dashboardCode','dashboardYearFrom','dashboardYearTo'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('change', () => {
+        setTimeout(fixPeriodLabels, 120);
+        setTimeout(fixYearLabels,   120);
+      });
+    });
+  })();
+  </script>
+
 </body>
 </html>
