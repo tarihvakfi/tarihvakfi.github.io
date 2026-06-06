@@ -1,808 +1,415 @@
 <!doctype html>
 <html lang="tr">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Görsel Özet | Tarih Vakfı Dijital Kronolojisi</title>
-    <meta name="description" content="Tarih Vakfı'nın 35 yıllık kurumsal faaliyetlerinin görsel analizi — dönem karşılaştırması, kategori haritası, yıllık ritim ve veri kalitesi.">
-    <link rel="stylesheet" href="assets/css/style.css">
-    <link rel="preload" href="assets/data/chronology_public.json" as="fetch">
-    <style>
-/* ── Dashboard-specific tokens ───────────────────────────── */
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Görsel Özet | Tarih Vakfı Dijital Kronolojisi</title>
+  <meta name="description" content="Tarih Vakfı'nın 35 yıllık faaliyetlerinin görsel analizi — dönem karşılaştırması, kategori dağılımı, yıllık ritim ve veri kalitesi.">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <style>
+/* ── Design tokens supplement ────────────────────────── */
+:root {
+  --db-red:    #8a2f2f;
+  --db-slate:  #4d6475;
+  --db-olive:  #626b45;
+  --db-amber:  #a26f26;
+  --db-purple: #7b6b8f;
+  --db-muted:  #9d8e7e;
+}
+
+/* ── Hero ── */
 .db-hero {
-  background: linear-gradient(135deg,#1a1410 0%,#2e1e14 50%,#3d2318 100%);
-  color: #f7f3ec; padding: 44px 24px 40px; position: relative; overflow: hidden;
+  background: linear-gradient(135deg, #1a1410 0%, #2e1e14 55%, #3d2318 100%);
+  color: #f7f3ec;
+  padding: 48px 24px 44px;
+  position: relative;
+  overflow: hidden;
 }
-.db-hero::after {
-  content: ''; position: absolute; inset: 0;
-  background: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.025'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E");
-  pointer-events: none;
+.db-hero::before {
+  content: '';
+  position: absolute; inset: 0; pointer-events: none;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255,255,255,0.018) 0px, rgba(255,255,255,0.018) 1px,
+    transparent 1px, transparent 14px
+  );
 }
-.db-hero-inner { max-width:1220px; margin:0 auto; display:grid; grid-template-columns:1fr auto; gap:32px; align-items:end; position:relative; }
-.db-hero h1 { color:#f7f3ec; margin:0 0 10px; font-size:clamp(28px,4.5vw,48px); line-height:1.1; }
-.db-hero p  { color:#c5b9ab; margin:0; font-size:16px; max-width:560px; line-height:1.6; }
-.db-hero .eyebrow { color:#c9a87e; font-size:11px; letter-spacing:.14em; font-weight:800; text-transform:uppercase; margin:0 0 14px; display:block; }
+.db-hero-inner {
+  max-width: 1200px; margin: 0 auto;
+  display: grid; grid-template-columns: 1fr auto;
+  gap: 32px; align-items: end; position: relative;
+}
+.db-hero .eyebrow {
+  color: #c9a87e; font-size: 11px; letter-spacing: .15em;
+  font-weight: 800; text-transform: uppercase;
+  margin: 0 0 14px; display: block;
+}
+.db-hero h1 {
+  color: #f7f3ec; margin: 0 0 12px;
+  font-size: clamp(28px, 4.5vw, 52px); line-height: 1.08;
+}
+.db-hero p { color: #c5b9ab; margin: 0; font-size: 16px; line-height: 1.65; max-width: 540px; }
+.db-hero-num { text-align: right; }
+.db-hero-num strong {
+  display: block; font-family: Georgia, serif;
+  font-size: clamp(44px, 6vw, 68px); color: #c9a87e; line-height: 1;
+}
+.db-hero-num span { font-size: 13px; color: #9d8e7e; margin-top: 4px; display: block; }
 
-/* ── Hero KPI strip ── */
-.db-kpi-strip { background:var(--paper); border-bottom:1px solid var(--line); }
-.db-kpi-inner { max-width:1220px; margin:0 auto; display:grid; grid-template-columns:repeat(5,1fr); }
-.db-kpi { padding:18px 20px; border-right:1px solid var(--line); }
-.db-kpi:last-child { border-right:none; }
-.db-kpi-n { font-family:Georgia,serif; font-size:30px; font-weight:700; color:var(--accent-dark); line-height:1; }
-.db-kpi-l { font-size:12px; color:var(--muted); margin-top:4px; }
-.db-kpi-delta { font-size:11px; color:var(--olive); font-weight:700; margin-top:2px; }
+/* ── KPI metrics strip ── */
+.db-metrics-strip { background: var(--paper, #faf8f4); border-bottom: 1px solid var(--line, #e4ddd5); }
+.db-metrics-strip #dashboardMetrics {
+  max-width: 1200px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(6, 1fr);
+}
+.db-metrics-strip .metric {
+  padding: 18px 20px; border-right: 1px solid var(--line, #e4ddd5);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.db-metrics-strip .metric:last-child { border-right: none; }
+.db-metrics-strip .metric strong {
+  font-family: Georgia, serif; font-size: 28px; font-weight: 700;
+  color: var(--db-red); line-height: 1;
+}
+.db-metrics-strip .metric span { font-size: 12px; color: var(--db-muted); }
 
-/* ── Body layout ── */
-.db-body { max-width:1220px; margin:0 auto; padding:32px 24px 72px; display:grid; gap:24px; }
+/* ── Layout body ── */
+.db-body { max-width: 1200px; margin: 0 auto; padding: 28px 24px 72px; display: grid; gap: 20px; }
 
 /* ── Filter bar ── */
-.db-filters {
-  background:var(--paper-strong); border:1px solid var(--line); border-radius:var(--radius);
-  padding:16px 18px; display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;
+.db-filter-bar {
+  background: var(--paper-strong, #f5f1eb);
+  border: 1px solid var(--line, #e4ddd5);
+  border-radius: 10px; padding: 16px 20px;
+  display: grid;
+  grid-template-columns: minmax(180px, 1.6fr) repeat(4, 1fr) 80px 80px auto;
+  gap: 12px; align-items: end;
 }
-.db-filters label { display:flex; flex-direction:column; gap:5px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
-.db-filters input,.db-filters select { border:1px solid var(--line); border-radius:6px; padding:7px 10px; background:white; color:var(--ink); min-width:100px; }
-.db-filters input[type=search] { min-width:180px; }
-.filter-result { font-size:13px; color:var(--muted); display:flex; align-items:center; gap:8px; flex:1; padding-top:18px; }
-.filter-result strong { color:var(--ink); font-size:18px; font-family:Georgia,serif; }
+.db-filter-bar label {
+  display: grid; gap: 5px;
+  font-size: 10px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--db-muted);
+}
+.db-filter-bar input,
+.db-filter-bar select {
+  border: 1px solid var(--line, #e4ddd5); border-radius: 6px;
+  padding: 8px 10px; background: white; color: var(--ink, #2c2217);
+  width: 100%; font-size: 13px;
+}
+.db-filter-count {
+  padding-top: 18px; font-size: 13px; color: var(--db-muted);
+  white-space: nowrap;
+}
+.db-filter-count strong { color: var(--ink, #2c2217); font-size: 17px; font-family: Georgia, serif; }
 
-/* ── Chart panel ── */
+/* ── Panel card ── */
 .db-panel {
-  background:var(--paper-strong); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  background: var(--paper-strong, #f5f1eb);
+  border: 1px solid var(--line, #e4ddd5);
+  border-radius: 10px; overflow: hidden;
 }
 .db-panel-head {
-  padding:18px 20px 14px; border-bottom:1px solid var(--line);
-  display:flex; justify-content:space-between; align-items:flex-start; gap:12px;
+  padding: 18px 22px 14px; border-bottom: 1px solid var(--line, #e4ddd5);
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
 }
-.db-panel-head-text {}
-.db-panel-head strong { font-family:Georgia,serif; font-size:19px; display:block; margin-bottom:3px; }
-.db-panel-head p { margin:0; font-size:13px; color:var(--muted); }
-.db-panel-body { padding:20px; }
-.db-panel-foot { padding:10px 20px 14px; font-size:12px; color:var(--muted); border-top:1px solid var(--line); }
-
-/* ── Grid layouts ── */
-.db-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
-.db-grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; }
-
-/* ── Heatmap ── */
-.heatmap-wrap { overflow-x:auto; }
-.heatmap-table { border-collapse:collapse; min-width:620px; width:100%; }
-.heatmap-table th { padding:6px 8px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); text-align:left; }
-.heatmap-table td { padding:5px 4px; }
-.hm-cell {
-  display:block; width:100%; border-radius:4px; text-align:center;
-  font-size:12px; font-weight:700; padding:7px 4px; cursor:default;
-  transition:transform .12s, box-shadow .12s;
+.db-panel-head-left strong {
+  font-family: Georgia, serif; font-size: 19px; display: block; margin-bottom: 3px;
 }
-.hm-cell:hover { transform:scale(1.06); box-shadow:0 3px 10px rgba(55,42,31,.15); z-index:2; position:relative; }
-.hm-year { font-family:Georgia,serif; font-size:14px; font-weight:700; color:var(--ink); padding:6px 8px 6px 0; }
-.hm-period-header { background:var(--accent-soft); color:var(--accent-dark); font-size:11px; font-weight:800; letter-spacing:.04em; padding:8px 6px; border-radius:4px; text-align:center; }
-
-/* ── Donut chart ── */
-.donut-wrap { display:flex; align-items:center; gap:24px; }
-.donut-legend { display:flex; flex-direction:column; gap:8px; }
-.donut-legend-item { display:flex; align-items:center; gap:8px; font-size:13px; }
-.donut-swatch { width:12px; height:12px; border-radius:3px; flex-shrink:0; }
-.donut-legend-n { font-weight:700; margin-left:auto; padding-left:12px; font-variant-numeric:tabular-nums; }
-
-/* ── Sparklines ── */
-.sparkline-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
-.spark-card { border:1px solid var(--line); border-radius:6px; padding:14px; background:white; }
-.spark-card-n { font-family:Georgia,serif; font-size:22px; font-weight:700; line-height:1; color:var(--ink); }
-.spark-card-l { font-size:12px; color:var(--muted); margin:3px 0 10px; }
-.spark-svg { width:100%; height:40px; display:block; }
-
-/* ── Period comparison bars ── */
-.period-compare { display:grid; gap:10px; }
-.pc-row { display:grid; grid-template-columns:170px 1fr 42px; align-items:center; gap:10px; }
-.pc-label { font-size:13px; color:var(--muted); text-align:right; line-height:1.3; }
-.pc-bar-track { height:22px; background:var(--line); border-radius:4px; overflow:hidden; display:flex; }
-.pc-segment { height:100%; transition:width .4s; }
-.pc-val { font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
-
-/* ── Trend arrow ── */
-.trend-up   { color:#2f6041; }
-.trend-down { color:#8a2f2f; }
-.trend-flat { color:var(--muted); }
-
-/* ── Tooltip ── */
-#dbTooltip {
-  display:none; position:fixed; z-index:200;
-  background:#1a1410; color:#f7f3ec; border-radius:8px; padding:10px 14px;
-  font-size:13px; pointer-events:none; max-width:260px; line-height:1.5;
-  box-shadow:0 8px 24px rgba(0,0,0,.35);
+.db-panel-head-left p { margin: 0; font-size: 13px; color: var(--db-muted); line-height: 1.5; }
+.db-panel-body { padding: 20px 22px; }
+.db-panel-foot {
+  padding: 10px 22px 14px; font-size: 12px; color: var(--db-muted);
+  border-top: 1px solid var(--line, #e4ddd5);
 }
 
-/* ── Table ── */
-.db-table { width:100%; border-collapse:collapse; font-size:13px; }
-.db-table th { text-align:left; padding:8px 10px; border-bottom:2px solid var(--line); font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:700; }
-.db-table td { padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
-.db-table tr:last-child td { border-bottom:none; }
-.db-table tbody tr:hover td { background:var(--accent-soft); }
-.db-table a { text-decoration:none; font-weight:600; color:var(--accent-dark); }
-.db-table a:hover { text-decoration:underline; }
+/* ── Chart label pill ── */
+.chart-legend {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  font-size: 12px; color: var(--db-muted); align-items: center;
+}
+.chart-legend-item {
+  display: flex; align-items: center; gap: 5px;
+}
+.chart-legend-dot {
+  width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0;
+}
 
-/* ── Badge (compact) ── */
-.bx { display:inline-block; font-size:10px; font-weight:700; padding:2px 7px; border-radius:999px; }
-.bx-event  { background:#e8f0f7; color:#4d6475; }
-.bx-publication { background:#fdf0f0; color:#8a2f2f; }
-.bx-org    { background:#edf0e7; color:#626b45; }
-.bx-project{ background:#fdf7ee; color:#a26f26; }
-.bx-ok     { background:#eef7f1; color:#2f6041; }
-.bx-warn   { background:#fdf7ee; color:#a26f26; }
+/* ── 2-column grid ── */
+.db-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+/* ── Chart containers — let site.js SVGs breathe ── */
+.db-panel-body [id$="Chart"] { overflow-x: auto; }
+.db-panel-body [id$="Chart"] svg {
+  max-width: 100%; height: auto; display: block;
+  border-radius: 4px;
+}
+
+/* ── Dashboard table ── */
+#dashboardTable table { width: 100%; border-collapse: collapse; font-size: 13px; }
+#dashboardTable th {
+  text-align: left; padding: 9px 12px;
+  border-bottom: 2px solid var(--line, #e4ddd5);
+  font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--db-muted); font-weight: 700;
+}
+#dashboardTable td { padding: 9px 12px; border-bottom: 1px solid var(--line, #e4ddd5); vertical-align: top; }
+#dashboardTable tbody tr:hover td { background: rgba(138,47,47,.04); }
+#dashboardTable a { color: var(--db-red); font-weight: 600; text-decoration: none; }
+#dashboardTable a:hover { text-decoration: underline; }
 
 /* ── Pagination ── */
-.db-pager { display:flex; gap:6px; justify-content:center; margin-top:18px; flex-wrap:wrap; }
-.db-pager button { border:1px solid var(--line); border-radius:6px; background:none; padding:5px 12px; cursor:pointer; font-size:13px; color:var(--muted); }
-.db-pager button.active,.db-pager button:hover { background:var(--accent-soft); color:var(--accent-dark); border-color:var(--accent-soft); }
+#dashboardPagination {
+  display: flex; gap: 6px; justify-content: center;
+  margin-top: 16px; flex-wrap: wrap;
+}
+#dashboardPagination button {
+  border: 1px solid var(--line, #e4ddd5); border-radius: 6px;
+  background: none; padding: 5px 12px; cursor: pointer;
+  font-size: 13px; color: var(--db-muted); transition: all .12s;
+}
+#dashboardPagination button:hover,
+#dashboardPagination button[aria-current="page"],
+#dashboardPagination .page-current {
+  background: rgba(138,47,47,.1); color: var(--db-red);
+  border-color: rgba(138,47,47,.25);
+}
+
+/* ── Loading state ── */
+.db-loading { text-align: center; padding: 40px; color: var(--db-muted); font-size: 14px; }
 
 /* ── Responsive ── */
-@media (max-width:960px) {
-  .db-hero-inner { grid-template-columns:1fr; }
-  .db-kpi-inner  { grid-template-columns:repeat(3,1fr); }
-  .db-grid-2,.db-grid-3 { grid-template-columns:1fr; }
-  .sparkline-grid { grid-template-columns:1fr 1fr; }
+@media (max-width: 1024px) {
+  .db-filter-bar { grid-template-columns: 1fr 1fr 1fr; }
+  .db-metrics-strip #dashboardMetrics { grid-template-columns: repeat(3, 1fr); }
 }
-@media (max-width:600px) {
-  .db-kpi-inner  { grid-template-columns:1fr 1fr; }
-  .sparkline-grid{ grid-template-columns:1fr 1fr; }
-  .pc-row { grid-template-columns:90px 1fr 36px; }
-  .pc-label { font-size:11px; }
+@media (max-width: 768px) {
+  .db-hero-inner { grid-template-columns: 1fr; }
+  .db-hero-num { text-align: left; }
+  .db-grid-2 { grid-template-columns: 1fr; }
+  .db-filter-bar { grid-template-columns: 1fr 1fr; }
+  .db-metrics-strip #dashboardMetrics { grid-template-columns: 1fr 1fr 1fr; }
 }
-    </style>
-  </head>
-  <body data-page="dashboard">
+@media (max-width: 480px) {
+  .db-filter-bar { grid-template-columns: 1fr; }
+  .db-metrics-strip #dashboardMetrics { grid-template-columns: 1fr 1fr; }
+}
+  </style>
+</head>
+<body data-page="dashboard">
 
-    <!-- ── Nav ── -->
-    <header class="site-header">
-      <nav class="nav" aria-label="Ana gezinme">
-        <a class="brand" href="index.html"><span class="brand-mark">TV</span> Tarih Vakfı Dijital Kronolojisi</a>
-        <div class="nav-links">
-          <a href="timeline.html">Kronoloji</a>
-          <a href="archive.html">Arşiv</a>
-          <a href="dashboard.html" aria-current="page">Görsel Özet</a>
-          <a href="methodology.html">Yöntem</a>
-          <a href="data.html">Veri</a>
-        </div>
-      </nav>
-    </header>
+  <!-- ── Nav ── -->
+  <header class="site-header">
+    <nav class="nav" aria-label="Ana gezinme">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">TV</span>
+        Tarih Vakfı Dijital Kronolojisi
+      </a>
+      <div class="nav-links">
+        <a href="timeline.html">Kronoloji</a>
+        <a href="archive.html">Arşiv</a>
+        <a href="dashboard.html" aria-current="page">Görsel Özet</a>
+        <a href="methodology.html">Yöntem</a>
+        <a href="data.html">Veri</a>
+      </div>
+    </nav>
+  </header>
 
-    <!-- ── Hero ── -->
-    <div class="db-hero">
-      <div class="db-hero-inner">
-        <div>
-          <span class="eyebrow">Görsel analiz · 1991–2026</span>
-          <h1>35 Yıllık Kurumsal<br>Faaliyet Haritası</h1>
-          <p>Konferanslar, yayınlar, sergiler, projeler ve örgütsel işlerin dönemsel dağılımı — filtrelenebilir, karşılaştırılabilir, açık veri.</p>
-        </div>
-        <div style="text-align:right">
-          <div style="font-family:Georgia,serif;font-size:52px;color:#c9a87e;line-height:1;" id="dbHeroTotal">—</div>
-          <div style="font-size:13px;color:#9d8e7e;margin-top:4px;">toplam kayıt · filtre uygulandı</div>
-        </div>
+  <!-- ── Hero ── -->
+  <div class="db-hero">
+    <div class="db-hero-inner">
+      <div>
+        <span class="eyebrow">Görsel analiz · 1991–2026</span>
+        <h1>35 Yıllık Kurumsal<br>Faaliyet Haritası</h1>
+        <p>Konferanslar, yayınlar, sergiler, projeler ve örgütsel işlerin dönemsel dağılımı — filtrelenebilir, karşılaştırılabilir, açık veri.</p>
+      </div>
+      <div class="db-hero-num">
+        <strong id="dbHeroTotal">—</strong>
+        <span>kayıt · filtre uygulandı</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── KPI metrics strip ── -->
+  <div class="db-metrics-strip">
+    <div id="dashboardMetrics" aria-label="Özet istatistikler">
+      <div class="metric"><strong>—</strong><span>Yükleniyor…</span></div>
+    </div>
+  </div>
+
+  <!-- ── Body ── -->
+  <div class="db-body">
+
+    <!-- ── Filters ── -->
+    <div class="db-filter-bar" role="search" aria-label="Kayıt filtreleri">
+      <label>Arama
+        <input id="dashboardSearch" type="search" placeholder="Başlık, kategori, yıl…" autocomplete="off">
+      </label>
+      <label>Tür
+        <select id="dashboardKind"></select>
+      </label>
+      <label>Dönem
+        <select id="dashboardPeriod"></select>
+      </label>
+      <label>Durum
+        <select id="dashboardStatus"></select>
+      </label>
+      <label>Faaliyet kodu
+        <select id="dashboardCode"></select>
+      </label>
+      <label>Başlangıç
+        <input id="dashboardYearFrom" type="number" min="1990" max="2026">
+      </label>
+      <label>Bitiş
+        <input id="dashboardYearTo"   type="number" min="1990" max="2026">
+      </label>
+      <div class="db-filter-count">
+        <strong id="dbHeroCount">—</strong><br>kayıt seçili
       </div>
     </div>
 
-    <!-- ── KPI strip ── -->
-    <div class="db-kpi-strip">
-      <div class="db-kpi-inner" id="dbKpiStrip">
-        <div class="db-kpi"><div class="db-kpi-n" id="kpiEvents">—</div><div class="db-kpi-l">Etkinlik & toplantı</div></div>
-        <div class="db-kpi"><div class="db-kpi-n" id="kpiPubs">—</div><div class="db-kpi-l">Yayın</div></div>
-        <div class="db-kpi"><div class="db-kpi-n" id="kpiOrg">—</div><div class="db-kpi-l">Örgütsel iş</div></div>
-        <div class="db-kpi"><div class="db-kpi-n" id="kpiVerified">—</div><div class="db-kpi-l">Doğrulanmış kayıt</div></div>
-        <div class="db-kpi"><div class="db-kpi-n" id="kpiYearSpan">—</div><div class="db-kpi-l">Yıl aralığı</div></div>
+    <!-- dashboardCount: hidden relay for site.js setText() -->
+    <p id="dashboardCount" style="display:none"></p>
+
+    <!-- ── Panel 1: Year chart (full width) ── -->
+    <div class="db-panel">
+      <div class="db-panel-head">
+        <div class="db-panel-head-left">
+          <strong>Yıllık Faaliyet Ritmi — 1991–2026</strong>
+          <p>Her sütun bir yılı gösterir; renk katmanları etkinlik · yayın · örgütsel iş oranını temsil eder.</p>
+        </div>
+        <div class="chart-legend">
+          <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#4d6475"></span>Etkinlik</span>
+          <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#8a2f2f"></span>Yayın</span>
+          <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#626b45"></span>Örgütsel iş</span>
+        </div>
+      </div>
+      <div class="db-panel-body">
+        <div id="dashboardYearChart" class="db-loading">Veri yükleniyor…</div>
+      </div>
+      <div class="db-panel-foot">Sütuna tıklayarak o yılı filtreleyin. Yıl etiketi her 3 yılda bir gösterilir.</div>
+    </div>
+
+    <!-- ── Row 2: Period + Category side by side ── -->
+    <div class="db-grid-2">
+
+      <!-- Period chart -->
+      <div class="db-panel">
+        <div class="db-panel-head">
+          <div class="db-panel-head-left">
+            <strong>Dönem Karşılaştırması</strong>
+            <p>7 dönem · faaliyet grubu katmanları</p>
+          </div>
+          <div class="chart-legend">
+            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#4d6475"></span>Toplantılar</span>
+            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#8a2f2f"></span>Yayınlar</span>
+            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#a26f26"></span>Etkinlikler</span>
+            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#626b45"></span>Projeler</span>
+          </div>
+        </div>
+        <div class="db-panel-body">
+          <div id="dashboardPeriodChart" class="db-loading">Veri yükleniyor…</div>
+        </div>
+        <div class="db-panel-foot">Dönem adına tıklayarak filtreye ekleyin.</div>
+      </div>
+
+      <!-- Quality chart -->
+      <div class="db-panel">
+        <div class="db-panel-head">
+          <div class="db-panel-head-left">
+            <strong>Veri Kalitesi Dağılımı</strong>
+            <p>Doğrulama durumu · yayın öncesi kontrol için</p>
+          </div>
+          <div class="chart-legend">
+            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#4f7b5b"></span>Doğrulanmış</span>
+            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#a26f26"></span>İnceleme</span>
+            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#b56a5e"></span>Tarih belirsiz</span>
+          </div>
+        </div>
+        <div class="db-panel-body">
+          <div id="dashboardQualityChart" class="db-loading">Veri yükleniyor…</div>
+        </div>
+        <div class="db-panel-foot">Yeşil = doğrulanmış · Sarı = inceleme bekliyor · Turuncu = tarih belirsiz</div>
+      </div>
+
+    </div>
+
+    <!-- ── Panel 3: Category chart (full width) ── -->
+    <div class="db-panel">
+      <div class="db-panel-head">
+        <div class="db-panel-head-left">
+          <strong>Faaliyet Kategorisi Dağılımı</strong>
+          <p>En sık 16 faaliyet kodu — seçili filtrelere göre güncellenir</p>
+        </div>
+        <div class="chart-legend">
+          <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#4d6475"></span>Toplantılar</span>
+          <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#8a2f2f"></span>Yayınlar</span>
+          <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#a26f26"></span>Etkinlikler</span>
+          <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#626b45"></span>Projeler</span>
+          <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#7b7169"></span>BBM</span>
+        </div>
+      </div>
+      <div class="db-panel-body" style="overflow-x: auto;">
+        <div id="dashboardCategoryChart" class="db-loading">Veri yükleniyor…</div>
+      </div>
+      <div class="db-panel-foot">Her çubuk bir faaliyet kodunu gösterir. Kod renklerle gruba göre sınıflandırılmıştır.</div>
+    </div>
+
+    <!-- ── Panel 4: Filtered records table ── -->
+    <div class="db-panel">
+      <div class="db-panel-head">
+        <div class="db-panel-head-left">
+          <strong>Filtrelenmiş Kayıtlar</strong>
+          <p>Aktif filtrelere uyan kayıtlar — başlığa tıklayarak tekil kayıt sayfasını açın</p>
+        </div>
+        <a href="archive.html" class="button" style="font-size:13px;padding:8px 16px;white-space:nowrap;">
+          Arşiv görünümü →
+        </a>
+      </div>
+      <div class="db-panel-body" style="padding: 0 0 4px;">
+        <div id="dashboardTable" class="db-loading" style="padding: 20px 22px;">
+          Veri yükleniyor…
+        </div>
+      </div>
+      <div class="db-panel-foot">
+        <div id="dashboardPagination"></div>
       </div>
     </div>
 
-    <!-- ── Main dashboard body ── -->
-    <div class="db-body">
-
-      <!-- ── Filters ── -->
-      <div class="db-filters">
-        <label>Arama<input id="dashboardSearch" type="search" placeholder="Başlık, kategori…"></label>
-        <label>Tür<select id="dashboardKind"></select></label>
-        <label>Dönem<select id="dashboardPeriod"></select></label>
-        <label>Durum<select id="dashboardStatus"></select></label>
-        <label>Faaliyet kodu<select id="dashboardCode"></select></label>
-        <label>Başlangıç<input id="dashboardYearFrom" type="number" min="1990" max="2026" style="width:80px"></label>
-        <label>Bitiş<input id="dashboardYearTo" type="number" min="1990" max="2026" style="width:80px"></label>
-        <div class="filter-result"><strong id="dashboardCount">—</strong>&nbsp;kayıt seçili</div>
-      </div>
-
-      <!-- ── Row 1: 35-year heatmap (full width) ── -->
-      <div class="db-panel">
-        <div class="db-panel-head">
-          <div class="db-panel-head-text">
-            <strong>35 Yıllık Faaliyet Isı Haritası</strong>
-            <p>Her hücre bir yılı gösterir; renk yoğunluğu kayıt hacmini, renk tonu ise baskın faaliyet türünü temsil eder. Üzerine gelinince yıl detayı açılır.</p>
-          </div>
-          <div style="display:flex;gap:8px;font-size:12px;flex-wrap:wrap;align-items:center;">
-            <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:#4d6475;display:inline-block"></span>Etkinlik ağırlıklı</span>
-            <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:#8a2f2f;display:inline-block"></span>Yayın ağırlıklı</span>
-            <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:#626b45;display:inline-block"></span>Karma</span>
-          </div>
-        </div>
-        <div class="db-panel-body">
-          <div class="heatmap-wrap"><div id="dbHeatmap">Yükleniyor…</div></div>
-        </div>
-        <div class="db-panel-foot">Satır rengi: etkinlik/yayın oranı. Sütun: yıl. Hücre boyutu: kayıt sayısı ile orantılı metin.</div>
-      </div>
-
-      <!-- ── Row 2: period bars + category donut ── -->
-      <div class="db-grid-2">
-
-        <!-- Period comparison -->
-        <div class="db-panel">
-          <div class="db-panel-head">
-            <div class="db-panel-head-text">
-              <strong>Dönem Karşılaştırması</strong>
-              <p>7 dönem · etkinlik / yayın / örgütsel iş katmanları</p>
-            </div>
-          </div>
-          <div class="db-panel-body">
-            <div class="period-compare" id="dbPeriodBars">Yükleniyor…</div>
-          </div>
-          <div class="db-panel-foot">Segment genişliği toplam kayıt sayısına orantılı. Tıklanabilir — filtreye ekler.</div>
-        </div>
-
-        <!-- Category donut -->
-        <div class="db-panel">
-          <div class="db-panel-head">
-            <div class="db-panel-head-text">
-              <strong>Faaliyet Türü Dağılımı</strong>
-              <p>En sık 10 kategori · tıklayarak filtrele</p>
-            </div>
-          </div>
-          <div class="db-panel-body">
-            <div class="donut-wrap" id="dbDonutWrap">
-              <svg id="dbDonut" width="180" height="180" viewBox="0 0 180 180"></svg>
-              <div class="donut-legend" id="dbDonutLegend"></div>
-            </div>
-          </div>
-          <div class="db-panel-foot">Dış halka = seçili filtre; iç halka = tüm veri oranı.</div>
-        </div>
-
-      </div>
-
-      <!-- ── Row 3: yearly rhythm (stacked area) ── -->
-      <div class="db-panel">
-        <div class="db-panel-head">
-          <div class="db-panel-head-text">
-            <strong>Yıllık Faaliyet Ritmi</strong>
-            <p>Yıllar boyunca etkinlik · yayın · örgütsel iş değişimi — seçili filtrelere göre güncellenir.</p>
-          </div>
-          <div id="dbRhythmLegend" style="font-size:12px;color:var(--muted);display:flex;gap:14px;align-items:center;flex-wrap:wrap;"></div>
-        </div>
-        <div class="db-panel-body" style="overflow-x:auto;">
-          <svg id="dbRhythmSvg" viewBox="0 0 1160 280" style="width:100%;min-width:640px;display:block;"></svg>
-        </div>
-        <div class="db-panel-foot" id="dbRhythmFoot">Üzerine gelince yıl detayı açılır.</div>
-      </div>
-
-      <!-- ── Row 4: sparkline KPIs + top-category bar ── -->
-      <div class="db-grid-2">
-
-        <!-- Top categories horizontal bar -->
-        <div class="db-panel">
-          <div class="db-panel-head">
-            <div class="db-panel-head-text">
-              <strong>En Sık 15 Faaliyet Kategorisi</strong>
-              <p>Seçili filtrelere göre sıralı</p>
-            </div>
-          </div>
-          <div class="db-panel-body">
-            <div id="dbCatBars">Yükleniyor…</div>
-          </div>
-        </div>
-
-        <!-- Data quality breakdown -->
-        <div class="db-panel">
-          <div class="db-panel-head">
-            <div class="db-panel-head-text">
-              <strong>Veri Kalitesi</strong>
-              <p>Doğrulama durumu dağılımı — yayın öncesi kontrol için</p>
-            </div>
-          </div>
-          <div class="db-panel-body">
-            <svg id="dbQualitySvg" viewBox="0 0 480 260" style="width:100%;display:block;"></svg>
-            <div id="dbQualityLegend" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:12px;"></div>
-          </div>
-          <div class="db-panel-foot">Yeşil: doğrulanmış · Sarı: inceleme bekliyor · Turuncu: tarih belirsiz · Gri: kategori belirsiz</div>
-        </div>
-
-      </div>
-
-      <!-- ── Row 5: per-decade sparklines ── -->
-      <div class="db-panel">
-        <div class="db-panel-head">
-          <div class="db-panel-head-text">
-            <strong>Dönem Kıpırtıları</strong>
-            <p>Her dönemin kendi iç yıllık ritmi — küçük sparkline grafiği olarak</p>
-          </div>
-        </div>
-        <div class="db-panel-body">
-          <div class="sparkline-grid" id="dbSparklines">Yükleniyor…</div>
-        </div>
-      </div>
-
-      <!-- ── Row 6: filtered records table ── -->
-      <div class="db-panel">
-        <div class="db-panel-head">
-          <div class="db-panel-head-text">
-            <strong>Filtrelenmiş Kayıtlar</strong>
-            <p>Aktif filtrelere uyan kayıtlar — tıklayarak tekil kayıt sayfasına git</p>
-          </div>
-          <a href="archive.html" class="button secondary" style="white-space:nowrap;font-size:13px;">Arşiv görünümü →</a>
-        </div>
-        <div class="db-panel-body" style="padding:0;">
-          <div id="dbTable">Yükleniyor…</div>
-        </div>
-        <div class="db-panel-foot">
-          <nav class="db-pager" id="dbPager"></nav>
-        </div>
-      </div>
-
-    </div><!-- /.db-body -->
-
-    <div id="dbTooltip"></div>
-
-    <footer class="footer">
-      <div class="footer-inner">
-        <span>Görsel Özet, hepsini birden görmek içindir; alıntı ve ayrıntı için tekil kayıt sayfaları kullanılmalıdır.</span>
-        <a href="archive.html">Arşivde ara</a>
-      </div>
-    </footer>
-
-    <script src="assets/js/config.js"></script>
-    <script src="assets/js/site.js"></script>
-    <script>
-// ═══════════════════════════════════════════════════════════════════════
-// DASHBOARD RICH VISUALIZATIONS
-// Hooks into allRecords from site.js — runs after data is loaded
-// ═══════════════════════════════════════════════════════════════════════
-
-const DB = {
-  page: 1,
-  PAGE_SIZE: 20,
-
-  PERIOD_ORDER: [
-    "1. Dönem (1991–1995)","2. Dönem (1996–2000)","3. Dönem (2001–2005)",
-    "4. Dönem (2006–2010)","5. Dönem (2011–2015)","6. Dönem (2016–2020)",
-    "7. Dönem (2021–2026)"
-  ],
-  PERIOD_SHORT: ["1.D 1991–95","2.D 1996–00","3.D 2001–05","4.D 2006–10","5.D 2011–15","6.D 2016–20","7.D 2021–26"],
-
-  KIND_COLOR: { event:"#4d6475", publication:"#8a2f2f", organizational:"#626b45", project:"#a26f26", chronology:"#b0a090" },
-  KIND_LABEL: { event:"Etkinlik", publication:"Yayın", organizational:"Örgütsel iş", project:"Proje", chronology:"Kronoloji" },
-
-  STATUS_COLOR: { verified:"#2f6041", needs_review:"#a26f26", uncertain_date:"#c17b2a", uncertain_category:"#9d8e7e" },
-  STATUS_LABEL: { verified:"Doğrulanmış", needs_review:"İnceleme", uncertain_date:"Tarih belirsiz", uncertain_category:"Kategori belirsiz" },
-
-  CAT_PALETTE: ["#8a2f2f","#4d6475","#626b45","#a26f26","#7b6b8f","#b56a5e","#4a7c6e","#a0522d","#5a7a5e","#847450"],
-};
-
-// ── Helpers ──────────────────────────────────────────────────────────
-const esc = v => String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-
-function applyFilter(field, value) {
-  const el = document.getElementById(`dashboard${field}`);
-  if (el) { el.value = value; el.dispatchEvent(new Event('change')); }
-}
-
-function showTip(e, html) {
-  const t = document.getElementById('dbTooltip');
-  t.innerHTML = html; t.style.display = 'block';
-  t.style.left = Math.min(e.clientX + 14, window.innerWidth - 280) + 'px';
-  t.style.top  = (e.clientY - 50) + 'px';
-}
-function hideTip() { document.getElementById('dbTooltip').style.display = 'none'; }
-
-// ── KPI strip ──────────────────────────────────────────────────────────
-function renderKPIs(recs) {
-  const n = n => n.toLocaleString('tr-TR');
-  document.getElementById('dbHeroTotal').textContent = n(recs.length);
-  document.getElementById('dashboardCount').textContent = n(recs.length);
-  document.getElementById('kpiEvents').textContent   = n(recs.filter(r=>r.item_kind==='event').length);
-  document.getElementById('kpiPubs').textContent     = n(recs.filter(r=>r.item_kind==='publication').length);
-  document.getElementById('kpiOrg').textContent      = n(recs.filter(r=>r.item_kind==='organizational').length);
-  document.getElementById('kpiVerified').textContent = n(recs.filter(r=>r.verification_status==='verified').length);
-  const years = recs.map(r=>r._year||Number(r.year)).filter(y=>y>1980&&y<2030);
-  document.getElementById('kpiYearSpan').textContent = years.length ? `${Math.min(...years)}–${Math.max(...years)}` : '—';
-}
-
-// ── Heatmap ────────────────────────────────────────────────────────────
-function renderHeatmap(recs) {
-  const byYear = {};
-  for (const r of recs) {
-    const y = r._year || Number(r.year);
-    if (!y || y < 1990 || y > 2027) continue;
-    if (!byYear[y]) byYear[y] = { event:0, publication:0, organizational:0, project:0, total:0 };
-    byYear[y][r.item_kind] = (byYear[y][r.item_kind]||0) + 1;
-    byYear[y].total++;
-  }
-
-  const years = Object.keys(byYear).map(Number).sort((a,b)=>a-b);
-  if (!years.length) { document.getElementById('dbHeatmap').textContent = 'Veri yok.'; return; }
-
-  const max = Math.max(...years.map(y=>byYear[y].total));
-
-  // Group years by period
-  const periodRanges = [
-    [1991,1995],[1996,2000],[2001,2005],[2006,2010],[2011,2015],[2016,2020],[2021,2026]
-  ];
-
-  let html = '<table class="heatmap-table" role="grid" aria-label="Yıllık faaliyet ısı haritası"><thead><tr><th></th>';
-  // column headers: every year
-  for (const y of years) html += `<th style="min-width:38px;text-align:center;font-size:11px;">${y}</th>`;
-  html += '</tr></thead><tbody>';
-
-  // One row per "band": total, then event, then publication
-  const bands = [
-    { key:'total',        label:'Toplam',  fn:(d)=>d.total },
-    { key:'event',        label:'Etkinlik', fn:(d)=>d.event||0 },
-    { key:'publication',  label:'Yayın',    fn:(d)=>d.publication||0 },
-    { key:'organizational',label:'Örgütsel',fn:(d)=>d.organizational||0 },
-  ];
-
-  const bandColors = {
-    total:       (v,max)=>{ const a=Math.max(0.06,v/max); return `rgba(138,47,47,${a})`; },
-    event:       (v,max)=>{ const a=Math.max(0.06,v/max); return `rgba(77,100,117,${a})`; },
-    publication: (v,max)=>{ const a=Math.max(0.06,v/max); return `rgba(138,47,47,${a})`; },
-    organizational:(v,max)=>{ const a=Math.max(0.06,v/max); return `rgba(98,107,69,${a})`; },
-  };
-  const bandMax = { total:max };
-  for (const b of bands.slice(1)) {
-    bandMax[b.key] = Math.max(...years.map(y=>byYear[y][b.key]||0), 1);
-  }
-
-  for (const band of bands) {
-    html += `<tr><td class="hm-year" style="white-space:nowrap;font-size:12px;color:var(--muted);padding-right:12px;">${band.label}</td>`;
-    for (const y of years) {
-      const d = byYear[y];
-      const v = band.fn(d);
-      const bg = bandColors[band.key](v, bandMax[band.key]);
-      const textColor = v/bandMax[band.key] > 0.5 ? '#fff' : 'var(--ink)';
-      const period = periodRanges.findIndex(([s,e])=>y>=s&&y<=e);
-      const periodLabel = DB.PERIOD_SHORT[period] || '';
-      html += `<td><span class="hm-cell" style="background:${bg};color:${textColor};"
-        data-year="${y}" data-period="${periodLabel}" data-val="${v}" data-band="${band.label}"
-        onmouseenter="showTip(event,'<strong>${y}</strong><br>${esc(band.label)}: <strong>${v}</strong><br>${esc(periodLabel)}')"
-        onmouseleave="hideTip()">${v||''}</span></td>`;
-    }
-    html += '</tr>';
-  }
-  html += '</tbody></table>';
-  document.getElementById('dbHeatmap').innerHTML = html;
-}
-
-// ── Period stacked bars ────────────────────────────────────────────────
-function renderPeriodBars(recs) {
-  const el = document.getElementById('dbPeriodBars');
-  const byPeriod = {};
-  for (const p of DB.PERIOD_ORDER) byPeriod[p] = { event:0, publication:0, organizational:0, project:0, total:0 };
-  for (const r of recs) {
-    const p = r.period;
-    if (!byPeriod[p]) continue;
-    byPeriod[p][r.item_kind] = (byPeriod[p][r.item_kind]||0) + 1;
-    byPeriod[p].total++;
-  }
-  const max = Math.max(...DB.PERIOD_ORDER.map(p=>byPeriod[p].total), 1);
-  const kinds = ['event','publication','organizational','project'];
-
-  el.innerHTML = DB.PERIOD_ORDER.map((p, i) => {
-    const d = byPeriod[p];
-    const widths = kinds.map(k => (d[k]||0)/max*100);
-    const segs = kinds.map((k,j) => widths[j] > 0 ?
-      `<div class="pc-segment" style="width:${widths[j].toFixed(1)}%;background:${DB.KIND_COLOR[k]}"
-        title="${DB.KIND_LABEL[k]}: ${d[k]||0}"></div>` : ''
-    ).join('');
-    const short = DB.PERIOD_SHORT[i];
-    return `<div class="pc-row" style="cursor:pointer" onclick="applyFilter('Period','${p}')">
-      <div class="pc-label">${short}</div>
-      <div class="pc-bar-track"
-        onmouseenter="showTip(event,'<strong>${esc(short)}</strong><br>Etkinlik: ${d.event||0}<br>Yayın: ${d.publication||0}<br>Örgütsel: ${d.organizational||0}<br>Toplam: <strong>${d.total}</strong>')"
-        onmouseleave="hideTip()">${segs}</div>
-      <div class="pc-val">${d.total}</div>
-    </div>`;
-  }).join('');
-}
-
-// ── Donut chart ────────────────────────────────────────────────────────
-function renderDonut(recs) {
-  const kindCounts = {};
-  for (const r of recs) kindCounts[r.item_kind] = (kindCounts[r.item_kind]||0) + 1;
-  const total = recs.length || 1;
-  const entries = Object.entries(kindCounts).sort((a,b)=>b[1]-a[1]);
-
-  const R=70, r=42, cx=90, cy=90;
-  let angle = -Math.PI/2;
-  let paths = '';
-  for (const [k,v] of entries) {
-    const sweep = (v/total)*2*Math.PI;
-    const x1=cx+R*Math.cos(angle), y1=cy+R*Math.sin(angle);
-    angle += sweep;
-    const x2=cx+R*Math.cos(angle), y2=cy+R*Math.sin(angle);
-    const xi=cx+r*Math.cos(angle-sweep), yi=cy+r*Math.sin(angle-sweep);
-    const xo=cx+r*Math.cos(angle), yo=cy+r*Math.sin(angle);
-    const big = sweep > Math.PI ? 1 : 0;
-    const col = DB.KIND_COLOR[k] || '#9d8e7e';
-    paths += `<path d="M${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${big},1 ${x2.toFixed(2)},${y2.toFixed(2)} L${xo.toFixed(2)},${yo.toFixed(2)} A${r},${r} 0 ${big},0 ${xi.toFixed(2)},${yi.toFixed(2)} Z"
-      fill="${col}" stroke="var(--paper-strong)" stroke-width="2"
-      onmouseenter="showTip(event,'<strong>${esc(DB.KIND_LABEL[k]||k)}</strong>: ${v} (${(v/total*100).toFixed(1)}%)')"
-      onmouseleave="hideTip()" style="cursor:pointer" onclick="applyFilter('Kind','${k}')">
-      <title>${DB.KIND_LABEL[k]||k}: ${v}</title></path>`;
-  }
-  paths += `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle"
-    font-family="Georgia,serif" font-size="22" font-weight="700" fill="var(--ink)">${total.toLocaleString('tr-TR')}</text>
-    <text x="${cx}" y="${cy+18}" text-anchor="middle" fill="var(--muted)" font-size="10">kayıt</text>`;
-  document.getElementById('dbDonut').innerHTML = paths;
-
-  document.getElementById('dbDonutLegend').innerHTML = entries.map(([k,v]) => `
-    <div class="donut-legend-item" style="cursor:pointer" onclick="applyFilter('Kind','${k}')">
-      <span class="donut-swatch" style="background:${DB.KIND_COLOR[k]||'#9d8e7e'}"></span>
-      <span>${esc(DB.KIND_LABEL[k]||k)}</span>
-      <span class="donut-legend-n">${v.toLocaleString('tr-TR')}</span>
-    </div>`).join('');
-}
-
-// ── Yearly rhythm SVG ──────────────────────────────────────────────────
-function renderRhythm(recs) {
-  const byYear = {};
-  for (const r of recs) {
-    const y = r._year || Number(r.year);
-    if (!y||y<1990||y>2027) continue;
-    if (!byYear[y]) byYear[y] = { event:0, publication:0, organizational:0, project:0 };
-    byYear[y][r.item_kind] = (byYear[y][r.item_kind]||0)+1;
-  }
-  const years = Object.keys(byYear).map(Number).sort((a,b)=>a-b);
-  if (!years.length) return;
-
-  const W=1160, H=280, pL=44, pR=14, pT=28, pB=44;
-  const cW=W-pL-pR, cH=H-pT-pB;
-  const kinds = ['event','publication','organizational','project'];
-  const colors = kinds.map(k=>DB.KIND_COLOR[k]);
-  const max = Math.max(...years.map(y=>kinds.reduce((s,k)=>s+(byYear[y][k]||0),0)),1);
-  const bw = Math.max(7, cW/years.length - 2);
-
-  let bars='', labels='', grid='';
-  for (let g=0;g<=4;g++) {
-    const yg = pT + cH/4*g;
-    const val = Math.round(max*(1-g/4));
-    grid += `<line x1="${pL}" y1="${yg}" x2="${W-pR}" y2="${yg}" stroke="#ded4c7" stroke-dasharray="3,3"/>
-      <text x="${pL-5}" y="${yg+4}" text-anchor="end" fill="#b0a090" font-size="10">${val}</text>`;
-  }
-
-  for (let i=0;i<years.length;i++) {
-    const y=years[i];
-    const x=pL+i*(cW/years.length);
-    const d=byYear[y];
-    const total=kinds.reduce((s,k)=>s+(d[k]||0),0);
-    let yTop=H-pB;
-    for (let j=0;j<kinds.length;j++) {
-      const v=d[kinds[j]]||0; if(!v) continue;
-      const h=(v/max)*cH; yTop-=h;
-      bars+=`<rect x="${x.toFixed(1)}" y="${yTop.toFixed(1)}" width="${bw}" height="${h.toFixed(1)}"
-        fill="${colors[j]}" rx="1" data-year="${y}" data-kind="${kinds[j]}" data-val="${v}" data-total="${total}"
-        onmouseenter="showTip(event,'<strong>${y}</strong><br>${esc(DB.KIND_LABEL[kinds[j]])}: ${v}<br>Toplam: <strong>${total}</strong>')"
-        onmouseleave="hideTip()" style="cursor:pointer;transition:opacity .1s" onmousedown="applyFilter('YearFrom','${y}');applyFilter('YearTo','${y}')"/>`;
-    }
-    if ((y-1990)%4===0 || y===years[years.length-1]) {
-      labels+=`<text x="${(x+bw/2).toFixed(1)}" y="${H-pB+16}" text-anchor="middle" fill="#9d8e7e" font-size="10">${y}</text>`;
-    }
-  }
-
-  const svg = document.getElementById('dbRhythmSvg');
-  svg.innerHTML = grid+bars+labels+`<line x1="${pL}" y1="${H-pB}" x2="${W-pR}" y2="${H-pB}" stroke="#ded4c7"/>`;
-
-  document.getElementById('dbRhythmLegend').innerHTML = kinds.slice(0,3).map(k=>
-    `<span style="display:flex;align-items:center;gap:5px;">
-      <span style="width:10px;height:10px;border-radius:2px;background:${DB.KIND_COLOR[k]};display:inline-block"></span>
-      ${esc(DB.KIND_LABEL[k])}</span>`).join('');
-}
-
-// ── Top categories horizontal bars ────────────────────────────────────
-function renderCatBars(recs) {
-  const el = document.getElementById('dbCatBars');
-  const counts = {};
-  for (const r of recs) if (r.category) counts[r.category]=(counts[r.category]||0)+1;
-  const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,15);
-  const max = entries[0]?.[1]||1;
-
-  const CAT_COLOR = cat => {
-    if (/Konferans|Sempozyum|Panel|Seminer|Atölye|Kongre/.test(cat)) return '#4d6475';
-    if (/Dergi|Yayın|Bülten|Ansiklopedi|Broşür|Belgesel/.test(cat)) return '#8a2f2f';
-    if (/Sergi|Festival|Konser|Yarışma|Gösteri/.test(cat)) return '#a26f26';
-    if (/Proje/.test(cat)) return '#626b45';
-    return '#9d8e7e';
-  };
-
-  el.innerHTML = entries.map(([cat,cnt]) => {
-    const pct = (cnt/max*100).toFixed(1);
-    const col = CAT_COLOR(cat);
-    return `<div style="display:grid;grid-template-columns:160px 1fr 36px;align-items:center;gap:8px;margin-bottom:6px;">
-      <span style="font-size:12px;color:var(--muted);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(cat)}">${esc(cat)}</span>
-      <div style="height:18px;background:var(--line);border-radius:3px;overflow:hidden;">
-        <div style="width:${pct}%;height:100%;background:${col};border-radius:3px;transition:width .4s;"
-          onmouseenter="showTip(event,'<strong>${esc(cat)}</strong>: ${cnt}')" onmouseleave="hideTip()"></div>
-      </div>
-      <span style="font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;">${cnt}</span>
-    </div>`;
-  }).join('');
-}
-
-// ── Quality donut / pie ───────────────────────────────────────────────
-function renderQuality(recs) {
-  const counts = {};
-  for (const r of recs) counts[r.verification_status]=(counts[r.verification_status]||0)+1;
-  const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
-  const total = recs.length || 1;
-  const W=480,H=260,cx=130,cy=130,R=100,ri=58;
-
-  let angle=-Math.PI/2, paths='';
-  for (const [s,v] of entries) {
-    const sweep=(v/total)*2*Math.PI;
-    const x1=cx+R*Math.cos(angle),y1=cy+R*Math.sin(angle);
-    angle+=sweep;
-    const x2=cx+R*Math.cos(angle),y2=cy+R*Math.sin(angle);
-    const xi=cx+ri*Math.cos(angle-sweep),yi=cy+ri*Math.sin(angle-sweep);
-    const xo=cx+ri*Math.cos(angle),yo=cy+ri*Math.sin(angle);
-    const big=sweep>Math.PI?1:0;
-    const col=DB.STATUS_COLOR[s]||'#9d8e7e';
-    const lbl=DB.STATUS_LABEL[s]||s;
-    const pct=(v/total*100).toFixed(0);
-    // label at midpoint
-    const midA=angle-sweep/2;
-    const lx=cx+(R+18)*Math.cos(midA), ly=cy+(R+18)*Math.sin(midA);
-    paths+=`<path d="M${x1.toFixed(1)},${y1.toFixed(1)} A${R},${R} 0 ${big},1 ${x2.toFixed(1)},${y2.toFixed(1)} L${xo.toFixed(1)},${yo.toFixed(1)} A${ri},${ri} 0 ${big},0 ${xi.toFixed(1)},${yi.toFixed(1)} Z"
-      fill="${col}" stroke="var(--paper-strong)" stroke-width="2"><title>${lbl}: ${v} (${pct}%)</title></path>`;
-    if (pct >= 6) paths+=`<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" fill="${col}" font-size="11" font-weight="700">${pct}%</text>`;
-  }
-  paths+=`<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle"
-    font-family="Georgia,serif" font-size="20" font-weight="700" fill="var(--ink)">${total.toLocaleString('tr-TR')}</text>
-    <text x="${cx}" y="${cy+17}" text-anchor="middle" fill="var(--muted)" font-size="10">kayıt</text>`;
-
-  // legend as text on right
-  let legX=280, legY=30;
-  for (const [s,v] of entries) {
-    const col=DB.STATUS_COLOR[s]||'#9d8e7e';
-    const lbl=DB.STATUS_LABEL[s]||s;
-    const pct=(v/total*100).toFixed(1);
-    paths+=`<rect x="${legX}" y="${legY}" width="12" height="12" rx="2" fill="${col}"/>
-      <text x="${legX+18}" y="${legY+10}" fill="var(--ink)" font-size="12">${esc(lbl)}</text>
-      <text x="${W-16}" y="${legY+10}" text-anchor="end" fill="${col}" font-size="12" font-weight="700">${v.toLocaleString('tr-TR')} (${pct}%)</text>`;
-    legY+=28;
-  }
-
-  document.getElementById('dbQualitySvg').innerHTML = paths;
-  document.getElementById('dbQualityLegend').innerHTML = entries.map(([s,v])=>
-    `<span style="display:flex;align-items:center;gap:5px;cursor:pointer" onclick="applyFilter('Status','${s}')">
-      <span style="width:10px;height:10px;border-radius:50%;background:${DB.STATUS_COLOR[s]||'#9d8e7e'};display:inline-block"></span>
-      ${esc(DB.STATUS_LABEL[s]||s)}: <strong>${v}</strong></span>`
-  ).join('');
-}
-
-// ── Period sparklines ─────────────────────────────────────────────────
-function renderSparklines(recs) {
-  const el = document.getElementById('dbSparklines');
-  // Build per-period, per-year counts
-  const data = {};
-  for (const p of DB.PERIOD_ORDER) data[p] = {};
-  for (const r of recs) {
-    if (!r.period || !data[r.period]) continue;
-    const y = r._year||Number(r.year); if(!y) continue;
-    data[r.period][y] = (data[r.period][y]||0)+1;
-  }
-
-  el.innerHTML = DB.PERIOD_ORDER.map((p,i) => {
-    const d = data[p];
-    const years = Object.keys(d).map(Number).sort((a,b)=>a-b);
-    const vals  = years.map(y=>d[y]);
-    const max   = Math.max(...vals,1);
-    const total = vals.reduce((s,v)=>s+v,0);
-    const short = DB.PERIOD_SHORT[i];
-
-    // Sparkline SVG 120×40
-    const W2=120, H2=40, pad=4;
-    let points = '';
-    if (years.length > 1) {
-      points = years.map((y,j) => {
-        const x = pad + j*(W2-2*pad)/(years.length-1);
-        const yy = H2-pad-(vals[j]/max)*(H2-2*pad);
-        return `${x.toFixed(1)},${yy.toFixed(1)}`;
-      }).join(' ');
-    }
-    const col = '#8a2f2f';
-    const spark = years.length > 1
-      ? `<polyline points="${points}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`
-      : `<text x="60" y="22" text-anchor="middle" fill="var(--muted)" font-size="11">—</text>`;
-
-    return `<div class="spark-card" style="cursor:pointer" onclick="applyFilter('Period','${p}')">
-      <div class="spark-card-n">${total.toLocaleString('tr-TR')}</div>
-      <div class="spark-card-l">${esc(short)}</div>
-      <svg class="spark-svg" viewBox="0 0 ${W2} ${H2}">
-        <rect x="0" y="0" width="${W2}" height="${H2}" fill="none"/>
-        ${spark}
-      </svg>
-    </div>`;
-  }).join('');
-}
-
-// ── Filtered records table ────────────────────────────────────────────
-function renderTable(recs) {
-  const sorted = [...recs].sort((a,b)=>{
-    const ay=a._year||Number(a.year)||9999, by_=b._year||Number(b.year)||9999;
-    return ay-by_ || (a.source_row||0)-(b.source_row||0);
-  });
-  const total = sorted.length;
-  const pages = Math.max(1, Math.ceil(total / DB.PAGE_SIZE));
-  DB.page = Math.min(DB.page, pages);
-  const slice = sorted.slice((DB.page-1)*DB.PAGE_SIZE, DB.page*DB.PAGE_SIZE);
-
-  const kindBx = { event:'bx-event', publication:'bx-publication', organizational:'bx-org', project:'bx-project' };
-  const statusBx = s => s==='verified' ? 'bx-ok' : 'bx-warn';
-
-  const rows = slice.map(r => {
-    const kbx = kindBx[r.item_kind] || '';
-    return `<tr>
-      <td><a href="item.html?id=${encodeURIComponent(r.id)}">${esc(r.title||r.id)}</a></td>
-      <td style="white-space:nowrap">${esc(r.date_display||r.year||'—')}</td>
-      <td><span class="bx ${kbx}">${esc(r.item_kind==='organizational'?'Örgütsel':DB.KIND_LABEL[r.item_kind]||r.item_kind)}</span></td>
-      <td>${esc(r.category||'—')}</td>
-      <td><span class="bx ${statusBx(r.verification_status)}">${r.verification_status==='verified'?'✓':'?'}</span></td>
-    </tr>`;
-  }).join('');
-
-  document.getElementById('dbTable').innerHTML =
-    `<table class="db-table"><thead><tr><th>Başlık</th><th>Tarih</th><th>Tür</th><th>Kategori</th><th>Durum</th></tr></thead>
-     <tbody>${rows||'<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--muted)">Bu filtrelerle kayıt yok.</td></tr>'}</tbody></table>`;
-
-  // Pager
-  const pager = document.getElementById('dbPager');
-  if (pages <= 1) { pager.innerHTML=''; return; }
-  let btns = '';
-  const show = (n) => { DB.page=n; renderAllCharts(); };
-  if (DB.page>1) btns+=`<button onclick="DB.page=${DB.page-1};renderAllCharts()">‹ Önceki</button>`;
-  const range = [...new Set([1,2,DB.page-1,DB.page,DB.page+1,pages-1,pages])].filter(n=>n>=1&&n<=pages).sort((a,b)=>a-b);
-  let prev=-1;
-  for (const n of range) {
-    if (prev>=0 && n-prev>1) btns+=`<button disabled>…</button>`;
-    btns+=`<button class="${n===DB.page?'active':''}" onclick="DB.page=${n};renderAllCharts()">${n}</button>`;
-    prev=n;
-  }
-  if (DB.page<pages) btns+=`<button onclick="DB.page=${DB.page+1};renderAllCharts()">Sonraki ›</button>`;
-  pager.innerHTML = btns;
-}
-
-// ── Master render ─────────────────────────────────────────────────────
-function renderAllCharts() {
-  if (!window.allRecords || !window.allRecords.length) return;
-  const filtered = typeof filterRecords === 'function'
-    ? filterRecords('dashboard', allRecords)
-    : allRecords;
-
-  renderKPIs(filtered);
-  renderHeatmap(filtered);
-  renderPeriodBars(filtered);
-  renderDonut(filtered);
-  renderRhythm(filtered);
-  renderCatBars(filtered);
-  renderQuality(filtered);
-  renderSparklines(filtered);
-  renderTable(filtered);
-}
-
-// ── Boot: hook into site.js data load ────────────────────────────────
-function initDashboard() {
-  // Populate filter selects (site.js provides setupFilterOptions + fillSelect)
-  if (typeof setupFilterOptions === 'function') setupFilterOptions('dashboard', allRecords);
-  // Listen for filter changes
-  const ids = ['dashboardSearch','dashboardKind','dashboardPeriod','dashboardStatus','dashboardCode','dashboardYearFrom','dashboardYearTo'];
-  ids.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) { el.addEventListener('input', ()=>{ DB.page=1; renderAllCharts(); }); el.addEventListener('change', ()=>{ DB.page=1; renderAllCharts(); }); }
-  });
-  renderAllCharts();
-}
-    </script>
-
-  </body>
+  </div><!-- /.db-body -->
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <span>Tüm görseller seçili filtrelere göre anlık olarak güncellenir. Veri kaynağı: <code>chronology_public.json</code></span>
+      <a href="archive.html">Arşivde ara</a>
+    </div>
+  </footer>
+
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/site.js"></script>
+  <script>
+  // ── Sync hero counter with site.js dashboardCount setText ──────────
+  // site.js calls setText('dashboardCount', '… N kayıt seçili …')
+  // We observe that element and mirror the number to our hero display.
+  (function () {
+    const syncHero = () => {
+      const el = document.getElementById('dashboardCount');
+      if (!el) return;
+      const m = el.textContent.match(/[\d.,\s]+/);
+      if (m) {
+        const n = m[0].trim();
+        const heroCount = document.getElementById('dbHeroCount');
+        const heroTotal = document.getElementById('dbHeroTotal');
+        if (heroCount) heroCount.textContent = n;
+        if (heroTotal) heroTotal.textContent = n;
+      }
+    };
+    const obs = new MutationObserver(syncHero);
+    document.addEventListener('DOMContentLoaded', () => {
+      const el = document.getElementById('dashboardCount');
+      if (el) obs.observe(el, { childList: true, subtree: true, characterData: true });
+    });
+  })();
+  </script>
+
+</body>
 </html>
