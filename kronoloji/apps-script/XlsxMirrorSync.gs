@@ -10,6 +10,7 @@
 
 const SOURCE_XLSX_FILE_ID = "PASTE_CURRENT_XLSX_FILE_ID_HERE";
 const MIRROR_SPREADSHEET_ID = "PASTE_STABLE_MIRROR_GOOGLE_SHEET_ID_HERE";
+const PRESERVED_MIRROR_SHEET_NAMES = ["Site Metinleri"];
 
 function refreshMirror() {
   if (!SOURCE_XLSX_FILE_ID || SOURCE_XLSX_FILE_ID.indexOf("PASTE_") === 0) {
@@ -70,24 +71,48 @@ function getMirrorStatus() {
 
 function replaceMirrorSheets_(sourceSpreadsheet, mirrorSpreadsheet) {
   const placeholder = mirrorSpreadsheet.insertSheet(`_refresh_${Date.now()}`);
+  const preservedSheetIds = new Set(
+    mirrorSpreadsheet
+      .getSheets()
+      .filter((sheet) => PRESERVED_MIRROR_SHEET_NAMES.indexOf(sheet.getName()) !== -1)
+      .map((sheet) => sheet.getSheetId()),
+  );
 
   mirrorSpreadsheet.getSheets().forEach((sheet) => {
-    if (sheet.getSheetId() !== placeholder.getSheetId()) {
+    if (sheet.getSheetId() !== placeholder.getSheetId() && !preservedSheetIds.has(sheet.getSheetId())) {
       mirrorSpreadsheet.deleteSheet(sheet);
     }
   });
 
   sourceSpreadsheet.getSheets().forEach((sourceSheet) => {
+    if (PRESERVED_MIRROR_SHEET_NAMES.indexOf(sourceSheet.getName()) !== -1) {
+      return;
+    }
     const copied = sourceSheet.copyTo(mirrorSpreadsheet);
     copied.setName(uniqueSheetName_(mirrorSpreadsheet, sourceSheet.getName(), copied.getSheetId()));
   });
 
+  ensurePreservedMirrorSheets_(mirrorSpreadsheet);
   mirrorSpreadsheet.deleteSheet(placeholder);
 
   const firstSheet = mirrorSpreadsheet.getSheets()[0];
   if (firstSheet) {
     mirrorSpreadsheet.setActiveSheet(firstSheet);
   }
+}
+
+function ensurePreservedMirrorSheets_(spreadsheet) {
+  PRESERVED_MIRROR_SHEET_NAMES.forEach((sheetName) => {
+    let sheet = spreadsheet.getSheetByName(sheetName);
+    if (!sheet) {
+      sheet = spreadsheet.insertSheet(sheetName);
+    }
+    const headerValues = sheet.getRange(1, 1, 1, 3).getDisplayValues()[0].join("");
+    if (!headerValues) {
+      sheet.getRange(1, 1, 1, 3).setValues([["key", "value", "note"]]);
+      sheet.setFrozenRows(1);
+    }
+  });
 }
 
 function uniqueSheetName_(spreadsheet, desiredName, copiedSheetId) {
