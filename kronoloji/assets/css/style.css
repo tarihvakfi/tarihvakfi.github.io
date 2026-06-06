@@ -227,11 +227,12 @@ h3 {
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(128px, 1fr));
   gap: 10px;
 }
 
 .metric {
+  min-width: 0;
   min-height: 88px;
   border: 1px solid rgba(133, 111, 89, 0.22);
   border-radius: var(--radius);
@@ -243,8 +244,8 @@ h3 {
   display: block;
   color: var(--accent-dark);
   font-family: var(--serif);
-  font-size: clamp(23px, 2.2vw, 29px);
-  line-height: 1;
+  font-size: clamp(22px, 1.9vw, 29px);
+  line-height: 1.05;
   white-space: nowrap;
 }
 
@@ -422,33 +423,56 @@ h3 {
 
 .filters {
   display: grid;
-  grid-template-columns: minmax(240px, 1.7fr) repeat(6, minmax(112px, 1fr));
-  gap: 10px;
-  align-items: end;
+  grid-template-columns:
+    minmax(220px, 1.7fr)
+    minmax(118px, 0.86fr)
+    minmax(126px, 0.92fr)
+    minmax(126px, 0.92fr)
+    minmax(150px, 1.05fr)
+    minmax(108px, 0.72fr)
+    minmax(108px, 0.72fr);
+  gap: 12px 14px;
+  align-items: stretch;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--paper-strong);
-  padding: 12px;
+  padding: 14px;
 }
 
 .filters label {
   display: grid;
-  gap: 5px;
+  grid-template-rows: 20px 48px;
+  gap: 6px;
+  min-width: 0;
   color: var(--muted);
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
 }
 
+.filters label > span {
+  overflow: hidden;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .filters input,
 .filters select {
   width: 100%;
-  min-height: 42px;
+  height: 48px;
+  min-height: 48px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: white;
   color: var(--ink);
-  padding: 9px 10px;
+  font-size: 14px;
+  font-weight: 650;
+  padding: 10px;
+}
+
+.filters select {
+  text-overflow: ellipsis;
 }
 
 .result-note {
@@ -569,8 +593,33 @@ h3 {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  margin: 14px 0;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.archive-toolbar .hero-actions {
+  align-items: end;
+  margin-top: 0;
+}
+
+.archive-toolbar label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.archive-toolbar select {
+  height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 650;
+  padding: 10px 12px;
 }
 
 .segmented {
@@ -578,7 +627,8 @@ h3 {
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--paper-strong);
-  padding: 3px;
+  min-height: 50px;
+  padding: 4px;
 }
 
 .segmented button {
@@ -587,7 +637,8 @@ h3 {
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  padding: 8px 12px;
+  min-width: 78px;
+  padding: 10px 16px;
 }
 
 .segmented button.active {

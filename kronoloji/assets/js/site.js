@@ -101,6 +101,12 @@ const FALLBACK_ACTIVITY_CODES = {
 
 const PAGE_SIZE = 100;
 const LIVE_REFRESH_TIMEOUT_MS = 12000;
+const LEGACY_CONTENT_GUARDS = {
+  "archive.footer.note": ["kayıt ID, erişim tarihi"],
+  "methodology.citation.text_1": ["kayıt [id], erişim tarihi"],
+  "citation.format": ["kayıt {id}, erişim tarihi"],
+  "filters.all_activity_codes": ["Tüm faaliyet kodları"],
+};
 let allRecords = [];
 let siteContent = {};
 let archivePage = 1;
@@ -261,9 +267,19 @@ function extractContent(payload) {
   const source = payload.content || payload.siteContent || payload.site_content || payload;
   if (!source || Array.isArray(source) || typeof source !== "object") return {};
   return Object.entries(source).reduce((acc, [key, value]) => {
-    if (key && value !== undefined && value !== null) acc[String(key).trim()] = String(value);
+    const cleanKey = String(key || "").trim();
+    if (cleanKey && value !== undefined && value !== null && !isLegacyContentValue(cleanKey, value)) {
+      acc[cleanKey] = String(value);
+    }
     return acc;
   }, {});
+}
+
+function isLegacyContentValue(key, value) {
+  const needles = LEGACY_CONTENT_GUARDS[key];
+  if (!needles) return false;
+  const text = String(value || "").toLocaleLowerCase("tr-TR");
+  return needles.some((needle) => text.includes(needle.toLocaleLowerCase("tr-TR")));
 }
 
 function normalizeRows(rows) {
@@ -359,7 +375,11 @@ function contentText(key, fallback = "") {
 }
 
 function contentFormat(key, values, fallback = "") {
-  return contentText(key, fallback).replace(/\{([a-zA-Z0-9_]+)\}/g, (match, name) => {
+  return formatTemplate(contentText(key, fallback), values);
+}
+
+function formatTemplate(template, values) {
+  return String(template || "").replace(/\{([a-zA-Z0-9_]+)\}/g, (match, name) => {
     return values[name] === undefined || values[name] === null ? match : values[name];
   });
 }
@@ -380,20 +400,16 @@ function initHome() {
 
 function initTimeline() {
   setupFilterOptions("timeline", allRecords);
-  ["timelineSearch", "timelineKind", "timelinePeriod", "timelineStatus", "timelineCode", "timelineYearFrom", "timelineYearTo"].forEach(
-    (id) => document.getElementById(id)?.addEventListener("input", renderTimeline),
-  );
+  addFilterListeners(["timelineSearch", "timelineKind", "timelinePeriod", "timelineStatus", "timelineCode", "timelineYearFrom", "timelineYearTo"], renderTimeline);
   renderTimeline();
 }
 
 function initArchive() {
   setupFilterOptions("archive", allRecords);
-  ["archiveSearch", "archiveKind", "archivePeriod", "archiveStatus", "archiveCode", "archiveYearFrom", "archiveYearTo", "archiveSort"].forEach(
-    (id) => document.getElementById(id)?.addEventListener("input", () => {
-      archivePage = 1;
-      renderArchive();
-    }),
-  );
+  addFilterListeners(["archiveSearch", "archiveKind", "archivePeriod", "archiveStatus", "archiveCode", "archiveYearFrom", "archiveYearTo", "archiveSort"], () => {
+    archivePage = 1;
+    renderArchive();
+  });
   document.querySelectorAll("[data-archive-view]").forEach((button) => {
     button.addEventListener("click", () => {
       archiveView = button.dataset.archiveView || "cards";
@@ -407,13 +423,20 @@ function initArchive() {
 function initDashboard() {
   renderMetrics("dashboardMetrics", allRecords);
   setupFilterOptions("dashboard", allRecords);
-  ["dashboardSearch", "dashboardKind", "dashboardPeriod", "dashboardStatus", "dashboardCode", "dashboardYearFrom", "dashboardYearTo"].forEach(
-    (id) => document.getElementById(id)?.addEventListener("input", () => {
-      dashboardPage = 1;
-      renderDashboard();
-    }),
-  );
+  addFilterListeners(["dashboardSearch", "dashboardKind", "dashboardPeriod", "dashboardStatus", "dashboardCode", "dashboardYearFrom", "dashboardYearTo"], () => {
+    dashboardPage = 1;
+    renderDashboard();
+  });
   renderDashboard();
+}
+
+function addFilterListeners(ids, handler) {
+  ids.forEach((id) => {
+    const element = document.getElementById(id);
+    if (!element) return;
+    element.addEventListener("input", handler);
+    element.addEventListener("change", handler);
+  });
 }
 
 function initItem() {
@@ -515,9 +538,32 @@ function setupFilterOptions(prefix, records) {
   fillSelect(
     `${prefix}Code`,
     unique(records.map((row) => row.activity_code_base || row.activity_code)),
-    contentText("filters.all_activity_codes", "Tüm faaliyet kodları"),
+    contentText("filters.all_activity_codes", "Tüm kodlar"),
     activityCodeLabels(records),
   );
+  setYearRangeDefaults(prefix, records);
+}
+
+function setYearRangeDefaults(prefix, records) {
+  const [minYear, maxYear] = getYearRange(records);
+  const from = document.getElementById(`${prefix}YearFrom`);
+  const to = document.getElementById(`${prefix}YearTo`);
+  if (from && minYear) {
+    from.min = minYear;
+    from.max = maxYear || minYear;
+    if (!from.dataset.readyDefaultApplied && !from.value) {
+      from.value = minYear;
+      from.dataset.readyDefaultApplied = "true";
+    }
+  }
+  if (to && maxYear) {
+    to.min = minYear || maxYear;
+    to.max = maxYear;
+    if (!to.dataset.readyDefaultApplied && !to.value) {
+      to.value = maxYear;
+      to.dataset.readyDefaultApplied = "true";
+    }
+  }
 }
 
 function renderTimeline() {
@@ -1087,11 +1133,15 @@ function detailRow(label, value) {
 
 function makeCitation(row) {
   const accessed = new Date().toLocaleDateString("tr-TR");
-  return contentFormat(
-    "citation.format",
-    { id: row.id, accessed },
-    `Tarih Vakfı Dijital Kronolojisi, kayıt ${row.id}, erişim tarihi ${accessed}.`,
-  );
+  const title = row.title || row.raw_text || row.id;
+  const date = row.date_display || row.year || contentText("common.unspecified", "Belirtilmemiş");
+  const kind = KIND_LABELS[row.item_kind] || row.item_kind || "";
+  const source = contentFormat("item.source_format", { sheet: row.source_sheet, row: row.source_row }, `${row.source_sheet}, satır ${row.source_row}`);
+  const url = new URL(`item.html?id=${encodeURIComponent(row.id)}`, window.location.href).href;
+  const fallback = `Tarih Vakfı Dijital Kronolojisi, "{title}", {date}, {kind}, kayıt {id}, kaynak: {source}, {url}, erişim tarihi {accessed}.`;
+  const configured = contentText("citation.format", fallback);
+  const template = /\{(title|date|kind|source|url)\}/.test(configured) ? configured : fallback;
+  return formatTemplate(template, { id: row.id, title, date, kind, source, url, accessed });
 }
 
 function attachCopyButtons() {

@@ -71,21 +71,24 @@ function getMirrorStatus() {
 
 function replaceMirrorSheets_(sourceSpreadsheet, mirrorSpreadsheet) {
   const placeholder = mirrorSpreadsheet.insertSheet(`_refresh_${Date.now()}`);
-  const preservedSheetIds = new Set(
-    mirrorSpreadsheet
+  const sourcePreservedSheetNames = new Set(
+    sourceSpreadsheet
       .getSheets()
       .filter((sheet) => PRESERVED_MIRROR_SHEET_NAMES.indexOf(sheet.getName()) !== -1)
-      .map((sheet) => sheet.getSheetId()),
+      .map((sheet) => sheet.getName()),
   );
 
   mirrorSpreadsheet.getSheets().forEach((sheet) => {
-    if (sheet.getSheetId() !== placeholder.getSheetId() && !preservedSheetIds.has(sheet.getSheetId())) {
+    const shouldKeepPreservedSheet =
+      PRESERVED_MIRROR_SHEET_NAMES.indexOf(sheet.getName()) !== -1 && !sourcePreservedSheetNames.has(sheet.getName());
+    if (sheet.getSheetId() !== placeholder.getSheetId() && !shouldKeepPreservedSheet) {
       mirrorSpreadsheet.deleteSheet(sheet);
     }
   });
 
   sourceSpreadsheet.getSheets().forEach((sourceSheet) => {
     if (PRESERVED_MIRROR_SHEET_NAMES.indexOf(sourceSheet.getName()) !== -1) {
+      copySiteContentSheet_(sourceSheet, mirrorSpreadsheet);
       return;
     }
     const copied = sourceSheet.copyTo(mirrorSpreadsheet);
@@ -99,6 +102,42 @@ function replaceMirrorSheets_(sourceSpreadsheet, mirrorSpreadsheet) {
   if (firstSheet) {
     mirrorSpreadsheet.setActiveSheet(firstSheet);
   }
+}
+
+function copySiteContentSheet_(sourceSheet, mirrorSpreadsheet) {
+  const existing = mirrorSpreadsheet.getSheetByName(sourceSheet.getName());
+  if (existing) {
+    mirrorSpreadsheet.deleteSheet(existing);
+  }
+
+  const target = mirrorSpreadsheet.insertSheet(sourceSheet.getName());
+  const values = normalizeSiteContentRows_(sourceSheet.getDataRange().getDisplayValues());
+  target.getRange(1, 1, values.length, 3).setValues(values);
+  target.setFrozenRows(1);
+  target.autoResizeColumns(1, 3);
+}
+
+function normalizeSiteContentRows_(values) {
+  if (!values || !values.length) {
+    return [["key", "value", "note"]];
+  }
+
+  const header = values[0].map((cell) => String(cell || "").trim().toLocaleLowerCase("tr-TR"));
+  const keyIndex = header.indexOf("key");
+  const valueIndex = header.indexOf("value");
+  const noteIndex = header.indexOf("note");
+  const rows = [["key", "value", "note"]];
+
+  values.slice(1).forEach((row) => {
+    const key = keyIndex >= 0 ? row[keyIndex] : row[0];
+    const value = valueIndex >= 0 ? row[valueIndex] : row[1];
+    const note = noteIndex >= 0 ? row[noteIndex] : row[2];
+    if (String(key || "").trim() || String(value || "").trim() || String(note || "").trim()) {
+      rows.push([key || "", value || "", note || ""]);
+    }
+  });
+
+  return rows.length > 1 ? rows : [["key", "value", "note"]];
 }
 
 function ensurePreservedMirrorSheets_(spreadsheet) {

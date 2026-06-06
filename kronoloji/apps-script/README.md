@@ -28,8 +28,7 @@ Editors keep using their existing Drive file and link.
 Also keep the `Faaliyet Kodları` tab in this `.xlsx`, because the mirror will
 copy whatever is in the editor master.
 
-Add a `Site Metinleri` tab in the native mirror Google Sheet with these
-columns:
+Add a `Site Metinleri` tab in this `.xlsx` with these columns:
 
 ```text
 key | value | note
@@ -39,8 +38,9 @@ The site reads `key` from column A and `value` from column B. Column C is only
 for editor notes. The checked-in fallback file
 `kronoloji/assets/data/site_content.json` lists the supported keys.
 
-`refreshMirror` preserves this tab in the mirror. The period/data tabs are
-overwritten from the `.xlsx`; `Site Metinleri` is not.
+`refreshMirror` copies this tab into the mirror with the same A/B/C structure.
+If the `.xlsx` does not include `Site Metinleri`, the existing mirror tab is
+preserved instead.
 
 ### 2. Create a blank mirror Google Sheet
 
@@ -172,7 +172,7 @@ For urgent updates, run `refreshMirror` manually in Apps Script.
 ## Rules
 
 - Edit chronology data only in the `.xlsx` master.
-- Edit only `Site Metinleri` in the mirror Sheet; do not edit the other mirror tabs by hand.
+- Edit `Site Metinleri` in the `.xlsx` master when that tab exists there.
 - Do not publish the raw `.xlsx`.
 - Do not expose internal comments, private notes, or editor metadata.
 - The website receives only sanitized fields from `ChronologyPublicApi.gs`.
