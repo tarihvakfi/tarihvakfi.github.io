@@ -4,17 +4,88 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Kronoloji | Tarih Vakfı Dijital Kronolojisi</title>
+    <meta name="description" content="Tarih Vakfı'nın 1991–2026 yılları arasındaki bütün etkinlik, yayın ve örgütsel faaliyetlerinin kronolojik akışı.">
     <link rel="stylesheet" href="assets/css/style.css">
-    <link rel="preload" href="assets/data/chronology_public.json" as="fetch">
-    <link rel="preload" href="assets/data/site_content.json" as="fetch">
+    <style>
+      /* ── Timeline river ── */
+      .tl-hero { background:linear-gradient(135deg,#1a1410 0%,#2e1e14 60%,#1a1410 100%); color:#f7f3ec; padding:40px 24px 36px; }
+      .tl-hero-inner { max-width:1220px; margin:0 auto; display:grid; grid-template-columns:1fr auto; gap:32px; align-items:center; }
+      .tl-hero h1 { color:#f7f3ec; margin:0 0 10px; font-size:clamp(28px,5vw,52px); }
+      .tl-hero p { color:#c5b9ab; margin:0; font-size:16px; max-width:580px; }
+      .tl-hero-count { text-align:right; }
+      .tl-hero-count strong { display:block; font-family:Georgia,serif; font-size:48px; color:#c9a87e; line-height:1; }
+      .tl-hero-count span { font-size:13px; color:#9d8e7e; }
+
+      /* ── Period tabs ── */
+      .period-tabs { background:var(--paper); border-bottom:1px solid var(--line); overflow-x:auto; white-space:nowrap; }
+      .period-tabs-inner { max-width:1220px; margin:0 auto; display:flex; padding:0 24px; gap:4px; }
+      .pt-btn { padding:12px 16px; border:none; background:none; cursor:pointer; font-size:13px; font-weight:600; color:var(--muted); border-bottom:3px solid transparent; white-space:nowrap; transition:color .15s,border-color .15s; }
+      .pt-btn:hover { color:var(--ink); }
+      .pt-btn.active { color:var(--accent-dark); border-bottom-color:var(--accent); }
+
+      /* ── Visual year river ── */
+      .tl-body { max-width:1220px; margin:0 auto; padding:32px 24px 64px; }
+      .tl-filters { background:var(--paper-strong); border:1px solid var(--line); border-radius:var(--radius); padding:14px; margin-bottom:20px; display:grid; grid-template-columns:minmax(220px,1.8fr) repeat(4,minmax(100px,1fr)); gap:10px; align-items:end; }
+      .tl-filters label { display:grid; gap:5px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+      .tl-filters input,.tl-filters select { border:1px solid var(--line); border-radius:6px; padding:8px 10px; background:white; color:var(--ink); min-height:38px; width:100%; }
+      .tl-stat-bar { display:flex; gap:16px; align-items:center; margin-bottom:20px; flex-wrap:wrap; }
+      .tl-stat { font-size:13px; color:var(--muted); }
+      .tl-stat strong { color:var(--ink); }
+
+      /* ── Year block layout ── */
+      .year-river { display:grid; gap:0; }
+      .yr-block { display:grid; grid-template-columns:72px 1fr; gap:0; position:relative; }
+      .yr-block + .yr-block { margin-top:8px; }
+      .yr-label { position:sticky; top:72px; align-self:start; padding:16px 12px 0 0; }
+      .yr-label strong { font-family:Georgia,serif; font-size:28px; color:var(--accent-dark); display:block; line-height:1; }
+      .yr-label span { font-size:11px; color:var(--muted); }
+      .yr-line { position:absolute; left:72px; top:0; bottom:0; width:2px; background:var(--line); }
+      .yr-cards { padding-left:18px; display:grid; gap:8px; padding-bottom:16px; }
+
+      /* ── Item card ── */
+      .tl-card { display:grid; grid-template-columns:auto 1fr; gap:12px; border:1px solid var(--line); border-radius:var(--radius); background:var(--paper-strong); padding:12px 14px; text-decoration:none; color:inherit; transition:border-color .12s,box-shadow .12s,transform .12s; }
+      .tl-card:hover { border-color:rgba(138,47,47,.45); box-shadow:0 4px 14px rgba(55,42,31,.08); transform:translateX(3px); }
+      .tl-card-stripe { width:4px; border-radius:2px; align-self:stretch; flex-shrink:0; }
+      .tl-card-body {}
+      .tl-card-meta { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:6px; }
+      .tl-card-title { font-family:Georgia,serif; font-size:17px; font-weight:700; line-height:1.25; margin:0 0 4px; }
+      .tl-card-date { font-size:12px; color:var(--muted); }
+      .badge { display:inline-flex; align-items:center; border:1px solid var(--line); border-radius:999px; background:white; color:var(--muted); font-size:11px; font-weight:700; padding:2px 8px; }
+      .badge.kind-event    { border-color:rgba(77,100,117,.3); color:#4d6475; background:#f0f5f8; }
+      .badge.kind-publication { border-color:rgba(138,47,47,.3); color:#8a2f2f; background:#fdf0f0; }
+      .badge.kind-organizational { border-color:rgba(98,107,69,.3); color:#626b45; background:#f1f2ec; }
+      .badge.kind-project  { border-color:rgba(162,111,38,.3); color:#a26f26; background:#fdf7ee; }
+      .badge.status-verified { color:#2f6041; border-color:rgba(47,96,65,.3); background:#eef7f1; }
+      .badge.status-needs_review,.badge.status-uncertain_date,.badge.status-uncertain_category { color:#a26f26; border-color:rgba(162,111,38,.3); background:#fdf7ee; }
+
+      /* ── Empty + loading ── */
+      .tl-empty { text-align:center; padding:48px 24px; color:var(--muted); border:1px dashed var(--line); border-radius:var(--radius); }
+      .tl-empty h3 { margin:0 0 8px; }
+
+      /* ── Pagination ── */
+      .tl-pager { display:flex; gap:8px; justify-content:center; align-items:center; margin-top:24px; }
+      .pager-info { font-size:13px; color:var(--muted); }
+
+      @media (max-width:768px) {
+        .tl-hero-inner { grid-template-columns:1fr; }
+        .tl-hero-count { text-align:left; }
+        .tl-filters { grid-template-columns:1fr 1fr; }
+        .yr-label strong { font-size:20px; }
+      }
+      @media (max-width:480px) {
+        .tl-filters { grid-template-columns:1fr; }
+        .yr-block { grid-template-columns:52px 1fr; }
+      }
+    </style>
   </head>
   <body data-page="timeline">
+
     <header class="site-header">
       <nav class="nav" aria-label="Ana gezinme">
         <a class="brand" href="index.html"><span class="brand-mark">TV</span> Tarih Vakfı Dijital Kronolojisi</a>
         <div class="nav-links">
           <a href="timeline.html" data-page="timeline">Kronoloji</a>
-          <a href="archive.html" data-page="archive">Arşiv</a>
+          <a href="archive.html"  data-page="archive">Arşiv</a>
           <a href="dashboard.html" data-page="dashboard">Görsel Özet</a>
           <a href="methodology.html" data-page="methodology">Yöntem</a>
           <a href="data.html" data-page="data">Veri</a>
@@ -22,58 +93,197 @@
       </nav>
     </header>
 
-    <main class="page-shell">
-      <section class="section">
-        <p class="eyebrow" data-content="timeline.hero.eyebrow">Tam kronolojik akış</p>
-        <h1 data-content="timeline.hero.title">Kronoloji</h1>
-        <p class="lead" data-content="timeline.hero.lead">Bu sayfa kamuya açılan bütün kayıtları yıllara göre gösterir. Filtreler yalnızca görünümü daraltır; veri setinden kayıt çıkarmaz.</p>
-      </section>
+    <!-- Hero -->
+    <div class="tl-hero">
+      <div class="tl-hero-inner">
+        <div>
+          <p class="eyebrow" style="color:#c9a87e;font-size:11px;letter-spacing:.14em;font-weight:800;text-transform:uppercase;margin:0 0 12px;">Tam kronolojik akış · 1990–2026</p>
+          <h1>Kronoloji</h1>
+          <p>Kamuya açılan bütün kayıtlar yıllara göre akar. Filtreler yalnızca görünümü daraltır; veri setinden kayıt çıkarmaz.</p>
+        </div>
+        <div class="tl-hero-count">
+          <strong id="tlHeroCount">—</strong>
+          <span>gösterilen kayıt</span>
+        </div>
+      </div>
+    </div>
 
-      <section class="section">
-        <form class="filters" aria-label="Kronoloji filtreleri">
-          <label>
-            <span data-content="filters.search">Arama</span>
-            <input id="timelineSearch" type="search" placeholder="Başlık, açıklama, kategori, yıl..." data-content-placeholder="timeline.search.placeholder">
-          </label>
-          <label>
-            <span data-content="filters.kind">Tür</span>
-            <select id="timelineKind"></select>
-          </label>
-          <label>
-            <span data-content="filters.period">Dönem</span>
-            <select id="timelinePeriod"></select>
-          </label>
-          <label>
-            <span data-content="filters.status">Durum</span>
-            <select id="timelineStatus"></select>
-          </label>
-          <label>
-            <span data-content="filters.activity_code">Faaliyet kodu</span>
-            <select id="timelineCode"></select>
-          </label>
-          <label>
-            <span data-content="filters.year_from">Başlangıç yılı</span>
-            <input id="timelineYearFrom" type="number" min="1900" max="2100" placeholder="1990">
-          </label>
-          <label>
-            <span data-content="filters.year_to">Bitiş yılı</span>
-            <input id="timelineYearTo" type="number" min="1900" max="2100" placeholder="2026">
-          </label>
-        </form>
-        <p class="result-note" id="timelineCount">Veri yükleniyor.</p>
-      </section>
+    <!-- Period tabs -->
+    <div class="period-tabs">
+      <div class="period-tabs-inner" id="periodTabs">
+        <button class="pt-btn active" data-period="">Tüm dönemler</button>
+        <button class="pt-btn" data-period="1. Dönem (1991–1995)">1. Dönem 1991–95</button>
+        <button class="pt-btn" data-period="2. Dönem (1996–2000)">2. Dönem 1996–00</button>
+        <button class="pt-btn" data-period="3. Dönem (2001–2005)">3. Dönem 2001–05</button>
+        <button class="pt-btn" data-period="4. Dönem (2006–2010)">4. Dönem 2006–10</button>
+        <button class="pt-btn" data-period="5. Dönem (2011–2015)">5. Dönem 2011–15</button>
+        <button class="pt-btn" data-period="6. Dönem (2016–2020)">6. Dönem 2016–20</button>
+        <button class="pt-btn" data-period="7. Dönem (2021–2026)">7. Dönem 2021–26</button>
+      </div>
+    </div>
 
-      <section class="timeline-list" id="timelineList" aria-live="polite"></section>
+    <!-- Main content -->
+    <main class="tl-body">
+      <!-- Filters -->
+      <div class="tl-filters">
+        <label>Arama<input id="timelineSearch" type="search" placeholder="Başlık, kategori, yıl…"></label>
+        <label>Tür<select id="timelineKind"></select></label>
+        <label>Durum<select id="timelineStatus"></select></label>
+        <label>Başlangıç yılı<input id="timelineYearFrom" type="number" min="1990" max="2026" placeholder="1991"></label>
+        <label>Bitiş yılı<input id="timelineYearTo"   type="number" min="1990" max="2026" placeholder="2026"></label>
+      </div>
+      <div class="tl-stat-bar">
+        <span class="tl-stat" id="tlStatText">Veri yükleniyor…</span>
+        <span style="flex:1"></span>
+        <a class="button ghost" href="archive.html" style="padding:6px 14px;font-size:13px;">Arşiv görünümü →</a>
+      </div>
+
+      <!-- River -->
+      <div class="year-river" id="timelineList" aria-live="polite">
+        <div class="tl-empty"><h3>Yükleniyor…</h3></div>
+      </div>
+
+      <!-- Pagination -->
+      <nav class="tl-pager" id="tlPager" aria-label="Sayfalama"></nav>
     </main>
 
     <footer class="footer">
       <div class="footer-inner">
-        <span data-content="timeline.footer.note">Kaynak satırı ve doğrulama durumu tekil kayıt sayfalarında korunur.</span>
-        <a href="archive.html" data-content="timeline.footer.link">Arşiv görünümüne geç</a>
+        <span>Kaynak satırı ve doğrulama durumu tekil kayıt sayfalarında korunur.</span>
+        <a href="archive.html">Arşiv görünümüne geç</a>
       </div>
     </footer>
 
     <script src="assets/js/config.js"></script>
     <script src="assets/js/site.js"></script>
+    <script>
+    // ── Timeline page enhancements ────────────────────────────────────────
+    const KIND_STRIPES = { event:'#4d6475', publication:'#8a2f2f', organizational:'#626b45', project:'#a26f26', chronology:'#b0a090' };
+    const KIND_LABELS_TL = { event:'Etkinlik', publication:'Yayın', organizational:'Örgütsel iş', project:'Proje', chronology:'Kronoloji' };
+    const STATUS_LABELS_TL = { verified:'Doğrulanmış', needs_review:'İnceleme', uncertain_date:'Tarih belirsiz', uncertain_category:'Kategori belirsiz' };
+
+    let tlPeriodFilter = '';
+    let tlPage = 1;
+    const TL_PAGE_SIZE = 120; // grouped by year, so generous
+    let tlFiltered = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // Period tab buttons
+      document.querySelectorAll('.pt-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.pt-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          tlPeriodFilter = btn.dataset.period || '';
+          tlPage = 1;
+          renderTL();
+        });
+      });
+      // Filter inputs
+      ['timelineSearch','timelineKind','timelineStatus','timelineYearFrom','timelineYearTo'].forEach(id => {
+        document.getElementById(id)?.addEventListener('input', () => { tlPage = 1; renderTL(); });
+      });
+    });
+
+    // Override initTimeline from site.js
+    window._originalInitTimeline = window.initTimeline;
+    function initTimeline() {
+      // populate selects
+      const kinds = [...new Set(allRecords.map(r=>r.item_kind).filter(Boolean))].sort();
+      const statuses = [...new Set(allRecords.map(r=>r.verification_status).filter(Boolean))].sort();
+
+      const fillSel = (id, vals, labels, allLabel) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.innerHTML = `<option value="">${allLabel}</option>` +
+          vals.map(v=>`<option value="${v}">${labels[v]||v}</option>`).join('');
+      };
+      fillSel('timelineKind', kinds, KIND_LABELS_TL, 'Tüm türler');
+      fillSel('timelineStatus', statuses, STATUS_LABELS_TL, 'Tüm durumlar');
+      renderTL();
+    }
+
+    function renderTL() {
+      const search = (document.getElementById('timelineSearch')?.value||'').toLocaleLowerCase('tr-TR');
+      const kind   = document.getElementById('timelineKind')?.value||'';
+      const status = document.getElementById('timelineStatus')?.value||'';
+      const yFrom  = Number(document.getElementById('timelineYearFrom')?.value)||0;
+      const yTo    = Number(document.getElementById('timelineYearTo')?.value)||9999;
+
+      tlFiltered = allRecords.filter(r => {
+        if (tlPeriodFilter && r.period !== tlPeriodFilter) return false;
+        if (kind && r.item_kind !== kind) return false;
+        if (status && r.verification_status !== status) return false;
+        const y = r._year || Number(r.year);
+        if (yFrom && (!y || y < yFrom)) return false;
+        if (yTo < 9999 && (!y || y > yTo)) return false;
+        if (search) {
+          const hay = [r.title,r.category,r.date_display,r.period,r.year].join(' ').toLocaleLowerCase('tr-TR');
+          if (!hay.includes(search)) return false;
+        }
+        return true;
+      });
+
+      // Sort chronologically
+      tlFiltered.sort((a,b) => {
+        const ay = a._year||Number(a.year)||9999;
+        const by_ = b._year||Number(b.year)||9999;
+        if (ay !== by_) return ay - by_;
+        if (a.start_date && b.start_date) return a.start_date.localeCompare(b.start_date);
+        return (a.source_row||0) - (b.source_row||0);
+      });
+
+      document.getElementById('tlHeroCount').textContent = tlFiltered.length.toLocaleString('tr-TR');
+      document.getElementById('tlStatText').innerHTML =
+        `<strong>${tlFiltered.length.toLocaleString('tr-TR')}</strong> kayıt${tlPeriodFilter?' · '+tlPeriodFilter:''} · ${tlFiltered.filter(r=>r.verification_status==='verified').length} doğrulanmış`;
+
+      // Group by year
+      const byYear = {};
+      for (const r of tlFiltered) {
+        const y = r._year||Number(r.year)||'?';
+        if (!byYear[y]) byYear[y] = [];
+        byYear[y].push(r);
+      }
+      const years = Object.keys(byYear).sort((a,b)=>Number(a)-Number(b));
+
+      const list = document.getElementById('timelineList');
+      if (!tlFiltered.length) {
+        list.innerHTML = `<div class="tl-empty"><h3>Bu filtrelerle kayıt bulunamadı.</h3><p>Filtreleri genişletmeyi ya da aramayı değiştirmeyi deneyin.</p></div>`;
+        document.getElementById('tlPager').innerHTML = '';
+        return;
+      }
+
+      list.innerHTML = years.map(y => {
+        const recs = byYear[y];
+        const cards = recs.map(r => {
+          const stripe = KIND_STRIPES[r.item_kind]||'#b0a090';
+          const kindBadge = `<span class="badge kind-${r.item_kind}">${KIND_LABELS_TL[r.item_kind]||r.item_kind}</span>`;
+          const statusBadge = r.verification_status==='verified' ? `<span class="badge status-verified">✓</span>` :
+            `<span class="badge status-${r.verification_status}">${STATUS_LABELS_TL[r.verification_status]||r.verification_status}</span>`;
+          const catBadge = r.category ? `<span class="badge">${esc(r.category)}</span>` : '';
+          return `<a class="tl-card" href="item.html?id=${encodeURIComponent(r.id)}">
+            <div class="tl-card-stripe" style="background:${stripe}"></div>
+            <div class="tl-card-body">
+              <div class="tl-card-meta">${kindBadge}${statusBadge}${catBadge}</div>
+              <p class="tl-card-title">${esc(r.title||r.id)}</p>
+              <span class="tl-card-date">${esc(r.date_display||r.year||'Tarih belirsiz')} · ${esc(r.period||'')}</span>
+            </div>
+          </a>`;
+        }).join('');
+
+        return `<div class="yr-block">
+          <div class="yr-label"><strong>${y}</strong><span>${recs.length} kayıt</span></div>
+          <div class="yr-line"></div>
+          <div class="yr-cards">${cards}</div>
+        </div>`;
+      }).join('');
+
+      document.getElementById('tlPager').innerHTML = '';
+    }
+
+    function esc(v) {
+      return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    </script>
+
   </body>
 </html>
