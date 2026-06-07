@@ -1,198 +1,361 @@
-<!doctype html>
-<html lang="tr">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Boratav Arşivi Gönüllü Emek Günlüğü</title>
-  <meta name="description" content="Tarih Vakfı Pertev Naili Boratav Arşivi için haftalık gönüllü emek ve koordinasyon günlüğü." />
-  <meta property="og:title" content="Boratav Arşivi Gönüllü Emek Günlüğü" />
-  <meta property="og:description" content="Tarih Vakfı Pertev Naili Boratav Arşivi için haftalık gönüllü emek ve koordinasyon günlüğü." />
-  <meta name="twitter:title" content="Boratav Arşivi Gönüllü Emek Günlüğü" />
-  <meta name="twitter:description" content="Tarih Vakfı Pertev Naili Boratav Arşivi için haftalık gönüllü emek ve koordinasyon günlüğü." />
-  <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./css/site.css?v=20260607" />
-</head>
-<body class="journal">
+// volunteer-card.js
+// ---------------------------------------------------------------------
+// Slide-in profile drawer for any volunteer.
+//
+//   • Click any badge in #lpActiveWall or any row in #lpKadro
+//   • Or load index.html#g/<slug>   (deep link)
+//
+// Renders from window.TVF_ROSTER, the same data the section renderers
+// use. Adds no other dependency.
+// ---------------------------------------------------------------------
 
-  <main class="page">
+(function () {
+  "use strict";
 
-    <!-- ============ Masthead (unchanged) ============ -->
-    <header class="masthead">
-      <div class="brand-lockup">
-        <img src="./assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" class="brand-logo" />
-        <div>
-          <b>Tarih Vakfı</b>
-          <span data-edit="mastheadLabel">Gönüllü Emek Günlüğü</span>
-        </div>
+  const TRACK_META = {
+    tarama:          { label: "Tarama",                  color: "#601040" },
+    envanter:        { label: "Envanter",                color: "#8a2a62" },
+    kurumsal_bellek: { label: "Kurum belleği",           color: "#3b6d11" },
+    osmanlica:       { label: "Osmanlıca çeviri",        color: "#BA7517" },
+    proje_basvuru:   { label: "Proje başvurusu",         color: "#185fa5" },
+    egitim:          { label: "Eğitim",                  color: "#534AB7" },
+    ars_web:         { label: "Arşiv-web & IT",          color: "#444441" },
+    koordinasyon:    { label: "Koordinasyon",            color: "#888780" },
+    kodlama_kontrol: { label: "Kodlama & kontrol",       color: "#185fa5" },
+    diger:           { label: "Diğer",                   color: "#74686e" },
+  };
+
+  const MONTHS_TR = ["", "OCA", "ŞUB", "MAR", "NİS", "MAY", "HAZ",
+                     "TEM", "AĞU", "EYL", "EKİ", "KAS", "ARA"];
+
+  const SOCIAL_ICONS = {
+    website:  { label: "Web sitesi",  prefix: "" },
+    twitter:  { label: "Twitter/X",   prefix: "https://x.com/" },
+    linkedin: { label: "LinkedIn",    prefix: "https://www.linkedin.com/in/" },
+    github:   { label: "GitHub",      prefix: "https://github.com/" },
+    orcid:    { label: "ORCID",       prefix: "https://orcid.org/" },
+    scholar:  { label: "Scholar",     prefix: "" },
+    email:    { label: "E-posta",     prefix: "mailto:" },
+  };
+
+  // --- helpers ---------------------------------------------------------
+  function esc(s) {
+    return String(s ?? "")
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  function fmt(n) {
+    if (n == null) return "—";
+    return Number(n).toLocaleString("tr-TR");
+  }
+  function fmtDate(iso) {
+    if (!iso) return "—";
+    const [y, m, d] = iso.split("-");
+    return `${parseInt(d, 10)} ${MONTHS_TR[parseInt(m, 10)]?.toLowerCase() || ""} ${y}`;
+  }
+
+  function findVolBySlug(slug) {
+    const data = window.TVF_ROSTER;
+    if (!data) return null;
+    return (data.volunteers || []).find((v) => v.slug === slug) || null;
+  }
+
+  // --- DOM construction ------------------------------------------------
+  let backdrop, drawer;
+
+  function ensureScaffold() {
+    if (drawer) return;
+    backdrop = document.createElement("div");
+    backdrop.className = "tv-drawer-backdrop";
+    backdrop.setAttribute("aria-hidden", "true");
+    backdrop.addEventListener("click", closeDrawer);
+    document.body.appendChild(backdrop);
+
+    drawer = document.createElement("aside");
+    drawer.className = "tv-drawer";
+    drawer.setAttribute("role", "dialog");
+    drawer.setAttribute("aria-modal", "true");
+    drawer.setAttribute("aria-labelledby", "tv-drawer-title");
+    drawer.setAttribute("tabindex", "-1");
+    document.body.appendChild(drawer);
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && drawer.classList.contains("open")) {
+        closeDrawer();
+      }
+    });
+  }
+
+  function renderDrawerBody(v) {
+    const subParts = [v.role, v.uni, v.city].filter(Boolean);
+    const sub = subParts.map(esc).join(" · ");
+    const bio = v.bio || {};
+
+    // Stats grid
+    const stats = `
+      <div class="dr-stats">
+        <div class="st"><span class="v">${fmt(v.sessions)}</span><span class="l">oturum</span></div>
+        <div class="st"><span class="v">${fmt((v.tracks || []).length)}</span><span class="l">iş alanı</span></div>
+        <div class="st"><span class="v">${fmt((v.boxes || []).length)}</span><span class="l">kutu</span></div>
+      </div>`;
+
+    // Narrative blocks
+    const narrative =
+      bio.shortRole || bio.tvNarrative || bio.narrative
+        ? `<div class="dr-block">
+             <p class="dr-block-head">Hakkında</p>
+             ${bio.shortRole    ? `<p class="dr-narrative"><em>${esc(bio.shortRole)}</em></p>`    : ""}
+             ${bio.tvNarrative  ? `<p class="dr-narrative">${esc(bio.tvNarrative)}</p>`           : ""}
+             ${bio.narrative    ? `<p class="dr-narrative">${esc(bio.narrative)}</p>`             : ""}
+           </div>`
+        : "";
+
+    // Per-track breakdown
+    let tracksHtml = "";
+    if (Array.isArray(v.tracks) && v.tracks.length) {
+      // Group log by track to count sessions per track
+      const counts = {};
+      (v.log || []).forEach((s) => { counts[s.track] = (counts[s.track] || 0) + 1; });
+      // Backfill tracks that exist in v.tracks but not in counts (rare)
+      v.tracks.forEach((t) => { if (!(t in counts)) counts[t] = 0; });
+      const rows = Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([t, n]) => {
+          const meta = TRACK_META[t] || TRACK_META.diger;
+          return `<div class="tr-row">
+            <span class="dot" style="background:${meta.color}"></span>
+            <span>${esc(meta.label)}</span>
+            <span class="ct">${n}</span>
+          </div>`;
+        })
+        .join("");
+      tracksHtml = `
+        <div class="dr-block">
+          <p class="dr-block-head">İş alanlarına göre</p>
+          <div class="dr-tracks">${rows}</div>
+        </div>`;
+    }
+
+    // Monthly sparkline
+    let sparkHtml = "";
+    if (v.byMonth && Object.keys(v.byMonth).length) {
+      const months = (window.TVF_ROSTER.monthsActive || [])
+        .slice();
+      if (months.length === 0) months.push(...Object.keys(v.byMonth).sort());
+      const counts = months.map((m) => v.byMonth[m] || 0);
+      const max = Math.max(1, ...counts);
+      const bars = counts
+        .map(
+          (c, i) =>
+            `<div class="bar" data-empty="${c === 0 ? 1 : 0}" style="height:${Math.max(2, (c / max) * 100)}%" title="${months[i]}: ${c} oturum"></div>`
+        )
+        .join("");
+      const labels = months
+        .map((m) => `<span>${MONTHS_TR[parseInt(m.slice(5, 7), 10)]}</span>`)
+        .join("");
+      sparkHtml = `
+        <div class="dr-block">
+          <p class="dr-block-head">Aylık dağılım</p>
+          <div class="dr-spark">${bars}</div>
+          <div class="dr-spark-labels">${labels}</div>
+        </div>`;
+    }
+
+    // Recent activity log
+    let logHtml = "";
+    if (Array.isArray(v.log) && v.log.length) {
+      const rows = v.log.slice(0, 12).map((s) => {
+        const trMeta = TRACK_META[s.track] || TRACK_META.diger;
+        const what = s.devam || s.calisma || trMeta.label;
+        const extras = [
+          s.scanner ? `tarayıcı: ${s.scanner}` : "",
+          s.notes && s.notes.length < 140 ? s.notes : "",
+        ].filter(Boolean);
+        return `<div class="log-row">
+          <p class="when">${esc(fmtDate(s.date))} · ${esc(trMeta.label)}</p>
+          <p class="what">${esc(what)}</p>
+          ${extras.length ? `<p class="extra">${esc(extras.join(" · "))}</p>` : ""}
+        </div>`;
+      }).join("");
+      logHtml = `
+        <div class="dr-block">
+          <p class="dr-block-head">Son etkinlikler ${v.log.length > 12 ? `(son 12)` : ""}</p>
+          <div class="dr-log">${rows}</div>
+        </div>`;
+    } else if (v.active === false) {
+      logHtml = `
+        <div class="dr-block">
+          <p class="dr-empty">Kadroda; bu dönem henüz görünür kayıt yok. Zaman çizelgesinde ayrılmış slotlar: ${
+            v.slots && v.slots.length ? esc(v.slots.join(", ")) : "—"
+          }${v.topics && v.topics.length ? `. Konu: ${esc(v.topics.join(", "))}` : ""}.</p>
+        </div>`;
+    }
+
+    // Social / contact
+    let linksHtml = "";
+    const linkEntries = Object.entries(SOCIAL_ICONS)
+      .map(([k, meta]) => {
+        const val = (bio[k] || "").trim();
+        if (!val) return null;
+        let href;
+        if (/^https?:\/\//i.test(val) || val.startsWith("mailto:")) {
+          href = val;
+        } else if (k === "email") {
+          href = "mailto:" + val;
+        } else {
+          href = meta.prefix + val.replace(/^@/, "");
+        }
+        return `<a href="${esc(href)}" target="_blank" rel="noopener">${esc(meta.label)}</a>`;
+      })
+      .filter(Boolean);
+    if (linkEntries.length) {
+      linksHtml = `
+        <div class="dr-block">
+          <p class="dr-block-head">Bağlantılar</p>
+          <div class="dr-links">${linkEntries.join("")}</div>
+        </div>`;
+    }
+
+    // Footprint: scanners + boxes
+    let extrasHtml = "";
+    const fpParts = [];
+    if (v.boxes && v.boxes.length) {
+      fpParts.push(`Kutular: ${v.boxes.map((b) => `Kutu ${esc(b)}`).join(", ")}`);
+    }
+    if (v.scanners && v.scanners.length) {
+      fpParts.push(`Tarayıcılar: ${v.scanners.map(esc).join(", ")}`);
+    }
+    if (v.firstSeen) {
+      fpParts.push(`İlk görünür kayıt: ${esc(fmtDate(v.firstSeen))}`);
+    }
+    if (fpParts.length) {
+      extrasHtml = `
+        <div class="dr-block">
+          <p class="dr-block-head">Detaylar</p>
+          ${fpParts.map((p) => `<p class="dr-narrative" style="font-size:13px;">${p}</p>`).join("")}
+        </div>`;
+    }
+
+    return `
+      <header class="dr-head">
+        <button class="dr-close" type="button" aria-label="Kapat">×</button>
+        <p class="dr-eyebrow">Boratav Arşivi · Gönüllü</p>
+        <h2 class="dr-name" id="tv-drawer-title">${esc(v.name)}</h2>
+        ${sub ? `<p class="dr-sub">${sub}</p>` : ""}
+      </header>
+      <div class="dr-body">
+        ${stats}
+        ${narrative}
+        ${linksHtml}
+        ${tracksHtml}
+        ${sparkHtml}
+        ${extrasHtml}
+        ${logHtml}
       </div>
-      <div class="mast-meta">
-        <span><span class="pulse" id="lpPulse"></span><span id="lpSyncLabel">az önce senkron</span></span>
-        <span id="lpWeekLabel">Hafta · —</span>
-      </div>
-    </header>
+      <footer class="dr-foot">
+        <span>#g/${esc(v.slug)}</span>
+        <button class="copy-link" type="button" data-slug="${esc(v.slug)}">Bağlantıyı kopyala</button>
+      </footer>`;
+  }
 
-    <!-- ============ Intro / hero (unchanged) ============ -->
-    <section class="intro">
-      <p class="label" data-edit="heroEyebrow">Tarih Vakfı · Pertev Naili Boratav Arşivi</p>
-      <h1 data-edit="heroHeadline">Bu hafta arşivde<br><em>ne yapıldı?</em></h1>
-      <p class="hero-subtitle" data-edit="heroSubtitle">Boratav Arşivi Gönüllü Emek Günlüğü</p>
-      <p class="hero-period" id="lpHeroPeriod">Hafta · —</p>
-      <p class="lede" id="lpHeroLede" data-edit="heroLede">Haftanın özeti, sayfa düzenli olarak tazeleniyor.</p>
-      <p class="context-links">
-        <a href="./kronoloji/">Tarih Vakfı Dijital Kronolojisi</a>
-        <span aria-hidden="true">·</span>
-        <a href="./kronoloji/dashboard.html">Kronoloji Görsel Özet</a>
-      </p>
-    </section>
+  // --- open / close ----------------------------------------------------
+  let lastFocusedEl = null;
 
-    <!-- ============ NEW: cumulative + this-week ribbon ============ -->
-    <section class="tv-ribbon" id="lpCumulativeRibbon" aria-label="Kümülatif ve bu haftaki sayılar">
-      <!-- Filled by roster-sections.js -->
-    </section>
+  function openDrawer(slug, opts = {}) {
+    ensureScaffold();
+    const v = findVolBySlug(slug);
+    if (!v) {
+      console.warn("volunteer-card: no volunteer with slug", slug);
+      return;
+    }
+    drawer.innerHTML = renderDrawerBody(v);
+    drawer.querySelector(".dr-close").addEventListener("click", closeDrawer);
+    const copyBtn = drawer.querySelector(".copy-link");
+    if (copyBtn) {
+      copyBtn.addEventListener("click", () => {
+        const u = new URL(window.location.href);
+        u.hash = "g/" + copyBtn.dataset.slug;
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(u.toString()).then(() => {
+            copyBtn.textContent = "Kopyalandı";
+            setTimeout(() => (copyBtn.textContent = "Bağlantıyı kopyala"), 1400);
+          });
+        }
+      });
+    }
+    lastFocusedEl = document.activeElement;
+    requestAnimationFrame(() => {
+      backdrop.classList.add("open");
+      drawer.classList.add("open");
+      document.body.classList.add("tv-drawer-open");
+      drawer.focus();
+    });
+    if (opts.updateHash !== false) {
+      const newHash = "#g/" + slug;
+      if (location.hash !== newHash) {
+        history.replaceState(null, "", location.pathname + location.search + newHash);
+      }
+    }
+  }
 
-    <!-- ============ Truth strip — selected period aggregate (unchanged) ============ -->
-    <section class="truth-strip" aria-label="Haftanın kısa özeti">
-      <div><p class="v" id="lpTruthRecords">—</p><p class="k">katkı kaydı</p></div>
-      <div><p class="v" id="lpTruthPages">—</p><p class="k">arşiv detayı</p></div>
-      <div><p class="v" id="lpTruthActivities">—</p><p class="k">faaliyet kaydı</p></div>
-      <div><p class="v" id="lpTruthVolunteers">—</p><p class="k">katkı veren</p></div>
-      <div><p class="v" id="lpTruthBoxes">—</p><p class="k">aktif kutu</p></div>
-      <div><p class="v" id="lpTruthProgress">—</p><p class="k">toplam ilerleme</p></div>
-    </section>
+  function closeDrawer() {
+    if (!drawer) return;
+    backdrop.classList.remove("open");
+    drawer.classList.remove("open");
+    document.body.classList.remove("tv-drawer-open");
+    if (location.hash && location.hash.startsWith("#g/")) {
+      history.replaceState(null, "", location.pathname + location.search);
+    }
+    if (lastFocusedEl && typeof lastFocusedEl.focus === "function") {
+      lastFocusedEl.focus();
+    }
+  }
 
-    <!-- ============ Archive context (unchanged) ============ -->
-    <section class="context-card archive-context" aria-labelledby="boratav-title">
-      <p class="context-eyebrow">Arşiv bağlamı</p>
-      <h2 id="boratav-title">Pertev Naili Boratav Arşivi</h2>
-      <p>Pertev Naili Boratav (1907–1998), Türkiye’de halkbilimi ve halk edebiyatı çalışmalarının öncü isimlerinden biridir. Masallar, halk hikâyeleri, sözlü kültür ve arşiv belleği üzerine yaptığı çalışmalar folklor araştırmalarının kurumsallaşmasında önemli bir yer tutar.</p>
-      <p>Bu katkı günlüğü, Boratav arşivindeki malzemenin düzenlenmesi ve görünür kılınması için yürütülen gönüllü emeği ve koordinasyon çalışmasını izler.</p>
-      <p class="context-links">Daha fazla bilgi: <a href="https://tr.wikipedia.org/wiki/Pertev_Naili_Boratav" target="_blank" rel="noopener">Pertev Naili Boratav</a></p>
-    </section>
+  // --- click delegation ------------------------------------------------
+  function nameFromElement(el) {
+    // Find the data-slug on the closest .badge or .row
+    const node = el.closest("[data-slug]");
+    return node ? node.dataset.slug : null;
+  }
 
-    <!-- ============ NEW: Active volunteer wall (Design A) ============ -->
-    <header class="section-head">
-      <h2>Bu dönem katkı verenler <em>· iş alanına göre</em></h2>
-      <span class="tag" id="lpActiveWallMeta">—</span>
-    </header>
-    <section id="lpActiveWall" class="tv-active"></section>
+  function bindClickDelegation() {
+    document.addEventListener("click", (e) => {
+      const slug = nameFromElement(e.target);
+      if (slug) {
+        e.preventDefault();
+        openDrawer(slug);
+      }
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const slug = nameFromElement(e.target);
+      if (slug) {
+        e.preventDefault();
+        openDrawer(slug);
+      }
+    });
+  }
 
-    <!-- ============ NEW: Track timeline (çalışma izleri) ============ -->
-    <header class="section-head">
-      <h2>Çalışma <em>izleri</em></h2>
-      <span class="tag">paralel iş · 5 ay</span>
-    </header>
-    <section id="lpTracks" class="tv-tracks"></section>
+  // --- hash routing ----------------------------------------------------
+  function handleHash() {
+    const m = (location.hash || "").match(/^#g\/(.+)$/);
+    if (m) {
+      openDrawer(decodeURIComponent(m[1]), { updateHash: false });
+    }
+  }
 
-    <!-- ============ Haftanın günlüğü (unchanged) ============ -->
-    <header class="section-head">
-      <h2>Haftanın <em>günlüğü</em></h2>
-      <p class="tag" id="lpDaysTag">7 gün · sıralı</p>
-    </header>
-    <section class="days" id="lpDays"></section>
+  // --- init ------------------------------------------------------------
+  function init() {
+    bindClickDelegation();
+    handleHash();
+    window.addEventListener("hashchange", handleHash);
+  }
 
-    <!-- ============ Aktif kutular bu hafta (unchanged) ============ -->
-    <section class="boxes-week" id="lpBoxesWeek" hidden>
-      <div class="boxes-head">
-        <h3>Aktif <em>kutular</em></h3>
-        <span class="meta" id="lpBoxesWeekMeta">—</span>
-      </div>
-      <div id="lpBoxesWeekRows"></div>
-    </section>
+  window.TVF = window.TVF || {};
+  window.TVF.openVolunteerDrawer = openDrawer;
 
-    <!-- ============ Malzeme dağılımı (unchanged) ============ -->
-    <section class="mat" id="lpMat" hidden>
-      <div class="mat-head">
-        <h3>Malzeme <em>dağılımı</em></h3>
-        <span class="meta" id="lpMatMeta">bu dönem</span>
-      </div>
-      <div class="mat-bar" id="lpMatBar"></div>
-      <div class="mat-legend" id="lpMatLegend"></div>
-    </section>
-
-    <!-- ============ Latest capped feed (unchanged) ============ -->
-    <section class="latest" id="lpLatest" hidden>
-      <div class="boxes-head">
-        <h3>Son <em>hareketler</em></h3>
-        <span class="meta" id="lpLatestMeta">özet</span>
-      </div>
-      <div class="latest-list" id="lpLatestRows"></div>
-    </section>
-
-    <!-- ============ NEW: Full kadro / census (Design B) ============ -->
-    <header class="section-head">
-      <h2>Boratav Arşivi <em>gönüllü kadrosu</em></h2>
-      <span class="tag" id="lpKadroMeta">—</span>
-    </header>
-    <section id="lpKadro" class="tv-kadro"></section>
-
-    <!-- ============ Institutional context (unchanged) ============ -->
-    <section class="context-card about-foundation" aria-labelledby="foundation-title">
-      <div class="context-mark">
-        <img src="./assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" />
-      </div>
-      <div>
-        <p class="context-eyebrow">Kurum bilgisi</p>
-        <h2 id="foundation-title">Tarih Vakfı hakkında</h2>
-        <p>Tarih Vakfı, 1991 yılında 12 kişilik Girişim Kurulu ve 264 Kurucu Mütevelli ile kuruldu. İlk adı Türkiye Ekonomik ve Toplumsal Tarih Vakfı olan kurum, 2005 yılında Tarih Vakfı adını aldı.</p>
-        <p>Vakıf, tarihsel bilgiye ve belgelere kamusal erişimi güçlendirmeyi; arşiv, yayın, araştırma ve bellek çalışmalarını desteklemeyi amaçlar. Tarih Vakfı Bilgi Belge Merkezi, Türkiye’nin ekonomik ve toplumsal tarihine ışık tutan malzemelerin korunması, düzenlenmesi ve araştırmacılarla buluşturulması için çalışır.</p>
-        <p class="context-links">
-          <a href="https://tarihvakfi.org.tr/hakkimizda/" target="_blank" rel="noopener">Tarih Vakfı hakkında</a>
-          <a href="https://tarihvakfi.org.tr/bilgi-belge-merkezi-hakkinda/" target="_blank" rel="noopener">Bilgi Belge Merkezi</a>
-        </p>
-      </div>
-    </section>
-
-    <section class="diagnostics" id="lpDiagnostics" hidden>
-      <h3 id="lpDiagnosticsTitle"></h3>
-      <ul id="lpDiagnosticsList"></ul>
-    </section>
-
-    <!-- ============ Colophon (unchanged) ============ -->
-    <footer class="colophon">
-      <div class="footer-brand">
-        <img src="./assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" />
-        <p class="signoff" data-edit="colophonSignoff">Tarih Vakfı · Boratav Arşivi Gönüllü Emek Günlüğü</p>
-      </div>
-      <p>Zindankapı Değirmen Sok. No: 10, Eminönü, İstanbul · <a href="https://tarihvakfi.org.tr/" target="_blank" rel="noopener">tarihvakfi.org.tr</a></p>
-      <p data-edit="colophonNote">Veriler Google Sheet’ten düzenli olarak güncellenir; gönüllü katkıları sayfadaki isimlerle görünür kılınır.<br>Kamuya açık özetler e-posta, teknik kimlik, ham satır tanımı ve özel not göstermez.</p>
-      <p class="footer-links">
-        <a href="https://tarihvakfi.org.tr/hakkimizda/" target="_blank" rel="noopener">Tarih Vakfı hakkında</a>
-        <span aria-hidden="true">·</span>
-        <a href="https://tarihvakfi.org.tr/bilgi-belge-merkezi-hakkinda/" target="_blank" rel="noopener">Bilgi Belge Merkezi</a>
-        <span aria-hidden="true">·</span>
-        <a href="https://tarihvakfi.org.tr/" target="_blank" rel="noopener">Gönüllü olmak ister misin?</a>
-      </p>
-    </footer>
-
-  </main>
-
-  <!-- =========== Existing scripts (unchanged) =========== -->
-  <script src="./js/config.public.js?v=20260517-roster"></script>
-  <script src="./js/snapshot.js?v=20260517-roster"></script>
-
-  <!-- =========== NEW: supplemental roster snapshot =========== -->
-  <script src="./js/roster.js?v=20260517-roster"></script>
-
-  <!-- =========== Existing scripts (unchanged) =========== -->
-  <script src="./js/utils.js?v=20260517-roster"></script>
-  <script src="./js/volunteer-credit.js?v=20260517-roster"></script>
-  <script src="./js/aggregate.js?v=20260517-roster"></script>
-  <script src="./js/render-dashboard.js?v=20260517-roster"></script>
-
-  <!-- =========== NEW: renders the four new sections =========== -->
-  <script src="./js/roster-sections.js?v=20260517-roster"></script>
-
-  <!-- =========== NEW: volunteer profile drawer (click any name) =========== -->
-  <script src="./js/volunteer-card.js?v=20260517-roster"></script>
-
-  <!-- =========== Volunteer hover tooltip =========== -->
-  <script src="./js/volunteer-hover.js?v=20260607"></script>
-
-  <!-- =========== Existing scripts (unchanged) =========== -->
-  <script src="./js/data-loader.js?v=20260517-roster"></script>
-
-</body>
-</html>
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
