@@ -1,562 +1,317 @@
 <!doctype html>
 <html lang="tr">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Tarih Vakfı Dijital Kronolojisi — 35 Yıl, 2018 Kayıt</title>
-    <meta name="description" content="Tarih Vakfı'nın 1991'den bugüne 35 yıllık kurumsal hafızası: 2018 kayıt, açık veri, tam aranabilir dijital kronoloji.">
-    <link rel="stylesheet" href="assets/css/style.css">
-    <style>
-      /* ── Hero banner ── */
-      .hero-banner {
-        background: linear-gradient(135deg, #1a1410 0%, #2e1e14 40%, #3d2318 100%);
-        color: #f7f3ec;
-        padding: 64px 24px 56px;
-        position: relative;
-        overflow: hidden;
-      }
-      .hero-banner::before {
-        content: '';
-        position: absolute; inset: 0;
-        background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.025'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-        pointer-events: none;
-      }
-      .hero-banner-inner {
-        max-width: 1220px; margin: 0 auto;
-        display: grid; grid-template-columns: 1fr auto; gap: 40px; align-items: end;
-      }
-      .hero-banner h1 { color: #f7f3ec; font-size: clamp(38px,6vw,68px); margin: 0 0 16px; line-height: 1.05; }
-      .hero-banner .eyebrow { color: #c9a87e; font-size: 12px; letter-spacing: .14em; font-weight: 800; text-transform: uppercase; margin: 0 0 16px; }
-      .hero-banner p { color: #c5b9ab; font-size: 18px; max-width: 640px; margin: 0 0 28px; line-height: 1.6; }
-      .hero-banner-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; min-width: 360px; }
-      .hs { background: rgba(255,255,255,0.06); padding: 18px 16px; text-align: center; }
-      .hs strong { display: block; font-family: Georgia,serif; font-size: 28px; color: #e8d4b8; line-height: 1; }
-      .hs span { display: block; font-size: 11px; color: #9d8e7e; margin-top: 6px; text-transform: uppercase; letter-spacing: .08em; }
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tarih Vakfı Dijital Kronolojisi — 35 Yıl, 2018 Kayıt</title>
+  <meta name="description" content="Tarih Vakfı'nın 1991'den bugüne 35 yıllık kurumsal hafızası: 2018 kayıt, açık veri, tam aranabilir dijital kronoloji.">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <style>
+/* ── Home-only additions ──────────────────────────────── */
+.home-hero {
+  background: linear-gradient(135deg,#1a1410 0%,#2e1e14 50%,#3d2318 100%);
+  color:#f7f3ec; padding:56px 20px 52px; position:relative; overflow:hidden;
+}
+.home-hero::before {
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background-image: repeating-linear-gradient(
+    -45deg,rgba(255,255,255,.02) 0,rgba(255,255,255,.02) 1px,transparent 1px,transparent 14px);
+}
+.home-hero-inner {
+  max-width:1220px; margin:0 auto; position:relative;
+  display:grid; grid-template-columns:1fr auto; gap:40px; align-items:end;
+}
+.home-hero .eyebrow {
+  color:#c9a87e; font-size:11px; letter-spacing:.15em; font-weight:800;
+  text-transform:uppercase; margin:0 0 16px; display:block;
+}
+.home-hero h1 { color:#f7f3ec; font-size:clamp(36px,6vw,72px); margin:0 0 16px; line-height:1.05; }
+.home-hero p  { color:#c5b9ab; font-size:17px; max-width:580px; margin:0 0 28px; line-height:1.65; }
+.home-hero-actions { display:flex; flex-wrap:wrap; gap:10px; }
+.home-hero .button { min-height:44px; font-size:15px; }
+.home-hero .button.ghost { border-color:rgba(247,243,236,.35); color:#f7f3ec; background:transparent; }
 
-      /* ── Period story strip ── */
-      .period-strip { background: var(--paper); border-bottom: 1px solid var(--line); overflow-x: auto; }
-      .period-strip-inner { display: flex; max-width: 1220px; margin: 0 auto; }
-      .ps-item { flex: 1; min-width: 140px; padding: 16px 20px; border-right: 1px solid var(--line); cursor: pointer; transition: background .15s; }
-      .ps-item:last-child { border-right: none; }
-      .ps-item:hover { background: var(--accent-soft); }
-      .ps-item.active { background: var(--accent-soft); border-bottom: 3px solid var(--accent); }
-      .ps-years { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 4px; }
-      .ps-total { font-family: Georgia,serif; font-size: 24px; color: var(--accent-dark); font-weight: 700; }
-      .ps-label { font-size: 12px; color: var(--muted); }
-      .ps-bar { margin-top: 8px; height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
-      .ps-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; }
+/* ── Metrics strip (site.js fills #homeMetrics) ── */
+.home-metrics-strip { background:var(--paper); border-bottom:1px solid var(--line); }
+.home-metrics-strip #homeMetrics {
+  max-width:1220px; margin:0 auto;
+  display:grid; grid-template-columns:repeat(6,1fr);
+}
+.home-metrics-strip .metric {
+  border-radius:0; border:none; border-right:1px solid var(--line); padding:18px 20px;
+}
+.home-metrics-strip .metric:last-child { border-right:none; }
 
-      /* ── Decade timeline ── */
-      .decade-timeline { max-width: 1220px; margin: 0 auto; padding: 48px 24px 0; }
-      .dt-header { display: flex; justify-content: space-between; align-items: end; margin-bottom: 24px; }
-      .dt-canvas-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper-strong); }
-      #decadeCanvas { display: block; width: 100%; }
+/* ── Overview sentence ── */
+#overviewSentence { color:var(--muted); font-size:15px; margin:20px 0 0; }
 
-      /* ── Story cards ── */
-      .story-section { max-width: 1220px; margin: 0 auto; padding: 40px 24px 0; }
-      .story-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-top: 20px; }
-      .story-card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper-strong); padding: 20px; position: relative; overflow: hidden; }
-      .story-card::before { content: attr(data-period); position: absolute; top: 14px; right: 14px; font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: .06em; }
-      .story-card .sc-year { font-family: Georgia,serif; font-size: 13px; color: var(--accent); font-weight: 700; margin: 0 0 6px; }
-      .story-card h3 { font-size: 17px; margin: 0 0 8px; line-height: 1.3; }
-      .story-card p { font-size: 14px; color: var(--muted); margin: 0; line-height: 1.5; }
-      .story-card .sc-badge { display: inline-block; margin-top: 10px; font-size: 11px; padding: 3px 8px; border-radius: 20px; background: var(--accent-soft); color: var(--accent-dark); font-weight: 700; }
+/* ── Section panels ── */
+.home-panel {
+  border:1px solid var(--line); border-radius:var(--radius);
+  background:var(--paper-strong); overflow:hidden;
+}
+.home-panel-head {
+  padding:16px 20px 12px; border-bottom:1px solid var(--line);
+  display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;
+}
+.home-panel-head strong { font-family:Georgia,serif; font-size:18px; display:block; margin-bottom:3px; }
+.home-panel-head p { margin:0; font-size:13px; color:var(--muted); }
+.home-panel-body { padding:20px; overflow-x:auto; }
 
-      /* ── Rhythm chart (heartbeat viz) ── */
-      .rhythm-section { max-width: 1220px; margin: 0 auto; padding: 40px 24px 0; }
-      #rhythmSvg { width: 100%; display: block; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper-strong); overflow: hidden; }
+/* legend swatch fix (site.js emits <i class="swatch">) */
+.legend i.swatch, .legend .swatch {
+  display:inline-block !important; width:10px; height:10px;
+  border-radius:2px; font-style:normal; font-size:0; vertical-align:middle;
+}
+.legend { display:flex; flex-wrap:wrap; align-items:center; gap:6px 16px;
+  margin-top:14px; padding:10px 14px; background:rgba(239,228,213,.35);
+  border-radius:6px; color:var(--muted); font-size:13px; }
+.legend span { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
 
-      /* ── Category constellation ── */
-      .constellation-section { max-width: 1220px; margin: 0 auto; padding: 40px 24px 0; }
-      .constellation-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-      #categoryBubbles { border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper-strong); overflow: hidden; }
+/* ── CTA grid ── */
+.cta-grid {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:16px;
+  margin-top:24px;
+}
+.cta-card {
+  border:1px solid var(--line); border-radius:var(--radius);
+  background:var(--paper-strong); padding:20px; text-decoration:none;
+  display:flex; flex-direction:column; gap:8px;
+  transition:transform .12s, border-color .12s, box-shadow .12s;
+}
+.cta-card:hover { transform:translateY(-2px); border-color:rgba(138,47,47,.4); box-shadow:var(--shadow); }
+.cta-card .cc-icon { font-size:24px; }
+.cta-card h3 { margin:0; font-size:18px; color:var(--ink); }
+.cta-card p  { margin:0; color:var(--muted); font-size:14px; line-height:1.5; flex:1; }
+.cta-card .cc-arrow { font-size:13px; font-weight:700; color:var(--accent-dark); }
 
-      /* ── CTA row ── */
-      .cta-row { max-width: 1220px; margin: 48px auto 0; padding: 0 24px 64px; display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
-      .cta-card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper-strong); padding: 24px; text-decoration: none; display: flex; flex-direction: column; gap: 10px; transition: transform .14s, border-color .14s, box-shadow .14s; }
-      .cta-card:hover { transform: translateY(-3px); border-color: rgba(138,47,47,.4); box-shadow: var(--shadow); }
-      .cta-card .cc-icon { font-size: 28px; }
-      .cta-card h3 { margin: 0; font-size: 20px; }
-      .cta-card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; flex: 1; }
-      .cta-card .cc-link { font-size: 13px; font-weight: 700; color: var(--accent-dark); }
+/* ── Period strip ── */
+.period-strip-wrap { overflow-x:auto; border-bottom:1px solid var(--line); background:var(--paper); }
+.period-strip {
+  display:flex; max-width:1220px; margin:0 auto;
+}
+.ps-item {
+  flex:1; min-width:130px; padding:14px 16px; border-right:1px solid var(--line);
+  cursor:pointer; transition:background .12s; text-decoration:none;
+}
+.ps-item:last-child { border-right:none; }
+.ps-item:hover { background:var(--accent-soft); }
+.ps-years { font-size:10px; color:var(--muted); font-weight:700; letter-spacing:.08em; text-transform:uppercase; margin-bottom:4px; }
+.ps-total { font-family:Georgia,serif; font-size:22px; color:var(--accent-dark); font-weight:700; }
+.ps-label { font-size:12px; color:var(--muted); }
+.ps-bar  { margin-top:6px; height:3px; background:var(--line); border-radius:2px; overflow:hidden; }
+.ps-bar-fill { height:100%; background:var(--accent); border-radius:2px; }
 
-      @media (max-width: 960px) {
-        .hero-banner-inner { grid-template-columns: 1fr; }
-        .hero-banner-stats { grid-template-columns: repeat(2,1fr); min-width: unset; }
-        .story-grid, .constellation-wrap, .cta-row { grid-template-columns: 1fr; }
-        .period-strip-inner { flex-wrap: wrap; }
-        .ps-item { min-width: 130px; }
-      }
-    </style>
-  </head>
-  <body data-page="home">
+/* ── Recent records ── */
+#homeRecords .item-card { border:1px solid var(--line); border-radius:var(--radius); background:white; padding:14px; margin-bottom:10px; display:block; text-decoration:none; color:inherit; transition:border-color .12s; }
+#homeRecords .item-card:hover { border-color:rgba(138,47,47,.4); }
 
-    <header class="site-header">
-      <nav class="nav" aria-label="Ana gezinme">
-        <a class="brand" href="index.html"><span class="brand-mark">TV</span> Tarih Vakfı Dijital Kronolojisi</a>
-        <div class="nav-links">
-          <a href="timeline.html" data-page="timeline">Kronoloji</a>
-          <a href="archive.html" data-page="archive">Arşiv</a>
-          <a href="dashboard.html" data-page="dashboard">Görsel Özet</a>
-          <a href="methodology.html" data-page="methodology">Yöntem</a>
-          <a href="data.html" data-page="data">Veri</a>
-        </div>
-      </nav>
-    </header>
+/* ── Responsive ── */
+@media (max-width:960px) {
+  .home-hero-inner { grid-template-columns:1fr; }
+  .home-metrics-strip #homeMetrics { grid-template-columns:repeat(3,1fr); }
+  .cta-grid { grid-template-columns:1fr 1fr; }
+  .home-panel-head { flex-direction:column; }
+}
+@media (max-width:600px) {
+  .home-metrics-strip #homeMetrics { grid-template-columns:repeat(2,1fr); }
+  .home-metrics-strip .metric { border-right:1px solid var(--line) !important; }
+  .home-metrics-strip .metric:nth-child(even) { border-right:none !important; }
+  .cta-grid { grid-template-columns:1fr; }
+  .period-strip { flex-wrap:wrap; }
+  .ps-item { min-width:45%; }
+}
+  </style>
+</head>
+<body data-page="home">
 
-    <!-- ── Hero ── -->
-    <section class="hero-banner">
-      <div class="hero-banner-inner">
-        <div>
-          <p class="eyebrow">Açık Kurumsal Hafıza · 1991 – 2026</p>
-          <h1>Tarih Vakfı'nın<br><em>35 Yılı</em></h1>
-          <p>2018 kayıt, 7 dönem, yüzlerce konferans, sergi, yayın ve proje — hepsi aranabilir, filtrelenebilir ve açık veri olarak.</p>
-          <div style="display:flex;flex-wrap:wrap;gap:10px;">
-            <a class="button" href="timeline.html">Kronolojik akışı gör</a>
-            <a class="button ghost" href="archive.html" style="color:#f7f3ec;border-color:rgba(247,243,236,0.35);">Arşivde ara</a>
-            <a class="button ghost" href="dashboard.html" style="color:#f7f3ec;border-color:rgba(247,243,236,0.35);">Grafikleri incele</a>
-          </div>
-        </div>
-        <div class="hero-banner-stats" id="heroBannerStats">
-          <div class="hs"><strong id="hsStat1">—</strong><span>Toplam kayıt</span></div>
-          <div class="hs"><strong id="hsStat2">—</strong><span>Etkinlik</span></div>
-          <div class="hs"><strong id="hsStat3">—</strong><span>Yayın</span></div>
-          <div class="hs"><strong id="hsStat4">—</strong><span>Doğrulanmış</span></div>
+  <!-- Nav -->
+  <header class="site-header">
+    <nav class="nav" aria-label="Ana gezinme">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">TV</span>
+        Tarih Vakfı Dijital Kronolojisi
+      </a>
+      <button class="nav-toggle" aria-label="Menüyü aç/kapat" aria-expanded="false"
+        onclick="this.setAttribute('aria-expanded',this.getAttribute('aria-expanded')==='true'?'false':'true');
+                 document.querySelector('.nav-links').classList.toggle('open')">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="6"  x2="19" y2="6"/>
+          <line x1="3" y1="11" x2="19" y2="11"/>
+          <line x1="3" y1="16" x2="19" y2="16"/>
+        </svg>
+      </button>
+      <div class="nav-links">
+        <a href="timeline.html">Kronoloji</a>
+        <a href="archive.html">Arşiv</a>
+        <a href="dashboard.html">Görsel Özet</a>
+        <a href="methodology.html">Yöntem</a>
+        <a href="data.html">Veri</a>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Hero -->
+  <div class="home-hero">
+    <div class="home-hero-inner">
+      <div>
+        <span class="eyebrow">Açık kurumsal hafıza · 1991–2026</span>
+        <h1>Tarih Vakfı'nın<br><em>35 Yılı</em></h1>
+        <p>2018 kayıt, 7 dönem, yüzlerce konferans, sergi, yayın ve proje — hepsi aranabilir, filtrelenebilir ve açık veri olarak.</p>
+        <div class="home-hero-actions">
+          <a class="button" href="timeline.html">Kronolojik akışı gör</a>
+          <a class="button ghost" href="archive.html">Arşivde ara</a>
+          <a class="button ghost" href="dashboard.html">Grafikleri incele</a>
         </div>
       </div>
-    </section>
+    </div>
+  </div>
 
-    <!-- ── Period Strip ── -->
-    <div class="period-strip">
-      <div class="period-strip-inner" id="periodStrip"></div>
+  <!-- Metrics strip — site.js fills #homeMetrics -->
+  <div class="home-metrics-strip">
+    <div id="homeMetrics" aria-label="Özet istatistikler">
+      <div class="metric"><strong>—</strong><span>Yükleniyor…</span></div>
+    </div>
+  </div>
+
+  <!-- Period strip (static, links to timeline with period filter) -->
+  <div class="period-strip-wrap">
+    <div class="period-strip" id="homePeriodStrip"></div>
+  </div>
+
+  <!-- Main body -->
+  <div class="page-shell" style="padding-top:32px;">
+
+    <!-- Overview sentence from site.js -->
+    <p id="overviewSentence"></p>
+
+    <!-- Year chart -->
+    <div class="home-panel section">
+      <div class="home-panel-head">
+        <div>
+          <strong>35 Yıllık Faaliyet Ritmi</strong>
+          <p>Her sütun bir yılı gösterir; renkler etkinlik · yayın · örgütsel iş oranını temsil eder.</p>
+        </div>
+        <a href="dashboard.html" class="button ghost" style="font-size:13px;padding:8px 16px;">Tüm grafikler →</a>
+      </div>
+      <div class="home-panel-body">
+        <div id="homeYearChart" class="loading">Veri yükleniyor…</div>
+      </div>
     </div>
 
-    <!-- ── 35-Year Heartbeat Chart ── -->
-    <section class="rhythm-section">
-      <div class="dt-header">
-        <div>
-          <p class="eyebrow">Yıllık Faaliyet Ritmi</p>
-          <h2 style="margin:0">35 Yıllık Kurumsal Kalp Atışı</h2>
-          <p style="color:var(--muted);margin:8px 0 0;max-width:620px;">Her çubuk bir yılı, renk katmanları etkinlik / yayın / örgütsel iş oranını gösterir. Üzerine gelince yıl detayı açılır.</p>
-        </div>
-        <div id="rhythmLegend" style="text-align:right;font-size:13px;color:var(--muted);"></div>
-      </div>
-      <div style="border:1px solid var(--line);border-radius:var(--radius);background:var(--paper-strong);overflow:hidden;">
-        <svg id="rhythmSvg" viewBox="0 0 1160 260" preserveAspectRatio="xMidYMid meet">
-          <text x="580" y="130" text-anchor="middle" fill="#bbb" font-size="14">Veri yükleniyor…</text>
-        </svg>
-      </div>
-      <div id="rhythmTooltip" style="display:none;position:fixed;background:#1a1410;color:#f7f3ec;border-radius:8px;padding:10px 14px;font-size:13px;pointer-events:none;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.3);"></div>
-    </section>
-
-    <!-- ── Milestone Story Cards ── -->
-    <section class="story-section">
-      <div class="dt-header">
-        <div>
-          <p class="eyebrow">Seçki Anlar</p>
-          <h2 style="margin:0">Kurumun Dönüm Noktaları</h2>
-          <p style="color:var(--muted);margin:8px 0 0;">Kronoloji verisinden öne çıkan 9 kayıt — araştırmacı, arşivci ve meraklı için.</p>
-        </div>
-        <a class="button secondary" href="timeline.html">Tüm kronoloji →</a>
-      </div>
-      <div class="story-grid" id="storyGrid"></div>
-    </section>
-
-    <!-- ── Category bubble chart + period rings ── -->
-    <section class="constellation-section">
-      <div class="dt-header">
-        <div>
-          <p class="eyebrow">Faaliyet Haritası</p>
-          <h2 style="margin:0">Ne Tür Ne Kadar?</h2>
-          <p style="color:var(--muted);margin:8px 0 0;">Kategori ağırlıklarının görsel haritası ve dönemlerin karşılaştırmalı dağılımı.</p>
-        </div>
-      </div>
-      <div class="constellation-wrap">
-        <div>
-          <div style="border:1px solid var(--line);border-radius:var(--radius);background:var(--paper-strong);overflow:hidden;">
-            <svg id="bubbleSvg" viewBox="0 0 560 340" preserveAspectRatio="xMidYMid meet">
-              <text x="280" y="170" text-anchor="middle" fill="#bbb" font-size="13">Yükleniyor…</text>
-            </svg>
+    <!-- Period + Kind charts -->
+    <div class="grid-2 section">
+      <div class="home-panel">
+        <div class="home-panel-head">
+          <div>
+            <strong>Dönem Karşılaştırması</strong>
+            <p>7 dönem · faaliyet grubu katmanları</p>
           </div>
-          <p style="font-size:12px;color:var(--muted);margin:8px 0 0;text-align:center;">Kategori başına kayıt sayısı — boyut oransal</p>
         </div>
-        <div>
-          <div style="border:1px solid var(--line);border-radius:var(--radius);background:var(--paper-strong);overflow:hidden;">
-            <svg id="radarSvg" viewBox="0 0 560 340" preserveAspectRatio="xMidYMid meet">
-              <text x="280" y="170" text-anchor="middle" fill="#bbb" font-size="13">Yükleniyor…</text>
-            </svg>
-          </div>
-          <p style="font-size:12px;color:var(--muted);margin:8px 0 0;text-align:center;">7 dönemin etkinlik · yayın · örgütsel iş yoğunluğu</p>
+        <div class="home-panel-body">
+          <div id="homePeriodChart" class="loading">Veri yükleniyor…</div>
         </div>
       </div>
-    </section>
+      <div class="home-panel">
+        <div class="home-panel-head">
+          <div>
+            <strong>Faaliyet Türü Dağılımı</strong>
+            <p>Seçili kayıtların tür dağılımı</p>
+          </div>
+        </div>
+        <div class="home-panel-body">
+          <div id="homeKindChart" class="loading">Veri yükleniyor…</div>
+        </div>
+      </div>
+    </div>
 
-    <!-- ── CTA cards ── -->
-    <div class="cta-row">
+    <!-- Recent records -->
+    <div class="section">
+      <div class="section-header">
+        <div>
+          <p class="eyebrow">Son eklenen kayıtlar</p>
+          <h2>Arşivden öne çıkanlar</h2>
+        </div>
+        <a href="archive.html" class="button secondary">Tüm arşiv →</a>
+      </div>
+      <div id="homeRecords" class="loading">Veri yükleniyor…</div>
+    </div>
+
+    <!-- CTA grid -->
+    <div class="cta-grid section">
       <a class="cta-card" href="timeline.html">
         <div class="cc-icon">📜</div>
         <h3>Kronoloji Akışı</h3>
-        <p>Bütün kayıtları yıllara göre akıtır. Dönem, tür, faaliyet kodu ve anahtar kelime ile daraltılır.</p>
-        <span class="cc-link">Kronolojiye git →</span>
+        <p>Bütün kayıtları yıllara göre akıtır. Dönem, tür ve anahtar kelime ile daraltılır.</p>
+        <span class="cc-arrow">Kronolojiye git →</span>
       </a>
       <a class="cta-card" href="archive.html">
         <div class="cc-icon">🔍</div>
         <h3>Arşivde Ara</h3>
-        <p>Tam metin arama, kart ve tablo görünümü, atıf kopyalama, tekil kayıt sayfası.</p>
-        <span class="cc-link">Arşivi aç →</span>
+        <p>Tam metin arama, kart ve tablo görünümü, atıf kopyalama.</p>
+        <span class="cc-arrow">Arşivi aç →</span>
       </a>
       <a class="cta-card" href="dashboard.html">
         <div class="cc-icon">📊</div>
         <h3>Görsel Özet</h3>
-        <p>Dönemsel ritim, kategori dağılımı, veri kalitesi ve filtrelenebilir grafikler.</p>
-        <span class="cc-link">Grafiklere git →</span>
+        <p>Dönemsel ritim, kategori dağılımı ve filtrelenebilir grafikler.</p>
+        <span class="cc-arrow">Grafiklere git →</span>
       </a>
       <a class="cta-card" href="data.html">
         <div class="cc-icon">⬇︎</div>
         <h3>Açık Veri</h3>
-        <p>JSON ve CSV formatında tam veri seti — araştırmacı, geliştirici ve editör için.</p>
-        <span class="cc-link">Veriyi indir →</span>
+        <p>JSON ve CSV formatında tam veri seti — araştırmacı ve geliştirici için.</p>
+        <span class="cc-arrow">Veriyi indir →</span>
       </a>
       <a class="cta-card" href="methodology.html">
         <div class="cc-icon">📋</div>
         <h3>Yöntem Notu</h3>
-        <p>Kategorilendirme ilkeleri, veri temizleme mantığı ve doğrulama süreci açıklanır.</p>
-        <span class="cc-link">Yöntemi oku →</span>
+        <p>Kategorilendirme ilkeleri, veri temizleme ve doğrulama süreci.</p>
+        <span class="cc-arrow">Yöntemi oku →</span>
       </a>
       <a class="cta-card" href="contribute.html">
         <div class="cc-icon">✏️</div>
         <h3>Düzeltme Öner</h3>
         <p>Tarih, kategori veya içerik hatası için düzeltme önerme formu.</p>
-        <span class="cc-link">Katkıda bulun →</span>
+        <span class="cc-arrow">Katkıda bulun →</span>
       </a>
     </div>
 
-    <footer class="footer">
-      <div class="footer-inner">
-        <span>Bu kronoloji çalışma sürümüdür. Tüm kayıtlar kaynak Excel satırına ve doğrulama durumuna sahiptir.</span>
-        <a href="contribute.html">Düzeltme öner</a>
-      </div>
-    </footer>
+  </div><!-- /.page-shell -->
 
-    <script src="assets/js/config.js"></script>
-    <script src="assets/js/site.js"></script>
-    <script>
-    // ── Home page rich visualizations ──────────────────────────────────────
-    const STORY_MILESTONES = [
-      { year:"1991", title:"Vakfın Kuruluşu", desc:"18 Temmuz 1991'de mahkeme kararıyla tescil. 12 kişilik Girişim Kurulu ve 264 kurucu mütevelli.", kind:"organizational", period:"1. Dönem" },
-      { year:"1991", title:"İlk Büyük Sempozyum", desc:"'Osmanlı'dan Günümüze Türkiye'nin Ekonomik ve Toplumsal Mirası' — AKM Sinema Salonu, Mayıs 1991.", kind:"event", period:"1. Dönem" },
-      { year:"1992", title:"İstanbul Dergisi", desc:"İlk sayı Nisan 1992. 'İstanbullu Kim?' dosyasıyla başladı; şehir kültürünün referans yayını oldu.", kind:"publication", period:"1. Dönem" },
-      { year:"1993", title:"Deniz Şenliği", desc:"I. İstanbul Tarih ve Deniz Şenliği: 1 sergi, 1 sempozyum, 16 konser, 8 çeşitli etkinlik.", kind:"event", period:"1. Dönem" },
-      { year:"1993", title:"İstanbul Ansiklopedisi", desc:"İlk fasiküllerle başlayan kapsamlı ansiklopedi projesi — Tarih Vakfı'nın en büyük yayın girişimi.", kind:"publication", period:"1. Dönem" },
-      { year:"1995", title:"Toplumsal Tarih Dergisi", desc:"Ocak 1994'te başlayan dergi, Türkiye'nin en uzun soluklu tarih dergisi haline geldi.", kind:"publication", period:"2. Dönem" },
-      { year:"1998", title:"Tarih Eğitimi Projesi", desc:"Ortaöğretim tarih ders kitaplarının iyileştirilmesi için Avrupa ortaklığıyla proje başlatıldı.", kind:"event", period:"2. Dönem" },
-      { year:"2005", title:"Tarih Vakfı Adı", desc:"Türkiye Ekonomik ve Toplumsal Tarih Vakfı, 2005 yılında Tarih Vakfı adını aldı.", kind:"organizational", period:"3. Dönem" },
-      { year:"2021", title:"Dijital Arşiv Dönemi", desc:"COVID sonrası dijital etkinlikler ve online seminerlerle yeni bir dönem başladı. 7. Dönem.", kind:"event", period:"7. Dönem" },
+  <footer class="footer">
+    <div class="footer-inner">
+      <span>Bu kronoloji çalışma sürümüdür. Tüm kayıtlar kaynak satırına ve doğrulama durumuna sahiptir.</span>
+      <a href="contribute.html">Düzeltme öner</a>
+    </div>
+  </footer>
+
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/site.js"></script>
+  <script>
+  /* ── Period strip — static summary, links to timeline ── */
+  (function () {
+    const periods = [
+      { years:"1991–1995", label:"1. Dönem", total:252 },
+      { years:"1996–2000", label:"2. Dönem", total:496 },
+      { years:"2001–2005", label:"3. Dönem", total:348 },
+      { years:"2006–2010", label:"4. Dönem", total:179 },
+      { years:"2011–2015", label:"5. Dönem", total:109 },
+      { years:"2016–2020", label:"6. Dönem", total:238 },
+      { years:"2021–2026", label:"7. Dönem", total:396 },
     ];
+    const max = Math.max(...periods.map(p=>p.total));
+    const strip = document.getElementById('homePeriodStrip');
+    if (!strip) return;
+    strip.innerHTML = periods.map(p=>`
+      <a class="ps-item" href="timeline.html">
+        <div class="ps-years">${p.label} · ${p.years}</div>
+        <div class="ps-total">${p.total}</div>
+        <div class="ps-label">kayıt</div>
+        <div class="ps-bar"><div class="ps-bar-fill" style="width:${Math.round(p.total/max*100)}%"></div></div>
+      </a>`).join('');
+  })();
+  </script>
 
-    const KIND_COLORS = { event:"#4d6475", publication:"#8a2f2f", organizational:"#626b45", project:"#a26f26", chronology:"#7b7169" };
-    const KIND_LABELS = { event:"Etkinlik", publication:"Yayın", organizational:"Örgütsel iş", project:"Proje", chronology:"Kronoloji" };
-    const PERIOD_TOTALS = [252,496,348,179,109,238,396];
-    const PERIOD_LABELS = ["1.D 1991–95","2.D 1996–00","3.D 2001–05","4.D 2006–10","5.D 2011–15","6.D 2016–20","7.D 2021–26"];
-    const PERIOD_FULL   = ["1. Dönem (1991–1995)","2. Dönem (1996–2000)","3. Dönem (2001–2005)","4. Dönem (2006–2010)","5. Dönem (2011–2015)","6. Dönem (2016–2020)","7. Dönem (2021–2026)"];
-    const PERIOD_EVENTS = [117,204,156,67,53,133,277];
-    const PERIOD_PUBS   = [75,211,138,83,50,91,107];
-    const PERIOD_ORG    = [39,30,24,13,5,3,10];
-
-    document.addEventListener("DOMContentLoaded", () => {
-      renderPeriodStrip();
-      renderStoryGrid();
-
-      // Wait for main site.js to load data, then use it
-      let attempts = 0;
-      const tryRich = () => {
-        if (window.TVK_RICH_DATA_READY && allRecords && allRecords.length > 0) {
-          renderHeroStats(allRecords);
-          renderRhythmChart(allRecords);
-          renderBubbleChart(allRecords);
-          renderRadarChart();
-        } else if (attempts++ < 30) {
-          setTimeout(tryRich, 300);
-        } else {
-          // Fallback: use baked-in summary
-          renderHeroStatsStatic();
-          renderRhythmChartStatic();
-          renderBubbleChartStatic();
-          renderRadarChart();
-        }
-      };
-      setTimeout(tryRich, 500);
-    });
-
-    // Patch: expose data when loaded
-    const origBoot = window.boot;
-    document.addEventListener("DOMContentLoaded", () => {
-      // Override: after boot, mark ready
-      const checkData = setInterval(() => {
-        if (window.allRecords && window.allRecords.length > 0) {
-          window.TVK_RICH_DATA_READY = true;
-          clearInterval(checkData);
-        }
-      }, 200);
-    });
-
-    function renderHeroStats(records) {
-      const verified = records.filter(r => r.verification_status === 'verified').length;
-      document.getElementById('hsStat1').textContent = records.length.toLocaleString('tr-TR');
-      document.getElementById('hsStat2').textContent = records.filter(r=>r.item_kind==='event').length.toLocaleString('tr-TR');
-      document.getElementById('hsStat3').textContent = records.filter(r=>r.item_kind==='publication').length.toLocaleString('tr-TR');
-      document.getElementById('hsStat4').textContent = verified.toLocaleString('tr-TR');
-    }
-
-    function renderHeroStatsStatic() {
-      document.getElementById('hsStat1').textContent = '2.018';
-      document.getElementById('hsStat2').textContent = '1.007';
-      document.getElementById('hsStat3').textContent = '755';
-      document.getElementById('hsStat4').textContent = '990';
-    }
-
-    function renderPeriodStrip() {
-      const max = Math.max(...PERIOD_TOTALS);
-      const strip = document.getElementById('periodStrip');
-      strip.innerHTML = PERIOD_LABELS.map((lbl, i) => {
-        const pct = Math.round((PERIOD_TOTALS[i] / max) * 100);
-        return `<div class="ps-item" onclick="window.location='timeline.html'">
-          <div class="ps-years">${lbl}</div>
-          <div class="ps-total">${PERIOD_TOTALS[i]}</div>
-          <div class="ps-label">kayıt</div>
-          <div class="ps-bar"><div class="ps-bar-fill" style="width:${pct}%"></div></div>
-        </div>`;
-      }).join('');
-    }
-
-    function renderStoryGrid() {
-      const grid = document.getElementById('storyGrid');
-      const kindColors = { event:'#e8f0f7', publication:'#f9eaea', organizational:'#edf0e7', project:'#fdf5e6' };
-      grid.innerHTML = STORY_MILESTONES.map(m => `
-        <div class="story-card" data-period="${m.period}" style="border-left:3px solid ${KIND_COLORS[m.kind]}">
-          <div class="sc-year">${m.year}</div>
-          <h3>${m.title}</h3>
-          <p>${m.desc}</p>
-          <span class="sc-badge">${KIND_LABELS[m.kind]}</span>
-        </div>`).join('');
-    }
-
-    function buildYearData(records) {
-      const byYear = {};
-      for (const r of records) {
-        const y = r._year || Number(r.year);
-        if (!y || y < 1990 || y > 2026) continue;
-        if (!byYear[y]) byYear[y] = { event:0, publication:0, organizational:0, project:0, chronology:0 };
-        byYear[y][r.item_kind] = (byYear[y][r.item_kind]||0) + 1;
-      }
-      return byYear;
-    }
-
-    function renderRhythmChart(records) {
-      const byYear = buildYearData(records);
-      drawRhythm(byYear);
-    }
-
-    function renderRhythmChartStatic() {
-      // Use the processed year_summary.csv data baked in
-      fetch('assets/data/year_summary.csv').then(r=>r.text()).then(text => {
-        const rows = text.trim().split('\n').slice(1).map(l => l.split(','));
-        const byYear = {};
-        for (const [year,total,event,pub,org] of rows) {
-          const y = Number(year);
-          if (y >= 1990 && y <= 2026)
-            byYear[y] = { event:Number(event)||0, publication:Number(pub)||0, organizational:Number(org)||0, project:0, chronology:0 };
-        }
-        drawRhythm(byYear);
-      }).catch(() => {});
-    }
-
-    function drawRhythm(byYear) {
-      const years = Object.keys(byYear).map(Number).sort((a,b)=>a-b);
-      if (!years.length) return;
-      const svg = document.getElementById('rhythmSvg');
-      const W=1160, H=260, padL=36, padR=16, padT=28, padB=40;
-      const kinds = ['event','publication','organizational','project','chronology'];
-      const colors = { event:'#4d6475', publication:'#8a2f2f', organizational:'#626b45', project:'#a26f26', chronology:'#b0a090' };
-      const max = Math.max(...years.map(y => kinds.reduce((s,k) => s + (byYear[y][k]||0), 0)));
-      const bw = Math.max(8, (W - padL - padR) / years.length - 3);
-      const chartH = H - padT - padB;
-
-      let bars = '';
-      let xLines = '';
-      for (let i=0; i<years.length; i++) {
-        const y = years[i];
-        const x = padL + i * (W - padL - padR) / years.length;
-        let yTop = H - padB;
-        for (const k of kinds) {
-          const v = byYear[y][k] || 0;
-          if (!v) continue;
-          const h = (v / max) * chartH;
-          yTop -= h;
-          const total = kinds.reduce((s,k2) => s+(byYear[y][k2]||0),0);
-          bars += `<rect x="${x}" y="${yTop}" width="${bw}" height="${h}" fill="${colors[k]}" rx="1">
-            <title>${y} · ${KIND_LABELS[k]||k}: ${v} (toplam: ${total})</title>
-          </rect>`;
-        }
-        // Year label every 3 years
-        if ((y - 1991) % 3 === 0 || y === years[years.length-1]) {
-          xLines += `<text x="${x+bw/2}" y="${H-padB+16}" text-anchor="middle" fill="#9d8e7e" font-size="11">${y}</text>`;
-        }
-      }
-
-      // Grid lines
-      let grid = '';
-      for (let g=0; g<=4; g++) {
-        const yg = padT + (chartH / 4) * g;
-        const val = Math.round(max * (1 - g/4));
-        grid += `<line x1="${padL}" y1="${yg}" x2="${W-padR}" y2="${yg}" stroke="#ded4c7" stroke-dasharray="3,3"/>
-                 <text x="${padL-4}" y="${yg+4}" text-anchor="end" fill="#b0a090" font-size="10">${val}</text>`;
-      }
-
-      svg.innerHTML = `${grid}${bars}${xLines}
-        <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="#ded4c7"/>`;
-
-      // Legend
-      document.getElementById('rhythmLegend').innerHTML = kinds.slice(0,3).map(k =>
-        `<span style="display:inline-flex;align-items:center;gap:5px;margin-left:12px;">
-          <span style="width:10px;height:10px;border-radius:2px;background:${colors[k]};display:inline-block;"></span>
-          ${KIND_LABELS[k]}</span>`).join('');
-
-      // Tooltip on hover
-      const tooltip = document.getElementById('rhythmTooltip');
-      svg.addEventListener('mousemove', (e) => {
-        const rect = svg.getBoundingClientRect();
-        const xPct = (e.clientX - rect.left) / rect.width;
-        const xData = padL + xPct * (W - padL - padR);
-        const idx = Math.round((xData - padL) / ((W-padL-padR)/years.length));
-        const y = years[Math.max(0, Math.min(years.length-1, idx))];
-        if (!y || !byYear[y]) { tooltip.style.display='none'; return; }
-        const d = byYear[y];
-        const total = kinds.reduce((s,k)=>s+(d[k]||0),0);
-        tooltip.style.display = 'block';
-        tooltip.style.left = (e.clientX+12)+'px';
-        tooltip.style.top  = (e.clientY-40)+'px';
-        tooltip.innerHTML = `<strong style="font-size:15px;">${y}</strong><br>
-          Toplam: <strong>${total}</strong><br>
-          Etkinlik: ${d.event||0} · Yayın: ${d.publication||0} · Örgütsel: ${d.organizational||0}`;
-      });
-      svg.addEventListener('mouseleave', () => { tooltip.style.display='none'; });
-    }
-
-    function renderBubbleChart(records) {
-      const counts = {};
-      for (const r of records) {
-        if (!r.category) continue;
-        counts[r.category] = (counts[r.category]||0)+1;
-      }
-      drawBubbles(counts);
-    }
-
-    function renderBubbleChartStatic() {
-      fetch('assets/data/category_summary.csv').then(r=>r.text()).then(text => {
-        const rows = text.trim().split('\n').slice(1).map(l => l.split(','));
-        const counts = {};
-        for (const [cat, cnt] of rows) counts[cat] = Number(cnt)||0;
-        drawBubbles(counts);
-      }).catch(()=>{});
-    }
-
-    function drawBubbles(counts) {
-      const svg = document.getElementById('bubbleSvg');
-      const W=560, H=340;
-      const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,20);
-      const max = entries[0]?.[1] || 1;
-
-      const CAT_COLOR = (cat) => {
-        if (cat.includes('Konferans') || cat.includes('Sempozyum') || cat.includes('Panel') || cat.includes('Seminer') || cat.includes('Atölye')) return '#4d6475';
-        if (cat.includes('Dergi') || cat.includes('Yayın') || cat.includes('Bülten') || cat.includes('Ansiklopedi') || cat.includes('Broşür')) return '#8a2f2f';
-        if (cat.includes('Sergi') || cat.includes('Festival') || cat.includes('Konser') || cat.includes('Yarışma') || cat.includes('Gösteri')) return '#a26f26';
-        if (cat.includes('Proje')) return '#626b45';
-        if (cat.includes('Toplantı') || cat.includes('Kurul')) return '#7b6b8f';
-        return '#9d8e7e';
-      };
-
-      // Simple packed layout
-      const circles = entries.map(([cat,cnt],i) => {
-        const r = 16 + (cnt/max)*48;
-        const angle = (i / entries.length) * 2*Math.PI;
-        const dist = 80 + (i%3)*40;
-        const cx = W/2 + Math.cos(angle)*dist;
-        const cy = H/2 + Math.sin(angle)*dist*0.7;
-        return { cat, cnt, r:Math.min(r,65), cx:Math.max(r+4,Math.min(W-r-4,cx)), cy:Math.max(r+4,Math.min(H-r-4,cy)) };
-      });
-
-      svg.innerHTML = circles.map(c => `
-        <circle cx="${c.cx}" cy="${c.cy}" r="${c.r}" fill="${CAT_COLOR(c.cat)}" fill-opacity=".75" stroke="${CAT_COLOR(c.cat)}" stroke-width="1.5">
-          <title>${c.cat}: ${c.cnt}</title>
-        </circle>
-        <text x="${c.cx}" y="${c.cy}" text-anchor="middle" dominant-baseline="middle"
-              fill="white" font-size="${Math.max(8,Math.min(11,c.r/4))}" font-weight="600">${c.cnt}</text>
-        ${c.r > 28 ? `<text x="${c.cx}" y="${c.cy+c.r/3+2}" text-anchor="middle" fill="white" fill-opacity=".8" font-size="${Math.max(7,Math.min(9,c.r/5))}">${c.cat.length>16?c.cat.slice(0,14)+'…':c.cat}</text>` : ''}
-      `).join('');
-    }
-
-    function renderRadarChart() {
-      const svg = document.getElementById('radarSvg');
-      const W=560, H=340, cx=W/2, cy=H/2+10;
-      const R=120;
-      const periods = PERIOD_LABELS;
-      const n = periods.length;
-      const angles = periods.map((_,i) => (i/n)*2*Math.PI - Math.PI/2);
-
-      const eMax = Math.max(...PERIOD_EVENTS);
-      const pMax = Math.max(...PERIOD_PUBS);
-      const oMax = Math.max(...PERIOD_ORG);
-      const tMax = Math.max(...PERIOD_TOTALS);
-
-      const pts = (data, max) => periods.map((_,i) => {
-        const r = (data[i]/max)*R;
-        return [cx + Math.cos(angles[i])*r, cy + Math.sin(angles[i])*r];
-      });
-
-      const poly = (pts, fill, stroke, opacity=0.25) => {
-        const d = pts.map((p,i) => (i?'L':'M')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')+'Z';
-        return `<path d="${d}" fill="${fill}" fill-opacity="${opacity}" stroke="${stroke}" stroke-width="1.5"/>`;
-      };
-
-      // Grid rings
-      let grid = '';
-      for (let g=1; g<=4; g++) {
-        const r = (g/4)*R;
-        const ring = periods.map((_,i)=>[cx+Math.cos(angles[i])*r,cy+Math.sin(angles[i])*r]);
-        const d = ring.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')+'Z';
-        grid += `<path d="${d}" fill="none" stroke="#ded4c7" stroke-width=".8"/>`;
-      }
-      // Spokes
-      angles.forEach((a,i) => {
-        grid += `<line x1="${cx}" y1="${cy}" x2="${(cx+Math.cos(a)*R).toFixed(1)}" y2="${(cy+Math.sin(a)*R).toFixed(1)}" stroke="#ded4c7" stroke-width=".8"/>`;
-      });
-
-      // Labels
-      const labels = periods.map((lbl,i) => {
-        const r = R+18;
-        const x = cx+Math.cos(angles[i])*r;
-        const y = cy+Math.sin(angles[i])*r;
-        return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" fill="#6d625a" font-size="10">${lbl}</text>`;
-      }).join('');
-
-      const ePts = pts(PERIOD_EVENTS, eMax);
-      const pPts = pts(PERIOD_PUBS, pMax);
-      const tPts = pts(PERIOD_TOTALS, tMax);
-
-      svg.innerHTML = grid + labels +
-        poly(tPts, '#a26f26','#a26f26',0.12) +
-        poly(ePts, '#4d6475','#4d6475',0.28) +
-        poly(pPts, '#8a2f2f','#8a2f2f',0.28) +
-        `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle" fill="#6d625a" font-size="10">Dönem karşılaştırması</text>
-         <g transform="translate(${W-140},${H-58})">
-           <rect x="0" y="0" width="10" height="10" fill="#4d6475" fill-opacity=".6" rx="2"/>
-           <text x="14" y="9" fill="#6d625a" font-size="11">Etkinlik</text>
-           <rect x="0" y="16" width="10" height="10" fill="#8a2f2f" fill-opacity=".6" rx="2"/>
-           <text x="14" y="25" fill="#6d625a" font-size="11">Yayın</text>
-         </g>`;
-    }
-    </script>
-
-  </body>
+</body>
 </html>

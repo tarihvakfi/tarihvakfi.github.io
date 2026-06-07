@@ -13,13 +13,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./css/site.css?v=20260515-public-dashboard" />
+  <link rel="stylesheet" href="./css/site.css?v=20260517-roster" />
 </head>
 <body class="journal">
 
   <main class="page">
 
-    <!-- ============ Masthead ============ -->
+    <!-- ============ Masthead (unchanged) ============ -->
     <header class="masthead">
       <div class="brand-lockup">
         <img src="./assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" class="brand-logo" />
@@ -34,19 +34,21 @@
       </div>
     </header>
 
-    <!-- ============ Intro / hero ============ -->
+    <!-- ============ Intro / hero (unchanged) ============ -->
     <section class="intro">
       <p class="label" data-edit="heroEyebrow">Tarih Vakfı · Pertev Naili Boratav Arşivi</p>
       <h1 data-edit="heroHeadline">Bu hafta arşivde<br><em>ne yapıldı?</em></h1>
       <p class="hero-subtitle" data-edit="heroSubtitle">Boratav Arşivi Gönüllü Emek Günlüğü</p>
       <p class="hero-period" id="lpHeroPeriod">Hafta · —</p>
       <p class="lede" id="lpHeroLede" data-edit="heroLede">Haftanın özeti, sayfa düzenli olarak tazeleniyor.</p>
-      <p class="context-links">
-        <a href="./kronoloji/">Tarih Vakfı Dijital Kronolojisi</a>
-      </p>
     </section>
 
-    <!-- ============ Truth strip — selected period aggregate ============ -->
+    <!-- ============ NEW: cumulative + this-week ribbon ============ -->
+    <section class="tv-ribbon" id="lpCumulativeRibbon" aria-label="Kümülatif ve bu haftaki sayılar">
+      <!-- Filled by roster-sections.js -->
+    </section>
+
+    <!-- ============ Truth strip — selected period aggregate (unchanged) ============ -->
     <section class="truth-strip" aria-label="Haftanın kısa özeti">
       <div><p class="v" id="lpTruthRecords">—</p><p class="k">katkı kaydı</p></div>
       <div><p class="v" id="lpTruthPages">—</p><p class="k">arşiv detayı</p></div>
@@ -56,7 +58,7 @@
       <div><p class="v" id="lpTruthProgress">—</p><p class="k">toplam ilerleme</p></div>
     </section>
 
-    <!-- ============ Archive context ============ -->
+    <!-- ============ Archive context (unchanged) ============ -->
     <section class="context-card archive-context" aria-labelledby="boratav-title">
       <p class="context-eyebrow">Arşiv bağlamı</p>
       <h2 id="boratav-title">Pertev Naili Boratav Arşivi</h2>
@@ -65,23 +67,28 @@
       <p class="context-links">Daha fazla bilgi: <a href="https://tr.wikipedia.org/wiki/Pertev_Naili_Boratav" target="_blank" rel="noopener">Pertev Naili Boratav</a></p>
     </section>
 
-    <!-- ============ Gönüllü katkıları ============ -->
-    <section class="recognition" id="lpVolunteers" hidden>
-      <div class="boxes-head">
-        <h3>Gönüllü katkıları <em>ve koordinasyon</em></h3>
-        <span class="meta" id="lpVolunteersMeta">—</span>
-      </div>
-      <div class="vol-list" id="lpVolunteerRows"></div>
-    </section>
+    <!-- ============ NEW: Active volunteer wall (Design A) ============ -->
+    <header class="section-head">
+      <h2>Bu dönem katkı verenler <em>· iş alanına göre</em></h2>
+      <span class="tag" id="lpActiveWallMeta">—</span>
+    </header>
+    <section id="lpActiveWall" class="tv-active"></section>
 
-    <!-- ============ Section: Haftanın günlüğü ============ -->
+    <!-- ============ NEW: Track timeline (çalışma izleri) ============ -->
+    <header class="section-head">
+      <h2>Çalışma <em>izleri</em></h2>
+      <span class="tag">paralel iş · 5 ay</span>
+    </header>
+    <section id="lpTracks" class="tv-tracks"></section>
+
+    <!-- ============ Haftanın günlüğü (unchanged) ============ -->
     <header class="section-head">
       <h2>Haftanın <em>günlüğü</em></h2>
       <p class="tag" id="lpDaysTag">7 gün · sıralı</p>
     </header>
     <section class="days" id="lpDays"></section>
 
-    <!-- ============ Aktif kutular bu hafta ============ -->
+    <!-- ============ Aktif kutular bu hafta (unchanged) ============ -->
     <section class="boxes-week" id="lpBoxesWeek" hidden>
       <div class="boxes-head">
         <h3>Aktif <em>kutular</em></h3>
@@ -90,7 +97,7 @@
       <div id="lpBoxesWeekRows"></div>
     </section>
 
-    <!-- ============ Malzeme dağılımı ============ -->
+    <!-- ============ Malzeme dağılımı (unchanged) ============ -->
     <section class="mat" id="lpMat" hidden>
       <div class="mat-head">
         <h3>Malzeme <em>dağılımı</em></h3>
@@ -100,7 +107,7 @@
       <div class="mat-legend" id="lpMatLegend"></div>
     </section>
 
-    <!-- ============ Latest capped feed ============ -->
+    <!-- ============ Latest capped feed (unchanged) ============ -->
     <section class="latest" id="lpLatest" hidden>
       <div class="boxes-head">
         <h3>Son <em>hareketler</em></h3>
@@ -109,7 +116,14 @@
       <div class="latest-list" id="lpLatestRows"></div>
     </section>
 
-    <!-- ============ Institutional context ============ -->
+    <!-- ============ NEW: Full kadro / census (Design B) ============ -->
+    <header class="section-head">
+      <h2>Boratav Arşivi <em>gönüllü kadrosu</em></h2>
+      <span class="tag" id="lpKadroMeta">—</span>
+    </header>
+    <section id="lpKadro" class="tv-kadro"></section>
+
+    <!-- ============ Institutional context (unchanged) ============ -->
     <section class="context-card about-foundation" aria-labelledby="foundation-title">
       <div class="context-mark">
         <img src="./assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" />
@@ -131,7 +145,7 @@
       <ul id="lpDiagnosticsList"></ul>
     </section>
 
-    <!-- ============ Colophon ============ -->
+    <!-- ============ Colophon (unchanged) ============ -->
     <footer class="colophon">
       <div class="footer-brand">
         <img src="./assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" />
@@ -150,15 +164,28 @@
 
   </main>
 
-  <script src="./js/config.public.js?v=20260515-public-dashboard"></script>
-  <!-- Snapshot of latest sheet data, refreshed hourly by .github/workflows/deploy.yml.
-       data-loader.js renders this immediately on first paint (no network); then fetches
-       live data in the background. Add ?live=1 to URL to bypass snapshot for editing preview. -->
-  <script src="./js/snapshot.js?v=20260515-public-dashboard"></script>
-  <script src="./js/utils.js?v=20260515-public-dashboard"></script>
-  <script src="./js/volunteer-credit.js?v=20260515-public-dashboard"></script>
-  <script src="./js/aggregate.js?v=20260515-public-dashboard"></script>
-  <script src="./js/render-dashboard.js?v=20260515-public-dashboard"></script>
-  <script src="./js/data-loader.js?v=20260515-public-dashboard"></script>
+  <!-- =========== Existing scripts (unchanged) =========== -->
+  <script src="./js/config.public.js?v=20260517-roster"></script>
+  <script src="./js/snapshot.js?v=20260517-roster"></script>
+
+  <!-- =========== NEW: supplemental roster snapshot =========== -->
+  <script src="./js/roster.js?v=20260517-roster"></script>
+
+  <!-- =========== Existing scripts (unchanged) =========== -->
+  <script src="./js/utils.js?v=20260517-roster"></script>
+  <script src="./js/volunteer-credit.js?v=20260517-roster"></script>
+  <script src="./js/aggregate.js?v=20260517-roster"></script>
+  <script src="./js/render-dashboard.js?v=20260517-roster"></script>
+
+  <!-- =========== NEW: renders the four new sections =========== -->
+  <script src="./js/roster-sections.js?v=20260517-roster"></script>
+
+  <!-- =========== NEW: volunteer profile drawer (click any name) =========== -->
+  <script src="./js/volunteer-card.js?v=20260517-roster"></script>
+  <script src="./js/volunteer-hover.js?v=20260607"></script>
+
+  <!-- =========== Existing scripts (unchanged) =========== -->
+  <script src="./js/data-loader.js?v=20260517-roster"></script>
+
 </body>
 </html>
