@@ -1,219 +1,247 @@
 /**
- * volunteer-hover.js
- * ------------------
- * Shows a lightweight hover card over any element with [data-slug].
- * Reads from window.TVF_ROSTER (same data as volunteer-card.js).
+ * volunteer-hover.js — Tarih Vakfı Gönüllü Emek Günlüğü
  *
- * The card shows:
- *   • Name, role, city
- *   • Track badges (coloured dots)
- *   • Most recent 3 log entries with date + what they did
- *   • Session count + "last seen" date
+ * Shows a dark hover tooltip over any element with [data-volunteer-label].
+ * Reads live data from window.TVF_PUBLIC_DATA (populated by snapshot.js
+ * and optionally refreshed by data-loader.js).
  *
- * On click, delegates to TVF.openVolunteerDrawer() (volunteer-card.js)
- * for the full slide-in profile. This file adds no new click handlers —
- * volunteer-card.js already handles that.
+ * The tooltip shows:
+ *   • Name + public role
+ *   • Stats: record count, pages done, boxes worked
+ *   • Last 3 activity entries from latestActivity feed
+ *   • "Click to see full log" hint (future drawer hook)
  */
 (function () {
   'use strict';
 
-  const TRACK_META = {
-    tarama:          { label: 'Tarama',          color: '#601040' },
-    envanter:        { label: 'Envanter',         color: '#8a2a62' },
-    kurumsal_bellek: { label: 'Kurum belleği',    color: '#3b6d11' },
-    osmanlica:       { label: 'Osmanlıca çeviri', color: '#BA7517' },
-    proje_basvuru:   { label: 'Proje başvurusu',  color: '#185fa5' },
-    egitim:          { label: 'Eğitim',           color: '#534AB7' },
-    ars_web:         { label: 'Arşiv-web & IT',   color: '#444441' },
-    koordinasyon:    { label: 'Koordinasyon',      color: '#888780' },
-    diger:           { label: 'Diğer',            color: '#74686e' },
-  };
+  var tip = null;
+  var hideTimer = null;
+  var currentLabel = null;
 
-  const MONTHS_TR = ['','Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+  // ── Build tooltip DOM once ─────────────────────────────────────────
+  function ensureTip() {
+    if (tip) return;
+    tip = document.createElement('div');
+    tip.className = 'tv-vol-tip';
+    tip.setAttribute('role', 'tooltip');
+    tip.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(tip);
 
+    var style = document.createElement('style');
+    style.textContent = [
+      '.tv-vol-tip{',
+        'position:fixed;z-index:9999;',
+        'background:#1c1712;color:#f0ebe3;',
+        'border-radius:10px;padding:14px 16px;',
+        'font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;',
+        'font-size:13px;line-height:1.5;',
+        'box-shadow:0 16px 48px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.07);',
+        'max-width:280px;pointer-events:none;',
+        'opacity:0;transform:translateY(6px);',
+        'transition:opacity .15s ease,transform .15s ease;',
+      '}',
+      '.tv-vol-tip.show{opacity:1;transform:translateY(0);}',
+      '.tv-vol-tip-name{font-size:15px;font-weight:700;color:#f0ebe3;margin:0 0 3px;}',
+      '.tv-vol-tip-role{font-size:12px;color:#a09080;margin:0 0 10px;}',
+      '.tv-vol-tip-stats{',
+        'display:flex;flex-wrap:wrap;gap:6px 14px;',
+        'border-top:1px solid rgba(255,255,255,.09);',
+        'padding-top:9px;margin-bottom:10px;',
+        'font-size:12px;color:#a09080;',
+      '}',
+      '.tv-vol-tip-stat strong{color:#e8d4b0;font-size:15px;display:block;line-height:1.1;}',
+      '.tv-vol-tip-log{display:flex;flex-direction:column;gap:7px;}',
+      '.tv-vol-tip-log-row{display:flex;gap:8px;align-items:flex-start;}',
+      '.tv-vol-tip-log-dot{',
+        'width:7px;height:7px;border-radius:50%;',
+        'flex-shrink:0;margin-top:5px;background:#8a2f2f;',
+      '}',
+      '.tv-vol-tip-log-meta{font-size:11px;color:#6d5f50;margin-bottom:1px;}',
+      '.tv-vol-tip-log-text{font-size:12px;color:#d4c4a8;}',
+      '.tv-vol-tip-boxes{font-size:11px;color:#7a6d5d;margin-top:9px;}',
+      '.tv-vol-tip-foot{',
+        'font-size:11px;color:#5a4d3d;',
+        'border-top:1px solid rgba(255,255,255,.07);',
+        'margin-top:10px;padding-top:8px;text-align:center;',
+      '}',
+    ].join('');
+    document.head.appendChild(style);
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  var TR_MONTHS = ['','Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
   function fmtDate(iso) {
     if (!iso) return '';
-    const [y, m, d] = iso.split('-');
-    return parseInt(d, 10) + ' ' + (MONTHS_TR[parseInt(m, 10)] || '') + ' ' + y;
+    var parts = iso.split('-');
+    return parseInt(parts[2],10) + ' ' + (TR_MONTHS[parseInt(parts[1],10)] || '') + ' ' + parts[0];
+  }
+  function fmtDateShort(iso) {
+    if (!iso) return '';
+    var parts = iso.split('-');
+    return parseInt(parts[2],10) + ' ' + (TR_MONTHS[parseInt(parts[1],10)] || '');
   }
 
-  function esc(s) {
-    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  // ── Get data for a volunteer label ─────────────────────────────────
+  function getVolData(label) {
+    var data = window.TVF_PUBLIC_DATA;
+    if (!data || !data.publicSummary) return null;
+
+    var summary = data.publicSummary;
+    var vRows = summary.byVolunteer || [];
+    var volRow = null;
+    for (var i = 0; i < vRows.length; i++) {
+      if (vRows[i].label === label) { volRow = vRows[i]; break; }
+    }
+    if (!volRow) return null;
+
+    // Collect their activity entries from latestActivity feed
+    var latestActivity = data.latestActivity || [];
+    var myActivity = latestActivity.filter(function(a) {
+      return a.volunteerLabel === label;
+    });
+
+    // Also collect from byDay contributors
+    var recentDays = [];
+    var byDay = summary.byDay || [];
+    for (var d = byDay.length - 1; d >= 0 && recentDays.length < 5; d--) {
+      var day = byDay[d];
+      var contribs = (day.contributors || []).concat(day.coordination || []);
+      for (var c = 0; c < contribs.length; c++) {
+        if (contribs[c].label === label) {
+          recentDays.push({
+            dateISO: day.dateISO,
+            weekdayTR: day.weekdayTR,
+            records: contribs[c].records || 0,
+            pagesDone: contribs[c].pagesDone || 0,
+            activityRows: contribs[c].activityRows || 0,
+            boxes: day.boxLabels || [],
+            summarySentence: day.summarySentence || ''
+          });
+          break;
+        }
+      }
+    }
+
+    return { volRow: volRow, activity: myActivity, recentDays: recentDays };
   }
 
-  // ── Create tooltip DOM ──────────────────────────────────────────────
-  const tip = document.createElement('div');
-  tip.className = 'tv-hover-card';
-  tip.setAttribute('role', 'tooltip');
-  tip.setAttribute('aria-hidden', 'true');
-  document.body.appendChild(tip);
+  // ── Render tooltip HTML ────────────────────────────────────────────
+  function renderTip(label) {
+    var d = getVolData(label);
+    if (!d) return false;
 
-  let hideTimer = null;
-  let currentSlug = null;
+    var v = d.volRow;
+    var days = d.recentDays.slice(0, 3);
 
-  function showTip(el, v) {
-    clearTimeout(hideTimer);
+    var statsHtml = [
+      '<div class="tv-vol-tip-stat"><strong>' + esc(String(v.records || 0)) + '</strong>katkı</div>',
+      v.pagesDone ? '<div class="tv-vol-tip-stat"><strong>' + esc(String(v.pagesDone)) + '</strong>sayfa</div>' : '',
+      v.boxes && v.boxes.length ? '<div class="tv-vol-tip-stat"><strong>' + v.boxes.length + '</strong>kutu</div>' : '',
+    ].join('');
 
-    const sub = [v.role, v.uni, v.city].filter(Boolean).map(esc).join(' · ');
-    const trackDots = (v.tracks || []).slice(0, 5).map(t => {
-      const m = TRACK_META[t] || TRACK_META.diger;
-      return `<span class="hc-dot" style="background:${m.color}" title="${esc(m.label)}"></span>`;
+    var daysHtml = days.map(function(day) {
+      var what = [];
+      if (day.pagesDone) what.push(day.pagesDone + ' sayfa');
+      if (day.activityRows) what.push(day.activityRows + ' faaliyet');
+      if (day.boxes && day.boxes.length) what.push(day.boxes.join(', '));
+      return [
+        '<div class="tv-vol-tip-log-row">',
+          '<div class="tv-vol-tip-log-dot"></div>',
+          '<div>',
+            '<div class="tv-vol-tip-log-meta">' + esc(fmtDateShort(day.dateISO)) + ' · ' + esc(day.weekdayTR) + '</div>',
+            '<div class="tv-vol-tip-log-text">' + esc(what.join(' · ') || 'Koordinasyon') + '</div>',
+          '</div>',
+        '</div>'
+      ].join('');
     }).join('');
 
-    // Most recent 3 log entries with actual content
-    const recentLogs = (v.log || [])
-      .filter(s => s.devam || s.calisma || s.notes)
-      .slice(0, 3);
-
-    const logRows = recentLogs.map(s => {
-      const what = s.devam || s.calisma || '';
-      const trMeta = TRACK_META[s.track] || TRACK_META.diger;
-      return `<div class="hc-log-row">
-        <span class="hc-log-dot" style="background:${trMeta.color}"></span>
-        <div>
-          <div class="hc-log-date">${esc(fmtDate(s.date))}</div>
-          <div class="hc-log-what">${esc(what.length > 72 ? what.slice(0,70)+'…' : what)}</div>
-          ${s.notes && s.notes.length < 100 ? `<div class="hc-log-note">${esc(s.notes)}</div>` : ''}
-        </div>
-      </div>`;
-    }).join('');
-
-    const noLog = !recentLogs.length
-      ? `<p class="hc-inactive">Bu dönem görünür kayıt yok${v.slots && v.slots.length ? ' · Slotlar: ' + esc(v.slots.join(', ')) : ''}.</p>`
+    var boxesHtml = v.topBox
+      ? '<div class="tv-vol-tip-boxes">Aktif kutu: <strong style="color:#c9a87e">' + esc(v.topBox) + '</strong></div>'
       : '';
 
-    tip.innerHTML = `
-      <div class="hc-head">
-        <div class="hc-name">${esc(v.name)}</div>
-        ${sub ? `<div class="hc-sub">${sub}</div>` : ''}
-        <div class="hc-tracks">${trackDots}</div>
-      </div>
-      <div class="hc-stats">
-        <span>${v.sessions || 0} oturum</span>
-        ${v.lastSeen ? `<span>son: ${esc(fmtDate(v.lastSeen))}</span>` : ''}
-        ${v.boxes && v.boxes.length ? `<span>${v.boxes.length} kutu</span>` : ''}
-      </div>
-      ${logRows ? `<div class="hc-log">${logRows}</div>` : ''}
-      ${noLog}
-      <div class="hc-foot">Tam profil için tıklayın</div>
-    `;
+    tip.innerHTML = [
+      '<div class="tv-vol-tip-name">' + esc(label) + '</div>',
+      v.publicRole ? '<div class="tv-vol-tip-role">' + esc(v.publicRole) + '</div>' : '',
+      '<div class="tv-vol-tip-stats">' + statsHtml + '</div>',
+      days.length ? '<div class="tv-vol-tip-log">' + daysHtml + '</div>' : '',
+      boxesHtml,
+      '<div class="tv-vol-tip-foot">Bu haftanın katkısı</div>',
+    ].join('');
 
-    positionTip(el);
-    tip.classList.add('visible');
+    return true;
+  }
+
+  // ── Position tooltip ───────────────────────────────────────────────
+  function positionTip(e) {
+    var x = e.clientX + 14;
+    var y = e.clientY + 14;
+    var tipW = 280;
+    var tipH = tip.offsetHeight || 200;
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+    if (x + tipW > vw - 8) x = e.clientX - tipW - 14;
+    if (y + tipH > vh - 8) y = e.clientY - tipH - 14;
+    if (x < 8) x = 8;
+    if (y < 8) y = 8;
+    tip.style.left = x + 'px';
+    tip.style.top  = y + 'px';
+  }
+
+  // ── Show / hide ────────────────────────────────────────────────────
+  function show(label, e) {
+    clearTimeout(hideTimer);
+    ensureTip();
+    if (label === currentLabel) { positionTip(e); return; }
+    currentLabel = label;
+    if (!renderTip(label)) return;
+    tip.classList.remove('show');
+    positionTip(e);
+    requestAnimationFrame(function() { tip.classList.add('show'); });
     tip.setAttribute('aria-hidden', 'false');
   }
 
-  function hideTip() {
-    clearTimeout(hideTimer);
-    hideTimer = setTimeout(() => {
-      tip.classList.remove('visible');
-      tip.setAttribute('aria-hidden', 'true');
-      currentSlug = null;
-    }, 180);
+  function hide() {
+    hideTimer = setTimeout(function() {
+      if (tip) { tip.classList.remove('show'); tip.setAttribute('aria-hidden','true'); }
+      currentLabel = null;
+    }, 200);
   }
 
-  function positionTip(el) {
-    const rect = el.getBoundingClientRect();
-    const tipW = 300;
-    const gutter = 8;
-    let left = rect.left + window.scrollX;
-    let top  = rect.bottom + window.scrollY + gutter;
+  // ── Event delegation ───────────────────────────────────────────────
+  // Attach to volunteer name elements. render-dashboard.js puts names
+  // in elements with class vol-name, vol-avatar, or inside .vol-row.
+  // We target any element with a data-volunteer-label attribute,
+  // AND any .vol-row children (by reading text content of .vol-name).
+  document.addEventListener('mouseover', function(e) {
+    var el = e.target;
 
-    // Clamp to viewport
-    if (left + tipW > window.innerWidth - gutter) {
-      left = window.innerWidth - tipW - gutter;
-    }
-    if (left < gutter) left = gutter;
+    // Check for explicit attribute first
+    var node = el.closest('[data-volunteer-label]');
+    if (node) { show(node.dataset.volunteerLabel, e); return; }
 
-    tip.style.left = left + 'px';
-    tip.style.top  = top  + 'px';
-    tip.style.width = tipW + 'px';
-  }
+    // Fallback: .vol-row has a name in first text node or .vol-name
+    var row = el.closest('.vol-row, .vol-credit-row, .credit-row');
+    if (!row) return;
+    var nameEl = row.querySelector('.vol-name, .credit-name, .vol-label, b');
+    if (!nameEl) return;
+    var label = nameEl.textContent.trim();
+    if (label && label !== currentLabel) show(label, e);
+  }, { passive: true });
 
-  // ── Event delegation ────────────────────────────────────────────────
-  function getSlug(el) {
-    const node = el.closest('[data-slug]');
-    return node ? node.dataset.slug : null;
-  }
+  document.addEventListener('mousemove', function(e) {
+    if (!currentLabel) return;
+    positionTip(e);
+  }, { passive: true });
 
-  function findVol(slug) {
-    const data = window.TVF_ROSTER;
-    if (!data) return null;
-    return (data.volunteers || []).find(v => v.slug === slug) || null;
-  }
-
-  document.addEventListener('mouseover', e => {
-    const slug = getSlug(e.target);
-    if (!slug || slug === currentSlug) return;
-    const v = findVol(slug);
-    if (!v) return;
-    currentSlug = slug;
-    showTip(e.target.closest('[data-slug]'), v);
-  });
-
-  document.addEventListener('mouseout', e => {
-    const slug = getSlug(e.target);
-    if (!slug) return;
-    // Don't hide if moving into the tooltip itself
-    if (tip.contains(e.relatedTarget)) return;
-    hideTip();
-  });
-
-  tip.addEventListener('mouseenter', () => clearTimeout(hideTimer));
-  tip.addEventListener('mouseleave', hideTip);
-
-  // ── Inject styles ───────────────────────────────────────────────────
-  const style = document.createElement('style');
-  style.textContent = `
-.tv-hover-card {
-  position: absolute;
-  z-index: 999;
-  background: #1a1410;
-  color: #f7f3ec;
-  border-radius: 10px;
-  padding: 14px;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
-  font-size: 13px;
-  line-height: 1.45;
-  box-shadow: 0 16px 48px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.08);
-  pointer-events: auto;
-  opacity: 0;
-  transform: translateY(6px);
-  transition: opacity .16s, transform .16s;
-  max-width: 300px;
-}
-.tv-hover-card.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-.hc-head { margin-bottom: 10px; }
-.hc-name { font-family: Georgia, serif; font-size: 16px; font-weight: 700; color: #f7f3ec; }
-.hc-sub  { font-size: 12px; color: #9d8e7e; margin-top: 3px; }
-.hc-tracks { display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap; }
-.hc-dot {
-  width: 10px; height: 10px; border-radius: 50%;
-  display: inline-block; flex-shrink: 0;
-}
-.hc-stats {
-  display: flex; gap: 10px; flex-wrap: wrap;
-  font-size: 11px; color: #9d8e7e;
-  border-top: 1px solid rgba(255,255,255,.1);
-  padding-top: 8px; margin-bottom: 10px;
-}
-.hc-log { display: flex; flex-direction: column; gap: 8px; }
-.hc-log-row { display: flex; gap: 8px; align-items: flex-start; }
-.hc-log-dot {
-  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px;
-}
-.hc-log-date { font-size: 11px; color: #9d8e7e; }
-.hc-log-what { font-size: 12px; color: #e8d8c0; }
-.hc-log-note { font-size: 11px; color: #9d8e7e; font-style: italic; margin-top: 2px; }
-.hc-inactive { font-size: 12px; color: #6d625a; font-style: italic; margin: 6px 0 0; }
-.hc-foot {
-  font-size: 11px; color: #6d625a; border-top: 1px solid rgba(255,255,255,.08);
-  margin-top: 10px; padding-top: 8px; text-align: center;
-}
-  `;
-  document.head.appendChild(style);
+  document.addEventListener('mouseout', function(e) {
+    if (!currentLabel) return;
+    var node = e.target.closest('[data-volunteer-label], .vol-row, .vol-credit-row, .credit-row');
+    if (node && !node.contains(e.relatedTarget)) hide();
+    else if (!node) hide();
+  }, { passive: true });
 
 })();
