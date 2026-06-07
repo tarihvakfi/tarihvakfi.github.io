@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Boratav Arşivi Gönüllü Emek Günlüğü</title>
+  <meta name="description" content="Tarih Vakfı Pertev Naili Boratav Arşivi için haftalık gönüllü emek ve koordinasyon günlüğü." />
+  <meta property="og:title" content="Boratav Arşivi Gönüllü Emek Günlüğü" />
+  <meta property="og:description" content="Tarih Vakfı Pertev Naili Boratav Arşivi için haftalık gönüllü emek ve koordinasyon günlüğü." />
+  <meta name="twitter:title" content="Boratav Arşivi Gönüllü Emek Günlüğü" />
+  <meta name="twitter:description" content="Tarih Vakfı Pertev Naili Boratav Arşivi için haftalık gönüllü emek ve koordinasyon günlüğü." />
+  <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./css/site.css?v=20260607" />
+</head>
+<body class="journal">
+
+  <main class="page">
+
+    <!-- ============ Masthead (unchanged) ============ -->
+    <header class="masthead">
+      <div class="brand-lockup">
+        <img src="./assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" class="brand-logo" />
+        <div>
+          <b>Tarih Vakfı</b>
+          <span data-edit="mastheadLabel">Gönüllü Emek Günlüğü</span>
+        </div>
+      </div>
+      <div class="mast-meta">
+        <span><span class="pulse" id="lpPulse"></span><span id="lpSyncLabel">az önce senkron</span></span>
+        <span id="lpWeekLabel">Hafta · —</span>
+      </div>
+    </header>
+
+    <!-- ============ Intro / hero (unchanged) ============ -->
+    <section class="intro">
+      <p class="label" data-edit="heroEyebrow">Tarih Vakfı · Pertev Naili Boratav Arşivi</p>
+      <h1 data-edit="heroHeadline">Bu hafta arşivde<br><em>ne yapıldı?</em></h1>
+      <p class="hero-subtitle" data-edit="heroSubtitle">Boratav Arşivi Gönüllü Emek Günlüğü</p>
+      <p class="hero-period" id="lpHeroPeriod">Hafta · —</p>
+      <p class="lede" id="lpHeroLede" data-edit="heroLede">Haftanın özeti, sayfa düzenli olarak tazeleniyor.</p>
+      <p class="context-links">
+        <a href="./kronoloji/">Tarih Vakfı Dijital Kronolojisi</a>
+        <span aria-hidden="true">·</span>
+        <a href="./kronoloji/dashboard.html">Kronoloji Görsel Özet</a>
+      </p>
+    </section>
+
+    <!-- ============ NEW: cumulative + this-week ribbon ============ -->
+    <section class="tv-ribbon" id="lpCumulativeRibbon" aria-label="Kümülatif ve bu haftaki sayılar">
+      <!-- Filled by roster-sections.js -->
+    </section>
+
+    <!-- ============ Truth strip — selected period aggregate (unchanged) ============ -->
+    <section class="truth-strip" aria-label="Haftanın kısa özeti">
+      <div><p class="v" id="lpTruthRecords">—</p><p class="k">katkı kaydı</p></div>
+      <div><p class="v" id="lpTruthPages">—</p><p class="k">arşiv detayı</p></div>
+      <div><p class="v" id="lpTruthActivities">—</p><p class="k">faaliyet kaydı</p></div>
+      <div><p class="v" id="lpTruthVolunteers">—</p><p class="k">katkı veren</p></div>
+      <div><p class="v" id="lpTruthBoxes">—</p><p class="k">aktif kutu</p></div>
+      <div><p class="v" id="lpTruthProgress">—</p><p class="k">toplam ilerleme</p></div>
+    </section>
+
+    <!-- ============ Archive context (unchanged) ============ -->
+    <section class="context-card archive-context" aria-labelledby="boratav-title">
+      <p class="context-eyebrow">Arşiv bağlamı</p>
+      <h2 id="boratav-title">Pertev Naili Boratav Arşivi</h2>
+      <p>Pertev Naili Boratav (1907–1998), Türkiye’de halkbilimi ve halk edebiyatı çalışmalarının öncü isimlerinden biridir. Masallar, halk hikâyeleri, sözlü kültür ve arşiv belleği üzerine yaptığı çalışmalar folklor araştırmalarının kurumsallaşmasında önemli bir yer tutar.</p>
+      <p>Bu katkı günlüğü, Boratav arşivindeki malzemenin düzenlenmesi ve görünür kılınması için yürütülen gönüllü emeği ve koordinasyon çalışmasını izler.</p>
+      <p class="context-links">Daha fazla bilgi: <a href="https://tr.wikipedia.org/wiki/Pertev_Naili_Boratav" target="_blank" rel="noopener">Pertev Naili Boratav</a></p>
+    </section>
+
+    <!-- ============ NEW: Active volunteer wall (Design A) ============ -->
+    <header class="section-head">
+      <h2>Bu dönem katkı verenler <em>· iş alanına göre</em></h2>
+      <span class="tag" id="lpActiveWallMeta">—</span>
+    </header>
+    <section id="lpActiveWall" class="tv-active"></section>
+
+    <!-- ============ NEW: Track timeline (çalışma izleri) ============ -->
+    <header class="section-head">
+      <h2>Çalışma <em>izleri</em></h2>
+      <span class="tag">paralel iş · 5 ay</span>
+    </header>
+    <section id="lpTracks" class="tv-tracks"></section>
+
+    <!-- ============ Haftanın günlüğü (unchanged) ============ -->
+    <header class="section-head">
+      <h2>Haftanın <em>günlüğü</em></h2>
+      <p class="tag" id="lpDaysTag">7 gün · sıralı</p>
+    </header>
+    <section class="days" id="lpDays"></section>
+
+    <!-- ============ Aktif kutular bu hafta (unchanged) ============ -->
+    <section class="boxes-week" id="lpBoxesWeek" hidden>
+      <div class="boxes-head">
+        <h3>Aktif <em>kutular</em></h3>
+        <span class="meta" id="lpBoxesWeekMeta">—</span>
+      </div>
+      <div id="lpBoxesWeekRows"></div>
+    </section>
+
+    <!-- ============ Malzeme dağılımı (unchanged) ============ -->
+    <section class="mat" id="lpMat" hidden>
+      <div class="mat-head">
+        <h3>Malzeme <em>dağılımı</em></h3>
+        <span class="meta" id="lpMatMeta">bu dönem</span>
+      </div>
+      <div class="mat-bar" id="lpMatBar"></div>
+      <div class="mat-legend" id="lpMatLegend"></div>
+    </section>
+
+    <!-- ============ Latest capped feed (unchanged) ============ -->
+    <section class="latest" id="lpLatest" hidden>
+      <div class="boxes-head">
+        <h3>Son <em>hareketler</em></h3>
+        <span class="meta" id="lpLatestMeta">özet</span>
+      </div>
+      <div class="latest-list" id="lpLatestRows"></div>
+    </section>
+
+    <!-- ============ NEW: Full kadro / census (Design B) ============ -->
+    <header class="section-head">
+      <h2>Boratav Arşivi <em>gönüllü kadrosu</em></h2>
+      <span class="tag" id="lpKadroMeta">—</span>
+    </header>
+    <section id="lpKadro" class="tv-kadro"></section>
+
+    <!-- ============ Institutional context (unchanged) ============ -->
+    <section class="context-card about-foundation" aria-labelledby="foundation-title">
+      <div class="context-mark">
+        <img src="./assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" />
+      </div>
+      <div>
+        <p class="context-eyebrow">Kurum bilgisi</p>
+        <h2 id="foundation-title">Tarih Vakfı hakkında</h2>
+        <p>Tarih Vakfı, 1991 yılında 12 kişilik Girişim Kurulu ve 264 Kurucu Mütevelli ile kuruldu. İlk adı Türkiye Ekonomik ve Toplumsal Tarih Vakfı olan kurum, 2005 yılında Tarih Vakfı adını aldı.</p>
+        <p>Vakıf, tarihsel bilgiye ve belgelere kamusal erişimi güçlendirmeyi; arşiv, yayın, araştırma ve bellek çalışmalarını desteklemeyi amaçlar. Tarih Vakfı Bilgi Belge Merkezi, Türkiye’nin ekonomik ve toplumsal tarihine ışık tutan malzemelerin korunması, düzenlenmesi ve araştırmacılarla buluşturulması için çalışır.</p>
+        <p class="context-links">
+          <a href="https://tarihvakfi.org.tr/hakkimizda/" target="_blank" rel="noopener">Tarih Vakfı hakkında</a>
+          <a href="https://tarihvakfi.org.tr/bilgi-belge-merkezi-hakkinda/" target="_blank" rel="noopener">Bilgi Belge Merkezi</a>
+        </p>
+      </div>
+    </section>
+
+    <section class="diagnostics" id="lpDiagnostics" hidden>
+      <h3 id="lpDiagnosticsTitle"></h3>
+      <ul id="lpDiagnosticsList"></ul>
+    </section>
+
+    <!-- ============ Colophon (unchanged) ============ -->
+    <footer class="colophon">
+      <div class="footer-brand">
+        <img src="./assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" />
+        <p class="signoff" data-edit="colophonSignoff">Tarih Vakfı · Boratav Arşivi Gönüllü Emek Günlüğü</p>
+      </div>
+      <p>Zindankapı Değirmen Sok. No: 10, Eminönü, İstanbul · <a href="https://tarihvakfi.org.tr/" target="_blank" rel="noopener">tarihvakfi.org.tr</a></p>
+      <p data-edit="colophonNote">Veriler Google Sheet’ten düzenli olarak güncellenir; gönüllü katkıları sayfadaki isimlerle görünür kılınır.<br>Kamuya açık özetler e-posta, teknik kimlik, ham satır tanımı ve özel not göstermez.</p>
+      <p class="footer-links">
+        <a href="https://tarihvakfi.org.tr/hakkimizda/" target="_blank" rel="noopener">Tarih Vakfı hakkında</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://tarihvakfi.org.tr/bilgi-belge-merkezi-hakkinda/" target="_blank" rel="noopener">Bilgi Belge Merkezi</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://tarihvakfi.org.tr/" target="_blank" rel="noopener">Gönüllü olmak ister misin?</a>
+      </p>
+    </footer>
+
+  </main>
+
+  <!-- =========== Existing scripts (unchanged) =========== -->
+  <script src="./js/config.public.js?v=20260517-roster"></script>
+  <script src="./js/snapshot.js?v=20260517-roster"></script>
+
+  <!-- =========== NEW: supplemental roster snapshot =========== -->
+  <script src="./js/roster.js?v=20260517-roster"></script>
+
+  <!-- =========== Existing scripts (unchanged) =========== -->
+  <script src="./js/utils.js?v=20260517-roster"></script>
+  <script src="./js/volunteer-credit.js?v=20260517-roster"></script>
+  <script src="./js/aggregate.js?v=20260517-roster"></script>
+  <script src="./js/render-dashboard.js?v=20260517-roster"></script>
+
+  <!-- =========== NEW: renders the four new sections =========== -->
+  <script src="./js/roster-sections.js?v=20260517-roster"></script>
+
+  <!-- =========== NEW: volunteer profile drawer (click any name) =========== -->
+  <script src="./js/volunteer-card.js?v=20260517-roster"></script>
+
+  <!-- =========== Volunteer hover tooltip =========== -->
+  <script src="./js/volunteer-hover.js?v=20260607"></script>
+
+  <!-- =========== Existing scripts (unchanged) =========== -->
+  <script src="./js/data-loader.js?v=20260517-roster"></script>
+
+</body>
+</html>
