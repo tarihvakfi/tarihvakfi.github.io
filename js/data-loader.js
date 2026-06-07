@@ -18,6 +18,18 @@
     return true;
   }
 
+  function publishLivePayload(raw) {
+    const payload = Aggregate.normalizePayload(raw);
+    if (!payload || !payload.publicSummary) return;
+    window.TVF_PUBLIC_DATA = payload;
+    window.__SNAPSHOT__ = { ok: true, generatedAt: payload.generatedAt, data: payload };
+    window.TVF_LIVE_DATA_READY = true;
+    if (window.TVF && typeof window.TVF.renderRosterSections === 'function') {
+      window.TVF.renderRosterSections();
+    }
+    document.dispatchEvent(new CustomEvent('tvf:data', { detail: payload }));
+  }
+
   if (!liveOnly) {
     renderPayload(window.TVF_PUBLIC_DATA || window.__SNAPSHOT__, true);
   }
@@ -38,7 +50,8 @@
       .then((response) => response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)))
       .then((body) => {
         if (!body || body.ok !== true) return;
-        renderPayload(body.data || body, !rendered);
+        const raw = body.data || body;
+        if (renderPayload(raw, !rendered)) publishLivePayload(raw);
       })
       .catch(() => {
         if (!rendered) Renderer.renderError();

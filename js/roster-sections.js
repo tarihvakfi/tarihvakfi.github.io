@@ -78,6 +78,69 @@
     return document.getElementById(id);
   }
 
+  function getLiveSummary() {
+    if (window.TVF_LIVE_DATA_READY !== true) return null;
+    return window.TVF_PUBLIC_DATA && window.TVF_PUBLIC_DATA.publicSummary
+      ? window.TVF_PUBLIC_DATA.publicSummary
+      : null;
+  }
+
+  function asciiFold(value) {
+    return String(value || "")
+      .replace(/[çÇ]/g, "c")
+      .replace(/[ğĞ]/g, "g")
+      .replace(/[ıİI]/g, "i")
+      .replace(/[öÖ]/g, "o")
+      .replace(/[şŞ]/g, "s")
+      .replace(/[üÜ]/g, "u")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  }
+
+  function slugifyName(value) {
+    return asciiFold(value).replace(/\s+/g, "-") || "g";
+  }
+
+  function rosterByName(data) {
+    const index = {};
+    (data.volunteers || []).forEach((v) => {
+      index[asciiFold(v.name)] = v;
+    });
+    return index;
+  }
+
+  function liveVolunteerRows() {
+    const summary = getLiveSummary();
+    return summary && Array.isArray(summary.byVolunteer) ? summary.byVolunteer : [];
+  }
+
+  function liveMonth(summary) {
+    const endDate = summary && summary.period && summary.period.endDate;
+    return endDate ? String(endDate).slice(0, 7) : null;
+  }
+
+  function liveTrackCounts(data) {
+    const summary = getLiveSummary();
+    const month = liveMonth(summary);
+    if (!summary || !month) return null;
+
+    const byName = rosterByName(data);
+    const counts = {};
+    liveVolunteerRows().forEach((row) => {
+      const label = String(row.label || "").trim();
+      if (!label) return;
+      const rosterVol = byName[asciiFold(label)];
+      const track = (rosterVol && rosterVol.tracks && rosterVol.tracks[0])
+        || (row.publicRole ? "koordinasyon" : "diger");
+      counts[track] = (counts[track] || 0) + Number(row.records || row.pageRows || row.activityRows || 0);
+    });
+
+    return { month, counts };
+  }
+
   // -------------------------------------------------------------------
   // 1. Cumulative ribbon
   // -------------------------------------------------------------------
@@ -86,18 +149,19 @@
     if (!mount || !data) return;
 
     const c = data.cumulative || {};
+    const summary = getLiveSummary();
     const periodLabel =
-      c.firstActivityDate && c.latestActivityDate
-        ? `${c.firstActivityDate.slice(0, 7).replace("-", "/")} — ${c.latestActivityDate.slice(0, 7).replace("-", "/")}`
+      c.firstActivityDate && (summary?.period?.endDate || c.latestActivityDate)
+        ? `${c.firstActivityDate.slice(0, 7).replace("-", "/")} — ${(summary?.period?.endDate || c.latestActivityDate).slice(0, 7).replace("-", "/")}`
         : "Ocak — Mayıs 2026";
 
     // For "this week" stats we read whatever the existing dashboard
     // has already computed on window.TVF_PUBLIC_DATA. If it's not
     // there we hide the right half.
-    const thisWeek = (window.TVF_PUBLIC_DATA && window.TVF_PUBLIC_DATA.publicSummary && window.TVF_PUBLIC_DATA.publicSummary.totals) || null;
+    const thisWeek = (summary && summary.totals) || null;
     const tw = thisWeek
       ? `<div class="rb this-week">
-           <p class="k">Bu hafta <em>${esc((window.TVF_PUBLIC_DATA.publicSummary.period || {}).label || "")}</em></p>
+           <p class="k">Bu hafta <em>${esc((summary.period || {}).label || "")}</em></p>
            <div class="stat-row">
              <div class="stat"><span class="v">+${fmt(thisWeek.periodPagesDone || thisWeek.pageRows || 0)}</span><span class="l">yeni sayfa</span></div>
              <div class="stat"><span class="v">${fmt(thisWeek.volunteersActive || 0)}</span><span class="l">aktif gönüllü</span></div>
@@ -131,9 +195,12 @@
     }
 
     // Build the month scale from data.monthsActive (e.g. ["2026-01", ... "2026-05"])
-    const months = Array.isArray(data.monthsActive) && data.monthsActive.length
+    const baseMonths = Array.isArray(data.monthsActive) && data.monthsActive.length
       ? data.monthsActive
       : ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05"];
+    const liveTracks = liveTrackCounts(data);
+    const overlayLiveMonth = liveTracks && liveTracks.month && !baseMonths.includes(liveTracks.month);
+    const months = overlayLiveMonth ? baseMonths.concat(liveTracks.month) : baseMonths;
 
     const monthCols = months
       .map((ym) => `<span>${MONTHS_TR[Number(ym.slice(5, 7))]}</span>`)
@@ -146,11 +213,23 @@
       return Math.max(4, Math.min(16, 4 + Math.round(s * 1.5)));
     }
 
-    const tracksSorted = [...data.tracks].sort((a, b) => b.sessions - a.sessions);
+    const seenTracks = new Set(data.tracks.map((track) => track.key));
+    const extraLiveTracks = overlayLiveMonth
+      ? Object.keys(liveTracks.counts)
+          .filter((key) => !seenTracks.has(key))
+          .map((key) => ({ key, label: (TRACK_META[key] || TRACK_META.diger).label, sessions: 0, byMonth: {} }))
+      : [];
+    const tracksSorted = [...data.tracks, ...extraLiveTracks].sort((a, b) => {
+      const aLive = overlayLiveMonth ? Number(liveTracks.counts[a.key] || 0) : 0;
+      const bLive = overlayLiveMonth ? Number(liveTracks.counts[b.key] || 0) : 0;
+      return (Number(b.sessions || 0) + bLive) - (Number(a.sessions || 0) + aLive);
+    });
 
     const laneRows = tracksSorted.map((t) => {
       const meta = TRACK_META[t.key] || TRACK_META.diger;
-      const monthsHas = t.byMonth || {};
+      const monthsHas = Object.assign({}, t.byMonth || {});
+      const liveCount = overlayLiveMonth ? Number(liveTracks.counts[t.key] || 0) : 0;
+      if (liveCount) monthsHas[liveTracks.month] = (monthsHas[liveTracks.month] || 0) + liveCount;
       const dots = months.map((ym, i) => {
         const n = monthsHas[ym];
         if (!n) return "";
@@ -163,7 +242,7 @@
       return `
         <div class="lane-label"><span class="dot" style="background:${meta.color}"></span>${esc(meta.label)}</div>
         <div class="lane" style="background:${meta.lane}">${dots}</div>
-        <div class="total" style="color:${meta.color}">${t.sessions}</div>`;
+        <div class="total" style="color:${meta.color}">${Number(t.sessions || 0) + liveCount}</div>`;
     }).join("");
 
     mount.classList.add("tv-tracks");
@@ -183,11 +262,34 @@
   function renderActiveWall(data) {
     const mount = safeMount("lpActiveWall");
     if (!mount || !data) return;
-    const vols = (data.volunteers || []).filter((v) => v.active);
+    const byName = rosterByName(data);
+    const liveRows = liveVolunteerRows();
+    const useLiveRows = Boolean(getLiveSummary());
+    const vols = useLiveRows
+      ? liveRows.map((row) => {
+          const rosterVol = byName[asciiFold(row.label)];
+          const name = String(row.label || "").trim();
+          return {
+            name,
+            slug: (rosterVol && rosterVol.slug) || slugifyName(name),
+            tracks: (rosterVol && rosterVol.tracks && rosterVol.tracks.length)
+              ? rosterVol.tracks
+              : [row.publicRole ? "koordinasyon" : "diger"],
+            sessions: Number(row.records || row.pageRows || row.activityRows || 0)
+          };
+        }).filter((v) => v.name)
+      : (data.volunteers || []).filter((v) => v.active);
     if (vols.length === 0) {
+      mount.innerHTML = "";
       mount.setAttribute("hidden", "");
+      const metaEl = document.getElementById("lpActiveWallMeta");
+      const summary = getLiveSummary();
+      if (metaEl && useLiveRows && summary?.period?.label) {
+        metaEl.textContent = `0 kişi · ${summary.period.label} · canlı`;
+      }
       return;
     }
+    mount.removeAttribute("hidden");
     const groups = {};
     vols.forEach((v) => {
       const tk = (v.tracks && v.tracks[0]) || "diger";
@@ -200,6 +302,7 @@
         const meta = TRACK_META[tk] || TRACK_META.diger;
         const grp = groups[tk];
         const sessions = grp.reduce((s, v) => s + (v.sessions || 0), 0);
+        const unit = useLiveRows ? "kayıt" : "oturum";
         const badges = grp.map((v) => `
           <span class="badge" data-slug="${esc(v.slug || "")}" role="button" tabindex="0" aria-label="${esc(v.name)} profilini aç" style="background:${meta.bg}; border:0.5px solid ${meta.border};">
             <span class="av" style="background:${meta.color}">${esc(initials(v.name))}</span>
@@ -211,7 +314,7 @@
             <div class="track-head">
               <span class="dot" style="background:${meta.color}"></span>
               <span class="lbl" style="color:${meta.color}">${esc(meta.label)}</span>
-              <span class="meta">${grp.length} kişi · ${sessions} oturum</span>
+              <span class="meta">${grp.length} kişi · ${sessions} ${unit}</span>
             </div>
             <div class="badges">${badges}</div>
           </div>`;
@@ -222,7 +325,11 @@
 
     // Update the section meta count if present
     const metaEl = document.getElementById("lpActiveWallMeta");
-    if (metaEl) metaEl.textContent = `${vols.length} aktif gönüllü`;
+    if (metaEl) {
+      const summary = getLiveSummary();
+      const label = useLiveRows && summary?.period?.label ? `${summary.period.label} · canlı` : "aktif gönüllü";
+      metaEl.textContent = useLiveRows ? `${vols.length} kişi · ${label}` : `${vols.length} aktif gönüllü`;
+    }
   }
 
   // -------------------------------------------------------------------
@@ -231,6 +338,7 @@
   function renderKadro(data) {
     const mount = safeMount("lpKadro");
     if (!mount || !data) return;
+    const liveNames = new Set(liveVolunteerRows().map((row) => asciiFold(row.label)).filter(Boolean));
     const vols = [...(data.volunteers || [])]
       .sort((a, b) => a.name.localeCompare(b.name, "tr"));
     if (vols.length === 0) {
@@ -239,7 +347,7 @@
     }
 
     const rows = vols.map((v) => {
-      const muted = v.active ? "" : " muted";
+      const muted = (v.active || liveNames.has(asciiFold(v.name))) ? "" : " muted";
       const meta = [v.city, v.role].filter(Boolean).map(esc).join(" · ");
       return `<span class="row${muted}" data-slug="${esc(v.slug || "")}" role="button" tabindex="0" aria-label="${esc(v.name)} profilini aç">
         <span class="marker"></span><span class="nm">${esc(v.name)}</span>${
