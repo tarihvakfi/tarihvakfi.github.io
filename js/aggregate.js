@@ -17,13 +17,13 @@
     if (!stats && !ticker.length) return null;
     const today = new Date();
     const start = new Date(today);
-    start.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+    start.setDate(today.getDate() - 6);
     const period = {
-      mode: 'calendar_week_to_date',
+      mode: 'rolling_7_days',
       startDate: U.toISODate(start),
       endDate: U.toISODate(today),
-      label: `${U.formatDayMonth(start)} haftası · eski özet`,
-      isPartial: true
+      label: `Son 7 gün · ${U.formatDayMonth(start)} – ${U.formatDayMonth(today)}`,
+      isPartial: false
     };
     const rows = ticker.filter((row) => {
       const iso = U.toISODate(row.when || row.createdAt);

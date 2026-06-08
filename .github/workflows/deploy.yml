@@ -29,6 +29,44 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Refresh public snapshot
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+
+          const config = fs.readFileSync('js/config.public.js', 'utf8');
+          const match = config.match(/window\.__SHEETSYNC_URL__\s*=\s*"([^"]+)"/);
+          if (!match) throw new Error('Could not find __SHEETSYNC_URL__');
+
+          const url = new URL(match[1]);
+          url.searchParams.set('public', '1');
+          url.searchParams.set('period', 'rolling_7_days');
+          url.searchParams.set('t', String(Date.now()));
+
+          const response = await fetch(url, { redirect: 'follow' });
+          if (!response.ok) throw new Error(`Endpoint failed: HTTP ${response.status}`);
+          const body = await response.json();
+          if (!body || body.ok !== true) throw new Error(`Endpoint returned not ok: ${JSON.stringify(body).slice(0, 300)}`);
+
+          const payload = body.data || body;
+          const mode = payload?.publicSummary?.period?.mode;
+          if (mode !== 'rolling_7_days') {
+            console.log(`Endpoint still returned ${mode || 'unknown'}; keeping committed snapshot.`);
+            process.exit(0);
+          }
+
+          const output = [
+            '// Auto-generated public Gönüllü Emek Günlüğü snapshot.',
+            '// Contains full aggregates plus a capped latestActivity feed; no raw workbook rows.',
+            `window.TVF_PUBLIC_DATA = ${JSON.stringify(payload)};`,
+            'window.__SNAPSHOT__ = {ok:true,generatedAt:window.TVF_PUBLIC_DATA.generatedAt,data:window.TVF_PUBLIC_DATA};',
+            ''
+          ].join('\n');
+          fs.writeFileSync(path.join('js', 'snapshot.js'), output, 'utf8');
+          console.log(`Snapshot refreshed: ${payload.publicSummary.period.label}`);
+          NODE
+
       - name: Add .nojekyll
         run: touch .nojekyll
 

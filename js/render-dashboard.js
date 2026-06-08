@@ -44,13 +44,13 @@
   }
 
   function hydrateMasthead(summary) {
-    setText('lpWeekLabel', summary.period && summary.period.label ? summary.period.label : 'Bu hafta');
-    setText('lpHeroPeriod', summary.period && summary.period.label ? summary.period.label : 'Bu hafta');
+    setText('lpWeekLabel', summary.period && summary.period.label ? summary.period.label : 'Son 7 gün');
+    setText('lpHeroPeriod', summary.period && summary.period.label ? summary.period.label : 'Son 7 gün');
     const sync = document.getElementById('lpSyncLabel');
     if (sync) sync.textContent = summary.generatedAt ? `son güncelleme ${U.relativeDate(summary.generatedAt)}` : 'senkron bekleniyor';
     const lede = document.getElementById('lpHeroLede');
     if (lede && summary.totals) {
-      lede.innerHTML = `Bu hafta Boratav Arşivi için <b>${U.formatNum(summary.totals.records)} katkı</b> görünür oldu: ${U.formatNum(summary.totals.pageRows)} sayfa/detay satırı ve ${U.formatNum(summary.totals.activityRows)} faaliyet kaydı.`;
+      lede.innerHTML = `Son 7 günde Boratav Arşivi için <b>${U.formatNum(summary.totals.records)} katkı</b> görünür oldu: ${U.formatNum(summary.totals.pageRows)} sayfa/detay satırı ve ${U.formatNum(summary.totals.activityRows)} faaliyet kaydı.`;
     }
   }
 
@@ -102,8 +102,8 @@
     setText('lpBoxes', totals.boxesCatalogued ? U.formatNum(totals.boxesCatalogued) : '—');
     setText('lpBoxesOf', '');
     setText('lpBoxesFoot', totals.boxesActive
-      ? `${U.formatNum(totals.boxesActive)} kutuda bu dönem hareket var`
-      : 'bu dönem hareket yok');
+      ? `${U.formatNum(totals.boxesActive)} kutuda son 7 günde hareket var`
+      : 'son 7 günde hareket yok');
     setText('lpDone', U.formatNum(totals.boxesCompleted || 0));
     setText('lpDoneFoot', totals.boxesCompleted ? 'tamamlanan kutu' : 'Henüz tamamlanan kutu yok');
 
@@ -129,14 +129,14 @@
 
     const one = document.getElementById('lpSignal1Body');
     if (one) one.innerHTML = `<em>${U.formatNum(totals.records)} kayıt</em>: ${U.formatNum(totals.pageRows)} sayfa/detay + ${U.formatNum(totals.activityRows)} faaliyet.`;
-    setText('lpSignal1Meta', `${U.formatNum(totals.periodPagesDone || 0)} sayfa birimi bu dönem işlendi`);
+    setText('lpSignal1Meta', `${U.formatNum(totals.periodPagesDone || 0)} sayfa birimi son 7 günde işlendi`);
 
     const two = document.getElementById('lpSignal2Body');
     if (two && busiest && busiest.records > 0) {
-      two.innerHTML = `<em>${U.escapeHtml(busiest.weekdayTR)}</em> haftanın en yoğun günü — ${U.formatNum(busiest.records)} kayıt.`;
+      two.innerHTML = `<em>${U.escapeHtml(busiest.weekdayTR)}</em> son 7 günün en yoğun günü — ${U.formatNum(busiest.records)} kayıt.`;
       setText('lpSignal2Meta', `${U.formatDayMonth(busiest.dateISO)} · ${U.formatNum(busiest.pageRows)} sayfa/detay + ${U.formatNum(busiest.activityRows)} faaliyet`);
     } else if (two) {
-      two.textContent = 'Bu dönem henüz kayıt görünmüyor.';
+      two.textContent = 'Son 7 günde henüz kayıt görünmüyor.';
       setText('lpSignal2Meta', '');
     }
 
@@ -175,7 +175,7 @@
         `<div class="row"><span class="dot" style="background:${palette[idx] || palette[5]};"></span><span>${U.escapeHtml(row.label || row.material)}</span><span class="pct">%${U.formatPct(row.percent)} · ${U.formatNum(row.count)}</span></div>`
       )).join('');
     }
-    setText('lpMatMeta', 'bu dönem');
+    setText('lpMatMeta', 'son 7 gün');
     block.removeAttribute('hidden');
   }
 
@@ -298,7 +298,7 @@
             <p class="box-label">${U.escapeHtml(box.label || box.boxLabel || ('Kutu ' + box.box))}</p>
             <p class="box-progress-text">${U.escapeHtml(progressLabel)}</p>
           </div>
-          <span class="box-period">Bu hafta görünür olan emek: +${U.formatNum(periodPageRows)} sayfa/detay</span>
+          <span class="box-period">Son 7 günde görünen emek: +${U.formatNum(periodPageRows)} sayfa/detay</span>
         </div>
         <div class="box-progress" aria-hidden="true"><span style="width:${progressWidth}%"></span></div>
         <div class="box-card-body">

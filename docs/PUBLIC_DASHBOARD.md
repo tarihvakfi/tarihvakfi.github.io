@@ -3,12 +3,12 @@
 ## Sections
 
 1. Brand masthead: Tarih Vakfı logo, Gönüllü Emek Günlüğü title, last sync, selected period.
-2. Hero: weekly archive-work headline and one-sentence contribution/page/activity summary.
+2. Hero: rolling-seven-day archive-work headline and one-sentence contribution/page/activity summary.
 3. KPI strip: contribution records, archive detail rows, activity records, visible contributors, active boxes, total progress.
 4. Pertev Naili Boratav Arşivi context: short public explanation of the archive.
 5. Gönüllü katkıları ve koordinasyon: credit-visible named contributors and coordinator roles.
-6. Haftanın günlüğü: date-driven daily ledger with volunteer and coordination lines separated.
-7. Aktif kutular: all-time progress, this-week page/detail contribution, remaining pages, contributors, last activity, material.
+6. Son 7 günün günlüğü: date-driven daily ledger with volunteer and coordination lines separated.
+7. Aktif kutular: all-time progress, rolling-seven-day page/detail contribution, remaining pages, contributors, last activity, material.
 8. Malzeme dağılımı: full selected-period material counts.
 9. Son hareketler: short grouped movement summaries.
 10. Tarih Vakfı hakkında: concise institutional boilerplate and official source links.
@@ -34,15 +34,15 @@ The public page uses one `publicSummary.period` everywhere:
 
 ```js
 {
-  mode: "calendar_week_to_date",
+  mode: "rolling_7_days",
   startDate: "YYYY-MM-DD",
   endDate: "YYYY-MM-DD",
-  label: "11–17 Mayıs haftası · bugüne kadar",
-  isPartial: true
+  label: "Son 7 gün · 2–8 Haziran",
+  isPartial: false
 }
 ```
 
-Rolling 7 days is computed by the audit script for comparison but not mixed into the weekly page.
+The public page uses rolling 7 days as its selected period, avoiding calendar-week reset artifacts at midnight on Monday.
 
 ## Visual Principles
 

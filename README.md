@@ -1,6 +1,6 @@
 # Boratav Arşivi Gönüllü Emek Günlüğü
 
-Bu depo, Tarih Vakfı Pertev Naili Boratav Arşivi için hazırlanan kamuya açık Boratav Arşivi Gönüllü Emek Günlüğü panosunu barındırır. Pano, Google Sheet üzerinde tutulan arşiv çalışması ve gönüllü katkı verilerini düzenli olarak okuyarak haftalık emeği, aktif kutuları, malzeme dağılımını ve gönüllü/koordinasyon katkılarını görünür kılar.
+Bu depo, Tarih Vakfı Pertev Naili Boratav Arşivi için hazırlanan kamuya açık Boratav Arşivi Gönüllü Emek Günlüğü panosunu barındırır. Pano, Google Sheet üzerinde tutulan arşiv çalışması ve gönüllü katkı verilerini düzenli olarak okuyarak son 7 günlük emeği, aktif kutuları, malzeme dağılımını ve gönüllü/koordinasyon katkılarını görünür kılar.
 
 Kamu sayfası statik GitHub Pages olarak çalışır; üretim runtime’ında Firebase, oturum açma, özel backend, Node/Express sunucu veya ücretli servis gerekmez.
 
@@ -15,6 +15,8 @@ Ek kamu sayfası:
 - `js/snapshot.js` ilk boyama için statik yedek veridir; GitHub Actions veya yerel audit script ile yenilenir.
 - `js/data-loader.js` önce snapshot’ı kullanır, sonra yapılandırılmış Apps Script endpoint’inden canlı veriyi dener.
 - `tools/audit_public_dashboard.py` yerel Excel kopyasından aynı kamu özetini üretir ve denetim raporu yazar.
+
+Ana sayfa seçili dönem olarak `rolling_7_days` kullanır. Bu, Pazartesi gece yarısı takvim haftası sıfırlanınca panonun boş görünmesini engeller.
 
 ## Kamuya Açık Veri Sözleşmesi
 
@@ -79,9 +81,11 @@ http://localhost:8000/kronoloji/
 Yerel Excel’den snapshot yenilemek:
 
 ```bash
-python3 tools/audit_public_dashboard.py --write-snapshot
+python3 tools/audit_public_dashboard.py --period rolling_7_days --write-snapshot
 python3 tools/validate_public_summary.py --snapshot
 ```
+
+Gönüllülerin kendi kart bilgilerini güncellemesi için Apps Script içinde `refreshVolunteerProfileTab()` fonksiyonunu bir kez çalıştırın. Bu fonksiyon canlı arşiv kayıtlarından `Gönüllü Kartları` tabını oluşturur/günceller; gönüllülerin doldurduğu kamuya açık profil alanları endpoint içinde `content.volunteerProfiles` olarak yayımlanır.
 
 ## Dosya Yapısı
 

@@ -169,7 +169,7 @@
       '<div class="tv-vol-tip-stats">' + statsHtml + '</div>',
       days.length ? '<div class="tv-vol-tip-log">' + daysHtml + '</div>' : '',
       boxesHtml,
-      '<div class="tv-vol-tip-foot">Bu haftanın katkısı</div>',
+      '<div class="tv-vol-tip-foot">Son 7 gün katkısı</div>',
     ].join('');
 
     return true;

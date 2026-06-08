@@ -136,11 +136,13 @@ def format_day_month(value: date) -> str:
 
 
 def format_period_label(start: date, today: date, full_end: date) -> str:
-    if start.month == full_end.month:
-        label = f"{start.day}–{full_end.day} {TR_MONTHS[start.month - 1]}"
-    else:
-        label = f"{start.day} {TR_MONTHS[start.month - 1]} – {full_end.day} {TR_MONTHS[full_end.month - 1]}"
-    return f"{label} haftası · bugüne kadar"
+    return f"{format_date_range_label(start, full_end)} haftası · bugüne kadar"
+
+
+def format_date_range_label(start: date, end: date) -> str:
+    if start.month == end.month:
+        return f"{start.day}–{end.day} {TR_MONTHS[start.month - 1]}"
+    return f"{start.day} {TR_MONTHS[start.month - 1]} – {end.day} {TR_MONTHS[end.month - 1]}"
 
 
 def public_box_label(value: Any) -> str:
@@ -651,7 +653,7 @@ def selected_period(now_date: date, mode: str) -> dict[str, Any]:
             "mode": "rolling_7_days",
             "startDate": start.isoformat(),
             "endDate": now_date.isoformat(),
-            "label": "Son 7 gün",
+            "label": f"Son 7 gün · {format_date_range_label(start, now_date)}",
             "isPartial": False,
         }
     start = now_date - timedelta(days=now_date.weekday())
@@ -929,8 +931,11 @@ def build_public_summary(
     }
 
 
-def latest_activity(records: list[SourceRecord], limit: int = 50) -> list[dict[str, Any]]:
-    dated = [r for r in records if r.when and is_public_named_label(r.public_label)]
+def latest_activity(records: list[SourceRecord], limit: int = 50, max_date: date | None = None) -> list[dict[str, Any]]:
+    dated = [
+        r for r in records
+        if r.when and r.date and (max_date is None or r.date <= max_date) and is_public_named_label(r.public_label)
+    ]
     dated.sort(key=lambda r: r.when or datetime.min.replace(tzinfo=PUBLIC_TZ), reverse=True)
     return [{
         "when": rec.when.astimezone(timezone.utc).isoformat().replace("+00:00", "Z") if rec.when else None,
@@ -948,10 +953,11 @@ def latest_activity(records: list[SourceRecord], limit: int = 50) -> list[dict[s
 
 def build_payload(summary: dict[str, Any], records: list[SourceRecord]) -> dict[str, Any]:
     totals = summary["totals"]
+    max_date = date.fromisoformat(summary["period"]["endDate"])
     return {
         "generatedAt": summary["generatedAt"],
         "publicSummary": summary,
-        "latestActivity": latest_activity(records, 50),
+        "latestActivity": latest_activity(records, 50, max_date),
         "content": {},
         "stats": {
             "projects": {
@@ -1187,7 +1193,7 @@ def write_report(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, default=None, help="Workbook path; defaults to _audit/input/*.xlsx")
-    parser.add_argument("--period", choices=["calendar_week_to_date", "rolling_7_days", "calendar_week"], default="calendar_week_to_date")
+    parser.add_argument("--period", choices=["calendar_week_to_date", "rolling_7_days", "calendar_week"], default="rolling_7_days")
     parser.add_argument("--write-snapshot", action="store_true", help="Write js/snapshot.js from the workbook aggregate")
     parser.add_argument("--report", type=Path, default=REPORT_PATH)
     parser.add_argument("--json", type=Path, default=SUMMARY_JSON_PATH)

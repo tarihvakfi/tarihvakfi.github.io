@@ -17,6 +17,38 @@ const TVF_TR_WEEKDAYS = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma'
 const TVF_TR_MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
 const TVF_UNNAMED = 'Adı belirtilmeyen gönüllü';
 const TVF_HIDDEN = 'İsmini gizlemeyi tercih eden gönüllü';
+const TVF_VOLUNTEER_PROFILE_SHEET = 'Gönüllü Kartları';
+const TVF_VOLUNTEER_PROFILE_HEADERS = [
+  'Slug',
+  'Ad Soyad',
+  'Kamusal Ad',
+  'Kart Yayında',
+  'Rol / Kısa Ünvan',
+  'Şehir',
+  'Kurum / Üniversite',
+  'Bölüm / Alan',
+  'Konular',
+  'Zaman / Uygunluk',
+  'Kısa Tanım',
+  'Arşiv Notu',
+  'Biyografi',
+  'Web',
+  'Twitter/X',
+  'LinkedIn',
+  'GitHub',
+  'ORCID',
+  'Scholar',
+  'Güncelleme Notu',
+  'Son Kayıt',
+  'İlk Kayıt',
+  'Toplam Kayıt',
+  'Sayfa Satırı',
+  'Sayfa Birimi',
+  'Materyal',
+  'Kutular',
+  'Kaynak',
+  'Son Senkron'
+];
 const TVF_PUBLIC_ROLE_BY_NAME = {
   'gulistan eren': 'Gönüllü Koordinatörü'
 };
@@ -27,27 +59,28 @@ function doGet(e) {
     if (params.public !== '1') {
       return tvfJson_({ ok: true, service: 'Boratav Arşivi Gönüllü Emek Günlüğü', hint: 'Add ?public=1' });
     }
-    const data = buildPublicDashboardPayload_();
+    const data = buildPublicDashboardPayload_(normalizePeriodMode_(params.period || params.mode));
     return tvfJson_({ ok: true, generatedAt: data.generatedAt, data: data });
   } catch (err) {
     return tvfJson_({ ok: false, error: String((err && err.message) || err) });
   }
 }
 
-function buildPublicDashboardPayload_() {
+function buildPublicDashboardPayload_(mode) {
   const sheetId = PropertiesService.getScriptProperties().getProperty('TARIH_VAKFI_SHEET_ID');
   if (!sheetId) throw new Error('TARIH_VAKFI_SHEET_ID is not set');
   const workbook = readWorkbook_(sheetId);
   const inventory = buildInventory_(workbook.rowsBySheet);
   const inventoryTotals = computeInventoryTotals_(workbook.rowsBySheet);
   const records = collectPublicRecords_(workbook.rowsBySheet, inventory);
+  const volunteerProfiles = readPublicVolunteerProfiles_(workbook.rowsBySheet);
   const generatedAt = new Date();
-  const summary = buildPublicSummaryFromRows(records, inventory, inventoryTotals, generatedAt, 'calendar_week_to_date');
+  const summary = buildPublicSummaryFromRows(records, inventory, inventoryTotals, generatedAt, mode || 'rolling_7_days');
   return {
     generatedAt: summary.generatedAt,
     publicSummary: summary,
-    latestActivity: latestActivity_(records, TVF_LATEST_LIMIT),
-    content: {},
+    latestActivity: latestActivity_(records, TVF_LATEST_LIMIT, generatedAt),
+    content: volunteerProfiles.length ? { volunteerProfiles: volunteerProfiles } : {},
     stats: {
       projects: {
         pnb: {
@@ -64,7 +97,7 @@ function buildPublicDashboardPayload_() {
 }
 
 function buildPublicSummaryFromRows(records, inventory, inventoryTotals, now, mode) {
-  const period = selectedPeriod_(now, mode || 'calendar_week_to_date');
+  const period = selectedPeriod_(now, mode || 'rolling_7_days');
   const periodRecords = records.filter(function (record) {
     return record.dateISO && record.dateISO >= period.startDate && record.dateISO <= period.endDate;
   });
@@ -257,7 +290,7 @@ function readWorkbook_(sheetId) {
   const rowsBySheet = {};
   const sheetInfo = [];
   titles.forEach(function (title) {
-    const matrix = readSheetValues_(sheetId, title + '!A1:Z5000');
+    const matrix = readSheetValues_(sheetId, title + '!A1:AZ5000');
     const rows = rowsFromMatrix_(title, matrix);
     rowsBySheet[title] = rows.rows;
     sheetInfo.push({ title: title, classification: classifySheet_(title), rows: rows.rows.length, headers: rows.headers });
@@ -419,9 +452,14 @@ function collectPublicRecords_(rowsBySheet, inventory) {
   return records;
 }
 
-function latestActivity_(records, limit) {
+function latestActivity_(records, limit, now) {
+  const todayISO = now ? isoDate_(now) : '9999-12-31';
   return records.filter(function (record) {
-    return record.when instanceof Date && !isNaN(record.when.getTime()) && isPublicNamedLabel_(record.publicLabel);
+    return record.when instanceof Date
+      && !isNaN(record.when.getTime())
+      && record.dateISO
+      && record.dateISO <= todayISO
+      && isPublicNamedLabel_(record.publicLabel);
   }).sort(function (a, b) {
     return b.when.getTime() - a.when.getTime();
   }).slice(0, limit || TVF_LATEST_LIMIT).map(function (record) {
@@ -528,6 +566,366 @@ function buildWarnings_(records, inventory, byDay, periodRecords, pagesDone, tar
     warnings.push({ code: 'by_day_total_mismatch', message: 'Günlük toplam dönem kayıt toplamıyla eşleşmiyor.' });
   }
   return warnings;
+}
+
+/**
+ * Run manually from Apps Script to create/update the volunteer-editable card tab.
+ *
+ * The function preserves volunteer-entered profile fields and refreshes only
+ * the identity/metric columns from the live archive sheets.
+ */
+function refreshVolunteerProfileTab() {
+  const sheetId = PropertiesService.getScriptProperties().getProperty('TARIH_VAKFI_SHEET_ID');
+  if (!sheetId) throw new Error('TARIH_VAKFI_SHEET_ID is not set');
+  const spreadsheet = SpreadsheetApp.openById(sheetId);
+  const workbook = readWorkbook_(sheetId);
+  const inventory = buildInventory_(workbook.rowsBySheet);
+  const records = collectPublicRecords_(workbook.rowsBySheet, inventory);
+  const sheet = spreadsheet.getSheetByName(TVF_VOLUNTEER_PROFILE_SHEET)
+    || spreadsheet.insertSheet(TVF_VOLUNTEER_PROFILE_SHEET);
+  const existingRows = readVolunteerProfileRowsFromSheet_(sheet);
+  const seeds = buildVolunteerProfileSeeds_(records, workbook.rowsBySheet, existingRows);
+  const output = mergeVolunteerProfileRows_(seeds, existingRows);
+  writeVolunteerProfileSheet_(sheet, output);
+  return {
+    sheetName: TVF_VOLUNTEER_PROFILE_SHEET,
+    volunteers: output.length,
+    generatedAt: isoDateTime_(new Date())
+  };
+}
+
+function readPublicVolunteerProfiles_(rowsBySheet) {
+  const profiles = [];
+  Object.keys(rowsBySheet || {}).forEach(function (title) {
+    if (classifySheet_(title) !== 'volunteer_profiles') return;
+    (rowsBySheet[title] || []).forEach(function (row) {
+      if (!profileIsVisible_(row.kartYayinda)) return;
+      const name = normalizeVolunteerName_(row.kamusalAd || row.adSoyad);
+      if (!isPublicNamedLabel_(name)) return;
+      const profile = {
+        slug: volunteerSlug_(row.slug || name),
+        name: name
+      };
+      const role = normalizePublicRole_(row.rolKisaUnvan || row.rol || row.role || row.gorev);
+      const city = safePublicText_(row.sehir || row.city || row.il, 80);
+      const uni = safePublicText_(row.kurumUniversite || row.universite || row.kurum, 120);
+      const dept = safePublicText_(row.bolumAlan || row.bolum || row.departman || row.alan, 120);
+      const topics = splitPublicList_(row.konular || row.ilgiAlanlari, 8, 60);
+      const slots = splitPublicList_(row.zamanUygunluk || row.musaitlik || row.slots, 8, 40);
+      const bio = {};
+      const shortRole = safePublicText_(row.kisaTanim || row.shortRole, 180);
+      const tvNarrative = safePublicLongText_(row.arsivNotu || row.tvNarrative, 420);
+      const narrative = safePublicLongText_(row.biyografi || row.narrative, 700);
+      const website = safePublicLink_(row.web || row.website, 'website');
+      const twitter = safePublicLink_(row.twitterX || row.twitter, 'handle');
+      const linkedin = safePublicLink_(row.linkedin, 'handle');
+      const github = safePublicLink_(row.github, 'handle');
+      const orcid = safePublicLink_(row.orcid, 'orcid');
+      const scholar = safePublicLink_(row.scholar, 'website');
+      if (shortRole) bio.shortRole = shortRole;
+      if (tvNarrative) bio.tvNarrative = tvNarrative;
+      if (narrative) bio.narrative = narrative;
+      if (website) bio.website = website;
+      if (twitter) bio.twitter = twitter;
+      if (linkedin) bio.linkedin = linkedin;
+      if (github) bio.github = github;
+      if (orcid) bio.orcid = orcid;
+      if (scholar) bio.scholar = scholar;
+      if (role) profile.role = role;
+      if (city) profile.city = city;
+      if (uni) profile.uni = uni;
+      if (dept) profile.dept = dept;
+      if (topics.length) profile.topics = topics;
+      if (slots.length) profile.slots = slots;
+      if (Object.keys(bio).length) profile.bio = bio;
+      profiles.push(profile);
+    });
+  });
+  return profiles.sort(function (a, b) { return asciiFold_(a.name).localeCompare(asciiFold_(b.name)); });
+}
+
+function readVolunteerProfileRowsFromSheet_(sheet) {
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+  if (lastRow < 2 || lastColumn < 1) return [];
+  const values = sheet.getRange(1, 1, lastRow, lastColumn).getValues();
+  return rowsFromMatrix_(TVF_VOLUNTEER_PROFILE_SHEET, values).rows;
+}
+
+function buildVolunteerProfileSeeds_(records, rowsBySheet, existingRows) {
+  const seeds = {};
+  records.forEach(function (record) {
+    const seed = ensureVolunteerProfileSeed_(seeds, record.publicLabel);
+    if (!seed) return;
+    seed.sources.records = true;
+    seed.records += 1;
+    if (record.kind === 'page') {
+      seed.pageRows += 1;
+      seed.pagesDone += Number(record.pageUnits || 1);
+    }
+    if (record.publicRole) addUnique_(seed.roles, record.publicRole);
+    if (record.material) addUnique_(seed.materials, record.material);
+    if (record.box) addUnique_(seed.boxes, 'Kutu ' + record.box);
+    if (record.dateISO) {
+      if (!seed.firstSeen || record.dateISO < seed.firstSeen) seed.firstSeen = record.dateISO;
+      if (!seed.lastSeen || record.dateISO > seed.lastSeen) seed.lastSeen = record.dateISO;
+    }
+  });
+
+  Object.keys(rowsBySheet || {}).forEach(function (title) {
+    if (classifySheet_(title) !== 'schedule') return;
+    (rowsBySheet[title] || []).forEach(function (row) {
+      const label = getVolunteerDisplayName_(row);
+      const seed = ensureVolunteerProfileSeed_(seeds, label);
+      if (!seed) return;
+      seed.sources.schedule = true;
+      const role = normalizePublicRole_(row.rol || row.role || row.gorev || row.tvRole || row.unvan);
+      if (role) addUnique_(seed.roles, role);
+      copySeedProfileField_(seed, 'city', row.sehir || row.city || row.il, 80);
+      copySeedProfileField_(seed, 'uni', row.kurumUniversite || row.universite || row.kurum || row.okul, 120);
+      copySeedProfileField_(seed, 'dept', row.bolumAlan || row.bolum || row.alan || row.departman, 120);
+      splitPublicList_(row.konular || row.ilgiAlanlari || row.calismaAlanlari, 8, 60)
+        .forEach(function (item) { addUnique_(seed.topics, item); });
+      splitPublicList_(row.zamanUygunluk || row.musaitlik || row.slots || row.slot, 8, 40)
+        .forEach(function (item) { addUnique_(seed.slots, item); });
+    });
+  });
+
+  (existingRows || []).forEach(function (row) {
+    const label = normalizeVolunteerName_(row.adSoyad || row.kamusalAd);
+    const seed = ensureVolunteerProfileSeed_(seeds, label);
+    if (!seed) return;
+    seed.sources.profile = true;
+  });
+
+  return Object.keys(seeds).map(function (key) {
+    const seed = seeds[key];
+    seed.role = seed.roles[0] || '';
+    seed.materials.sort();
+    seed.boxes.sort(function (a, b) { return a.localeCompare(b, 'tr', { numeric: true }); });
+    return seed;
+  }).sort(function (a, b) {
+    return asciiFold_(a.name).localeCompare(asciiFold_(b.name));
+  });
+}
+
+function ensureVolunteerProfileSeed_(seeds, label) {
+  const name = normalizeVolunteerName_(label);
+  if (!isPublicNamedLabel_(name)) return null;
+  const key = contributorKey_(name);
+  if (!seeds[key]) {
+    seeds[key] = {
+      name: name,
+      slug: volunteerSlug_(name),
+      roles: [],
+      city: '',
+      uni: '',
+      dept: '',
+      topics: [],
+      slots: [],
+      records: 0,
+      pageRows: 0,
+      pagesDone: 0,
+      materials: [],
+      boxes: [],
+      firstSeen: '',
+      lastSeen: '',
+      sources: {}
+    };
+  }
+  return seeds[key];
+}
+
+function copySeedProfileField_(seed, key, value, maxLen) {
+  if (seed[key]) return;
+  const clean = safePublicText_(value, maxLen);
+  if (clean) seed[key] = clean;
+}
+
+function mergeVolunteerProfileRows_(seeds, existingRows) {
+  const existingBySlug = {};
+  const existingByName = {};
+  (existingRows || []).forEach(function (row) {
+    const slug = volunteerSlug_(row.slug || row.adSoyad || row.kamusalAd);
+    const nameKey = contributorKey_(normalizeVolunteerName_(row.adSoyad || row.kamusalAd));
+    if (slug) existingBySlug[slug] = row;
+    if (nameKey && nameKey !== 'unnamed' && nameKey !== 'hidden') existingByName[nameKey] = row;
+  });
+
+  const syncedAt = Utilities.formatDate(new Date(), TVF_TIMEZONE, 'yyyy-MM-dd HH:mm');
+  return (seeds || []).map(function (seed) {
+    const existing = existingBySlug[seed.slug] || existingByName[contributorKey_(seed.name)] || {};
+    const displayName = profileCell_(existing, ['adSoyad']) || seed.name;
+    const slug = volunteerSlug_(profileCell_(existing, ['slug']) || seed.slug || displayName);
+    const sourceLabels = [];
+    if (seed.sources.records) sourceLabels.push('kayıtlar');
+    if (seed.sources.schedule) sourceLabels.push('gönüllü akışı');
+    if (seed.sources.profile) sourceLabels.push('profil tabı');
+    return [
+      slug,
+      displayName,
+      profileCell_(existing, ['kamusalAd']),
+      profileYesNo_(profileCell_(existing, ['kartYayinda']), 'Evet'),
+      profileCell_(existing, ['rolKisaUnvan', 'rol']) || seed.role || '',
+      profileCell_(existing, ['sehir']) || seed.city || '',
+      profileCell_(existing, ['kurumUniversite']) || seed.uni || '',
+      profileCell_(existing, ['bolumAlan']) || seed.dept || '',
+      profileCell_(existing, ['konular']) || seed.topics.join(', '),
+      profileCell_(existing, ['zamanUygunluk']) || seed.slots.join(', '),
+      profileCell_(existing, ['kisaTanim']),
+      profileCell_(existing, ['arsivNotu']),
+      profileCell_(existing, ['biyografi']),
+      profileCell_(existing, ['web']),
+      profileCell_(existing, ['twitterX', 'twitter']),
+      profileCell_(existing, ['linkedin']),
+      profileCell_(existing, ['github']),
+      profileCell_(existing, ['orcid']),
+      profileCell_(existing, ['scholar']),
+      profileCell_(existing, ['guncellemeNotu']),
+      seed.lastSeen,
+      seed.firstSeen,
+      seed.records,
+      seed.pageRows,
+      seed.pagesDone,
+      seed.materials.join(', '),
+      seed.boxes.join(', '),
+      sourceLabels.join(', '),
+      syncedAt
+    ];
+  });
+}
+
+function writeVolunteerProfileSheet_(sheet, rows) {
+  const values = [TVF_VOLUNTEER_PROFILE_HEADERS].concat(rows || []);
+  sheet.clear();
+  sheet.getRange(1, 1, values.length, TVF_VOLUNTEER_PROFILE_HEADERS.length).setValues(values);
+  sheet.setFrozenRows(1);
+  sheet.getRange(1, 1, 1, TVF_VOLUNTEER_PROFILE_HEADERS.length)
+    .setBackground('#601040')
+    .setFontColor('#ffffff')
+    .setFontWeight('bold')
+    .setWrap(true);
+  sheet.getRange(1, 1, Math.max(values.length, 2), TVF_VOLUNTEER_PROFILE_HEADERS.length).createFilter();
+  if (rows && rows.length) {
+    const body = sheet.getRange(2, 1, rows.length, TVF_VOLUNTEER_PROFILE_HEADERS.length);
+    body.setVerticalAlignment('top').setWrap(true);
+    const validation = SpreadsheetApp.newDataValidation()
+      .requireValueInList(['Evet', 'Hayır'], true)
+      .setAllowInvalid(false)
+      .build();
+    sheet.getRange(2, 4, rows.length, 1).setDataValidation(validation);
+  }
+  sheet.getRange(1, 1, 1, TVF_VOLUNTEER_PROFILE_HEADERS.length).setNotes([[
+    'Otomatik kalıcı bağlantı; değiştirmeyin.',
+    'Mevcut kaynaklarda görünen ad.',
+    'Sitede farklı ad görünsünse yazın; boş kalırsa Ad Soyad kullanılır.',
+    'Hayır seçilirse kart kamu payloadına eklenmez.',
+    'Kart başlığının altında görünecek kısa rol/ünvan.',
+    'Kamuya açık şehir.',
+    'Kamuya açık kurum/üniversite.',
+    'Kamuya açık bölüm/alan.',
+    'Virgülle ayırın.',
+    'Virgülle ayırın.',
+    'Tek cümlelik kısa tanım.',
+    'Boratav Arşivi çalışmasına dair kısa not.',
+    'Kısa biyografi; e-posta yazmayın.',
+    'Web sitesi URLsi.',
+    'Twitter/X kullanıcı adı veya URL.',
+    'LinkedIn kullanıcı adı veya URL.',
+    'GitHub kullanıcı adı veya URL.',
+    'ORCID ID veya URL.',
+    'Scholar URLsi.',
+    'Ekip içi not; kamuya açılmaz.',
+    'Otomatik: son görünür katkı tarihi.',
+    'Otomatik: ilk görünür katkı tarihi.',
+    'Otomatik: toplam görünür kayıt.',
+    'Otomatik: sayfa/detay satırı.',
+    'Otomatik: sayfa birimi.',
+    'Otomatik: materyal alanları.',
+    'Otomatik: kutular.',
+    'Otomatik: hangi kaynaklardan görüldü.',
+    'Otomatik: son yenileme.'
+  ]]);
+  sheet.setColumnWidth(1, 150);
+  sheet.setColumnWidth(2, 180);
+  sheet.setColumnWidth(3, 180);
+  sheet.setColumnWidth(5, 180);
+  sheet.setColumnWidth(9, 220);
+  sheet.setColumnWidth(10, 180);
+  sheet.setColumnWidth(11, 260);
+  sheet.setColumnWidth(12, 320);
+  sheet.setColumnWidth(13, 360);
+  sheet.setColumnWidths(14, 6, 170);
+  sheet.setColumnWidths(20, 10, 130);
+}
+
+function profileCell_(row, keys) {
+  for (let i = 0; i < keys.length; i++) {
+    const value = row && row[keys[i]];
+    if (value == null || value === '') continue;
+    if (value instanceof Date && !isNaN(value.getTime())) return isoDate_(value);
+    const text = String(value).replace(/\s+/g, ' ').trim();
+    if (text) return text;
+  }
+  return '';
+}
+
+function profileYesNo_(value, fallback) {
+  const folded = asciiFold_(value).toLowerCase().trim();
+  if (['hayir', 'hayır', 'no', 'false', '0', 'gizli', 'hidden'].indexOf(folded) >= 0) return 'Hayır';
+  if (['evet', 'yes', 'true', '1', 'yayinda', 'yayında'].indexOf(folded) >= 0) return 'Evet';
+  return fallback || 'Evet';
+}
+
+function profileIsVisible_(value) {
+  return profileYesNo_(value, 'Evet') === 'Evet';
+}
+
+function safePublicText_(value, maxLen) {
+  const text = String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+  if (/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/.test(text)) return '';
+  if (isUnsafePublicIdentifier_(text)) return '';
+  return text.length > maxLen ? text.slice(0, maxLen - 3).trim() + '...' : text;
+}
+
+function safePublicLongText_(value, maxLen) {
+  const text = String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+  if (/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/.test(text)) return '';
+  return text.length > maxLen ? text.slice(0, maxLen - 3).trim() + '...' : text;
+}
+
+function splitPublicList_(value, maxItems, maxLen) {
+  return String(value == null ? '' : value)
+    .split(/[,;\n]+/)
+    .map(function (item) { return safePublicText_(item, maxLen || 80); })
+    .filter(Boolean)
+    .filter(function (item, idx, arr) { return arr.indexOf(item) === idx; })
+    .slice(0, maxItems || 8);
+}
+
+function safePublicLink_(value, kind) {
+  let text = String(value == null ? '' : value).trim();
+  if (!text) return '';
+  if (/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/.test(text) || /^mailto:/i.test(text)) return '';
+  if (kind === 'orcid') {
+    const match = text.match(/\d{4}-\d{4}-\d{4}-[\dX]{4}/i);
+    return match ? match[0].toUpperCase() : '';
+  }
+  if (/^https?:\/\//i.test(text)) return text.slice(0, 240);
+  if (kind === 'website' && /^[A-Za-z0-9.-]+\.[A-Za-z]{2,}(?:\/.*)?$/.test(text)) {
+    return ('https://' + text).slice(0, 240);
+  }
+  if (kind === 'handle') {
+    text = text.replace(/^@/, '');
+    if (/^[A-Za-z0-9_.-]{2,80}$/.test(text)) return text;
+  }
+  return '';
+}
+
+function volunteerSlug_(value) {
+  return slugify_(value).replace(/_/g, '-') || 'gonullu';
 }
 
 function getVolunteerDisplayName_(row) {
@@ -682,7 +1080,13 @@ function selectedPeriod_(now, mode) {
   const today = parseIsoDate_(isoDate_(now));
   if (mode === 'rolling_7_days') {
     const start = addDays_(today, -6);
-    return { mode: 'rolling_7_days', startDate: isoDate_(start), endDate: isoDate_(today), label: 'Son 7 gün', isPartial: false };
+    return {
+      mode: 'rolling_7_days',
+      startDate: isoDate_(start),
+      endDate: isoDate_(today),
+      label: 'Son 7 gün · ' + dateRangeLabel_(start, today),
+      isPartial: false
+    };
   }
   const mondayOffset = today.getDay() === 0 ? -6 : 1 - today.getDay();
   const start = addDays_(today, mondayOffset);
@@ -702,8 +1106,13 @@ function classifySheet_(title) {
   if (slug === 'pnb_sayisallastirma') return 'pnb_inventory';
   if (slug === 'gunluk_akis') return 'activity';
   if (slug === 'gunluk_gonullu_akisi') return 'schedule';
+  if (slug === 'gonullu_kartlari' || slug === 'gonullu_kartlari_public') return 'volunteer_profiles';
   if (slug.indexOf('pnb_') === 0 && slug.indexOf('_zarf') < 0 && slug !== 'pnb_sayisallastirma') return 'pnb_detail';
   return 'other';
+}
+
+function normalizePeriodMode_(mode) {
+  return mode === 'calendar_week_to_date' ? 'calendar_week_to_date' : 'rolling_7_days';
 }
 
 function personFromTitle_(title) {
@@ -817,11 +1226,14 @@ function formatDayMonth_(dateObj) {
 }
 
 function periodLabel_(start, fullEnd) {
+  return dateRangeLabel_(start, fullEnd) + ' haftası · bugüne kadar';
+}
+
+function dateRangeLabel_(start, fullEnd) {
   const sameMonth = start.getMonth() === fullEnd.getMonth();
-  const range = sameMonth
+  return sameMonth
     ? (start.getDate() + '–' + fullEnd.getDate() + ' ' + TVF_TR_MONTHS[start.getMonth()])
     : (start.getDate() + ' ' + TVF_TR_MONTHS[start.getMonth()] + ' – ' + fullEnd.getDate() + ' ' + TVF_TR_MONTHS[fullEnd.getMonth()]);
-  return range + ' haftası · bugüne kadar';
 }
 
 function monthNumber_(name) {
@@ -851,6 +1263,11 @@ function asciiFold_(value) {
 
 function inc_(obj, key, amount) {
   obj[key] = (obj[key] || 0) + (amount == null ? 1 : amount);
+}
+
+function addUnique_(arr, value) {
+  const text = String(value == null ? '' : value).trim();
+  if (text && arr.indexOf(text) < 0) arr.push(text);
 }
 
 function round1_(n) {

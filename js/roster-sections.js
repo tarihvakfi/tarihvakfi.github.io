@@ -9,7 +9,7 @@
 //
 // Data source: window.TVF_ROSTER (produced by build_richer_snapshot.py).
 // The existing dashboard (window.TVF_PUBLIC_DATA) is untouched; if it
-// happens to ship a `totals` field with this-week numbers, the ribbon
+// happens to ship a `totals` field with rolling-seven-day numbers, the ribbon
 // will use it. Otherwise the ribbon just shows kümülatif.
 //
 // Load order in index.html (script tags omitted from this comment to
@@ -79,10 +79,12 @@
   }
 
   function getLiveSummary() {
-    if (window.TVF_LIVE_DATA_READY !== true) return null;
-    return window.TVF_PUBLIC_DATA && window.TVF_PUBLIC_DATA.publicSummary
+    const summary = window.TVF_PUBLIC_DATA && window.TVF_PUBLIC_DATA.publicSummary
       ? window.TVF_PUBLIC_DATA.publicSummary
       : null;
+    if (!summary) return null;
+    if (window.TVF_LIVE_DATA_READY === true) return summary;
+    return summary.period && summary.period.mode === "rolling_7_days" ? summary : null;
   }
 
   function asciiFold(value) {
@@ -155,13 +157,13 @@
         ? `${c.firstActivityDate.slice(0, 7).replace("-", "/")} — ${(summary?.period?.endDate || c.latestActivityDate).slice(0, 7).replace("-", "/")}`
         : "Ocak — Mayıs 2026";
 
-    // For "this week" stats we read whatever the existing dashboard
+    // For "recent period" stats we read whatever the existing dashboard
     // has already computed on window.TVF_PUBLIC_DATA. If it's not
     // there we hide the right half.
     const thisWeek = (summary && summary.totals) || null;
     const tw = thisWeek
       ? `<div class="rb this-week">
-           <p class="k">Bu hafta <em>${esc((summary.period || {}).label || "")}</em></p>
+           <p class="k">Son 7 gün <em>${esc((summary.period || {}).label || "")}</em></p>
            <div class="stat-row">
              <div class="stat"><span class="v">+${fmt(thisWeek.periodPagesDone || thisWeek.pageRows || 0)}</span><span class="l">yeni sayfa</span></div>
              <div class="stat"><span class="v">${fmt(thisWeek.volunteersActive || 0)}</span><span class="l">aktif gönüllü</span></div>
@@ -360,13 +362,13 @@
     mount.innerHTML = `
       <p class="roll-intro">
         Aşağıda Boratav Arşivi için zaman çizelgesine kaydolan herkes
-        alfabetik sırayla yer alır. Dolu nokta, son dönemde aktif olarak
+        alfabetik sırayla yer alır. Dolu nokta, son 7 günde aktif olarak
         görünür kayıt üreten gönüllüleri işaret eder.
       </p>
       <div class="roll">${rows}</div>
       <div class="roll-legend">
-        <span class="lg"><span class="mk"></span>Bu dönem görünür katkı veren</span>
-        <span class="lg"><span class="mk muted"></span>Kadroda; bu dönem görünür kayıt yok</span>
+        <span class="lg"><span class="mk"></span>Son 7 günde görünür katkı veren</span>
+        <span class="lg"><span class="mk muted"></span>Kadroda; son 7 günde görünür kayıt yok</span>
       </div>`;
 
     const metaEl = document.getElementById("lpKadroMeta");
