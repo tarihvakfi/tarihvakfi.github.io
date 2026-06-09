@@ -400,6 +400,8 @@ function collectPublicRecords_(rowsBySheet, inventory) {
         const when = parseSheetDate_(row.tarih);
         const pageUnits = hasSayfaSayisi ? Math.max(1, Math.round(parseDoneTotal_(row.sayfaSayisi).done || parseDoneTotal_(row.sayfaSayisi).total || 1)) : 1;
         const box = publicBoxLabel_(row.kutu || row.kutuNo);
+        const workTitle = publicWorkTitle_(row);
+        const workDetail = publicWorkDetail_(row);
         const rec = {
           kind: 'page',
           sourceType: 'page_detail',
@@ -412,7 +414,9 @@ function collectPublicRecords_(rowsBySheet, inventory) {
           publicRole: publicRole,
           creditStatus: creditStatus_(enriched),
           box: box,
-          pageUnits: pageUnits
+          pageUnits: pageUnits,
+          workTitle: workTitle,
+          workDetail: workDetail
         };
         records.push(rec);
         const boxKey = normalizeBox_(box);
@@ -432,6 +436,8 @@ function collectPublicRecords_(rowsBySheet, inventory) {
         const label = getVolunteerDisplayName_(row);
         const publicRole = getPublicRole_(row, label);
         const when = parseSheetDate_(row.tarih);
+        const workTitle = publicWorkTitle_(row);
+        const workDetail = publicWorkDetail_(row);
         records.push({
           kind: 'activity',
           sourceType: 'activity',
@@ -444,7 +450,9 @@ function collectPublicRecords_(rowsBySheet, inventory) {
           publicRole: publicRole,
           creditStatus: creditStatus_(row),
           box: '',
-          pageUnits: 0
+          pageUnits: 0,
+          workTitle: workTitle,
+          workDetail: workDetail
         });
       });
     }
@@ -463,7 +471,7 @@ function latestActivity_(records, limit, now) {
   }).sort(function (a, b) {
     return b.when.getTime() - a.when.getTime();
   }).slice(0, limit || TVF_LATEST_LIMIT).map(function (record) {
-    return {
+    const item = {
       when: isoDateTime_(record.when),
       dateISO: record.dateISO,
       kind: record.kind,
@@ -475,6 +483,9 @@ function latestActivity_(records, limit, now) {
       boxLabel: record.box ? ('Kutu ' + record.box) : null,
       pagesDone: record.pageUnits
     };
+    if (record.workTitle) item.workTitle = record.workTitle;
+    if (record.workDetail) item.workDetail = record.workDetail;
+    return item;
   });
 }
 
@@ -1069,6 +1080,30 @@ function materialCategory_(row) {
   if (haystack.indexOf('ders') >= 0) return 'ders notları';
   if (haystack.indexOf('envanter') >= 0) return 'envanter';
   return 'belgeler';
+}
+
+function publicWorkTitle_(row) {
+  return safePublicText_(
+    row.calismaAlani
+      || row.calisma
+      || row.isAlani
+      || row.isTanimi
+      || row.fonAdi
+      || row.fon
+      || '',
+    140
+  );
+}
+
+function publicWorkDetail_(row) {
+  return safePublicLongText_(
+    row.devamEdenCalisma
+      || row.devam
+      || row.yapilanIs
+      || row.aciklama
+      || '',
+    260
+  );
 }
 
 function projectIdFromRow_(row) {

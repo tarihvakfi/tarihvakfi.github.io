@@ -192,6 +192,50 @@ def is_unsafe_public_identifier(value: Any) -> bool:
     return False
 
 
+def safe_public_text(value: Any, max_len: int) -> str:
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
+    if not text:
+        return ""
+    if re.search(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", text):
+        return ""
+    if is_unsafe_public_identifier(text):
+        return ""
+    return text if len(text) <= max_len else text[: max_len - 3].strip() + "..."
+
+
+def safe_public_long_text(value: Any, max_len: int) -> str:
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
+    if not text:
+        return ""
+    if re.search(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", text):
+        return ""
+    return text if len(text) <= max_len else text[: max_len - 3].strip() + "..."
+
+
+def public_work_title(row: dict[str, Any]) -> str:
+    return safe_public_text(
+        row.get("calisma_alani")
+        or row.get("calisma")
+        or row.get("is_alani")
+        or row.get("is_tanimi")
+        or row.get("fon_adi")
+        or row.get("fon")
+        or "",
+        140,
+    )
+
+
+def public_work_detail(row: dict[str, Any]) -> str:
+    return safe_public_long_text(
+        row.get("devam_eden_calisma")
+        or row.get("devam")
+        or row.get("yapilan_is")
+        or row.get("aciklama")
+        or "",
+        260,
+    )
+
+
 def normalize_volunteer_name(value: Any) -> str:
     text = re.sub(r"\s+", " ", str(value or "")).strip()
     text = re.sub(r"^[\s:;,\-–—]+|[\s:;,\-–—]+$", "", text)
@@ -472,6 +516,8 @@ class SourceRecord:
     box: str = ""
     page_units: int = 0
     row_count: int = 1
+    work_title: str = ""
+    work_detail: str = ""
 
 
 @dataclass
@@ -612,6 +658,8 @@ def collect_records(rows_by_sheet: dict[str, list[dict[str, Any]]], boxes: dict[
                     credit_status=status,
                     box=box,
                     page_units=max(1, page_units),
+                    work_title=public_work_title(row),
+                    work_detail=public_work_detail(row),
                 )
                 records.append(rec)
                 box_key = normalize_box(box)
@@ -642,6 +690,8 @@ def collect_records(rows_by_sheet: dict[str, list[dict[str, Any]]], boxes: dict[
                     public_role=role,
                     credit_status=status,
                     page_units=0,
+                    work_title=public_work_title(row),
+                    work_detail=public_work_detail(row),
                 ))
     return records
 
@@ -937,18 +987,26 @@ def latest_activity(records: list[SourceRecord], limit: int = 50, max_date: date
         if r.when and r.date and (max_date is None or r.date <= max_date) and is_public_named_label(r.public_label)
     ]
     dated.sort(key=lambda r: r.when or datetime.min.replace(tzinfo=PUBLIC_TZ), reverse=True)
-    return [{
-        "when": rec.when.astimezone(timezone.utc).isoformat().replace("+00:00", "Z") if rec.when else None,
-        "dateISO": rec.date.isoformat() if rec.date else None,
-        "kind": rec.kind,
-        "recordType": rec.source_type,
-        "material": rec.material,
-        "projectId": rec.project_id,
-        "volunteerLabel": rec.public_label,
-        "publicRole": rec.public_role,
-        "boxLabel": f"Kutu {rec.box}" if rec.box else None,
-        "pagesDone": rec.page_units,
-    } for rec in dated[:limit]]
+    items: list[dict[str, Any]] = []
+    for rec in dated[:limit]:
+        item = {
+            "when": rec.when.astimezone(timezone.utc).isoformat().replace("+00:00", "Z") if rec.when else None,
+            "dateISO": rec.date.isoformat() if rec.date else None,
+            "kind": rec.kind,
+            "recordType": rec.source_type,
+            "material": rec.material,
+            "projectId": rec.project_id,
+            "volunteerLabel": rec.public_label,
+            "publicRole": rec.public_role,
+            "boxLabel": f"Kutu {rec.box}" if rec.box else None,
+            "pagesDone": rec.page_units,
+        }
+        if rec.work_title:
+            item["workTitle"] = rec.work_title
+        if rec.work_detail:
+            item["workDetail"] = rec.work_detail
+        items.append(item)
+    return items
 
 
 def build_payload(summary: dict[str, Any], records: list[SourceRecord]) -> dict[str, Any]:

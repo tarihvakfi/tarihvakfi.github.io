@@ -8,6 +8,7 @@
   const liveOnly = params.get('live') === '1';
   const debug = params.get('debug') === '1';
   let rendered = false;
+  let snapshotPayload = null;
 
   function renderPayload(raw, allowLegacy) {
     const payload = Aggregate.normalizePayload(raw);
@@ -33,7 +34,8 @@
   }
 
   if (!liveOnly) {
-    renderPayload(window.TVF_PUBLIC_DATA || window.__SNAPSHOT__, true);
+    snapshotPayload = Aggregate.normalizePayload(window.TVF_PUBLIC_DATA || window.__SNAPSHOT__);
+    renderPayload(snapshotPayload, true);
   }
 
   const url = window.__SHEETSYNC_URL__;
@@ -53,7 +55,8 @@
       .then((body) => {
         if (!body || body.ok !== true) return;
         const raw = body.data || body;
-        if (renderPayload(raw, !rendered)) publishLivePayload(raw);
+        const livePayload = normalizeLivePayload(raw);
+        if (livePayload && renderPayload(livePayload, !rendered)) publishLivePayload(livePayload);
       })
       .catch(() => {
         if (!rendered) Renderer.renderError();
@@ -69,6 +72,264 @@
       && summary.source.volunteerCredit === 'credit-visible, ID-safe volunteer display'
       && summary.period
       && summary.period.mode === 'rolling_7_days';
+  }
+
+  function normalizeLivePayload(raw) {
+    const payload = Aggregate.normalizePayload(raw);
+    if (!payload || !payload.publicSummary) return null;
+    if (isCompatibleSummary(payload.publicSummary)) return payload;
+    return repairRollingPayload(payload) || payload;
+  }
+
+  function repairRollingPayload(livePayload) {
+    const liveSummary = livePayload && livePayload.publicSummary;
+    const livePeriod = liveSummary && liveSummary.period;
+    if (!liveSummary || !liveSummary.source || liveSummary.source.recordsAreFullAggregate !== true || !livePeriod || !livePeriod.endDate) return null;
+
+    const endISO = U.toISODate(livePeriod.endDate);
+    if (!endISO) return null;
+    const startISO = addDaysISO(endISO, -6);
+    const baseSummary = snapshotPayload && snapshotPayload.publicSummary;
+    const dayMap = {};
+
+    addDaysToMap(dayMap, baseSummary && baseSummary.byDay, startISO, endISO);
+    addDaysToMap(dayMap, liveSummary.byDay, startISO, endISO);
+
+    const days = dateRangeISO(startISO, endISO).map((iso) => dayMap[iso] || emptyDay(iso));
+    if (!days.some((day) => Number(day.records || 0) > 0)) return null;
+
+    const byMaterial = buildMaterialRows(days);
+    const byVolunteer = buildVolunteerRows(days);
+    const byBox = buildBoxRows(days);
+    const totals = Object.assign({}, liveSummary.totals || {}, {
+      records: sum(days, 'records'),
+      pageRows: sum(days, 'pageRows'),
+      activityRows: sum(days, 'activityRows'),
+      periodPagesDone: sum(days, 'pagesDone'),
+      boxesActive: byBox.length,
+      volunteersActive: byVolunteer.length,
+      volunteers: byVolunteer.length,
+      materials: byMaterial.length
+    });
+    if (totals.pagesTarget > 0 && totals.pagesDone != null) {
+      totals.progressPercent = Math.round((Number(totals.pagesDone || 0) / Number(totals.pagesTarget)) * 1000) / 10;
+    }
+
+    const warnings = (liveSummary.warnings || []).concat([{
+      code: 'client_repaired_rolling_period',
+      message: 'Live endpoint returned week-to-date mode; browser merged live days with the static snapshot for a rolling seven-day view.'
+    }]);
+    const syntheticLatest = latestFromDays(days);
+    const latestActivity = mergeLatestActivity([
+      livePayload.latestActivity,
+      snapshotPayload && snapshotPayload.latestActivity,
+      syntheticLatest
+    ], startISO, endISO);
+
+    const repairedSummary = Object.assign({}, liveSummary, {
+      generatedAt: liveSummary.generatedAt || livePayload.generatedAt,
+      period: {
+        mode: 'rolling_7_days',
+        startDate: startISO,
+        endDate: endISO,
+        label: `Son 7 gün · ${U.formatDayMonth(startISO)} – ${U.formatDayMonth(endISO)}`,
+        isPartial: false
+      },
+      totals,
+      byDay: days,
+      byMaterial,
+      byVolunteer,
+      byBox,
+      highlights: Object.assign({}, liveSummary.highlights || {}, {
+        busiestDay: days.slice().sort((a, b) => Number(b.records || 0) - Number(a.records || 0))[0] || null,
+        latestDate: days.slice().reverse().find((day) => Number(day.records || 0) > 0)?.dateISO || null,
+        topMaterial: byMaterial[0] || null
+      }),
+      warnings,
+      source: Object.assign({}, liveSummary.source, {
+        recordsAreFullAggregate: true,
+        volunteerCredit: liveSummary.source.volunteerCredit || 'credit-visible, ID-safe volunteer display'
+      })
+    });
+
+    return Object.assign({}, livePayload, {
+      generatedAt: livePayload.generatedAt || liveSummary.generatedAt,
+      publicSummary: repairedSummary,
+      latestActivity
+    });
+  }
+
+  function addDaysToMap(dayMap, days, startISO, endISO) {
+    (Array.isArray(days) ? days : []).forEach((day) => {
+      const iso = U.toISODate(day.dateISO);
+      if (!iso || iso < startISO || iso > endISO) return;
+      dayMap[iso] = clone(day);
+    });
+  }
+
+  function buildMaterialRows(days) {
+    const rows = {};
+    days.forEach((day) => {
+      (day.materials || []).forEach((item) => {
+        const key = item.material || item.label;
+        if (!key) return;
+        if (!rows[key]) rows[key] = { material: key, label: item.label || key, count: 0 };
+        rows[key].count += Number(item.count || 0);
+      });
+    });
+    return withPercents(Object.values(rows).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'tr')));
+  }
+
+  function buildVolunteerRows(days) {
+    const rows = {};
+    days.forEach((day) => {
+      uniqueContributors(day).forEach((item) => {
+        const label = publicLabel(item.label);
+        if (!label) return;
+        const key = foldName(label);
+        if (!rows[key]) rows[key] = { label, publicRole: item.publicRole || '', records: 0, pageRows: 0, activityRows: 0, pagesDone: 0, boxes: [], boxBreakdown: [] };
+        rows[key].records += Number(item.records || 0);
+        rows[key].pageRows += Number(item.pageRows || 0);
+        rows[key].activityRows += Number(item.activityRows || 0);
+        rows[key].pagesDone += Number(item.pagesDone || 0);
+        if (!rows[key].publicRole && item.publicRole) rows[key].publicRole = item.publicRole;
+        (day.boxLabels || []).forEach((box) => addUnique(rows[key].boxes, box));
+      });
+    });
+    return Object.values(rows).map((row) => {
+      row.topBox = row.boxes[0] || null;
+      row.boxBreakdown = row.boxes.map((boxLabel) => ({ boxLabel, records: 1 }));
+      return row;
+    }).sort((a, b) => b.records - a.records || a.label.localeCompare(b.label, 'tr'));
+  }
+
+  function buildBoxRows(days) {
+    const rows = {};
+    days.forEach((day) => {
+      (day.boxLabels || []).forEach((boxLabel) => {
+        const key = foldName(boxLabel);
+        if (!rows[key]) rows[key] = { box: boxLabel.replace(/^Kutu\s+/i, ''), boxLabel, label: boxLabel, records: 0, pageRows: 0, activityRows: 0, periodRecords: 0, periodPageRows: 0, periodPagesDone: 0, contributors: [], topContributors: [], contributorsCount: 0, lastActivityDate: day.dateISO };
+        rows[key].records += Number(day.records || 0);
+        rows[key].pageRows += Number(day.pageRows || 0);
+        rows[key].activityRows += Number(day.activityRows || 0);
+        rows[key].periodRecords += Number(day.records || 0);
+        rows[key].periodPageRows += Number(day.pageRows || 0);
+        rows[key].periodPagesDone += Number(day.pagesDone || 0);
+        if (!rows[key].lastActivityDate || day.dateISO > rows[key].lastActivityDate) rows[key].lastActivityDate = day.dateISO;
+      });
+    });
+    return Object.values(rows).sort((a, b) => String(b.lastActivityDate || '').localeCompare(String(a.lastActivityDate || '')));
+  }
+
+  function latestFromDays(days) {
+    return days.flatMap((day) => {
+      const material = (day.materials && day.materials[0] && (day.materials[0].material || day.materials[0].label)) || 'belgeler';
+      const boxLabel = day.boxLabels && day.boxLabels[0] ? day.boxLabels[0] : null;
+      const when = day.lastTime || day.firstTime || `${day.dateISO}T09:00:00.000Z`;
+      return uniqueContributors(day).map((item) => ({
+        when,
+        dateISO: day.dateISO,
+        kind: Number(item.pageRows || item.pagesDone || 0) > 0 ? 'page' : 'activity',
+        recordType: 'day_summary',
+        material,
+        projectId: 'pnb',
+        volunteerLabel: item.label,
+        publicRole: item.publicRole || '',
+        boxLabel,
+        pagesDone: Number(item.pagesDone || 0),
+        records: Number(item.records || 1)
+      }));
+    });
+  }
+
+  function mergeLatestActivity(groups, startISO, endISO) {
+    const byKey = {};
+    groups.forEach((rows) => {
+      (Array.isArray(rows) ? rows : []).forEach((row) => {
+        const iso = U.toISODate(row.dateISO || row.when);
+        const label = publicLabel(row.volunteerLabel);
+        if (!iso || !label || iso < startISO || iso > endISO) return;
+        const key = [iso, row.when || '', label, row.kind || '', row.boxLabel || '', row.workTitle || '', row.workDetail || ''].join('|');
+        if (!byKey[key]) byKey[key] = Object.assign({}, row, { dateISO: iso, volunteerLabel: label });
+      });
+    });
+    return Object.values(byKey)
+      .sort((a, b) => String(b.when || b.dateISO || '').localeCompare(String(a.when || a.dateISO || '')))
+      .slice(0, 50);
+  }
+
+  function uniqueContributors(day) {
+    const rows = {};
+    (day.contributors || []).concat(day.coordination || []).forEach((item) => {
+      const label = publicLabel(item.label);
+      if (!label) return;
+      const key = foldName(label);
+      if (!rows[key]) rows[key] = Object.assign({}, item, { label });
+    });
+    return Object.values(rows);
+  }
+
+  function emptyDay(iso) {
+    return {
+      dateISO: iso,
+      weekdayTR: U.weekdayTR(iso),
+      dayNumber: Number(iso.slice(8, 10)),
+      records: 0,
+      pageRows: 0,
+      activityRows: 0,
+      pagesDone: 0,
+      volunteersCount: 0,
+      volunteerNames: [],
+      coordination: [],
+      contributors: [],
+      boxesCount: 0,
+      boxLabels: [],
+      materials: [],
+      firstTime: null,
+      lastTime: null,
+      summarySentence: 'Bugün için görünür katkı yok.'
+    };
+  }
+
+  function dateRangeISO(startISO, endISO) {
+    const days = [];
+    let iso = startISO;
+    while (iso <= endISO) {
+      days.push(iso);
+      iso = addDaysISO(iso, 1);
+    }
+    return days;
+  }
+
+  function addDaysISO(iso, days) {
+    const date = new Date(`${iso}T12:00:00`);
+    date.setDate(date.getDate() + days);
+    return U.toISODate(date);
+  }
+
+  function sum(rows, key) {
+    return rows.reduce((total, row) => total + Number(row[key] || 0), 0);
+  }
+
+  function withPercents(rows) {
+    const total = rows.reduce((count, row) => count + Number(row.count || 0), 0);
+    return rows.map((row) => Object.assign({}, row, {
+      percent: total ? Math.round((Number(row.count || 0) / total) * 1000) / 10 : 0
+    }));
+  }
+
+  function publicLabel(value) {
+    const label = String(value || '').replace(/\s+/g, ' ').trim();
+    if (!label || label === 'Adı belirtilmeyen gönüllü' || label === 'İsmini gizlemeyi tercih eden gönüllü') return '';
+    return label;
+  }
+
+  function addUnique(items, value) {
+    if (value && items.indexOf(value) < 0) items.push(value);
+  }
+
+  function clone(value) {
+    return JSON.parse(JSON.stringify(value || {}));
   }
 
   function applyVolunteerProfiles(payload) {

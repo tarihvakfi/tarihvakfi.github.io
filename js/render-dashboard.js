@@ -6,8 +6,8 @@
   function renderDashboard(payload, opts) {
     const summary = payload.publicSummary;
     const content = payload.content || {};
-    const latestActivity = Array.isArray(payload.latestActivity) ? payload.latestActivity : [];
     if (!summary) return;
+    const latestActivity = publicLatestActivity(payload.latestActivity, summary);
 
     if (content.accentColor && /^#[0-9a-f]{3,8}$/i.test(content.accentColor)) {
       document.documentElement.style.setProperty('--accent', content.accentColor);
@@ -182,7 +182,9 @@
   function hydrateDays(summary) {
     const wrap = document.getElementById('lpDays');
     if (!wrap) return;
-    const days = Array.isArray(summary.byDay) ? summary.byDay : [];
+    const days = (Array.isArray(summary.byDay) ? summary.byDay : [])
+      .slice()
+      .sort((a, b) => String(b.dateISO || '').localeCompare(String(a.dateISO || '')));
     wrap.innerHTML = days.map(renderDay).join('');
     setText('lpDaysTag', `${days.length} gün`);
   }
@@ -256,7 +258,7 @@
       const meta = row.publicRole
         ? `${row.publicRole} · ${unitParts.join(' · ')}`
         : `${boxBreakdown} · ${unitParts.join(' · ')}`;
-      return `<article class="vol-row">
+      return `<article class="vol-row" data-volunteer-label="${U.escapeHtml(label)}">
         <div class="vol-avatar">${U.escapeHtml(U.initialOf(label))}</div>
         <div>
           <p class="vol-name">${U.escapeHtml(label)}</p>
@@ -330,7 +332,7 @@
       const countText = row.kind === 'activity'
         ? `${U.formatNum(row.records)} faaliyet`
         : `${U.formatNum(row.pagesDone || row.records)} sayfa/detay`;
-      return `<article class="latest-row">
+      return `<article class="latest-row" data-volunteer-label="${U.escapeHtml(label)}">
         <span class="latest-main"><span class="latest-date-inline">${U.escapeHtml(U.formatDayMonth(row.dateISO || row.when))}</span> — <strong>${U.escapeHtml(label)}</strong>${U.escapeHtml(role)}${U.escapeHtml(box)} · ${U.escapeHtml(countText)}</span>
       </article>`;
     }).join('');
@@ -450,16 +452,35 @@
           boxLabel: row.boxLabel,
           kind: row.kind,
           material: row.material,
+          workTitle: row.workTitle || '',
+          workDetail: row.workDetail || '',
           records: 0,
           pagesDone: 0
         });
       }
       const group = groups.get(key);
-      group.records += 1;
-      group.pagesDone += Number(row.pagesDone || (row.kind === 'page' ? 1 : 0));
+      group.records += Number(row.records || 1);
+      group.pagesDone += Number(row.pagesDone || (row.kind === 'page' ? (row.records || 1) : 0));
+      if (!group.workTitle && row.workTitle) group.workTitle = row.workTitle;
+      if (!group.workDetail && row.workDetail) group.workDetail = row.workDetail;
       if (row.when && (!group.when || String(row.when) > String(group.when))) group.when = row.when;
     });
     return Array.from(groups.values()).sort((a, b) => String(b.when || b.dateISO || '').localeCompare(String(a.when || a.dateISO || '')));
+  }
+
+  function publicLatestActivity(rows, summary) {
+    const period = (summary && summary.period) || {};
+    const startISO = period.startDate || '';
+    const endISO = period.endDate || U.toISODate(new Date());
+    return (Array.isArray(rows) ? rows : [])
+      .filter((row) => {
+        const iso = U.toISODate(row.dateISO || row.when);
+        if (!iso || !isPublicVolunteerName(row.volunteerLabel)) return false;
+        if (startISO && iso < startISO) return false;
+        return !endISO || iso <= endISO;
+      })
+      .slice()
+      .sort((a, b) => String(b.when || b.dateISO || '').localeCompare(String(a.when || a.dateISO || '')));
   }
 
   function materialPhrase(item) {

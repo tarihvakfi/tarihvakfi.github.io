@@ -306,7 +306,7 @@
         const sessions = grp.reduce((s, v) => s + (v.sessions || 0), 0);
         const unit = useLiveRows ? "kayıt" : "oturum";
         const badges = grp.map((v) => `
-          <span class="badge" data-slug="${esc(v.slug || "")}" role="button" tabindex="0" aria-label="${esc(v.name)} profilini aç" style="background:${meta.bg}; border:0.5px solid ${meta.border};">
+          <span class="badge" data-slug="${esc(v.slug || "")}" data-volunteer-label="${esc(v.name)}" role="button" tabindex="0" aria-label="${esc(v.name)} profilini aç" style="background:${meta.bg}; border:0.5px solid ${meta.border};">
             <span class="av" style="background:${meta.color}">${esc(initials(v.name))}</span>
             ${esc(v.name)} <span class="ct">·${v.sessions}</span>
           </span>`
@@ -351,7 +351,7 @@
     const rows = vols.map((v) => {
       const muted = (v.active || liveNames.has(asciiFold(v.name))) ? "" : " muted";
       const meta = [v.city, v.role].filter(Boolean).map(esc).join(" · ");
-      return `<span class="row${muted}" data-slug="${esc(v.slug || "")}" role="button" tabindex="0" aria-label="${esc(v.name)} profilini aç">
+      return `<span class="row${muted}" data-slug="${esc(v.slug || "")}" data-volunteer-label="${esc(v.name)}" role="button" tabindex="0" aria-label="${esc(v.name)} profilini aç">
         <span class="marker"></span><span class="nm">${esc(v.name)}</span>${
           meta ? `<span class="meta">${meta}</span>` : ""
         }
