@@ -103,6 +103,23 @@ const FALLBACK_ACTIVITY_CODES = {
 
 const PAGE_SIZE = 100;
 const LIVE_REFRESH_TIMEOUT_MS = 12000;
+const PERIOD_LABELS_BY_NUMBER = {
+  1: "1. Dönem (1991–1995)",
+  2: "2. Dönem (1996–2000)",
+  3: "3. Dönem (2001–2005)",
+  4: "4. Dönem (2006–2010)",
+  5: "5. Dönem (2011–2015)",
+  6: "6. Dönem (2016–2020)",
+  7: "7. Dönem (2021–2026)",
+};
+const KIND_ID_PREFIXES = {
+  event: "eve",
+  publication: "pub",
+  organizational: "org",
+  project: "pro",
+  chronology: "chr",
+  unknown: "unk",
+};
 const LEGACY_CONTENT_GUARDS = {
   "archive.footer.note": ["kayıt ID, erişim tarihi"],
   "methodology.citation.text_1": ["kayıt [id], erişim tarihi"],
@@ -115,6 +132,8 @@ let archivePage = 1;
 let dashboardPage = 1;
 let archiveView = "cards";
 let currentPage = "";
+let liveRefreshAttempted = false;
+let staticAliasRecords = [];
 
 document.addEventListener("DOMContentLoaded", () => {
   markCurrentNav();
@@ -143,26 +162,38 @@ async function boot() {
 }
 
 async function loadData() {
-  const sources = [{ label: "static", url: DATA_URL, options: {} }];
+  const staticSource = { label: "static", url: DATA_URL, options: {} };
   const liveSource = getLiveSource();
-  if (liveSource) sources.push(liveSource);
+  const sources = [staticSource, liveSource].filter(Boolean);
 
   let lastError;
   for (const source of sources) {
     try {
-      const payload = await fetchPayload(source);
-      const rows = extractRows(payload);
-      if (!Array.isArray(rows)) {
-        throw new Error(`${source.label}: response does not contain a record array`);
+      const rows = await loadRowsFromSource(source);
+      let records = normalizeRows(rows);
+      if (source.label === "static") {
+        staticAliasRecords = records;
+      }
+      if (source.label === "live") {
+        records = attachStaticAliases(records, staticAliasRecords);
       }
       window.TVK_CHRONOLOGY_DATA_SOURCE = source.label;
-      return normalizeRows(rows);
+      return records;
     } catch (error) {
       lastError = error;
       console.warn("Chronology data source failed", error);
     }
   }
   throw lastError || new Error("No chronology data source available");
+}
+
+async function loadRowsFromSource(source) {
+  const payload = await fetchPayload(source);
+  const rows = extractRows(payload);
+  if (!Array.isArray(rows)) {
+    throw new Error(`${source.label}: response does not contain a record array`);
+  }
+  return rows;
 }
 
 async function loadSiteContent() {
@@ -210,13 +241,14 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 0) {
 async function refreshLiveDataInBackground() {
   const liveSource = getLiveSource();
   if (!liveSource || window.TVK_CHRONOLOGY_DATA_SOURCE === "live") return;
+  liveRefreshAttempted = true;
   try {
     const payload = await fetchPayload(liveSource);
     const rows = extractRows(payload);
     if (!Array.isArray(rows)) {
       throw new Error("live: response does not contain a record array");
     }
-    allRecords = normalizeRows(rows);
+    allRecords = attachStaticAliases(normalizeRows(rows), staticAliasRecords);
     const liveContent = extractContent(payload);
     if (Object.keys(liveContent).length) {
       siteContent = { ...siteContent, ...liveContent };
@@ -226,6 +258,7 @@ async function refreshLiveDataInBackground() {
     refreshCurrentPage();
   } catch (error) {
     console.warn("Chronology live refresh failed", error);
+    if (currentPage === "item") initItem();
   }
 }
 
@@ -287,29 +320,140 @@ function isLegacyContentValue(key, value) {
 function normalizeRows(rows) {
   return rows.map((row) => {
     const enriched = row.activity_code ? row : { ...row, ...assignActivityCode(row.item_kind, row.category, row.raw_text, row.description) };
-    return {
+    const sourceSheet = cleanRecordValue(enriched.source_sheet || enriched.sheet_name || enriched.period);
+    const sourceRow = Number(enriched.source_row || 0);
+    const period = normalizePeriodLabel(enriched.period || sourceSheet);
+    const itemKind = cleanRecordValue(enriched.item_kind || "unknown");
+    const normalized = {
       ...enriched,
-      _year: /^\d+$/.test(enriched.year || "") ? Number(enriched.year) : null,
-      _sourceRow: Number(enriched.source_row || 0),
+      period,
+      source_sheet: sourceSheet,
+      source_row: sourceRow || enriched.source_row,
+      item_kind: itemKind,
+    };
+    return {
+      ...normalized,
+      _aliases: recordAliases(normalized),
+      _year: /^\d+$/.test(normalized.year || "") ? Number(normalized.year) : null,
+      _sourceRow: Number(normalized.source_row || 0),
       _search: normalize(
         [
-          enriched.id,
-          enriched.period,
-          enriched.item_kind,
-          enriched.category,
-          enriched.activity_code,
-          enriched.activity_code_base,
-          enriched.activity_group,
-          enriched.activity_label,
-          enriched.title,
-          enriched.description,
-          enriched.date_display,
-          enriched.year,
-          enriched.verification_status,
+          normalized.id,
+          normalized.period,
+          normalized.source_sheet,
+          normalized.item_kind,
+          normalized.category,
+          normalized.activity_code,
+          normalized.activity_code_base,
+          normalized.activity_group,
+          normalized.activity_label,
+          normalized.title,
+          normalized.description,
+          normalized.date_display,
+          normalized.year,
+          normalized.verification_status,
         ].join(" "),
       ),
     };
   });
+}
+
+function cleanRecordValue(value) {
+  return String(value || "").trim();
+}
+
+function normalizePeriodLabel(value) {
+  const periodNumber = periodNumberFromText(value);
+  return periodNumber && PERIOD_LABELS_BY_NUMBER[periodNumber] ? PERIOD_LABELS_BY_NUMBER[periodNumber] : cleanRecordValue(value);
+}
+
+function periodNumberFromText(value) {
+  const match = cleanRecordValue(value).match(/^([1-7])\.\s*D[öoÖO]NEM/i);
+  return match ? Number(match[1]) : null;
+}
+
+function recordAliases(row) {
+  return unique([row.id, row.legacy_id, row.legacyId, liveStyleRecordId(row)].filter(Boolean).map(normalizeRecordId));
+}
+
+function liveStyleRecordId(row) {
+  const periodNumber = periodNumberFromText(row.period || row.source_sheet || row.sheet_name);
+  const sourceRow = Number(row.source_row || row._sourceRow || 0);
+  const prefix = KIND_ID_PREFIXES[row.item_kind] || cleanRecordValue(row.item_kind).slice(0, 3).toLocaleLowerCase("en-US");
+  if (!periodNumber || !sourceRow || !prefix) return "";
+  return `tvk-${padNumber(periodNumber, 2)}-${padNumber(sourceRow, 4)}-${prefix}`;
+}
+
+function padNumber(value, length) {
+  return String(value).padStart(length, "0");
+}
+
+function normalizeRecordId(value) {
+  try {
+    return decodeURIComponent(String(value || "").trim()).toLocaleLowerCase("en-US");
+  } catch {
+    return String(value || "").trim().toLocaleLowerCase("en-US");
+  }
+}
+
+function findRecordById(id) {
+  const normalizedId = normalizeRecordId(id);
+  if (!normalizedId) return null;
+  return allRecords.find((row) => (row._aliases || recordAliases(row)).includes(normalizedId)) || null;
+}
+
+function attachStaticAliases(records, staticRecords) {
+  if (!staticRecords.length) return records;
+  const liveIds = new Map(records.map((row) => [normalizeRecordId(row.id), row]));
+  const aliasesByRecord = new Map(records.map((row) => [row, [...(row._aliases || recordAliases(row))]]));
+  const uniqueLiveKeys = uniqueRecordKeyMap(records);
+  const uniqueStaticKeys = uniqueRecordKeyMap(staticRecords);
+
+  staticRecords.forEach((staticRecord) => {
+    const aliases = staticRecord._aliases || recordAliases(staticRecord);
+    const exactLiveRecord = liveIds.get(normalizeRecordId(liveStyleRecordId(staticRecord)));
+    const keyedLiveRecord = recordMatchingUniqueKey(staticRecord, uniqueLiveKeys, uniqueStaticKeys);
+    const target = exactLiveRecord || keyedLiveRecord;
+    if (!target) return;
+    aliasesByRecord.set(target, unique([...(aliasesByRecord.get(target) || []), ...aliases]));
+  });
+
+  return records.map((row) => ({ ...row, _aliases: aliasesByRecord.get(row) || row._aliases || recordAliases(row) }));
+}
+
+function uniqueRecordKeyMap(records) {
+  const counts = new Map();
+  records.forEach((row) => {
+    recordMatchKeys(row).forEach((key) => counts.set(key, (counts.get(key) || 0) + 1));
+  });
+  const matches = new Map();
+  records.forEach((row) => {
+    recordMatchKeys(row).forEach((key) => {
+      if (counts.get(key) === 1) matches.set(key, row);
+    });
+  });
+  return matches;
+}
+
+function recordMatchingUniqueKey(row, liveKeys, staticKeys) {
+  for (const key of recordMatchKeys(row)) {
+    if (staticKeys.get(key) === row && liveKeys.has(key)) return liveKeys.get(key);
+  }
+  return null;
+}
+
+function recordMatchKeys(row) {
+  const periodNumber = periodNumberFromText(row.period || row.source_sheet || row.sheet_name);
+  const sourceRow = Number(row.source_row || row._sourceRow || 0);
+  if (!periodNumber || !sourceRow) return [];
+  const keys = [`row:${periodNumber}:${sourceRow}`];
+  const titleKey = normalize(row.title || row.description || row.raw_text || "").slice(0, 120);
+  if (titleKey) keys.unshift(`title:${periodNumber}:${sourceRow}:${titleKey}`);
+  return keys;
+}
+
+function shouldWaitForLiveRecord(id) {
+  return Boolean(id && getLiveSource() && window.TVK_CHRONOLOGY_DATA_SOURCE !== "live" && !liveRefreshAttempted);
 }
 
 function appendCacheBust(url) {
@@ -444,10 +588,14 @@ function addFilterListeners(ids, handler) {
 function initItem() {
   const params = new URLSearchParams(window.location.search);
   const id = params.get("id");
-  const record = allRecords.find((row) => row.id === id);
+  const record = findRecordById(id);
   const target = document.getElementById("itemDetail");
   if (!target) return;
   if (!record) {
+    if (shouldWaitForLiveRecord(id)) {
+      target.innerHTML = `<div class="loading">${escapeHtml(contentText("item.loading_live", "Canlı veri kontrol ediliyor."))}</div>`;
+      return;
+    }
     target.innerHTML = `<div class="error">${escapeHtml(contentFormat("item.not_found", { id: id || "" }, `Bu kimlikle kayıt bulunamadı: ${id || ""}`))}</div>`;
     return;
   }
