@@ -27,8 +27,9 @@
       /* ── Visual year river ── */
       .tl-body { max-width:1220px; margin:0 auto; padding:32px 24px 64px; }
       .tl-filters { background:var(--paper-strong); border:1px solid var(--line); border-radius:var(--radius); padding:14px; margin-bottom:20px; display:grid; grid-template-columns:minmax(220px,1.8fr) repeat(4,minmax(100px,1fr)); gap:10px; align-items:end; }
-      .tl-filters label { display:grid; gap:5px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
-      .tl-filters input,.tl-filters select { border:1px solid var(--line); border-radius:6px; padding:8px 10px; background:white; color:var(--ink); min-height:38px; width:100%; }
+      .tl-filters label { display:grid; grid-template-rows:auto var(--ctrl-h); gap:6px; min-width:0; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+      .tl-filters input,.tl-filters select { box-sizing:border-box; display:block; border:1px solid var(--line); border-radius:6px; padding:0 12px; background:white; color:var(--ink); height:var(--ctrl-h); min-height:var(--ctrl-h); width:100%; font:inherit; font-weight:650; line-height:normal; }
+      .tl-filters select { padding-right:32px; }
       .tl-stat-bar { display:flex; gap:16px; align-items:center; margin-bottom:20px; flex-wrap:wrap; }
       .tl-stat { font-size:13px; color:var(--muted); }
       .tl-stat strong { color:var(--ink); }
