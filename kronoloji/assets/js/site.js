@@ -845,7 +845,7 @@ function renderKindChart(targetId, records) {
   const data = Object.entries(counts)
     .sort((a, b) => b[1] - a[1])
     .map(([key, value]) => ({ label: KIND_LABELS[key] || key, value, color: KIND_COLORS[key] || "#7b7169" }));
-  target.innerHTML = horizontalBarSvg(data, { height: 220 });
+  target.innerHTML = kindDonutSvg(data);
 }
 
 function renderCategoryChart(targetId, records) {
@@ -1075,7 +1075,15 @@ function stackedBarSvg(data, keys, options = {}) {
         })
         .join("");
       const labelY = chartBottom + 20;
-      const shouldShowLabel = index % labelEvery === 0 || index === data.length - 1;
+      const nextItem = data[index + 1];
+      const nextIsLast = index === data.length - 2;
+      const numericLabel = Number(item.label);
+      const numericNextLabel = Number(nextItem && nextItem.label);
+      const collidesWithLast = nextIsLast
+        && Number.isFinite(numericLabel)
+        && Number.isFinite(numericNextLabel)
+        && Math.abs(numericNextLabel - numericLabel) <= 1;
+      const shouldShowLabel = (index % labelEvery === 0 || index === data.length - 1) && !collidesWithLast;
       const label = shouldShowLabel
         ? `<text class="bar-label" x="${x + barWidth / 2}" y="${labelY}" text-anchor="middle">${escapeHtml(item.label)}</text>`
         : "";
@@ -1132,6 +1140,58 @@ function stackedHorizontalBarSvg(data, keys, options = {}) {
       ${rows}
     </div>
     ${legend(keys.map((key) => ({ label: labels[key] || key, color: colors[key] || "#7b7169" })))}
+  `;
+}
+
+function kindDonutSvg(data) {
+  if (!data.length) return `<div class="loading">Bu filtrelerle grafik verisi yok.</div>`;
+  const total = data.reduce((sum, item) => sum + Number(item.value || 0), 0);
+  const radius = 46;
+  const circumference = 2 * Math.PI * radius;
+  let offset = 0;
+  const segments = data
+    .map((item) => {
+      const value = Number(item.value || 0);
+      const length = total ? (value / total) * circumference : 0;
+      const segment = `
+        <circle class="kind-donut-segment"
+          cx="64" cy="64" r="${radius}"
+          stroke="${escapeAttr(item.color)}"
+          stroke-dasharray="${Math.max(0, length - 1.5)} ${circumference}"
+          stroke-dashoffset="${-offset}">
+          <title>${escapeHtml(item.label)}: ${value.toLocaleString("tr-TR")}</title>
+        </circle>`;
+      offset += length;
+      return segment;
+    })
+    .join("");
+  const rows = data
+    .map((item) => {
+      const value = Number(item.value || 0);
+      const percent = total ? Math.round((value / total) * 1000) / 10 : 0;
+      return `
+        <div class="kind-donut-row">
+          <span class="swatch" style="background:${escapeAttr(item.color)}"></span>
+          <span>${escapeHtml(item.label)}</span>
+          <strong>${value.toLocaleString("tr-TR")}</strong>
+          <small>%${String(percent).replace(".", ",")}</small>
+        </div>`;
+    })
+    .join("");
+  return `
+    <div class="kind-donut" role="img" aria-label="Kayıt türü dağılımı">
+      <div class="kind-donut-figure">
+        <svg class="kind-donut-svg" viewBox="0 0 128 128" aria-hidden="true">
+          <circle class="kind-donut-bg" cx="64" cy="64" r="${radius}"></circle>
+          <g transform="rotate(-90 64 64)">${segments}</g>
+        </svg>
+        <div class="kind-donut-center">
+          <strong>${total.toLocaleString("tr-TR")}</strong>
+          <span>kayıt</span>
+        </div>
+      </div>
+      <div class="kind-donut-list">${rows}</div>
+    </div>
   `;
 }
 
