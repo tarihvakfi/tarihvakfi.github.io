@@ -6,6 +6,7 @@ const KIND_LABELS = {
   event: "Etkinlik",
   publication: "Yayın",
   organizational: "Örgütsel iş",
+  project: "Proje",
   chronology: "Kronoloji",
   unknown: "Belirsiz",
 };
@@ -22,6 +23,7 @@ const KIND_COLORS = {
   event: "#4d6475",
   publication: "#8a2f2f",
   organizational: "#626b45",
+  project: "#6f5f8f",
   chronology: "#a26f26",
   unknown: "#7b7169",
 };
@@ -799,6 +801,7 @@ function renderYearChart(targetId, records) {
   if (!target) return;
   const years = unique(records.map((row) => row.year).filter(Boolean)).sort((a, b) => Number(a) - Number(b));
   const kinds = ["event", "publication", "organizational"];
+  const isHomeChart = targetId === "homeYearChart";
   const data = years.map((year) => {
     const rows = records.filter((row) => row.year === year);
     return {
@@ -806,7 +809,14 @@ function renderYearChart(targetId, records) {
       values: Object.fromEntries(kinds.map((kind) => [kind, rows.filter((row) => row.item_kind === kind).length])),
     };
   });
-  target.innerHTML = stackedBarSvg(data, kinds, { height: 300, rotateLabels: years.length > 18 });
+  target.innerHTML = stackedBarSvg(data, kinds, {
+    height: isHomeChart ? 260 : 300,
+    minWidth: isHomeChart ? 960 : 760,
+    labelEvery: years.length > 18 ? 5 : 1,
+    showValues: !isHomeChart,
+    rotateLabels: false,
+    ariaLabel: "Yıllara göre kayıt sayısı grafiği",
+  });
 }
 
 function renderPeriodChart(targetId, records) {
@@ -816,11 +826,16 @@ function renderPeriodChart(targetId, records) {
   const data = periods.map((period) => {
     const rows = records.filter((row) => row.period === period);
     return {
-      label: period.replace(" DÖNEM", ""),
+      label: shortPeriodLabel(period),
+      detail: periodRangeLabel(period),
       values: Object.fromEntries(ACTIVITY_GROUPS.map((group) => [group, rows.filter((row) => row.activity_group === group).length])),
     };
   });
-  target.innerHTML = stackedBarSvg(data, ACTIVITY_GROUPS, { height: 310, labels: ACTIVITY_GROUP_LABELS, colors: ACTIVITY_GROUP_COLORS });
+  target.innerHTML = stackedHorizontalBarSvg(data, ACTIVITY_GROUPS, {
+    labels: ACTIVITY_GROUP_LABELS,
+    colors: ACTIVITY_GROUP_COLORS,
+    ariaLabel: "Dönemlere göre faaliyet alanları grafiği",
+  });
 }
 
 function renderKindChart(targetId, records) {
@@ -857,6 +872,16 @@ function renderQualityChart(targetId, records) {
     .sort((a, b) => b[1] - a[1])
     .map(([key, value]) => ({ label: STATUS_LABELS[key] || key, value, color: STATUS_COLORS[key] || "#7b7169" }));
   target.innerHTML = horizontalBarSvg(data, { height: 230 });
+}
+
+function shortPeriodLabel(period) {
+  const match = String(period || "").match(/^(\d+)\.\s*Dönem/i);
+  return match ? `${match[1]}. Dönem` : String(period || "Dönem");
+}
+
+function periodRangeLabel(period) {
+  const match = String(period || "").match(/\(([^)]+)\)/);
+  return match ? match[1] : "";
 }
 
 function activityChartLabel(row) {
@@ -1015,15 +1040,27 @@ function stackedBarSvg(data, keys, options = {}) {
   const height = options.height || 280;
   const labels = options.labels || KIND_LABELS;
   const colors = options.colors || KIND_COLORS;
-  const width = Math.max(760, data.length * 34 + 90);
-  const chartTop = 22;
-  const chartBottom = height - 58;
-  const chartLeft = 50;
+  const width = Math.max(options.minWidth || 760, data.length * (options.stepWidth || 30) + 92);
+  const chartTop = 24;
+  const chartBottom = height - 46;
+  const chartLeft = 56;
   const chartRight = width - 18;
   const chartHeight = chartBottom - chartTop;
-  const gap = 8;
+  const gap = options.gap == null ? 7 : options.gap;
   const barWidth = Math.max(9, (chartRight - chartLeft) / data.length - gap);
   const max = Math.max(...data.map((item) => keys.reduce((sum, key) => sum + (item.values[key] || 0), 0)), 1);
+  const labelEvery = Math.max(1, Number(options.labelEvery || 1));
+  const tickFractions = [0, 0.25, 0.5, 0.75, 1];
+  const ticks = tickFractions
+    .map((fraction) => {
+      const y = chartBottom - fraction * chartHeight;
+      const value = Math.round(max * fraction);
+      return `
+        <line x1="${chartLeft}" y1="${y}" x2="${chartRight}" y2="${y}" stroke="#eadfce" stroke-width="1" />
+        <text class="axis-tick" x="${chartLeft - 9}" y="${y + 4}" text-anchor="end">${value}</text>
+      `;
+    })
+    .join("");
   const bars = data
     .map((item, index) => {
       let y = chartBottom;
@@ -1037,19 +1074,62 @@ function stackedBarSvg(data, keys, options = {}) {
           return `<rect x="${x}" y="${y}" width="${barWidth}" height="${h}" fill="${colors[key] || "#7b7169"}"><title>${escapeHtml(item.label)} ${escapeHtml(labels[key] || key)}: ${value}</title></rect>`;
         })
         .join("");
-      const labelY = chartBottom + 18;
-      const label = options.rotateLabels
-        ? `<text class="bar-label" x="${x + barWidth / 2}" y="${labelY}" transform="rotate(45 ${x + barWidth / 2} ${labelY})">${escapeHtml(item.label)}</text>`
-        : `<text class="bar-label" x="${x + barWidth / 2}" y="${labelY}" text-anchor="middle">${escapeHtml(item.label)}</text>`;
-      return `${parts}<text class="bar-value" x="${x + barWidth / 2}" y="${Math.max(chartTop + 12, y - 5)}" text-anchor="middle">${total}</text>${label}`;
+      const labelY = chartBottom + 20;
+      const shouldShowLabel = index % labelEvery === 0 || index === data.length - 1;
+      const label = shouldShowLabel
+        ? `<text class="bar-label" x="${x + barWidth / 2}" y="${labelY}" text-anchor="middle">${escapeHtml(item.label)}</text>`
+        : "";
+      const value = options.showValues === false
+        ? ""
+        : `<text class="bar-value" x="${x + barWidth / 2}" y="${Math.max(chartTop + 12, y - 5)}" text-anchor="middle">${total}</text>`;
+      return `${parts}${value}${label}`;
     })
     .join("");
   return `
     <div style="overflow-x:auto">
-      <svg class="chart" style="min-width:${width}px" viewBox="0 0 ${width} ${height}" role="img" aria-label="Kayıt sayısı grafiği">
+      <svg class="chart" style="min-width:${width}px" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeAttr(options.ariaLabel || "Kayıt sayısı grafiği")}">
+        ${ticks}
         <line x1="${chartLeft}" y1="${chartBottom}" x2="${chartRight}" y2="${chartBottom}" stroke="#ded4c7" />
+        <line x1="${chartLeft}" y1="${chartTop}" x2="${chartLeft}" y2="${chartBottom}" stroke="#ded4c7" />
         ${bars}
       </svg>
+    </div>
+    ${legend(keys.map((key) => ({ label: labels[key] || key, color: colors[key] || "#7b7169" })))}
+  `;
+}
+
+function stackedHorizontalBarSvg(data, keys, options = {}) {
+  if (!data.length) return `<div class="loading">Bu filtrelerle grafik verisi yok.</div>`;
+  const labels = options.labels || KIND_LABELS;
+  const colors = options.colors || KIND_COLORS;
+  const totals = data.map((item) => keys.reduce((sum, key) => sum + (item.values[key] || 0), 0));
+  const max = Math.max(...totals, 1);
+  const rows = data
+    .map((item, index) => {
+      const total = totals[index];
+      const scaledWidth = Math.max(3, (total / max) * 100);
+      const segments = keys
+        .filter((key) => item.values[key])
+        .map((key) => {
+          const value = item.values[key] || 0;
+          const percent = total ? (value / total) * 100 : 0;
+          return `<span class="stacked-segment" style="width:${percent}%;background:${escapeAttr(colors[key] || "#7b7169")}" title="${escapeAttr(`${item.label} ${labels[key] || key}: ${value}`)}"></span>`;
+        })
+        .join("");
+      return `
+        <div class="stacked-row">
+          <span class="stacked-label"><strong>${escapeHtml(item.label)}</strong>${item.detail ? `<small>${escapeHtml(item.detail)}</small>` : ""}</span>
+          <span class="stacked-track">
+            <span class="stacked-scale" style="width:${scaledWidth}%">${segments}</span>
+          </span>
+          <strong class="stacked-value">${total.toLocaleString("tr-TR")}</strong>
+        </div>
+      `;
+    })
+    .join("");
+  return `
+    <div class="stacked-list" role="img" aria-label="${escapeAttr(options.ariaLabel || "Katmanlı yatay çubuk grafik")}">
+      ${rows}
     </div>
     ${legend(keys.map((key) => ({ label: labels[key] || key, color: colors[key] || "#7b7169" })))}
   `;

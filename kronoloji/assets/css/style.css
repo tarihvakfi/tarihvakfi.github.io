@@ -216,6 +216,59 @@ h3 { margin: 0 0 8px; font-size: 20px; }
 .chart { width: 100%; min-height: 220px; }
 .bar-label { fill: var(--muted); font-size: 13px; font-weight: 650; }
 .bar-value { fill: var(--ink); font-size: 14px; font-weight: 850; }
+.axis-tick { fill: var(--muted); font-size: 11px; font-weight: 700; }
+
+.stacked-list {
+  display: grid;
+  gap: 12px;
+  padding: 4px 0;
+}
+.stacked-row {
+  display: grid;
+  grid-template-columns: minmax(92px, 132px) minmax(160px, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+.stacked-label {
+  display: grid;
+  gap: 2px;
+  color: var(--ink);
+  line-height: 1.15;
+}
+.stacked-label strong {
+  font-size: 13px;
+  font-weight: 850;
+}
+.stacked-label small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.stacked-track {
+  display: block;
+  height: 26px;
+  border-radius: 5px;
+  background: #efe4d5;
+  overflow: hidden;
+}
+.stacked-scale {
+  display: flex;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.stacked-segment {
+  display: block;
+  height: 100%;
+}
+.stacked-value {
+  min-width: 42px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 850;
+  text-align: right;
+}
 
 .bar-list { display: grid; gap: 12px; padding: 4px 0; }
 .bar-row {
@@ -409,6 +462,64 @@ td { font-size: 14px; }
 .detail-list div { display: grid; gap: 3px; border-bottom: 1px solid var(--line); padding-bottom: 9px; }
 .detail-list dt { color: var(--muted); font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .detail-list dd { margin: 0; }
+.form-template {
+  display: grid;
+  grid-template-columns: minmax(0, .7fr) minmax(0, 1.3fr);
+  gap: 14px;
+  margin: 14px 0;
+}
+.form-template > div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255,250,242,.74);
+  padding: 14px;
+}
+.form-template h3,
+.form-fields strong {
+  margin: 0;
+  color: var(--accent-dark);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+.form-template p {
+  margin: 6px 0 0;
+  color: var(--ink);
+}
+.form-fields {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: form-fields;
+}
+.form-fields li {
+  counter-increment: form-fields;
+  display: grid;
+  grid-template-columns: 28px minmax(120px, .45fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.form-fields li::before {
+  content: counter(form-fields);
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  font-size: 12px;
+  font-weight: 850;
+}
+.form-fields span {
+  color: var(--muted);
+  line-height: 1.45;
+}
 .copy-status { min-height: 22px; color: var(--olive); font-size: 13px; }
 .note { border-left: 4px solid var(--accent); background: var(--paper-strong); padding: 14px 16px; }
 
@@ -611,6 +722,23 @@ td { font-size: 14px; }
 /* ── Horizontal bar chart — label column responsive ──────────── */
 /* On narrow screens the 285px label column is too wide */
 @media (max-width: 680px) {
+  .form-template,
+  .form-fields li {
+    grid-template-columns: 1fr;
+  }
+  .form-fields li::before {
+    margin-bottom: 2px;
+  }
+  .stacked-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 6px;
+  }
+  .stacked-label {
+    grid-column: 1 / -1;
+  }
+  .stacked-track {
+    height: 22px;
+  }
   .bar-row {
     grid-template-columns: minmax(0,1fr) auto;
     row-gap: 4px;
