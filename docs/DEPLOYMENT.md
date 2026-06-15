@@ -8,7 +8,7 @@ Workflow:
 
 1. Repo’yu checkout eder.
 2. Apps Script endpoint’inden `?public=1&period=rolling_7_days` payload’ını çeker.
-3. Payload `rolling_7_days` dönemi içeriyorsa `js/snapshot.js` dosyasını üretir; endpoint hâlâ eski takvim haftası döndürüyorsa checked-in snapshot korunur.
+3. Payload `rolling_7_days` dönemi içeriyorsa `js/snapshot.js` dosyasını üretir. Endpoint hâlâ eski takvim haftası döndürüyorsa workflow public `byDay` ve `latestActivity` verisinden geçici rolling snapshot üretir; tam ve kalıcı sonuç için Apps Script yeniden deploy edilmelidir.
 4. `.nojekyll` ekler.
 5. Statik siteyi GitHub Pages artifact’i olarak yükler.
 
@@ -32,6 +32,13 @@ python tools/validate_public_summary.py --snapshot
 ```
 
 GitHub Actions canlı Apps Script endpoint’inden snapshot üretir. Endpoint geçici olarak başarısız olursa checked-in snapshot korunur.
+
+Endpoint eski Apps Script deployment’ı yüzünden `calendar_week_to_date` döndürürse yerelde aynı yenilemeyi test etmek için:
+
+```bash
+node tools/refresh_public_snapshot.mjs
+python tools/validate_public_summary.py --snapshot
+```
 
 ## Local Testing
 
