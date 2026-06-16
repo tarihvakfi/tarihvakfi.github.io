@@ -14,6 +14,8 @@
 
 const SOURCE_SPREADSHEET_ID = "1_UxaP20_KQjjhBhOKY-UBX2DdnkMMelAQh7dIPcCUFs";
 const SITE_CONTENT_SHEET_NAME = "Site Metinleri";
+const CORRECTION_SHEET_NAME = "Düzeltme Önerileri";
+const CORRECTION_NOTIFICATION_EMAILS = "info@tarihvakfi.org.tr,arif.solmaz@gmail.com";
 
 const ITEM_COLUMNS = {
   organizational: { text: 1, category: 3, count: 4 },
@@ -123,6 +125,141 @@ function doGet(event) {
       ok: false,
       error: String(error && error.message ? error.message : error),
     });
+  }
+}
+
+function doPost(event) {
+  try {
+    const parameters = event && event.parameter ? event.parameter : {};
+    if (parameters.form_type !== "chronology_correction") {
+      return jsonResponse({
+        ok: false,
+        error: "Unsupported form type.",
+      });
+    }
+    const submission = normalizeCorrectionSubmission(event);
+    const result = appendCorrectionSubmission(submission);
+    notifyCorrectionSubmission(submission);
+    return jsonResponse({
+      ok: true,
+      row: result.row,
+      receivedAt: submission.received_at,
+    });
+  } catch (error) {
+    return jsonResponse({
+      ok: false,
+      error: String(error && error.message ? error.message : error),
+    });
+  }
+}
+
+function normalizeCorrectionSubmission(event) {
+  const parameters = event && event.parameter ? event.parameter : {};
+  const parameterLists = event && event.parameters ? event.parameters : {};
+  return {
+    received_at: new Date().toISOString(),
+    record_id: cleanText(parameters.record_id),
+    record_title: cleanText(parameters.record_title),
+    topics: fieldList(parameterLists, parameters, "topics").join(", "),
+    current_value: cleanText(parameters.current_value),
+    proposed_correction: cleanText(parameters.proposed_correction),
+    evidence: cleanText(parameters.evidence),
+    source_link: cleanText(parameters.source_link),
+    name: cleanText(parameters.name),
+    email: cleanText(parameters.email),
+    note: cleanText(parameters.note),
+    consent: cleanText(parameters.consent),
+    page_url: cleanText(parameters.page_url),
+  };
+}
+
+function fieldList(parameterLists, parameters, key) {
+  const values = parameterLists && parameterLists[key] ? parameterLists[key] : [parameters[key]];
+  return values.map(cleanText).filter(Boolean);
+}
+
+function appendCorrectionSubmission(submission) {
+  if (!SOURCE_SPREADSHEET_ID || SOURCE_SPREADSHEET_ID.indexOf("PASTE_") === 0) {
+    throw new Error("Set SOURCE_SPREADSHEET_ID before accepting correction submissions.");
+  }
+  const spreadsheet = SpreadsheetApp.openById(SOURCE_SPREADSHEET_ID);
+  const sheet = ensureCorrectionSheet(spreadsheet);
+  sheet.appendRow([
+    submission.received_at,
+    submission.record_id,
+    submission.record_title,
+    submission.topics,
+    submission.current_value,
+    submission.proposed_correction,
+    submission.evidence,
+    submission.source_link,
+    submission.name,
+    submission.email,
+    submission.note,
+    submission.consent,
+    submission.page_url,
+  ]);
+  return { row: sheet.getLastRow() };
+}
+
+function ensureCorrectionSheet(spreadsheet) {
+  let sheet = spreadsheet.getSheetByName(CORRECTION_SHEET_NAME);
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet(CORRECTION_SHEET_NAME);
+  }
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow([
+      "Alınma zamanı",
+      "Kayıt ID",
+      "Kayıt başlığı",
+      "Düzeltme konusu",
+      "Mevcut bilgi",
+      "Önerilen düzeltme",
+      "Kaynak / kanıt",
+      "Kaynak bağlantısı veya künyesi",
+      "Ad soyad",
+      "E-posta",
+      "Not",
+      "İzin",
+      "Sayfa URL",
+    ]);
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function notifyCorrectionSubmission(submission) {
+  try {
+    MailApp.sendEmail({
+      to: CORRECTION_NOTIFICATION_EMAILS,
+      subject: `Kronoloji düzeltme önerisi: ${submission.record_id || "kayıt ID yok"}`,
+      body: [
+        `Kayıt ID: ${submission.record_id}`,
+        `Kayıt başlığı: ${submission.record_title}`,
+        `Düzeltme konusu: ${submission.topics}`,
+        "",
+        "Mevcut bilgi:",
+        submission.current_value,
+        "",
+        "Önerilen düzeltme:",
+        submission.proposed_correction,
+        "",
+        "Kaynak / kanıt:",
+        submission.evidence,
+        "",
+        `Kaynak bağlantısı veya künyesi: ${submission.source_link}`,
+        `Ad soyad: ${submission.name}`,
+        `E-posta: ${submission.email}`,
+        "",
+        "Not:",
+        submission.note,
+        "",
+        `Sayfa URL: ${submission.page_url}`,
+        `Alınma zamanı: ${submission.received_at}`,
+      ].join("\n"),
+    });
+  } catch (error) {
+    console.warn("Correction notification email failed", error);
   }
 }
 

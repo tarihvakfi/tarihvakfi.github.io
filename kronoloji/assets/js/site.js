@@ -158,6 +158,7 @@ async function boot() {
   if (currentPage === "item") initItem();
   if (currentPage === "methodology") initMethodology();
   if (currentPage === "data") initDataPage();
+  if (currentPage === "contribute") initContribute();
   refreshLiveDataInBackground();
 }
 
@@ -287,6 +288,7 @@ function refreshCurrentPage() {
   if (currentPage === "item") initItem();
   if (currentPage === "methodology") renderMetrics("methodMetrics", allRecords);
   if (currentPage === "data") renderMetrics("dataMetrics", allRecords);
+  if (currentPage === "contribute") initContribute();
 }
 
 function extractRows(payload) {
@@ -631,7 +633,7 @@ function initItem() {
         </dl>
         <button class="button" type="button" data-copy="${escapeAttr(citation)}">${escapeHtml(contentText("record.copy_citation", "Atıfı kopyala"))}</button>
         <p class="copy-status" id="copyStatus"></p>
-        <p><a href="contribute.html">${escapeHtml(contentText("item.suggest_correction", "Bu kayıt için düzeltme öner"))}</a></p>
+        <p><a href="${escapeAttr(correctionUrl(record))}">${escapeHtml(contentText("item.suggest_correction", "Bu kayıt için düzeltme öner"))}</a></p>
       </aside>
     </section>
   `;
@@ -644,6 +646,135 @@ function initMethodology() {
 
 function initDataPage() {
   renderMetrics("dataMetrics", allRecords);
+}
+
+function initContribute() {
+  const form = document.getElementById("correctionForm");
+  if (!form) return;
+
+  const endpoint = correctionEndpointUrl();
+  form.action = endpoint || "";
+  setText("correctionEndpointStatus", endpoint ? "Form gönderimi açık" : "E-posta yedeği açık");
+  hydrateCorrectionForm();
+  updateCorrectionMailFallback();
+
+  if (form.dataset.ready === "1") return;
+  form.dataset.ready = "1";
+  form.addEventListener("input", updateCorrectionMailFallback);
+  form.addEventListener("change", updateCorrectionMailFallback);
+  form.addEventListener("reset", () => {
+    window.setTimeout(() => {
+      hydrateCorrectionForm(true);
+      updateCorrectionMailFallback();
+      setText("correctionStatus", "");
+    });
+  });
+  form.addEventListener("submit", handleCorrectionSubmit);
+}
+
+function hydrateCorrectionForm(force = false) {
+  const params = new URLSearchParams(window.location.search);
+  const requestedId = params.get("id") || params.get("record_id") || params.get("record") || "";
+  const record = findRecordById(requestedId);
+  const title = record?.title || params.get("title") || "";
+  const currentValue = record
+    ? [
+        record.date_display || record.year || "",
+        record.title || "",
+        record.category ? `Kategori: ${record.category}` : "",
+        record.period || "",
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : "";
+
+  setFormValue("correctionRecordId", record?.id || requestedId, force);
+  setFormValue("correctionCurrentValue", currentValue, force);
+  setFormValue("correctionRecordTitle", title, true);
+  setFormValue("correctionPageUrl", window.location.href, true);
+}
+
+function setFormValue(id, value, force = false) {
+  const field = document.getElementById(id);
+  if (!field || value === undefined || value === null || value === "") return;
+  if (force || !field.value || field.dataset.autofilled === "1") {
+    field.value = value;
+    field.dataset.autofilled = "1";
+  }
+}
+
+function handleCorrectionSubmit(event) {
+  const form = event.currentTarget;
+  if (!form.querySelector('input[name="topics"]:checked')) {
+    event.preventDefault();
+    setText("correctionStatus", "Lütfen en az bir düzeltme konusu seçin.");
+    return;
+  }
+
+  hydrateCorrectionForm();
+  updateCorrectionMailFallback();
+
+  if (!correctionEndpointUrl()) {
+    event.preventDefault();
+    window.location.href = buildCorrectionMailto();
+    setText("correctionStatus", "Form endpoint'i tanımlı değil; e-posta taslağı açıldı.");
+    return;
+  }
+
+  setText("correctionStatus", "Öneri gönderiliyor...");
+  window.setTimeout(() => {
+    setText("correctionStatus", "Öneri gönderildi. Yanıtlar Düzeltme Önerileri sekmesine işlenir; sorun olursa e-posta yedeğini kullanabilirsiniz.");
+  }, 900);
+}
+
+function correctionEndpointUrl() {
+  const config = window.TVK_CHRONOLOGY_CONFIG || {};
+  return cleanRecordValue(config.correctionFormUrl || config.correctionSubmitUrl || config.liveDataUrl || "");
+}
+
+function updateCorrectionMailFallback() {
+  const link = document.getElementById("correctionMailFallback");
+  if (link) link.href = buildCorrectionMailto();
+}
+
+function buildCorrectionMailto() {
+  const subject = "Tarih Vakfı Dijital Kronoloji Düzeltme Önerisi";
+  const topics = [...document.querySelectorAll('input[name="topics"]:checked')].map((item) => item.value).join(", ");
+  const lines = [
+    `Kayıt ID: ${formValue("correctionRecordId")}`,
+    `Kayıt başlığı: ${formValue("correctionRecordTitle")}`,
+    `Düzeltme konusu: ${topics}`,
+    "",
+    "Mevcut bilgi:",
+    formValue("correctionCurrentValue"),
+    "",
+    "Önerilen düzeltme:",
+    formValue("correctionProposed"),
+    "",
+    "Kaynak / kanıt:",
+    formValue("correctionEvidence"),
+    "",
+    `Kaynak bağlantısı veya künyesi: ${formValue("correctionSourceLink")}`,
+    `Ad soyad: ${formValue("correctionName")}`,
+    `E-posta: ${formValue("correctionEmail")}`,
+    "",
+    "Not:",
+    formValue("correctionNote"),
+    "",
+    `Sayfa: ${formValue("correctionPageUrl") || window.location.href}`,
+  ];
+  return `mailto:info@tarihvakfi.org.tr,arif.solmaz@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join("\n"))}`;
+}
+
+function formValue(id) {
+  return document.getElementById(id)?.value?.trim() || "";
+}
+
+function correctionUrl(row) {
+  const url = new URL("contribute.html", window.location.href);
+  if (row?.id) url.searchParams.set("id", row.id);
+  if (row?.title) url.searchParams.set("title", row.title);
+  return url.href;
 }
 
 function renderOverviewText() {

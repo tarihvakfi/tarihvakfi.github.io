@@ -30,44 +30,97 @@
       </section>
 
       <section class="section grid-2">
-        <article class="detail-box">
+        <article class="detail-box contribute-intro">
           <h2 data-content="contribute.form.title">Öneri Formu</h2>
-          <p data-content="contribute.form.text">Google Form için önerilen başlık, açıklama ve alanlar aşağıda hazırlandı. Form bağlantısı kesinleştiğinde bu düğme gerçek bağlantıyla değiştirilebilir.</p>
-          <a class="button" href="https://forms.gle/REPLACE_WITH_FORM_ID" data-content="contribute.form.link">Form bağlantısı bekleniyor</a>
+          <p data-content="contribute.form.text">Form doğrudan bu sayfadan gönderilir. Tekil kayıt sayfasından gelirseniz kayıt ID'si ve başlık otomatik doldurulur.</p>
+          <p class="mini-note" data-content="contribute.form.note">Gönderimler kronoloji çalışma dosyasında “Düzeltme Önerileri” sekmesine düşer.</p>
         </article>
         <article class="detail-box">
           <h2 data-content="contribute.email.title">E-posta ile Bildir</h2>
-          <p data-content="contribute.email.text">Öneride şu bilgiler bulunmalıdır: kayıt ID, önerilen düzeltme, kaynak/kanıt, ad ve e-posta isteğe bağlı. Bildirimler info@tarihvakfi.org.tr ve arif.solmaz@gmail.com adreslerine gider.</p>
-          <a class="button secondary" href="mailto:info@tarihvakfi.org.tr,arif.solmaz@gmail.com?subject=Tarih%20Vakf%C4%B1%20Dijital%20Kronoloji%20D%C3%BCzeltme%20%C3%96nerisi&body=Kay%C4%B1t%20ID%3A%0D%0A%C3%96nerilen%20d%C3%BCzeltme%3A%0D%0AKaynak%20%2F%20kan%C4%B1t%3A%0D%0AAd%20soyad%20%28iste%C4%9Fe%20ba%C4%9Fl%C4%B1%29%3A%0D%0AE-posta%20%28iste%C4%9Fe%20ba%C4%9Fl%C4%B1%29%3A" data-content="contribute.email.link">E-posta gönder</a>
+          <p data-content="contribute.email.text">Form gönderimi çalışmazsa aynı bilgileri e-posta taslağı olarak da iletebilirsiniz. Bildirimler info@tarihvakfi.org.tr ve arif.solmaz@gmail.com adreslerine gider.</p>
+          <a class="button secondary" id="correctionMailFallback" href="mailto:info@tarihvakfi.org.tr,arif.solmaz@gmail.com?subject=Tarih%20Vakf%C4%B1%20Dijital%20Kronoloji%20D%C3%BCzeltme%20%C3%96nerisi" data-content="contribute.email.link">E-posta taslağı aç</a>
         </article>
       </section>
 
       <section class="section">
-        <article class="detail-box">
-          <h2 data-content="contribute.form_template.title">Google Form İçeriği</h2>
-          <p data-content="contribute.form_template.text">Aşağıdaki metin ve alanlar yeni Google Form'a doğrudan aktarılabilir.</p>
-          <div class="form-template">
+        <form class="detail-box correction-form" id="correctionForm" method="post" target="correctionSubmitFrame" aria-describedby="correctionStatus">
+          <input type="hidden" name="form_type" value="chronology_correction">
+          <input type="hidden" name="page_url" id="correctionPageUrl">
+          <input type="hidden" name="record_title" id="correctionRecordTitle">
+
+          <div class="form-head">
             <div>
-              <h3 data-content="contribute.form_template.form_title_label">Form başlığı</h3>
-              <p data-content="contribute.form_template.form_title">Tarih Vakfı Dijital Kronolojisi Düzeltme Önerisi</p>
+              <h2 data-content="contribute.embedded_form.title">Tarih Vakfı Dijital Kronolojisi Düzeltme Önerisi</h2>
+              <p data-content="contribute.embedded_form.text">Lütfen mümkünse kayıt ID'sini ve öneriyi destekleyen kaynak/kanıtı ekleyin.</p>
             </div>
-            <div>
-              <h3 data-content="contribute.form_template.description_label">Form açıklaması</h3>
-              <p data-content="contribute.form_template.description">Bu form, Tarih Vakfı Dijital Kronolojisi'ndeki tarih, başlık, kategori, açıklama veya kaynak bilgisi için düzeltme önerilerini toplar. Lütfen mümkünse kayıt ID'sini ve öneriyi destekleyen kaynak/kanıtı ekleyin.</p>
-            </div>
+            <span class="form-endpoint-status" id="correctionEndpointStatus">Gönderim hazırlanıyor</span>
           </div>
-          <ol class="form-fields">
-            <li><strong>Kayıt ID</strong><span>Kısa yanıt · zorunlu. Örnek: tvk-1993-0007.</span></li>
-            <li><strong>Düzeltme konusu</strong><span>Çoktan seçmeli / onay kutuları · zorunlu: Tarih, başlık, açıklama, kategori/tür, faaliyet kodu, kaynak, başka.</span></li>
-            <li><strong>Önerilen düzeltme</strong><span>Paragraf · zorunlu. Mevcut bilgi yerine nasıl görünmesini öneriyorsunuz?</span></li>
-            <li><strong>Kaynak / kanıt</strong><span>Paragraf · zorunlu. Kitap, dergi, arşiv belgesi, web bağlantısı veya tanıklık bilgisi.</span></li>
-            <li><strong>Kaynak bağlantısı veya künyesi</strong><span>Kısa yanıt · isteğe bağlı.</span></li>
-            <li><strong>Ad soyad</strong><span>Kısa yanıt · isteğe bağlı.</span></li>
-            <li><strong>E-posta</strong><span>Kısa yanıt · isteğe bağlı; yalnızca takip için kullanılır.</span></li>
-            <li><strong>Not</strong><span>Paragraf · isteğe bağlı.</span></li>
-            <li><strong>İzin</strong><span>Onay kutusu · zorunlu: İletişim bilgilerimin yalnızca bu düzeltme önerisini takip etmek için kullanılmasını kabul ediyorum.</span></li>
-          </ol>
-        </article>
+
+          <div class="correction-grid">
+            <label>
+              <span>Kayıt ID</span>
+              <input id="correctionRecordId" name="record_id" type="text" required placeholder="Örn. TV00021 veya tvk-01-0024-eve" autocomplete="off">
+            </label>
+
+            <label>
+              <span>E-posta</span>
+              <input id="correctionEmail" name="email" type="email" placeholder="Takip için isteğe bağlı" autocomplete="email">
+            </label>
+
+            <fieldset class="field-full correction-topics">
+              <legend>Düzeltme konusu</legend>
+              <label><input type="checkbox" name="topics" value="Tarih"> Tarih</label>
+              <label><input type="checkbox" name="topics" value="Başlık"> Başlık</label>
+              <label><input type="checkbox" name="topics" value="Açıklama"> Açıklama</label>
+              <label><input type="checkbox" name="topics" value="Kategori / tür"> Kategori / tür</label>
+              <label><input type="checkbox" name="topics" value="Faaliyet kodu"> Faaliyet kodu</label>
+              <label><input type="checkbox" name="topics" value="Kaynak"> Kaynak</label>
+              <label><input type="checkbox" name="topics" value="Başka"> Başka</label>
+            </fieldset>
+
+            <label class="field-full">
+              <span>Mevcut bilgi</span>
+              <textarea id="correctionCurrentValue" name="current_value" rows="3" placeholder="Hangi mevcut bilgi düzeltilmeli?"></textarea>
+            </label>
+
+            <label class="field-full">
+              <span>Önerilen düzeltme</span>
+              <textarea id="correctionProposed" name="proposed_correction" rows="5" required placeholder="Bilginin nasıl görünmesini öneriyorsunuz?"></textarea>
+            </label>
+
+            <label class="field-full">
+              <span>Kaynak / kanıt</span>
+              <textarea id="correctionEvidence" name="evidence" rows="4" required placeholder="Kitap, dergi, arşiv belgesi, web bağlantısı veya tanıklık bilgisi"></textarea>
+            </label>
+
+            <label>
+              <span>Kaynak bağlantısı veya künyesi</span>
+              <input id="correctionSourceLink" name="source_link" type="text" placeholder="İsteğe bağlı">
+            </label>
+
+            <label>
+              <span>Ad soyad</span>
+              <input id="correctionName" name="name" type="text" placeholder="İsteğe bağlı" autocomplete="name">
+            </label>
+
+            <label class="field-full">
+              <span>Not</span>
+              <textarea id="correctionNote" name="note" rows="3" placeholder="Ek açıklama, bağlam veya takip notu"></textarea>
+            </label>
+          </div>
+
+          <label class="consent-row">
+            <input id="correctionConsent" name="consent" type="checkbox" value="accepted" required>
+            <span>İletişim bilgilerimin yalnızca bu düzeltme önerisini takip etmek için kullanılmasını kabul ediyorum.</span>
+          </label>
+
+          <div class="form-actions">
+            <button class="button" type="submit" data-content="contribute.embedded_form.submit">Öneriyi gönder</button>
+            <button class="button secondary" type="reset" data-content="contribute.embedded_form.reset">Temizle</button>
+          </div>
+          <p class="copy-status" id="correctionStatus" role="status" aria-live="polite"></p>
+        </form>
+        <iframe class="hidden-submit-frame" name="correctionSubmitFrame" title="Düzeltme önerisi gönderim sonucu"></iframe>
       </section>
 
       <section class="section">

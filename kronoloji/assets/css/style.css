@@ -603,6 +603,143 @@ td { font-size: 14px; }
   color: var(--muted);
   line-height: 1.45;
 }
+.contribute-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mini-note {
+  margin: auto 0 0;
+  color: var(--olive);
+  font-size: 13px;
+  font-weight: 700;
+}
+.correction-form {
+  display: grid;
+  gap: 18px;
+}
+.form-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 14px;
+}
+.form-head h2,
+.form-head p {
+  margin: 0;
+}
+.form-head p {
+  margin-top: 6px;
+  color: var(--muted);
+}
+.form-endpoint-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+.correction-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.correction-form label,
+.correction-form fieldset {
+  min-width: 0;
+}
+.correction-form label {
+  display: grid;
+  gap: 6px;
+}
+.correction-form label > span,
+.correction-form legend {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+.correction-form input[type="text"],
+.correction-form input[type="email"],
+.correction-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  padding: 11px 12px;
+}
+.correction-form textarea {
+  resize: vertical;
+  min-height: 96px;
+}
+.field-full {
+  grid-column: 1 / -1;
+}
+.correction-topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: rgba(255,250,242,.74);
+}
+.correction-topics legend {
+  padding: 0 6px;
+}
+.correction-topics label,
+.consent-row {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 14px;
+}
+.correction-topics label {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  padding: 7px 10px;
+}
+.correction-topics input,
+.consent-row input {
+  margin-top: 2px;
+  accent-color: var(--accent);
+}
+.consent-row {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+.consent-row span {
+  color: var(--muted);
+  line-height: 1.5;
+}
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.hidden-submit-frame {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  overflow: hidden;
+}
 .copy-status { min-height: 22px; color: var(--olive); font-size: 13px; }
 .note { border-left: 4px solid var(--accent); background: var(--paper-strong); padding: 14px 16px; }
 
@@ -806,8 +943,15 @@ td { font-size: 14px; }
 /* On narrow screens the 285px label column is too wide */
 @media (max-width: 680px) {
   .form-template,
-  .form-fields li {
+  .form-fields li,
+  .correction-grid {
     grid-template-columns: 1fr;
+  }
+  .form-head {
+    flex-direction: column;
+  }
+  .form-endpoint-status {
+    white-space: normal;
   }
   .form-fields li::before {
     margin-bottom: 2px;
