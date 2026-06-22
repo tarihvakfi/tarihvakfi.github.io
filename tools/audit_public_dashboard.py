@@ -33,6 +33,30 @@ HIDDEN = "İsmini gizlemeyi tercih eden gönüllü"
 PUBLIC_ROLE_BY_NAME = {
     "gulistan eren": "Gönüllü Koordinatörü",
 }
+TRACK_ORDER = [
+    "tarama",
+    "envanter",
+    "kurumsal_bellek",
+    "proje_basvuru",
+    "osmanlica",
+    "egitim",
+    "koordinasyon",
+    "ars_web",
+    "kodlama_kontrol",
+    "diger",
+]
+TRACK_LABELS = {
+    "tarama": "Tarama (belge & kartpostal)",
+    "envanter": "Envanter (afiş, görsel-işitsel)",
+    "kurumsal_bellek": "Kurum belleği (Karar Def., G.K.)",
+    "proje_basvuru": "Proje başvurusu (Gerda Henkel)",
+    "osmanlica": "Osmanlıca çeviri",
+    "egitim": "Eğitim (İş Bankası Müzesi)",
+    "koordinasyon": "Koordinasyon & planlama",
+    "ars_web": "Arşiv-web & IT",
+    "kodlama_kontrol": "Kodlama & kontrol",
+    "diger": "Diğer çalışma",
+}
 
 
 def ascii_fold(value: Any) -> str:
@@ -220,6 +244,8 @@ def public_work_title(row: dict[str, Any]) -> str:
         or row.get("calisma")
         or row.get("is_alani")
         or row.get("is_tanimi")
+        or row.get("devam_eden_calisma")
+        or row.get("notlar")
         or row.get("fon_adi")
         or row.get("fon")
         or "",
@@ -230,6 +256,8 @@ def public_work_title(row: dict[str, Any]) -> str:
 def public_work_detail(row: dict[str, Any]) -> str:
     return safe_public_long_text(
         row.get("devam_eden_calisma")
+        or row.get("notlar")
+        or row.get("yapilan_calismaya_iliskin_sayisal_bilgi")
         or row.get("devam")
         or row.get("yapilan_is")
         or row.get("aciklama")
@@ -435,6 +463,35 @@ def row_project_id(row: dict[str, Any]) -> str:
         ))
     ).lower()
     return PROJECT_ID if "pnb" in haystack or "boratav" in haystack else "foundation"
+
+
+def track_key_for_record(record: SourceRecord) -> str:
+    if record.kind == "page":
+        return "tarama"
+    return track_key_from_text(" ".join([record.work_title, record.work_detail, record.material]))
+
+
+def track_key_from_text(value: str) -> str:
+    haystack = ascii_fold(value).lower()
+    if re.search(r"\b(web|site|teknik|it)\b", haystack) or "arsiv web" in haystack or "arsiv-web" in haystack:
+        return "ars_web"
+    if "egitim" in haystack or "is bankasi" in haystack or "muze" in haystack:
+        return "egitim"
+    if "osmanlica" in haystack or "ceviri" in haystack:
+        return "osmanlica"
+    if any(token in haystack for token in ["envanter", "afis", "gorsel", "harita", "dvd", "video", "sozlu tarih", "aktarim", "tashih"]):
+        return "envanter"
+    if any(token in haystack for token in ["kronoloji", "karar defter", "genel kurul", "faaliyet rapor", "kurucu"]):
+        return "kurumsal_bellek"
+    if any(token in haystack for token in ["gerda", "basvuru", "proje butcesi", "proje form", "proje hazir", "proje deger", "culture civic", "salt", "fon"]):
+        return "proje_basvuru"
+    if any(token in haystack for token in ["koordinasyon", "planlama", "oryantasyon", "organizasyon", "toplanti", "gorusme"]):
+        return "koordinasyon"
+    if any(token in haystack for token in ["kodlama", "kontrol", "duzelt", "duzenleme", "adlandirma"]):
+        return "kodlama_kontrol"
+    if any(token in haystack for token in ["tarama", "sayisallastirma", "dijitallestirme", "dia", "pnb", "kutu"]):
+        return "tarama"
+    return "diger"
 
 
 def classify_sheet(title: str) -> str:
@@ -726,6 +783,65 @@ def records_in_period(records: list[SourceRecord], period: dict[str, Any]) -> li
     return [r for r in records if r.date and start <= r.date <= end]
 
 
+def build_by_track(period_records: list[SourceRecord]) -> list[dict[str, Any]]:
+    groups: dict[str, dict[str, Any]] = {}
+    for rec in period_records:
+        if not is_public_named_label(rec.public_label):
+            continue
+        key = track_key_for_record(rec)
+        group = groups.setdefault(key, {
+            "key": key,
+            "label": TRACK_LABELS.get(key, TRACK_LABELS["diger"]),
+            "records": 0,
+            "pageRows": 0,
+            "activityRows": 0,
+            "pagesDone": 0,
+            "contributors": defaultdict(list),
+        })
+        group["records"] += 1
+        if rec.kind == "page":
+            group["pageRows"] += 1
+            group["pagesDone"] += rec.page_units or 1
+        else:
+            group["activityRows"] += 1
+        group["contributors"][rec.private_key or ascii_fold(rec.public_label).lower()].append(rec)
+
+    rows = []
+    ordered_keys = [key for key in TRACK_ORDER if key in groups] + sorted(key for key in groups if key not in TRACK_ORDER)
+    for key in ordered_keys:
+        group = groups[key]
+        contributors = []
+        for recs in group["contributors"].values():
+            label = preferred_label([rec.public_label for rec in recs])
+            if not is_public_named_label(label):
+                continue
+            role = preferred_role([rec.public_role for rec in recs], label)
+            page_rows = [rec for rec in recs if rec.kind == "page"]
+            activity_rows = [rec for rec in recs if rec.kind == "activity"]
+            contributors.append({
+                "label": label,
+                "publicRole": role,
+                "records": len(recs),
+                "pageRows": len(page_rows),
+                "activityRows": len(activity_rows),
+                "pagesDone": sum(rec.page_units or 1 for rec in page_rows),
+            })
+        contributors.sort(key=lambda row: (-row["records"], row["label"]))
+        if contributors:
+            rows.append({
+                "key": group["key"],
+                "label": group["label"],
+                "records": group["records"],
+                "pageRows": group["pageRows"],
+                "activityRows": group["activityRows"],
+                "pagesDone": group["pagesDone"],
+                "peopleCount": len(contributors),
+                "contributors": contributors,
+            })
+    rows.sort(key=lambda row: (-row["records"], TRACK_ORDER.index(row["key"]) if row["key"] in TRACK_ORDER else 999, row["label"]))
+    return rows
+
+
 def date_range(start: date, end: date) -> list[date]:
     days = []
     current = start
@@ -909,6 +1025,7 @@ def build_public_summary(
             "boxes": [f"Kutu {box}" for box, _ in box_counts.most_common(4)],
             "boxBreakdown": box_breakdown,
         })
+    track_payload = build_by_track(period_records)
 
     target_pages = inventory_totals.get("totalPages") or sum(info.target_pages for info in boxes.values())
     done_pages = sum(r.page_units for r in all_page_records)
@@ -973,6 +1090,7 @@ def build_public_summary(
         "byMaterial": material_list(by_material_counter),
         "byBox": boxes_payload,
         "byVolunteer": volunteer_payload,
+        "byTrack": track_payload,
         "highlights": {
             "busiestDay": busiest_day,
             "latestDate": max((r.date.isoformat() for r in period_records if r.date), default=None),

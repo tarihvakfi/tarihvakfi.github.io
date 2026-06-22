@@ -250,6 +250,7 @@ function buildPublicSummaryFromRows(records, inventory, inventoryTotals, now, mo
       })
     };
   }).filter(Boolean);
+  const byTrack = buildPeriodTrackRows_(periodRecords);
   const namedVolunteerKeys = {};
   periodRecords.forEach(function (record) {
     if (record.privateKey && isPublicNamedLabel_(record.publicLabel)) namedVolunteerKeys[record.privateKey] = true;
@@ -299,6 +300,7 @@ function buildPublicSummaryFromRows(records, inventory, inventoryTotals, now, mo
     byMaterial: byMaterial,
     byBox: byBox,
     byVolunteer: byVolunteer,
+    byTrack: byTrack,
     highlights: {
       busiestDay: busiestDay,
       latestDate: periodRecords.length ? periodRecords[0].dateISO : null,
@@ -307,6 +309,95 @@ function buildPublicSummaryFromRows(records, inventory, inventoryTotals, now, mo
     },
     warnings: warnings
   };
+}
+
+function buildPeriodTrackRows_(periodRecords) {
+  const trackGroups = {};
+  (periodRecords || []).forEach(function (record) {
+    if (!isPublicNamedLabel_(record.publicLabel)) return;
+    const key = trackKeyForRecord_(record);
+    if (!trackGroups[key]) {
+      trackGroups[key] = {
+        key: key,
+        label: trackLabel_(key),
+        records: 0,
+        pageRows: 0,
+        activityRows: 0,
+        pagesDone: 0,
+        contributors: {}
+      };
+    }
+    const group = trackGroups[key];
+    const ckey = record.privateKey || contributorKey_(record.publicLabel);
+    group.records += 1;
+    if (record.kind === 'page') {
+      group.pageRows += 1;
+      group.pagesDone += Number(record.pageUnits || 1);
+    } else {
+      group.activityRows += 1;
+    }
+    if (!group.contributors[ckey]) {
+      group.contributors[ckey] = {
+        labels: [],
+        roles: [],
+        records: 0,
+        pageRows: 0,
+        activityRows: 0,
+        pagesDone: 0
+      };
+    }
+    const contributor = group.contributors[ckey];
+    contributor.labels.push(record.publicLabel);
+    contributor.roles.push(record.publicRole || '');
+    contributor.records += 1;
+    if (record.kind === 'page') {
+      contributor.pageRows += 1;
+      contributor.pagesDone += Number(record.pageUnits || 1);
+    } else {
+      contributor.activityRows += 1;
+    }
+  });
+
+  const seen = {};
+  const orderedKeys = TVF_TRACK_ORDER.concat(Object.keys(trackGroups)).filter(function (key) {
+    if (seen[key] || !trackGroups[key]) return false;
+    seen[key] = true;
+    return true;
+  });
+  return orderedKeys.map(function (key) {
+    const group = trackGroups[key];
+    const contributors = Object.keys(group.contributors).map(function (ckey) {
+      const row = group.contributors[ckey];
+      const label = preferredVolunteerLabel_(row.labels);
+      if (!isPublicNamedLabel_(label)) return null;
+      return {
+        label: label,
+        publicRole: preferredPublicRole_(row.roles, label),
+        records: row.records,
+        pageRows: row.pageRows,
+        activityRows: row.activityRows,
+        pagesDone: row.pagesDone
+      };
+    }).filter(Boolean).sort(function (a, b) {
+      return b.records - a.records || a.label.localeCompare(b.label, 'tr');
+    });
+    return {
+      key: group.key,
+      label: group.label,
+      records: group.records,
+      pageRows: group.pageRows,
+      activityRows: group.activityRows,
+      pagesDone: group.pagesDone,
+      peopleCount: contributors.length,
+      contributors: contributors
+    };
+  }).filter(function (group) {
+    return group.records > 0 && group.contributors.length > 0;
+  }).sort(function (a, b) {
+    return b.records - a.records
+      || TVF_TRACK_ORDER.indexOf(a.key) - TVF_TRACK_ORDER.indexOf(b.key)
+      || a.label.localeCompare(b.label, 'tr');
+  });
 }
 
 function readWorkbook_(sheetId) {
@@ -588,6 +679,11 @@ function trackKeyFromActivity_(record) {
     return 'tarama';
   }
   return 'diger';
+}
+
+function trackKeyForRecord_(record) {
+  if (record && record.kind === 'page') return 'tarama';
+  return trackKeyFromActivity_(record || {});
 }
 
 function trackLabel_(key) {

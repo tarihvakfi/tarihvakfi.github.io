@@ -153,6 +153,11 @@
     return summary && Array.isArray(summary.byVolunteer) ? summary.byVolunteer : [];
   }
 
+  function liveTrackRows() {
+    const summary = getLiveSummary();
+    return summary && Array.isArray(summary.byTrack) ? summary.byTrack : [];
+  }
+
   // -------------------------------------------------------------------
   // 1. Cumulative ribbon
   // -------------------------------------------------------------------
@@ -274,38 +279,30 @@
     const mount = safeMount("lpActiveWall");
     if (!mount || !data) return;
     const byName = rosterByName(data);
-    const liveRows = liveVolunteerRows();
-    const useLiveRows = Boolean(getLiveSummary());
-    const vols = useLiveRows
-      ? liveRows.map((row) => {
-          const rosterVol = byName[asciiFold(row.label)];
-          const name = String(row.label || "").trim();
-          return {
-            name,
-            slug: (rosterVol && rosterVol.slug) || slugifyName(name),
-            tracks: (rosterVol && rosterVol.tracks && rosterVol.tracks.length)
-              ? rosterVol.tracks
-              : [row.publicRole ? "koordinasyon" : "diger"],
-            sessions: Number(row.records || row.pageRows || row.activityRows || 0)
-          };
-        }).filter((v) => v.name)
-      : (data.volunteers || []).filter((v) => v.active);
-    if (vols.length === 0) {
+    const liveTracks = liveTrackRows();
+    const useLiveTracks = liveTracks.length > 0;
+    const vols = useLiveTracks ? [] : (data.volunteers || []).filter((v) => v.active);
+    const hasVisibleRows = useLiveTracks
+      ? liveTracks.some((track) => Array.isArray(track.contributors) && track.contributors.length)
+      : vols.length > 0;
+    if (!hasVisibleRows) {
       mount.innerHTML = "";
       mount.setAttribute("hidden", "");
       const metaEl = document.getElementById("lpActiveWallMeta");
       const summary = getLiveSummary();
-      if (metaEl && useLiveRows && summary?.period?.label) {
+      if (metaEl && useLiveTracks && summary?.period?.label) {
         metaEl.textContent = `0 kişi · ${periodContextLabel(summary.period)} · canlı`;
       }
       return;
     }
     mount.removeAttribute("hidden");
-    const groups = {};
-    vols.forEach((v) => {
-      const tk = (v.tracks && v.tracks[0]) || "diger";
-      (groups[tk] ||= []).push(v);
-    });
+    const groups = useLiveTracks ? liveTracksToGroups(liveTracks, byName) : {};
+    if (!useLiveTracks) {
+      vols.forEach((v) => {
+        const tk = (v.tracks && v.tracks[0]) || "diger";
+        (groups[tk] ||= []).push(v);
+      });
+    }
 
     const html = TRACK_ORDER
       .filter((tk) => groups[tk])
@@ -313,7 +310,7 @@
         const meta = TRACK_META[tk] || TRACK_META.diger;
         const grp = groups[tk];
         const sessions = grp.reduce((s, v) => s + (v.sessions || 0), 0);
-        const unit = useLiveRows ? "kayıt" : "oturum";
+        const unit = useLiveTracks ? "kayıt" : "oturum";
         const badges = grp.map((v) => `
           <span class="badge" data-slug="${esc(v.slug || "")}" data-volunteer-label="${esc(v.name)}" role="button" tabindex="0" aria-label="${esc(v.name)} profilini aç" style="background:${meta.bg}; border:0.5px solid ${meta.border};">
             <span class="av" style="background:${meta.color}">${esc(initials(v.name))}</span>
@@ -338,9 +335,42 @@
     const metaEl = document.getElementById("lpActiveWallMeta");
     if (metaEl) {
       const summary = getLiveSummary();
-      const label = useLiveRows && summary?.period ? `${periodContextLabel(summary.period)} · canlı` : "aktif gönüllü";
-      metaEl.textContent = useLiveRows ? `${vols.length} kişi · ${label}` : `${vols.length} aktif gönüllü`;
+      const label = useLiveTracks && summary?.period ? `${periodContextLabel(summary.period)} · canlı` : "aktif gönüllü";
+      const count = useLiveTracks
+        ? uniqueLiveTrackPeople(liveTracks)
+        : vols.length;
+      metaEl.textContent = useLiveTracks ? `${count} kişi · ${label}` : `${vols.length} aktif gönüllü`;
     }
+  }
+
+  function liveTracksToGroups(liveTracks, byName) {
+    const groups = {};
+    liveTracks.forEach((track) => {
+      const key = track.key || "diger";
+      const contributors = Array.isArray(track.contributors) ? track.contributors : [];
+      groups[key] = contributors.map((row) => {
+        const name = String(row.label || "").trim();
+        const rosterVol = byName[asciiFold(name)];
+        return {
+          name,
+          slug: (rosterVol && rosterVol.slug) || slugifyName(name),
+          tracks: [key],
+          sessions: Number(row.records || row.pageRows || row.activityRows || 0)
+        };
+      }).filter((v) => v.name);
+    });
+    return groups;
+  }
+
+  function uniqueLiveTrackPeople(liveTracks) {
+    const names = new Set();
+    liveTracks.forEach((track) => {
+      (track.contributors || []).forEach((row) => {
+        const key = asciiFold(row.label);
+        if (key) names.add(key);
+      });
+    });
+    return names.size;
   }
 
   // -------------------------------------------------------------------

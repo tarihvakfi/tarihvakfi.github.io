@@ -1,7 +1,7 @@
 # Public Dashboard Audit
 
 - Workbook: `Tarih Vakfı Gönüllü Ağı.xlsx`
-- Generated at: `2026-06-22T20:08:16.147025Z`
+- Generated at: `2026-06-22T20:34:13.729446Z`
 - Selected public period: `Güncel dönem · 16–22 Haziran` (`rolling_7_days`)
 - Volunteer credit mode: **credit-visible, ID-safe volunteer display**
 

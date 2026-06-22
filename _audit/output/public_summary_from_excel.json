@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-22T20:08:16.147025Z",
+  "generatedAt": "2026-06-22T20:34:13.729446Z",
   "selectedMode": "rolling_7_days",
   "workbook": {
     "sheets": [
@@ -374,7 +374,7 @@
   },
   "summaries": {
     "calendar_week_to_date": {
-      "generatedAt": "2026-06-22T20:08:16.147025Z",
+      "generatedAt": "2026-06-22T20:34:13.729446Z",
       "source": {
         "name": "Tarih Vakfı Gönüllü Ağı",
         "projectId": "pnb",
@@ -603,6 +603,62 @@
           "boxBreakdown": []
         }
       ],
+      "byTrack": [
+        {
+          "key": "tarama",
+          "label": "Tarama (belge & kartpostal)",
+          "records": 30,
+          "pageRows": 27,
+          "activityRows": 3,
+          "pagesDone": 27,
+          "peopleCount": 3,
+          "contributors": [
+            {
+              "label": "Anıl Olcan",
+              "publicRole": "",
+              "records": 28,
+              "pageRows": 27,
+              "activityRows": 1,
+              "pagesDone": 27
+            },
+            {
+              "label": "Aysu Balta",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            },
+            {
+              "label": "Berfin Yazıcı",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            }
+          ]
+        },
+        {
+          "key": "kurumsal_bellek",
+          "label": "Kurum belleği (Karar Def., G.K.)",
+          "records": 1,
+          "pageRows": 0,
+          "activityRows": 1,
+          "pagesDone": 0,
+          "peopleCount": 1,
+          "contributors": [
+            {
+              "label": "Gülistan Eren",
+              "publicRole": "Gönüllü Koordinatörü",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            }
+          ]
+        }
+      ],
       "highlights": {
         "busiestDay": {
           "dateISO": "2026-06-22",
@@ -706,7 +762,7 @@
       ]
     },
     "rolling_7_days": {
-      "generatedAt": "2026-06-22T20:08:16.147025Z",
+      "generatedAt": "2026-06-22T20:34:13.729446Z",
       "source": {
         "name": "Tarih Vakfı Gönüllü Ağı",
         "projectId": "pnb",
@@ -1495,6 +1551,197 @@
           "boxBreakdown": []
         }
       ],
+      "byTrack": [
+        {
+          "key": "tarama",
+          "label": "Tarama (belge & kartpostal)",
+          "records": 1279,
+          "pageRows": 1269,
+          "activityRows": 10,
+          "pagesDone": 1269,
+          "peopleCount": 5,
+          "contributors": [
+            {
+              "label": "Aysu Balta",
+              "publicRole": "",
+              "records": 1244,
+              "pageRows": 1242,
+              "activityRows": 2,
+              "pagesDone": 1242
+            },
+            {
+              "label": "Anıl Olcan",
+              "publicRole": "",
+              "records": 31,
+              "pageRows": 27,
+              "activityRows": 4,
+              "pagesDone": 27
+            },
+            {
+              "label": "Berfin Yazıcı",
+              "publicRole": "",
+              "records": 2,
+              "pageRows": 0,
+              "activityRows": 2,
+              "pagesDone": 0
+            },
+            {
+              "label": "Arif Solmaz",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            },
+            {
+              "label": "Gülistan Eren",
+              "publicRole": "Gönüllü Koordinatörü",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            }
+          ]
+        },
+        {
+          "key": "kodlama_kontrol",
+          "label": "Kodlama & kontrol",
+          "records": 5,
+          "pageRows": 0,
+          "activityRows": 5,
+          "pagesDone": 0,
+          "peopleCount": 3,
+          "contributors": [
+            {
+              "label": "Berfin Yazıcı",
+              "publicRole": "",
+              "records": 3,
+              "pageRows": 0,
+              "activityRows": 3,
+              "pagesDone": 0
+            },
+            {
+              "label": "Anıl Olcan",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            },
+            {
+              "label": "Sibel Dağ",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            }
+          ]
+        },
+        {
+          "key": "kurumsal_bellek",
+          "label": "Kurum belleği (Karar Def., G.K.)",
+          "records": 2,
+          "pageRows": 0,
+          "activityRows": 2,
+          "pagesDone": 0,
+          "peopleCount": 2,
+          "contributors": [
+            {
+              "label": "Gülistan Eren",
+              "publicRole": "Gönüllü Koordinatörü",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            },
+            {
+              "label": "Neslihan Erkan",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            }
+          ]
+        },
+        {
+          "key": "diger",
+          "label": "Diğer çalışma",
+          "records": 2,
+          "pageRows": 0,
+          "activityRows": 2,
+          "pagesDone": 0,
+          "peopleCount": 1,
+          "contributors": [
+            {
+              "label": "Gülistan Eren",
+              "publicRole": "Gönüllü Koordinatörü",
+              "records": 2,
+              "pageRows": 0,
+              "activityRows": 2,
+              "pagesDone": 0
+            }
+          ]
+        },
+        {
+          "key": "envanter",
+          "label": "Envanter (afiş, görsel-işitsel)",
+          "records": 1,
+          "pageRows": 0,
+          "activityRows": 1,
+          "pagesDone": 0,
+          "peopleCount": 1,
+          "contributors": [
+            {
+              "label": "İlknur Arslan",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            }
+          ]
+        },
+        {
+          "key": "proje_basvuru",
+          "label": "Proje başvurusu (Gerda Henkel)",
+          "records": 1,
+          "pageRows": 0,
+          "activityRows": 1,
+          "pagesDone": 0,
+          "peopleCount": 1,
+          "contributors": [
+            {
+              "label": "Feyza Daloğlu",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            }
+          ]
+        },
+        {
+          "key": "koordinasyon",
+          "label": "Koordinasyon & planlama",
+          "records": 1,
+          "pageRows": 0,
+          "activityRows": 1,
+          "pagesDone": 0,
+          "peopleCount": 1,
+          "contributors": [
+            {
+              "label": "Gülistan Eren",
+              "publicRole": "Gönüllü Koordinatörü",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            }
+          ]
+        }
+      ],
       "highlights": {
         "busiestDay": {
           "dateISO": "2026-06-19",
@@ -1634,7 +1881,7 @@
     }
   },
   "publicSummary": {
-    "generatedAt": "2026-06-22T20:08:16.147025Z",
+    "generatedAt": "2026-06-22T20:34:13.729446Z",
     "source": {
       "name": "Tarih Vakfı Gönüllü Ağı",
       "projectId": "pnb",
@@ -2421,6 +2668,197 @@
         "topBox": null,
         "boxes": [],
         "boxBreakdown": []
+      }
+    ],
+    "byTrack": [
+      {
+        "key": "tarama",
+        "label": "Tarama (belge & kartpostal)",
+        "records": 1279,
+        "pageRows": 1269,
+        "activityRows": 10,
+        "pagesDone": 1269,
+        "peopleCount": 5,
+        "contributors": [
+          {
+            "label": "Aysu Balta",
+            "publicRole": "",
+            "records": 1244,
+            "pageRows": 1242,
+            "activityRows": 2,
+            "pagesDone": 1242
+          },
+          {
+            "label": "Anıl Olcan",
+            "publicRole": "",
+            "records": 31,
+            "pageRows": 27,
+            "activityRows": 4,
+            "pagesDone": 27
+          },
+          {
+            "label": "Berfin Yazıcı",
+            "publicRole": "",
+            "records": 2,
+            "pageRows": 0,
+            "activityRows": 2,
+            "pagesDone": 0
+          },
+          {
+            "label": "Arif Solmaz",
+            "publicRole": "",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          },
+          {
+            "label": "Gülistan Eren",
+            "publicRole": "Gönüllü Koordinatörü",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          }
+        ]
+      },
+      {
+        "key": "kodlama_kontrol",
+        "label": "Kodlama & kontrol",
+        "records": 5,
+        "pageRows": 0,
+        "activityRows": 5,
+        "pagesDone": 0,
+        "peopleCount": 3,
+        "contributors": [
+          {
+            "label": "Berfin Yazıcı",
+            "publicRole": "",
+            "records": 3,
+            "pageRows": 0,
+            "activityRows": 3,
+            "pagesDone": 0
+          },
+          {
+            "label": "Anıl Olcan",
+            "publicRole": "",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          },
+          {
+            "label": "Sibel Dağ",
+            "publicRole": "",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          }
+        ]
+      },
+      {
+        "key": "kurumsal_bellek",
+        "label": "Kurum belleği (Karar Def., G.K.)",
+        "records": 2,
+        "pageRows": 0,
+        "activityRows": 2,
+        "pagesDone": 0,
+        "peopleCount": 2,
+        "contributors": [
+          {
+            "label": "Gülistan Eren",
+            "publicRole": "Gönüllü Koordinatörü",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          },
+          {
+            "label": "Neslihan Erkan",
+            "publicRole": "",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          }
+        ]
+      },
+      {
+        "key": "diger",
+        "label": "Diğer çalışma",
+        "records": 2,
+        "pageRows": 0,
+        "activityRows": 2,
+        "pagesDone": 0,
+        "peopleCount": 1,
+        "contributors": [
+          {
+            "label": "Gülistan Eren",
+            "publicRole": "Gönüllü Koordinatörü",
+            "records": 2,
+            "pageRows": 0,
+            "activityRows": 2,
+            "pagesDone": 0
+          }
+        ]
+      },
+      {
+        "key": "envanter",
+        "label": "Envanter (afiş, görsel-işitsel)",
+        "records": 1,
+        "pageRows": 0,
+        "activityRows": 1,
+        "pagesDone": 0,
+        "peopleCount": 1,
+        "contributors": [
+          {
+            "label": "İlknur Arslan",
+            "publicRole": "",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          }
+        ]
+      },
+      {
+        "key": "proje_basvuru",
+        "label": "Proje başvurusu (Gerda Henkel)",
+        "records": 1,
+        "pageRows": 0,
+        "activityRows": 1,
+        "pagesDone": 0,
+        "peopleCount": 1,
+        "contributors": [
+          {
+            "label": "Feyza Daloğlu",
+            "publicRole": "",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          }
+        ]
+      },
+      {
+        "key": "koordinasyon",
+        "label": "Koordinasyon & planlama",
+        "records": 1,
+        "pageRows": 0,
+        "activityRows": 1,
+        "pagesDone": 0,
+        "peopleCount": 1,
+        "contributors": [
+          {
+            "label": "Gülistan Eren",
+            "publicRole": "Gönüllü Koordinatörü",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          }
+        ]
       }
     ],
     "highlights": {

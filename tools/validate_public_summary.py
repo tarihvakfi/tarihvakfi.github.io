@@ -47,12 +47,17 @@ def validate(payload: dict) -> list[str]:
     by_day = summary.get("byDay") or []
     by_material = summary.get("byMaterial") or []
     by_volunteer = summary.get("byVolunteer") or []
+    by_track = summary.get("byTrack") or []
     errors: list[str] = []
 
     if sum(day.get("records", 0) for day in by_day) != totals.get("records"):
         errors.append("sum(byDay.records) != totals.records")
     if sum(row.get("count", 0) for row in by_material) != totals.get("records"):
         errors.append("sum(byMaterial.count) != totals.records")
+    if by_track and sum(row.get("records", 0) for row in by_track) > totals.get("records", 0):
+        errors.append("sum(byTrack.records) > totals.records")
+    if by_track and sum(row.get("pageRows", 0) for row in by_track) != totals.get("pageRows"):
+        errors.append("sum(byTrack.pageRows) != totals.pageRows")
 
     for day in by_day:
         parsed = date.fromisoformat(day["dateISO"])
@@ -86,6 +91,11 @@ def validate(payload: dict) -> list[str]:
             errors.append(f"unsafe public volunteer label: {label}")
         if re.search(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", label):
             errors.append(f"email-like volunteer label: {label}")
+    for track in by_track:
+        for contributor in track.get("contributors") or []:
+            label = contributor.get("label") or ""
+            if label in {UNNAMED, HIDDEN} or is_unsafe_public_identifier(label):
+                errors.append(f"non-public volunteer label in byTrack: {label}")
     for row in latest:
         label = row.get("volunteerLabel") or ""
         if label in {UNNAMED, HIDDEN} or is_unsafe_public_identifier(label):
