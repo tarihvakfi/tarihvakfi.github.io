@@ -1,58 +1,60 @@
 # Public Dashboard Audit
 
-- Workbook: `Tarih Vakfı Gönüllü Ağı.xlsx`
-- Generated at: `2026-05-15T05:53:34.730097Z`
-- Selected public period: `11–17 Mayıs haftası · bugüne kadar` (`calendar_week_to_date`)
+- Workbook: `Tarih Vakfı Gönüllü Ağı.xlsx`
+- Generated at: `2026-06-22T20:08:16.147025Z`
+- Selected public period: `Güncel dönem · 16–22 Haziran` (`rolling_7_days`)
 - Volunteer credit mode: **credit-visible, ID-safe volunteer display**
 
 ## Workbook Structure
 
 | Sheet | Classification | Rows | Columns | Inferred fields |
 |---|---:|---:|---|---|
-| Günlük Akış | activity | 64 | Tarih, Paydaş, Çalışma Alanı, Devam Eden Çalışma, Bilgisayar, Tarayıcı, Notlar | dates: Tarih; volunteers: Paydaş; materials: Çalışma Alanı, Devam Eden Çalışma |
-| PNB 14 Betül | pnb_detail | 11 | Fon Adı, Kutu No, Dosya No, Belge No, Sayfa Sayısı, Dijital Belge Kodu, Notlar, Tarih, Kaydı Oluşuran, Tarayıcı | dates: Tarih; volunteers: Kaydı Oluşuran; boxes: Kutu No; materials: Fon Adı, Dijital Belge Kodu; targets: Sayfa Sayısı |
-| PNB I1 Kadir | pnb_detail | 111 | Fon Adı, Kutu No, Dosya No, Belge No, Sayfa Sayısı, Dijital Belge Kodu, Notlar, Tarih, Kaydı Oluşuran, Tarayıcı | dates: Tarih; volunteers: Kaydı Oluşuran; boxes: Kutu No; materials: Fon Adı, Dijital Belge Kodu; targets: Sayfa Sayısı |
-| PNB I2 Aysu | pnb_detail | 40 | Fon Adı, Kutu No, Dosya No, Belge No, Sayfa Sayısı, Dijital Belge Kodu, Notlar, Tarih, Kaydı Oluşuran, Tarayıcı | dates: Tarih; volunteers: Kaydı Oluşuran; boxes: Kutu No; materials: Fon Adı, Dijital Belge Kodu; targets: Sayfa Sayısı |
-| PNB 68 Sibel | pnb_detail | 99 | Fon Adı, Kutu No, Dosya No, Belge No, Sayfa, Dijital Belge Kodu, Notlar, Tarih, Kaydı Oluşuran, Tarayıcı | dates: Tarih; volunteers: Kaydı Oluşuran; boxes: Kutu No; materials: Fon Adı, Dijital Belge Kodu |
-| PNB 16 Sibel-Lara | pnb_detail | 166 | Fon Adı, Kutu No, Dosya No, Belge No, Sayfa, Dijital Belge Kodu, Notlar, Tarih, Kaydı Oluşuran, Tarayıcı | dates: Tarih; volunteers: Kaydı Oluşuran; boxes: Kutu No; materials: Fon Adı, Dijital Belge Kodu |
-| PNB 15 Ateş | pnb_detail | 704 | Fon Adı, Kutu No, Dosya No, Belge No, Sayfa, Dijital Belge Kodu, Notlar, Tarih, Kaydı Oluşuran, Tarayıcı | dates: Tarih; volunteers: Kaydı Oluşuran; boxes: Kutu No; materials: Fon Adı, Dijital Belge Kodu |
-| PNB Arda | pnb_detail | 0 | Fon Adı, Kutu No, Dosya No, Belge No, Sayfa Sayısı, Dijital Belge Kodu, Notlar, Tarih, Kaydı Oluşuran, Tarayıcı | dates: Tarih; volunteers: Kaydı Oluşuran; boxes: Kutu No; materials: Fon Adı, Dijital Belge Kodu; targets: Sayfa Sayısı |
-| PNB Kübra | pnb_detail | 2 | Fon Adı, Kutu No, Dosya No, Belge No, Sayfa Sayısı, Dijital Belge Kodu, Notlar, Tarih, Kaydı Oluşuran, Tarayıcı | dates: Tarih; volunteers: Kaydı Oluşuran; boxes: Kutu No; materials: Fon Adı, Dijital Belge Kodu; targets: Sayfa Sayısı |
-| PNB Sayısallaştırma | pnb_inventory | 89 | Fon, Kutu, Dosya Sayısı, Belge Sayısı, Sayfa Sayısı, Tarama, Kodlama, Kontrol, Jpeg'e Dönüştürme, Birleştirerek pdf'te dönüştürme | boxes: Kutu; materials: Fon; targets: Sayfa Sayısı; done: Tarama, Kodlama, Kontrol |
-| Günlük Gönüllü Akışı | schedule | 9 | Pazartesi, Salı, Çarşama, Perşembe, Cuma |  |
+| Günlük Akış | activity | 149 | Tarih, Paydaş, Çalışma Alanı, Devam Eden Çalışma, Yapılan Çalışmaya İlişkin Sayısal Bilgi, Bilgisayar, Tarayıcı, Notlar | dates: Tarih; volunteers: Paydaş; materials: Çalışma Alanı, Devam Eden Çalışma, Yapılan Çalışmaya İlişkin Sayısal Bilgi |
+| PNB Sayısallaştırma | pnb_inventory | 88 | Fon, Kutu, Dosya Sayısı, Belge Sayısı, Sayfa Sayısı, Tarama, Kodlama, Kontrol, Kataloglama, Jpeg'e Dönüştürme, ... | boxes: Kutu; materials: Fon; targets: Sayfa Sayısı; done: Tarama, Kodlama, Kontrol |
+| Tarama Notları | other | 27 | Fon, Kutu, Dosya Sayısı, Belge Sayısı, Sayfa Sayısı, Taranan Sayfa Sayısı, Tarayan, Kontrol | boxes: Kutu; materials: Fon; targets: Sayfa Sayısı, Taranan Sayfa Sayısı; done: Kontrol |
+| Haftalık Plan | other | 5 | Pazartesi, Salı, Çarşama, Perşembe, Cuma |  |
+| PNB 17 Aysu-Lara | pnb_detail | 298 | Fon Adı, Kutu No, Dosya No, Belge No, Sayfa sayısı, Dijital Belge Kodu, Notlar, Tarih, Kaydı Oluşturan, Tarayıcı | dates: Tarih; volunteers: Kaydı Oluşturan; boxes: Kutu No; materials: Fon Adı, Dijital Belge Kodu; targets: Sayfa sayısı |
+| PNB18 Anıl Berfin  | other | 670 | Fon Adı, Kutu No, Dosya No, Belge No, Sayfa, Dijital Belge Kodu, Notlar, Tarih, Kaydı Oluşuran, Tarayıcı | dates: Tarih; volunteers: Kaydı Oluşuran; boxes: Kutu No; materials: Fon Adı, Dijital Belge Kodu |
+| PNB 19 Aysu | pnb_detail | 244 | Fon Adı, Kutu No, Dosya No, Belge No, Sayfa sayısı, Dijital Belge Kodu, Notlar, Tarih, Kaydı Oluşturan, Tarayıcı | dates: Tarih; volunteers: Kaydı Oluşturan; boxes: Kutu No; materials: Fon Adı, Dijital Belge Kodu; targets: Sayfa sayısı |
+| PNB 20 Aysu | pnb_detail | 598 | Fon Adı, Kutu No, Dosya No, Belge No, Sayfa sayısı, Dijital Belge Kodu, Notlar, Tarih, Kaydı Oluşturan, Tarayıcı | dates: Tarih; volunteers: Kaydı Oluşturan; boxes: Kutu No; materials: Fon Adı, Dijital Belge Kodu; targets: Sayfa sayısı |
+| PNB 21 Aysu | pnb_detail | 428 | Fon Adı, Kutu No, Dosya No, Belge No, Sayfa sayısı, Dijital Belge Kodu, Notlar, Tarih, Kaydı Oluşturan, Tarayıcı | dates: Tarih; volunteers: Kaydı Oluşturan; boxes: Kutu No; materials: Fon Adı, Dijital Belge Kodu; targets: Sayfa sayısı |
+| PNB 22 Feyza | pnb_detail | 292 | Fon Adı, Kutu No, Dosya No, Belge No, Sayfa Sayısı, Dijital Belge Kodu, Notlar, Tarih, Kaydı Oluşuran, Tarayıcı | dates: Tarih; volunteers: Kaydı Oluşuran; boxes: Kutu No; materials: Fon Adı, Dijital Belge Kodu; targets: Sayfa Sayısı |
+| PNB 68 Sibel | pnb_detail | 116 | Fon Adı, Kutu No, Dosya No, Belge No, Sayfa, Dijital Belge Kodu, Notlar, Tarih, Kaydı Oluşuran, Tarayıcı | dates: Tarih; volunteers: Kaydı Oluşuran; boxes: Kutu No; materials: Fon Adı, Dijital Belge Kodu |
 
 ## Source Counts
 
-- Page/detail rows: **1,133**
-- Activity rows: **64**
-- Recorded page units from detail tabs: **1,854**
-- Target page units from PNB inventory: **77,544**
+- Page/detail rows: **1,976**
+- Activity rows: **149**
+- Recorded page units from detail tabs: **41,334**
+- Target page units from PNB inventory: **78,904**
 - Inventory-known boxes: **86**
-- Completed boxes: **0**
+- Completed boxes: **1**
 
 ## Weekly / Rolling Window Comparison
 
 | Period | Records | Page/detail | Activity | Volunteers | Active boxes |
 |---|---:|---:|---:|---:|---:|
-| 11–17 Mayıs haftası · bugüne kadar | 219 | 205 | 14 | 5 | 2 |
-| Güncel dönem | 219 | 205 | 14 | 5 | 2 |
+| 22–28 Haziran haftası · bugüne kadar | 31 | 27 | 4 | 4 | 1 |
+| Güncel dönem · 16–22 Haziran | 1291 | 1269 | 22 | 9 | 3 |
 
 ## Daily Ledger
 
 | Date | Weekday | Records | Page/detail | Activity | Volunteers | Names | Boxes |
 |---|---|---:|---:|---:|---:|---|---|
-| 2026-05-11 | Pazartesi | 44 | 40 | 4 | 4 | Arda Tuzkapı, Aysu Balta, Lara Gülmez | Kutu I2 |
-| 2026-05-12 | Salı | 103 | 99 | 4 | 4 | Aysu Balta, Lara Gülmez, Sibel Dağ | Kutu 16 |
-| 2026-05-13 | Çarşamba | 69 | 66 | 3 | 2 | Lara Gülmez | Kutu 16 |
-| 2026-05-14 | Perşembe | 3 | 0 | 3 | 1 |  |  |
-| 2026-05-15 | Cuma | 0 | 0 | 0 | 0 |  |  |
+| 2026-06-16 | Salı | 4 | 0 | 4 | 4 | Anıl Olcan, Berfin Yazıcı, Sibel Dağ |  |
+| 2026-06-17 | Çarşamba | 4 | 0 | 4 | 4 | Anıl Olcan, Berfin Yazıcı, Neslihan Erkan |  |
+| 2026-06-18 | Perşembe | 3 | 0 | 3 | 3 | Anıl Olcan, Berfin Yazıcı |  |
+| 2026-06-19 | Cuma | 1249 | 1242 | 7 | 7 | Anıl Olcan, Arif Solmaz, Aysu Balta, Berfin Yazıcı, Feyza Daloğlu, İlknur Arslan | Kutu 19, Kutu 20, Kutu 21 |
+| 2026-06-20 | Cumartesi | 0 | 0 | 0 | 0 |  |  |
+| 2026-06-21 | Pazar | 0 | 0 | 0 | 0 |  |  |
+| 2026-06-22 | Pazartesi | 31 | 27 | 4 | 4 | Anıl Olcan, Aysu Balta, Berfin Yazıcı | Kutu 19 |
 
 ## Material Distribution
 
 | Material | Full-period records | Share |
 |---|---:|---:|
-| Belgeler | 216 | 98.6% |
-| Fotoğraflar | 3 | 1.4% |
+| Belgeler | 1290 | 99.9% |
+| Fotoğraflar | 1 | 0.1% |
 
 ## Volunteer-Credit Completeness
 
@@ -62,31 +64,36 @@
 
 | Volunteer | Records | Page/detail | Activity | Boxes |
 |---|---:|---:|---:|---|
-| Sibel Dağ | 100 | 99 | 1 | Kutu 16 |
-| Lara Gülmez | 69 | 66 | 3 | Kutu 16 |
-| Aysu Balta | 42 | 40 | 2 | Kutu I2 |
-| Gülistan Eren | 4 | 0 | 4 |  |
-| Arda Tuzkapı | 1 | 0 | 1 |  |
+| Aysu Balta | 1244 | 1242 | 2 | Kutu 20, Kutu 21, Kutu 19 |
+| Anıl Olcan | 32 | 27 | 5 | Kutu 19 |
+| Berfin Yazıcı | 5 | 0 | 5 |  |
+| Gülistan Eren | 5 | 0 | 5 |  |
+| Arif Solmaz | 1 | 0 | 1 |  |
+| Feyza Daloğlu | 1 | 0 | 1 |  |
+| İlknur Arslan | 1 | 0 | 1 |  |
+| Neslihan Erkan | 1 | 0 | 1 |  |
+| Sibel Dağ | 1 | 0 | 1 |  |
 
 ## Box-Progress Completeness
 
 | Box | Done | Target | Percent | Remaining | Contributors |
 |---|---:|---:|---:|---:|---|
-| Kutu 16 | 166 | 880 | 18.9 | 714 | Sibel Dağ +99, Lara Gülmez +66 |
-| Kutu I2 | 40 | 139 | 28.8 | 99 | Aysu Balta +40 |
+| Kutu 20 | 597 | 866 | 68.9 | 269 | Aysu Balta +597 |
+| Kutu 21 | 428 | 1974 | 21.7 | 1546 | Aysu Balta +428 |
+| Kutu 19 | 244 | 1111 | 22.0 | 867 | Aysu Balta +217, Anıl Olcan +27 |
 
 ## Detected Inconsistencies / Label Recommendations
 
 - Calendar-week and rolling-7-day windows are computed separately; the public page uses one selected period object.
-- Summaries are full-period aggregates; only `latestActivity` is capped and labeled as `Son 50 hareket`.
+- Summaries are full-period aggregates; only `latestActivity` is capped and labeled as `Son 50 çalışma`.
 - Weekday labels are computed from `dateISO`.
 - Use `Envanteri girilmiş kutu`, `Tamamlanan kutu`, and `Malzeme dağılımı · bu dönem`.
 
 ## Data-Quality Warnings
 
-- `missing_box_targets`: 3 aktif kutuda hedef sayfa toplamı yok.
+- `box_done_exceeds_target`: 1 kutuda işlenen sayı hedefi aşıyor.
 - `missing_volunteer_names`: 3 katkı satırında kullanılabilir gönüllü adı yok.
-- `unknown_dates`: 213 satır dönem/gün grafiğine atanabilecek tarih taşımıyor.
+- `unknown_dates`: 293 satır dönem/gün grafiğine atanabilecek tarih taşımıyor.
 
 ## Validation
 

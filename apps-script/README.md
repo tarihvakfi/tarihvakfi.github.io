@@ -18,12 +18,23 @@
     highlights,
     warnings
   },
+  trackSummary: {
+    generatedAt,
+    source,
+    monthsActive,
+    peopleCount,
+    people,
+    tracks: [
+      { key, label, sessions, byMonth, peopleCount, people }
+    ]
+  },
   latestActivity: [],
   content: {}
 }
 ```
 
 `publicSummary` is the full aggregate. `latestActivity` is capped at 50 rows and is used only for the latest-feed section.
+`trackSummary` is computed directly from the full `Günlük Akış` sheet so the `Çalışma izleri` table does not infer work areas from volunteer totals.
 
 The main page uses `rolling_7_days` so the visible dashboard does not reset to zero at the start of a calendar week.
 

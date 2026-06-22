@@ -160,6 +160,7 @@ function repairRollingPayload(livePayload, snapshotPayload) {
     ...livePayload,
     generatedAt: livePayload.generatedAt || repairedSummary.generatedAt,
     publicSummary: repairedSummary,
+    trackSummary: livePayload.trackSummary || snapshotPayload?.trackSummary,
     latestActivity,
   };
 }

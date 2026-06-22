@@ -3,6 +3,7 @@
  *
  * Reads the shared Google Sheet and emits only a public dashboard payload:
  *   - publicSummary: full aggregate object
+ *   - trackSummary: full Günlük Akış work-area aggregate
  *   - latestActivity: capped latest feed
  *   - content: optional public copy overrides
  *
@@ -52,6 +53,30 @@ const TVF_VOLUNTEER_PROFILE_HEADERS = [
 const TVF_PUBLIC_ROLE_BY_NAME = {
   'gulistan eren': 'Gönüllü Koordinatörü'
 };
+const TVF_TRACK_ORDER = [
+  'tarama',
+  'envanter',
+  'kurumsal_bellek',
+  'proje_basvuru',
+  'osmanlica',
+  'egitim',
+  'koordinasyon',
+  'ars_web',
+  'kodlama_kontrol',
+  'diger'
+];
+const TVF_TRACK_LABELS = {
+  tarama: 'Tarama (belge & kartpostal)',
+  envanter: 'Envanter (afiş, görsel-işitsel)',
+  kurumsal_bellek: 'Kurum belleği (Karar Def., G.K.)',
+  proje_basvuru: 'Proje başvurusu (Gerda Henkel)',
+  osmanlica: 'Osmanlıca çeviri',
+  egitim: 'Eğitim (İş Bankası Müzesi)',
+  koordinasyon: 'Koordinasyon & planlama',
+  ars_web: 'Arşiv-web & IT',
+  kodlama_kontrol: 'Kodlama & kontrol',
+  diger: 'Diğer çalışma'
+};
 
 function doGet(e) {
   try {
@@ -76,9 +101,11 @@ function buildPublicDashboardPayload_(mode) {
   const volunteerProfiles = readPublicVolunteerProfiles_(workbook.rowsBySheet);
   const generatedAt = new Date();
   const summary = buildPublicSummaryFromRows(records, inventory, inventoryTotals, generatedAt, mode || 'rolling_7_days');
+  const trackSummary = buildTrackSummary_(records, generatedAt);
   return {
     generatedAt: summary.generatedAt,
     publicSummary: summary,
+    trackSummary: trackSummary,
     latestActivity: latestActivity_(records, TVF_LATEST_LIMIT, generatedAt),
     content: volunteerProfiles.length ? { volunteerProfiles: volunteerProfiles } : {},
     stats: {
@@ -458,6 +485,130 @@ function collectPublicRecords_(rowsBySheet, inventory) {
     }
   });
   return records;
+}
+
+function buildTrackSummary_(records, now) {
+  const rows = (records || []).filter(function (record) {
+    return record.kind === 'activity' && record.dateISO;
+  });
+  const monthSeen = {};
+  const trackRows = {};
+  const personSeen = {};
+
+  rows.forEach(function (record) {
+    const month = String(record.dateISO).slice(0, 7);
+    const key = trackKeyFromActivity_(record);
+    monthSeen[month] = true;
+    if (!trackRows[key]) {
+      trackRows[key] = {
+        key: key,
+        label: trackLabel_(key),
+        sessions: 0,
+        byMonth: {},
+        peopleMap: {}
+      };
+    }
+    trackRows[key].sessions += 1;
+    inc_(trackRows[key].byMonth, month, 1);
+    if (isPublicNamedLabel_(record.publicLabel)) {
+      trackRows[key].peopleMap[record.publicLabel] = true;
+      publicPeopleFromLabel_(record.publicLabel).forEach(function (person) {
+        personSeen[person.key] = person.label;
+      });
+    }
+  });
+
+  const orderIndex = {};
+  TVF_TRACK_ORDER.forEach(function (key, idx) { orderIndex[key] = idx; });
+  const tracks = Object.keys(trackRows).map(function (key) {
+    const row = trackRows[key];
+    const people = Object.keys(row.peopleMap).sort(function (a, b) { return a.localeCompare(b, 'tr'); });
+    return {
+      key: row.key,
+      label: row.label,
+      sessions: row.sessions,
+      byMonth: row.byMonth,
+      peopleCount: people.length,
+      people: people
+    };
+  }).sort(function (a, b) {
+    return Number(b.sessions || 0) - Number(a.sessions || 0)
+      || (orderIndex[a.key] == null ? 999 : orderIndex[a.key]) - (orderIndex[b.key] == null ? 999 : orderIndex[b.key])
+      || a.label.localeCompare(b.label, 'tr');
+  });
+
+  const people = Object.keys(personSeen).map(function (key) { return personSeen[key]; })
+    .sort(function (a, b) { return a.localeCompare(b, 'tr'); });
+  return {
+    generatedAt: isoDateTime_(now || new Date()),
+    source: {
+      name: 'Günlük Akış',
+      rows: rows.length,
+      method: 'activity-row-track-summary'
+    },
+    monthsActive: Object.keys(monthSeen).sort(),
+    peopleCount: people.length,
+    people: people,
+    tracks: tracks
+  };
+}
+
+function trackKeyFromActivity_(record) {
+  const haystack = asciiFold_([
+    record.workTitle,
+    record.workDetail,
+    record.material
+  ].join(' ')).toLowerCase();
+
+  if (/\b(web|site|teknik|it)\b/.test(haystack) || haystack.indexOf('arsiv web') >= 0 || haystack.indexOf('arsiv-web') >= 0) {
+    return 'ars_web';
+  }
+  if (haystack.indexOf('egitim') >= 0 || haystack.indexOf('is bankasi') >= 0 || haystack.indexOf('muze') >= 0) {
+    return 'egitim';
+  }
+  if (haystack.indexOf('osmanlica') >= 0 || haystack.indexOf('ceviri') >= 0) {
+    return 'osmanlica';
+  }
+  if (haystack.indexOf('envanter') >= 0 || haystack.indexOf('afis') >= 0 || haystack.indexOf('gorsel') >= 0 || haystack.indexOf('harita') >= 0 || haystack.indexOf('dvd') >= 0 || haystack.indexOf('video') >= 0 || haystack.indexOf('sozlu tarih') >= 0 || haystack.indexOf('aktarim') >= 0 || haystack.indexOf('tashih') >= 0) {
+    return 'envanter';
+  }
+  if (haystack.indexOf('kronoloji') >= 0 || haystack.indexOf('karar defter') >= 0 || haystack.indexOf('genel kurul') >= 0 || haystack.indexOf('faaliyet rapor') >= 0 || haystack.indexOf('kurucu') >= 0) {
+    return 'kurumsal_bellek';
+  }
+  if (haystack.indexOf('gerda') >= 0 || haystack.indexOf('basvuru') >= 0 || haystack.indexOf('proje butcesi') >= 0 || haystack.indexOf('proje form') >= 0 || haystack.indexOf('proje hazir') >= 0 || haystack.indexOf('proje deger') >= 0 || haystack.indexOf('culture civic') >= 0 || haystack.indexOf('salt') >= 0 || haystack.indexOf('fon') >= 0) {
+    return 'proje_basvuru';
+  }
+  if (haystack.indexOf('koordinasyon') >= 0 || haystack.indexOf('planlama') >= 0 || haystack.indexOf('oryantasyon') >= 0 || haystack.indexOf('organizasyon') >= 0 || haystack.indexOf('toplanti') >= 0 || haystack.indexOf('gorusme') >= 0) {
+    return 'koordinasyon';
+  }
+  if (haystack.indexOf('kodlama') >= 0 || haystack.indexOf('kontrol') >= 0 || haystack.indexOf('duzelt') >= 0 || haystack.indexOf('duzenleme') >= 0 || haystack.indexOf('adlandirma') >= 0) {
+    return 'kodlama_kontrol';
+  }
+  if (haystack.indexOf('tarama') >= 0 || haystack.indexOf('sayisallastirma') >= 0 || haystack.indexOf('dijitallestirme') >= 0 || haystack.indexOf('dia') >= 0 || haystack.indexOf('pnb') >= 0 || haystack.indexOf('kutu') >= 0) {
+    return 'tarama';
+  }
+  return 'diger';
+}
+
+function trackLabel_(key) {
+  return TVF_TRACK_LABELS[key] || TVF_TRACK_LABELS.diger;
+}
+
+function publicPeopleFromLabel_(label) {
+  if (!isPublicNamedLabel_(label)) return [];
+  return String(label || '')
+    .split(/\s*(?:,|;|\n|\s+-\s+)\s*/)
+    .map(function (item) { return normalizeVolunteerName_(item); })
+    .filter(function (item) { return isPublicNamedLabel_(item); })
+    .map(function (item) {
+      return {
+        key: contributorKey_(item),
+        label: item
+      };
+    })
+    .filter(function (item, idx, arr) {
+      return arr.findIndex(function (other) { return other.key === item.key; }) === idx;
+    });
 }
 
 function latestActivity_(records, limit, now) {
@@ -1161,10 +1312,13 @@ function parseSheetDate_(value) {
   if (value instanceof Date && !isNaN(value.getTime())) return value;
   if (typeof value === 'number' && isFinite(value)) return new Date(Date.UTC(1899, 11, 30 + Math.floor(value), 12, 0, 0));
   const text = String(value).trim();
-  let match = text.match(/^(\d{1,2})\s+([A-Za-zÇĞİÖŞÜçğıöşü]+)\s+(\d{4})$/);
+  let match = text.match(/^(\d{1,2})\s+([A-Za-zÇĞİÖŞÜçğıöşü]+)(?:\s+(\d{4}))?$/);
   if (match) {
     const month = monthNumber_(match[2]);
-    if (month) return new Date(Number(match[3]), month - 1, Number(match[1]), 12, 0, 0);
+    if (month) {
+      const year = match[3] ? Number(match[3]) : new Date().getFullYear();
+      return new Date(year, month - 1, Number(match[1]), 12, 0, 0);
+    }
   }
   match = text.match(/^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{2,4})$/);
   if (match) {
@@ -1273,6 +1427,7 @@ function dateRangeLabel_(start, fullEnd) {
 
 function monthNumber_(name) {
   const folded = asciiFold_(name).toLowerCase();
+  if (folded === 'harizan') return 6;
   for (let i = 0; i < TVF_TR_MONTHS.length; i++) {
     if (asciiFold_(TVF_TR_MONTHS[i]).toLowerCase() === folded) return i + 1;
   }

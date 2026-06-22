@@ -1,17 +1,18 @@
 {
-  "generatedAt": "2026-05-15T05:53:34.730097Z",
-  "selectedMode": "calendar_week_to_date",
+  "generatedAt": "2026-06-22T20:08:16.147025Z",
+  "selectedMode": "rolling_7_days",
   "workbook": {
     "sheets": [
       {
         "title": "Günlük Akış",
         "classification": "activity",
-        "rows": 64,
+        "rows": 149,
         "headers": [
           "Tarih",
           "Paydaş",
           "Çalışma Alanı",
           "Devam Eden Çalışma",
+          "Yapılan Çalışmaya İlişkin Sayısal Bilgi",
           "Bilgisayar",
           "Tarayıcı",
           "Notlar"
@@ -26,22 +27,147 @@
           "boxes": [],
           "materials": [
             "Çalışma Alanı",
-            "Devam Eden Çalışma"
+            "Devam Eden Çalışma",
+            "Yapılan Çalışmaya İlişkin Sayısal Bilgi"
           ],
           "targets": [],
           "done": []
         }
       },
       {
-        "title": "PNB 14 Betül",
+        "title": "PNB Sayısallaştırma",
+        "classification": "pnb_inventory",
+        "rows": 88,
+        "headers": [
+          "Fon",
+          "Kutu",
+          "Dosya Sayısı",
+          "Belge Sayısı",
+          "Sayfa Sayısı",
+          "Tarama",
+          "Kodlama",
+          "Kontrol",
+          "Kataloglama",
+          "Jpeg'e Dönüştürme",
+          "Birleştirerek pdf'te dönüştürme"
+        ],
+        "inferred": {
+          "dates": [],
+          "volunteers": [],
+          "boxes": [
+            "Kutu"
+          ],
+          "materials": [
+            "Fon"
+          ],
+          "targets": [
+            "Sayfa Sayısı"
+          ],
+          "done": [
+            "Tarama",
+            "Kodlama",
+            "Kontrol"
+          ]
+        }
+      },
+      {
+        "title": "Tarama Notları",
+        "classification": "other",
+        "rows": 27,
+        "headers": [
+          "Fon",
+          "Kutu",
+          "Dosya Sayısı",
+          "Belge Sayısı",
+          "Sayfa Sayısı",
+          "Taranan Sayfa Sayısı",
+          "Tarayan",
+          "Kontrol"
+        ],
+        "inferred": {
+          "dates": [],
+          "volunteers": [],
+          "boxes": [
+            "Kutu"
+          ],
+          "materials": [
+            "Fon"
+          ],
+          "targets": [
+            "Sayfa Sayısı",
+            "Taranan Sayfa Sayısı"
+          ],
+          "done": [
+            "Kontrol"
+          ]
+        }
+      },
+      {
+        "title": "Haftalık Plan",
+        "classification": "other",
+        "rows": 5,
+        "headers": [
+          "Pazartesi",
+          "Salı",
+          "Çarşama",
+          "Perşembe",
+          "Cuma"
+        ],
+        "inferred": {
+          "dates": [],
+          "volunteers": [],
+          "boxes": [],
+          "materials": [],
+          "targets": [],
+          "done": []
+        }
+      },
+      {
+        "title": "PNB 17 Aysu-Lara",
         "classification": "pnb_detail",
-        "rows": 11,
+        "rows": 298,
         "headers": [
           "Fon Adı",
           "Kutu No",
           "Dosya No",
           "Belge No",
-          "Sayfa Sayısı",
+          "Sayfa sayısı",
+          "Dijital Belge Kodu",
+          "Notlar",
+          "Tarih",
+          "Kaydı Oluşturan",
+          "Tarayıcı"
+        ],
+        "inferred": {
+          "dates": [
+            "Tarih"
+          ],
+          "volunteers": [
+            "Kaydı Oluşturan"
+          ],
+          "boxes": [
+            "Kutu No"
+          ],
+          "materials": [
+            "Fon Adı",
+            "Dijital Belge Kodu"
+          ],
+          "targets": [
+            "Sayfa sayısı"
+          ],
+          "done": []
+        }
+      },
+      {
+        "title": "PNB18 Anıl Berfin ",
+        "classification": "other",
+        "rows": 670,
+        "headers": [
+          "Fon Adı",
+          "Kutu No",
+          "Dosya No",
+          "Belge No",
+          "Sayfa",
           "Dijital Belge Kodu",
           "Notlar",
           "Tarih",
@@ -62,26 +188,24 @@
             "Fon Adı",
             "Dijital Belge Kodu"
           ],
-          "targets": [
-            "Sayfa Sayısı"
-          ],
+          "targets": [],
           "done": []
         }
       },
       {
-        "title": "PNB I1 Kadir",
+        "title": "PNB 19 Aysu",
         "classification": "pnb_detail",
-        "rows": 111,
+        "rows": 244,
         "headers": [
           "Fon Adı",
           "Kutu No",
           "Dosya No",
           "Belge No",
-          "Sayfa Sayısı",
+          "Sayfa sayısı",
           "Dijital Belge Kodu",
           "Notlar",
           "Tarih",
-          "Kaydı Oluşuran",
+          "Kaydı Oluşturan",
           "Tarayıcı"
         ],
         "inferred": {
@@ -89,7 +213,7 @@
             "Tarih"
           ],
           "volunteers": [
-            "Kaydı Oluşuran"
+            "Kaydı Oluşturan"
           ],
           "boxes": [
             "Kutu No"
@@ -99,15 +223,87 @@
             "Dijital Belge Kodu"
           ],
           "targets": [
-            "Sayfa Sayısı"
+            "Sayfa sayısı"
           ],
           "done": []
         }
       },
       {
-        "title": "PNB I2 Aysu",
+        "title": "PNB 20 Aysu",
         "classification": "pnb_detail",
-        "rows": 40,
+        "rows": 598,
+        "headers": [
+          "Fon Adı",
+          "Kutu No",
+          "Dosya No",
+          "Belge No",
+          "Sayfa sayısı",
+          "Dijital Belge Kodu",
+          "Notlar",
+          "Tarih",
+          "Kaydı Oluşturan",
+          "Tarayıcı"
+        ],
+        "inferred": {
+          "dates": [
+            "Tarih"
+          ],
+          "volunteers": [
+            "Kaydı Oluşturan"
+          ],
+          "boxes": [
+            "Kutu No"
+          ],
+          "materials": [
+            "Fon Adı",
+            "Dijital Belge Kodu"
+          ],
+          "targets": [
+            "Sayfa sayısı"
+          ],
+          "done": []
+        }
+      },
+      {
+        "title": "PNB 21 Aysu",
+        "classification": "pnb_detail",
+        "rows": 428,
+        "headers": [
+          "Fon Adı",
+          "Kutu No",
+          "Dosya No",
+          "Belge No",
+          "Sayfa sayısı",
+          "Dijital Belge Kodu",
+          "Notlar",
+          "Tarih",
+          "Kaydı Oluşturan",
+          "Tarayıcı"
+        ],
+        "inferred": {
+          "dates": [
+            "Tarih"
+          ],
+          "volunteers": [
+            "Kaydı Oluşturan"
+          ],
+          "boxes": [
+            "Kutu No"
+          ],
+          "materials": [
+            "Fon Adı",
+            "Dijital Belge Kodu"
+          ],
+          "targets": [
+            "Sayfa sayısı"
+          ],
+          "done": []
+        }
+      },
+      {
+        "title": "PNB 22 Feyza",
+        "classification": "pnb_detail",
+        "rows": 292,
         "headers": [
           "Fon Adı",
           "Kutu No",
@@ -143,7 +339,7 @@
       {
         "title": "PNB 68 Sibel",
         "classification": "pnb_detail",
-        "rows": 99,
+        "rows": 116,
         "headers": [
           "Fon Adı",
           "Kutu No",
@@ -170,201 +366,6 @@
             "Fon Adı",
             "Dijital Belge Kodu"
           ],
-          "targets": [],
-          "done": []
-        }
-      },
-      {
-        "title": "PNB 16 Sibel-Lara",
-        "classification": "pnb_detail",
-        "rows": 166,
-        "headers": [
-          "Fon Adı",
-          "Kutu No",
-          "Dosya No",
-          "Belge No",
-          "Sayfa",
-          "Dijital Belge Kodu",
-          "Notlar",
-          "Tarih",
-          "Kaydı Oluşuran",
-          "Tarayıcı"
-        ],
-        "inferred": {
-          "dates": [
-            "Tarih"
-          ],
-          "volunteers": [
-            "Kaydı Oluşuran"
-          ],
-          "boxes": [
-            "Kutu No"
-          ],
-          "materials": [
-            "Fon Adı",
-            "Dijital Belge Kodu"
-          ],
-          "targets": [],
-          "done": []
-        }
-      },
-      {
-        "title": "PNB 15 Ateş",
-        "classification": "pnb_detail",
-        "rows": 704,
-        "headers": [
-          "Fon Adı",
-          "Kutu No",
-          "Dosya No",
-          "Belge No",
-          "Sayfa",
-          "Dijital Belge Kodu",
-          "Notlar",
-          "Tarih",
-          "Kaydı Oluşuran",
-          "Tarayıcı"
-        ],
-        "inferred": {
-          "dates": [
-            "Tarih"
-          ],
-          "volunteers": [
-            "Kaydı Oluşuran"
-          ],
-          "boxes": [
-            "Kutu No"
-          ],
-          "materials": [
-            "Fon Adı",
-            "Dijital Belge Kodu"
-          ],
-          "targets": [],
-          "done": []
-        }
-      },
-      {
-        "title": "PNB Arda",
-        "classification": "pnb_detail",
-        "rows": 0,
-        "headers": [
-          "Fon Adı",
-          "Kutu No",
-          "Dosya No",
-          "Belge No",
-          "Sayfa Sayısı",
-          "Dijital Belge Kodu",
-          "Notlar",
-          "Tarih",
-          "Kaydı Oluşuran",
-          "Tarayıcı"
-        ],
-        "inferred": {
-          "dates": [
-            "Tarih"
-          ],
-          "volunteers": [
-            "Kaydı Oluşuran"
-          ],
-          "boxes": [
-            "Kutu No"
-          ],
-          "materials": [
-            "Fon Adı",
-            "Dijital Belge Kodu"
-          ],
-          "targets": [
-            "Sayfa Sayısı"
-          ],
-          "done": []
-        }
-      },
-      {
-        "title": "PNB Kübra",
-        "classification": "pnb_detail",
-        "rows": 2,
-        "headers": [
-          "Fon Adı",
-          "Kutu No",
-          "Dosya No",
-          "Belge No",
-          "Sayfa Sayısı",
-          "Dijital Belge Kodu",
-          "Notlar",
-          "Tarih",
-          "Kaydı Oluşuran",
-          "Tarayıcı"
-        ],
-        "inferred": {
-          "dates": [
-            "Tarih"
-          ],
-          "volunteers": [
-            "Kaydı Oluşuran"
-          ],
-          "boxes": [
-            "Kutu No"
-          ],
-          "materials": [
-            "Fon Adı",
-            "Dijital Belge Kodu"
-          ],
-          "targets": [
-            "Sayfa Sayısı"
-          ],
-          "done": []
-        }
-      },
-      {
-        "title": "PNB Sayısallaştırma",
-        "classification": "pnb_inventory",
-        "rows": 89,
-        "headers": [
-          "Fon",
-          "Kutu",
-          "Dosya Sayısı",
-          "Belge Sayısı",
-          "Sayfa Sayısı",
-          "Tarama",
-          "Kodlama",
-          "Kontrol",
-          "Jpeg'e Dönüştürme",
-          "Birleştirerek pdf'te dönüştürme"
-        ],
-        "inferred": {
-          "dates": [],
-          "volunteers": [],
-          "boxes": [
-            "Kutu"
-          ],
-          "materials": [
-            "Fon"
-          ],
-          "targets": [
-            "Sayfa Sayısı"
-          ],
-          "done": [
-            "Tarama",
-            "Kodlama",
-            "Kontrol"
-          ]
-        }
-      },
-      {
-        "title": "Günlük Gönüllü Akışı",
-        "classification": "schedule",
-        "rows": 9,
-        "headers": [
-          "Pazartesi",
-          "Salı",
-          "Çarşama",
-          "Perşembe",
-          "Cuma"
-        ],
-        "inferred": {
-          "dates": [],
-          "volunteers": [],
-          "boxes": [],
-          "materials": [],
           "targets": [],
           "done": []
         }
@@ -373,7 +374,7 @@
   },
   "summaries": {
     "calendar_week_to_date": {
-      "generatedAt": "2026-05-15T05:53:34.730097Z",
+      "generatedAt": "2026-06-22T20:08:16.147025Z",
       "source": {
         "name": "Tarih Vakfı Gönüllü Ağı",
         "projectId": "pnb",
@@ -383,43 +384,43 @@
       },
       "period": {
         "mode": "calendar_week_to_date",
-        "startDate": "2026-05-11",
-        "endDate": "2026-05-15",
-        "fullEndDate": "2026-05-17",
-        "label": "11–17 Mayıs haftası · bugüne kadar",
+        "startDate": "2026-06-22",
+        "endDate": "2026-06-22",
+        "fullEndDate": "2026-06-28",
+        "label": "22–28 Haziran haftası · bugüne kadar",
         "isPartial": true
       },
       "totals": {
-        "records": 219,
-        "pageRows": 205,
-        "activityRows": 14,
-        "periodPagesDone": 205,
-        "pagesDone": 1854,
-        "pagesTarget": 77544,
-        "progressPercent": 2.4,
+        "records": 31,
+        "pageRows": 27,
+        "activityRows": 4,
+        "periodPagesDone": 27,
+        "pagesDone": 41334,
+        "pagesTarget": 78904,
+        "progressPercent": 52.4,
         "boxesTotal": 86,
         "boxesCatalogued": 86,
-        "boxesActive": 2,
-        "boxesCompleted": 0,
-        "boxesRemaining": 86,
-        "volunteersActive": 5,
-        "volunteers": 5,
-        "materials": 2
+        "boxesActive": 1,
+        "boxesCompleted": 1,
+        "boxesRemaining": 85,
+        "volunteersActive": 4,
+        "volunteers": 4,
+        "materials": 1
       },
       "byDay": [
         {
-          "dateISO": "2026-05-11",
+          "dateISO": "2026-06-22",
           "weekdayTR": "Pazartesi",
-          "dayNumber": 11,
-          "records": 44,
-          "pageRows": 40,
+          "dayNumber": 22,
+          "records": 31,
+          "pageRows": 27,
           "activityRows": 4,
-          "pagesDone": 40,
+          "pagesDone": 27,
           "volunteersCount": 4,
           "volunteerNames": [
-            "Arda Tuzkapı",
+            "Anıl Olcan",
             "Aysu Balta",
-            "Lara Gülmez"
+            "Berfin Yazıcı"
           ],
           "coordination": [
             {
@@ -433,85 +434,13 @@
           ],
           "contributors": [
             {
-              "label": "Arda Tuzkapı",
+              "label": "Anıl Olcan",
               "publicRole": "",
-              "records": 1,
-              "pageRows": 0,
+              "records": 28,
+              "pageRows": 27,
               "activityRows": 1,
-              "pagesDone": 0
+              "pagesDone": 27
             },
-            {
-              "label": "Aysu Balta",
-              "publicRole": "",
-              "records": 41,
-              "pageRows": 40,
-              "activityRows": 1,
-              "pagesDone": 40
-            },
-            {
-              "label": "Gülistan Eren",
-              "publicRole": "Gönüllü Koordinatörü",
-              "records": 1,
-              "pageRows": 0,
-              "activityRows": 1,
-              "pagesDone": 0
-            },
-            {
-              "label": "Lara Gülmez",
-              "publicRole": "",
-              "records": 1,
-              "pageRows": 0,
-              "activityRows": 1,
-              "pagesDone": 0
-            }
-          ],
-          "boxesCount": 1,
-          "boxLabels": [
-            "Kutu I2"
-          ],
-          "materials": [
-            {
-              "material": "belgeler",
-              "label": "Belgeler",
-              "count": 43,
-              "percent": 97.7
-            },
-            {
-              "material": "fotoğraflar",
-              "label": "Fotoğraflar",
-              "count": 1,
-              "percent": 2.3
-            }
-          ],
-          "firstTime": "2026-05-11T12:00:00+03:00",
-          "lastTime": "2026-05-11T12:00:00+03:00",
-          "summarySentence": "Bugün 40 sayfa/detay satırı, 4 faaliyet kaydı, 4 kişi, 1 kutu işlendi."
-        },
-        {
-          "dateISO": "2026-05-12",
-          "weekdayTR": "Salı",
-          "dayNumber": 12,
-          "records": 103,
-          "pageRows": 99,
-          "activityRows": 4,
-          "pagesDone": 99,
-          "volunteersCount": 4,
-          "volunteerNames": [
-            "Aysu Balta",
-            "Lara Gülmez",
-            "Sibel Dağ"
-          ],
-          "coordination": [
-            {
-              "label": "Gülistan Eren",
-              "publicRole": "Gönüllü Koordinatörü",
-              "records": 1,
-              "pageRows": 0,
-              "activityRows": 1,
-              "pagesDone": 0
-            }
-          ],
-          "contributors": [
             {
               "label": "Aysu Balta",
               "publicRole": "",
@@ -521,207 +450,68 @@
               "pagesDone": 0
             },
             {
+              "label": "Berfin Yazıcı",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            },
+            {
               "label": "Gülistan Eren",
               "publicRole": "Gönüllü Koordinatörü",
               "records": 1,
               "pageRows": 0,
               "activityRows": 1,
               "pagesDone": 0
-            },
-            {
-              "label": "Lara Gülmez",
-              "publicRole": "",
-              "records": 1,
-              "pageRows": 0,
-              "activityRows": 1,
-              "pagesDone": 0
-            },
-            {
-              "label": "Sibel Dağ",
-              "publicRole": "",
-              "records": 100,
-              "pageRows": 99,
-              "activityRows": 1,
-              "pagesDone": 99
             }
           ],
           "boxesCount": 1,
           "boxLabels": [
-            "Kutu 16"
+            "Kutu 19"
           ],
           "materials": [
             {
               "material": "belgeler",
               "label": "Belgeler",
-              "count": 101,
-              "percent": 98.1
-            },
-            {
-              "material": "fotoğraflar",
-              "label": "Fotoğraflar",
-              "count": 2,
-              "percent": 1.9
-            }
-          ],
-          "firstTime": "2026-05-12T12:00:00+03:00",
-          "lastTime": "2026-05-12T12:00:00+03:00",
-          "summarySentence": "Bugün 99 sayfa/detay satırı, 4 faaliyet kaydı, 4 kişi, 1 kutu işlendi."
-        },
-        {
-          "dateISO": "2026-05-13",
-          "weekdayTR": "Çarşamba",
-          "dayNumber": 13,
-          "records": 69,
-          "pageRows": 66,
-          "activityRows": 3,
-          "pagesDone": 66,
-          "volunteersCount": 2,
-          "volunteerNames": [
-            "Lara Gülmez"
-          ],
-          "coordination": [
-            {
-              "label": "Gülistan Eren",
-              "publicRole": "Gönüllü Koordinatörü",
-              "records": 1,
-              "pageRows": 0,
-              "activityRows": 1,
-              "pagesDone": 0
-            }
-          ],
-          "contributors": [
-            {
-              "label": "Gülistan Eren",
-              "publicRole": "Gönüllü Koordinatörü",
-              "records": 1,
-              "pageRows": 0,
-              "activityRows": 1,
-              "pagesDone": 0
-            },
-            {
-              "label": "Lara Gülmez",
-              "publicRole": "",
-              "records": 67,
-              "pageRows": 66,
-              "activityRows": 1,
-              "pagesDone": 66
-            }
-          ],
-          "boxesCount": 1,
-          "boxLabels": [
-            "Kutu 16"
-          ],
-          "materials": [
-            {
-              "material": "belgeler",
-              "label": "Belgeler",
-              "count": 69,
+              "count": 31,
               "percent": 100.0
             }
           ],
-          "firstTime": "2026-05-13T12:00:00+03:00",
-          "lastTime": "2026-05-13T12:00:00+03:00",
-          "summarySentence": "Bugün 66 sayfa/detay satırı, 3 faaliyet kaydı, 2 kişi, 1 kutu işlendi."
-        },
-        {
-          "dateISO": "2026-05-14",
-          "weekdayTR": "Perşembe",
-          "dayNumber": 14,
-          "records": 3,
-          "pageRows": 0,
-          "activityRows": 3,
-          "pagesDone": 0,
-          "volunteersCount": 1,
-          "volunteerNames": [],
-          "coordination": [
-            {
-              "label": "Gülistan Eren",
-              "publicRole": "Gönüllü Koordinatörü",
-              "records": 1,
-              "pageRows": 0,
-              "activityRows": 1,
-              "pagesDone": 0
-            }
-          ],
-          "contributors": [
-            {
-              "label": "Gülistan Eren",
-              "publicRole": "Gönüllü Koordinatörü",
-              "records": 1,
-              "pageRows": 0,
-              "activityRows": 1,
-              "pagesDone": 0
-            }
-          ],
-          "boxesCount": 0,
-          "boxLabels": [],
-          "materials": [
-            {
-              "material": "belgeler",
-              "label": "Belgeler",
-              "count": 3,
-              "percent": 100.0
-            }
-          ],
-          "firstTime": "2026-05-14T12:00:00+03:00",
-          "lastTime": "2026-05-14T12:00:00+03:00",
-          "summarySentence": "Bugün 3 faaliyet kaydı, 1 kişi işlendi."
-        },
-        {
-          "dateISO": "2026-05-15",
-          "weekdayTR": "Cuma",
-          "dayNumber": 15,
-          "records": 0,
-          "pageRows": 0,
-          "activityRows": 0,
-          "pagesDone": 0,
-          "volunteersCount": 0,
-          "volunteerNames": [],
-          "coordination": [],
-          "contributors": [],
-          "boxesCount": 0,
-          "boxLabels": [],
-          "materials": [],
-          "firstTime": null,
-          "lastTime": null,
-          "summarySentence": "Bugün için görünür katkı yok."
+          "firstTime": "2026-06-22T12:00:00+03:00",
+          "lastTime": "2026-06-22T12:00:00+03:00",
+          "summarySentence": "Bugün 27 sayfa/detay satırı, 4 faaliyet kaydı, 4 kişi, 1 kutu işlendi."
         }
       ],
       "byMaterial": [
         {
           "material": "belgeler",
           "label": "Belgeler",
-          "count": 216,
-          "percent": 98.6
-        },
-        {
-          "material": "fotoğraflar",
-          "label": "Fotoğraflar",
-          "count": 3,
-          "percent": 1.4
+          "count": 31,
+          "percent": 100.0
         }
       ],
       "byBox": [
         {
-          "box": "16",
-          "boxLabel": "Kutu 16",
-          "label": "Kutu 16",
-          "boxTitle": "Kutu 16",
-          "done": 166,
-          "target": 880,
-          "percent": 18.9,
-          "remaining": 714,
-          "records": 165,
-          "pageRows": 165,
+          "box": "19",
+          "boxLabel": "Kutu 19",
+          "label": "Kutu 19",
+          "boxTitle": "Kutu 19",
+          "done": 244,
+          "target": 1111,
+          "percent": 22.0,
+          "remaining": 867,
+          "records": 27,
+          "pageRows": 27,
           "activityRows": 0,
-          "periodRecords": 165,
-          "periodPageRows": 165,
-          "periodPagesDone": 165,
+          "periodRecords": 27,
+          "periodPageRows": 27,
+          "periodPagesDone": 27,
           "materialCounts": [
             {
               "material": "belgeler",
               "label": "Belgeler",
-              "count": 165,
+              "count": 27,
               "percent": 100.0
             }
           ],
@@ -729,101 +519,31 @@
             {
               "material": "belgeler",
               "label": "Belgeler",
-              "count": 165,
+              "count": 27,
               "percent": 100.0
             }
           ],
           "contributors": [
             {
-              "label": "Sibel Dağ",
+              "label": "Anıl Olcan",
               "publicRole": "",
-              "records": 99,
-              "pageRows": 99,
-              "pagesDone": 99
-            },
-            {
-              "label": "Lara Gülmez",
-              "publicRole": "",
-              "records": 66,
-              "pageRows": 66,
-              "pagesDone": 66
+              "records": 27,
+              "pageRows": 27,
+              "pagesDone": 27
             }
           ],
           "topContributors": [
             {
-              "label": "Sibel Dağ",
+              "label": "Anıl Olcan",
               "publicRole": "",
-              "records": 99,
-              "pageRows": 99,
-              "pagesDone": 99
-            },
-            {
-              "label": "Lara Gülmez",
-              "publicRole": "",
-              "records": 66,
-              "pageRows": 66,
-              "pagesDone": 66
-            }
-          ],
-          "contributorsCount": 2,
-          "lastActivityDate": "2026-05-13",
-          "lastActivityLabel": "13 Mayıs",
-          "status": "active",
-          "targetMissing": false,
-          "overTarget": false
-        },
-        {
-          "box": "I2",
-          "boxLabel": "Kutu I2",
-          "label": "Kutu I2",
-          "boxTitle": "Kutu I2",
-          "done": 40,
-          "target": 139,
-          "percent": 28.8,
-          "remaining": 99,
-          "records": 40,
-          "pageRows": 40,
-          "activityRows": 0,
-          "periodRecords": 40,
-          "periodPageRows": 40,
-          "periodPagesDone": 40,
-          "materialCounts": [
-            {
-              "material": "belgeler",
-              "label": "Belgeler",
-              "count": 40,
-              "percent": 100.0
-            }
-          ],
-          "materials": [
-            {
-              "material": "belgeler",
-              "label": "Belgeler",
-              "count": 40,
-              "percent": 100.0
-            }
-          ],
-          "contributors": [
-            {
-              "label": "Aysu Balta",
-              "publicRole": "",
-              "records": 40,
-              "pageRows": 40,
-              "pagesDone": 40
-            }
-          ],
-          "topContributors": [
-            {
-              "label": "Aysu Balta",
-              "publicRole": "",
-              "records": 40,
-              "pageRows": 40,
-              "pagesDone": 40
+              "records": 27,
+              "pageRows": 27,
+              "pagesDone": 27
             }
           ],
           "contributorsCount": 1,
-          "lastActivityDate": "2026-05-11",
-          "lastActivityLabel": "11 Mayıs",
+          "lastActivityDate": "2026-06-22",
+          "lastActivityLabel": "22 Haziran",
           "status": "active",
           "targetMissing": false,
           "overTarget": false
@@ -831,76 +551,49 @@
       ],
       "byVolunteer": [
         {
-          "label": "Sibel Dağ",
+          "label": "Anıl Olcan",
           "publicRole": "",
-          "records": 100,
-          "pageRows": 99,
+          "records": 28,
+          "pageRows": 27,
           "activityRows": 1,
-          "pagesDone": 99,
-          "topBox": "Kutu 16",
+          "pagesDone": 27,
+          "topBox": "Kutu 19",
           "boxes": [
-            "Kutu 16"
+            "Kutu 19"
           ],
           "boxBreakdown": [
             {
-              "box": "16",
-              "boxLabel": "Kutu 16",
-              "records": 99
-            }
-          ]
-        },
-        {
-          "label": "Lara Gülmez",
-          "publicRole": "",
-          "records": 69,
-          "pageRows": 66,
-          "activityRows": 3,
-          "pagesDone": 66,
-          "topBox": "Kutu 16",
-          "boxes": [
-            "Kutu 16"
-          ],
-          "boxBreakdown": [
-            {
-              "box": "16",
-              "boxLabel": "Kutu 16",
-              "records": 66
+              "box": "19",
+              "boxLabel": "Kutu 19",
+              "records": 27
             }
           ]
         },
         {
           "label": "Aysu Balta",
           "publicRole": "",
-          "records": 42,
-          "pageRows": 40,
-          "activityRows": 2,
-          "pagesDone": 40,
-          "topBox": "Kutu I2",
-          "boxes": [
-            "Kutu I2"
-          ],
-          "boxBreakdown": [
-            {
-              "box": "I2",
-              "boxLabel": "Kutu I2",
-              "records": 40
-            }
-          ]
-        },
-        {
-          "label": "Gülistan Eren",
-          "publicRole": "Gönüllü Koordinatörü",
-          "records": 4,
+          "records": 1,
           "pageRows": 0,
-          "activityRows": 4,
+          "activityRows": 1,
           "pagesDone": 0,
           "topBox": null,
           "boxes": [],
           "boxBreakdown": []
         },
         {
-          "label": "Arda Tuzkapı",
+          "label": "Berfin Yazıcı",
           "publicRole": "",
+          "records": 1,
+          "pageRows": 0,
+          "activityRows": 1,
+          "pagesDone": 0,
+          "topBox": null,
+          "boxes": [],
+          "boxBreakdown": []
+        },
+        {
+          "label": "Gülistan Eren",
+          "publicRole": "Gönüllü Koordinatörü",
           "records": 1,
           "pageRows": 0,
           "activityRows": 1,
@@ -912,18 +605,18 @@
       ],
       "highlights": {
         "busiestDay": {
-          "dateISO": "2026-05-12",
-          "weekdayTR": "Salı",
-          "dayNumber": 12,
-          "records": 103,
-          "pageRows": 99,
+          "dateISO": "2026-06-22",
+          "weekdayTR": "Pazartesi",
+          "dayNumber": 22,
+          "records": 31,
+          "pageRows": 27,
           "activityRows": 4,
-          "pagesDone": 99,
+          "pagesDone": 27,
           "volunteersCount": 4,
           "volunteerNames": [
+            "Anıl Olcan",
             "Aysu Balta",
-            "Lara Gülmez",
-            "Sibel Dağ"
+            "Berfin Yazıcı"
           ],
           "coordination": [
             {
@@ -937,7 +630,23 @@
           ],
           "contributors": [
             {
+              "label": "Anıl Olcan",
+              "publicRole": "",
+              "records": 28,
+              "pageRows": 27,
+              "activityRows": 1,
+              "pagesDone": 27
+            },
+            {
               "label": "Aysu Balta",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            },
+            {
+              "label": "Berfin Yazıcı",
               "publicRole": "",
               "records": 1,
               "pageRows": 0,
@@ -951,63 +660,39 @@
               "pageRows": 0,
               "activityRows": 1,
               "pagesDone": 0
-            },
-            {
-              "label": "Lara Gülmez",
-              "publicRole": "",
-              "records": 1,
-              "pageRows": 0,
-              "activityRows": 1,
-              "pagesDone": 0
-            },
-            {
-              "label": "Sibel Dağ",
-              "publicRole": "",
-              "records": 100,
-              "pageRows": 99,
-              "activityRows": 1,
-              "pagesDone": 99
             }
           ],
           "boxesCount": 1,
           "boxLabels": [
-            "Kutu 16"
+            "Kutu 19"
           ],
           "materials": [
             {
               "material": "belgeler",
               "label": "Belgeler",
-              "count": 101,
-              "percent": 98.1
-            },
-            {
-              "material": "fotoğraflar",
-              "label": "Fotoğraflar",
-              "count": 2,
-              "percent": 1.9
+              "count": 31,
+              "percent": 100.0
             }
           ],
-          "firstTime": "2026-05-12T12:00:00+03:00",
-          "lastTime": "2026-05-12T12:00:00+03:00",
-          "summarySentence": "Bugün 99 sayfa/detay satırı, 4 faaliyet kaydı, 4 kişi, 1 kutu işlendi."
+          "firstTime": "2026-06-22T12:00:00+03:00",
+          "lastTime": "2026-06-22T12:00:00+03:00",
+          "summarySentence": "Bugün 27 sayfa/detay satırı, 4 faaliyet kaydı, 4 kişi, 1 kutu işlendi."
         },
-        "latestDate": "2026-05-14",
+        "latestDate": "2026-06-22",
         "topMaterial": {
           "material": "belgeler",
           "label": "Belgeler",
-          "count": 216,
-          "percent": 98.6
+          "count": 31,
+          "percent": 100.0
         },
         "firstCompletedBox": null
       },
       "warnings": [
         {
-          "code": "missing_box_targets",
-          "message": "3 aktif kutuda hedef sayfa toplamı yok.",
+          "code": "box_done_exceeds_target",
+          "message": "1 kutuda işlenen sayı hedefi aşıyor.",
           "boxes": [
-            "68",
-            "D 1",
-            "D 2"
+            "22"
           ]
         },
         {
@@ -1016,12 +701,12 @@
         },
         {
           "code": "unknown_dates",
-          "message": "213 satır dönem/gün grafiğine atanabilecek tarih taşımıyor."
+          "message": "293 satır dönem/gün grafiğine atanabilecek tarih taşımıyor."
         }
       ]
     },
     "rolling_7_days": {
-      "generatedAt": "2026-05-15T05:53:34.730097Z",
+      "generatedAt": "2026-06-22T20:08:16.147025Z",
       "source": {
         "name": "Tarih Vakfı Gönüllü Ağı",
         "projectId": "pnb",
@@ -1031,159 +716,41 @@
       },
       "period": {
         "mode": "rolling_7_days",
-        "startDate": "2026-05-09",
-        "endDate": "2026-05-15",
-        "label": "Güncel dönem",
+        "startDate": "2026-06-16",
+        "endDate": "2026-06-22",
+        "label": "Güncel dönem · 16–22 Haziran",
         "isPartial": false
       },
       "totals": {
-        "records": 219,
-        "pageRows": 205,
-        "activityRows": 14,
-        "periodPagesDone": 205,
-        "pagesDone": 1854,
-        "pagesTarget": 77544,
-        "progressPercent": 2.4,
+        "records": 1291,
+        "pageRows": 1269,
+        "activityRows": 22,
+        "periodPagesDone": 1269,
+        "pagesDone": 41334,
+        "pagesTarget": 78904,
+        "progressPercent": 52.4,
         "boxesTotal": 86,
         "boxesCatalogued": 86,
-        "boxesActive": 2,
-        "boxesCompleted": 0,
-        "boxesRemaining": 86,
-        "volunteersActive": 5,
-        "volunteers": 5,
+        "boxesActive": 3,
+        "boxesCompleted": 1,
+        "boxesRemaining": 85,
+        "volunteersActive": 9,
+        "volunteers": 9,
         "materials": 2
       },
       "byDay": [
         {
-          "dateISO": "2026-05-09",
-          "weekdayTR": "Cumartesi",
-          "dayNumber": 9,
-          "records": 0,
-          "pageRows": 0,
-          "activityRows": 0,
-          "pagesDone": 0,
-          "volunteersCount": 0,
-          "volunteerNames": [],
-          "coordination": [],
-          "contributors": [],
-          "boxesCount": 0,
-          "boxLabels": [],
-          "materials": [],
-          "firstTime": null,
-          "lastTime": null,
-          "summarySentence": "Bugün için görünür katkı yok."
-        },
-        {
-          "dateISO": "2026-05-10",
-          "weekdayTR": "Pazar",
-          "dayNumber": 10,
-          "records": 0,
-          "pageRows": 0,
-          "activityRows": 0,
-          "pagesDone": 0,
-          "volunteersCount": 0,
-          "volunteerNames": [],
-          "coordination": [],
-          "contributors": [],
-          "boxesCount": 0,
-          "boxLabels": [],
-          "materials": [],
-          "firstTime": null,
-          "lastTime": null,
-          "summarySentence": "Bugün için görünür katkı yok."
-        },
-        {
-          "dateISO": "2026-05-11",
-          "weekdayTR": "Pazartesi",
-          "dayNumber": 11,
-          "records": 44,
-          "pageRows": 40,
-          "activityRows": 4,
-          "pagesDone": 40,
-          "volunteersCount": 4,
-          "volunteerNames": [
-            "Arda Tuzkapı",
-            "Aysu Balta",
-            "Lara Gülmez"
-          ],
-          "coordination": [
-            {
-              "label": "Gülistan Eren",
-              "publicRole": "Gönüllü Koordinatörü",
-              "records": 1,
-              "pageRows": 0,
-              "activityRows": 1,
-              "pagesDone": 0
-            }
-          ],
-          "contributors": [
-            {
-              "label": "Arda Tuzkapı",
-              "publicRole": "",
-              "records": 1,
-              "pageRows": 0,
-              "activityRows": 1,
-              "pagesDone": 0
-            },
-            {
-              "label": "Aysu Balta",
-              "publicRole": "",
-              "records": 41,
-              "pageRows": 40,
-              "activityRows": 1,
-              "pagesDone": 40
-            },
-            {
-              "label": "Gülistan Eren",
-              "publicRole": "Gönüllü Koordinatörü",
-              "records": 1,
-              "pageRows": 0,
-              "activityRows": 1,
-              "pagesDone": 0
-            },
-            {
-              "label": "Lara Gülmez",
-              "publicRole": "",
-              "records": 1,
-              "pageRows": 0,
-              "activityRows": 1,
-              "pagesDone": 0
-            }
-          ],
-          "boxesCount": 1,
-          "boxLabels": [
-            "Kutu I2"
-          ],
-          "materials": [
-            {
-              "material": "belgeler",
-              "label": "Belgeler",
-              "count": 43,
-              "percent": 97.7
-            },
-            {
-              "material": "fotoğraflar",
-              "label": "Fotoğraflar",
-              "count": 1,
-              "percent": 2.3
-            }
-          ],
-          "firstTime": "2026-05-11T12:00:00+03:00",
-          "lastTime": "2026-05-11T12:00:00+03:00",
-          "summarySentence": "Bugün 40 sayfa/detay satırı, 4 faaliyet kaydı, 4 kişi, 1 kutu işlendi."
-        },
-        {
-          "dateISO": "2026-05-12",
+          "dateISO": "2026-06-16",
           "weekdayTR": "Salı",
-          "dayNumber": 12,
-          "records": 103,
-          "pageRows": 99,
+          "dayNumber": 16,
+          "records": 4,
+          "pageRows": 0,
           "activityRows": 4,
-          "pagesDone": 99,
+          "pagesDone": 0,
           "volunteersCount": 4,
           "volunteerNames": [
-            "Aysu Balta",
-            "Lara Gülmez",
+            "Anıl Olcan",
+            "Berfin Yazıcı",
             "Sibel Dağ"
           ],
           "coordination": [
@@ -1198,7 +765,15 @@
           ],
           "contributors": [
             {
-              "label": "Aysu Balta",
+              "label": "Anıl Olcan",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            },
+            {
+              "label": "Berfin Yazıcı",
               "publicRole": "",
               "records": 1,
               "pageRows": 0,
@@ -1208,14 +783,6 @@
             {
               "label": "Gülistan Eren",
               "publicRole": "Gönüllü Koordinatörü",
-              "records": 1,
-              "pageRows": 0,
-              "activityRows": 1,
-              "pagesDone": 0
-            },
-            {
-              "label": "Lara Gülmez",
-              "publicRole": "",
               "records": 1,
               "pageRows": 0,
               "activityRows": 1,
@@ -1224,45 +791,39 @@
             {
               "label": "Sibel Dağ",
               "publicRole": "",
-              "records": 100,
-              "pageRows": 99,
+              "records": 1,
+              "pageRows": 0,
               "activityRows": 1,
-              "pagesDone": 99
+              "pagesDone": 0
             }
           ],
-          "boxesCount": 1,
-          "boxLabels": [
-            "Kutu 16"
-          ],
+          "boxesCount": 0,
+          "boxLabels": [],
           "materials": [
             {
               "material": "belgeler",
               "label": "Belgeler",
-              "count": 101,
-              "percent": 98.1
-            },
-            {
-              "material": "fotoğraflar",
-              "label": "Fotoğraflar",
-              "count": 2,
-              "percent": 1.9
+              "count": 4,
+              "percent": 100.0
             }
           ],
-          "firstTime": "2026-05-12T12:00:00+03:00",
-          "lastTime": "2026-05-12T12:00:00+03:00",
-          "summarySentence": "Bugün 99 sayfa/detay satırı, 4 faaliyet kaydı, 4 kişi, 1 kutu işlendi."
+          "firstTime": "2026-06-16T12:00:00+03:00",
+          "lastTime": "2026-06-16T12:00:00+03:00",
+          "summarySentence": "Bugün 4 faaliyet kaydı, 4 kişi işlendi."
         },
         {
-          "dateISO": "2026-05-13",
+          "dateISO": "2026-06-17",
           "weekdayTR": "Çarşamba",
-          "dayNumber": 13,
-          "records": 69,
-          "pageRows": 66,
-          "activityRows": 3,
-          "pagesDone": 66,
-          "volunteersCount": 2,
+          "dayNumber": 17,
+          "records": 4,
+          "pageRows": 0,
+          "activityRows": 4,
+          "pagesDone": 0,
+          "volunteersCount": 4,
           "volunteerNames": [
-            "Lara Gülmez"
+            "Anıl Olcan",
+            "Berfin Yazıcı",
+            "Neslihan Erkan"
           ],
           "coordination": [
             {
@@ -1276,6 +837,22 @@
           ],
           "contributors": [
             {
+              "label": "Anıl Olcan",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            },
+            {
+              "label": "Berfin Yazıcı",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            },
+            {
               "label": "Gülistan Eren",
               "publicRole": "Gönüllü Koordinatörü",
               "records": 1,
@@ -1284,40 +861,41 @@
               "pagesDone": 0
             },
             {
-              "label": "Lara Gülmez",
+              "label": "Neslihan Erkan",
               "publicRole": "",
-              "records": 67,
-              "pageRows": 66,
+              "records": 1,
+              "pageRows": 0,
               "activityRows": 1,
-              "pagesDone": 66
+              "pagesDone": 0
             }
           ],
-          "boxesCount": 1,
-          "boxLabels": [
-            "Kutu 16"
-          ],
+          "boxesCount": 0,
+          "boxLabels": [],
           "materials": [
             {
               "material": "belgeler",
               "label": "Belgeler",
-              "count": 69,
+              "count": 4,
               "percent": 100.0
             }
           ],
-          "firstTime": "2026-05-13T12:00:00+03:00",
-          "lastTime": "2026-05-13T12:00:00+03:00",
-          "summarySentence": "Bugün 66 sayfa/detay satırı, 3 faaliyet kaydı, 2 kişi, 1 kutu işlendi."
+          "firstTime": "2026-06-17T12:00:00+03:00",
+          "lastTime": "2026-06-17T12:00:00+03:00",
+          "summarySentence": "Bugün 4 faaliyet kaydı, 4 kişi işlendi."
         },
         {
-          "dateISO": "2026-05-14",
+          "dateISO": "2026-06-18",
           "weekdayTR": "Perşembe",
-          "dayNumber": 14,
+          "dayNumber": 18,
           "records": 3,
           "pageRows": 0,
           "activityRows": 3,
           "pagesDone": 0,
-          "volunteersCount": 1,
-          "volunteerNames": [],
+          "volunteersCount": 3,
+          "volunteerNames": [
+            "Anıl Olcan",
+            "Berfin Yazıcı"
+          ],
           "coordination": [
             {
               "label": "Gülistan Eren",
@@ -1329,6 +907,22 @@
             }
           ],
           "contributors": [
+            {
+              "label": "Anıl Olcan",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            },
+            {
+              "label": "Berfin Yazıcı",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            },
             {
               "label": "Gülistan Eren",
               "publicRole": "Gönüllü Koordinatörü",
@@ -1348,14 +942,123 @@
               "percent": 100.0
             }
           ],
-          "firstTime": "2026-05-14T12:00:00+03:00",
-          "lastTime": "2026-05-14T12:00:00+03:00",
-          "summarySentence": "Bugün 3 faaliyet kaydı, 1 kişi işlendi."
+          "firstTime": "2026-06-18T12:00:00+03:00",
+          "lastTime": "2026-06-18T12:00:00+03:00",
+          "summarySentence": "Bugün 3 faaliyet kaydı, 3 kişi işlendi."
         },
         {
-          "dateISO": "2026-05-15",
+          "dateISO": "2026-06-19",
           "weekdayTR": "Cuma",
-          "dayNumber": 15,
+          "dayNumber": 19,
+          "records": 1249,
+          "pageRows": 1242,
+          "activityRows": 7,
+          "pagesDone": 1242,
+          "volunteersCount": 7,
+          "volunteerNames": [
+            "Anıl Olcan",
+            "Arif Solmaz",
+            "Aysu Balta",
+            "Berfin Yazıcı",
+            "Feyza Daloğlu",
+            "İlknur Arslan"
+          ],
+          "coordination": [
+            {
+              "label": "Gülistan Eren",
+              "publicRole": "Gönüllü Koordinatörü",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            }
+          ],
+          "contributors": [
+            {
+              "label": "Anıl Olcan",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            },
+            {
+              "label": "Arif Solmaz",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            },
+            {
+              "label": "Aysu Balta",
+              "publicRole": "",
+              "records": 1243,
+              "pageRows": 1242,
+              "activityRows": 1,
+              "pagesDone": 1242
+            },
+            {
+              "label": "Berfin Yazıcı",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            },
+            {
+              "label": "Feyza Daloğlu",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            },
+            {
+              "label": "Gülistan Eren",
+              "publicRole": "Gönüllü Koordinatörü",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            },
+            {
+              "label": "İlknur Arslan",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            }
+          ],
+          "boxesCount": 3,
+          "boxLabels": [
+            "Kutu 19",
+            "Kutu 20",
+            "Kutu 21"
+          ],
+          "materials": [
+            {
+              "material": "belgeler",
+              "label": "Belgeler",
+              "count": 1248,
+              "percent": 99.9
+            },
+            {
+              "material": "fotoğraflar",
+              "label": "Fotoğraflar",
+              "count": 1,
+              "percent": 0.1
+            }
+          ],
+          "firstTime": "2026-06-19T12:00:00+03:00",
+          "lastTime": "2026-06-19T12:00:00+03:00",
+          "summarySentence": "Bugün 1242 sayfa/detay satırı, 7 faaliyet kaydı, 7 kişi, 3 kutu işlendi."
+        },
+        {
+          "dateISO": "2026-06-20",
+          "weekdayTR": "Cumartesi",
+          "dayNumber": 20,
           "records": 0,
           "pageRows": 0,
           "activityRows": 0,
@@ -1370,245 +1073,39 @@
           "firstTime": null,
           "lastTime": null,
           "summarySentence": "Bugün için görünür katkı yok."
-        }
-      ],
-      "byMaterial": [
-        {
-          "material": "belgeler",
-          "label": "Belgeler",
-          "count": 216,
-          "percent": 98.6
         },
         {
-          "material": "fotoğraflar",
-          "label": "Fotoğraflar",
-          "count": 3,
-          "percent": 1.4
-        }
-      ],
-      "byBox": [
-        {
-          "box": "16",
-          "boxLabel": "Kutu 16",
-          "label": "Kutu 16",
-          "boxTitle": "Kutu 16",
-          "done": 166,
-          "target": 880,
-          "percent": 18.9,
-          "remaining": 714,
-          "records": 165,
-          "pageRows": 165,
-          "activityRows": 0,
-          "periodRecords": 165,
-          "periodPageRows": 165,
-          "periodPagesDone": 165,
-          "materialCounts": [
-            {
-              "material": "belgeler",
-              "label": "Belgeler",
-              "count": 165,
-              "percent": 100.0
-            }
-          ],
-          "materials": [
-            {
-              "material": "belgeler",
-              "label": "Belgeler",
-              "count": 165,
-              "percent": 100.0
-            }
-          ],
-          "contributors": [
-            {
-              "label": "Sibel Dağ",
-              "publicRole": "",
-              "records": 99,
-              "pageRows": 99,
-              "pagesDone": 99
-            },
-            {
-              "label": "Lara Gülmez",
-              "publicRole": "",
-              "records": 66,
-              "pageRows": 66,
-              "pagesDone": 66
-            }
-          ],
-          "topContributors": [
-            {
-              "label": "Sibel Dağ",
-              "publicRole": "",
-              "records": 99,
-              "pageRows": 99,
-              "pagesDone": 99
-            },
-            {
-              "label": "Lara Gülmez",
-              "publicRole": "",
-              "records": 66,
-              "pageRows": 66,
-              "pagesDone": 66
-            }
-          ],
-          "contributorsCount": 2,
-          "lastActivityDate": "2026-05-13",
-          "lastActivityLabel": "13 Mayıs",
-          "status": "active",
-          "targetMissing": false,
-          "overTarget": false
-        },
-        {
-          "box": "I2",
-          "boxLabel": "Kutu I2",
-          "label": "Kutu I2",
-          "boxTitle": "Kutu I2",
-          "done": 40,
-          "target": 139,
-          "percent": 28.8,
-          "remaining": 99,
-          "records": 40,
-          "pageRows": 40,
-          "activityRows": 0,
-          "periodRecords": 40,
-          "periodPageRows": 40,
-          "periodPagesDone": 40,
-          "materialCounts": [
-            {
-              "material": "belgeler",
-              "label": "Belgeler",
-              "count": 40,
-              "percent": 100.0
-            }
-          ],
-          "materials": [
-            {
-              "material": "belgeler",
-              "label": "Belgeler",
-              "count": 40,
-              "percent": 100.0
-            }
-          ],
-          "contributors": [
-            {
-              "label": "Aysu Balta",
-              "publicRole": "",
-              "records": 40,
-              "pageRows": 40,
-              "pagesDone": 40
-            }
-          ],
-          "topContributors": [
-            {
-              "label": "Aysu Balta",
-              "publicRole": "",
-              "records": 40,
-              "pageRows": 40,
-              "pagesDone": 40
-            }
-          ],
-          "contributorsCount": 1,
-          "lastActivityDate": "2026-05-11",
-          "lastActivityLabel": "11 Mayıs",
-          "status": "active",
-          "targetMissing": false,
-          "overTarget": false
-        }
-      ],
-      "byVolunteer": [
-        {
-          "label": "Sibel Dağ",
-          "publicRole": "",
-          "records": 100,
-          "pageRows": 99,
-          "activityRows": 1,
-          "pagesDone": 99,
-          "topBox": "Kutu 16",
-          "boxes": [
-            "Kutu 16"
-          ],
-          "boxBreakdown": [
-            {
-              "box": "16",
-              "boxLabel": "Kutu 16",
-              "records": 99
-            }
-          ]
-        },
-        {
-          "label": "Lara Gülmez",
-          "publicRole": "",
-          "records": 69,
-          "pageRows": 66,
-          "activityRows": 3,
-          "pagesDone": 66,
-          "topBox": "Kutu 16",
-          "boxes": [
-            "Kutu 16"
-          ],
-          "boxBreakdown": [
-            {
-              "box": "16",
-              "boxLabel": "Kutu 16",
-              "records": 66
-            }
-          ]
-        },
-        {
-          "label": "Aysu Balta",
-          "publicRole": "",
-          "records": 42,
-          "pageRows": 40,
-          "activityRows": 2,
-          "pagesDone": 40,
-          "topBox": "Kutu I2",
-          "boxes": [
-            "Kutu I2"
-          ],
-          "boxBreakdown": [
-            {
-              "box": "I2",
-              "boxLabel": "Kutu I2",
-              "records": 40
-            }
-          ]
-        },
-        {
-          "label": "Gülistan Eren",
-          "publicRole": "Gönüllü Koordinatörü",
-          "records": 4,
+          "dateISO": "2026-06-21",
+          "weekdayTR": "Pazar",
+          "dayNumber": 21,
+          "records": 0,
           "pageRows": 0,
-          "activityRows": 4,
+          "activityRows": 0,
           "pagesDone": 0,
-          "topBox": null,
-          "boxes": [],
-          "boxBreakdown": []
+          "volunteersCount": 0,
+          "volunteerNames": [],
+          "coordination": [],
+          "contributors": [],
+          "boxesCount": 0,
+          "boxLabels": [],
+          "materials": [],
+          "firstTime": null,
+          "lastTime": null,
+          "summarySentence": "Bugün için görünür katkı yok."
         },
         {
-          "label": "Arda Tuzkapı",
-          "publicRole": "",
-          "records": 1,
-          "pageRows": 0,
-          "activityRows": 1,
-          "pagesDone": 0,
-          "topBox": null,
-          "boxes": [],
-          "boxBreakdown": []
-        }
-      ],
-      "highlights": {
-        "busiestDay": {
-          "dateISO": "2026-05-12",
-          "weekdayTR": "Salı",
-          "dayNumber": 12,
-          "records": 103,
-          "pageRows": 99,
+          "dateISO": "2026-06-22",
+          "weekdayTR": "Pazartesi",
+          "dayNumber": 22,
+          "records": 31,
+          "pageRows": 27,
           "activityRows": 4,
-          "pagesDone": 99,
+          "pagesDone": 27,
           "volunteersCount": 4,
           "volunteerNames": [
+            "Anıl Olcan",
             "Aysu Balta",
-            "Lara Gülmez",
-            "Sibel Dağ"
+            "Berfin Yazıcı"
           ],
           "coordination": [
             {
@@ -1622,7 +1119,445 @@
           ],
           "contributors": [
             {
+              "label": "Anıl Olcan",
+              "publicRole": "",
+              "records": 28,
+              "pageRows": 27,
+              "activityRows": 1,
+              "pagesDone": 27
+            },
+            {
               "label": "Aysu Balta",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            },
+            {
+              "label": "Berfin Yazıcı",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            },
+            {
+              "label": "Gülistan Eren",
+              "publicRole": "Gönüllü Koordinatörü",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            }
+          ],
+          "boxesCount": 1,
+          "boxLabels": [
+            "Kutu 19"
+          ],
+          "materials": [
+            {
+              "material": "belgeler",
+              "label": "Belgeler",
+              "count": 31,
+              "percent": 100.0
+            }
+          ],
+          "firstTime": "2026-06-22T12:00:00+03:00",
+          "lastTime": "2026-06-22T12:00:00+03:00",
+          "summarySentence": "Bugün 27 sayfa/detay satırı, 4 faaliyet kaydı, 4 kişi, 1 kutu işlendi."
+        }
+      ],
+      "byMaterial": [
+        {
+          "material": "belgeler",
+          "label": "Belgeler",
+          "count": 1290,
+          "percent": 99.9
+        },
+        {
+          "material": "fotoğraflar",
+          "label": "Fotoğraflar",
+          "count": 1,
+          "percent": 0.1
+        }
+      ],
+      "byBox": [
+        {
+          "box": "20",
+          "boxLabel": "Kutu 20",
+          "label": "Kutu 20",
+          "boxTitle": "Kutu 20",
+          "done": 597,
+          "target": 866,
+          "percent": 68.9,
+          "remaining": 269,
+          "records": 597,
+          "pageRows": 597,
+          "activityRows": 0,
+          "periodRecords": 597,
+          "periodPageRows": 597,
+          "periodPagesDone": 597,
+          "materialCounts": [
+            {
+              "material": "belgeler",
+              "label": "Belgeler",
+              "count": 597,
+              "percent": 100.0
+            }
+          ],
+          "materials": [
+            {
+              "material": "belgeler",
+              "label": "Belgeler",
+              "count": 597,
+              "percent": 100.0
+            }
+          ],
+          "contributors": [
+            {
+              "label": "Aysu Balta",
+              "publicRole": "",
+              "records": 597,
+              "pageRows": 597,
+              "pagesDone": 597
+            }
+          ],
+          "topContributors": [
+            {
+              "label": "Aysu Balta",
+              "publicRole": "",
+              "records": 597,
+              "pageRows": 597,
+              "pagesDone": 597
+            }
+          ],
+          "contributorsCount": 1,
+          "lastActivityDate": "2026-06-19",
+          "lastActivityLabel": "19 Haziran",
+          "status": "active",
+          "targetMissing": false,
+          "overTarget": false
+        },
+        {
+          "box": "21",
+          "boxLabel": "Kutu 21",
+          "label": "Kutu 21",
+          "boxTitle": "Kutu 21",
+          "done": 428,
+          "target": 1974,
+          "percent": 21.7,
+          "remaining": 1546,
+          "records": 428,
+          "pageRows": 428,
+          "activityRows": 0,
+          "periodRecords": 428,
+          "periodPageRows": 428,
+          "periodPagesDone": 428,
+          "materialCounts": [
+            {
+              "material": "belgeler",
+              "label": "Belgeler",
+              "count": 428,
+              "percent": 100.0
+            }
+          ],
+          "materials": [
+            {
+              "material": "belgeler",
+              "label": "Belgeler",
+              "count": 428,
+              "percent": 100.0
+            }
+          ],
+          "contributors": [
+            {
+              "label": "Aysu Balta",
+              "publicRole": "",
+              "records": 428,
+              "pageRows": 428,
+              "pagesDone": 428
+            }
+          ],
+          "topContributors": [
+            {
+              "label": "Aysu Balta",
+              "publicRole": "",
+              "records": 428,
+              "pageRows": 428,
+              "pagesDone": 428
+            }
+          ],
+          "contributorsCount": 1,
+          "lastActivityDate": "2026-06-19",
+          "lastActivityLabel": "19 Haziran",
+          "status": "active",
+          "targetMissing": false,
+          "overTarget": false
+        },
+        {
+          "box": "19",
+          "boxLabel": "Kutu 19",
+          "label": "Kutu 19",
+          "boxTitle": "Kutu 19",
+          "done": 244,
+          "target": 1111,
+          "percent": 22.0,
+          "remaining": 867,
+          "records": 244,
+          "pageRows": 244,
+          "activityRows": 0,
+          "periodRecords": 244,
+          "periodPageRows": 244,
+          "periodPagesDone": 244,
+          "materialCounts": [
+            {
+              "material": "belgeler",
+              "label": "Belgeler",
+              "count": 244,
+              "percent": 100.0
+            }
+          ],
+          "materials": [
+            {
+              "material": "belgeler",
+              "label": "Belgeler",
+              "count": 244,
+              "percent": 100.0
+            }
+          ],
+          "contributors": [
+            {
+              "label": "Aysu Balta",
+              "publicRole": "",
+              "records": 217,
+              "pageRows": 217,
+              "pagesDone": 217
+            },
+            {
+              "label": "Anıl Olcan",
+              "publicRole": "",
+              "records": 27,
+              "pageRows": 27,
+              "pagesDone": 27
+            }
+          ],
+          "topContributors": [
+            {
+              "label": "Aysu Balta",
+              "publicRole": "",
+              "records": 217,
+              "pageRows": 217,
+              "pagesDone": 217
+            },
+            {
+              "label": "Anıl Olcan",
+              "publicRole": "",
+              "records": 27,
+              "pageRows": 27,
+              "pagesDone": 27
+            }
+          ],
+          "contributorsCount": 2,
+          "lastActivityDate": "2026-06-22",
+          "lastActivityLabel": "22 Haziran",
+          "status": "active",
+          "targetMissing": false,
+          "overTarget": false
+        }
+      ],
+      "byVolunteer": [
+        {
+          "label": "Aysu Balta",
+          "publicRole": "",
+          "records": 1244,
+          "pageRows": 1242,
+          "activityRows": 2,
+          "pagesDone": 1242,
+          "topBox": "Kutu 20",
+          "boxes": [
+            "Kutu 20",
+            "Kutu 21",
+            "Kutu 19"
+          ],
+          "boxBreakdown": [
+            {
+              "box": "20",
+              "boxLabel": "Kutu 20",
+              "records": 597
+            },
+            {
+              "box": "21",
+              "boxLabel": "Kutu 21",
+              "records": 428
+            },
+            {
+              "box": "19",
+              "boxLabel": "Kutu 19",
+              "records": 217
+            }
+          ]
+        },
+        {
+          "label": "Anıl Olcan",
+          "publicRole": "",
+          "records": 32,
+          "pageRows": 27,
+          "activityRows": 5,
+          "pagesDone": 27,
+          "topBox": "Kutu 19",
+          "boxes": [
+            "Kutu 19"
+          ],
+          "boxBreakdown": [
+            {
+              "box": "19",
+              "boxLabel": "Kutu 19",
+              "records": 27
+            }
+          ]
+        },
+        {
+          "label": "Berfin Yazıcı",
+          "publicRole": "",
+          "records": 5,
+          "pageRows": 0,
+          "activityRows": 5,
+          "pagesDone": 0,
+          "topBox": null,
+          "boxes": [],
+          "boxBreakdown": []
+        },
+        {
+          "label": "Gülistan Eren",
+          "publicRole": "Gönüllü Koordinatörü",
+          "records": 5,
+          "pageRows": 0,
+          "activityRows": 5,
+          "pagesDone": 0,
+          "topBox": null,
+          "boxes": [],
+          "boxBreakdown": []
+        },
+        {
+          "label": "Arif Solmaz",
+          "publicRole": "",
+          "records": 1,
+          "pageRows": 0,
+          "activityRows": 1,
+          "pagesDone": 0,
+          "topBox": null,
+          "boxes": [],
+          "boxBreakdown": []
+        },
+        {
+          "label": "Feyza Daloğlu",
+          "publicRole": "",
+          "records": 1,
+          "pageRows": 0,
+          "activityRows": 1,
+          "pagesDone": 0,
+          "topBox": null,
+          "boxes": [],
+          "boxBreakdown": []
+        },
+        {
+          "label": "İlknur Arslan",
+          "publicRole": "",
+          "records": 1,
+          "pageRows": 0,
+          "activityRows": 1,
+          "pagesDone": 0,
+          "topBox": null,
+          "boxes": [],
+          "boxBreakdown": []
+        },
+        {
+          "label": "Neslihan Erkan",
+          "publicRole": "",
+          "records": 1,
+          "pageRows": 0,
+          "activityRows": 1,
+          "pagesDone": 0,
+          "topBox": null,
+          "boxes": [],
+          "boxBreakdown": []
+        },
+        {
+          "label": "Sibel Dağ",
+          "publicRole": "",
+          "records": 1,
+          "pageRows": 0,
+          "activityRows": 1,
+          "pagesDone": 0,
+          "topBox": null,
+          "boxes": [],
+          "boxBreakdown": []
+        }
+      ],
+      "highlights": {
+        "busiestDay": {
+          "dateISO": "2026-06-19",
+          "weekdayTR": "Cuma",
+          "dayNumber": 19,
+          "records": 1249,
+          "pageRows": 1242,
+          "activityRows": 7,
+          "pagesDone": 1242,
+          "volunteersCount": 7,
+          "volunteerNames": [
+            "Anıl Olcan",
+            "Arif Solmaz",
+            "Aysu Balta",
+            "Berfin Yazıcı",
+            "Feyza Daloğlu",
+            "İlknur Arslan"
+          ],
+          "coordination": [
+            {
+              "label": "Gülistan Eren",
+              "publicRole": "Gönüllü Koordinatörü",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            }
+          ],
+          "contributors": [
+            {
+              "label": "Anıl Olcan",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            },
+            {
+              "label": "Arif Solmaz",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            },
+            {
+              "label": "Aysu Balta",
+              "publicRole": "",
+              "records": 1243,
+              "pageRows": 1242,
+              "activityRows": 1,
+              "pagesDone": 1242
+            },
+            {
+              "label": "Berfin Yazıcı",
+              "publicRole": "",
+              "records": 1,
+              "pageRows": 0,
+              "activityRows": 1,
+              "pagesDone": 0
+            },
+            {
+              "label": "Feyza Daloğlu",
               "publicRole": "",
               "records": 1,
               "pageRows": 0,
@@ -1638,61 +1573,53 @@
               "pagesDone": 0
             },
             {
-              "label": "Lara Gülmez",
+              "label": "İlknur Arslan",
               "publicRole": "",
               "records": 1,
               "pageRows": 0,
               "activityRows": 1,
               "pagesDone": 0
-            },
-            {
-              "label": "Sibel Dağ",
-              "publicRole": "",
-              "records": 100,
-              "pageRows": 99,
-              "activityRows": 1,
-              "pagesDone": 99
             }
           ],
-          "boxesCount": 1,
+          "boxesCount": 3,
           "boxLabels": [
-            "Kutu 16"
+            "Kutu 19",
+            "Kutu 20",
+            "Kutu 21"
           ],
           "materials": [
             {
               "material": "belgeler",
               "label": "Belgeler",
-              "count": 101,
-              "percent": 98.1
+              "count": 1248,
+              "percent": 99.9
             },
             {
               "material": "fotoğraflar",
               "label": "Fotoğraflar",
-              "count": 2,
-              "percent": 1.9
+              "count": 1,
+              "percent": 0.1
             }
           ],
-          "firstTime": "2026-05-12T12:00:00+03:00",
-          "lastTime": "2026-05-12T12:00:00+03:00",
-          "summarySentence": "Bugün 99 sayfa/detay satırı, 4 faaliyet kaydı, 4 kişi, 1 kutu işlendi."
+          "firstTime": "2026-06-19T12:00:00+03:00",
+          "lastTime": "2026-06-19T12:00:00+03:00",
+          "summarySentence": "Bugün 1242 sayfa/detay satırı, 7 faaliyet kaydı, 7 kişi, 3 kutu işlendi."
         },
-        "latestDate": "2026-05-14",
+        "latestDate": "2026-06-22",
         "topMaterial": {
           "material": "belgeler",
           "label": "Belgeler",
-          "count": 216,
-          "percent": 98.6
+          "count": 1290,
+          "percent": 99.9
         },
         "firstCompletedBox": null
       },
       "warnings": [
         {
-          "code": "missing_box_targets",
-          "message": "3 aktif kutuda hedef sayfa toplamı yok.",
+          "code": "box_done_exceeds_target",
+          "message": "1 kutuda işlenen sayı hedefi aşıyor.",
           "boxes": [
-            "68",
-            "D 1",
-            "D 2"
+            "22"
           ]
         },
         {
@@ -1701,13 +1628,13 @@
         },
         {
           "code": "unknown_dates",
-          "message": "213 satır dönem/gün grafiğine atanabilecek tarih taşımıyor."
+          "message": "293 satır dönem/gün grafiğine atanabilecek tarih taşımıyor."
         }
       ]
     }
   },
   "publicSummary": {
-    "generatedAt": "2026-05-15T05:53:34.730097Z",
+    "generatedAt": "2026-06-22T20:08:16.147025Z",
     "source": {
       "name": "Tarih Vakfı Gönüllü Ağı",
       "projectId": "pnb",
@@ -1716,123 +1643,42 @@
       "volunteerCredit": "credit-visible, ID-safe volunteer display"
     },
     "period": {
-      "mode": "calendar_week_to_date",
-      "startDate": "2026-05-11",
-      "endDate": "2026-05-15",
-      "fullEndDate": "2026-05-17",
-      "label": "11–17 Mayıs haftası · bugüne kadar",
-      "isPartial": true
+      "mode": "rolling_7_days",
+      "startDate": "2026-06-16",
+      "endDate": "2026-06-22",
+      "label": "Güncel dönem · 16–22 Haziran",
+      "isPartial": false
     },
     "totals": {
-      "records": 219,
-      "pageRows": 205,
-      "activityRows": 14,
-      "periodPagesDone": 205,
-      "pagesDone": 1854,
-      "pagesTarget": 77544,
-      "progressPercent": 2.4,
+      "records": 1291,
+      "pageRows": 1269,
+      "activityRows": 22,
+      "periodPagesDone": 1269,
+      "pagesDone": 41334,
+      "pagesTarget": 78904,
+      "progressPercent": 52.4,
       "boxesTotal": 86,
       "boxesCatalogued": 86,
-      "boxesActive": 2,
-      "boxesCompleted": 0,
-      "boxesRemaining": 86,
-      "volunteersActive": 5,
-      "volunteers": 5,
+      "boxesActive": 3,
+      "boxesCompleted": 1,
+      "boxesRemaining": 85,
+      "volunteersActive": 9,
+      "volunteers": 9,
       "materials": 2
     },
     "byDay": [
       {
-        "dateISO": "2026-05-11",
-        "weekdayTR": "Pazartesi",
-        "dayNumber": 11,
-        "records": 44,
-        "pageRows": 40,
-        "activityRows": 4,
-        "pagesDone": 40,
-        "volunteersCount": 4,
-        "volunteerNames": [
-          "Arda Tuzkapı",
-          "Aysu Balta",
-          "Lara Gülmez"
-        ],
-        "coordination": [
-          {
-            "label": "Gülistan Eren",
-            "publicRole": "Gönüllü Koordinatörü",
-            "records": 1,
-            "pageRows": 0,
-            "activityRows": 1,
-            "pagesDone": 0
-          }
-        ],
-        "contributors": [
-          {
-            "label": "Arda Tuzkapı",
-            "publicRole": "",
-            "records": 1,
-            "pageRows": 0,
-            "activityRows": 1,
-            "pagesDone": 0
-          },
-          {
-            "label": "Aysu Balta",
-            "publicRole": "",
-            "records": 41,
-            "pageRows": 40,
-            "activityRows": 1,
-            "pagesDone": 40
-          },
-          {
-            "label": "Gülistan Eren",
-            "publicRole": "Gönüllü Koordinatörü",
-            "records": 1,
-            "pageRows": 0,
-            "activityRows": 1,
-            "pagesDone": 0
-          },
-          {
-            "label": "Lara Gülmez",
-            "publicRole": "",
-            "records": 1,
-            "pageRows": 0,
-            "activityRows": 1,
-            "pagesDone": 0
-          }
-        ],
-        "boxesCount": 1,
-        "boxLabels": [
-          "Kutu I2"
-        ],
-        "materials": [
-          {
-            "material": "belgeler",
-            "label": "Belgeler",
-            "count": 43,
-            "percent": 97.7
-          },
-          {
-            "material": "fotoğraflar",
-            "label": "Fotoğraflar",
-            "count": 1,
-            "percent": 2.3
-          }
-        ],
-        "firstTime": "2026-05-11T12:00:00+03:00",
-        "lastTime": "2026-05-11T12:00:00+03:00",
-        "summarySentence": "Bugün 40 sayfa/detay satırı, 4 faaliyet kaydı, 4 kişi, 1 kutu işlendi."
-      },
-      {
-        "dateISO": "2026-05-12",
+        "dateISO": "2026-06-16",
         "weekdayTR": "Salı",
-        "dayNumber": 12,
-        "records": 103,
-        "pageRows": 99,
+        "dayNumber": 16,
+        "records": 4,
+        "pageRows": 0,
         "activityRows": 4,
-        "pagesDone": 99,
+        "pagesDone": 0,
         "volunteersCount": 4,
         "volunteerNames": [
-          "Aysu Balta",
-          "Lara Gülmez",
+          "Anıl Olcan",
+          "Berfin Yazıcı",
           "Sibel Dağ"
         ],
         "coordination": [
@@ -1847,7 +1693,15 @@
         ],
         "contributors": [
           {
-            "label": "Aysu Balta",
+            "label": "Anıl Olcan",
+            "publicRole": "",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          },
+          {
+            "label": "Berfin Yazıcı",
             "publicRole": "",
             "records": 1,
             "pageRows": 0,
@@ -1857,14 +1711,6 @@
           {
             "label": "Gülistan Eren",
             "publicRole": "Gönüllü Koordinatörü",
-            "records": 1,
-            "pageRows": 0,
-            "activityRows": 1,
-            "pagesDone": 0
-          },
-          {
-            "label": "Lara Gülmez",
-            "publicRole": "",
             "records": 1,
             "pageRows": 0,
             "activityRows": 1,
@@ -1873,45 +1719,39 @@
           {
             "label": "Sibel Dağ",
             "publicRole": "",
-            "records": 100,
-            "pageRows": 99,
+            "records": 1,
+            "pageRows": 0,
             "activityRows": 1,
-            "pagesDone": 99
+            "pagesDone": 0
           }
         ],
-        "boxesCount": 1,
-        "boxLabels": [
-          "Kutu 16"
-        ],
+        "boxesCount": 0,
+        "boxLabels": [],
         "materials": [
           {
             "material": "belgeler",
             "label": "Belgeler",
-            "count": 101,
-            "percent": 98.1
-          },
-          {
-            "material": "fotoğraflar",
-            "label": "Fotoğraflar",
-            "count": 2,
-            "percent": 1.9
+            "count": 4,
+            "percent": 100.0
           }
         ],
-        "firstTime": "2026-05-12T12:00:00+03:00",
-        "lastTime": "2026-05-12T12:00:00+03:00",
-        "summarySentence": "Bugün 99 sayfa/detay satırı, 4 faaliyet kaydı, 4 kişi, 1 kutu işlendi."
+        "firstTime": "2026-06-16T12:00:00+03:00",
+        "lastTime": "2026-06-16T12:00:00+03:00",
+        "summarySentence": "Bugün 4 faaliyet kaydı, 4 kişi işlendi."
       },
       {
-        "dateISO": "2026-05-13",
+        "dateISO": "2026-06-17",
         "weekdayTR": "Çarşamba",
-        "dayNumber": 13,
-        "records": 69,
-        "pageRows": 66,
-        "activityRows": 3,
-        "pagesDone": 66,
-        "volunteersCount": 2,
+        "dayNumber": 17,
+        "records": 4,
+        "pageRows": 0,
+        "activityRows": 4,
+        "pagesDone": 0,
+        "volunteersCount": 4,
         "volunteerNames": [
-          "Lara Gülmez"
+          "Anıl Olcan",
+          "Berfin Yazıcı",
+          "Neslihan Erkan"
         ],
         "coordination": [
           {
@@ -1925,6 +1765,22 @@
         ],
         "contributors": [
           {
+            "label": "Anıl Olcan",
+            "publicRole": "",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          },
+          {
+            "label": "Berfin Yazıcı",
+            "publicRole": "",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          },
+          {
             "label": "Gülistan Eren",
             "publicRole": "Gönüllü Koordinatörü",
             "records": 1,
@@ -1933,40 +1789,41 @@
             "pagesDone": 0
           },
           {
-            "label": "Lara Gülmez",
+            "label": "Neslihan Erkan",
             "publicRole": "",
-            "records": 67,
-            "pageRows": 66,
+            "records": 1,
+            "pageRows": 0,
             "activityRows": 1,
-            "pagesDone": 66
+            "pagesDone": 0
           }
         ],
-        "boxesCount": 1,
-        "boxLabels": [
-          "Kutu 16"
-        ],
+        "boxesCount": 0,
+        "boxLabels": [],
         "materials": [
           {
             "material": "belgeler",
             "label": "Belgeler",
-            "count": 69,
+            "count": 4,
             "percent": 100.0
           }
         ],
-        "firstTime": "2026-05-13T12:00:00+03:00",
-        "lastTime": "2026-05-13T12:00:00+03:00",
-        "summarySentence": "Bugün 66 sayfa/detay satırı, 3 faaliyet kaydı, 2 kişi, 1 kutu işlendi."
+        "firstTime": "2026-06-17T12:00:00+03:00",
+        "lastTime": "2026-06-17T12:00:00+03:00",
+        "summarySentence": "Bugün 4 faaliyet kaydı, 4 kişi işlendi."
       },
       {
-        "dateISO": "2026-05-14",
+        "dateISO": "2026-06-18",
         "weekdayTR": "Perşembe",
-        "dayNumber": 14,
+        "dayNumber": 18,
         "records": 3,
         "pageRows": 0,
         "activityRows": 3,
         "pagesDone": 0,
-        "volunteersCount": 1,
-        "volunteerNames": [],
+        "volunteersCount": 3,
+        "volunteerNames": [
+          "Anıl Olcan",
+          "Berfin Yazıcı"
+        ],
         "coordination": [
           {
             "label": "Gülistan Eren",
@@ -1978,6 +1835,22 @@
           }
         ],
         "contributors": [
+          {
+            "label": "Anıl Olcan",
+            "publicRole": "",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          },
+          {
+            "label": "Berfin Yazıcı",
+            "publicRole": "",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          },
           {
             "label": "Gülistan Eren",
             "publicRole": "Gönüllü Koordinatörü",
@@ -1997,14 +1870,123 @@
             "percent": 100.0
           }
         ],
-        "firstTime": "2026-05-14T12:00:00+03:00",
-        "lastTime": "2026-05-14T12:00:00+03:00",
-        "summarySentence": "Bugün 3 faaliyet kaydı, 1 kişi işlendi."
+        "firstTime": "2026-06-18T12:00:00+03:00",
+        "lastTime": "2026-06-18T12:00:00+03:00",
+        "summarySentence": "Bugün 3 faaliyet kaydı, 3 kişi işlendi."
       },
       {
-        "dateISO": "2026-05-15",
+        "dateISO": "2026-06-19",
         "weekdayTR": "Cuma",
-        "dayNumber": 15,
+        "dayNumber": 19,
+        "records": 1249,
+        "pageRows": 1242,
+        "activityRows": 7,
+        "pagesDone": 1242,
+        "volunteersCount": 7,
+        "volunteerNames": [
+          "Anıl Olcan",
+          "Arif Solmaz",
+          "Aysu Balta",
+          "Berfin Yazıcı",
+          "Feyza Daloğlu",
+          "İlknur Arslan"
+        ],
+        "coordination": [
+          {
+            "label": "Gülistan Eren",
+            "publicRole": "Gönüllü Koordinatörü",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          }
+        ],
+        "contributors": [
+          {
+            "label": "Anıl Olcan",
+            "publicRole": "",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          },
+          {
+            "label": "Arif Solmaz",
+            "publicRole": "",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          },
+          {
+            "label": "Aysu Balta",
+            "publicRole": "",
+            "records": 1243,
+            "pageRows": 1242,
+            "activityRows": 1,
+            "pagesDone": 1242
+          },
+          {
+            "label": "Berfin Yazıcı",
+            "publicRole": "",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          },
+          {
+            "label": "Feyza Daloğlu",
+            "publicRole": "",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          },
+          {
+            "label": "Gülistan Eren",
+            "publicRole": "Gönüllü Koordinatörü",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          },
+          {
+            "label": "İlknur Arslan",
+            "publicRole": "",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          }
+        ],
+        "boxesCount": 3,
+        "boxLabels": [
+          "Kutu 19",
+          "Kutu 20",
+          "Kutu 21"
+        ],
+        "materials": [
+          {
+            "material": "belgeler",
+            "label": "Belgeler",
+            "count": 1248,
+            "percent": 99.9
+          },
+          {
+            "material": "fotoğraflar",
+            "label": "Fotoğraflar",
+            "count": 1,
+            "percent": 0.1
+          }
+        ],
+        "firstTime": "2026-06-19T12:00:00+03:00",
+        "lastTime": "2026-06-19T12:00:00+03:00",
+        "summarySentence": "Bugün 1242 sayfa/detay satırı, 7 faaliyet kaydı, 7 kişi, 3 kutu işlendi."
+      },
+      {
+        "dateISO": "2026-06-20",
+        "weekdayTR": "Cumartesi",
+        "dayNumber": 20,
         "records": 0,
         "pageRows": 0,
         "activityRows": 0,
@@ -2019,245 +2001,39 @@
         "firstTime": null,
         "lastTime": null,
         "summarySentence": "Bugün için görünür katkı yok."
-      }
-    ],
-    "byMaterial": [
-      {
-        "material": "belgeler",
-        "label": "Belgeler",
-        "count": 216,
-        "percent": 98.6
       },
       {
-        "material": "fotoğraflar",
-        "label": "Fotoğraflar",
-        "count": 3,
-        "percent": 1.4
-      }
-    ],
-    "byBox": [
-      {
-        "box": "16",
-        "boxLabel": "Kutu 16",
-        "label": "Kutu 16",
-        "boxTitle": "Kutu 16",
-        "done": 166,
-        "target": 880,
-        "percent": 18.9,
-        "remaining": 714,
-        "records": 165,
-        "pageRows": 165,
-        "activityRows": 0,
-        "periodRecords": 165,
-        "periodPageRows": 165,
-        "periodPagesDone": 165,
-        "materialCounts": [
-          {
-            "material": "belgeler",
-            "label": "Belgeler",
-            "count": 165,
-            "percent": 100.0
-          }
-        ],
-        "materials": [
-          {
-            "material": "belgeler",
-            "label": "Belgeler",
-            "count": 165,
-            "percent": 100.0
-          }
-        ],
-        "contributors": [
-          {
-            "label": "Sibel Dağ",
-            "publicRole": "",
-            "records": 99,
-            "pageRows": 99,
-            "pagesDone": 99
-          },
-          {
-            "label": "Lara Gülmez",
-            "publicRole": "",
-            "records": 66,
-            "pageRows": 66,
-            "pagesDone": 66
-          }
-        ],
-        "topContributors": [
-          {
-            "label": "Sibel Dağ",
-            "publicRole": "",
-            "records": 99,
-            "pageRows": 99,
-            "pagesDone": 99
-          },
-          {
-            "label": "Lara Gülmez",
-            "publicRole": "",
-            "records": 66,
-            "pageRows": 66,
-            "pagesDone": 66
-          }
-        ],
-        "contributorsCount": 2,
-        "lastActivityDate": "2026-05-13",
-        "lastActivityLabel": "13 Mayıs",
-        "status": "active",
-        "targetMissing": false,
-        "overTarget": false
-      },
-      {
-        "box": "I2",
-        "boxLabel": "Kutu I2",
-        "label": "Kutu I2",
-        "boxTitle": "Kutu I2",
-        "done": 40,
-        "target": 139,
-        "percent": 28.8,
-        "remaining": 99,
-        "records": 40,
-        "pageRows": 40,
-        "activityRows": 0,
-        "periodRecords": 40,
-        "periodPageRows": 40,
-        "periodPagesDone": 40,
-        "materialCounts": [
-          {
-            "material": "belgeler",
-            "label": "Belgeler",
-            "count": 40,
-            "percent": 100.0
-          }
-        ],
-        "materials": [
-          {
-            "material": "belgeler",
-            "label": "Belgeler",
-            "count": 40,
-            "percent": 100.0
-          }
-        ],
-        "contributors": [
-          {
-            "label": "Aysu Balta",
-            "publicRole": "",
-            "records": 40,
-            "pageRows": 40,
-            "pagesDone": 40
-          }
-        ],
-        "topContributors": [
-          {
-            "label": "Aysu Balta",
-            "publicRole": "",
-            "records": 40,
-            "pageRows": 40,
-            "pagesDone": 40
-          }
-        ],
-        "contributorsCount": 1,
-        "lastActivityDate": "2026-05-11",
-        "lastActivityLabel": "11 Mayıs",
-        "status": "active",
-        "targetMissing": false,
-        "overTarget": false
-      }
-    ],
-    "byVolunteer": [
-      {
-        "label": "Sibel Dağ",
-        "publicRole": "",
-        "records": 100,
-        "pageRows": 99,
-        "activityRows": 1,
-        "pagesDone": 99,
-        "topBox": "Kutu 16",
-        "boxes": [
-          "Kutu 16"
-        ],
-        "boxBreakdown": [
-          {
-            "box": "16",
-            "boxLabel": "Kutu 16",
-            "records": 99
-          }
-        ]
-      },
-      {
-        "label": "Lara Gülmez",
-        "publicRole": "",
-        "records": 69,
-        "pageRows": 66,
-        "activityRows": 3,
-        "pagesDone": 66,
-        "topBox": "Kutu 16",
-        "boxes": [
-          "Kutu 16"
-        ],
-        "boxBreakdown": [
-          {
-            "box": "16",
-            "boxLabel": "Kutu 16",
-            "records": 66
-          }
-        ]
-      },
-      {
-        "label": "Aysu Balta",
-        "publicRole": "",
-        "records": 42,
-        "pageRows": 40,
-        "activityRows": 2,
-        "pagesDone": 40,
-        "topBox": "Kutu I2",
-        "boxes": [
-          "Kutu I2"
-        ],
-        "boxBreakdown": [
-          {
-            "box": "I2",
-            "boxLabel": "Kutu I2",
-            "records": 40
-          }
-        ]
-      },
-      {
-        "label": "Gülistan Eren",
-        "publicRole": "Gönüllü Koordinatörü",
-        "records": 4,
+        "dateISO": "2026-06-21",
+        "weekdayTR": "Pazar",
+        "dayNumber": 21,
+        "records": 0,
         "pageRows": 0,
-        "activityRows": 4,
+        "activityRows": 0,
         "pagesDone": 0,
-        "topBox": null,
-        "boxes": [],
-        "boxBreakdown": []
+        "volunteersCount": 0,
+        "volunteerNames": [],
+        "coordination": [],
+        "contributors": [],
+        "boxesCount": 0,
+        "boxLabels": [],
+        "materials": [],
+        "firstTime": null,
+        "lastTime": null,
+        "summarySentence": "Bugün için görünür katkı yok."
       },
       {
-        "label": "Arda Tuzkapı",
-        "publicRole": "",
-        "records": 1,
-        "pageRows": 0,
-        "activityRows": 1,
-        "pagesDone": 0,
-        "topBox": null,
-        "boxes": [],
-        "boxBreakdown": []
-      }
-    ],
-    "highlights": {
-      "busiestDay": {
-        "dateISO": "2026-05-12",
-        "weekdayTR": "Salı",
-        "dayNumber": 12,
-        "records": 103,
-        "pageRows": 99,
+        "dateISO": "2026-06-22",
+        "weekdayTR": "Pazartesi",
+        "dayNumber": 22,
+        "records": 31,
+        "pageRows": 27,
         "activityRows": 4,
-        "pagesDone": 99,
+        "pagesDone": 27,
         "volunteersCount": 4,
         "volunteerNames": [
+          "Anıl Olcan",
           "Aysu Balta",
-          "Lara Gülmez",
-          "Sibel Dağ"
+          "Berfin Yazıcı"
         ],
         "coordination": [
           {
@@ -2271,7 +2047,445 @@
         ],
         "contributors": [
           {
+            "label": "Anıl Olcan",
+            "publicRole": "",
+            "records": 28,
+            "pageRows": 27,
+            "activityRows": 1,
+            "pagesDone": 27
+          },
+          {
             "label": "Aysu Balta",
+            "publicRole": "",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          },
+          {
+            "label": "Berfin Yazıcı",
+            "publicRole": "",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          },
+          {
+            "label": "Gülistan Eren",
+            "publicRole": "Gönüllü Koordinatörü",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          }
+        ],
+        "boxesCount": 1,
+        "boxLabels": [
+          "Kutu 19"
+        ],
+        "materials": [
+          {
+            "material": "belgeler",
+            "label": "Belgeler",
+            "count": 31,
+            "percent": 100.0
+          }
+        ],
+        "firstTime": "2026-06-22T12:00:00+03:00",
+        "lastTime": "2026-06-22T12:00:00+03:00",
+        "summarySentence": "Bugün 27 sayfa/detay satırı, 4 faaliyet kaydı, 4 kişi, 1 kutu işlendi."
+      }
+    ],
+    "byMaterial": [
+      {
+        "material": "belgeler",
+        "label": "Belgeler",
+        "count": 1290,
+        "percent": 99.9
+      },
+      {
+        "material": "fotoğraflar",
+        "label": "Fotoğraflar",
+        "count": 1,
+        "percent": 0.1
+      }
+    ],
+    "byBox": [
+      {
+        "box": "20",
+        "boxLabel": "Kutu 20",
+        "label": "Kutu 20",
+        "boxTitle": "Kutu 20",
+        "done": 597,
+        "target": 866,
+        "percent": 68.9,
+        "remaining": 269,
+        "records": 597,
+        "pageRows": 597,
+        "activityRows": 0,
+        "periodRecords": 597,
+        "periodPageRows": 597,
+        "periodPagesDone": 597,
+        "materialCounts": [
+          {
+            "material": "belgeler",
+            "label": "Belgeler",
+            "count": 597,
+            "percent": 100.0
+          }
+        ],
+        "materials": [
+          {
+            "material": "belgeler",
+            "label": "Belgeler",
+            "count": 597,
+            "percent": 100.0
+          }
+        ],
+        "contributors": [
+          {
+            "label": "Aysu Balta",
+            "publicRole": "",
+            "records": 597,
+            "pageRows": 597,
+            "pagesDone": 597
+          }
+        ],
+        "topContributors": [
+          {
+            "label": "Aysu Balta",
+            "publicRole": "",
+            "records": 597,
+            "pageRows": 597,
+            "pagesDone": 597
+          }
+        ],
+        "contributorsCount": 1,
+        "lastActivityDate": "2026-06-19",
+        "lastActivityLabel": "19 Haziran",
+        "status": "active",
+        "targetMissing": false,
+        "overTarget": false
+      },
+      {
+        "box": "21",
+        "boxLabel": "Kutu 21",
+        "label": "Kutu 21",
+        "boxTitle": "Kutu 21",
+        "done": 428,
+        "target": 1974,
+        "percent": 21.7,
+        "remaining": 1546,
+        "records": 428,
+        "pageRows": 428,
+        "activityRows": 0,
+        "periodRecords": 428,
+        "periodPageRows": 428,
+        "periodPagesDone": 428,
+        "materialCounts": [
+          {
+            "material": "belgeler",
+            "label": "Belgeler",
+            "count": 428,
+            "percent": 100.0
+          }
+        ],
+        "materials": [
+          {
+            "material": "belgeler",
+            "label": "Belgeler",
+            "count": 428,
+            "percent": 100.0
+          }
+        ],
+        "contributors": [
+          {
+            "label": "Aysu Balta",
+            "publicRole": "",
+            "records": 428,
+            "pageRows": 428,
+            "pagesDone": 428
+          }
+        ],
+        "topContributors": [
+          {
+            "label": "Aysu Balta",
+            "publicRole": "",
+            "records": 428,
+            "pageRows": 428,
+            "pagesDone": 428
+          }
+        ],
+        "contributorsCount": 1,
+        "lastActivityDate": "2026-06-19",
+        "lastActivityLabel": "19 Haziran",
+        "status": "active",
+        "targetMissing": false,
+        "overTarget": false
+      },
+      {
+        "box": "19",
+        "boxLabel": "Kutu 19",
+        "label": "Kutu 19",
+        "boxTitle": "Kutu 19",
+        "done": 244,
+        "target": 1111,
+        "percent": 22.0,
+        "remaining": 867,
+        "records": 244,
+        "pageRows": 244,
+        "activityRows": 0,
+        "periodRecords": 244,
+        "periodPageRows": 244,
+        "periodPagesDone": 244,
+        "materialCounts": [
+          {
+            "material": "belgeler",
+            "label": "Belgeler",
+            "count": 244,
+            "percent": 100.0
+          }
+        ],
+        "materials": [
+          {
+            "material": "belgeler",
+            "label": "Belgeler",
+            "count": 244,
+            "percent": 100.0
+          }
+        ],
+        "contributors": [
+          {
+            "label": "Aysu Balta",
+            "publicRole": "",
+            "records": 217,
+            "pageRows": 217,
+            "pagesDone": 217
+          },
+          {
+            "label": "Anıl Olcan",
+            "publicRole": "",
+            "records": 27,
+            "pageRows": 27,
+            "pagesDone": 27
+          }
+        ],
+        "topContributors": [
+          {
+            "label": "Aysu Balta",
+            "publicRole": "",
+            "records": 217,
+            "pageRows": 217,
+            "pagesDone": 217
+          },
+          {
+            "label": "Anıl Olcan",
+            "publicRole": "",
+            "records": 27,
+            "pageRows": 27,
+            "pagesDone": 27
+          }
+        ],
+        "contributorsCount": 2,
+        "lastActivityDate": "2026-06-22",
+        "lastActivityLabel": "22 Haziran",
+        "status": "active",
+        "targetMissing": false,
+        "overTarget": false
+      }
+    ],
+    "byVolunteer": [
+      {
+        "label": "Aysu Balta",
+        "publicRole": "",
+        "records": 1244,
+        "pageRows": 1242,
+        "activityRows": 2,
+        "pagesDone": 1242,
+        "topBox": "Kutu 20",
+        "boxes": [
+          "Kutu 20",
+          "Kutu 21",
+          "Kutu 19"
+        ],
+        "boxBreakdown": [
+          {
+            "box": "20",
+            "boxLabel": "Kutu 20",
+            "records": 597
+          },
+          {
+            "box": "21",
+            "boxLabel": "Kutu 21",
+            "records": 428
+          },
+          {
+            "box": "19",
+            "boxLabel": "Kutu 19",
+            "records": 217
+          }
+        ]
+      },
+      {
+        "label": "Anıl Olcan",
+        "publicRole": "",
+        "records": 32,
+        "pageRows": 27,
+        "activityRows": 5,
+        "pagesDone": 27,
+        "topBox": "Kutu 19",
+        "boxes": [
+          "Kutu 19"
+        ],
+        "boxBreakdown": [
+          {
+            "box": "19",
+            "boxLabel": "Kutu 19",
+            "records": 27
+          }
+        ]
+      },
+      {
+        "label": "Berfin Yazıcı",
+        "publicRole": "",
+        "records": 5,
+        "pageRows": 0,
+        "activityRows": 5,
+        "pagesDone": 0,
+        "topBox": null,
+        "boxes": [],
+        "boxBreakdown": []
+      },
+      {
+        "label": "Gülistan Eren",
+        "publicRole": "Gönüllü Koordinatörü",
+        "records": 5,
+        "pageRows": 0,
+        "activityRows": 5,
+        "pagesDone": 0,
+        "topBox": null,
+        "boxes": [],
+        "boxBreakdown": []
+      },
+      {
+        "label": "Arif Solmaz",
+        "publicRole": "",
+        "records": 1,
+        "pageRows": 0,
+        "activityRows": 1,
+        "pagesDone": 0,
+        "topBox": null,
+        "boxes": [],
+        "boxBreakdown": []
+      },
+      {
+        "label": "Feyza Daloğlu",
+        "publicRole": "",
+        "records": 1,
+        "pageRows": 0,
+        "activityRows": 1,
+        "pagesDone": 0,
+        "topBox": null,
+        "boxes": [],
+        "boxBreakdown": []
+      },
+      {
+        "label": "İlknur Arslan",
+        "publicRole": "",
+        "records": 1,
+        "pageRows": 0,
+        "activityRows": 1,
+        "pagesDone": 0,
+        "topBox": null,
+        "boxes": [],
+        "boxBreakdown": []
+      },
+      {
+        "label": "Neslihan Erkan",
+        "publicRole": "",
+        "records": 1,
+        "pageRows": 0,
+        "activityRows": 1,
+        "pagesDone": 0,
+        "topBox": null,
+        "boxes": [],
+        "boxBreakdown": []
+      },
+      {
+        "label": "Sibel Dağ",
+        "publicRole": "",
+        "records": 1,
+        "pageRows": 0,
+        "activityRows": 1,
+        "pagesDone": 0,
+        "topBox": null,
+        "boxes": [],
+        "boxBreakdown": []
+      }
+    ],
+    "highlights": {
+      "busiestDay": {
+        "dateISO": "2026-06-19",
+        "weekdayTR": "Cuma",
+        "dayNumber": 19,
+        "records": 1249,
+        "pageRows": 1242,
+        "activityRows": 7,
+        "pagesDone": 1242,
+        "volunteersCount": 7,
+        "volunteerNames": [
+          "Anıl Olcan",
+          "Arif Solmaz",
+          "Aysu Balta",
+          "Berfin Yazıcı",
+          "Feyza Daloğlu",
+          "İlknur Arslan"
+        ],
+        "coordination": [
+          {
+            "label": "Gülistan Eren",
+            "publicRole": "Gönüllü Koordinatörü",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          }
+        ],
+        "contributors": [
+          {
+            "label": "Anıl Olcan",
+            "publicRole": "",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          },
+          {
+            "label": "Arif Solmaz",
+            "publicRole": "",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          },
+          {
+            "label": "Aysu Balta",
+            "publicRole": "",
+            "records": 1243,
+            "pageRows": 1242,
+            "activityRows": 1,
+            "pagesDone": 1242
+          },
+          {
+            "label": "Berfin Yazıcı",
+            "publicRole": "",
+            "records": 1,
+            "pageRows": 0,
+            "activityRows": 1,
+            "pagesDone": 0
+          },
+          {
+            "label": "Feyza Daloğlu",
             "publicRole": "",
             "records": 1,
             "pageRows": 0,
@@ -2287,61 +2501,53 @@
             "pagesDone": 0
           },
           {
-            "label": "Lara Gülmez",
+            "label": "İlknur Arslan",
             "publicRole": "",
             "records": 1,
             "pageRows": 0,
             "activityRows": 1,
             "pagesDone": 0
-          },
-          {
-            "label": "Sibel Dağ",
-            "publicRole": "",
-            "records": 100,
-            "pageRows": 99,
-            "activityRows": 1,
-            "pagesDone": 99
           }
         ],
-        "boxesCount": 1,
+        "boxesCount": 3,
         "boxLabels": [
-          "Kutu 16"
+          "Kutu 19",
+          "Kutu 20",
+          "Kutu 21"
         ],
         "materials": [
           {
             "material": "belgeler",
             "label": "Belgeler",
-            "count": 101,
-            "percent": 98.1
+            "count": 1248,
+            "percent": 99.9
           },
           {
             "material": "fotoğraflar",
             "label": "Fotoğraflar",
-            "count": 2,
-            "percent": 1.9
+            "count": 1,
+            "percent": 0.1
           }
         ],
-        "firstTime": "2026-05-12T12:00:00+03:00",
-        "lastTime": "2026-05-12T12:00:00+03:00",
-        "summarySentence": "Bugün 99 sayfa/detay satırı, 4 faaliyet kaydı, 4 kişi, 1 kutu işlendi."
+        "firstTime": "2026-06-19T12:00:00+03:00",
+        "lastTime": "2026-06-19T12:00:00+03:00",
+        "summarySentence": "Bugün 1242 sayfa/detay satırı, 7 faaliyet kaydı, 7 kişi, 3 kutu işlendi."
       },
-      "latestDate": "2026-05-14",
+      "latestDate": "2026-06-22",
       "topMaterial": {
         "material": "belgeler",
         "label": "Belgeler",
-        "count": 216,
-        "percent": 98.6
+        "count": 1290,
+        "percent": 99.9
       },
       "firstCompletedBox": null
     },
     "warnings": [
       {
-        "code": "missing_box_targets",
-        "message": "3 aktif kutuda hedef sayfa toplamı yok.",
+        "code": "box_done_exceeds_target",
+        "message": "1 kutuda işlenen sayı hedefi aşıyor.",
         "boxes": [
-          "68",
-          "D 1",
-          "D 2"
+          "22"
         ]
       },
       {
@@ -2350,14 +2556,420 @@
       },
       {
         "code": "unknown_dates",
-        "message": "213 satır dönem/gün grafiğine atanabilecek tarih taşımıyor."
+        "message": "293 satır dönem/gün grafiğine atanabilecek tarih taşımıyor."
       }
     ]
   },
   "latestActivity": [
     {
-      "when": "2026-05-14T09:00:00Z",
-      "dateISO": "2026-05-14",
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "activity",
+      "recordType": "activity",
+      "material": "belgeler",
+      "projectId": "foundation",
+      "volunteerLabel": "Gülistan Eren",
+      "publicRole": "Gönüllü Koordinatörü",
+      "boxLabel": null,
+      "pagesDone": 0,
+      "workTitle": "Planlama, proje hazırlığı",
+      "workDetail": "Tarih Vakıf kronoloji toplantısı, bağış makbuzlarının iletilmesi, Gerda Henkel Projesi için arşiv fonlarının tanıtılması"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "activity",
+      "recordType": "activity",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Berfin Yazıcı",
+      "publicRole": "",
+      "boxLabel": null,
+      "pagesDone": 0,
+      "workTitle": "Tarama",
+      "workDetail": "PNB kutu 18 - 9 no lu dosya bitti, 7 devam ediyor"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "activity",
+      "recordType": "activity",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": null,
+      "pagesDone": 0,
+      "workTitle": "Tarama",
+      "workDetail": "PNB kutu 8 No lu dosya"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "activity",
+      "recordType": "activity",
+      "material": "belgeler",
+      "projectId": "foundation",
+      "volunteerLabel": "Aysu Balta",
+      "publicRole": "",
+      "boxLabel": null,
+      "pagesDone": 0,
+      "workTitle": "Tarama"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-22T09:00:00Z",
+      "dateISO": "2026-06-22",
+      "kind": "page",
+      "recordType": "page_detail",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
+    },
+    {
+      "when": "2026-06-19T09:00:00Z",
+      "dateISO": "2026-06-19",
       "kind": "activity",
       "recordType": "activity",
       "material": "belgeler",
@@ -2368,592 +2980,244 @@
       "pagesDone": 0
     },
     {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
+      "when": "2026-06-19T09:00:00Z",
+      "dateISO": "2026-06-19",
+      "kind": "activity",
+      "recordType": "activity",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Aysu Balta",
+      "publicRole": "",
+      "boxLabel": null,
+      "pagesDone": 0,
+      "workTitle": "Tarama",
+      "workDetail": "PNB kutu 19"
+    },
+    {
+      "when": "2026-06-19T09:00:00Z",
+      "dateISO": "2026-06-19",
       "kind": "activity",
       "recordType": "activity",
       "material": "belgeler",
       "projectId": "foundation",
-      "volunteerLabel": "Gülistan Eren",
-      "publicRole": "Gönüllü Koordinatörü",
+      "volunteerLabel": "İlknur Arslan",
+      "publicRole": "",
       "boxLabel": null,
-      "pagesDone": 0
+      "pagesDone": 0,
+      "workTitle": "Kontrol",
+      "workDetail": "75. Yıl video aktarımlarının kontrolü"
     },
     {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
+      "when": "2026-06-19T09:00:00Z",
+      "dateISO": "2026-06-19",
       "kind": "activity",
       "recordType": "activity",
       "material": "belgeler",
       "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
+      "volunteerLabel": "Feyza Daloğlu",
       "publicRole": "",
       "boxLabel": null,
-      "pagesDone": 0
+      "pagesDone": 0,
+      "workTitle": "Tarama, Proje",
+      "workDetail": "PNB 22. Kutu 11. dosya tarandı, başvuru yapılabicek fonlara ilişkin çalışma yapıldı."
     },
     {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
+      "when": "2026-06-19T09:00:00Z",
+      "dateISO": "2026-06-19",
+      "kind": "activity",
+      "recordType": "activity",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Berfin Yazıcı",
+      "publicRole": "",
+      "boxLabel": null,
+      "pagesDone": 0,
+      "workTitle": "Tarama",
+      "workDetail": "PNB kutu 18 - 6 no lu dosya, 4 nolu dosyanın kalanı"
+    },
+    {
+      "when": "2026-06-19T09:00:00Z",
+      "dateISO": "2026-06-19",
+      "kind": "activity",
+      "recordType": "activity",
+      "material": "fotoğraflar",
+      "projectId": "pnb",
+      "volunteerLabel": "Anıl Olcan",
+      "publicRole": "",
+      "boxLabel": null,
+      "pagesDone": 0,
+      "workTitle": "Tarama",
+      "workDetail": "Dia taramalarının kontrolü, PNB Kutu 18"
+    },
+    {
+      "when": "2026-06-19T09:00:00Z",
+      "dateISO": "2026-06-19",
+      "kind": "activity",
+      "recordType": "activity",
+      "material": "belgeler",
+      "projectId": "pnb",
+      "volunteerLabel": "Arif Solmaz",
+      "publicRole": "",
+      "boxLabel": null,
+      "pagesDone": 0,
+      "workTitle": "Tarama",
+      "workDetail": "PNB kutu 18"
+    },
+    {
+      "when": "2026-06-19T09:00:00Z",
+      "dateISO": "2026-06-19",
       "kind": "page",
       "recordType": "page_detail",
       "material": "belgeler",
       "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
+      "volunteerLabel": "Aysu Balta",
       "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
     },
     {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
+      "when": "2026-06-19T09:00:00Z",
+      "dateISO": "2026-06-19",
       "kind": "page",
       "recordType": "page_detail",
       "material": "belgeler",
       "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
+      "volunteerLabel": "Aysu Balta",
       "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
     },
     {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
+      "when": "2026-06-19T09:00:00Z",
+      "dateISO": "2026-06-19",
       "kind": "page",
       "recordType": "page_detail",
       "material": "belgeler",
       "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
+      "volunteerLabel": "Aysu Balta",
       "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
     },
     {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
+      "when": "2026-06-19T09:00:00Z",
+      "dateISO": "2026-06-19",
       "kind": "page",
       "recordType": "page_detail",
       "material": "belgeler",
       "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
+      "volunteerLabel": "Aysu Balta",
       "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
     },
     {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
+      "when": "2026-06-19T09:00:00Z",
+      "dateISO": "2026-06-19",
       "kind": "page",
       "recordType": "page_detail",
       "material": "belgeler",
       "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
+      "volunteerLabel": "Aysu Balta",
       "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
     },
     {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
+      "when": "2026-06-19T09:00:00Z",
+      "dateISO": "2026-06-19",
       "kind": "page",
       "recordType": "page_detail",
       "material": "belgeler",
       "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
+      "volunteerLabel": "Aysu Balta",
       "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
     },
     {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
+      "when": "2026-06-19T09:00:00Z",
+      "dateISO": "2026-06-19",
       "kind": "page",
       "recordType": "page_detail",
       "material": "belgeler",
       "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
+      "volunteerLabel": "Aysu Balta",
       "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
     },
     {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
+      "when": "2026-06-19T09:00:00Z",
+      "dateISO": "2026-06-19",
       "kind": "page",
       "recordType": "page_detail",
       "material": "belgeler",
       "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
+      "volunteerLabel": "Aysu Balta",
       "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
     },
     {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
+      "when": "2026-06-19T09:00:00Z",
+      "dateISO": "2026-06-19",
       "kind": "page",
       "recordType": "page_detail",
       "material": "belgeler",
       "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
+      "volunteerLabel": "Aysu Balta",
       "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
     },
     {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
+      "when": "2026-06-19T09:00:00Z",
+      "dateISO": "2026-06-19",
       "kind": "page",
       "recordType": "page_detail",
       "material": "belgeler",
       "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
+      "volunteerLabel": "Aysu Balta",
       "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
     },
     {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
+      "when": "2026-06-19T09:00:00Z",
+      "dateISO": "2026-06-19",
       "kind": "page",
       "recordType": "page_detail",
       "material": "belgeler",
       "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
+      "volunteerLabel": "Aysu Balta",
       "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
     },
     {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
+      "when": "2026-06-19T09:00:00Z",
+      "dateISO": "2026-06-19",
       "kind": "page",
       "recordType": "page_detail",
       "material": "belgeler",
       "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
+      "volunteerLabel": "Aysu Balta",
       "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
-    },
-    {
-      "when": "2026-05-13T09:00:00Z",
-      "dateISO": "2026-05-13",
-      "kind": "page",
-      "recordType": "page_detail",
-      "material": "belgeler",
-      "projectId": "pnb",
-      "volunteerLabel": "Lara Gülmez",
-      "publicRole": "",
-      "boxLabel": "Kutu 16",
-      "pagesDone": 1
+      "boxLabel": "Kutu 19",
+      "pagesDone": 1,
+      "workTitle": "PNB"
     }
   ]
 }

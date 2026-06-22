@@ -102,6 +102,25 @@
     return summary.period && summary.period.mode === "rolling_7_days" ? summary : null;
   }
 
+  function getLiveTrackSummary() {
+    const payload = window.TVF_PUBLIC_DATA || {};
+    const summary = payload.trackSummary;
+    return summary && Array.isArray(summary.tracks) && summary.tracks.length
+      ? summary
+      : null;
+  }
+
+  function trackSessions(summary) {
+    return (Array.isArray(summary?.tracks) ? summary.tracks : [])
+      .reduce((sum, track) => sum + Number(track.sessions || 0), 0);
+  }
+
+  function trackMonths(summary, fallback) {
+    if (Array.isArray(summary?.monthsActive) && summary.monthsActive.length) return summary.monthsActive;
+    if (Array.isArray(fallback?.monthsActive) && fallback.monthsActive.length) return fallback.monthsActive;
+    return ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05"];
+  }
+
   function asciiFold(value) {
     return String(value || "")
       .replace(/[çÇ]/g, "c")
@@ -134,30 +153,6 @@
     return summary && Array.isArray(summary.byVolunteer) ? summary.byVolunteer : [];
   }
 
-  function liveMonth(summary) {
-    const endDate = summary && summary.period && summary.period.endDate;
-    return endDate ? String(endDate).slice(0, 7) : null;
-  }
-
-  function liveTrackCounts(data) {
-    const summary = getLiveSummary();
-    const month = liveMonth(summary);
-    if (!summary || !month) return null;
-
-    const byName = rosterByName(data);
-    const counts = {};
-    liveVolunteerRows().forEach((row) => {
-      const label = String(row.label || "").trim();
-      if (!label) return;
-      const rosterVol = byName[asciiFold(label)];
-      const track = (rosterVol && rosterVol.tracks && rosterVol.tracks[0])
-        || (row.publicRole ? "koordinasyon" : "diger");
-      counts[track] = (counts[track] || 0) + Number(row.records || row.pageRows || row.activityRows || 0);
-    });
-
-    return { month, counts };
-  }
-
   // -------------------------------------------------------------------
   // 1. Cumulative ribbon
   // -------------------------------------------------------------------
@@ -167,10 +162,19 @@
 
     const c = data.cumulative || {};
     const summary = getLiveSummary();
+    const liveTrackSummary = getLiveTrackSummary();
+    const months = trackMonths(liveTrackSummary, data);
+    const firstMonth = months[0] || (c.firstActivityDate ? c.firstActivityDate.slice(0, 7) : "");
+    const lastMonth = months[months.length - 1] || (summary?.period?.endDate || c.latestActivityDate || "").slice(0, 7);
     const periodLabel =
-      c.firstActivityDate && (summary?.period?.endDate || c.latestActivityDate)
-        ? `${c.firstActivityDate.slice(0, 7).replace("-", "/")} — ${(summary?.period?.endDate || c.latestActivityDate).slice(0, 7).replace("-", "/")}`
+      firstMonth && lastMonth
+        ? `${firstMonth.replace("-", "/")} — ${lastMonth.replace("-", "/")}`
         : "Ocak — Mayıs 2026";
+    const cumulativeSessions = liveTrackSummary ? trackSessions(liveTrackSummary) : c.sessions;
+    const cumulativeTracks = liveTrackSummary ? liveTrackSummary.tracks.length : c.tracks;
+    const cumulativeActiveVolunteers = liveTrackSummary && Number(liveTrackSummary.peopleCount || 0)
+      ? Number(liveTrackSummary.peopleCount)
+      : c.activeVolunteers;
 
     // For "recent period" stats we read whatever the existing dashboard
     // has already computed on window.TVF_PUBLIC_DATA. If it's not
@@ -191,9 +195,9 @@
       <div class="rb cumulative">
         <p class="k">Kümülatif <em>${esc(periodLabel)}</em></p>
         <div class="stat-row">
-          <div class="stat"><span class="v">${fmt(c.activeVolunteers)}</span><span class="l">aktif gönüllü</span></div>
-          <div class="stat"><span class="v">${fmt(c.sessions)}</span><span class="l">çalışma oturumu</span></div>
-          <div class="stat"><span class="v">${fmt(c.tracks)}</span><span class="l">paralel iş alanı</span></div>
+          <div class="stat"><span class="v">${fmt(cumulativeActiveVolunteers)}</span><span class="l">aktif gönüllü</span></div>
+          <div class="stat"><span class="v">${fmt(cumulativeSessions)}</span><span class="l">çalışma oturumu</span></div>
+          <div class="stat"><span class="v">${fmt(cumulativeTracks)}</span><span class="l">paralel iş alanı</span></div>
         </div>
       </div>
       ${tw}`;
@@ -205,19 +209,16 @@
   // -------------------------------------------------------------------
   function renderTracks(data) {
     const mount = safeMount("lpTracks");
-    if (!mount || !data || !Array.isArray(data.tracks)) return;
-    if (data.tracks.length === 0) {
+    const liveTrackSummary = getLiveTrackSummary();
+    const trackData = liveTrackSummary || data;
+    const trackRows = Array.isArray(trackData?.tracks) ? trackData.tracks : [];
+    if (!mount || !data) return;
+    if (trackRows.length === 0) {
       mount.setAttribute("hidden", "");
       return;
     }
 
-    // Build the month scale from data.monthsActive (e.g. ["2026-01", ... "2026-05"])
-    const baseMonths = Array.isArray(data.monthsActive) && data.monthsActive.length
-      ? data.monthsActive
-      : ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05"];
-    const liveTracks = liveTrackCounts(data);
-    const overlayLiveMonth = liveTracks && liveTracks.month && !baseMonths.includes(liveTracks.month);
-    const months = overlayLiveMonth ? baseMonths.concat(liveTracks.month) : baseMonths;
+    const months = trackMonths(trackData, data);
 
     const monthCols = months
       .map((ym) => `<span>${MONTHS_TR[Number(ym.slice(5, 7))]}</span>`)
@@ -230,23 +231,16 @@
       return Math.max(4, Math.min(16, 4 + Math.round(s * 1.5)));
     }
 
-    const seenTracks = new Set(data.tracks.map((track) => track.key));
-    const extraLiveTracks = overlayLiveMonth
-      ? Object.keys(liveTracks.counts)
-          .filter((key) => !seenTracks.has(key))
-          .map((key) => ({ key, label: (TRACK_META[key] || TRACK_META.diger).label, sessions: 0, byMonth: {} }))
-      : [];
-    const tracksSorted = [...data.tracks, ...extraLiveTracks].sort((a, b) => {
-      const aLive = overlayLiveMonth ? Number(liveTracks.counts[a.key] || 0) : 0;
-      const bLive = overlayLiveMonth ? Number(liveTracks.counts[b.key] || 0) : 0;
-      return (Number(b.sessions || 0) + bLive) - (Number(a.sessions || 0) + aLive);
+    const orderIndex = Object.fromEntries(TRACK_ORDER.map((key, idx) => [key, idx]));
+    const tracksSorted = [...trackRows].sort((a, b) => {
+      return Number(b.sessions || 0) - Number(a.sessions || 0)
+        || (orderIndex[a.key] ?? 999) - (orderIndex[b.key] ?? 999)
+        || String(a.label || "").localeCompare(String(b.label || ""), "tr");
     });
 
     const laneRows = tracksSorted.map((t) => {
       const meta = TRACK_META[t.key] || TRACK_META.diger;
       const monthsHas = Object.assign({}, t.byMonth || {});
-      const liveCount = overlayLiveMonth ? Number(liveTracks.counts[t.key] || 0) : 0;
-      if (liveCount) monthsHas[liveTracks.month] = (monthsHas[liveTracks.month] || 0) + liveCount;
       const dots = months.map((ym, i) => {
         const n = monthsHas[ym];
         if (!n) return "";
@@ -257,9 +251,9 @@
       }).join("");
 
       return `
-        <div class="lane-label"><span class="dot" style="background:${meta.color}"></span>${esc(meta.label)}</div>
+        <div class="lane-label"><span class="dot" style="background:${meta.color}"></span>${esc(meta.label || t.label || TRACK_META.diger.label)}</div>
         <div class="lane" style="background:${meta.lane}">${dots}</div>
-        <div class="total" style="color:${meta.color}">${Number(t.sessions || 0) + liveCount}</div>`;
+        <div class="total" style="color:${meta.color}">${Number(t.sessions || 0)}</div>`;
     }).join("");
 
     mount.classList.add("tv-tracks");

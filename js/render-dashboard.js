@@ -319,7 +319,8 @@
     const block = document.getElementById('lpLatest');
     const list = document.getElementById('lpLatestRows');
     if (!block || !list) return;
-    const rows = groupLatestActivity(latestActivity.filter((row) => isPublicVolunteerName(row.volunteerLabel)));
+    const rows = groupLatestActivity(latestActivity.filter((row) => isPublicVolunteerName(row.volunteerLabel)))
+      .filter((row) => isBusinessDayISO(U.toISODate(row.dateISO || row.when)));
     const visible = rows.slice(0, 12);
     const days = latestCalendarDays(summary, visible);
     if (!days.length) {
@@ -335,14 +336,16 @@
     const byDate = new Map();
     rows.forEach((row) => {
       const iso = U.toISODate(row.dateISO || row.when);
-      if (!iso) return;
+      if (!iso || !isBusinessDayISO(iso)) return;
       if (!byDate.has(iso)) byDate.set(iso, []);
       byDate.get(iso).push(row);
     });
 
     const summaryDays = Array.isArray(summary.byDay) ? summary.byDay : [];
     const days = summaryDays.length
-      ? summaryDays.slice().sort((a, b) => String(b.dateISO || '').localeCompare(String(a.dateISO || '')))
+      ? summaryDays.slice()
+          .filter((day) => isBusinessDayISO(U.toISODate(day.dateISO)))
+          .sort((a, b) => String(b.dateISO || '').localeCompare(String(a.dateISO || '')))
       : Array.from(byDate.keys()).sort((a, b) => String(b).localeCompare(String(a))).map((dateISO) => ({ dateISO }));
 
     byDate.forEach((entries, dateISO) => {
@@ -360,7 +363,15 @@
           entries: byDate.get(dateISO) || []
         });
       })
-      .filter((day) => day.dateISO);
+      .filter((day) => day.dateISO && isBusinessDayISO(day.dateISO));
+  }
+
+  function isBusinessDayISO(iso) {
+    if (!iso) return false;
+    const date = new Date(`${iso}T12:00:00`);
+    if (Number.isNaN(date.getTime())) return false;
+    const day = date.getDay();
+    return day >= 1 && day <= 5;
   }
 
   function renderLatestDayCard(day) {

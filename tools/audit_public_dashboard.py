@@ -42,6 +42,7 @@ def ascii_fold(value: Any) -> str:
 
 
 TR_MONTH_LOOKUP = {ascii_fold(name).lower(): idx + 1 for idx, name in enumerate(TR_MONTHS)}
+TR_MONTH_LOOKUP["harizan"] = 6
 
 
 def slugify(value: Any) -> str:
@@ -109,11 +110,12 @@ def parse_sheet_date(value: Any) -> date | None:
     text = str(value).strip()
     if not text:
         return None
-    match = re.match(r"^(\d{1,2})\s+([A-Za-zÇĞİÖŞÜçğıöşü]+)\s+(\d{4})$", text)
+    match = re.match(r"^(\d{1,2})\s+([A-Za-zÇĞİÖŞÜçğıöşü]+)(?:\s+(\d{4}))?$", text)
     if match:
         month = TR_MONTH_LOOKUP.get(ascii_fold(match.group(2)).lower())
         if month:
-            return date(int(match.group(3)), month, int(match.group(1)))
+            year = int(match.group(3)) if match.group(3) else datetime.now(tz=PUBLIC_TZ).year
+            return date(year, month, int(match.group(1)))
     match = re.match(r"^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{2,4})$", text)
     if match:
         year = int(match.group(3))
@@ -1225,7 +1227,7 @@ def write_report(
         "## Detected Inconsistencies / Label Recommendations",
         "",
         "- Calendar-week and rolling-7-day windows are computed separately; the public page uses one selected period object.",
-        "- Summaries are full-period aggregates; only `latestActivity` is capped and labeled as `Son 50 hareket`.",
+        "- Summaries are full-period aggregates; only `latestActivity` is capped and labeled as `Son 50 çalışma`.",
         "- Weekday labels are computed from `dateISO`.",
         "- Use `Envanteri girilmiş kutu`, `Tamamlanan kutu`, and `Malzeme dağılımı · bu dönem`.",
         "",

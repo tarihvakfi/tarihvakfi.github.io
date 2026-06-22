@@ -155,6 +155,7 @@
     return Object.assign({}, livePayload, {
       generatedAt: livePayload.generatedAt || liveSummary.generatedAt,
       publicSummary: repairedSummary,
+      trackSummary: livePayload.trackSummary || (snapshotPayload && snapshotPayload.trackSummary),
       latestActivity
     });
   }
