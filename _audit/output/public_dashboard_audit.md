@@ -35,7 +35,7 @@
 | Period | Records | Page/detail | Activity | Volunteers | Active boxes |
 |---|---:|---:|---:|---:|---:|
 | 11–17 Mayıs haftası · bugüne kadar | 219 | 205 | 14 | 5 | 2 |
-| Son 7 gün | 219 | 205 | 14 | 5 | 2 |
+| Güncel dönem | 219 | 205 | 14 | 5 | 2 |
 
 ## Daily Ledger
 

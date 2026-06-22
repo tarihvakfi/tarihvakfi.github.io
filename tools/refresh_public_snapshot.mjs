@@ -144,7 +144,7 @@ function repairRollingPayload(livePayload, snapshotPayload) {
       mode: "rolling_7_days",
       startDate: startISO,
       endDate: endISO,
-      label: `Son 7 gün · ${dateRangeLabel(startISO, endISO)}`,
+      label: `Güncel dönem · ${dateRangeLabel(startISO, endISO)}`,
       isPartial: false,
     },
     totals,

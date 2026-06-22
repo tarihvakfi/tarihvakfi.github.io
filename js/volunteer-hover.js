@@ -270,7 +270,7 @@
       workRows.length ? '<div class="tv-vol-tip-log"><div class="tv-vol-tip-section-title">Formdan iş detayı</div>' + workHtml + '</div>' : '',
       !workRows.length && days.length ? '<div class="tv-vol-tip-log">' + daysHtml + '</div>' : '',
       boxesHtml,
-      '<div class="tv-vol-tip-foot">Son 7 gün katkısı</div>',
+      '<div class="tv-vol-tip-foot">Güncel dönem katkısı</div>',
     ].join('');
 
     return true;

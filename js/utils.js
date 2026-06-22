@@ -46,6 +46,23 @@
     return `${d.getDate()} ${TR_MONTHS[d.getMonth()]}`;
   }
 
+  function cleanPeriodLabel(period, fallback) {
+    const label = String((period && period.label) || '')
+      .replace(/^(Son\s+7\s+gün|Güncel\s+dönem)\s*[·:–-]\s*/i, '')
+      .replace(/^(Son\s+7\s+gün|Güncel\s+dönem)$/i, '')
+      .trim();
+    if (label) return label;
+    if (period && period.startDate && period.endDate) {
+      return `${formatDayMonth(period.startDate)} – ${formatDayMonth(period.endDate)}`;
+    }
+    return fallback == null ? 'Güncel dönem' : fallback;
+  }
+
+  function formatPeriodLabel(period, fallback) {
+    const range = cleanPeriodLabel(period, '');
+    return range ? `Güncel dönem · ${range}` : (fallback == null ? 'Güncel dönem' : fallback);
+  }
+
   function formatHM(value) {
     if (!value) return '—';
     const d = new Date(value);
@@ -109,6 +126,8 @@
     toISODate,
     weekdayTR,
     formatDayMonth,
+    cleanPeriodLabel,
+    formatPeriodLabel,
     formatHM,
     relativeDate,
     initialOf,

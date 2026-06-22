@@ -59,7 +59,7 @@ http://localhost:8000/?debug=1
 
 ## After Deploy Checks
 
-- Dönem etiketi tek mantıkla görünmeli: `Son 7 gün · 2–8 Haziran` gibi rolling-seven-day aralık.
+- Dönem etiketi tek mantıkla görünmeli: `Güncel dönem · 2–8 Haziran` gibi rolling aralık.
 - Gönüllü isimleri gerçek adlarla görünmeli.
 - Teknik ID, e-posta, UUID, hash görünmemeli.
 - Günlük toplamlar headline toplamıyla eşleşmeli.

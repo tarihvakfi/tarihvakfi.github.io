@@ -1119,7 +1119,7 @@ function selectedPeriod_(now, mode) {
       mode: 'rolling_7_days',
       startDate: isoDate_(start),
       endDate: isoDate_(today),
-      label: 'Son 7 gün · ' + dateRangeLabel_(start, today),
+      label: 'Güncel dönem · ' + dateRangeLabel_(start, today),
       isPartial: false
     };
   }

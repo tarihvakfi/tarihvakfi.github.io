@@ -1,6 +1,6 @@
 # Boratav Arşivi Gönüllü Emek Günlüğü
 
-Bu depo, Tarih Vakfı Pertev Naili Boratav Arşivi için hazırlanan kamuya açık Boratav Arşivi Gönüllü Emek Günlüğü panosunu barındırır. Pano, Google Sheet üzerinde tutulan arşiv çalışması ve gönüllü katkı verilerini düzenli olarak okuyarak son 7 günlük emeği, aktif kutuları, malzeme dağılımını ve gönüllü/koordinasyon katkılarını görünür kılar.
+Bu depo, Tarih Vakfı Pertev Naili Boratav Arşivi için hazırlanan kamuya açık Boratav Arşivi Gönüllü Emek Günlüğü panosunu barındırır. Pano, Google Sheet üzerinde tutulan arşiv çalışması ve gönüllü katkı verilerini düzenli olarak okuyarak güncel dönem emeğini, aktif kutuları, malzeme dağılımını ve gönüllü/koordinasyon katkılarını görünür kılar.
 
 Kamu sayfası statik GitHub Pages olarak çalışır; üretim runtime’ında Firebase, oturum açma, özel backend, Node/Express sunucu veya ücretli servis gerekmez.
 

@@ -22,7 +22,7 @@
       mode: 'rolling_7_days',
       startDate: U.toISODate(start),
       endDate: U.toISODate(today),
-      label: `Son 7 gün · ${U.formatDayMonth(start)} – ${U.formatDayMonth(today)}`,
+      label: `Güncel dönem · ${U.formatDayMonth(start)} – ${U.formatDayMonth(today)}`,
       isPartial: false
     };
     const rows = ticker.filter((row) => {

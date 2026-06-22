@@ -70,6 +70,21 @@
     return Number(n).toLocaleString("tr-TR");
   }
 
+  function periodRangeLabel(period) {
+    if (window.TVFUtils && window.TVFUtils.cleanPeriodLabel) {
+      return window.TVFUtils.cleanPeriodLabel(period, "");
+    }
+    return String((period && period.label) || "")
+      .replace(/^(Son\s+7\s+gün|Güncel\s+dönem)\s*[·:–-]\s*/i, "")
+      .replace(/^(Son\s+7\s+gün|Güncel\s+dönem)$/i, "")
+      .trim();
+  }
+
+  function periodContextLabel(period) {
+    const range = periodRangeLabel(period);
+    return range ? `Güncel dönem · ${range}` : "Güncel dönem";
+  }
+
   function initials(name) {
     return name.split(/\s+/).filter(Boolean).map((p) => p[0]).slice(0, 2).join("").toUpperCase();
   }
@@ -163,7 +178,7 @@
     const thisWeek = (summary && summary.totals) || null;
     const tw = thisWeek
       ? `<div class="rb this-week">
-           <p class="k">Son 7 gün <em>${esc((summary.period || {}).label || "")}</em></p>
+           <p class="k">Güncel dönem <em>${esc(periodRangeLabel(summary.period || {}))}</em></p>
            <div class="stat-row">
              <div class="stat"><span class="v">+${fmt(thisWeek.periodPagesDone || thisWeek.pageRows || 0)}</span><span class="l">yeni sayfa</span></div>
              <div class="stat"><span class="v">${fmt(thisWeek.volunteersActive || 0)}</span><span class="l">aktif gönüllü</span></div>
@@ -287,7 +302,7 @@
       const metaEl = document.getElementById("lpActiveWallMeta");
       const summary = getLiveSummary();
       if (metaEl && useLiveRows && summary?.period?.label) {
-        metaEl.textContent = `0 kişi · ${summary.period.label} · canlı`;
+        metaEl.textContent = `0 kişi · ${periodContextLabel(summary.period)} · canlı`;
       }
       return;
     }
@@ -329,7 +344,7 @@
     const metaEl = document.getElementById("lpActiveWallMeta");
     if (metaEl) {
       const summary = getLiveSummary();
-      const label = useLiveRows && summary?.period?.label ? `${summary.period.label} · canlı` : "aktif gönüllü";
+      const label = useLiveRows && summary?.period ? `${periodContextLabel(summary.period)} · canlı` : "aktif gönüllü";
       metaEl.textContent = useLiveRows ? `${vols.length} kişi · ${label}` : `${vols.length} aktif gönüllü`;
     }
   }
@@ -362,13 +377,13 @@
     mount.innerHTML = `
       <p class="roll-intro">
         Aşağıda Boratav Arşivi için zaman çizelgesine kaydolan herkes
-        alfabetik sırayla yer alır. Dolu nokta, son 7 günde aktif olarak
+        alfabetik sırayla yer alır. Dolu nokta, güncel dönemde aktif olarak
         görünür kayıt üreten gönüllüleri işaret eder.
       </p>
       <div class="roll">${rows}</div>
       <div class="roll-legend">
-        <span class="lg"><span class="mk"></span>Son 7 günde görünür katkı veren</span>
-        <span class="lg"><span class="mk muted"></span>Kadroda; son 7 günde görünür kayıt yok</span>
+        <span class="lg"><span class="mk"></span>Güncel dönemde görünür katkı veren</span>
+        <span class="lg"><span class="mk muted"></span>Kadroda; bu dönemde görünür kayıt yok</span>
       </div>`;
 
     const metaEl = document.getElementById("lpKadroMeta");

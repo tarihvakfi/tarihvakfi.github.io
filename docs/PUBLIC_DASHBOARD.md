@@ -7,7 +7,7 @@
 3. KPI strip: contribution records, archive detail rows, activity records, visible contributors, active boxes, total progress.
 4. Pertev Naili Boratav Arşivi context: short public explanation of the archive.
 5. Gönüllü katkıları ve koordinasyon: credit-visible named contributors and coordinator roles.
-6. Son 7 günün günlüğü: date-driven daily ledger with volunteer and coordination lines separated.
+6. Güncel dönem günlüğü: date-driven daily ledger with volunteer and coordination lines separated.
 7. Aktif kutular: all-time progress, rolling-seven-day page/detail contribution, remaining pages, contributors, last activity, material.
 8. Malzeme dağılımı: full selected-period material counts.
 9. Son hareketler: short grouped movement summaries.
@@ -37,12 +37,12 @@ The public page uses one `publicSummary.period` everywhere:
   mode: "rolling_7_days",
   startDate: "YYYY-MM-DD",
   endDate: "YYYY-MM-DD",
-  label: "Son 7 gün · 2–8 Haziran",
+  label: "Güncel dönem · 2–8 Haziran",
   isPartial: false
 }
 ```
 
-The public page uses rolling 7 days as its selected period, avoiding calendar-week reset artifacts at midnight on Monday.
+The public page uses a rolling selected period, avoiding calendar-week reset artifacts at midnight on Monday.
 
 ## Visual Principles
 

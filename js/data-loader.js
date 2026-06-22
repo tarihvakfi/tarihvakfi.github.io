@@ -132,7 +132,7 @@
         mode: 'rolling_7_days',
         startDate: startISO,
         endDate: endISO,
-        label: `Son 7 gün · ${U.formatDayMonth(startISO)} – ${U.formatDayMonth(endISO)}`,
+        label: `Güncel dönem · ${U.formatDayMonth(startISO)} – ${U.formatDayMonth(endISO)}`,
         isPartial: false
       },
       totals,

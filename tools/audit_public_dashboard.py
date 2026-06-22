@@ -703,7 +703,7 @@ def selected_period(now_date: date, mode: str) -> dict[str, Any]:
             "mode": "rolling_7_days",
             "startDate": start.isoformat(),
             "endDate": now_date.isoformat(),
-            "label": f"Son 7 gün · {format_date_range_label(start, now_date)}",
+            "label": f"Güncel dönem · {format_date_range_label(start, now_date)}",
             "isPartial": False,
         }
     start = now_date - timedelta(days=now_date.weekday())

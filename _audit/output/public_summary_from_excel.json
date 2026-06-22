@@ -1033,7 +1033,7 @@
         "mode": "rolling_7_days",
         "startDate": "2026-05-09",
         "endDate": "2026-05-15",
-        "label": "Son 7 gün",
+        "label": "Güncel dönem",
         "isPartial": false
       },
       "totals": {

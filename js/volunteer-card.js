@@ -184,7 +184,7 @@
     } else if (v.active === false) {
       logHtml = `
         <div class="dr-block">
-          <p class="dr-empty">Kadroda; son 7 günde henüz görünür kayıt yok. Zaman çizelgesinde ayrılmış slotlar: ${
+          <p class="dr-empty">Kadroda; bu dönemde henüz görünür kayıt yok. Zaman çizelgesinde ayrılmış slotlar: ${
             v.slots && v.slots.length ? esc(v.slots.join(", ")) : "—"
           }${v.topics && v.topics.length ? `. Konu: ${esc(v.topics.join(", "))}` : ""}.</p>
         </div>`;
