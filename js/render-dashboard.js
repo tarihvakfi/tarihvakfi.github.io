@@ -103,8 +103,8 @@
     setText('lpBoxes', totals.boxesCatalogued ? U.formatNum(totals.boxesCatalogued) : '—');
     setText('lpBoxesOf', '');
     setText('lpBoxesFoot', totals.boxesActive
-      ? `${U.formatNum(totals.boxesActive)} kutuda dönem hareketi var`
-      : 'bu dönemde hareket yok');
+      ? `${U.formatNum(totals.boxesActive)} kutuda dönem çalışması var`
+      : 'bu dönemde çalışma yok');
     setText('lpDone', U.formatNum(totals.boxesCompleted || 0));
     setText('lpDoneFoot', totals.boxesCompleted ? 'tamamlanan kutu' : 'Henüz tamamlanan kutu yok');
 
@@ -307,7 +307,7 @@
         <div class="box-card-body">
           <p>${U.escapeHtml(remaining)}</p>
           ${contributors ? `<div class="box-contributors"><span class="box-minihead">Katkı verenler:</span><ul>${contributors}</ul></div>` : ''}
-          <p>Son hareket: ${U.escapeHtml(U.formatDayMonth(box.lastActivityDate))}</p>
+          <p>Son çalışma: ${U.escapeHtml(U.formatDayMonth(box.lastActivityDate))}</p>
           ${material ? `<p>Malzeme: ${U.escapeHtml(material)}</p>` : ''}
         </div>
       </article>`;
@@ -320,24 +320,97 @@
     const list = document.getElementById('lpLatestRows');
     if (!block || !list) return;
     const rows = groupLatestActivity(latestActivity.filter((row) => isPublicVolunteerName(row.volunteerLabel)));
-    if (!rows.length) {
+    const visible = rows.slice(0, 12);
+    const days = latestCalendarDays(summary, visible);
+    if (!days.length) {
       block.setAttribute('hidden', '');
       return;
     }
-    const visible = rows.slice(0, 12);
-    setText('lpLatestMeta', `${U.formatNum(visible.length)} özet`);
-    list.innerHTML = visible.map((row) => {
-      const label = publicVolunteerLabel(row.volunteerLabel);
-      const role = row.publicRole ? ` · ${row.publicRole}` : '';
-      const box = row.boxLabel ? ` · ${row.boxLabel}` : '';
-      const countText = row.kind === 'activity'
-        ? `${U.formatNum(row.records)} faaliyet`
-        : `${U.formatNum(row.pagesDone || row.records)} sayfa/detay`;
-      return `<article class="latest-row" data-volunteer-label="${U.escapeHtml(label)}">
-        <span class="latest-main"><span class="latest-date-inline">${U.escapeHtml(U.formatDayMonth(row.dateISO || row.when))}</span> — <strong>${U.escapeHtml(label)}</strong>${U.escapeHtml(role)}${U.escapeHtml(box)} · ${U.escapeHtml(countText)}</span>
-      </article>`;
-    }).join('');
+    setText('lpLatestMeta', visible.length ? `${U.formatNum(visible.length)} çalışma` : 'Çalışma kaydı yok');
+    list.innerHTML = days.map(renderLatestDayCard).join('');
     block.removeAttribute('hidden');
+  }
+
+  function latestCalendarDays(summary, rows) {
+    const byDate = new Map();
+    rows.forEach((row) => {
+      const iso = U.toISODate(row.dateISO || row.when);
+      if (!iso) return;
+      if (!byDate.has(iso)) byDate.set(iso, []);
+      byDate.get(iso).push(row);
+    });
+
+    const summaryDays = Array.isArray(summary.byDay) ? summary.byDay : [];
+    const days = summaryDays.length
+      ? summaryDays.slice().sort((a, b) => String(b.dateISO || '').localeCompare(String(a.dateISO || '')))
+      : Array.from(byDate.keys()).sort((a, b) => String(b).localeCompare(String(a))).map((dateISO) => ({ dateISO }));
+
+    byDate.forEach((entries, dateISO) => {
+      if (!days.some((day) => U.toISODate(day.dateISO) === dateISO)) {
+        days.push({ dateISO });
+      }
+    });
+
+    return days
+      .sort((a, b) => String(b.dateISO || '').localeCompare(String(a.dateISO || '')))
+      .map((day) => {
+        const dateISO = U.toISODate(day.dateISO);
+        return Object.assign({}, day, {
+          dateISO,
+          entries: byDate.get(dateISO) || []
+        });
+      })
+      .filter((day) => day.dateISO);
+  }
+
+  function renderLatestDayCard(day) {
+    const entries = Array.isArray(day.entries) ? day.entries : [];
+    const parts = dateParts(day);
+    const isToday = U.sameIsoDate(day.dateISO, new Date());
+    const cls = `latest-day${entries.length ? '' : ' quiet'}${isToday ? ' today' : ''}`;
+    const countText = entries.length ? `${U.formatNum(entries.length)} çalışma` : 'Çalışma kaydı yok';
+    const body = entries.length
+      ? entries.map(renderLatestWork).join('')
+      : '<p class="latest-empty">Çalışma kaydı yok</p>';
+    return `<article class="${cls}">
+      <div class="latest-day-top">
+        <span>${U.escapeHtml(parts.weekday)}</span>
+        <span>${U.escapeHtml(countText)}</span>
+      </div>
+      <div class="latest-day-date">
+        <span class="latest-day-num">${U.escapeHtml(parts.day)}</span>
+        <span class="latest-day-month">${U.escapeHtml(parts.month)}</span>
+      </div>
+      <div class="latest-day-body">${body}</div>
+    </article>`;
+  }
+
+  function renderLatestWork(row) {
+    const label = publicVolunteerLabel(row.volunteerLabel);
+    const detailParts = [];
+    if (row.publicRole) detailParts.push(row.publicRole);
+    if (row.boxLabel) detailParts.push(row.boxLabel);
+    detailParts.push(row.kind === 'activity'
+      ? `${U.formatNum(row.records)} faaliyet`
+      : `${U.formatNum(row.pagesDone || row.records)} sayfa/detay`);
+    return `<div class="latest-work">
+      <span class="latest-work-dot" aria-hidden="true"></span>
+      <p>
+        <span class="latest-work-name" data-volunteer-label="${U.escapeHtml(label)}" role="button" tabindex="0" aria-label="${U.escapeHtml(label)} ayrıntıları">${U.escapeHtml(label)}</span>
+        <span class="latest-work-detail">${U.escapeHtml(detailParts.join(' · '))}</span>
+      </p>
+    </div>`;
+  }
+
+  function dateParts(day) {
+    const iso = U.toISODate(day.dateISO);
+    const date = iso ? new Date(`${iso}T12:00:00`) : null;
+    const valid = date && !Number.isNaN(date.getTime());
+    return {
+      weekday: day.weekdayTR || (iso ? U.weekdayTR(iso) : ''),
+      day: String(day.dayNumber || (valid ? date.getDate() : '') || '').padStart(2, '0'),
+      month: valid ? U.TR_MONTHS[date.getMonth()] : ''
+    };
   }
 
   function hydrateFirsts(summary) {
