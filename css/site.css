@@ -933,6 +933,16 @@ body.journal {
   gap: 9px;
   align-content: start;
 }
+.latest-day-summary {
+  margin: 0 0 2px;
+  padding: 8px 9px;
+  border-left: 2px solid var(--accent);
+  background: rgba(96,16,64,0.055);
+  font-family: 'DM Mono', monospace;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--ink-mute);
+}
 .latest-work {
   display: grid;
   grid-template-columns: 8px 1fr;

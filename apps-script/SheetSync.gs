@@ -658,7 +658,9 @@ function trackKeyFromActivity_(record) {
   const haystack = asciiFold_([
     record.workTitle,
     record.workDetail,
-    record.material
+    record.material,
+    record.publicRole,
+    record.projectId
   ].join(' ')).toLowerCase();
 
   if (/\b(web|site|teknik|it)\b/.test(haystack) || haystack.indexOf('arsiv web') >= 0 || haystack.indexOf('arsiv-web') >= 0) {
@@ -679,7 +681,7 @@ function trackKeyFromActivity_(record) {
   if (haystack.indexOf('gerda') >= 0 || haystack.indexOf('basvuru') >= 0 || haystack.indexOf('proje butcesi') >= 0 || haystack.indexOf('proje form') >= 0 || haystack.indexOf('proje hazir') >= 0 || haystack.indexOf('proje deger') >= 0 || haystack.indexOf('culture civic') >= 0 || haystack.indexOf('salt') >= 0 || haystack.indexOf('fon') >= 0) {
     return 'proje_basvuru';
   }
-  if (haystack.indexOf('koordinasyon') >= 0 || haystack.indexOf('planlama') >= 0 || haystack.indexOf('oryantasyon') >= 0 || haystack.indexOf('organizasyon') >= 0 || haystack.indexOf('toplanti') >= 0 || haystack.indexOf('gorusme') >= 0) {
+  if (haystack.indexOf('koordinasyon') >= 0 || haystack.indexOf('koordinator') >= 0 || haystack.indexOf('planlama') >= 0 || haystack.indexOf('oryantasyon') >= 0 || haystack.indexOf('organizasyon') >= 0 || haystack.indexOf('toplanti') >= 0 || haystack.indexOf('gorusme') >= 0) {
     return 'koordinasyon';
   }
   if (haystack.indexOf('kodlama') >= 0 || haystack.indexOf('kontrol') >= 0 || haystack.indexOf('duzelt') >= 0 || haystack.indexOf('duzenleme') >= 0 || haystack.indexOf('adlandirma') >= 0) {
@@ -1345,6 +1347,8 @@ function publicWorkTitle_(row) {
       || row.calisma
       || row.isAlani
       || row.isTanimi
+      || row.devamEdenCalisma
+      || row.notlar
       || row.fonAdi
       || row.fon
       || '',
@@ -1355,6 +1359,8 @@ function publicWorkTitle_(row) {
 function publicWorkDetail_(row) {
   return safePublicLongText_(
     row.devamEdenCalisma
+      || row.notlar
+      || row.yapilanCalismayaIliskinSayisalBilgi
       || row.devam
       || row.yapilanIs
       || row.aciklama

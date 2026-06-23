@@ -291,8 +291,8 @@
       const periodPageRows = box.periodPageRows || box.pageRows || box.periodRecords || 0;
       const periodPagesDone = box.periodPagesDone || box.pagesDone || periodPageRows;
       const periodLabel = periodPagesDone && periodPagesDone !== periodPageRows
-        ? `${U.formatNum(periodPageRows)} satır · ${U.formatNum(periodPagesDone)} sayfa birimi`
-        : `${U.formatNum(periodPageRows)} sayfa/detay`;
+        ? `satır · ${U.formatNum(periodPagesDone)} sayfa birimi`
+        : 'sayfa/detay';
       const done = Number(box.done || 0);
       const target = Number(box.target || 0);
       const remaining = target ? Math.max(0, Number(box.remaining || (target - done))) : null;
@@ -339,13 +339,13 @@
     if (!block || !list) return;
     const rows = groupLatestActivity(latestActivity.filter((row) => isPublicVolunteerName(row.volunteerLabel)))
       .filter((row) => isBusinessDayISO(U.toISODate(row.dateISO || row.when)));
-    const visible = rows.slice(0, 12);
-    const days = latestCalendarDays(summary, visible);
+    const days = latestCalendarDays(summary, rows);
     if (!days.length) {
       block.setAttribute('hidden', '');
       return;
     }
-    setText('lpLatestMeta', visible.length ? `${U.formatNum(visible.length)} çalışma` : 'Çalışma kaydı yok');
+    const total = days.reduce((sum, day) => sum + Number(day.records || day.entries.length || 0), 0);
+    setText('lpLatestMeta', total ? `${U.formatNum(total)} çalışma` : 'Çalışma kaydı yok');
     list.innerHTML = days.map(renderLatestDayCard).join('');
     block.removeAttribute('hidden');
   }
@@ -378,10 +378,28 @@
         const dateISO = U.toISODate(day.dateISO);
         return Object.assign({}, day, {
           dateISO,
-          entries: byDate.get(dateISO) || []
+          entries: latestEntriesForDay(day, byDate.get(dateISO) || [])
         });
       })
       .filter((day) => day.dateISO && isBusinessDayISO(day.dateISO));
+  }
+
+  function latestEntriesForDay(day, fallbackRows) {
+    const contributors = publicContributorRows(day.contributors || []);
+    if (contributors.length) {
+      return contributors.map((item) => ({
+        dateISO: U.toISODate(day.dateISO),
+        when: day.lastTime || day.firstTime || day.dateISO,
+        volunteerLabel: item.label,
+        publicRole: item.publicRole || '',
+        kind: 'summary',
+        records: Number(item.records || 0),
+        pageRows: Number(item.pageRows || 0),
+        activityRows: Number(item.activityRows || 0),
+        pagesDone: Number(item.pagesDone || 0)
+      }));
+    }
+    return Array.isArray(fallbackRows) ? fallbackRows : [];
   }
 
   function isBusinessDayISO(iso) {
@@ -397,9 +415,11 @@
     const parts = dateParts(day);
     const isToday = U.sameIsoDate(day.dateISO, new Date());
     const cls = `latest-day${entries.length ? '' : ' quiet'}${isToday ? ' today' : ''}`;
-    const countText = entries.length ? `${U.formatNum(entries.length)} çalışma` : 'Çalışma kaydı yok';
+    const workCount = Number(day.records || entries.length || 0);
+    const countText = workCount ? `${U.formatNum(workCount)} çalışma` : 'Çalışma kaydı yok';
+    const summary = renderLatestDaySummary(day);
     const body = entries.length
-      ? entries.map(renderLatestWork).join('')
+      ? `${summary}${entries.map(renderLatestWork).join('')}`
       : '<p class="latest-empty">Çalışma kaydı yok</p>';
     return `<article class="${cls}">
       <div class="latest-day-top">
@@ -414,14 +434,35 @@
     </article>`;
   }
 
+  function renderLatestDaySummary(day) {
+    const bits = [];
+    if (Number(day.pageRows || 0)) bits.push(`${U.formatNum(day.pageRows)} sayfa/detay`);
+    if (Number(day.activityRows || 0)) bits.push(`${U.formatNum(day.activityRows)} faaliyet`);
+    const boxCount = Number(day.boxesCount || (day.boxLabels || []).length || 0);
+    if (boxCount) bits.push(`${U.formatNum(boxCount)} kutu`);
+    const materials = (day.materials || []).slice(0, 2).map(materialPhrase).join(' · ');
+    const boxText = (day.boxLabels || []).slice(0, 3).join(', ');
+    const line = bits.join(' · ');
+    const tail = [boxText ? `Kutu: ${boxText}` : '', materials ? `Malzeme: ${materials}` : ''].filter(Boolean).join(' · ');
+    if (!line && !tail) return '';
+    return `<p class="latest-day-summary">${U.escapeHtml([line, tail].filter(Boolean).join(' · '))}</p>`;
+  }
+
   function renderLatestWork(row) {
     const label = publicVolunteerLabel(row.volunteerLabel);
     const detailParts = [];
     if (row.publicRole) detailParts.push(row.publicRole);
     if (row.boxLabel) detailParts.push(row.boxLabel);
-    detailParts.push(row.kind === 'activity'
-      ? `${U.formatNum(row.records)} faaliyet`
-      : `${U.formatNum(row.pagesDone || row.records)} sayfa/detay`);
+    if (row.kind === 'activity') {
+      detailParts.push(`${U.formatNum(row.records)} faaliyet`);
+    } else if (row.kind === 'summary') {
+      const summaryBits = [];
+      if (Number(row.pageRows || 0)) summaryBits.push(`${U.formatNum(row.pageRows)} sayfa/detay`);
+      if (Number(row.activityRows || 0)) summaryBits.push(`${U.formatNum(row.activityRows)} faaliyet`);
+      detailParts.push(summaryBits.length ? summaryBits.join(' · ') : `${U.formatNum(row.records)} çalışma`);
+    } else {
+      detailParts.push(`${U.formatNum(row.pagesDone || row.records)} sayfa/detay`);
+    }
     return `<div class="latest-work">
       <span class="latest-work-dot" aria-hidden="true"></span>
       <p>

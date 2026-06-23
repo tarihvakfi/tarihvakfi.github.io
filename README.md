@@ -28,7 +28,7 @@ window.TVF_PUBLIC_DATA = {
 };
 ```
 
-`publicSummary` tüm toplamların kaynağıdır. `latestActivity` yalnızca kısa “Son hareketler” akışıdır ve hiçbir toplam bu sınırlı feed’den hesaplanmaz.
+`publicSummary` tüm toplamların kaynağıdır. `latestActivity` yalnızca kısa “Son çalışmalar” akışı için yardımcı kesittir; hiçbir toplam bu sınırlı feed’den hesaplanmaz.
 
 ## Gönüllü Kredisi
 

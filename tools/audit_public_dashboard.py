@@ -484,7 +484,7 @@ def row_project_id(row: dict[str, Any]) -> str:
 def track_key_for_record(record: SourceRecord) -> str:
     if record.kind == "page":
         return "tarama"
-    return track_key_from_text(" ".join([record.work_title, record.work_detail, record.material]))
+    return track_key_from_text(" ".join([record.work_title, record.work_detail, record.material, record.public_role, record.project_id]))
 
 
 def track_key_from_text(value: str) -> str:
@@ -501,7 +501,7 @@ def track_key_from_text(value: str) -> str:
         return "kurumsal_bellek"
     if any(token in haystack for token in ["gerda", "basvuru", "proje butcesi", "proje form", "proje hazir", "proje deger", "culture civic", "salt", "fon"]):
         return "proje_basvuru"
-    if any(token in haystack for token in ["koordinasyon", "planlama", "oryantasyon", "organizasyon", "toplanti", "gorusme"]):
+    if any(token in haystack for token in ["koordinasyon", "koordinator", "planlama", "oryantasyon", "organizasyon", "toplanti", "gorusme"]):
         return "koordinasyon"
     if any(token in haystack for token in ["kodlama", "kontrol", "duzelt", "duzenleme", "adlandirma"]):
         return "kodlama_kontrol"
