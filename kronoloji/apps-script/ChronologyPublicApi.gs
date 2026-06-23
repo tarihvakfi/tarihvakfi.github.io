@@ -4,7 +4,8 @@
  * Mirror setup:
  * 1. XlsxMirrorSync.gs keeps a stable native Google Sheet mirror refreshed from
  *    the editor .xlsx file.
- * 2. Paste that mirror Sheet ID into SOURCE_SPREADSHEET_ID.
+ * 2. Save that mirror Sheet ID as the CHRONOLOGY_SOURCE_SPREADSHEET_ID
+ *    script property.
  * 3. Deploy this Apps Script as a Web App that executes as you.
  * 4. Paste the Web App URL into kronoloji/assets/js/config.js.
  *
@@ -12,10 +13,11 @@
  * metadata, private Drive links, or the original workbook.
  */
 
-const SOURCE_SPREADSHEET_ID = "1_UxaP20_KQjjhBhOKY-UBX2DdnkMMelAQh7dIPcCUFs";
+const SOURCE_SPREADSHEET_ID_PROPERTY = "CHRONOLOGY_SOURCE_SPREADSHEET_ID";
+const CORRECTION_NOTIFICATION_EMAILS_PROPERTY = "CHRONOLOGY_CORRECTION_EMAILS";
+const DEFAULT_CORRECTION_NOTIFICATION_EMAILS = "info@tarihvakfi.org.tr";
 const SITE_CONTENT_SHEET_NAME = "Site Metinleri";
 const CORRECTION_SHEET_NAME = "Düzeltme Önerileri";
-const CORRECTION_NOTIFICATION_EMAILS = "info@tarihvakfi.org.tr,arif.solmaz@gmail.com";
 
 const ITEM_COLUMNS = {
   organizational: { text: 1, category: 3, count: 4 },
@@ -178,11 +180,32 @@ function fieldList(parameterLists, parameters, key) {
   return values.map(cleanText).filter(Boolean);
 }
 
-function appendCorrectionSubmission(submission) {
-  if (!SOURCE_SPREADSHEET_ID || SOURCE_SPREADSHEET_ID.indexOf("PASTE_") === 0) {
-    throw new Error("Set SOURCE_SPREADSHEET_ID before accepting correction submissions.");
+function getSourceSpreadsheetId() {
+  const sheetId = getOptionalSourceSpreadsheetId();
+  if (!sheetId) {
+    throw new Error("Set CHRONOLOGY_SOURCE_SPREADSHEET_ID in Script Properties.");
   }
-  const spreadsheet = SpreadsheetApp.openById(SOURCE_SPREADSHEET_ID);
+  return sheetId;
+}
+
+function getOptionalSourceSpreadsheetId() {
+  return cleanText(
+    PropertiesService
+      .getScriptProperties()
+      .getProperty(SOURCE_SPREADSHEET_ID_PROPERTY),
+  );
+}
+
+function getCorrectionNotificationEmails() {
+  return cleanText(
+    PropertiesService
+      .getScriptProperties()
+      .getProperty(CORRECTION_NOTIFICATION_EMAILS_PROPERTY),
+  ) || DEFAULT_CORRECTION_NOTIFICATION_EMAILS;
+}
+
+function appendCorrectionSubmission(submission) {
+  const spreadsheet = SpreadsheetApp.openById(getSourceSpreadsheetId());
   const sheet = ensureCorrectionSheet(spreadsheet);
   sheet.appendRow([
     submission.received_at,
@@ -231,7 +254,7 @@ function ensureCorrectionSheet(spreadsheet) {
 function notifyCorrectionSubmission(submission) {
   try {
     MailApp.sendEmail({
-      to: CORRECTION_NOTIFICATION_EMAILS,
+      to: getCorrectionNotificationEmails(),
       subject: `Kronoloji düzeltme önerisi: ${submission.record_id || "kayıt ID yok"}`,
       body: [
         `Kayıt ID: ${submission.record_id}`,
@@ -264,10 +287,7 @@ function notifyCorrectionSubmission(submission) {
 }
 
 function normalizeChronology() {
-  if (!SOURCE_SPREADSHEET_ID || SOURCE_SPREADSHEET_ID.indexOf("PASTE_") === 0) {
-    throw new Error("Set SOURCE_SPREADSHEET_ID to the native Google Sheet ID.");
-  }
-  const spreadsheet = SpreadsheetApp.openById(SOURCE_SPREADSHEET_ID);
+  const spreadsheet = SpreadsheetApp.openById(getSourceSpreadsheetId());
   const records = [];
   spreadsheet.getSheets().forEach((sheet) => {
     const match = sheet.getName().match(/^\s*([1-7])\.\s*D[ÖO]NEM\s*$/i);
@@ -339,8 +359,9 @@ function normalizeChronology() {
 }
 
 function readSiteContent() {
-  if (!SOURCE_SPREADSHEET_ID || SOURCE_SPREADSHEET_ID.indexOf("PASTE_") === 0) return {};
-  const spreadsheet = SpreadsheetApp.openById(SOURCE_SPREADSHEET_ID);
+  const spreadsheetId = getOptionalSourceSpreadsheetId();
+  if (!spreadsheetId) return {};
+  const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
   const sheet = spreadsheet.getSheetByName(SITE_CONTENT_SHEET_NAME);
   if (!sheet) return {};
   const values = sheet.getDataRange().getDisplayValues();

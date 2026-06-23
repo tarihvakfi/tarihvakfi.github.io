@@ -9,8 +9,12 @@ Workflow:
 1. Repo’yu checkout eder.
 2. Apps Script endpoint’inden `?public=1&period=rolling_7_days` payload’ını çeker.
 3. Payload `rolling_7_days` dönemi içeriyorsa `js/snapshot.js` dosyasını üretir. Endpoint hâlâ eski takvim haftası döndürüyorsa workflow public `byDay` ve `latestActivity` verisinden geçici rolling snapshot üretir; tam ve kalıcı sonuç için Apps Script yeniden deploy edilmelidir.
-4. `.nojekyll` ekler.
-5. Statik siteyi GitHub Pages artifact’i olarak yükler.
+4. `_site` klasörüne yalnızca public site dosyalarını kopyalar.
+5. `.nojekyll` ekler.
+6. `_site` klasörünü GitHub Pages artifact’i olarak yükler.
+
+Pages artifact’ine `apps-script/`, `tools/`, `docs/`, `_audit/` ve
+`kronoloji/apps-script/` dahil edilmez.
 
 ## Apps Script Endpoint
 

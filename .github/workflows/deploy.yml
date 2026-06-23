@@ -32,9 +32,6 @@ jobs:
       - name: Refresh public snapshot
         run: node tools/refresh_public_snapshot.mjs
 
-      - name: Add .nojekyll
-        run: touch .nojekyll
-
       - name: Check required files
         run: |
           test -f index.html
@@ -43,13 +40,30 @@ jobs:
             echo "Warning: js/snapshot.js not found. The site must use the live Apps Script endpoint."
           fi
 
+      - name: Build Pages artifact
+        run: |
+          rm -rf _site
+          mkdir -p _site
+          cp index.html 404.html yaz-planlamasi.html _site/
+          cp -R assets css js kronoloji _site/
+          rm -rf _site/kronoloji/apps-script
+          touch _site/.nojekyll
+
+          test -f _site/index.html
+          test -f _site/js/config.public.js
+          test ! -e _site/apps-script
+          test ! -e _site/tools
+          test ! -e _site/docs
+          test ! -e _site/_audit
+          test ! -e _site/kronoloji/apps-script
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: "."
+          path: "_site"
 
       - name: Deploy to GitHub Pages
         id: deployment

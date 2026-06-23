@@ -103,6 +103,7 @@ const FALLBACK_ACTIVITY_CODES = {
 
 const PAGE_SIZE = 100;
 const LIVE_REFRESH_TIMEOUT_MS = 12000;
+const PUBLIC_CORRECTION_EMAIL = "info@tarihvakfi.org.tr";
 const PERIOD_LABELS_BY_NUMBER = {
   1: "1. Dönem (1991–1995)",
   2: "2. Dönem (1996–2000)",
@@ -306,7 +307,7 @@ function extractContent(payload) {
   return Object.entries(source).reduce((acc, [key, value]) => {
     const cleanKey = String(key || "").trim();
     if (cleanKey && value !== undefined && value !== null && !isLegacyContentValue(cleanKey, value)) {
-      acc[cleanKey] = String(value);
+      acc[cleanKey] = sanitizePublicContent(value);
     }
     return acc;
   }, {});
@@ -518,8 +519,15 @@ function applySiteContent() {
 
 function contentText(key, fallback = "") {
   const value = siteContent[key];
-  if (value === undefined || value === null || value === "") return fallback;
-  return String(value);
+  if (value === undefined || value === null || value === "") return sanitizePublicContent(fallback);
+  return sanitizePublicContent(value);
+}
+
+function sanitizePublicContent(value) {
+  return String(value || "")
+    .replace(/\s*,\s*arif\.solmaz@gmail\.com/gi, "")
+    .replace(/\s+ve\s+arif\.solmaz@gmail\.com/gi, "")
+    .replace(/Bildirimler\s+info@tarihvakfi\.org\.tr\s+adreslerine gider\./gi, "Bildirimler Tarih Vakfı ekibine gider.");
 }
 
 function contentFormat(key, values, fallback = "") {
@@ -763,7 +771,7 @@ function buildCorrectionMailto() {
     "",
     `Sayfa: ${formValue("correctionPageUrl") || window.location.href}`,
   ];
-  return `mailto:info@tarihvakfi.org.tr,arif.solmaz@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join("\n"))}`;
+  return `mailto:${PUBLIC_CORRECTION_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join("\n"))}`;
 }
 
 function formValue(id) {

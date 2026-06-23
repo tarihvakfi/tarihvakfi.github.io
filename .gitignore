@@ -12,6 +12,9 @@ data/pnb-import-preview*.json
 _audit/input/
 _audit/*.xlsx
 _audit/*.xls
+_audit/output/*
+!_audit/output/.gitkeep
+_site/
 *.xlsx
 *.xls
 secrets.*

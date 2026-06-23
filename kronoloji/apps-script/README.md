@@ -72,10 +72,19 @@ Set these constants:
 ```js
 const SOURCE_XLSX_FILE_ID = "CURRENT_XLSX_FILE_ID";
 const MIRROR_SPREADSHEET_ID = "MIRROR_SHEET_ID";
-const SOURCE_SPREADSHEET_ID = "MIRROR_SHEET_ID";
 ```
 
 The current `.xlsx` ID is the part after `/d/` in the Office-mode URL.
+
+Then open **Project Settings → Script Properties** and add:
+
+```text
+CHRONOLOGY_SOURCE_SPREADSHEET_ID = MIRROR_SHEET_ID
+CHRONOLOGY_CORRECTION_EMAILS = info@tarihvakfi.org.tr
+```
+
+Use a shared institutional mailbox for `CHRONOLOGY_CORRECTION_EMAILS`; do not
+commit personal addresses into the public repository.
 
 ### 4. Enable the Advanced Drive API
 
