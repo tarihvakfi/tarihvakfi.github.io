@@ -204,6 +204,9 @@
     ["city", "role", "tv_role", "uni", "dept", "firstSeen", "lastSeen"].forEach((key) => {
       if (!out[key] && next[key]) out[key] = next[key];
     });
+    ["currentRecords", "currentPageRows", "currentActivityRows"].forEach((key) => {
+      if (next[key] != null) out[key] = Number(next[key] || 0);
+    });
     ["topics", "slots", "tracks", "scanners", "boxes", "log"].forEach((key) => {
       const merged = [];
       (Array.isArray(out[key]) ? out[key] : []).concat(Array.isArray(next[key]) ? next[key] : []).forEach((item) => {
@@ -249,6 +252,95 @@
       }
       return volunteer;
     });
+  }
+
+  function contributionRosterVolunteers(data, liveMap) {
+    const rosterIndex = {};
+    canonicalRosterVolunteers(data, liveMap).forEach((volunteer) => {
+      rosterIndex[canonicalNameKey(volunteer.name)] = volunteer;
+    });
+
+    const merged = {};
+    Object.values(liveMap || {}).forEach((row) => {
+      const key = canonicalNameKey(row.label);
+      if (!key) return;
+      merged[key] = mergeVolunteer(merged[key], rosterIndex[key]);
+      merged[key] = mergeVolunteer(merged[key], {
+        name: row.label,
+        slug: slugifyName(row.label),
+        sessions: Number(row.records || 0),
+        currentRecords: Number(row.records || 0),
+        currentPageRows: Number(row.pageRows || 0),
+        currentActivityRows: Number(row.activityRows || 0),
+        active: true,
+        tracks: [],
+        log: []
+      });
+    });
+
+    const trackSummary = getLiveTrackSummary();
+    (Array.isArray(trackSummary?.people) ? trackSummary.people : []).forEach((name) => {
+      publicPeopleFromLabel(name).forEach((person) => {
+        const key = person.key;
+        if (!key) return;
+        merged[key] = mergeVolunteer(merged[key], rosterIndex[key]);
+        merged[key] = mergeVolunteer(merged[key], {
+          name: person.label,
+          slug: slugifyName(person.label),
+          sessions: 0,
+          active: Boolean(merged[key] && merged[key].active),
+          tracks: [],
+          log: []
+        });
+      });
+    });
+
+    (Array.isArray(trackSummary?.tracks) ? trackSummary.tracks : []).forEach((track) => {
+      (Array.isArray(track.people) ? track.people : []).forEach((name) => {
+        publicPeopleFromLabel(name).forEach((person) => {
+          const key = person.key;
+          if (!key || !merged[key]) return;
+          merged[key] = mergeVolunteer(merged[key], {
+            name: person.label,
+            slug: slugifyName(person.label),
+            sessions: 1,
+            tracks: [track.key || "diger"],
+            active: Boolean(merged[key].active),
+            log: []
+          });
+        });
+      });
+    });
+
+    const values = Object.entries(merged).map(([key, volunteer]) => {
+      const display = canonicalDisplayName(key, volunteer.name);
+      if (display) {
+        volunteer.name = display;
+        volunteer.slug = slugifyName(display);
+      }
+      volunteer.currentRecords = Number(volunteer.currentRecords || 0);
+      volunteer.currentPageRows = Number(volunteer.currentPageRows || 0);
+      volunteer.currentActivityRows = Number(volunteer.currentActivityRows || 0);
+      volunteer.isCurrent = volunteer.currentRecords > 0;
+      return volunteer;
+    });
+
+    if (values.length) return values;
+    return canonicalRosterVolunteers(data, liveMap);
+  }
+
+  function publicPeopleFromLabel(label) {
+    const seen = {};
+    String(label || "")
+      .split(/\s*(?:,|;|\n|\s+-\s+)\s*/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .forEach((name) => {
+        const key = canonicalNameKey(name);
+        if (!key) return;
+        seen[key] = canonicalDisplayName(key, name);
+      });
+    return Object.keys(seen).map((key) => ({ key, label: seen[key] }));
   }
 
   // -------------------------------------------------------------------
@@ -473,44 +565,62 @@
     const mount = safeMount("lpKadro");
     if (!mount || !data) return;
     const liveMap = liveVolunteerMap();
-    const liveNames = new Set(Object.keys(liveMap));
-    const hasLivePeriod = Boolean(getLiveSummary());
-    const vols = canonicalRosterVolunteers(data, liveMap)
-      .sort((a, b) => a.name.localeCompare(b.name, "tr"));
+    const vols = contributionRosterVolunteers(data, liveMap);
     if (vols.length === 0) {
       mount.setAttribute("hidden", "");
       return;
     }
 
-    const rows = vols.map((v) => {
-      const activeNow = hasLivePeriod ? liveNames.has(canonicalNameKey(v.name)) : Boolean(v.active);
-      const muted = activeNow ? "" : " muted";
-      const meta = [v.city, v.role].filter(Boolean).map(esc).join(" · ");
+    const current = vols
+      .filter((v) => v.isCurrent)
+      .sort((a, b) => Number(b.currentRecords || 0) - Number(a.currentRecords || 0) || a.name.localeCompare(b.name, "tr"));
+    const previous = vols
+      .filter((v) => !v.isCurrent)
+      .sort((a, b) => a.name.localeCompare(b.name, "tr"));
+
+    function rowHtml(v, muted) {
+      const meta = kadroMeta(v);
       return `<span class="row${muted}" data-slug="${esc(v.slug || "")}" data-volunteer-label="${esc(v.name)}" role="button" tabindex="0" aria-label="${esc(v.name)} profilini aç">
         <span class="marker"></span><span class="nm">${esc(v.name)}</span>${
           meta ? `<span class="meta">${meta}</span>` : ""
         }
       </span>`;
-    }).join("");
+    }
+
+    const currentRows = current.map((v) => rowHtml(v, "")).join("");
+    const previousRows = previous.map((v) => rowHtml(v, " muted")).join("");
 
     mount.classList.add("tv-kadro");
     mount.innerHTML = `
       <p class="roll-intro">
-        Aşağıda Boratav Arşivi için zaman çizelgesine kaydolan herkes
-        alfabetik sırayla yer alır. Dolu nokta, güncel dönemde aktif olarak
-        görünür kayıt üreten gönüllüleri işaret eder.
+        Liste canlı katkı kayıtlarından derlenir: güncel dönem çalışanları
+        önce, daha önce görünür katkı vermiş kişiler sonra gelir.
       </p>
-      <div class="roll">${rows}</div>
+      ${currentRows ? `<div class="roll-group"><p class="roll-group-title">Güncel dönem katkı verenleri</p><div class="roll current-roll">${currentRows}</div></div>` : ""}
+      ${previousRows ? `<div class="roll-group previous"><p class="roll-group-title">Önceki katkı verenler</p><div class="roll previous-roll">${previousRows}</div></div>` : ""}
       <div class="roll-legend">
         <span class="lg"><span class="mk"></span>Güncel dönemde görünür katkı veren</span>
-        <span class="lg"><span class="mk muted"></span>Kadroda; bu dönemde görünür kayıt yok</span>
+        <span class="lg"><span class="mk muted"></span>Önceki katkı kaydı var</span>
       </div>`;
 
     const metaEl = document.getElementById("lpKadroMeta");
     if (metaEl) {
-      const activeCount = vols.filter((v) => hasLivePeriod ? liveNames.has(canonicalNameKey(v.name)) : Boolean(v.active)).length;
-      metaEl.textContent = `${activeCount} aktif · ${vols.length} kişi`;
+      metaEl.textContent = `${current.length} güncel · ${vols.length} katkı veren`;
     }
+  }
+
+  function kadroMeta(v) {
+    if (v.isCurrent) {
+      const bits = [`${fmt(v.currentRecords)} güncel kayıt`];
+      if (v.currentPageRows) bits.push(`${fmt(v.currentPageRows)} sayfa/detay`);
+      if (v.currentActivityRows) bits.push(`${fmt(v.currentActivityRows)} çalışma`);
+      return bits.join(" · ");
+    }
+    const tracks = (v.tracks || [])
+      .slice(0, 2)
+      .map((track) => (TRACK_META[track] && TRACK_META[track].label) || TRACK_META.diger.label);
+    if (tracks.length) return tracks.join(" · ");
+    return [v.city, v.role].filter(Boolean).join(" · ");
   }
 
   // -------------------------------------------------------------------
