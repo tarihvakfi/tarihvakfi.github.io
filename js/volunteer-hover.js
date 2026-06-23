@@ -17,6 +17,7 @@
   var tip = null;
   var hideTimer = null;
   var currentLabel = null;
+  var currentKey = null;
 
   // ── Build tooltip DOM once ─────────────────────────────────────────
   function ensureTip() {
@@ -117,6 +118,10 @@
     if (!iso) return '';
     var parts = iso.split('-');
     return parseInt(parts[2],10) + ' ' + (TR_MONTHS[parseInt(parts[1],10)] || '');
+  }
+  function fmtNum(value) {
+    var n = Number(value || 0);
+    return new Intl.NumberFormat('tr-TR').format(n);
   }
 
   var TRACK_LABELS = {
@@ -228,7 +233,51 @@
   }
 
   // ── Render tooltip HTML ────────────────────────────────────────────
-  function renderTip(label) {
+  function contextFromNode(node) {
+    if (!node || !node.dataset) return null;
+    var ds = node.dataset;
+    if (!ds.contextDate && !ds.contextTitle && !ds.contextDetail && !ds.contextRecords) return null;
+    return {
+      dateISO: ds.contextDate || '',
+      title: ds.contextTitle || '',
+      detail: ds.contextDetail || '',
+      boxLabel: ds.contextBox || '',
+      kind: ds.contextKind || '',
+      material: ds.contextMaterial || '',
+      records: Number(ds.contextRecords || 0),
+      pageRows: Number(ds.contextPageRows || 0),
+      activityRows: Number(ds.contextActivityRows || 0),
+      pagesDone: Number(ds.contextPagesDone || 0)
+    };
+  }
+
+  function contextKey(label, context) {
+    if (!context) return canonicalNameKey(label);
+    return [
+      canonicalNameKey(label),
+      context.dateISO || '',
+      context.title || '',
+      context.detail || '',
+      context.boxLabel || '',
+      context.records || 0,
+      context.pageRows || 0,
+      context.activityRows || 0,
+      context.pagesDone || 0
+    ].join('|');
+  }
+
+  function contextText(context) {
+    var bits = [];
+    if (context.boxLabel) bits.push(context.boxLabel);
+    if (context.pagesDone) bits.push(fmtNum(context.pagesDone) + ' sayfa/detay');
+    else if (context.pageRows) bits.push(fmtNum(context.pageRows) + ' sayfa/detay');
+    if (context.activityRows) bits.push(fmtNum(context.activityRows) + ' faaliyet');
+    if (!bits.length && context.records) bits.push(fmtNum(context.records) + ' çalışma');
+    var main = [context.title, context.detail].filter(Boolean).join(' — ');
+    return main || bits.join(' · ') || 'Bu takvim kartındaki çalışma';
+  }
+
+  function renderTip(label, context) {
     var d = getVolData(label);
     if (!d) return false;
 
@@ -239,6 +288,18 @@
     var workRows = (d.workRows || []).slice(0, 3);
     var profile = profileText(rosterVol);
     var role = v.publicRole || (rosterVol && (rosterVol.role || rosterVol.tv_role)) || '';
+    var contextHtml = context ? [
+      '<div class="tv-vol-tip-log" style="margin-bottom:10px;">',
+        '<div class="tv-vol-tip-section-title">Bu karttaki çalışma</div>',
+        '<div class="tv-vol-tip-log-row">',
+          '<div class="tv-vol-tip-log-dot"></div>',
+          '<div>',
+            '<div class="tv-vol-tip-log-meta">' + esc([fmtDateShort(context.dateISO), context.material].filter(Boolean).join(' · ')) + '</div>',
+            '<div class="tv-vol-tip-log-text">' + esc(contextText(context)) + '</div>',
+          '</div>',
+        '</div>',
+      '</div>'
+    ].join('') : '';
 
     var statsHtml = [
       '<div class="tv-vol-tip-stat"><strong>' + esc(String(v.records || 0)) + '</strong>katkı</div>',
@@ -284,10 +345,11 @@
       role ? '<div class="tv-vol-tip-role">' + esc(role) + '</div>' : '',
       profile ? '<div class="tv-vol-tip-profile">' + esc(profile) + '</div>' : '',
       '<div class="tv-vol-tip-stats">' + statsHtml + '</div>',
-      workRows.length ? '<div class="tv-vol-tip-log"><div class="tv-vol-tip-section-title">Formdan iş detayı</div>' + workHtml + '</div>' : '',
-      !workRows.length && days.length ? '<div class="tv-vol-tip-log">' + daysHtml + '</div>' : '',
+      contextHtml,
+      !context && workRows.length ? '<div class="tv-vol-tip-log"><div class="tv-vol-tip-section-title">Formdan iş detayı</div>' + workHtml + '</div>' : '',
+      !context && !workRows.length && days.length ? '<div class="tv-vol-tip-log">' + daysHtml + '</div>' : '',
       boxesHtml,
-      '<div class="tv-vol-tip-foot">Güncel dönem katkısı</div>',
+      '<div class="tv-vol-tip-foot">' + (context ? 'Bu takvim kartındaki kayıt' : 'Güncel dönem katkısı') + '</div>',
     ].join('');
 
     return true;
@@ -310,12 +372,15 @@
   }
 
   // ── Show / hide ────────────────────────────────────────────────────
-  function show(label, e) {
+  function show(label, e, sourceNode) {
     clearTimeout(hideTimer);
     ensureTip();
-    if (label === currentLabel) { positionTip(e); return; }
+    var context = contextFromNode(sourceNode);
+    var nextKey = contextKey(label, context);
+    if (nextKey === currentKey) { positionTip(e); return; }
     currentLabel = label;
-    if (!renderTip(label)) return;
+    currentKey = nextKey;
+    if (!renderTip(label, context)) return;
     tip.classList.remove('show');
     positionTip(e);
     requestAnimationFrame(function() { tip.classList.add('show'); });
@@ -326,6 +391,7 @@
     hideTimer = setTimeout(function() {
       if (tip) { tip.classList.remove('show'); tip.setAttribute('aria-hidden','true'); }
       currentLabel = null;
+      currentKey = null;
     }, 200);
   }
 
@@ -339,12 +405,12 @@
 
     // Check for explicit attribute first
     var node = el.closest('[data-volunteer-label]');
-    if (node) { show(node.dataset.volunteerLabel, e); return; }
+    if (node) { show(node.dataset.volunteerLabel, e, node); return; }
 
     var slugNode = el.closest('[data-slug]');
     if (slugNode) {
       var rosterVol = findRosterVolunteer(slugNode.dataset.slug);
-      if (rosterVol) { show(rosterVol.name, e); return; }
+      if (rosterVol) { show(rosterVol.name, e, slugNode); return; }
     }
 
     // Fallback: .vol-row has a name in first text node or .vol-name
@@ -353,7 +419,7 @@
     var nameEl = row.querySelector('.vol-name, .credit-name, .vol-label, b');
     if (!nameEl) return;
     var label = nameEl.textContent.trim();
-    if (label && label !== currentLabel) show(label, e);
+    if (label && label !== currentLabel) show(label, e, row);
   }, { passive: true });
 
   document.addEventListener('mousemove', function(e) {

@@ -776,7 +776,8 @@ function daySummary_(dateISO, rows) {
       records: recs.length,
       pageRows: contributorPageRows.length,
       activityRows: contributorActivityRows.length,
-      pagesDone: contributorPageRows.reduce(function (sum, record) { return sum + Number(record.pageUnits || 1); }, 0)
+      pagesDone: contributorPageRows.reduce(function (sum, record) { return sum + Number(record.pageUnits || 1); }, 0),
+      workRows: publicWorkRowsForContributor_(recs, 4)
     };
   }).filter(Boolean).sort(function (a, b) { return asciiFold_(a.label).localeCompare(asciiFold_(b.label)); });
   const volunteerNames = contributors.filter(function (item) {
@@ -807,6 +808,49 @@ function daySummary_(dateISO, rows) {
     lastTime: last ? isoDateTime_(last) : null,
     summarySentence: rows.length ? ('Bugün ' + parts.join(', ') + ' işlendi.') : 'Bugün için görünür katkı yok.'
   };
+}
+
+function publicWorkRowsForContributor_(records, limit) {
+  const groups = {};
+  (records || []).forEach(function (record) {
+    const boxLabel = record.box ? ('Kutu ' + record.box) : '';
+    const key = [
+      record.kind || '',
+      record.material || '',
+      boxLabel,
+      record.workTitle || '',
+      record.workDetail || ''
+    ].join('|');
+    if (!groups[key]) {
+      groups[key] = {
+        dateISO: record.dateISO || null,
+        kind: record.kind || '',
+        material: record.material || '',
+        boxLabel: boxLabel,
+        workTitle: record.workTitle || '',
+        workDetail: record.workDetail || '',
+        records: 0,
+        pageRows: 0,
+        activityRows: 0,
+        pagesDone: 0
+      };
+    }
+    const group = groups[key];
+    group.records += 1;
+    if (record.kind === 'page') {
+      group.pageRows += 1;
+      group.pagesDone += Number(record.pageUnits || 1);
+    } else {
+      group.activityRows += 1;
+    }
+  });
+  return Object.keys(groups).map(function (key) {
+    return groups[key];
+  }).sort(function (a, b) {
+    return (b.records - a.records)
+      || String(a.workTitle || '').localeCompare(String(b.workTitle || ''), 'tr')
+      || String(a.workDetail || '').localeCompare(String(b.workDetail || ''), 'tr');
+  }).slice(0, limit || 4);
 }
 
 function buildWarnings_(records, inventory, byDay, periodRecords, pagesDone, targetPages) {

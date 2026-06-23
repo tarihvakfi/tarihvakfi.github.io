@@ -396,7 +396,8 @@
         records: Number(item.records || 0),
         pageRows: Number(item.pageRows || 0),
         activityRows: Number(item.activityRows || 0),
-        pagesDone: Number(item.pagesDone || 0)
+        pagesDone: Number(item.pagesDone || 0),
+        workRows: Array.isArray(item.workRows) ? item.workRows : []
       }));
     }
     return Array.isArray(fallbackRows) ? fallbackRows : [];
@@ -451,6 +452,7 @@
   function renderLatestWork(row) {
     const label = publicVolunteerLabel(row.volunteerLabel);
     const detailParts = [];
+    const context = latestWorkContext(row);
     if (row.publicRole) detailParts.push(row.publicRole);
     if (row.boxLabel) detailParts.push(row.boxLabel);
     if (row.kind === 'activity') {
@@ -466,10 +468,46 @@
     return `<div class="latest-work">
       <span class="latest-work-dot" aria-hidden="true"></span>
       <p>
-        <span class="latest-work-name" data-volunteer-label="${U.escapeHtml(label)}" role="button" tabindex="0" aria-label="${U.escapeHtml(label)} ayrıntıları">${U.escapeHtml(label)}</span>
+        <span class="latest-work-name" data-volunteer-label="${U.escapeHtml(label)}"${latestContextAttrs(context)} role="button" tabindex="0" aria-label="${U.escapeHtml(label)} ayrıntıları">${U.escapeHtml(label)}</span>
         <span class="latest-work-detail">${U.escapeHtml(detailParts.join(' · '))}</span>
       </p>
     </div>`;
+  }
+
+  function latestWorkContext(row) {
+    const workRows = Array.isArray(row.workRows) ? row.workRows : [];
+    const first = workRows[0] || {};
+    return {
+      dateISO: U.toISODate(row.dateISO || row.when || first.dateISO),
+      title: first.workTitle || row.workTitle || '',
+      detail: first.workDetail || row.workDetail || '',
+      boxLabel: first.boxLabel || row.boxLabel || '',
+      kind: first.kind || row.kind || '',
+      material: first.material || row.material || '',
+      records: Number(first.records || row.records || 0),
+      pageRows: Number(first.pageRows || row.pageRows || 0),
+      activityRows: Number(first.activityRows || row.activityRows || 0),
+      pagesDone: Number(first.pagesDone || row.pagesDone || 0)
+    };
+  }
+
+  function latestContextAttrs(context) {
+    const attrs = {
+      'data-context-date': context.dateISO || '',
+      'data-context-title': context.title || '',
+      'data-context-detail': context.detail || '',
+      'data-context-box': context.boxLabel || '',
+      'data-context-kind': context.kind || '',
+      'data-context-material': context.material || '',
+      'data-context-records': context.records || '',
+      'data-context-page-rows': context.pageRows || '',
+      'data-context-activity-rows': context.activityRows || '',
+      'data-context-pages-done': context.pagesDone || ''
+    };
+    return Object.keys(attrs).map((key) => {
+      const value = attrs[key];
+      return value == null || value === '' ? '' : ` ${key}="${U.escapeHtml(value)}"`;
+    }).join('');
   }
 
   function dateParts(day) {
@@ -563,7 +601,9 @@
         publicRole: String(row.publicRole || '').trim(),
         records: Number(row.records || 0),
         pageRows: Number(row.pageRows || 0),
-        activityRows: Number(row.activityRows || 0)
+        activityRows: Number(row.activityRows || 0),
+        pagesDone: Number(row.pagesDone || 0),
+        workRows: Array.isArray(row.workRows) ? row.workRows : []
       }))
       .filter((row) => row.label);
   }

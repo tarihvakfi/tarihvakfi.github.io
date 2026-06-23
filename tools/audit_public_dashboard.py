@@ -906,6 +906,7 @@ def summarize_day(day: date, rows: list[SourceRecord]) -> dict[str, Any]:
             "pageRows": len(c_page_rows),
             "activityRows": len(c_activity_rows),
             "pagesDone": sum(r.page_units for r in c_page_rows),
+            "workRows": public_work_rows_for_contributor(recs, 4),
         })
     contributors.sort(key=lambda item: ascii_fold(item["label"]).lower())
     volunteers = [item["label"] for item in contributors if not item["publicRole"]]
@@ -946,6 +947,35 @@ def summarize_day(day: date, rows: list[SourceRecord]) -> dict[str, Any]:
         "lastTime": last.isoformat() if last else None,
         "summarySentence": sentence,
     }
+
+
+def public_work_rows_for_contributor(records: list[SourceRecord], limit: int = 4) -> list[dict[str, Any]]:
+    groups: dict[tuple[str, str, str, str, str], dict[str, Any]] = {}
+    for rec in records:
+        box_label = f"Kutu {public_box_label(rec.box)}" if rec.box else ""
+        key = (rec.kind, rec.material, box_label, rec.work_title, rec.work_detail)
+        row = groups.setdefault(key, {
+            "dateISO": rec.date.isoformat() if rec.date else None,
+            "kind": rec.kind,
+            "material": rec.material,
+            "boxLabel": box_label,
+            "workTitle": rec.work_title,
+            "workDetail": rec.work_detail,
+            "records": 0,
+            "pageRows": 0,
+            "activityRows": 0,
+            "pagesDone": 0,
+        })
+        row["records"] += 1
+        if rec.kind == "page":
+            row["pageRows"] += 1
+            row["pagesDone"] += rec.page_units or 1
+        else:
+            row["activityRows"] += 1
+    return sorted(
+        groups.values(),
+        key=lambda row: (-row["records"], ascii_fold(row["workTitle"]).lower(), ascii_fold(row["workDetail"]).lower()),
+    )[:limit]
 
 
 def build_public_summary(
