@@ -199,7 +199,7 @@
         var host = link.getAttribute('data-host') || '';
         var tld = link.getAttribute('data-tld') || '';
         var email = local + '@' + [host, tld].filter(Boolean).join('.');
-        var subject = encodeURIComponent('Boratav Arşivi gönüllülük');
+        var subject = encodeURIComponent('Tarih Vakfı gönüllü başvurusu hk.');
         window.location.href = 'mailto:' + email + '?subject=' + subject;
       });
     })();
