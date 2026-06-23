@@ -1,5 +1,5 @@
 /**
- * Boratav Arşivi Gönüllü Emek Günlüğü public sheet endpoint.
+ * Tarih Vakfı Gönüllü Emek Günlüğü public sheet endpoint.
  *
  * Reads the shared Google Sheet and emits only a public dashboard payload:
  *   - publicSummary: full aggregate object
@@ -82,7 +82,7 @@ function doGet(e) {
   try {
     const params = (e && e.parameter) || {};
     if (params.public !== '1') {
-      return tvfJson_({ ok: true, service: 'Boratav Arşivi Gönüllü Emek Günlüğü', hint: 'Add ?public=1' });
+      return tvfJson_({ ok: true, service: 'Tarih Vakfı Gönüllü Emek Günlüğü', hint: 'Add ?public=1' });
     }
     const data = buildPublicDashboardPayload_(normalizePeriodMode_(params.period || params.mode));
     return tvfJson_({ ok: true, generatedAt: data.generatedAt, data: data });
@@ -1141,7 +1141,7 @@ function writeVolunteerProfileSheet_(sheet, rows) {
     'Virgülle ayırın.',
     'Virgülle ayırın.',
     'Tek cümlelik kısa tanım.',
-    'Boratav Arşivi çalışmasına dair kısa not.',
+    'Tarih Vakfı gönüllü çalışmasına dair kısa not.',
     'Kısa biyografi; e-posta yazmayın.',
     'Web sitesi URLsi.',
     'Twitter/X kullanıcı adı veya URL.',

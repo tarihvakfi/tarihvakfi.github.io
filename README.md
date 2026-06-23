@@ -1,6 +1,6 @@
-# Boratav Arşivi Gönüllü Emek Günlüğü
+# Tarih Vakfı Gönüllü Emek Günlüğü
 
-Bu depo, Tarih Vakfı Pertev Naili Boratav Arşivi için hazırlanan kamuya açık Boratav Arşivi Gönüllü Emek Günlüğü panosunu barındırır. Pano, Google Sheet üzerinde tutulan arşiv çalışması ve gönüllü katkı verilerini düzenli olarak okuyarak güncel dönem emeğini, aktif kutuları, malzeme dağılımını ve gönüllü/koordinasyon katkılarını görünür kılar.
+Bu depo, Tarih Vakfı’ndaki gönüllü arşiv, dijitalleştirme, proje ve koordinasyon çalışmalarını kamuya açık biçimde özetleyen Gönüllü Emek Günlüğü panosunu barındırır. PNB arşivi sayısallaştırması şu anda tamamlanması öncelikli büyük iş kalemidir; pano aynı zamanda vakıfta yürüyen diğer gönüllü çalışma alanlarını da görünür kılar.
 
 Kamu sayfası statik GitHub Pages olarak çalışır; üretim runtime’ında Firebase, oturum açma, özel backend, Node/Express sunucu veya ücretli servis gerekmez.
 
@@ -54,7 +54,7 @@ Pano **credit-visible, ID-safe volunteer display** kullanır:
 
 ## Resmi Bağlam
 
-Sayfa kısa bir Tarih Vakfı kurumsal bağlamı ve Pertev Naili Boratav Arşivi açıklaması içerir. Kullanılan resmi bağlantılar:
+Sayfa kısa bir Tarih Vakfı kurumsal bağlamı ve PNB arşivi sayısallaştırmasının neden öncelikli iş kalemi olduğunu açıklayan bir bölüm içerir. Kullanılan resmi bağlantılar:
 
 - [Tarih Vakfı hakkında](https://tarihvakfi.org.tr/hakkimizda/)
 - [Bilgi Belge Merkezi hakkında](https://tarihvakfi.org.tr/bilgi-belge-merkezi-hakkinda/)

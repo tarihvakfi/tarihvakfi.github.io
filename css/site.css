@@ -1,4 +1,4 @@
-/* Boratav Arşivi Gönüllü Emek Günlüğü (Journal A · archival burgundy)
+/* Tarih Vakfı Gönüllü Emek Günlüğü (Journal A · archival burgundy)
  * Editable text targets use data-edit="<key>" — keys overrideable from
  * the "Anasayfa Metinleri" sheet tab via the Apps Script content map. */
 
@@ -300,7 +300,7 @@ body.journal {
   border-left: 4px solid var(--accent);
   background: linear-gradient(180deg, var(--paper), var(--paper-soft));
 }
-.archive-context {
+.priority-context {
   display: grid;
   gap: 8px;
 }
@@ -1060,7 +1060,7 @@ body.journal {
   color: var(--accent);
 }
 /* ====================================================================
- * Boratav Arşivi · A+B hybrid recognition sections
+ * Tarih Vakfı · A+B hybrid recognition sections
  * Append these rules to css/site.css. They use the existing
  * --tv-burgundy / --tv-cream / etc. variables and do not conflict
  * with any current rule.

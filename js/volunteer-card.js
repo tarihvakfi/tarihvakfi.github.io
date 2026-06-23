@@ -369,7 +369,7 @@
     return `
       <header class="dr-head">
         <button class="dr-close" type="button" aria-label="Kapat">×</button>
-        <p class="dr-eyebrow">Boratav Arşivi · Gönüllü</p>
+        <p class="dr-eyebrow">Tarih Vakfı · Gönüllü</p>
         <h2 class="dr-name" id="tv-drawer-title">${esc(v.name)}</h2>
         ${sub ? `<p class="dr-sub">${sub}</p>` : ""}
       </header>

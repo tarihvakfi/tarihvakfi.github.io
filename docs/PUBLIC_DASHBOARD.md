@@ -1,11 +1,11 @@
-# Boratav Arşivi Gönüllü Emek Günlüğü
+# Tarih Vakfı Gönüllü Emek Günlüğü
 
 ## Sections
 
 1. Brand masthead: Tarih Vakfı logo, Gönüllü Emek Günlüğü title, last sync, selected period.
-2. Hero: rolling-seven-day archive-work headline and one-sentence contribution/page/activity summary.
+2. Hero: rolling-seven-day foundation volunteer-work headline and one-sentence contribution/page/activity summary.
 3. KPI strip: contribution records, archive detail rows, activity records, visible contributors, active boxes, total progress.
-4. Pertev Naili Boratav Arşivi context: short public explanation of the archive.
+4. Priority work context: short public explanation of PNB digitization as the current priority work item, while the page still covers other foundation volunteer work.
 5. Gönüllü katkıları ve koordinasyon: credit-visible named contributors and coordinator roles.
 6. Güncel dönem günlüğü: date-driven daily ledger with volunteer and coordination lines separated.
 7. Aktif kutular: all-time progress, rolling-seven-day page/detail contribution, remaining pages, contributors, last activity, material.

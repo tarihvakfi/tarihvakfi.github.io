@@ -1,4 +1,4 @@
-// Boratav Arşivi Gönüllü Emek Günlüğü — public aggregate renderer.
+// Tarih Vakfı Gönüllü Emek Günlüğü — public aggregate renderer.
 (function () {
   const U = window.TVFUtils;
   const Credit = window.TVFVolunteerCredit;
@@ -51,7 +51,7 @@
     if (sync) sync.textContent = summary.generatedAt ? `son güncelleme ${U.relativeDate(summary.generatedAt)}` : 'senkron bekleniyor';
     const lede = document.getElementById('lpHeroLede');
     if (lede && summary.totals) {
-      lede.innerHTML = `Bu aralıkta Boratav Arşivi için <b>${U.formatNum(summary.totals.records)} katkı</b> görünür oldu: ${U.formatNum(summary.totals.pageRows)} sayfa/detay satırı ve ${U.formatNum(summary.totals.activityRows)} faaliyet kaydı.`;
+      lede.innerHTML = `Bu aralıkta Tarih Vakfı gönüllü çalışmaları için <b>${U.formatNum(summary.totals.records)} katkı</b> görünür oldu: ${U.formatNum(summary.totals.pageRows)} sayfa/detay satırı ve ${U.formatNum(summary.totals.activityRows)} faaliyet kaydı. PNB arşivi sayısallaştırması, güncel dönemin öncelikli iş kalemi olarak izlenir.`;
     }
   }
 

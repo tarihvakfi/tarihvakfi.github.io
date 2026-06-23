@@ -27,4 +27,4 @@ Nothing was archived into `_archive/`; the working tree already lacked the old `
 
 ## Rationale
 
-The repository now serves one product: the static public Boratav Arşivi Gönüllü Emek Günlüğü dashboard. Historical Firebase/Firestore volunteer-management architecture is not required for GitHub Pages rendering, Excel audit, or Apps Script public payload generation.
+The repository now serves one product: the static public Tarih Vakfı Gönüllü Emek Günlüğü dashboard. PNB digitization is represented as the current priority work item, not as the only foundation volunteer work. Historical Firebase/Firestore volunteer-management architecture is not required for GitHub Pages rendering, Excel audit, or Apps Script public payload generation.
