@@ -69,7 +69,7 @@ const TVF_TRACK_LABELS = {
   tarama: 'Tarama (belge & kartpostal)',
   envanter: 'Envanter (afiş, görsel-işitsel)',
   kurumsal_bellek: 'Kurum belleği (Karar Def., G.K.)',
-  proje_basvuru: 'Proje başvurusu (Gerda Henkel)',
+  proje_basvuru: 'Proje çalışmaları',
   osmanlica: 'Osmanlıca çeviri',
   egitim: 'Eğitim (İş Bankası Müzesi)',
   koordinasyon: 'Koordinasyon & planlama',
@@ -328,7 +328,7 @@ function buildPeriodTrackRows_(periodRecords) {
       };
     }
     const group = trackGroups[key];
-    const ckey = record.privateKey || contributorKey_(record.publicLabel);
+    const people = publicPeopleFromLabel_(record.publicLabel);
     group.records += 1;
     if (record.kind === 'page') {
       group.pageRows += 1;
@@ -336,26 +336,29 @@ function buildPeriodTrackRows_(periodRecords) {
     } else {
       group.activityRows += 1;
     }
-    if (!group.contributors[ckey]) {
-      group.contributors[ckey] = {
-        labels: [],
-        roles: [],
-        records: 0,
-        pageRows: 0,
-        activityRows: 0,
-        pagesDone: 0
-      };
-    }
-    const contributor = group.contributors[ckey];
-    contributor.labels.push(record.publicLabel);
-    contributor.roles.push(record.publicRole || '');
-    contributor.records += 1;
-    if (record.kind === 'page') {
-      contributor.pageRows += 1;
-      contributor.pagesDone += Number(record.pageUnits || 1);
-    } else {
-      contributor.activityRows += 1;
-    }
+    people.forEach(function (person) {
+      const ckey = person.key;
+      if (!group.contributors[ckey]) {
+        group.contributors[ckey] = {
+          labels: [],
+          roles: [],
+          records: 0,
+          pageRows: 0,
+          activityRows: 0,
+          pagesDone: 0
+        };
+      }
+      const contributor = group.contributors[ckey];
+      contributor.labels.push(person.label);
+      contributor.roles.push(record.publicRole || '');
+      contributor.records += 1;
+      if (record.kind === 'page') {
+        contributor.pageRows += 1;
+        contributor.pagesDone += Number(record.pageUnits || 1);
+      } else {
+        contributor.activityRows += 1;
+      }
+    });
   });
 
   const seen = {};
@@ -602,9 +605,15 @@ function buildTrackSummary_(records, now) {
     trackRows[key].sessions += 1;
     inc_(trackRows[key].byMonth, month, 1);
     if (isPublicNamedLabel_(record.publicLabel)) {
-      trackRows[key].peopleMap[record.publicLabel] = true;
       publicPeopleFromLabel_(record.publicLabel).forEach(function (person) {
-        personSeen[person.key] = person.label;
+        trackRows[key].peopleMap[person.key] = preferredVolunteerLabel_([
+          trackRows[key].peopleMap[person.key],
+          person.label
+        ]);
+        personSeen[person.key] = preferredVolunteerLabel_([
+          personSeen[person.key],
+          person.label
+        ]);
       });
     }
   });
@@ -613,7 +622,8 @@ function buildTrackSummary_(records, now) {
   TVF_TRACK_ORDER.forEach(function (key, idx) { orderIndex[key] = idx; });
   const tracks = Object.keys(trackRows).map(function (key) {
     const row = trackRows[key];
-    const people = Object.keys(row.peopleMap).sort(function (a, b) { return a.localeCompare(b, 'tr'); });
+    const people = Object.keys(row.peopleMap).map(function (personKey) { return row.peopleMap[personKey]; })
+      .sort(function (a, b) { return a.localeCompare(b, 'tr'); });
     return {
       key: row.key,
       label: row.label,

@@ -49,7 +49,7 @@ TRACK_LABELS = {
     "tarama": "Tarama (belge & kartpostal)",
     "envanter": "Envanter (afiş, görsel-işitsel)",
     "kurumsal_bellek": "Kurum belleği (Karar Def., G.K.)",
-    "proje_basvuru": "Proje başvurusu (Gerda Henkel)",
+    "proje_basvuru": "Proje çalışmaları",
     "osmanlica": "Osmanlıca çeviri",
     "egitim": "Eğitim (İş Bankası Müzesi)",
     "koordinasyon": "Koordinasyon & planlama",
@@ -380,6 +380,22 @@ def preferred_label(labels: list[str]) -> str:
 def is_public_named_label(label: Any) -> bool:
     text = str(label or "").strip()
     return bool(text and text not in {UNNAMED, HIDDEN} and not is_unsafe_public_identifier(text))
+
+
+def public_people_from_label(label: Any) -> list[dict[str, str]]:
+    if not is_public_named_label(label):
+        return []
+    people = []
+    seen: dict[str, str] = {}
+    for part in re.split(r"\s*(?:,|;|\n|\s+-\s+)\s*", str(label or "")):
+        name = normalize_volunteer_name(part)
+        if not is_public_named_label(name):
+            continue
+        key = ascii_fold(name).lower().strip()
+        seen[key] = preferred_label([seen.get(key, ""), name])
+    for key, name in seen.items():
+        people.append({"key": key, "label": name})
+    return people
 
 
 def normalize_public_role(value: Any) -> str:
@@ -796,7 +812,7 @@ def build_by_track(period_records: list[SourceRecord]) -> list[dict[str, Any]]:
             "pageRows": 0,
             "activityRows": 0,
             "pagesDone": 0,
-            "contributors": defaultdict(list),
+            "contributors": defaultdict(lambda: {"labels": [], "records": []}),
         })
         group["records"] += 1
         if rec.kind == "page":
@@ -804,15 +820,19 @@ def build_by_track(period_records: list[SourceRecord]) -> list[dict[str, Any]]:
             group["pagesDone"] += rec.page_units or 1
         else:
             group["activityRows"] += 1
-        group["contributors"][rec.private_key or ascii_fold(rec.public_label).lower()].append(rec)
+        for person in public_people_from_label(rec.public_label):
+            bucket = group["contributors"][person["key"]]
+            bucket["labels"].append(person["label"])
+            bucket["records"].append(rec)
 
     rows = []
     ordered_keys = [key for key in TRACK_ORDER if key in groups] + sorted(key for key in groups if key not in TRACK_ORDER)
     for key in ordered_keys:
         group = groups[key]
         contributors = []
-        for recs in group["contributors"].values():
-            label = preferred_label([rec.public_label for rec in recs])
+        for bucket in group["contributors"].values():
+            recs = bucket["records"]
+            label = preferred_label(bucket["labels"])
             if not is_public_named_label(label):
                 continue
             role = preferred_role([rec.public_role for rec in recs], label)

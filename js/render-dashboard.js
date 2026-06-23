@@ -185,6 +185,7 @@
     if (!wrap) return;
     const days = (Array.isArray(summary.byDay) ? summary.byDay : [])
       .slice()
+      .filter((day) => isBusinessDayISO(U.toISODate(day.dateISO)))
       .sort((a, b) => String(b.dateISO || '').localeCompare(String(a.dateISO || '')));
     wrap.innerHTML = days.map(renderDay).join('');
     setText('lpDaysTag', `${days.length} gün`);

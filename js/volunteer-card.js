@@ -17,7 +17,7 @@
     envanter:        { label: "Envanter",                color: "#8a2a62" },
     kurumsal_bellek: { label: "Kurum belleği",           color: "#3b6d11" },
     osmanlica:       { label: "Osmanlıca çeviri",        color: "#BA7517" },
-    proje_basvuru:   { label: "Proje başvurusu",         color: "#185fa5" },
+    proje_basvuru:   { label: "Proje çalışmaları",       color: "#185fa5" },
     egitim:          { label: "Eğitim",                  color: "#534AB7" },
     ars_web:         { label: "Arşiv-web & IT",          color: "#444441" },
     koordinasyon:    { label: "Koordinasyon",            color: "#888780" },
@@ -27,6 +27,16 @@
 
   const MONTHS_TR = ["", "OCA", "ŞUB", "MAR", "NİS", "MAY", "HAZ",
                      "TEM", "AĞU", "EYL", "EKİ", "KAS", "ARA"];
+
+  const NAME_ALIASES = {
+    "betul ayse iseri": "betul iseri",
+    "neslihan erken": "neslihan erkan",
+  };
+
+  const CANONICAL_DISPLAY_NAMES = {
+    "betul iseri": "Betül İşeri",
+    "neslihan erkan": "Neslihan Erkan",
+  };
 
   const SOCIAL_ICONS = {
     website:  { label: "Web sitesi",  prefix: "" },
@@ -52,11 +62,132 @@
     const [y, m, d] = iso.split("-");
     return `${parseInt(d, 10)} ${MONTHS_TR[parseInt(m, 10)]?.toLowerCase() || ""} ${y}`;
   }
+  function foldName(value) {
+    return String(value || "")
+      .replace(/[çÇ]/g, "c")
+      .replace(/[ğĞ]/g, "g")
+      .replace(/[ıİI]/g, "i")
+      .replace(/[öÖ]/g, "o")
+      .replace(/[şŞ]/g, "s")
+      .replace(/[üÜ]/g, "u")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  }
+  function slugifyName(value) {
+    return foldName(value).replace(/\s+/g, "-") || "gonullu";
+  }
+  function canonicalNameKey(value) {
+    const key = foldName(value);
+    return NAME_ALIASES[key] || key;
+  }
+  function canonicalDisplayName(key, fallback) {
+    return CANONICAL_DISPLAY_NAMES[key] || fallback;
+  }
 
   function findVolBySlug(slug) {
     const data = window.TVF_ROSTER;
-    if (!data) return null;
-    return (data.volunteers || []).find((v) => v.slug === slug) || null;
+    const slugName = String(slug || "").replace(/-/g, " ");
+    const rosterVol = data && Array.isArray(data.volunteers)
+      ? (data.volunteers || []).find((v) => (
+          v.slug === slug
+          || slugifyName(v.name) === slug
+          || canonicalNameKey(v.name) === canonicalNameKey(slugName)
+        ))
+      : null;
+    const liveVol = synthesizeLiveVolunteer(slug);
+    if (!rosterVol) return liveVol;
+    if (!liveVol) {
+      const key = canonicalNameKey(rosterVol.name);
+      const name = canonicalDisplayName(key, rosterVol.name);
+      return Object.assign({}, rosterVol, {
+        name,
+        slug: slugifyName(name)
+      });
+    }
+    const key = canonicalNameKey(liveVol.name || rosterVol.name);
+    return Object.assign({}, rosterVol, {
+      name: canonicalDisplayName(key, liveVol.name || rosterVol.name),
+      slug: slugifyName(canonicalDisplayName(key, liveVol.name || rosterVol.name)),
+      sessions: liveVol.sessions || rosterVol.sessions,
+      tracks: liveVol.tracks && liveVol.tracks.length ? liveVol.tracks : rosterVol.tracks,
+      boxes: liveVol.boxes && liveVol.boxes.length ? liveVol.boxes : rosterVol.boxes,
+      log: liveVol.log && liveVol.log.length ? liveVol.log : rosterVol.log,
+      byMonth: Object.assign({}, rosterVol.byMonth || {}, liveVol.byMonth || {}),
+      active: true
+    });
+  }
+
+  function synthesizeLiveVolunteer(slugOrName) {
+    const payload = window.TVF_PUBLIC_DATA || {};
+    const summary = payload.publicSummary || {};
+    const rows = Array.isArray(summary.byVolunteer) ? summary.byVolunteer : [];
+    const folded = foldName(String(slugOrName || "").replace(/-/g, " "));
+    const row = rows.find((item) => {
+      const label = String(item.label || "");
+      return slugifyName(label) === slugOrName || canonicalNameKey(label) === (NAME_ALIASES[folded] || folded);
+    });
+    if (!row) return null;
+    const labelKey = canonicalNameKey(row.label);
+    const label = canonicalDisplayName(labelKey, String(row.label || "").trim());
+    const trackKeys = [];
+    (summary.byTrack || []).forEach((track) => {
+      const contributors = Array.isArray(track.contributors) ? track.contributors : [];
+      if (contributors.some((item) => canonicalNameKey(item.label) === canonicalNameKey(label))) trackKeys.push(track.key || "diger");
+    });
+    const latest = (payload.latestActivity || [])
+      .filter((entry) => canonicalNameKey(entry.volunteerLabel) === canonicalNameKey(label))
+      .slice(0, 12);
+    const log = latest.map((entry) => ({
+      date: entry.dateISO || String(entry.when || "").slice(0, 10),
+      track: trackKeyForLiveEntry(entry, summary),
+      calisma: entry.workTitle || (entry.kind === "activity" ? "Faaliyet kaydı" : "Sayfa/detay satırı"),
+      devam: entry.workDetail || entry.boxLabel || "",
+      notes: "",
+      scanner: "",
+      computer: ""
+    }));
+    const boxes = (row.boxes || []).map((box) => String(box || "").replace(/^Kutu\s+/i, "")).filter(Boolean);
+    const byMonth = {};
+    latest.forEach((entry) => {
+      const iso = entry.dateISO || String(entry.when || "").slice(0, 10);
+      const month = iso && iso.slice(0, 7);
+      if (month) byMonth[month] = (byMonth[month] || 0) + 1;
+    });
+    return {
+      name: label,
+      slug: slugifyName(label),
+      city: "",
+      role: row.publicRole || "",
+      tv_role: row.publicRole || "Gönüllü",
+      uni: "",
+      dept: "",
+      topics: [],
+      slots: [],
+      sessions: Number(row.records || 0),
+      tracks: trackKeys.length ? trackKeys : ["diger"],
+      byMonth,
+      scanners: [],
+      boxes,
+      firstSeen: null,
+      lastSeen: latest[0] ? latest[0].dateISO : null,
+      active: true,
+      log,
+      bio: {}
+    };
+  }
+
+  function trackKeyForLiveEntry(entry, summary) {
+    const label = canonicalNameKey(entry.volunteerLabel);
+    const candidates = Array.isArray(summary.byTrack) ? summary.byTrack : [];
+    for (const track of candidates) {
+      const contributors = Array.isArray(track.contributors) ? track.contributors : [];
+      if (contributors.some((item) => canonicalNameKey(item.label) === label)) return track.key || "diger";
+    }
+    if (entry.kind === "page") return "tarama";
+    return "diger";
   }
 
   // --- DOM construction ------------------------------------------------

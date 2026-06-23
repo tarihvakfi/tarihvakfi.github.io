@@ -90,6 +90,23 @@
       .trim();
   }
 
+  var NAME_ALIASES = {
+    'betul ayse iseri': 'betul iseri',
+    'neslihan erken': 'neslihan erkan'
+  };
+  var CANONICAL_DISPLAY_NAMES = {
+    'betul iseri': 'Betül İşeri',
+    'neslihan erkan': 'Neslihan Erkan'
+  };
+  function canonicalNameKey(value) {
+    var key = foldName(value);
+    return NAME_ALIASES[key] || key;
+  }
+  function canonicalDisplayName(value) {
+    var key = canonicalNameKey(value);
+    return CANONICAL_DISPLAY_NAMES[key] || value;
+  }
+
   var TR_MONTHS = ['','Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
   function fmtDate(iso) {
     if (!iso) return '';
@@ -107,7 +124,7 @@
     envanter: 'Envanter',
     kurumsal_bellek: 'Kurum belleği',
     osmanlica: 'Osmanlıca çeviri',
-    proje_basvuru: 'Proje başvurusu',
+    proje_basvuru: 'Proje çalışmaları',
     egitim: 'Eğitim',
     ars_web: 'Arşiv-web & IT',
     koordinasyon: 'Koordinasyon',
@@ -118,9 +135,9 @@
   function findRosterVolunteer(labelOrSlug) {
     var roster = window.TVF_ROSTER;
     var vols = roster && Array.isArray(roster.volunteers) ? roster.volunteers : [];
-    var folded = foldName(labelOrSlug);
+    var folded = canonicalNameKey(String(labelOrSlug || '').replace(/-/g, ' '));
     for (var i = 0; i < vols.length; i++) {
-      if (vols[i].slug === labelOrSlug || foldName(vols[i].name) === folded) return vols[i];
+      if (vols[i].slug === labelOrSlug || canonicalNameKey(vols[i].name) === folded) return vols[i];
     }
     return null;
   }
@@ -217,7 +234,7 @@
 
     var v = d.volRow || {};
     var rosterVol = d.rosterVol;
-    var displayLabel = (rosterVol && rosterVol.name) || v.label || label;
+    var displayLabel = canonicalDisplayName((rosterVol && rosterVol.name) || v.label || label);
     var days = d.recentDays.slice(0, 3);
     var workRows = (d.workRows || []).slice(0, 3);
     var profile = profileText(rosterVol);

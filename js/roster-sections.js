@@ -38,7 +38,7 @@
     envanter:        { label: "Envanter (afiş, görsel-işitsel)", color: "#8a2a62", bg: "#fbf2f7", border: "#ead5e2", lane: "#fbf2f7" },
     kurumsal_bellek: { label: "Kurum belleği (Karar Def., G.K.)", color: "#3b6d11", bg: "#eaf3de", border: "#c0dd97", lane: "#eaf3de" },
     osmanlica:       { label: "Osmanlıca çeviri",                color: "#BA7517", bg: "#FAEEDA", border: "#FAC775", lane: "#FAEEDA" },
-    proje_basvuru:   { label: "Proje başvurusu (Gerda Henkel)",  color: "#185fa5", bg: "#e6f1fb", border: "#b5d4f4", lane: "#e6f1fb" },
+    proje_basvuru:   { label: "Proje çalışmaları",               color: "#185fa5", bg: "#e6f1fb", border: "#b5d4f4", lane: "#e6f1fb" },
     egitim:          { label: "Eğitim (İş Bankası Müzesi)",      color: "#534AB7", bg: "#EEEDFE", border: "#CECBF6", lane: "#EEEDFE" },
     ars_web:         { label: "Arşiv-web & IT",                  color: "#444441", bg: "#f1efe8", border: "#d3d1c7", lane: "#f1efe8" },
     koordinasyon:    { label: "Koordinasyon & planlama",         color: "#888780", bg: "#f1efe8", border: "#d3d1c7", lane: "#f1efe8" },
@@ -55,6 +55,16 @@
   // Tr month abbreviations indexed 1..12
   const MONTHS_TR = ["", "OCA", "ŞUB", "MAR", "NİS", "MAY", "HAZ",
                      "TEM", "AĞU", "EYL", "EKİ", "KAS", "ARA"];
+
+  const NAME_ALIASES = {
+    "betul ayse iseri": "betul iseri",
+    "neslihan erken": "neslihan erkan",
+  };
+
+  const CANONICAL_DISPLAY_NAMES = {
+    "betul iseri": "Betül İşeri",
+    "neslihan erkan": "Neslihan Erkan",
+  };
 
   // --- helpers ---------------------------------------------------------
   function esc(s) {
@@ -140,10 +150,19 @@
     return asciiFold(value).replace(/\s+/g, "-") || "g";
   }
 
+  function canonicalNameKey(value) {
+    const key = asciiFold(value);
+    return NAME_ALIASES[key] || key;
+  }
+
+  function canonicalDisplayName(key, fallback) {
+    return CANONICAL_DISPLAY_NAMES[key] || fallback;
+  }
+
   function rosterByName(data) {
     const index = {};
-    (data.volunteers || []).forEach((v) => {
-      index[asciiFold(v.name)] = v;
+    canonicalRosterVolunteers(data).forEach((v) => {
+      index[canonicalNameKey(v.name)] = v;
     });
     return index;
   }
@@ -156,6 +175,80 @@
   function liveTrackRows() {
     const summary = getLiveSummary();
     return summary && Array.isArray(summary.byTrack) ? summary.byTrack : [];
+  }
+
+  function liveVolunteerMap() {
+    const summary = getLiveSummary();
+    const rows = summary && Array.isArray(summary.byVolunteer) ? summary.byVolunteer : [];
+    const map = {};
+    rows.forEach((row) => {
+      const name = String(row.label || "").trim();
+      const key = canonicalNameKey(name);
+      if (!key) return;
+      map[key] = Object.assign({}, row, { label: name });
+    });
+    return map;
+  }
+
+  function displayNameScore(name) {
+    const value = String(name || "");
+    return (value.match(/[^\x00-\x7F]/g) || []).length * 10 + value.length;
+  }
+
+  function mergeVolunteer(base, incoming) {
+    const out = Object.assign({}, base || {});
+    const next = incoming || {};
+    if (!out.name || displayNameScore(next.name) > displayNameScore(out.name)) out.name = next.name || out.name;
+    if (next.active && next.name) out.name = next.name;
+    if (!out.slug && next.slug) out.slug = next.slug;
+    ["city", "role", "tv_role", "uni", "dept", "firstSeen", "lastSeen"].forEach((key) => {
+      if (!out[key] && next[key]) out[key] = next[key];
+    });
+    ["topics", "slots", "tracks", "scanners", "boxes", "log"].forEach((key) => {
+      const merged = [];
+      (Array.isArray(out[key]) ? out[key] : []).concat(Array.isArray(next[key]) ? next[key] : []).forEach((item) => {
+        const sig = typeof item === "object" ? JSON.stringify(item) : String(item);
+        if (!merged.some((existing) => (typeof existing === "object" ? JSON.stringify(existing) : String(existing)) === sig)) merged.push(item);
+      });
+      out[key] = merged;
+    });
+    out.byMonth = Object.assign({}, out.byMonth || {});
+    Object.entries(next.byMonth || {}).forEach(([month, count]) => {
+      out.byMonth[month] = Number(out.byMonth[month] || 0) + Number(count || 0);
+    });
+    out.sessions = Math.max(Number(out.sessions || 0), Number(next.sessions || 0));
+    out.active = Boolean(out.active || next.active);
+    out.bio = Object.assign({}, next.bio || {}, out.bio || {});
+    return out;
+  }
+
+  function canonicalRosterVolunteers(data, liveMap) {
+    const merged = {};
+    (data.volunteers || []).forEach((volunteer) => {
+      const key = canonicalNameKey(volunteer.name);
+      if (!key) return;
+      merged[key] = mergeVolunteer(merged[key], volunteer);
+    });
+    Object.values(liveMap || {}).forEach((row) => {
+      const key = canonicalNameKey(row.label);
+      if (!key) return;
+      merged[key] = mergeVolunteer(merged[key], {
+        name: row.label,
+        slug: slugifyName(row.label),
+        sessions: Number(row.records || 0),
+        tracks: [],
+        active: true,
+        log: []
+      });
+    });
+    return Object.entries(merged).map(([key, volunteer]) => {
+      const display = canonicalDisplayName(key, volunteer.name);
+      if (display) {
+        volunteer.name = display;
+        volunteer.slug = slugifyName(display);
+      }
+      return volunteer;
+    });
   }
 
   // -------------------------------------------------------------------
@@ -350,7 +443,7 @@
       const contributors = Array.isArray(track.contributors) ? track.contributors : [];
       groups[key] = contributors.map((row) => {
         const name = String(row.label || "").trim();
-        const rosterVol = byName[asciiFold(name)];
+        const rosterVol = byName[canonicalNameKey(name)];
         return {
           name,
           slug: (rosterVol && rosterVol.slug) || slugifyName(name),
@@ -366,7 +459,7 @@
     const names = new Set();
     liveTracks.forEach((track) => {
       (track.contributors || []).forEach((row) => {
-        const key = asciiFold(row.label);
+        const key = canonicalNameKey(row.label);
         if (key) names.add(key);
       });
     });
@@ -379,8 +472,10 @@
   function renderKadro(data) {
     const mount = safeMount("lpKadro");
     if (!mount || !data) return;
-    const liveNames = new Set(liveVolunteerRows().map((row) => asciiFold(row.label)).filter(Boolean));
-    const vols = [...(data.volunteers || [])]
+    const liveMap = liveVolunteerMap();
+    const liveNames = new Set(Object.keys(liveMap));
+    const hasLivePeriod = Boolean(getLiveSummary());
+    const vols = canonicalRosterVolunteers(data, liveMap)
       .sort((a, b) => a.name.localeCompare(b.name, "tr"));
     if (vols.length === 0) {
       mount.setAttribute("hidden", "");
@@ -388,7 +483,8 @@
     }
 
     const rows = vols.map((v) => {
-      const muted = (v.active || liveNames.has(asciiFold(v.name))) ? "" : " muted";
+      const activeNow = hasLivePeriod ? liveNames.has(canonicalNameKey(v.name)) : Boolean(v.active);
+      const muted = activeNow ? "" : " muted";
       const meta = [v.city, v.role].filter(Boolean).map(esc).join(" · ");
       return `<span class="row${muted}" data-slug="${esc(v.slug || "")}" data-volunteer-label="${esc(v.name)}" role="button" tabindex="0" aria-label="${esc(v.name)} profilini aç">
         <span class="marker"></span><span class="nm">${esc(v.name)}</span>${
@@ -411,7 +507,10 @@
       </div>`;
 
     const metaEl = document.getElementById("lpKadroMeta");
-    if (metaEl) metaEl.textContent = `${vols.length} paydaş`;
+    if (metaEl) {
+      const activeCount = vols.filter((v) => hasLivePeriod ? liveNames.has(canonicalNameKey(v.name)) : Boolean(v.active)).length;
+      metaEl.textContent = `${activeCount} aktif · ${vols.length} kişi`;
+    }
   }
 
   // -------------------------------------------------------------------
