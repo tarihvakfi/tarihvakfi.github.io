@@ -1059,6 +1059,13 @@ body.journal {
   text-transform: uppercase;
   color: var(--accent);
 }
+.colophon .design-credit {
+  margin-top: 10px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--ink-faint);
+}
 /* ====================================================================
  * Tarih Vakfı · A+B hybrid recognition sections
  * Append these rules to css/site.css. They use the existing
