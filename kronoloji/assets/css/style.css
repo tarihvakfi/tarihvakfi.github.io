@@ -95,6 +95,10 @@ img, svg { display: block; max-width: 100%; }
 .nav-links a[aria-current="page"] {
   background: var(--accent-soft); color: var(--accent-dark);
 }
+.nav-links .home-link {
+  border: 1px solid var(--line);
+  background: var(--paper-strong);
+}
 
 /* hamburger (mobile) */
 .nav-toggle {
