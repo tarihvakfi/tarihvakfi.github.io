@@ -80,11 +80,12 @@ Then open **Project Settings → Script Properties** and add:
 
 ```text
 CHRONOLOGY_SOURCE_SPREADSHEET_ID = MIRROR_SHEET_ID
-CHRONOLOGY_CORRECTION_EMAILS = info@tarihvakfi.org.tr
+CHRONOLOGY_CORRECTION_EMAILS = COORDINATION_EMAIL_ADDRESS
 ```
 
-Use a shared institutional mailbox for `CHRONOLOGY_CORRECTION_EMAILS`; do not
-commit personal addresses into the public repository.
+Use the active volunteer coordination mailbox for
+`CHRONOLOGY_CORRECTION_EMAILS`; do not commit personal addresses into the
+public repository.
 
 ### 4. Enable the Advanced Drive API
 

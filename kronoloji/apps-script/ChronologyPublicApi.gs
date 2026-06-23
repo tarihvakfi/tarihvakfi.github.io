@@ -15,7 +15,6 @@
 
 const SOURCE_SPREADSHEET_ID_PROPERTY = "CHRONOLOGY_SOURCE_SPREADSHEET_ID";
 const CORRECTION_NOTIFICATION_EMAILS_PROPERTY = "CHRONOLOGY_CORRECTION_EMAILS";
-const DEFAULT_CORRECTION_NOTIFICATION_EMAILS = "info@tarihvakfi.org.tr";
 const SITE_CONTENT_SHEET_NAME = "Site Metinleri";
 const CORRECTION_SHEET_NAME = "Düzeltme Önerileri";
 
@@ -201,7 +200,7 @@ function getCorrectionNotificationEmails() {
     PropertiesService
       .getScriptProperties()
       .getProperty(CORRECTION_NOTIFICATION_EMAILS_PROPERTY),
-  ) || DEFAULT_CORRECTION_NOTIFICATION_EMAILS;
+  );
 }
 
 function appendCorrectionSubmission(submission) {
@@ -253,8 +252,10 @@ function ensureCorrectionSheet(spreadsheet) {
 
 function notifyCorrectionSubmission(submission) {
   try {
+    const recipients = getCorrectionNotificationEmails();
+    if (!recipients) return;
     MailApp.sendEmail({
-      to: getCorrectionNotificationEmails(),
+      to: recipients,
       subject: `Kronoloji düzeltme önerisi: ${submission.record_id || "kayıt ID yok"}`,
       body: [
         `Kayıt ID: ${submission.record_id}`,

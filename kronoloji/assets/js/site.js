@@ -103,7 +103,11 @@ const FALLBACK_ACTIVITY_CODES = {
 
 const PAGE_SIZE = 100;
 const LIVE_REFRESH_TIMEOUT_MS = 12000;
-const PUBLIC_CORRECTION_EMAIL = "info@tarihvakfi.org.tr";
+const PUBLIC_CONTACT_EMAIL_PARTS = {
+  local: "gulistaneren",
+  host: "gmail",
+  tld: "com",
+};
 const PERIOD_LABELS_BY_NUMBER = {
   1: "1. Dönem (1991–1995)",
   2: "2. Dönem (1996–2000)",
@@ -771,7 +775,11 @@ function buildCorrectionMailto() {
     "",
     `Sayfa: ${formValue("correctionPageUrl") || window.location.href}`,
   ];
-  return `mailto:${PUBLIC_CORRECTION_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join("\n"))}`;
+  return `mailto:${publicContactEmail()}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join("\n"))}`;
+}
+
+function publicContactEmail() {
+  return `${PUBLIC_CONTACT_EMAIL_PARTS.local}@${PUBLIC_CONTACT_EMAIL_PARTS.host}.${PUBLIC_CONTACT_EMAIL_PARTS.tld}`;
 }
 
 function formValue(id) {
