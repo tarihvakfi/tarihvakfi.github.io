@@ -281,38 +281,55 @@
       block.setAttribute('hidden', '');
       return;
     }
-    setText('lpBoxesWeekMeta', `${U.formatNum(boxes.length)} kutu`);
-    rows.innerHTML = boxes.map((box) => {
+    const periodTotal = boxes.reduce((sum, box) => sum + Number(box.periodPageRows || box.pageRows || box.periodRecords || 0), 0);
+    setText('lpBoxesWeekMeta', `${U.formatNum(boxes.length)} kutu · ${U.formatNum(periodTotal)} dönem kaydı`);
+    rows.innerHTML = `<div class="box-grid">${boxes.map((box) => {
       const pct = box.percent == null ? null : Number(box.percent);
-      const progressWidth = pct == null ? 100 : Math.max(2, Math.min(100, pct));
-      const progressLabel = box.target
-        ? `Toplam arşiv ilerlemesi: ${U.formatNum(box.done)} / ${U.formatNum(box.target)} sayfa · %${U.formatPct(pct)}`
-        : `Toplam arşiv ilerlemesi: ${U.formatNum(box.done)} sayfa işlendi · hedef eksik`;
+      const progressWidth = pct == null ? 0 : Math.max(2, Math.min(100, pct));
+      const pctText = pct == null ? '—' : `%${U.formatPct(pct)}`;
+      const status = pct >= 100 ? 'tamamlandı' : (pct >= 50 ? 'ilerliyor' : (pct > 0 ? 'başladı' : 'bekliyor'));
       const periodPageRows = box.periodPageRows || box.pageRows || box.periodRecords || 0;
-      const remaining = box.target ? `Kalan çalışma: ${U.formatNum(box.remaining)} sayfa` : 'Hedef eksik';
+      const periodPagesDone = box.periodPagesDone || box.pagesDone || periodPageRows;
+      const periodLabel = periodPagesDone && periodPagesDone !== periodPageRows
+        ? `${U.formatNum(periodPageRows)} satır · ${U.formatNum(periodPagesDone)} sayfa birimi`
+        : `${U.formatNum(periodPageRows)} sayfa/detay`;
+      const done = Number(box.done || 0);
+      const target = Number(box.target || 0);
+      const remaining = target ? Math.max(0, Number(box.remaining || (target - done))) : null;
+      const progressLabel = target
+        ? `${U.formatNum(done)} / ${U.formatNum(target)} sayfa · ${pctText}`
+        : `${U.formatNum(done)} sayfa işlendi · hedef eksik`;
       const contributors = (box.contributors || box.topContributors || [])
         .filter((item) => isPublicVolunteerName(item.label))
         .slice(0, 4)
-        .map((item) => `<li>${U.escapeHtml(publicVolunteerLabel(item.label))} <b>+${U.formatNum(item.pageRows || item.records || 0)}</b></li>`)
+        .map((item) => `<span class="box-chip">${U.escapeHtml(publicVolunteerLabel(item.label))} <b>+${U.formatNum(item.pageRows || item.records || 0)}</b></span>`)
         .join('');
       const material = (box.materialCounts || box.materials || []).slice(0, 2).map(materialPhrase).join(' · ');
-      return `<article class="box-card">
+      return `<article class="box-card${pct >= 100 ? ' complete' : ''}">
         <div class="box-card-head">
           <div>
-            <p class="box-label">${U.escapeHtml(box.label || box.boxLabel || ('Kutu ' + box.box))}</p>
-            <p class="box-progress-text">${U.escapeHtml(progressLabel)}</p>
+            <p class="box-kicker">aktif kutu</p>
+            <h4 class="box-label">${U.escapeHtml(box.label || box.boxLabel || ('Kutu ' + box.box))}</h4>
           </div>
-          <span class="box-period">Dönem emeği: +${U.formatNum(periodPageRows)} sayfa/detay</span>
+          <span class="box-status">${U.escapeHtml(status)}</span>
         </div>
-        <div class="box-progress" aria-hidden="true"><span style="width:${progressWidth}%"></span></div>
+        <div class="box-card-main">
+          <div class="box-percent">${U.escapeHtml(pctText)}</div>
+          <div class="box-period"><b>+${U.formatNum(periodPageRows)}</b><span>${U.escapeHtml(periodLabel)}</span></div>
+        </div>
+        <div class="box-progress" aria-label="${U.escapeHtml(progressLabel)}"><span style="width:${progressWidth}%"></span></div>
+        <div class="box-stats">
+          <span><b>${U.formatNum(done)}</b><small>işlenen</small></span>
+          <span><b>${target ? U.formatNum(target) : '—'}</b><small>hedef</small></span>
+          <span><b>${remaining == null ? '—' : U.formatNum(remaining)}</b><small>kalan</small></span>
+        </div>
         <div class="box-card-body">
-          <p>${U.escapeHtml(remaining)}</p>
-          ${contributors ? `<div class="box-contributors"><span class="box-minihead">Katkı verenler:</span><ul>${contributors}</ul></div>` : ''}
-          <p>Son çalışma: ${U.escapeHtml(U.formatDayMonth(box.lastActivityDate))}</p>
-          ${material ? `<p>Malzeme: ${U.escapeHtml(material)}</p>` : ''}
+          <p>Son çalışma · ${U.escapeHtml(U.formatDayMonth(box.lastActivityDate))}</p>
+          ${material ? `<p>${U.escapeHtml(material)}</p>` : ''}
+          ${contributors ? `<div class="box-contributors"><span class="box-minihead">Katkı verenler</span><div>${contributors}</div></div>` : ''}
         </div>
       </article>`;
-    }).join('');
+    }).join('')}</div>`;
     block.removeAttribute('hidden');
   }
 

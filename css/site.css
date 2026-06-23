@@ -576,89 +576,199 @@ body.journal {
 .day.quiet .date .dom { opacity: 0.4; }
 
 /* Active boxes this week */
-.boxes-week { margin-top: 50px; }
+.boxes-week { margin-top: 54px; }
 .boxes-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 18px; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid var(--rule); padding-bottom: 12px; }
 .boxes-week h3 { font-family: 'Crimson Pro', serif; font-size: 22px; font-weight: 500; margin: 0; }
 .boxes-week h3 em { font-style: italic; color: var(--accent); }
 .boxes-week .meta { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
-.box-card {
-  padding: 26px 0 24px;
-  border-bottom: 1px dashed var(--rule-soft);
+.box-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
 }
-.box-card:last-child { border-bottom: 0; }
-.box-card-head { display: grid; gap: 8px; }
+.box-card {
+  display: grid;
+  align-content: start;
+  gap: 13px;
+  min-height: 252px;
+  padding: 18px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(96,16,64,0.035), transparent 44%),
+    var(--paper);
+}
+.box-card.complete {
+  border-color: rgba(82,122,96,0.32);
+  background:
+    linear-gradient(180deg, rgba(82,122,96,0.08), transparent 44%),
+    var(--paper);
+}
+.box-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: start;
+}
+.box-kicker {
+  margin: 0 0 3px;
+  font-family: 'DM Mono', monospace;
+  font-size: 9.5px;
+  line-height: 1.2;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
 .box-label {
   font-family: 'Crimson Pro', serif;
-  font-size: 25px;
+  font-size: 30px;
   font-style: italic;
   color: var(--accent);
   line-height: 1;
-  margin: 0 0 4px;
-}
-.box-progress-text {
   margin: 0;
-  font-size: 15px;
+}
+.box-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-family: 'DM Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.box-card.complete .box-status {
+  background: rgba(82,122,96,0.12);
+  color: var(--live);
+}
+.box-card-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 18px;
+}
+.box-percent {
+  font-family: 'DM Mono', monospace;
+  font-size: 34px;
+  line-height: 0.95;
+  letter-spacing: -0.06em;
   color: var(--ink);
 }
 .box-period {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  text-align: right;
   font-family: 'DM Mono', monospace;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  color: var(--accent-deep);
+  color: var(--ink-mute);
+}
+.box-period b {
+  font-family: 'Crimson Pro', serif;
+  font-size: 28px;
+  font-style: italic;
+  line-height: 1;
+  color: var(--accent);
+}
+.box-period span {
+  font-size: 10px;
+  letter-spacing: 0.06em;
 }
 .box-progress {
-  height: 8px;
+  height: 10px;
+  border-radius: 999px;
   background: var(--rule-soft);
-  margin: 12px 0 10px;
   overflow: hidden;
 }
 .box-progress span {
   display: block;
   height: 100%;
+  border-radius: inherit;
   background: var(--accent);
+}
+.box-card.complete .box-progress span { background: var(--live); }
+.box-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 2px;
+}
+.box-stats span {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+.box-stats b {
+  font-family: 'DM Mono', monospace;
+  font-size: 14px;
+  line-height: 1.2;
+  color: var(--ink);
+}
+.box-stats small {
+  font-family: 'DM Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
 }
 .box-card-body {
   display: grid;
   gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px dashed var(--rule-soft);
   font-family: 'DM Mono', monospace;
   font-size: 10.5px;
-  letter-spacing: 0.08em;
+  line-height: 1.45;
+  letter-spacing: 0.06em;
   color: var(--ink-mute);
 }
 .box-card-body p { margin: 0; }
 .box-contributors {
   display: grid;
-  gap: 4px;
+  gap: 7px;
   align-items: start;
 }
 .box-contributors .box-minihead {
   color: var(--accent);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
 }
-.box-contributors ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 3px;
+.box-contributors div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
-.box-contributors b {
+.box-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  max-width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--rule-soft);
+  border-radius: 999px;
+  background: var(--paper-soft);
   font-family: 'Crimson Pro', serif;
-  color: var(--accent);
   font-size: 14px;
-  font-style: italic;
+  line-height: 1.1;
   letter-spacing: 0;
+  color: var(--ink);
 }
-.box-row { display: grid; grid-template-columns: 60px 1fr 130px 80px 70px; gap: 14px; padding: 12px 0; border-bottom: 1px dashed var(--rule-soft); align-items: center; font-size: 14.5px; }
-.box-row:last-child { border-bottom: 0; }
-.box-row .n { font-family: 'Crimson Pro', serif; font-size: 22px; color: var(--accent); font-weight: 500; font-style: italic; }
-.box-row .desc { line-height: 1.4; }
-.box-row .desc small { display: block; color: var(--ink-mute); font-size: 12.5px; font-style: italic; }
-.box-row .who { font-style: italic; color: var(--ink); font-size: 14px; }
-.box-row .delta { font-family: 'Crimson Pro', serif; font-style: italic; color: var(--accent); font-weight: 500; font-size: 18px; text-align: right; }
-.box-row .pct { text-align: right; font-family: 'Crimson Pro', serif; font-size: 18px; font-style: italic; font-weight: 500; }
-.box-row .pct.done { color: var(--accent-deep); }
-
+.box-chip b {
+  color: var(--accent);
+  font-style: italic;
+  font-weight: 600;
+}
+@media (max-width: 720px) {
+  .box-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 460px) {
+  .box-card { padding: 16px; }
+  .box-card-main { align-items: start; flex-direction: column; gap: 10px; }
+  .box-period { justify-items: start; text-align: left; }
+}
 /* Volunteer recognition */
 .recognition { margin-top: 48px; }
 .recognition h3 { font-family: 'Crimson Pro', serif; font-size: 22px; font-weight: 500; margin: 0; }
