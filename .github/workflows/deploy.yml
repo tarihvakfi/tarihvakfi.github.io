@@ -47,6 +47,7 @@ jobs:
           cp index.html 404.html yaz-planlamasi.html _site/
           cp -R assets css js kronoloji _site/
           rm -rf _site/kronoloji/apps-script
+          rm -f _site/kronoloji/data.html _site/kronoloji/methodology.html
           touch _site/.nojekyll
 
           test -f _site/index.html
@@ -56,6 +57,8 @@ jobs:
           test ! -e _site/docs
           test ! -e _site/_audit
           test ! -e _site/kronoloji/apps-script
+          test ! -e _site/kronoloji/data.html
+          test ! -e _site/kronoloji/methodology.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

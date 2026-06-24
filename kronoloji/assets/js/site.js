@@ -1,5 +1,4 @@
 const DATA_URL = "assets/data/chronology_public.json";
-const CSV_URL = "assets/data/chronology_public.csv";
 const CONTENT_URL = "assets/data/site_content.json";
 
 const KIND_LABELS = {
@@ -127,7 +126,6 @@ const KIND_ID_PREFIXES = {
 };
 const LEGACY_CONTENT_GUARDS = {
   "archive.footer.note": ["kayıt ID, erişim tarihi"],
-  "methodology.citation.text_1": ["kayıt [id], erişim tarihi"],
   "citation.format": ["kayıt {id}, erişim tarihi"],
   "filters.all_activity_codes": ["Tüm faaliyet kodları"],
 };
@@ -161,8 +159,6 @@ async function boot() {
   if (currentPage === "archive") initArchive();
   if (currentPage === "dashboard") initDashboard();
   if (currentPage === "item") initItem();
-  if (currentPage === "methodology") initMethodology();
-  if (currentPage === "data") initDataPage();
   if (currentPage === "contribute") initContribute();
   refreshLiveDataInBackground();
 }
@@ -291,8 +287,6 @@ function refreshCurrentPage() {
     renderDashboard();
   }
   if (currentPage === "item") initItem();
-  if (currentPage === "methodology") renderMetrics("methodMetrics", allRecords);
-  if (currentPage === "data") renderMetrics("dataMetrics", allRecords);
   if (currentPage === "contribute") initContribute();
 }
 
@@ -494,8 +488,6 @@ function applySiteContent() {
     timeline: "nav.timeline",
     archive: "nav.archive",
     dashboard: "nav.dashboard",
-    methodology: "nav.methodology",
-    data: "nav.data",
   };
   Object.entries(navLabels).forEach(([pageName, key]) => {
     document.querySelectorAll(`.nav-links a[data-page="${pageName}"]`).forEach((link) => {
@@ -650,14 +642,6 @@ function initItem() {
     </section>
   `;
   attachCopyButtons();
-}
-
-function initMethodology() {
-  renderMetrics("methodMetrics", allRecords);
-}
-
-function initDataPage() {
-  renderMetrics("dataMetrics", allRecords);
 }
 
 function initContribute() {
