@@ -511,7 +511,6 @@ function collectPublicRecords_(rowsBySheet, inventory) {
     const classification = classifySheet_(title);
     const rows = rowsBySheet[title];
     if (classification === 'pnb_detail') {
-      const hasSayfaSayisi = rows.some(function (row) { return row.sayfaSayisi != null && String(row.sayfaSayisi).trim() !== ''; });
       const sheetPerson = personFromTitle_(title);
       rows.forEach(function (row) {
         const enriched = copyObject_(row);
@@ -519,7 +518,7 @@ function collectPublicRecords_(rowsBySheet, inventory) {
         const label = getVolunteerDisplayName_(enriched);
         const publicRole = getPublicRole_(enriched, label);
         const when = parseSheetDate_(row.tarih);
-        const pageUnits = hasSayfaSayisi ? Math.max(1, Math.round(parseDoneTotal_(row.sayfaSayisi).done || parseDoneTotal_(row.sayfaSayisi).total || 1)) : 1;
+        const pageUnits = 1;
         const box = publicBoxLabel_(row.kutu || row.kutuNo);
         const workTitle = publicWorkTitle_(row);
         const workDetail = publicWorkDetail_(row);
@@ -666,7 +665,10 @@ function trackKeyFromActivity_(record) {
   if (/\b(web|site|teknik|it)\b/.test(haystack) || haystack.indexOf('arsiv web') >= 0 || haystack.indexOf('arsiv-web') >= 0) {
     return 'ars_web';
   }
-  if (haystack.indexOf('egitim') >= 0 || haystack.indexOf('is bankasi') >= 0 || haystack.indexOf('muze') >= 0) {
+  if (haystack.indexOf('is bankasi') >= 0 || (haystack.indexOf('tarama') >= 0 && haystack.indexOf('egitim') >= 0)) {
+    return 'tarama';
+  }
+  if (haystack.indexOf('egitim') >= 0 || haystack.indexOf('muze') >= 0) {
     return 'egitim';
   }
   if (haystack.indexOf('osmanlica') >= 0 || haystack.indexOf('ceviri') >= 0) {
@@ -1300,7 +1302,12 @@ function isUnsafePublicIdentifier_(value) {
 
 function isPublicNamedLabel_(label) {
   const text = String(label == null ? '' : label).trim();
-  return !!(text && text !== TVF_UNNAMED && text !== TVF_HIDDEN && !isUnsafePublicIdentifier_(text));
+  return !!(text && text !== TVF_UNNAMED && text !== TVF_HIDDEN && !isUnsafePublicIdentifier_(text) && !isNonPersonLabel_(text));
+}
+
+function isNonPersonLabel_(label) {
+  const folded = asciiFold_(label).toLowerCase().replace(/\s+/g, ' ').trim();
+  return folded === 'gonullu toplantisi' || folded === 'toplanti' || folded === 'gonullu toplanti';
 }
 
 function normalizePublicRole_(value) {

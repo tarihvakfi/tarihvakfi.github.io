@@ -121,8 +121,90 @@
   }
 
   function trackSessions(summary) {
-    return (Array.isArray(summary?.tracks) ? summary.tracks : [])
+    return normalizeTrackRows(Array.isArray(summary?.tracks) ? summary.tracks : [])
       .reduce((sum, track) => sum + Number(track.sessions || 0), 0);
+  }
+
+  function normalizeTrackKey(track) {
+    const key = String((track && track.key) || "diger");
+    const label = asciiFold((track && track.label) || "");
+    if (key === "egitim" && label.indexOf("is bankasi") >= 0) return "tarama";
+    return key;
+  }
+
+  function normalizeTrackRows(rows) {
+    const merged = {};
+    (Array.isArray(rows) ? rows : []).forEach((track) => {
+      const key = normalizeTrackKey(track);
+      if (!merged[key]) {
+        const meta = TRACK_META[key] || TRACK_META.diger;
+        merged[key] = {
+          key,
+          label: meta.label,
+          sessions: 0,
+          records: 0,
+          pageRows: 0,
+          activityRows: 0,
+          pagesDone: 0,
+          byMonth: {},
+          people: [],
+          peopleCount: 0,
+          contributors: []
+        };
+      }
+      const row = merged[key];
+      row.sessions += Number(track.sessions || track.records || 0);
+      row.records += Number(track.records || track.sessions || 0);
+      row.pageRows += Number(track.pageRows || 0);
+      row.activityRows += Number(track.activityRows || 0);
+      row.pagesDone += Number(track.pagesDone || 0);
+      Object.entries(track.byMonth || {}).forEach(([month, count]) => {
+        row.byMonth[month] = Number(row.byMonth[month] || 0) + Number(count || 0);
+      });
+      (Array.isArray(track.people) ? track.people : []).forEach((name) => addUniqueLabel(row.people, name));
+      (Array.isArray(track.contributors) ? track.contributors : []).forEach((contributor) => mergeContributor(row.contributors, contributor));
+    });
+    Object.values(merged).forEach((track) => {
+      track.people.sort((a, b) => a.localeCompare(b, "tr"));
+      track.peopleCount = track.people.length || track.contributors.length || Number(track.peopleCount || 0);
+      track.contributors.sort((a, b) => Number(b.records || 0) - Number(a.records || 0) || String(a.label || "").localeCompare(String(b.label || ""), "tr"));
+    });
+    return Object.values(merged);
+  }
+
+  function addUniqueLabel(rows, label) {
+    const clean = String(label || "").trim();
+    if (!clean) return;
+    const key = canonicalNameKey(clean);
+    if (!key || rows.some((item) => canonicalNameKey(item) === key)) return;
+    rows.push(clean);
+  }
+
+  function mergeContributor(rows, contributor) {
+    const label = String((contributor && contributor.label) || "").trim();
+    const key = canonicalNameKey(label);
+    if (!key) return;
+    let row = rows.find((item) => canonicalNameKey(item.label) === key);
+    if (!row) {
+      row = { label, publicRole: contributor.publicRole || "", records: 0, pageRows: 0, activityRows: 0, pagesDone: 0 };
+      rows.push(row);
+    }
+    row.records += Number(contributor.records || 0);
+    row.pageRows += Number(contributor.pageRows || 0);
+    row.activityRows += Number(contributor.activityRows || 0);
+    row.pagesDone += Number(contributor.pagesDone || 0);
+    if (!row.publicRole && contributor.publicRole) row.publicRole = contributor.publicRole;
+  }
+
+  function trackSummaryPeopleCount(summary) {
+    const seen = {};
+    (Array.isArray(summary?.people) ? summary.people : []).forEach((name) => {
+      publicPeopleFromLabel(name).forEach((person) => {
+        seen[person.key] = true;
+      });
+    });
+    const count = Object.keys(seen).length;
+    return count || Number(summary?.peopleCount || 0);
   }
 
   function trackMonths(summary, fallback) {
@@ -295,7 +377,7 @@
       });
     });
 
-    (Array.isArray(trackSummary?.tracks) ? trackSummary.tracks : []).forEach((track) => {
+    normalizeTrackRows(Array.isArray(trackSummary?.tracks) ? trackSummary.tracks : []).forEach((track) => {
       (Array.isArray(track.people) ? track.people : []).forEach((name) => {
         publicPeopleFromLabel(name).forEach((person) => {
           const key = person.key;
@@ -336,11 +418,17 @@
       .map((item) => item.trim())
       .filter(Boolean)
       .forEach((name) => {
+        if (isNonPersonLabel(name)) return;
         const key = canonicalNameKey(name);
         if (!key) return;
         seen[key] = canonicalDisplayName(key, name);
       });
     return Object.keys(seen).map((key) => ({ key, label: seen[key] }));
+  }
+
+  function isNonPersonLabel(label) {
+    const key = canonicalNameKey(label);
+    return key === "gonullu toplantisi" || key === "toplanti" || key === "gonullu toplanti";
   }
 
   // -------------------------------------------------------------------
@@ -361,20 +449,23 @@
         ? `${firstMonth.replace("-", "/")} — ${lastMonth.replace("-", "/")}`
         : "Ocak — Mayıs 2026";
     const cumulativeSessions = liveTrackSummary ? trackSessions(liveTrackSummary) : c.sessions;
-    const cumulativeTracks = liveTrackSummary ? liveTrackSummary.tracks.length : c.tracks;
-    const cumulativeActiveVolunteers = liveTrackSummary && Number(liveTrackSummary.peopleCount || 0)
-      ? Number(liveTrackSummary.peopleCount)
+    const normalizedCumulativeTracks = normalizeTrackRows(liveTrackSummary ? liveTrackSummary.tracks : data.tracks);
+    const cumulativeTracks = normalizedCumulativeTracks.length || c.tracks;
+    const cumulativeActiveVolunteers = liveTrackSummary && trackSummaryPeopleCount(liveTrackSummary)
+      ? trackSummaryPeopleCount(liveTrackSummary)
       : c.activeVolunteers;
+    const cumulativePeopleLabel = liveTrackSummary ? "katkı veren" : "aktif gönüllü";
 
     // For "recent period" stats we read whatever the existing dashboard
     // has already computed on window.TVF_PUBLIC_DATA. If it's not
     // there we hide the right half.
     const thisWeek = (summary && summary.totals) || null;
+    const periodDetailRows = thisWeek ? Number(thisWeek.pageRows || thisWeek.periodPagesDone || 0) : 0;
     const tw = thisWeek
       ? `<div class="rb this-week">
            <p class="k">Güncel dönem <em>${esc(periodRangeLabel(summary.period || {}))}</em></p>
            <div class="stat-row">
-             <div class="stat"><span class="v">+${fmt(thisWeek.periodPagesDone || thisWeek.pageRows || 0)}</span><span class="l">yeni sayfa</span></div>
+             <div class="stat"><span class="v">+${fmt(periodDetailRows)}</span><span class="l">arşiv detayı</span></div>
              <div class="stat"><span class="v">${fmt(thisWeek.volunteersActive || 0)}</span><span class="l">aktif gönüllü</span></div>
              <div class="stat"><span class="v">${fmt(thisWeek.boxesActive || 0)}</span><span class="l">aktif kutu</span></div>
            </div>
@@ -385,7 +476,7 @@
       <div class="rb cumulative">
         <p class="k">Kümülatif <em>${esc(periodLabel)}</em></p>
         <div class="stat-row">
-          <div class="stat"><span class="v">${fmt(cumulativeActiveVolunteers)}</span><span class="l">aktif gönüllü</span></div>
+          <div class="stat"><span class="v">${fmt(cumulativeActiveVolunteers)}</span><span class="l">${esc(cumulativePeopleLabel)}</span></div>
           <div class="stat"><span class="v">${fmt(cumulativeSessions)}</span><span class="l">çalışma oturumu</span></div>
           <div class="stat"><span class="v">${fmt(cumulativeTracks)}</span><span class="l">paralel iş alanı</span></div>
         </div>
@@ -401,7 +492,7 @@
     const mount = safeMount("lpTracks");
     const liveTrackSummary = getLiveTrackSummary();
     const trackData = liveTrackSummary || data;
-    const trackRows = Array.isArray(trackData?.tracks) ? trackData.tracks : [];
+    const trackRows = normalizeTrackRows(Array.isArray(trackData?.tracks) ? trackData.tracks : []);
     if (!mount || !data) return;
     if (trackRows.length === 0) {
       mount.setAttribute("hidden", "");
@@ -464,7 +555,7 @@
     const mount = safeMount("lpActiveWall");
     if (!mount || !data) return;
     const byName = rosterByName(data);
-    const liveTracks = liveTrackRows();
+    const liveTracks = normalizeTrackRows(liveTrackRows());
     const useLiveTracks = liveTracks.length > 0;
     const vols = useLiveTracks ? [] : (data.volunteers || []).filter((v) => v.active);
     const hasVisibleRows = useLiveTracks

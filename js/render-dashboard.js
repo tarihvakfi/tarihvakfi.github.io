@@ -77,7 +77,7 @@
       const material = latest.material ? ` · ${latest.material}` : '';
       what.innerHTML = `${U.escapeHtml(kind)}${U.escapeHtml(material)}<span class="cursor"></span>`;
     }
-    setText('lpNowPages', latest.kind === 'activity' ? '+1' : `+${U.formatNum(latest.pagesDone || 1)}`);
+    setText('lpNowPages', latest.kind === 'activity' ? '+1' : `+${U.formatNum(publicPageUnits(latest))}`);
     setText('lpNowClock', latest.when ? `${U.formatHM(latest.when)} TRT` : '');
     block.removeAttribute('hidden');
   }
@@ -90,16 +90,16 @@
     setText('lpTruthActivities', U.formatNum(totals.activityRows));
     setText('lpTruthVolunteers', U.formatNum(publicVolunteerCount));
     setText('lpTruthBoxes', U.formatNum(totals.boxesActive));
-    setText('lpTruthProgress', totals.pagesTarget > 0 ? `%${U.formatPct(totals.progressPercent)}` : '—');
+    setText('lpTruthProgress', progressIsReliable(summary) ? `%${U.formatPct(totals.progressPercent)}` : '—');
   }
 
   function hydrateGlance(summary) {
     const totals = summary.totals || {};
     setText('lpWeekTotal', totals.records > 0 ? U.formatNum(totals.records) : '—');
-    setText('lpPct', totals.pagesTarget > 0 ? `%${U.formatPct(totals.progressPercent)}` : '—');
-    setText('lpProgressTotals', totals.pagesTarget > 0
+    setText('lpPct', progressIsReliable(summary) ? `%${U.formatPct(totals.progressPercent)}` : '—');
+    setText('lpProgressTotals', progressIsReliable(summary)
       ? `${U.formatNum(totals.pagesDone)} / ${U.formatNum(totals.pagesTarget)} sayfa`
-      : `${U.formatNum(totals.pagesDone || 0)} sayfa · hedef eksik`);
+      : 'ilerleme yeniden hesaplanıyor');
     setText('lpBoxes', totals.boxesCatalogued ? U.formatNum(totals.boxesCatalogued) : '—');
     setText('lpBoxesOf', '');
     setText('lpBoxesFoot', totals.boxesActive
@@ -130,7 +130,7 @@
 
     const one = document.getElementById('lpSignal1Body');
     if (one) one.innerHTML = `<em>${U.formatNum(totals.records)} kayıt</em>: ${U.formatNum(totals.pageRows)} sayfa/detay + ${U.formatNum(totals.activityRows)} faaliyet.`;
-    setText('lpSignal1Meta', `${U.formatNum(totals.periodPagesDone || 0)} sayfa birimi işlendi`);
+    setText('lpSignal1Meta', `${U.formatNum(periodDetailRows(totals))} arşiv detayı işlendi`);
 
     const two = document.getElementById('lpSignal2Body');
     if (two && busiest && busiest.records > 0) {
@@ -266,7 +266,7 @@
           <p class="vol-name">${U.escapeHtml(label)}</p>
           <p class="vol-meta">${U.escapeHtml(meta)}</p>
         </div>
-        <span class="vol-pages">${U.formatNum(row.pagesDone || row.records)}</span>
+        <span class="vol-pages">${U.formatNum(row.pageRows || row.pagesDone || row.records)}</span>
       </article>`;
     }).join('');
     block.removeAttribute('hidden');
@@ -284,18 +284,21 @@
     const periodTotal = boxes.reduce((sum, box) => sum + Number(box.periodPageRows || box.pageRows || box.periodRecords || 0), 0);
     setText('lpBoxesWeekMeta', `${U.formatNum(boxes.length)} kutu · ${U.formatNum(periodTotal)} dönem kaydı`);
     rows.innerHTML = `<div class="box-grid">${boxes.map((box) => {
-      const pct = box.percent == null ? null : Number(box.percent);
+      const target = Number(box.target || 0);
+      const rawDone = Number(box.done || 0);
+      const boxRows = Number(box.pageRows || box.periodPageRows || 0);
+      const boxPeriodUnits = Number(box.periodPagesDone || 0);
+      const inflatedBox = boxRows > 0 && (
+        boxPeriodUnits > boxRows * 1.5 ||
+        (target > 0 && rawDone > target && boxRows <= target)
+      );
+      const done = inflatedBox ? boxRows : rawDone;
+      const pct = target > 0 ? Math.round((Math.min(done, target) / target) * 1000) / 10 : (box.percent == null ? null : Number(box.percent));
       const progressWidth = pct == null ? 0 : Math.max(2, Math.min(100, pct));
       const pctText = pct == null ? '—' : `%${U.formatPct(pct)}`;
       const status = pct >= 100 ? 'tamamlandı' : (pct >= 50 ? 'ilerliyor' : (pct > 0 ? 'başladı' : 'bekliyor'));
       const periodPageRows = box.periodPageRows || box.pageRows || box.periodRecords || 0;
-      const periodPagesDone = box.periodPagesDone || box.pagesDone || periodPageRows;
-      const periodLabel = periodPagesDone && periodPagesDone !== periodPageRows
-        ? `satır · ${U.formatNum(periodPagesDone)} sayfa birimi`
-        : 'sayfa/detay';
-      const done = Number(box.done || 0);
-      const target = Number(box.target || 0);
-      const remaining = target ? Math.max(0, Number(box.remaining || (target - done))) : null;
+      const remaining = target ? Math.max(0, target - done) : null;
       const progressLabel = target
         ? `${U.formatNum(done)} / ${U.formatNum(target)} sayfa · ${pctText}`
         : `${U.formatNum(done)} sayfa işlendi · hedef eksik`;
@@ -315,7 +318,7 @@
         </div>
         <div class="box-card-main">
           <div class="box-percent">${U.escapeHtml(pctText)}</div>
-          <div class="box-period"><b>+${U.formatNum(periodPageRows)}</b><span>${U.escapeHtml(periodLabel)}</span></div>
+          <div class="box-period"><b>+${U.formatNum(periodPageRows)}</b><span>sayfa/detay</span></div>
         </div>
         <div class="box-progress" aria-label="${U.escapeHtml(progressLabel)}"><span style="width:${progressWidth}%"></span></div>
         <div class="box-stats">
@@ -463,7 +466,7 @@
       if (Number(row.activityRows || 0)) summaryBits.push(`${U.formatNum(row.activityRows)} faaliyet`);
       detailParts.push(summaryBits.length ? summaryBits.join(' · ') : `${U.formatNum(row.records)} çalışma`);
     } else {
-      detailParts.push(`${U.formatNum(row.pagesDone || row.records)} sayfa/detay`);
+      detailParts.push(`${U.formatNum(publicPageUnits(row))} sayfa/detay`);
     }
     return `<div class="latest-work">
       <span class="latest-work-dot" aria-hidden="true"></span>
@@ -644,7 +647,7 @@
       }
       const group = groups.get(key);
       group.records += Number(row.records || 1);
-      group.pagesDone += Number(row.pagesDone || (row.kind === 'page' ? (row.records || 1) : 0));
+      group.pagesDone += publicPageUnits(row);
       if (!group.workTitle && row.workTitle) group.workTitle = row.workTitle;
       if (!group.workDetail && row.workDetail) group.workDetail = row.workDetail;
       if (row.when && (!group.when || String(row.when) > String(group.when))) group.when = row.when;
@@ -667,6 +670,14 @@
       .sort((a, b) => String(b.when || b.dateISO || '').localeCompare(String(a.when || a.dateISO || '')));
   }
 
+  function publicPageUnits(row) {
+    if (!row || row.kind !== 'page') return 0;
+    const records = Math.max(1, Number(row.records || 1));
+    const units = Number(row.pagesDone || 0);
+    if (row.recordType === 'page_detail' && units > records) return records;
+    return units > 0 ? units : records;
+  }
+
   function materialPhrase(item) {
     const label = String(item.label || item.material || '').toLocaleLowerCase('tr');
     const singular = {
@@ -686,6 +697,28 @@
       const label = safeNames[idx] || String(idx + 1);
       return `<span class="av" title="${U.escapeHtml(label)}">${U.escapeHtml(U.initialOf(label))}</span>`;
     }).join('');
+  }
+
+  function periodDetailRows(totals) {
+    return Number(totals && (totals.pageRows || totals.periodPagesDone) || 0);
+  }
+
+  function progressIsReliable(summary) {
+    const totals = (summary && summary.totals) || {};
+    if (!(Number(totals.pagesTarget || 0) > 0)) return false;
+    const pageRows = Number(totals.pageRows || 0);
+    const periodUnits = Number(totals.periodPagesDone || 0);
+    if (pageRows > 0 && periodUnits > pageRows * 1.5) return false;
+    return !(Array.isArray(summary && summary.byBox) ? summary.byBox : []).some((box) => {
+      const target = Number(box.target || 0);
+      const done = Number(box.done || 0);
+      const rows = Number(box.pageRows || box.periodPageRows || 0);
+      const periodUnits = Number(box.periodPagesDone || 0);
+      return rows > 0 && (
+        periodUnits > rows * 1.5 ||
+        (target > 0 && done > target && rows <= target)
+      );
+    });
   }
 
   function setText(id, value) {

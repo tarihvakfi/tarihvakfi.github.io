@@ -379,7 +379,12 @@ def preferred_label(labels: list[str]) -> str:
 
 def is_public_named_label(label: Any) -> bool:
     text = str(label or "").strip()
-    return bool(text and text not in {UNNAMED, HIDDEN} and not is_unsafe_public_identifier(text))
+    return bool(text and text not in {UNNAMED, HIDDEN} and not is_unsafe_public_identifier(text) and not is_non_person_label(text))
+
+
+def is_non_person_label(label: Any) -> bool:
+    folded = re.sub(r"\s+", " ", ascii_fold(label).lower()).strip()
+    return folded in {"gonullu toplantisi", "toplanti", "gonullu toplanti"}
 
 
 def public_people_from_label(label: Any) -> list[dict[str, str]]:
@@ -491,7 +496,9 @@ def track_key_from_text(value: str) -> str:
     haystack = ascii_fold(value).lower()
     if re.search(r"\b(web|site|teknik|it)\b", haystack) or "arsiv web" in haystack or "arsiv-web" in haystack:
         return "ars_web"
-    if "egitim" in haystack or "is bankasi" in haystack or "muze" in haystack:
+    if "is bankasi" in haystack or ("tarama" in haystack and "egitim" in haystack):
+        return "tarama"
+    if "egitim" in haystack or "muze" in haystack:
         return "egitim"
     if "osmanlica" in haystack or "ceviri" in haystack:
         return "osmanlica"
@@ -694,15 +701,7 @@ def compute_inventory_totals(rows_by_sheet: dict[str, list[dict[str, Any]]]) -> 
 
 
 def page_units_for_detail_rows(rows: list[dict[str, Any]]) -> list[int]:
-    has_sayfa_sayisi = any(not is_blank(row.get("sayfa_sayisi")) for row in rows)
-    units = []
-    for row in rows:
-        if has_sayfa_sayisi:
-            done, total = parse_done_total(row.get("sayfa_sayisi"))
-            units.append(round(done or total or 1))
-        else:
-            units.append(1)
-    return units
+    return [1 for _ in rows]
 
 
 def collect_records(rows_by_sheet: dict[str, list[dict[str, Any]]], boxes: dict[str, BoxInfo]) -> list[SourceRecord]:
