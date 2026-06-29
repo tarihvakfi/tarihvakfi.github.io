@@ -11,7 +11,7 @@
   let snapshotPayload = null;
 
   function renderPayload(raw, allowLegacy) {
-    const payload = Aggregate.normalizePayload(raw);
+    const payload = sanitizePublicPayload(Aggregate.normalizePayload(raw));
     if (!payload || !payload.publicSummary) return false;
     if (!allowLegacy && !isCompatibleSummary(payload.publicSummary)) return false;
     applyVolunteerProfiles(payload);
@@ -21,11 +21,15 @@
   }
 
   function publishLivePayload(raw) {
-    const payload = Aggregate.normalizePayload(raw);
+    const payload = sanitizePublicPayload(Aggregate.normalizePayload(raw));
     if (!payload || !payload.publicSummary) return;
+    publishSharedPayload(payload, true);
+  }
+
+  function publishSharedPayload(payload, liveReady) {
     window.TVF_PUBLIC_DATA = payload;
     window.__SNAPSHOT__ = { ok: true, generatedAt: payload.generatedAt, data: payload };
-    window.TVF_LIVE_DATA_READY = true;
+    if (liveReady) window.TVF_LIVE_DATA_READY = true;
     applyVolunteerProfiles(payload);
     if (window.TVF && typeof window.TVF.renderRosterSections === 'function') {
       window.TVF.renderRosterSections();
@@ -34,8 +38,9 @@
   }
 
   if (!liveOnly) {
-    snapshotPayload = Aggregate.normalizePayload(window.TVF_PUBLIC_DATA || window.__SNAPSHOT__);
+    snapshotPayload = sanitizePublicPayload(Aggregate.normalizePayload(window.TVF_PUBLIC_DATA || window.__SNAPSHOT__));
     renderPayload(snapshotPayload, true);
+    if (snapshotPayload) publishSharedPayload(snapshotPayload, false);
   }
 
   const url = window.__SHEETSYNC_URL__;
@@ -77,8 +82,159 @@
   function normalizeLivePayload(raw) {
     const payload = Aggregate.normalizePayload(raw);
     if (!payload || !payload.publicSummary) return null;
-    if (isCompatibleSummary(payload.publicSummary)) return payload;
-    return repairRollingPayload(payload) || payload;
+    const normalized = isCompatibleSummary(payload.publicSummary)
+      ? payload
+      : (repairRollingPayload(payload) || payload);
+    return sanitizePublicPayload(normalized);
+  }
+
+  function sanitizePublicPayload(payload) {
+    if (!payload || !payload.publicSummary) return payload;
+    const summary = payload.publicSummary;
+    const source = summary.source || {};
+    if (source.volunteerCreditBasis === 'row_explicit_only') return payload;
+
+    const rules = legacyFalseCreditRules();
+    if (!rules.length) return payload;
+
+    const cloned = clone(payload);
+    const cleanSummary = cloned.publicSummary;
+    const removedByName = {};
+
+    cleanSummary.byDay = (Array.isArray(cleanSummary.byDay) ? cleanSummary.byDay : []).map((day) => {
+      const dateISO = U.toISODate(day.dateISO);
+      const out = Object.assign({}, day);
+      out.contributors = removeFalseCreditRows(day.contributors, dateISO, rules, removedByName);
+      out.coordination = removeFalseCreditRows(day.coordination, dateISO, rules, removedByName);
+      out.volunteerNames = (Array.isArray(day.volunteerNames) ? day.volunteerNames : [])
+        .filter((label) => !matchesAnyFalseCreditRule(label, dateISO, rules));
+      out.volunteersCount = (out.contributors || []).length + (out.coordination || []).length;
+      return out;
+    });
+
+    cleanSummary.byVolunteer = subtractFalseCreditRows(cleanSummary.byVolunteer, removedByName);
+    cleanSummary.byTrack = subtractFalseCreditRowsFromTracks(cleanSummary.byTrack, removedByName);
+    cleanSummary.byBox = subtractFalseCreditRowsFromBoxes(cleanSummary.byBox, removedByName);
+    cloned.latestActivity = (Array.isArray(cloned.latestActivity) ? cloned.latestActivity : [])
+      .filter((row) => !matchesLatestFalseCredit(row, rules));
+
+    const volunteers = Array.isArray(cleanSummary.byVolunteer)
+      ? cleanSummary.byVolunteer.filter((row) => isPublicLabel(row.label))
+      : [];
+    cleanSummary.totals = Object.assign({}, cleanSummary.totals || {}, {
+      volunteersActive: volunteers.length,
+      volunteers: volunteers.length
+    });
+    cleanSummary.source = Object.assign({}, source, {
+      volunteerCreditBasis: 'client_filtered_legacy_sheet_title_credit'
+    });
+    cleanSummary.warnings = (Array.isArray(cleanSummary.warnings) ? cleanSummary.warnings : []).concat([{
+      code: 'legacy_sheet_title_credit_filtered',
+      message: 'Eski canlı endpointte PNB detay sekmesi adından türeyen kişi kredileri tarayıcıda görünür listelerden çıkarıldı.'
+    }]);
+    return cloned;
+  }
+
+  function legacyFalseCreditRules() {
+    return [{
+      key: foldName('Betül İşeri'),
+      startDate: '2026-06-23',
+      endDate: '2026-06-29',
+      boxes: ['kutu 31']
+    }];
+  }
+
+  function removeFalseCreditRows(rows, dateISO, rules, removedByName) {
+    return (Array.isArray(rows) ? rows : []).filter((row) => {
+      const rule = matchingFalseCreditRule(row && row.label, dateISO, rules);
+      if (!rule || !looksLikeLegacyPageCredit(row, rule)) return true;
+      const key = rule.key;
+      if (!removedByName[key]) removedByName[key] = { records: 0, pageRows: 0, activityRows: 0, pagesDone: 0 };
+      removedByName[key].records += Number(row.records || 0);
+      removedByName[key].pageRows += Number(row.pageRows || 0);
+      removedByName[key].activityRows += Number(row.activityRows || 0);
+      removedByName[key].pagesDone += Number(row.pagesDone || 0);
+      return false;
+    });
+  }
+
+  function subtractFalseCreditRows(rows, removedByName) {
+    return (Array.isArray(rows) ? rows : []).map((row) => subtractFalseCreditRow(row, removedByName)).filter(Boolean);
+  }
+
+  function subtractFalseCreditRowsFromTracks(rows, removedByName) {
+    return (Array.isArray(rows) ? rows : []).map((track) => {
+      const out = Object.assign({}, track);
+      out.contributors = subtractFalseCreditRows(track.contributors, removedByName);
+      out.peopleCount = out.contributors.length;
+      return out;
+    });
+  }
+
+  function subtractFalseCreditRowsFromBoxes(rows, removedByName) {
+    return (Array.isArray(rows) ? rows : []).map((box) => {
+      const out = Object.assign({}, box);
+      out.contributors = subtractFalseCreditRows(box.contributors, removedByName);
+      out.topContributors = subtractFalseCreditRows(box.topContributors, removedByName);
+      out.contributorsCount = out.contributors.length;
+      return out;
+    });
+  }
+
+  function subtractFalseCreditRow(row, removedByName) {
+    if (!row) return null;
+    const key = foldName(row.label);
+    const removed = removedByName[key];
+    if (!removed) return row;
+    const out = Object.assign({}, row);
+    out.records = Math.max(0, Number(out.records || 0) - Number(removed.records || 0));
+    out.pageRows = Math.max(0, Number(out.pageRows || 0) - Number(removed.pageRows || 0));
+    out.activityRows = Math.max(0, Number(out.activityRows || 0) - Number(removed.activityRows || 0));
+    out.pagesDone = Math.max(0, Number(out.pagesDone || 0) - Number(removed.pagesDone || 0));
+    if (Array.isArray(out.boxBreakdown)) out.boxBreakdown = [];
+    if (Array.isArray(out.boxes)) out.boxes = [];
+    if (out.records <= 0 && out.pageRows <= 0 && out.activityRows <= 0 && out.pagesDone <= 0) return null;
+    return out;
+  }
+
+  function matchesLatestFalseCredit(row, rules) {
+    const dateISO = U.toISODate(row && (row.dateISO || row.when));
+    const rule = matchingFalseCreditRule(row && row.volunteerLabel, dateISO, rules);
+    if (!rule) return false;
+    const box = foldName(row && row.boxLabel);
+    return (row.recordType === 'page_detail' || row.kind === 'page')
+      && (!rule.boxes.length || rule.boxes.indexOf(box) >= 0);
+  }
+
+  function matchesAnyFalseCreditRule(label, dateISO, rules) {
+    return Boolean(matchingFalseCreditRule(label, dateISO, rules));
+  }
+
+  function matchingFalseCreditRule(label, dateISO, rules) {
+    const key = foldName(label);
+    if (!key || !dateISO) return null;
+    return rules.find((rule) => {
+      return key === rule.key
+        && dateISO >= rule.startDate
+        && dateISO <= rule.endDate;
+    }) || null;
+  }
+
+  function looksLikeLegacyPageCredit(row, rule) {
+    if (!row) return false;
+    if (Number(row.pageRows || 0) <= 0 || Number(row.activityRows || 0) > 0) return false;
+    const workRows = Array.isArray(row.workRows) ? row.workRows : [];
+    if (!workRows.length) return true;
+    return workRows.every((work) => {
+      const box = foldName(work.boxLabel);
+      return (work.kind === 'page' || !work.kind)
+        && (!rule.boxes.length || rule.boxes.indexOf(box) >= 0);
+    });
+  }
+
+  function isPublicLabel(label) {
+    const text = String(label || '').trim();
+    return Boolean(text && text !== 'Adı belirtilmeyen gönüllü' && text !== 'İsmini gizlemeyi tercih eden gönüllü');
   }
 
   function repairRollingPayload(livePayload) {

@@ -281,6 +281,7 @@ function buildPublicSummaryFromRows(records, inventory, inventoryTotals, now, mo
       recordsAreFullAggregate: true,
       latestActivityCap: TVF_LATEST_LIMIT,
       volunteerCredit: 'credit-visible, ID-safe volunteer display',
+      volunteerCreditBasis: 'row_explicit_only',
       progressBasis: progressSignal ? progressSignal.basis : null,
       progressCell: progressSignal ? (progressSignal.cell || null) : null
     },

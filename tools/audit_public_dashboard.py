@@ -1233,6 +1233,7 @@ def build_public_summary(
             "recordsAreFullAggregate": True,
             "latestActivityCap": 50,
             "volunteerCredit": "credit-visible, ID-safe volunteer display",
+            "volunteerCreditBasis": "row_explicit_only",
             "progressBasis": resolved_progress.get("basis") if resolved_progress else None,
             "progressCell": resolved_progress.get("cell") if resolved_progress else None,
         },

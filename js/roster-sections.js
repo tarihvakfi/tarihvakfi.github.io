@@ -65,6 +65,9 @@
     "betul iseri": "Betül İşeri",
     "neslihan erkan": "Neslihan Erkan",
   };
+  const SUPPRESSED_LEGACY_CREDIT_KEYS = new Set([
+    "betul iseri",
+  ]);
 
   // --- helpers ---------------------------------------------------------
   function esc(s) {
@@ -176,6 +179,7 @@
     const clean = String(label || "").trim();
     if (!clean) return;
     const key = canonicalNameKey(clean);
+    if (isSuppressedCreditKey(key)) return;
     if (!key || rows.some((item) => canonicalNameKey(item) === key)) return;
     rows.push(clean);
   }
@@ -183,6 +187,7 @@
   function mergeContributor(rows, contributor) {
     const label = String((contributor && contributor.label) || "").trim();
     const key = canonicalNameKey(label);
+    if (isSuppressedCreditKey(key)) return;
     if (!key) return;
     let row = rows.find((item) => canonicalNameKey(item.label) === key);
     if (!row) {
@@ -237,6 +242,10 @@
     return NAME_ALIASES[key] || key;
   }
 
+  function isSuppressedCreditKey(key) {
+    return SUPPRESSED_LEGACY_CREDIT_KEYS.has(key);
+  }
+
   function canonicalDisplayName(key, fallback) {
     return CANONICAL_DISPLAY_NAMES[key] || fallback;
   }
@@ -266,6 +275,7 @@
     rows.forEach((row) => {
       const name = String(row.label || "").trim();
       const key = canonicalNameKey(name);
+      if (isSuppressedCreditKey(key)) return;
       if (!key) return;
       map[key] = Object.assign({}, row, { label: name });
     });
@@ -311,11 +321,13 @@
     const merged = {};
     (data.volunteers || []).forEach((volunteer) => {
       const key = canonicalNameKey(volunteer.name);
+      if (isSuppressedCreditKey(key)) return;
       if (!key) return;
       merged[key] = mergeVolunteer(merged[key], volunteer);
     });
     Object.values(liveMap || {}).forEach((row) => {
       const key = canonicalNameKey(row.label);
+      if (isSuppressedCreditKey(key)) return;
       if (!key) return;
       merged[key] = mergeVolunteer(merged[key], {
         name: row.label,
@@ -345,6 +357,7 @@
     const merged = {};
     Object.values(liveMap || {}).forEach((row) => {
       const key = canonicalNameKey(row.label);
+      if (isSuppressedCreditKey(key)) return;
       if (!key) return;
       merged[key] = mergeVolunteer(merged[key], rosterIndex[key]);
       merged[key] = mergeVolunteer(merged[key], {
@@ -364,6 +377,7 @@
     (Array.isArray(trackSummary?.people) ? trackSummary.people : []).forEach((name) => {
       publicPeopleFromLabel(name).forEach((person) => {
         const key = person.key;
+        if (isSuppressedCreditKey(key)) return;
         if (!key) return;
         merged[key] = mergeVolunteer(merged[key], rosterIndex[key]);
         merged[key] = mergeVolunteer(merged[key], {
@@ -381,6 +395,7 @@
       (Array.isArray(track.people) ? track.people : []).forEach((name) => {
         publicPeopleFromLabel(name).forEach((person) => {
           const key = person.key;
+          if (isSuppressedCreditKey(key)) return;
           if (!key || !merged[key]) return;
           merged[key] = mergeVolunteer(merged[key], {
             name: person.label,
@@ -420,6 +435,7 @@
       .forEach((name) => {
         if (isNonPersonLabel(name)) return;
         const key = canonicalNameKey(name);
+        if (isSuppressedCreditKey(key)) return;
         if (!key) return;
         seen[key] = canonicalDisplayName(key, name);
       });
