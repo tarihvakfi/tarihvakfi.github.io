@@ -335,7 +335,6 @@ def get_volunteer_display_name(row: dict[str, Any]) -> tuple[str, str]:
         "kaydi_olusturan",
         "kaydi_olusturan_2",
         "kaydi_olusuran_2",
-        "_sheet_person",
         "volunteer_name",
         "ad_soyad",
     )
@@ -363,7 +362,7 @@ def private_contributor_key(label: str, row: dict[str, Any]) -> str:
         return "unnamed"
     if label == HIDDEN:
         return "hidden"
-    raw = row.get("paydas") or row.get("kaydi_olusuran") or row.get("kaydi_olusturan") or row.get("_sheet_person")
+    raw = row.get("paydas") or row.get("kaydi_olusuran") or row.get("kaydi_olusturan")
     if raw and not is_unsafe_public_identifier(raw):
         return ascii_fold(raw).lower().strip()
     return f"unnamed:{row.get('_sheet')}:{row.get('_source_row')}"
@@ -463,13 +462,6 @@ def preferred_role(roles: list[str], label: str) -> str:
     if clean:
         return Counter(clean).most_common(1)[0][0]
     return PUBLIC_ROLE_BY_NAME.get(ascii_fold(label).lower().strip(), "")
-
-
-def sheet_person_from_title(title: str) -> str:
-    parts = str(title or "").split()
-    if not parts or parts[0].upper() != "PNB":
-        return ""
-    return parts[-1].replace("-", " - ")
 
 
 def material_category(row: dict[str, Any]) -> str:
@@ -832,10 +824,8 @@ def collect_records(rows_by_sheet: dict[str, list[dict[str, Any]]], boxes: dict[
         classification = classify_sheet(title)
         if classification == "pnb_detail":
             units = page_units_for_detail_rows(rows)
-            sheet_person = sheet_person_from_title(title)
             for row, page_units in zip(rows, units):
                 enriched = dict(row)
-                enriched["_sheet_person"] = sheet_person
                 label, status = get_volunteer_display_name(enriched)
                 role = get_public_role(enriched, label)
                 key = private_contributor_key(label, enriched)

@@ -633,10 +633,8 @@ function collectPublicRecords_(rowsBySheet, inventory) {
     const classification = classifySheet_(title);
     const rows = rowsBySheet[title];
     if (classification === 'pnb_detail') {
-      const sheetPerson = personFromTitle_(title);
       rows.forEach(function (row) {
         const enriched = copyObject_(row);
-        enriched._sheetPerson = sheetPerson;
         const label = getVolunteerDisplayName_(enriched);
         const publicRole = getPublicRole_(enriched, label);
         const when = parseSheetDate_(row.tarih);
@@ -1370,7 +1368,7 @@ function getVolunteerDisplayName_(row) {
   if (explicitOptOut_(row)) return TVF_HIDDEN;
   const explicit = normalizeVolunteerName_(row.publicDisplayName || row.publicdisplayname || row.kamusalAd || row.kamusalad);
   if (explicit) return explicit;
-  const name = normalizeVolunteerName_(row.paydas || row.kaydiOlusuran || row.kaydiOlusturan || row._sheetPerson || row.volunteerName || row.adSoyad);
+  const name = normalizeVolunteerName_(row.paydas || row.kaydiOlusuran || row.kaydiOlusturan || row.volunteerName || row.adSoyad);
   if (name) return name;
   const first = normalizeVolunteerName_(row.firstName || row.first_name || row.ad || row.isim);
   const last = normalizeVolunteerName_(row.lastName || row.last_name || row.soyad || row.soyisim);
@@ -1382,7 +1380,7 @@ function getVolunteerDisplayName_(row) {
 
 function creditStatus_(row) {
   if (explicitOptOut_(row)) return 'opt_out';
-  const raw = row.publicDisplayName || row.publicdisplayname || row.kamusalAd || row.kamusalad || row.paydas || row.kaydiOlusuran || row.kaydiOlusturan || row._sheetPerson || '';
+  const raw = row.publicDisplayName || row.publicdisplayname || row.kamusalAd || row.kamusalad || row.paydas || row.kaydiOlusuran || row.kaydiOlusturan || row.volunteerName || row.adSoyad || '';
   if (raw && isUnsafePublicIdentifier_(raw)) return 'unsafe_identifier';
   if (normalizeVolunteerName_(raw)) return 'name';
   return 'missing';
@@ -1584,12 +1582,6 @@ function classifySheet_(title) {
 
 function normalizePeriodMode_(mode) {
   return mode === 'calendar_week_to_date' ? 'calendar_week_to_date' : 'rolling_7_days';
-}
-
-function personFromTitle_(title) {
-  const parts = String(title || '').split(/\s+/).filter(Boolean);
-  if (!parts.length || parts[0].toUpperCase() !== 'PNB') return '';
-  return parts[parts.length - 1].replace(/-/g, ' - ');
 }
 
 function parseSheetDate_(value) {

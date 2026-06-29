@@ -7,8 +7,7 @@
     'publicDisplayName', 'public_display_name', 'kamusalAd', 'kamusal_ad',
     'volunteerName', 'volunteer_name', 'name', 'adSoyad', 'ad_soyad',
     'paydas', 'paydaş', 'kaydiOlusturan', 'kaydi_olusturan',
-    'kaydiOlusuran', 'kaydi_olusuran', 'kaydıOluşturan',
-    '_sheet_person', 'sheetPerson'
+    'kaydiOlusuran', 'kaydi_olusuran', 'kaydıOluşturan'
   ];
 
   const FIRST_KEYS = ['firstName', 'first_name', 'ad', 'isim'];
