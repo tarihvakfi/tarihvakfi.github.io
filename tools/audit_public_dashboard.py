@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,6 +25,7 @@ REPORT_PATH = OUTPUT_DIR / "public_dashboard_audit.md"
 SUMMARY_JSON_PATH = OUTPUT_DIR / "public_summary_from_excel.json"
 SNAPSHOT_PATH = ROOT / "js" / "snapshot.js"
 PROJECT_ID = "pnb"
+PROGRESS_CELL = "PNB Sayısallaştırma!D103"
 PUBLIC_TZ = timezone(timedelta(hours=3))
 
 TR_WEEKDAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
@@ -108,6 +110,19 @@ def parse_locale_number(value: Any) -> float:
         return float(text)
     except ValueError:
         return 0.0
+
+
+def parse_progress_percent(value: Any) -> float | None:
+    if value is None or value == "":
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    has_percent = "%" in text
+    number = parse_locale_number(text.replace("%", "") if has_percent else value)
+    if not math.isfinite(number):
+        return None
+    return round(number if has_percent else (number * 100 if abs(number) <= 1 else number), 1)
 
 
 def parse_done_total(value: Any) -> tuple[float, float]:
@@ -556,12 +571,10 @@ def infer_columns(headers: list[str]) -> dict[str, list[str]]:
     return groups
 
 
-def read_rows(ws) -> tuple[list[str], list[dict[str, Any]]]:
-    rows_iter = ws.iter_rows(values_only=True)
-    try:
-        header_values = list(next(rows_iter))
-    except StopIteration:
+def read_rows_from_matrix(title: str, matrix: list[list[Any]]) -> tuple[list[str], list[dict[str, Any]]]:
+    if not matrix:
         return [], []
+    header_values = list(matrix[0] or [])
     headers = []
     seen: Counter[str] = Counter()
     for idx, value in enumerate(header_values):
@@ -571,16 +584,21 @@ def read_rows(ws) -> tuple[list[str], list[dict[str, Any]]]:
             key = f"{key}_{seen[key]}"
         headers.append(key)
     out = []
-    for row_idx, values in enumerate(rows_iter, start=2):
+    for row_idx, values in enumerate(matrix[1:], start=2):
         values = list(values)
         if all(is_blank(v) for v in values):
             continue
-        row = {"_source_row": row_idx, "_sheet": ws.title, "_sheet_slug": slugify(ws.title)}
+        row = {"_source_row": row_idx, "_sheet": title, "_sheet_slug": slugify(title)}
         for idx, key in enumerate(headers):
             row[key] = values[idx] if idx < len(values) else None
         out.append(row)
     raw_headers = [str(v).strip() for v in header_values if not is_blank(v)]
     return raw_headers, out
+
+
+def read_rows(ws) -> tuple[list[str], list[dict[str, Any]]]:
+    matrix = [list(row) for row in ws.iter_rows(values_only=True)]
+    return read_rows_from_matrix(ws.title, matrix)
 
 
 @dataclass
@@ -640,21 +658,88 @@ class BoxInfo:
         return "inventory"
 
 
-def load_workbook_rows(path: Path) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]]]:
+def load_workbook_rows(path: Path) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]], dict[str, Any]]:
     wb = load_workbook(path, data_only=True, read_only=True)
     sheet_info = []
     rows_by_sheet: dict[str, list[dict[str, Any]]] = {}
+    progress_signal = None
+    workbook_sheets = []
     for ws in wb.worksheets:
-        headers, rows = read_rows(ws)
+        matrix = [list(row) for row in ws.iter_rows(values_only=True)]
+        headers, rows = read_rows_from_matrix(ws.title, matrix)
         rows_by_sheet[ws.title] = rows
+        classification = classify_sheet(ws.title)
+        workbook_sheets.append({"title": ws.title, "classification": classification, "matrix": matrix})
+        if classification == "pnb_inventory" and progress_signal is None:
+            d103 = parse_progress_percent(ws["D103"].value)
+            if d103 is not None:
+                progress_signal = {"percent": d103, "basis": "pnb_sayisallastirma_d103", "cell": PROGRESS_CELL}
         sheet_info.append({
             "title": ws.title,
-            "classification": classify_sheet(ws.title),
+            "classification": classification,
             "rows": len(rows),
             "headers": headers,
             "inferred": infer_columns(headers),
         })
-    return sheet_info, rows_by_sheet
+    if progress_signal is None:
+        progress_signal = find_workbook_progress(workbook_sheets)
+    return sheet_info, rows_by_sheet, {"progressSignal": progress_signal}
+
+
+def find_workbook_progress(sheets: list[dict[str, Any]]) -> dict[str, Any] | None:
+    best: dict[str, Any] | None = None
+    for sheet in sheets:
+        matrix = sheet.get("matrix") or []
+        for r_idx, row in enumerate(matrix):
+            for c_idx, value in enumerate(row or []):
+                score = progress_label_score(value, sheet)
+                if not score:
+                    continue
+                for r_off, c_off in progress_neighbor_offsets():
+                    rr = r_idx + r_off
+                    cc = c_idx + c_off
+                    if rr < 0 or cc < 0 or rr >= len(matrix):
+                        continue
+                    candidate_row = matrix[rr] or []
+                    if cc >= len(candidate_row):
+                        continue
+                    percent = parse_progress_percent_candidate(candidate_row[cc])
+                    if percent is None:
+                        continue
+                    candidate_score = score - abs(r_off) - abs(c_off) / 10
+                    if best is None or candidate_score > best["score"]:
+                        best = {
+                            "percent": percent,
+                            "basis": "workbook_progress_label_scan",
+                            "cell": f"{sheet['title']}!{get_column_letter(cc + 1)}{rr + 1}",
+                            "score": candidate_score,
+                        }
+    if best is None:
+        return None
+    return {"percent": best["percent"], "basis": best["basis"], "cell": best["cell"]}
+
+
+def progress_neighbor_offsets() -> list[tuple[int, int]]:
+    return [(0, 1), (0, 2), (0, 3), (0, 4), (1, 0), (1, 1), (-1, 0), (0, -1)]
+
+
+def progress_label_score(value: Any, sheet: dict[str, Any]) -> float:
+    haystack = ascii_fold(f"{sheet.get('title', '')} {value or ''}").lower()
+    if not any(token in haystack for token in ["ilerleme", "tamamlan", "progress", "oran", "yuzde"]):
+        return 0
+    score = 10.0
+    if "toplam ilerleme" in haystack or "genel ilerleme" in haystack:
+        score += 20
+    if sheet.get("classification") == "pnb_inventory" or "pnb" in haystack or "sayisallastirma" in haystack:
+        score += 10
+    return score
+
+
+def parse_progress_percent_candidate(value: Any) -> float | None:
+    percent = parse_progress_percent(value)
+    if percent is None or percent < 0 or percent > 100:
+        return None
+    return percent
 
 
 def build_inventory(rows_by_sheet: dict[str, list[dict[str, Any]]]) -> dict[str, BoxInfo]:
@@ -698,6 +783,43 @@ def compute_inventory_totals(rows_by_sheet: dict[str, list[dict[str, Any]]]) -> 
         "totalFiles": round(total_files),
         "cataloguedBoxes": catalogued_boxes,
     }
+
+
+def inventory_progress_pages(inventory_boxes: list[BoxInfo]) -> int:
+    total = 0
+    for info in inventory_boxes:
+        if info.target_pages <= 0:
+            continue
+        total += min(info.done_pages, info.target_pages)
+    return round(total)
+
+
+def inventory_progress_signal(inventory_boxes: list[BoxInfo], target_pages: int | float) -> dict[str, Any] | None:
+    target = float(target_pages or 0)
+    if target <= 0:
+        return None
+    done = inventory_progress_pages(inventory_boxes)
+    return {
+        "percent": round((done / target) * 100, 1),
+        "basis": "pnb_inventory_done_total_scan",
+        "cell": None,
+    }
+
+
+def normalize_progress_signal(signal: dict[str, Any] | float | str | None) -> dict[str, Any] | None:
+    if signal is None or signal == "":
+        return None
+    if isinstance(signal, dict):
+        percent = parse_progress_percent(signal.get("percent"))
+        basis = signal.get("basis") or "unknown_progress_percent"
+        cell = signal.get("cell")
+    else:
+        percent = parse_progress_percent(signal)
+        basis = "unknown_progress_percent"
+        cell = None
+    if percent is None or percent < 0 or percent > 100:
+        return None
+    return {"percent": percent, "basis": basis, "cell": cell}
 
 
 def page_units_for_detail_rows(rows: list[dict[str, Any]]) -> list[int]:
@@ -983,13 +1105,13 @@ def build_public_summary(
     inventory_totals: dict[str, int],
     generated_at: datetime,
     period_mode: str,
+    progress_signal: dict[str, Any] | float | str | None = None,
 ) -> dict[str, Any]:
     now_date = generated_at.astimezone(PUBLIC_TZ).date()
     period = selected_period(now_date, period_mode)
     period_records = records_in_period(records, period)
     page_records = [r for r in period_records if r.kind == "page"]
     activity_records = [r for r in period_records if r.kind == "activity"]
-    all_page_records = [r for r in records if r.kind == "page"]
 
     start = date.fromisoformat(period["startDate"])
     end = date.fromisoformat(period["endDate"])
@@ -1076,10 +1198,15 @@ def build_public_summary(
         })
     track_payload = build_by_track(period_records)
 
-    target_pages = inventory_totals.get("totalPages") or sum(info.target_pages for info in boxes.values())
-    done_pages = sum(r.page_units for r in all_page_records)
-    progress_percent = round((done_pages / target_pages) * 100, 1) if target_pages else 0
     inventory_boxes = [info for info in boxes.values() if info.target_pages or info.files or info.documents]
+    target_pages = inventory_totals.get("totalPages") or sum(info.target_pages for info in boxes.values())
+    resolved_progress = normalize_progress_signal(progress_signal) or inventory_progress_signal(inventory_boxes, target_pages)
+    progress_percent = resolved_progress["percent"] if resolved_progress else 0
+    done_pages = (
+        round((target_pages * progress_percent) / 100)
+        if target_pages and resolved_progress
+        else inventory_progress_pages(inventory_boxes)
+    )
     completed_boxes = [info for info in inventory_boxes if info.status == "completed"]
     named_period = {r.private_key for r in period_records if r.private_key and is_public_named_label(r.public_label)}
 
@@ -1116,6 +1243,8 @@ def build_public_summary(
             "recordsAreFullAggregate": True,
             "latestActivityCap": 50,
             "volunteerCredit": "credit-visible, ID-safe volunteer display",
+            "progressBasis": resolved_progress.get("basis") if resolved_progress else None,
+            "progressCell": resolved_progress.get("cell") if resolved_progress else None,
         },
         "period": period,
         "totals": {
@@ -1350,6 +1479,8 @@ def write_report(
         f"- Activity rows: **{len(activity_records):,}**",
         f"- Recorded page units from detail tabs: **{sum(r.page_units for r in page_records):,}**",
         f"- Target page units from PNB inventory: **{selected_summary['totals']['pagesTarget']:,}**",
+        f"- Progress source: **{selected_summary['source'].get('progressBasis') or 'not found'}**"
+        + (f" (`{selected_summary['source'].get('progressCell')}`)" if selected_summary["source"].get("progressCell") else ""),
         f"- Inventory-known boxes: **{selected_summary['totals']['boxesCatalogued']:,}**",
         f"- Completed boxes: **{selected_summary['totals']['boxesCompleted']:,}**",
         "",
@@ -1430,14 +1561,15 @@ def main() -> int:
     selected_mode = "calendar_week_to_date" if args.period == "calendar_week" else args.period
     path = args.input or workbook_path()
     generated_at = datetime.now(tz=PUBLIC_TZ)
-    sheet_info, rows_by_sheet = load_workbook_rows(path)
+    sheet_info, rows_by_sheet, workbook_meta = load_workbook_rows(path)
     boxes = build_inventory(rows_by_sheet)
     inventory_totals = compute_inventory_totals(rows_by_sheet)
     records = collect_records(rows_by_sheet, boxes)
+    progress_signal = workbook_meta.get("progressSignal")
 
     summaries = {
-        "calendar_week_to_date": build_public_summary(records, boxes, inventory_totals, generated_at, "calendar_week_to_date"),
-        "rolling_7_days": build_public_summary(records, boxes, inventory_totals, generated_at, "rolling_7_days"),
+        "calendar_week_to_date": build_public_summary(records, boxes, inventory_totals, generated_at, "calendar_week_to_date", progress_signal),
+        "rolling_7_days": build_public_summary(records, boxes, inventory_totals, generated_at, "rolling_7_days", progress_signal),
     }
     summary = summaries[selected_mode]
     payload = build_payload(summary, records)

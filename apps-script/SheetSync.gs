@@ -18,6 +18,7 @@ const TVF_TR_WEEKDAYS = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma'
 const TVF_TR_MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
 const TVF_UNNAMED = 'Adı belirtilmeyen gönüllü';
 const TVF_HIDDEN = 'İsmini gizlemeyi tercih eden gönüllü';
+const TVF_PROGRESS_CELL = 'PNB Sayısallaştırma!D103';
 const TVF_VOLUNTEER_PROFILE_SHEET = 'Gönüllü Kartları';
 const TVF_VOLUNTEER_PROFILE_HEADERS = [
   'Slug',
@@ -100,7 +101,7 @@ function buildPublicDashboardPayload_(mode) {
   const records = collectPublicRecords_(workbook.rowsBySheet, inventory);
   const volunteerProfiles = readPublicVolunteerProfiles_(workbook.rowsBySheet);
   const generatedAt = new Date();
-  const summary = buildPublicSummaryFromRows(records, inventory, inventoryTotals, generatedAt, mode || 'rolling_7_days');
+  const summary = buildPublicSummaryFromRows(records, inventory, inventoryTotals, generatedAt, mode || 'rolling_7_days', workbook.pnbProgress);
   const trackSummary = buildTrackSummary_(records, generatedAt);
   return {
     generatedAt: summary.generatedAt,
@@ -123,14 +124,13 @@ function buildPublicDashboardPayload_(mode) {
   };
 }
 
-function buildPublicSummaryFromRows(records, inventory, inventoryTotals, now, mode) {
+function buildPublicSummaryFromRows(records, inventory, inventoryTotals, now, mode, pnbProgress) {
   const period = selectedPeriod_(now, mode || 'rolling_7_days');
   const periodRecords = records.filter(function (record) {
     return record.dateISO && record.dateISO >= period.startDate && record.dateISO <= period.endDate;
   });
   const pageRecords = periodRecords.filter(function (record) { return record.kind === 'page'; });
   const activityRecords = periodRecords.filter(function (record) { return record.kind === 'activity'; });
-  const allPageRecords = records.filter(function (record) { return record.kind === 'page'; });
 
   const rowsByDay = {};
   periodRecords.forEach(function (record) {
@@ -256,11 +256,15 @@ function buildPublicSummaryFromRows(records, inventory, inventoryTotals, now, mo
     if (record.privateKey && isPublicNamedLabel_(record.publicLabel)) namedVolunteerKeys[record.privateKey] = true;
   });
 
-  const targetPages = Number(inventoryTotals.totalPages || 0);
-  const pagesDone = allPageRecords.reduce(function (sum, record) { return sum + Number(record.pageUnits || 0); }, 0);
   const inventoryBoxes = Object.keys(inventory).map(function (key) { return inventory[key]; }).filter(function (box) {
     return box.targetPages || box.files || box.documents;
   });
+  const targetPages = Number(inventoryTotals.totalPages || 0);
+  const progressSignal = normalizeProgressSignal_(pnbProgress) || inventoryProgressSignal_(inventoryBoxes, targetPages);
+  const progressPercent = progressSignal ? progressSignal.percent : 0;
+  const pagesDone = targetPages > 0 && progressSignal
+    ? Math.round((targetPages * progressPercent) / 100)
+    : inventoryProgressPages_(inventoryBoxes);
   const completedBoxes = inventoryBoxes.filter(function (box) {
     const done = Math.max(Number(box.summaryDonePages || 0), Number(box.detailDonePages || 0));
     return Number(box.targetPages || 0) > 0 && done >= Number(box.targetPages || 0);
@@ -276,7 +280,9 @@ function buildPublicSummaryFromRows(records, inventory, inventoryTotals, now, mo
       projectId: TVF_PROJECT_ID,
       recordsAreFullAggregate: true,
       latestActivityCap: TVF_LATEST_LIMIT,
-      volunteerCredit: 'credit-visible, ID-safe volunteer display'
+      volunteerCredit: 'credit-visible, ID-safe volunteer display',
+      progressBasis: progressSignal ? progressSignal.basis : null,
+      progressCell: progressSignal ? (progressSignal.cell || null) : null
     },
     period: period,
     totals: {
@@ -286,7 +292,7 @@ function buildPublicSummaryFromRows(records, inventory, inventoryTotals, now, mo
       periodPagesDone: pageRecords.reduce(function (sum, record) { return sum + Number(record.pageUnits || 1); }, 0),
       pagesDone: pagesDone,
       pagesTarget: targetPages,
-      progressPercent: targetPages > 0 ? round1_((pagesDone / targetPages) * 100) : 0,
+      progressPercent: progressPercent,
       boxesTotal: inventoryBoxes.length || null,
       boxesCatalogued: inventoryTotals.cataloguedBoxes || inventoryBoxes.length,
       boxesActive: Object.keys(recordsByBox).length,
@@ -308,6 +314,41 @@ function buildPublicSummaryFromRows(records, inventory, inventoryTotals, now, mo
       firstCompletedBox: null
     },
     warnings: warnings
+  };
+}
+
+function inventoryProgressPages_(inventoryBoxes) {
+  return (inventoryBoxes || []).reduce(function (sum, box) {
+    const target = Number(box.targetPages || 0);
+    if (target <= 0) return sum;
+    const done = Math.max(Number(box.summaryDonePages || 0), Number(box.detailDonePages || 0));
+    return sum + Math.min(done, target);
+  }, 0);
+}
+
+function inventoryProgressSignal_(inventoryBoxes, targetPages) {
+  const target = Number(targetPages || 0);
+  if (target <= 0) return null;
+  const done = inventoryProgressPages_(inventoryBoxes);
+  return {
+    percent: round1_((done / target) * 100),
+    basis: 'pnb_inventory_done_total_scan',
+    cell: null
+  };
+}
+
+function normalizeProgressSignal_(signal) {
+  if (signal == null || signal === '') return null;
+  if (typeof signal === 'number' || typeof signal === 'string') {
+    const percent = normalizeProgressPercent_(signal);
+    return percent == null ? null : { percent: percent, basis: 'unknown_progress_percent', cell: null };
+  }
+  const percent = normalizeProgressPercent_(signal.percent);
+  if (percent == null) return null;
+  return {
+    percent: percent,
+    basis: signal.basis || 'unknown_progress_percent',
+    cell: signal.cell || null
   };
 }
 
@@ -410,13 +451,94 @@ function readWorkbook_(sheetId) {
   }) || []).filter(Boolean);
   const rowsBySheet = {};
   const sheetInfo = [];
+  let pnbProgress = null;
+  const workbookSheets = [];
   titles.forEach(function (title) {
     const matrix = readSheetValues_(sheetId, title + '!A1:AZ5000');
+    const classification = classifySheet_(title);
+    workbookSheets.push({ title: title, classification: classification, matrix: matrix });
+    if (classification === 'pnb_inventory' && pnbProgress == null) {
+      const d103 = parseProgressPercent_(matrixValue_(matrix, 103, 4));
+      if (d103 != null) {
+        pnbProgress = { percent: d103, basis: 'pnb_sayisallastirma_d103', cell: TVF_PROGRESS_CELL };
+      }
+    }
     const rows = rowsFromMatrix_(title, matrix);
     rowsBySheet[title] = rows.rows;
-    sheetInfo.push({ title: title, classification: classifySheet_(title), rows: rows.rows.length, headers: rows.headers });
+    sheetInfo.push({ title: title, classification: classification, rows: rows.rows.length, headers: rows.headers });
   });
-  return { sheetInfo: sheetInfo, rowsBySheet: rowsBySheet };
+  if (pnbProgress == null) pnbProgress = findWorkbookProgress_(workbookSheets);
+  return { sheetInfo: sheetInfo, rowsBySheet: rowsBySheet, pnbProgress: pnbProgress };
+}
+
+function matrixValue_(matrix, oneBasedRow, oneBasedCol) {
+  const row = matrix && matrix[oneBasedRow - 1];
+  return row ? row[oneBasedCol - 1] : null;
+}
+
+function findWorkbookProgress_(sheets) {
+  let best = null;
+  (sheets || []).forEach(function (sheet) {
+    const matrix = sheet.matrix || [];
+    matrix.forEach(function (row, rIdx) {
+      (row || []).forEach(function (value, cIdx) {
+        const label = String(value == null ? '' : value).trim();
+        const score = progressLabelScore_(label, sheet);
+        if (!score) return;
+        progressNeighborOffsets_().forEach(function (offset) {
+          const candidate = matrixValue_(matrix, rIdx + 1 + offset.r, cIdx + 1 + offset.c);
+          const percent = parseProgressPercentCandidate_(candidate);
+          if (percent == null) return;
+          const cell = sheet.title + '!' + a1_(rIdx + 1 + offset.r, cIdx + 1 + offset.c);
+          const candidateScore = score - Math.abs(offset.r) - Math.abs(offset.c) / 10;
+          if (!best || candidateScore > best.score) {
+            best = {
+              percent: percent,
+              basis: 'workbook_progress_label_scan',
+              cell: cell,
+              score: candidateScore
+            };
+          }
+        });
+      });
+    });
+  });
+  return best ? { percent: best.percent, basis: best.basis, cell: best.cell } : null;
+}
+
+function progressNeighborOffsets_() {
+  return [
+    { r: 0, c: 1 }, { r: 0, c: 2 }, { r: 0, c: 3 }, { r: 0, c: 4 },
+    { r: 1, c: 0 }, { r: 1, c: 1 }, { r: -1, c: 0 }, { r: 0, c: -1 }
+  ];
+}
+
+function progressLabelScore_(label, sheet) {
+  const haystack = asciiFold_([sheet.title, label].join(' ')).toLowerCase();
+  if (!(haystack.indexOf('ilerleme') >= 0 || haystack.indexOf('tamamlan') >= 0 || haystack.indexOf('progress') >= 0 || haystack.indexOf('oran') >= 0 || haystack.indexOf('yuzde') >= 0)) {
+    return 0;
+  }
+  let score = 10;
+  if (haystack.indexOf('toplam ilerleme') >= 0 || haystack.indexOf('genel ilerleme') >= 0) score += 20;
+  if (sheet.classification === 'pnb_inventory' || haystack.indexOf('pnb') >= 0 || haystack.indexOf('sayisallastirma') >= 0) score += 10;
+  return score;
+}
+
+function parseProgressPercentCandidate_(value) {
+  const percent = parseProgressPercent_(value);
+  if (percent == null || percent < 0 || percent > 100) return null;
+  return percent;
+}
+
+function a1_(oneBasedRow, oneBasedCol) {
+  let col = '';
+  let n = oneBasedCol;
+  while (n > 0) {
+    const rem = (n - 1) % 26;
+    col = String.fromCharCode(65 + rem) + col;
+    n = Math.floor((n - 1) / 26);
+  }
+  return col + String(oneBasedRow);
 }
 
 function readSheetValues_(sheetId, range) {
@@ -1500,6 +1622,23 @@ function parseDoneTotal_(value) {
   const match = text.match(/^([\d.,]+)\s*\/\s*([\d.,]+)$/);
   if (match) return { done: parseLocaleNumber_(match[1]), total: parseLocaleNumber_(match[2]) };
   return { done: 0, total: parseLocaleNumber_(text) };
+}
+
+function parseProgressPercent_(value) {
+  if (value == null || value === '') return null;
+  const text = String(value).trim();
+  if (!text) return null;
+  const hasPercent = text.indexOf('%') >= 0;
+  const n = parseLocaleNumber_(hasPercent ? text.replace(/%/g, '') : value);
+  if (!isFinite(n)) return null;
+  return round1_(hasPercent ? n : (Math.abs(n) <= 1 ? n * 100 : n));
+}
+
+function normalizeProgressPercent_(value) {
+  if (value == null || value === '') return null;
+  const n = typeof value === 'number' ? value : parseProgressPercent_(value);
+  if (!isFinite(n)) return null;
+  return round1_(Math.abs(n) <= 1 ? n * 100 : n);
 }
 
 function parseLocaleNumber_(value) {

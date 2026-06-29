@@ -706,6 +706,9 @@
   function progressIsReliable(summary) {
     const totals = (summary && summary.totals) || {};
     if (!(Number(totals.pagesTarget || 0) > 0)) return false;
+    const source = (summary && summary.source) || {};
+    const reliableBasis = ['pnb_sayisallastirma_d103', 'workbook_progress_label_scan', 'pnb_inventory_done_total_scan'];
+    if (reliableBasis.indexOf(source.progressBasis) < 0) return false;
     const pageRows = Number(totals.pageRows || 0);
     const periodUnits = Number(totals.periodPagesDone || 0);
     if (pageRows > 0 && periodUnits > pageRows * 1.5) return false;
