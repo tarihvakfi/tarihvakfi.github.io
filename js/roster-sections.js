@@ -35,11 +35,12 @@
   // --- Track metadata: colour ramps that read against burgundy/cream --
   const TRACK_META = {
     tarama:          { label: "Tarama (belge & kartpostal)",     color: "#601040", bg: "#fbf2f7", border: "#ead5e2", lane: "#fbf2f7" },
+    tarama_is_bankasi: { label: "Tarama (İş Bankası Müzesi)",    color: "#7a174d", bg: "#fbf0f7", border: "#e8c9dc", lane: "#fbf0f7" },
     envanter:        { label: "Envanter (afiş, görsel-işitsel)", color: "#8a2a62", bg: "#fbf2f7", border: "#ead5e2", lane: "#fbf2f7" },
     kurumsal_bellek: { label: "Kurum belleği (Karar Def., G.K.)", color: "#3b6d11", bg: "#eaf3de", border: "#c0dd97", lane: "#eaf3de" },
     osmanlica:       { label: "Osmanlıca çeviri",                color: "#BA7517", bg: "#FAEEDA", border: "#FAC775", lane: "#FAEEDA" },
     proje_basvuru:   { label: "Proje çalışmaları",               color: "#185fa5", bg: "#e6f1fb", border: "#b5d4f4", lane: "#e6f1fb" },
-    egitim:          { label: "Eğitim (İş Bankası Müzesi)",      color: "#534AB7", bg: "#EEEDFE", border: "#CECBF6", lane: "#EEEDFE" },
+    egitim:          { label: "Eğitim",                          color: "#534AB7", bg: "#EEEDFE", border: "#CECBF6", lane: "#EEEDFE" },
     ars_web:         { label: "Arşiv-web & IT",                  color: "#444441", bg: "#f1efe8", border: "#d3d1c7", lane: "#f1efe8" },
     koordinasyon:    { label: "Koordinasyon & planlama",         color: "#888780", bg: "#f1efe8", border: "#d3d1c7", lane: "#f1efe8" },
     kodlama_kontrol: { label: "Kodlama & kontrol",               color: "#185fa5", bg: "#e6f1fb", border: "#b5d4f4", lane: "#e6f1fb" },
@@ -47,7 +48,7 @@
   };
 
   const TRACK_ORDER = [
-    "tarama", "envanter", "kurumsal_bellek", "proje_basvuru",
+    "tarama", "tarama_is_bankasi", "envanter", "kurumsal_bellek", "proje_basvuru",
     "osmanlica", "egitim", "koordinasyon", "ars_web",
     "kodlama_kontrol", "diger",
   ];
@@ -131,7 +132,16 @@
   function normalizeTrackKey(track) {
     const key = String((track && track.key) || "diger");
     const label = asciiFold((track && track.label) || "");
-    if (key === "egitim" && label.indexOf("is bankasi") >= 0) return "tarama";
+    if ((key === "egitim" || key === "tarama") && label.indexOf("is bankasi") >= 0) return "tarama_is_bankasi";
+    return key;
+  }
+
+  function normalizeVolunteerTrackKey(track, volunteer) {
+    const key = String(track || "diger");
+    const logText = (Array.isArray(volunteer?.log) ? volunteer.log : [])
+      .map((entry) => [entry.calisma, entry.devam, entry.notes].filter(Boolean).join(" "))
+      .join(" ");
+    if ((key === "egitim" || key === "tarama") && asciiFold(logText).indexOf("is bankasi") >= 0) return "tarama_is_bankasi";
     return key;
   }
 
@@ -591,7 +601,7 @@
     const groups = useLiveTracks ? liveTracksToGroups(liveTracks, byName) : {};
     if (!useLiveTracks) {
       vols.forEach((v) => {
-        const tk = (v.tracks && v.tracks[0]) || "diger";
+        const tk = normalizeVolunteerTrackKey((v.tracks && v.tracks[0]) || "diger", v);
         (groups[tk] ||= []).push(v);
       });
     }
@@ -638,10 +648,11 @@
   function liveTracksToGroups(liveTracks, byName) {
     const groups = {};
     liveTracks.forEach((track) => {
-      const key = track.key || "diger";
+      const key = normalizeTrackKey(track);
       const contributors = Array.isArray(track.contributors) ? track.contributors : [];
       groups[key] = contributors.map((row) => {
         const name = String(row.label || "").trim();
+        if (isSuppressedCreditKey(canonicalNameKey(name))) return null;
         const rosterVol = byName[canonicalNameKey(name)];
         return {
           name,
@@ -649,7 +660,7 @@
           tracks: [key],
           sessions: Number(row.records || row.pageRows || row.activityRows || 0)
         };
-      }).filter((v) => v.name);
+      }).filter((v) => v && v.name);
     });
     return groups;
   }
@@ -659,6 +670,7 @@
     liveTracks.forEach((track) => {
       (track.contributors || []).forEach((row) => {
         const key = canonicalNameKey(row.label);
+        if (isSuppressedCreditKey(key)) return;
         if (key) names.add(key);
       });
     });
@@ -725,6 +737,7 @@
     }
     const tracks = (v.tracks || [])
       .slice(0, 2)
+      .map((track) => normalizeVolunteerTrackKey(track, v))
       .map((track) => (TRACK_META[track] && TRACK_META[track].label) || TRACK_META.diger.label);
     if (tracks.length) return tracks.join(" · ");
     return [v.city, v.role].filter(Boolean).join(" · ");

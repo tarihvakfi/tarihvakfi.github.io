@@ -92,7 +92,6 @@
     if (!payload || !payload.publicSummary) return payload;
     const summary = payload.publicSummary;
     const source = summary.source || {};
-    if (source.volunteerCreditBasis === 'row_explicit_only') return payload;
 
     const rules = legacyFalseCreditRules();
     if (!rules.length) return payload;
@@ -106,17 +105,24 @@
       const out = Object.assign({}, day);
       out.contributors = removeFalseCreditRows(day.contributors, dateISO, rules, removedByName);
       out.coordination = removeFalseCreditRows(day.coordination, dateISO, rules, removedByName);
-      out.volunteerNames = (Array.isArray(day.volunteerNames) ? day.volunteerNames : [])
-        .filter((label) => !matchesAnyFalseCreditRule(label, dateISO, rules));
+      out.volunteerNames = (out.contributors || [])
+        .filter((item) => isPublicLabel(item.label) && !item.publicRole)
+        .map((item) => item.label);
       out.volunteersCount = (out.contributors || []).length + (out.coordination || []).length;
       return out;
     });
+    cleanSummary.highlights = sanitizeHighlights(cleanSummary.highlights, cleanSummary.byDay);
 
     cleanSummary.byVolunteer = subtractFalseCreditRows(cleanSummary.byVolunteer, removedByName);
     cleanSummary.byTrack = subtractFalseCreditRowsFromTracks(cleanSummary.byTrack, removedByName);
     cleanSummary.byBox = subtractFalseCreditRowsFromBoxes(cleanSummary.byBox, removedByName);
     cloned.latestActivity = (Array.isArray(cloned.latestActivity) ? cloned.latestActivity : [])
       .filter((row) => !matchesLatestFalseCredit(row, rules));
+    const trackSummaryChanged = sanitizeTrackSummary(cloned);
+    const contentChanged = sanitizePublicContent(cloned);
+    const removedCredit = hasRemovedCredit(removedByName);
+
+    if (!removedCredit && !trackSummaryChanged && !contentChanged) return payload;
 
     const volunteers = Array.isArray(cleanSummary.byVolunteer)
       ? cleanSummary.byVolunteer.filter((row) => isPublicLabel(row.label))
@@ -126,20 +132,20 @@
       volunteers: volunteers.length
     });
     cleanSummary.source = Object.assign({}, source, {
-      volunteerCreditBasis: 'client_filtered_legacy_sheet_title_credit'
+      volunteerCreditBasis: removedCredit
+        ? 'client_filtered_legacy_sheet_title_credit'
+        : (source.volunteerCreditBasis || 'client_normalized_public_payload')
     });
-    cleanSummary.warnings = (Array.isArray(cleanSummary.warnings) ? cleanSummary.warnings : []).concat([{
+    cleanSummary.warnings = (Array.isArray(cleanSummary.warnings) ? cleanSummary.warnings : []).concat(removedCredit ? [{
       code: 'legacy_sheet_title_credit_filtered',
       message: 'Eski canlı endpointte PNB detay sekmesi adından türeyen kişi kredileri tarayıcıda görünür listelerden çıkarıldı.'
-    }]);
+    }] : []);
     return cloned;
   }
 
   function legacyFalseCreditRules() {
     return [{
       key: foldName('Betül İşeri'),
-      startDate: '2026-06-23',
-      endDate: '2026-06-29',
       boxes: ['kutu 31']
     }];
   }
@@ -201,22 +207,18 @@
     const dateISO = U.toISODate(row && (row.dateISO || row.when));
     const rule = matchingFalseCreditRule(row && row.volunteerLabel, dateISO, rules);
     if (!rule) return false;
-    const box = foldName(row && row.boxLabel);
     return (row.recordType === 'page_detail' || row.kind === 'page')
-      && (!rule.boxes.length || rule.boxes.indexOf(box) >= 0);
-  }
-
-  function matchesAnyFalseCreditRule(label, dateISO, rules) {
-    return Boolean(matchingFalseCreditRule(label, dateISO, rules));
+      && boxMatchesRule(row && row.boxLabel, rule);
   }
 
   function matchingFalseCreditRule(label, dateISO, rules) {
     const key = foldName(label);
-    if (!key || !dateISO) return null;
+    if (!key) return null;
     return rules.find((rule) => {
-      return key === rule.key
-        && dateISO >= rule.startDate
-        && dateISO <= rule.endDate;
+      if (key !== rule.key) return false;
+      if (rule.startDate && dateISO && dateISO < rule.startDate) return false;
+      if (rule.endDate && dateISO && dateISO > rule.endDate) return false;
+      return true;
     }) || null;
   }
 
@@ -226,10 +228,103 @@
     const workRows = Array.isArray(row.workRows) ? row.workRows : [];
     if (!workRows.length) return true;
     return workRows.every((work) => {
-      const box = foldName(work.boxLabel);
       return (work.kind === 'page' || !work.kind)
-        && (!rule.boxes.length || rule.boxes.indexOf(box) >= 0);
+        && boxMatchesRule(work.boxLabel, rule);
     });
+  }
+
+  function boxMatchesRule(boxLabel, rule) {
+    if (!rule || !rule.boxes || !rule.boxes.length) return true;
+    const box = foldName(boxLabel);
+    const compact = box.replace(/^kutu\s+/, '').trim();
+    return rule.boxes.some((candidate) => {
+      const clean = foldName(candidate);
+      return box === clean || compact === clean || box === `kutu ${clean}`;
+    });
+  }
+
+  function hasRemovedCredit(removedByName) {
+    return Object.values(removedByName || {}).some((row) => {
+      return Number(row.records || 0) > 0
+        || Number(row.pageRows || 0) > 0
+        || Number(row.activityRows || 0) > 0
+        || Number(row.pagesDone || 0) > 0;
+    });
+  }
+
+  function sanitizeTrackSummary(payload) {
+    const trackSummary = payload && payload.trackSummary;
+    if (!trackSummary || typeof trackSummary !== 'object') return false;
+    let changed = false;
+    const out = Object.assign({}, trackSummary);
+    out.people = (Array.isArray(trackSummary.people) ? trackSummary.people : []).filter((name) => {
+      const keep = !isSuppressedCreditKey(foldName(name));
+      if (!keep) changed = true;
+      return keep;
+    });
+    out.peopleCount = out.people.length;
+    out.tracks = (Array.isArray(trackSummary.tracks) ? trackSummary.tracks : []).map((track) => {
+      const row = Object.assign({}, track);
+      const normalized = normalizeLegacyTrackKey(row);
+      if (normalized.key !== row.key || normalized.label !== row.label) changed = true;
+      row.key = normalized.key;
+      row.label = normalized.label;
+      row.people = (Array.isArray(track.people) ? track.people : []).filter((name) => {
+        const keep = !isSuppressedCreditKey(foldName(name));
+        if (!keep) changed = true;
+        return keep;
+      });
+      row.peopleCount = row.people.length;
+      return row;
+    }).filter((track) => Number(track.sessions || track.records || 0) > 0 || (track.people && track.people.length));
+    payload.trackSummary = out;
+    return changed;
+  }
+
+  function sanitizeHighlights(highlights, days) {
+    if (!highlights || typeof highlights !== 'object') return highlights;
+    const out = Object.assign({}, highlights);
+    if (out.busiestDay && out.busiestDay.dateISO) {
+      const cleanDay = (Array.isArray(days) ? days : []).find((day) => day.dateISO === out.busiestDay.dateISO);
+      if (cleanDay) out.busiestDay = cleanDay;
+    }
+    return out;
+  }
+
+  function sanitizePublicContent(payload) {
+    const content = payload && payload.content;
+    if (!content || typeof content !== 'object') return false;
+    let changed = false;
+    if (Array.isArray(content.volunteerProfiles)) {
+      const rows = content.volunteerProfiles.filter((profile) => {
+        const keep = !isSuppressedCreditKey(foldName(profile && (profile.name || profile.label)));
+        if (!keep) changed = true;
+        return keep;
+      });
+      content.volunteerProfiles = rows;
+    }
+    if (Array.isArray(content.volunteerLogs)) {
+      const rows = content.volunteerLogs.filter((log) => {
+        const keep = !isSuppressedCreditKey(foldName(log && (log.label || log.name)));
+        if (!keep) changed = true;
+        return keep;
+      });
+      content.volunteerLogs = rows;
+    }
+    return changed;
+  }
+
+  function normalizeLegacyTrackKey(track) {
+    const key = String((track && track.key) || 'diger');
+    const label = foldName((track && track.label) || '');
+    if ((key === 'egitim' || key === 'tarama') && label.indexOf('is bankasi') >= 0) {
+      return { key: 'tarama_is_bankasi', label: 'Tarama (İş Bankası Müzesi)' };
+    }
+    return { key, label: (track && track.label) || key };
+  }
+
+  function isSuppressedCreditKey(key) {
+    return key === foldName('Betül İşeri');
   }
 
   function isPublicLabel(label) {

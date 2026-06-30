@@ -37,6 +37,7 @@ PUBLIC_ROLE_BY_NAME = {
 }
 TRACK_ORDER = [
     "tarama",
+    "tarama_is_bankasi",
     "envanter",
     "kurumsal_bellek",
     "proje_basvuru",
@@ -49,6 +50,7 @@ TRACK_ORDER = [
 ]
 TRACK_LABELS = {
     "tarama": "Tarama (belge & kartpostal)",
+    "tarama_is_bankasi": "Tarama (İş Bankası Müzesi)",
     "envanter": "Envanter (afiş, görsel-işitsel)",
     "kurumsal_bellek": "Kurum belleği (Karar Def., G.K.)",
     "proje_basvuru": "Proje çalışmaları",
@@ -503,7 +505,9 @@ def track_key_from_text(value: str) -> str:
     haystack = ascii_fold(value).lower()
     if re.search(r"\b(web|site|teknik|it)\b", haystack) or "arsiv web" in haystack or "arsiv-web" in haystack:
         return "ars_web"
-    if "is bankasi" in haystack or ("tarama" in haystack and "egitim" in haystack):
+    if "is bankasi" in haystack:
+        return "tarama_is_bankasi"
+    if "tarama" in haystack and "egitim" in haystack:
         return "tarama"
     if "egitim" in haystack or "muze" in haystack:
         return "egitim"
@@ -827,10 +831,17 @@ def collect_records(rows_by_sheet: dict[str, list[dict[str, Any]]], boxes: dict[
             for row, page_units in zip(rows, units):
                 enriched = dict(row)
                 label, status = get_volunteer_display_name(enriched)
-                role = get_public_role(enriched, label)
-                key = private_contributor_key(label, enriched)
                 box = public_box_label(row.get("kutu") or row.get("kutu_no"))
                 when = parse_sheet_datetime(row.get("tarih"))
+                work_title = public_work_title(row)
+                work_detail = public_work_detail(row)
+                if is_suppressed_legacy_credit(label, "page", box):
+                    label = UNNAMED
+                    status = "suppressed_legacy_sheet_title_credit"
+                    role = ""
+                else:
+                    role = get_public_role(enriched, label)
+                key = private_contributor_key(label, enriched)
                 rec = SourceRecord(
                     kind="page",
                     source_type="page_detail",
@@ -844,8 +855,8 @@ def collect_records(rows_by_sheet: dict[str, list[dict[str, Any]]], boxes: dict[
                     credit_status=status,
                     box=box,
                     page_units=max(1, page_units),
-                    work_title=public_work_title(row),
-                    work_detail=public_work_detail(row),
+                    work_title=work_title,
+                    work_detail=work_detail,
                 )
                 records.append(rec)
                 box_key = normalize_box(box)
@@ -880,6 +891,11 @@ def collect_records(rows_by_sheet: dict[str, list[dict[str, Any]]], boxes: dict[
                     work_detail=public_work_detail(row),
                 ))
     return records
+
+
+def is_suppressed_legacy_credit(label: str, kind: str, box: Any) -> bool:
+    key = ascii_fold(normalize_volunteer_name(label)).lower().strip()
+    return key == "betul iseri" and kind == "page" and normalize_box(box) == "31"
 
 
 def selected_period(now_date: date, mode: str) -> dict[str, Any]:
@@ -1298,14 +1314,126 @@ def latest_activity(records: list[SourceRecord], limit: int = 50, max_date: date
     return items
 
 
+def build_public_volunteer_logs(records: list[SourceRecord]) -> list[dict[str, Any]]:
+    groups: dict[str, dict[str, Any]] = {}
+    for rec in records:
+        if not rec.date or not is_public_named_label(rec.public_label):
+            continue
+        for person in public_people_from_label(rec.public_label):
+            key = person["key"]
+            group = groups.setdefault(key, {
+                "label": person["label"],
+                "slug": slugify(person["label"]).replace("_", "-") or "gonullu",
+                "publicRole": "",
+                "records": 0,
+                "pageRows": 0,
+                "activityRows": 0,
+                "pagesDone": 0,
+                "boxes": set(),
+                "tracks": {},
+                "entries": {},
+            })
+            group["label"] = preferred_label([group["label"], person["label"]])
+            if not group["publicRole"] and rec.public_role:
+                group["publicRole"] = rec.public_role
+            group["records"] += 1
+            if rec.kind == "page":
+                group["pageRows"] += 1
+                group["pagesDone"] += rec.page_units or 1
+            else:
+                group["activityRows"] += 1
+
+            track_key = track_key_for_record(rec)
+            track = group["tracks"].setdefault(track_key, {
+                "key": track_key,
+                "label": TRACK_LABELS.get(track_key, TRACK_LABELS["diger"]),
+                "records": 0,
+                "pageRows": 0,
+                "activityRows": 0,
+                "pagesDone": 0,
+            })
+            track["records"] += 1
+            if rec.kind == "page":
+                track["pageRows"] += 1
+                track["pagesDone"] += rec.page_units or 1
+            else:
+                track["activityRows"] += 1
+
+            box_label = f"Kutu {rec.box}" if rec.box else ""
+            if box_label:
+                group["boxes"].add(box_label)
+            entry_key = "|".join([
+                rec.date.isoformat(),
+                rec.kind,
+                track_key,
+                rec.material or "",
+                box_label,
+                rec.work_title or "",
+                rec.work_detail or "",
+            ])
+            entry = group["entries"].setdefault(entry_key, {
+                "dateISO": rec.date.isoformat(),
+                "kind": rec.kind,
+                "track": track_key,
+                "trackLabel": TRACK_LABELS.get(track_key, TRACK_LABELS["diger"]),
+                "material": rec.material,
+                "boxLabel": box_label,
+                "workTitle": rec.work_title,
+                "workDetail": rec.work_detail,
+                "records": 0,
+                "pageRows": 0,
+                "activityRows": 0,
+                "pagesDone": 0,
+            })
+            entry["records"] += 1
+            if rec.kind == "page":
+                entry["pageRows"] += 1
+                entry["pagesDone"] += rec.page_units or 1
+            else:
+                entry["activityRows"] += 1
+
+    def track_order(row: dict[str, Any]) -> tuple[int, int, str]:
+        return (-int(row.get("records") or 0), TRACK_ORDER.index(row["key"]) if row["key"] in TRACK_ORDER else 999, row.get("label") or "")
+
+    payload = []
+    for group in groups.values():
+        label = preferred_label([group["label"]])
+        tracks = sorted(group["tracks"].values(), key=track_order)
+        entries = sorted(
+            group["entries"].values(),
+            key=lambda row: (
+                row.get("dateISO") or "",
+                int(row.get("records") or 0),
+                row.get("trackLabel") or "",
+                row.get("workTitle") or "",
+            ),
+            reverse=True,
+        )
+        payload.append({
+            "label": label,
+            "slug": slugify(label).replace("_", "-") or "gonullu",
+            "publicRole": group["publicRole"] or preferred_role([], label),
+            "records": group["records"],
+            "pageRows": group["pageRows"],
+            "activityRows": group["activityRows"],
+            "pagesDone": group["pagesDone"],
+            "boxes": sorted(group["boxes"]),
+            "tracks": tracks,
+            "entries": entries,
+        })
+    payload.sort(key=lambda row: (-int(row["records"]), row["label"]))
+    return payload
+
+
 def build_payload(summary: dict[str, Any], records: list[SourceRecord]) -> dict[str, Any]:
     totals = summary["totals"]
     max_date = date.fromisoformat(summary["period"]["endDate"])
+    volunteer_logs = build_public_volunteer_logs(records)
     return {
         "generatedAt": summary["generatedAt"],
         "publicSummary": summary,
         "latestActivity": latest_activity(records, 50, max_date),
-        "content": {},
+        "content": {"volunteerLogs": volunteer_logs} if volunteer_logs else {},
         "stats": {
             "projects": {
                 PROJECT_ID: {
@@ -1419,6 +1547,7 @@ def write_json_output(path: Path, sheet_info: list[dict[str, Any]], summaries: d
         "summaries": summaries,
         "publicSummary": selected_payload["publicSummary"],
         "latestActivity": selected_payload["latestActivity"],
+        "content": selected_payload.get("content") or {},
     }
     path.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
 

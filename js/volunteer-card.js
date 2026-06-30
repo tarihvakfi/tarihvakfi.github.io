@@ -14,6 +14,7 @@
 
   const TRACK_META = {
     tarama:          { label: "Tarama",                  color: "#601040" },
+    tarama_is_bankasi: { label: "Tarama (İş Bankası Müzesi)", color: "#7a174d" },
     envanter:        { label: "Envanter",                color: "#8a2a62" },
     kurumsal_bellek: { label: "Kurum belleği",           color: "#3b6d11" },
     osmanlica:       { label: "Osmanlıca çeviri",        color: "#BA7517" },
@@ -37,6 +38,10 @@
     "betul iseri": "Betül İşeri",
     "neslihan erkan": "Neslihan Erkan",
   };
+
+  const SUPPRESSED_LEGACY_CREDIT_KEYS = new Set([
+    "betul iseri",
+  ]);
 
   const SOCIAL_ICONS = {
     website:  { label: "Web sitesi",  prefix: "" },
@@ -83,19 +88,32 @@
     const key = foldName(value);
     return NAME_ALIASES[key] || key;
   }
+  function isSuppressedCreditKey(key) {
+    return SUPPRESSED_LEGACY_CREDIT_KEYS.has(key);
+  }
+  function isSuppressedName(value) {
+    return isSuppressedCreditKey(canonicalNameKey(String(value || "").replace(/-/g, " ")));
+  }
   function canonicalDisplayName(key, fallback) {
     return CANONICAL_DISPLAY_NAMES[key] || fallback;
   }
+  function formatBoxLabel(box) {
+    const text = String(box || "").trim();
+    if (!text) return "";
+    return /^kutu\b/i.test(text) ? text : `Kutu ${text}`;
+  }
 
   function findVolBySlug(slug) {
+    if (isSuppressedName(slug)) return null;
     const data = window.TVF_ROSTER;
     const slugName = String(slug || "").replace(/-/g, " ");
     const rosterVol = data && Array.isArray(data.volunteers)
-      ? (data.volunteers || []).find((v) => (
-          v.slug === slug
-          || slugifyName(v.name) === slug
-          || canonicalNameKey(v.name) === canonicalNameKey(slugName)
-        ))
+      ? (data.volunteers || []).find((v) => {
+          if (isSuppressedName(v && v.name)) return false;
+          return v.slug === slug
+            || slugifyName(v.name) === slug
+            || canonicalNameKey(v.name) === canonicalNameKey(slugName);
+        })
       : null;
     const liveVol = synthesizeLiveVolunteer(slug);
     if (!rosterVol) return liveVol;
@@ -121,70 +139,268 @@
   }
 
   function synthesizeLiveVolunteer(slugOrName) {
+    if (isSuppressedName(slugOrName)) return null;
     const payload = window.TVF_PUBLIC_DATA || {};
     const summary = payload.publicSummary || {};
     const rows = Array.isArray(summary.byVolunteer) ? summary.byVolunteer : [];
     const folded = foldName(String(slugOrName || "").replace(/-/g, " "));
+    const volunteerLog = findVolunteerLog(slugOrName, payload);
     const row = rows.find((item) => {
       const label = String(item.label || "");
+      if (isSuppressedName(label)) return false;
       return slugifyName(label) === slugOrName || canonicalNameKey(label) === (NAME_ALIASES[folded] || folded);
     });
-    if (!row) return null;
-    const labelKey = canonicalNameKey(row.label);
-    const label = canonicalDisplayName(labelKey, String(row.label || "").trim());
-    const trackKeys = [];
-    (summary.byTrack || []).forEach((track) => {
-      const contributors = Array.isArray(track.contributors) ? track.contributors : [];
-      if (contributors.some((item) => canonicalNameKey(item.label) === canonicalNameKey(label))) trackKeys.push(track.key || "diger");
-    });
-    const latest = (payload.latestActivity || [])
-      .filter((entry) => canonicalNameKey(entry.volunteerLabel) === canonicalNameKey(label))
-      .slice(0, 12);
-    const log = latest.map((entry) => ({
-      date: entry.dateISO || String(entry.when || "").slice(0, 10),
-      track: trackKeyForLiveEntry(entry, summary),
-      calisma: entry.workTitle || (entry.kind === "activity" ? "Faaliyet kaydı" : "Sayfa/detay satırı"),
-      devam: entry.workDetail || entry.boxLabel || "",
-      notes: "",
-      scanner: "",
-      computer: ""
-    }));
-    const boxes = (row.boxes || []).map((box) => String(box || "").replace(/^Kutu\s+/i, "")).filter(Boolean);
+    if (!row && !volunteerLog) return null;
+    const sourceLabel = (volunteerLog && (volunteerLog.label || volunteerLog.name)) || (row && row.label) || slugOrName;
+    const labelKey = canonicalNameKey(sourceLabel);
+    if (isSuppressedCreditKey(labelKey)) return null;
+    const label = canonicalDisplayName(labelKey, String(sourceLabel || "").trim());
+    const log = buildLiveVolunteerLog(label, summary, payload, volunteerLog);
+    const trackKeys = liveTrackKeys(label, summary, volunteerLog, log);
+    const boxes = liveBoxes(row, volunteerLog, log);
     const byMonth = {};
-    latest.forEach((entry) => {
-      const iso = entry.dateISO || String(entry.when || "").slice(0, 10);
+    log.forEach((entry) => {
+      const iso = entry.date;
       const month = iso && iso.slice(0, 7);
       if (month) byMonth[month] = (byMonth[month] || 0) + 1;
     });
+    const sessions = Number((volunteerLog && volunteerLog.records) || (row && row.records) || log.reduce((sum, item) => sum + Number(item.records || 1), 0));
     return {
       name: label,
       slug: slugifyName(label),
       city: "",
-      role: row.publicRole || "",
-      tv_role: row.publicRole || "Gönüllü",
+      role: (row && row.publicRole) || (volunteerLog && volunteerLog.publicRole) || "",
+      tv_role: (row && row.publicRole) || (volunteerLog && volunteerLog.publicRole) || "Gönüllü",
       uni: "",
       dept: "",
       topics: [],
       slots: [],
-      sessions: Number(row.records || 0),
+      sessions,
       tracks: trackKeys.length ? trackKeys : ["diger"],
       byMonth,
       scanners: [],
       boxes,
       firstSeen: null,
-      lastSeen: latest[0] ? latest[0].dateISO : null,
+      lastSeen: log[0] ? log[0].date : null,
       active: true,
       log,
       bio: {}
     };
   }
 
+  function findVolunteerLog(slugOrName, payload) {
+    const logs = payload
+      && payload.content
+      && Array.isArray(payload.content.volunteerLogs)
+      ? payload.content.volunteerLogs
+      : [];
+    const slug = String(slugOrName || "");
+    const folded = canonicalNameKey(slug.replace(/-/g, " "));
+    return logs.find((item) => {
+      const label = String((item && (item.label || item.name)) || "");
+      if (!label || isSuppressedName(label)) return false;
+      return item.slug === slug
+        || slugifyName(label) === slug
+        || canonicalNameKey(label) === folded;
+    }) || null;
+  }
+
+  function liveTrackKeys(label, summary, volunteerLog, log) {
+    const keys = [];
+    (Array.isArray(volunteerLog && volunteerLog.tracks) ? volunteerLog.tracks : []).forEach((track) => {
+      const key = normalizeTrackKey(track && track.key, track && track.label);
+      if (key && keys.indexOf(key) < 0) keys.push(key);
+    });
+    (summary.byTrack || []).forEach((track) => {
+      const contributors = Array.isArray(track.contributors) ? track.contributors : [];
+      if (contributors.some((item) => canonicalNameKey(item.label) === canonicalNameKey(label))) {
+        const key = normalizeTrackKey(track.key || "diger", track.label || "");
+        if (keys.indexOf(key) < 0) keys.push(key);
+      }
+    });
+    (log || []).forEach((entry) => {
+      const key = normalizeTrackKey(entry.track, entry.calisma + " " + entry.devam);
+      if (key && keys.indexOf(key) < 0) keys.push(key);
+    });
+    return keys;
+  }
+
+  function liveBoxes(row, volunteerLog, log) {
+    const boxes = [];
+    function add(box) {
+      const label = formatBoxLabel(box);
+      if (label && boxes.indexOf(label) < 0) boxes.push(label);
+    }
+    (row && Array.isArray(row.boxes) ? row.boxes : []).forEach(add);
+    (volunteerLog && Array.isArray(volunteerLog.boxes) ? volunteerLog.boxes : []).forEach(add);
+    (log || []).forEach((entry) => add(entry.boxLabel));
+    return boxes;
+  }
+
+  function buildLiveVolunteerLog(label, summary, payload, volunteerLog) {
+    if (volunteerLog && Array.isArray(volunteerLog.entries) && volunteerLog.entries.length) {
+      return dedupeLogRows(volunteerLog.entries.map((entry) => logRowFromContentEntry(entry)));
+    }
+    const rows = [];
+    (Array.isArray(summary.byDay) ? summary.byDay : []).forEach((day) => {
+      const contributors = (Array.isArray(day.contributors) ? day.contributors : [])
+        .concat(Array.isArray(day.coordination) ? day.coordination : []);
+      contributors.forEach((item) => {
+        if (canonicalNameKey(item.label) !== canonicalNameKey(label)) return;
+        const workRows = Array.isArray(item.workRows) ? item.workRows : [];
+        if (workRows.length) {
+          workRows.forEach((work) => rows.push(logRowFromWorkRow(day, item, work, summary)));
+        } else {
+          rows.push(logRowFromDayContributor(day, item, summary));
+        }
+      });
+    });
+    (Array.isArray(payload.latestActivity) ? payload.latestActivity : []).forEach((entry) => {
+      if (canonicalNameKey(entry.volunteerLabel) !== canonicalNameKey(label)) return;
+      rows.push(logRowFromLatest(entry, summary));
+    });
+    return dedupeLogRows(rows);
+  }
+
+  function logRowFromContentEntry(entry) {
+    const track = normalizeTrackKey(entry.track || "diger", [entry.trackLabel, entry.workTitle, entry.workDetail].join(" "));
+    return {
+      date: entry.dateISO || "",
+      track,
+      calisma: entry.workTitle || entry.trackLabel || ((entry.kind === "activity") ? "Faaliyet kaydı" : "Sayfa/detay satırı"),
+      devam: entry.workDetail || entry.boxLabel || measureText(entry),
+      notes: measureText(entry),
+      scanner: "",
+      computer: "",
+      records: Number(entry.records || 0),
+      pageRows: Number(entry.pageRows || 0),
+      activityRows: Number(entry.activityRows || 0),
+      pagesDone: Number(entry.pagesDone || 0),
+      boxLabel: entry.boxLabel || ""
+    };
+  }
+
+  function logRowFromWorkRow(day, contributor, work, summary) {
+    return {
+      date: day.dateISO || work.dateISO || "",
+      track: trackKeyForWork(work, contributor, summary),
+      calisma: work.workTitle || ((work.kind === "activity") ? "Faaliyet kaydı" : "Sayfa/detay satırı"),
+      devam: work.workDetail || work.boxLabel || measureText(work),
+      notes: measureText(work),
+      scanner: "",
+      computer: "",
+      records: Number(work.records || contributor.records || 0),
+      pageRows: Number(work.pageRows || 0),
+      activityRows: Number(work.activityRows || 0),
+      pagesDone: Number(work.pagesDone || 0),
+      boxLabel: work.boxLabel || ""
+    };
+  }
+
+  function logRowFromDayContributor(day, contributor, summary) {
+    const track = trackKeyForContributor(contributor, summary);
+    return {
+      date: day.dateISO || "",
+      track,
+      calisma: TRACK_META[track]?.label || "Çalışma kaydı",
+      devam: [measureText(contributor), (day.boxLabels || []).join(", ")].filter(Boolean).join(" · "),
+      notes: "",
+      scanner: "",
+      computer: "",
+      records: Number(contributor.records || 0),
+      pageRows: Number(contributor.pageRows || 0),
+      activityRows: Number(contributor.activityRows || 0),
+      pagesDone: Number(contributor.pagesDone || 0),
+      boxLabel: (day.boxLabels && day.boxLabels[0]) || ""
+    };
+  }
+
+  function logRowFromLatest(entry, summary) {
+    const track = trackKeyForLiveEntry(entry, summary);
+    return {
+      date: entry.dateISO || String(entry.when || "").slice(0, 10),
+      track,
+      calisma: entry.workTitle || (entry.kind === "activity" ? "Faaliyet kaydı" : "Sayfa/detay satırı"),
+      devam: entry.workDetail || entry.boxLabel || measureText(entry),
+      notes: measureText(entry),
+      scanner: "",
+      computer: "",
+      records: Number(entry.records || 1),
+      pageRows: entry.kind === "page" ? Number(entry.records || 1) : 0,
+      activityRows: entry.kind === "activity" ? Number(entry.records || 1) : 0,
+      pagesDone: Number(entry.pagesDone || 0),
+      boxLabel: entry.boxLabel || ""
+    };
+  }
+
+  function dedupeLogRows(rows) {
+    const seen = {};
+    return (rows || []).filter((row) => row && row.date).filter((row) => {
+      const key = [
+        row.date,
+        row.track,
+        row.calisma,
+        row.devam,
+        row.records,
+        row.pageRows,
+        row.activityRows,
+        row.pagesDone,
+        row.boxLabel
+      ].join("|");
+      if (seen[key]) return false;
+      seen[key] = true;
+      return true;
+    }).sort((a, b) => {
+      return String(b.date || "").localeCompare(String(a.date || ""))
+        || Number(b.records || 0) - Number(a.records || 0)
+        || String(a.calisma || "").localeCompare(String(b.calisma || ""), "tr");
+    });
+  }
+
+  function measureText(row) {
+    const bits = [];
+    if (Number(row.pagesDone || 0)) bits.push(`${fmt(row.pagesDone)} sayfa/detay`);
+    else if (Number(row.pageRows || 0)) bits.push(`${fmt(row.pageRows)} sayfa/detay`);
+    if (Number(row.activityRows || 0)) bits.push(`${fmt(row.activityRows)} faaliyet`);
+    if (!bits.length && Number(row.records || 0)) bits.push(`${fmt(row.records)} kayıt`);
+    return bits.join(" · ");
+  }
+
+  function normalizeTrackKey(key, haystack) {
+    const raw = String(key || "diger");
+    const text = foldName(haystack || "");
+    if ((raw === "egitim" || raw === "tarama") && text.indexOf("is bankasi") >= 0) return "tarama_is_bankasi";
+    return TRACK_META[raw] ? raw : "diger";
+  }
+
+  function trackKeyForWork(work, contributor, summary) {
+    const text = [work.workTitle, work.workDetail, work.boxLabel].filter(Boolean).join(" ");
+    if (foldName(text).indexOf("is bankasi") >= 0) return "tarama_is_bankasi";
+    if (work.kind === "page" || Number(work.pageRows || work.pagesDone || 0) > 0) return "tarama";
+    return trackKeyForContributor(contributor, summary);
+  }
+
+  function trackKeyForContributor(contributor, summary) {
+    const label = canonicalNameKey(contributor && contributor.label);
+    const candidates = Array.isArray(summary.byTrack) ? summary.byTrack : [];
+    for (const track of candidates) {
+      const contributors = Array.isArray(track.contributors) ? track.contributors : [];
+      if (contributors.some((item) => canonicalNameKey(item.label) === label)) {
+        return normalizeTrackKey(track.key || "diger", track.label || "");
+      }
+    }
+    if (Number(contributor && (contributor.pageRows || contributor.pagesDone || 0)) > 0) return "tarama";
+    return "diger";
+  }
+
   function trackKeyForLiveEntry(entry, summary) {
+    const text = [entry.workTitle, entry.workDetail, entry.boxLabel, entry.material].filter(Boolean).join(" ");
+    if (foldName(text).indexOf("is bankasi") >= 0) return "tarama_is_bankasi";
     const label = canonicalNameKey(entry.volunteerLabel);
     const candidates = Array.isArray(summary.byTrack) ? summary.byTrack : [];
     for (const track of candidates) {
       const contributors = Array.isArray(track.contributors) ? track.contributors : [];
-      if (contributors.some((item) => canonicalNameKey(item.label) === label)) return track.key || "diger";
+      if (contributors.some((item) => canonicalNameKey(item.label) === label)) return normalizeTrackKey(track.key || "diger", track.label || "");
     }
     if (entry.kind === "page") return "tarama";
     return "diger";
@@ -245,9 +461,17 @@
     if (Array.isArray(v.tracks) && v.tracks.length) {
       // Group log by track to count sessions per track
       const counts = {};
-      (v.log || []).forEach((s) => { counts[s.track] = (counts[s.track] || 0) + 1; });
+      (v.log || []).forEach((s) => {
+        const key = normalizeTrackKey(s.track, [s.calisma, s.devam, s.notes].filter(Boolean).join(" "));
+        counts[key] = (counts[key] || 0) + 1;
+      });
       // Backfill tracks that exist in v.tracks but not in counts (rare)
-      v.tracks.forEach((t) => { if (!(t in counts)) counts[t] = 0; });
+      if (!Object.keys(counts).length) {
+        v.tracks.forEach((t) => {
+          const key = normalizeTrackKey(t, "");
+          if (!(key in counts)) counts[key] = 0;
+        });
+      }
       const rows = Object.entries(counts)
         .sort((a, b) => b[1] - a[1])
         .map(([t, n]) => {
@@ -294,13 +518,15 @@
     // Recent activity log
     let logHtml = "";
     if (Array.isArray(v.log) && v.log.length) {
-      const rows = v.log.slice(0, 12).map((s) => {
-        const trMeta = TRACK_META[s.track] || TRACK_META.diger;
+      const rows = v.log.map((s) => {
+        const trackKey = normalizeTrackKey(s.track, [s.calisma, s.devam, s.notes].filter(Boolean).join(" "));
+        const trMeta = TRACK_META[trackKey] || TRACK_META.diger;
         const what = s.devam || s.calisma || trMeta.label;
         const extras = [
+          measureText(s),
           s.scanner ? `tarayıcı: ${s.scanner}` : "",
           s.notes && s.notes.length < 140 ? s.notes : "",
-        ].filter(Boolean);
+        ].filter((item, idx, arr) => item && arr.indexOf(item) === idx);
         return `<div class="log-row">
           <p class="when">${esc(fmtDate(s.date))} · ${esc(trMeta.label)}</p>
           <p class="what">${esc(what)}</p>
@@ -309,7 +535,7 @@
       }).join("");
       logHtml = `
         <div class="dr-block">
-          <p class="dr-block-head">Son etkinlikler ${v.log.length > 12 ? `(son 12)` : ""}</p>
+          <p class="dr-block-head">Tüm faaliyetler</p>
           <div class="dr-log">${rows}</div>
         </div>`;
     } else if (v.active === false) {
@@ -350,7 +576,7 @@
     let extrasHtml = "";
     const fpParts = [];
     if (v.boxes && v.boxes.length) {
-      fpParts.push(`Kutular: ${v.boxes.map((b) => `Kutu ${esc(b)}`).join(", ")}`);
+      fpParts.push(`Kutular: ${v.boxes.map((b) => esc(formatBoxLabel(b))).join(", ")}`);
     }
     if (v.scanners && v.scanners.length) {
       fpParts.push(`Tarayıcılar: ${v.scanners.map(esc).join(", ")}`);
@@ -443,9 +669,13 @@
 
   // --- click delegation ------------------------------------------------
   function nameFromElement(el) {
-    // Find the data-slug on the closest .badge or .row
-    const node = el.closest("[data-slug]");
-    return node ? node.dataset.slug : null;
+    if (!el || !el.closest) return null;
+    if (el.closest(".copy-link, .dr-close")) return null;
+    const node = el.closest("[data-slug], [data-volunteer-label]");
+    if (!node || !node.dataset) return null;
+    if (node.dataset.slug) return node.dataset.slug;
+    if (node.dataset.volunteerLabel) return slugifyName(node.dataset.volunteerLabel);
+    return null;
   }
 
   function bindClickDelegation() {
@@ -479,6 +709,9 @@
     bindClickDelegation();
     handleHash();
     window.addEventListener("hashchange", handleHash);
+    document.addEventListener("tvf:data", () => {
+      if (location.hash && location.hash.startsWith("#g/") && (!drawer || !drawer.classList.contains("open"))) handleHash();
+    });
   }
 
   window.TVF = window.TVF || {};

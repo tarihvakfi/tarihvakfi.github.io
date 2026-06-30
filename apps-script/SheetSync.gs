@@ -56,6 +56,7 @@ const TVF_PUBLIC_ROLE_BY_NAME = {
 };
 const TVF_TRACK_ORDER = [
   'tarama',
+  'tarama_is_bankasi',
   'envanter',
   'kurumsal_bellek',
   'proje_basvuru',
@@ -68,6 +69,7 @@ const TVF_TRACK_ORDER = [
 ];
 const TVF_TRACK_LABELS = {
   tarama: 'Tarama (belge & kartpostal)',
+  tarama_is_bankasi: 'Tarama (İş Bankası Müzesi)',
   envanter: 'Envanter (afiş, görsel-işitsel)',
   kurumsal_bellek: 'Kurum belleği (Karar Def., G.K.)',
   proje_basvuru: 'Proje çalışmaları',
@@ -100,6 +102,7 @@ function buildPublicDashboardPayload_(mode) {
   const inventoryTotals = computeInventoryTotals_(workbook.rowsBySheet);
   const records = collectPublicRecords_(workbook.rowsBySheet, inventory);
   const volunteerProfiles = readPublicVolunteerProfiles_(workbook.rowsBySheet);
+  const volunteerLogs = buildPublicVolunteerLogs_(records);
   const generatedAt = new Date();
   const summary = buildPublicSummaryFromRows(records, inventory, inventoryTotals, generatedAt, mode || 'rolling_7_days', workbook.pnbProgress);
   const trackSummary = buildTrackSummary_(records, generatedAt);
@@ -108,7 +111,7 @@ function buildPublicDashboardPayload_(mode) {
     publicSummary: summary,
     trackSummary: trackSummary,
     latestActivity: latestActivity_(records, TVF_LATEST_LIMIT, generatedAt),
-    content: volunteerProfiles.length ? { volunteerProfiles: volunteerProfiles } : {},
+    content: publicContent_(volunteerProfiles, volunteerLogs),
     stats: {
       projects: {
         pnb: {
@@ -122,6 +125,13 @@ function buildPublicDashboardPayload_(mode) {
     },
     ticker: []
   };
+}
+
+function publicContent_(volunteerProfiles, volunteerLogs) {
+  const content = {};
+  if (volunteerProfiles && volunteerProfiles.length) content.volunteerProfiles = volunteerProfiles;
+  if (volunteerLogs && volunteerLogs.length) content.volunteerLogs = volunteerLogs;
+  return content;
 }
 
 function buildPublicSummaryFromRows(records, inventory, inventoryTotals, now, mode, pnbProgress) {
@@ -636,13 +646,21 @@ function collectPublicRecords_(rowsBySheet, inventory) {
     if (classification === 'pnb_detail') {
       rows.forEach(function (row) {
         const enriched = copyObject_(row);
-        const label = getVolunteerDisplayName_(enriched);
-        const publicRole = getPublicRole_(enriched, label);
+        let label = getVolunteerDisplayName_(enriched);
         const when = parseSheetDate_(row.tarih);
         const pageUnits = 1;
         const box = publicBoxLabel_(row.kutu || row.kutuNo);
         const workTitle = publicWorkTitle_(row);
         const workDetail = publicWorkDetail_(row);
+        const originalCreditStatus = creditStatus_(enriched);
+        const suppressed = isSuppressedLegacyCredit_(label, {
+          kind: 'page',
+          box: box,
+          workTitle: workTitle,
+          workDetail: workDetail
+        });
+        if (suppressed) label = TVF_UNNAMED;
+        const publicRole = suppressed ? '' : getPublicRole_(enriched, label);
         const rec = {
           kind: 'page',
           sourceType: 'page_detail',
@@ -653,7 +671,7 @@ function collectPublicRecords_(rowsBySheet, inventory) {
           privateKey: contributorKey_(label),
           publicLabel: label,
           publicRole: publicRole,
-          creditStatus: creditStatus_(enriched),
+          creditStatus: suppressed ? 'suppressed_legacy_sheet_title_credit' : originalCreditStatus,
           box: box,
           pageUnits: pageUnits,
           workTitle: workTitle,
@@ -774,6 +792,131 @@ function buildTrackSummary_(records, now) {
   };
 }
 
+function buildPublicVolunteerLogs_(records) {
+  const groups = {};
+  (records || []).forEach(function (record) {
+    if (!record || !record.dateISO || !isPublicNamedLabel_(record.publicLabel)) return;
+    const people = publicPeopleFromLabel_(record.publicLabel);
+    people.forEach(function (person) {
+      const key = person.key;
+      if (!key) return;
+      if (!groups[key]) {
+        groups[key] = {
+          label: person.label,
+          slug: volunteerSlug_(person.label),
+          publicRole: '',
+          records: 0,
+          pageRows: 0,
+          activityRows: 0,
+          pagesDone: 0,
+          boxes: {},
+          tracks: {},
+          entries: {}
+        };
+      }
+      const group = groups[key];
+      group.label = preferredVolunteerLabel_([group.label, person.label]);
+      if (!group.publicRole && record.publicRole) group.publicRole = record.publicRole;
+      group.records += 1;
+      if (record.kind === 'page') {
+        group.pageRows += 1;
+        group.pagesDone += Number(record.pageUnits || 1);
+      } else {
+        group.activityRows += 1;
+      }
+      const trackKey = trackKeyForRecord_(record);
+      if (!group.tracks[trackKey]) {
+        group.tracks[trackKey] = {
+          key: trackKey,
+          label: trackLabel_(trackKey),
+          records: 0,
+          pageRows: 0,
+          activityRows: 0,
+          pagesDone: 0
+        };
+      }
+      const track = group.tracks[trackKey];
+      track.records += 1;
+      if (record.kind === 'page') {
+        track.pageRows += 1;
+        track.pagesDone += Number(record.pageUnits || 1);
+      } else {
+        track.activityRows += 1;
+      }
+      const boxLabel = record.box ? ('Kutu ' + record.box) : '';
+      if (boxLabel) group.boxes[boxLabel] = true;
+      const entryKey = [
+        record.dateISO || '',
+        record.kind || '',
+        trackKey,
+        record.material || '',
+        boxLabel,
+        record.workTitle || '',
+        record.workDetail || ''
+      ].join('|');
+      if (!group.entries[entryKey]) {
+        group.entries[entryKey] = {
+          dateISO: record.dateISO || '',
+          kind: record.kind || '',
+          track: trackKey,
+          trackLabel: trackLabel_(trackKey),
+          material: record.material || '',
+          boxLabel: boxLabel,
+          workTitle: record.workTitle || '',
+          workDetail: record.workDetail || '',
+          records: 0,
+          pageRows: 0,
+          activityRows: 0,
+          pagesDone: 0
+        };
+      }
+      const entry = group.entries[entryKey];
+      entry.records += 1;
+      if (record.kind === 'page') {
+        entry.pageRows += 1;
+        entry.pagesDone += Number(record.pageUnits || 1);
+      } else {
+        entry.activityRows += 1;
+      }
+    });
+  });
+
+  const orderIndex = {};
+  TVF_TRACK_ORDER.forEach(function (key, idx) { orderIndex[key] = idx; });
+  return Object.keys(groups).map(function (key) {
+    const group = groups[key];
+    const label = preferredVolunteerLabel_([group.label]);
+    const tracks = Object.keys(group.tracks).map(function (trackKey) { return group.tracks[trackKey]; })
+      .sort(function (a, b) {
+        return Number(b.records || 0) - Number(a.records || 0)
+          || (orderIndex[a.key] == null ? 999 : orderIndex[a.key]) - (orderIndex[b.key] == null ? 999 : orderIndex[b.key])
+          || a.label.localeCompare(b.label, 'tr');
+      });
+    const entries = Object.keys(group.entries).map(function (entryKey) { return group.entries[entryKey]; })
+      .sort(function (a, b) {
+        return String(b.dateISO || '').localeCompare(String(a.dateISO || ''))
+          || Number(b.records || 0) - Number(a.records || 0)
+          || String(a.trackLabel || '').localeCompare(String(b.trackLabel || ''), 'tr')
+          || String(a.workTitle || '').localeCompare(String(b.workTitle || ''), 'tr');
+      });
+    return {
+      label: label,
+      slug: volunteerSlug_(label),
+      publicRole: group.publicRole || preferredPublicRole_([], label),
+      records: group.records,
+      pageRows: group.pageRows,
+      activityRows: group.activityRows,
+      pagesDone: group.pagesDone,
+      boxes: Object.keys(group.boxes).sort(function (a, b) { return normalizeBox_(a).localeCompare(normalizeBox_(b)); }),
+      tracks: tracks,
+      entries: entries
+    };
+  }).sort(function (a, b) {
+    return Number(b.records || 0) - Number(a.records || 0)
+      || a.label.localeCompare(b.label, 'tr');
+  });
+}
+
 function trackKeyFromActivity_(record) {
   const haystack = asciiFold_([
     record.workTitle,
@@ -786,7 +929,10 @@ function trackKeyFromActivity_(record) {
   if (/\b(web|site|teknik|it)\b/.test(haystack) || haystack.indexOf('arsiv web') >= 0 || haystack.indexOf('arsiv-web') >= 0) {
     return 'ars_web';
   }
-  if (haystack.indexOf('is bankasi') >= 0 || (haystack.indexOf('tarama') >= 0 && haystack.indexOf('egitim') >= 0)) {
+  if (haystack.indexOf('is bankasi') >= 0) {
+    return 'tarama_is_bankasi';
+  }
+  if (haystack.indexOf('tarama') >= 0 && haystack.indexOf('egitim') >= 0) {
     return 'tarama';
   }
   if (haystack.indexOf('egitim') >= 0 || haystack.indexOf('muze') >= 0) {
@@ -823,6 +969,13 @@ function trackKeyForRecord_(record) {
 
 function trackLabel_(key) {
   return TVF_TRACK_LABELS[key] || TVF_TRACK_LABELS.diger;
+}
+
+function isSuppressedLegacyCredit_(label, meta) {
+  const key = contributorKey_(normalizeVolunteerName_(label));
+  if (key !== 'betul iseri') return false;
+  if (!meta || meta.kind !== 'page') return false;
+  return normalizeBox_(meta.box || meta.boxLabel || '') === '31';
 }
 
 function publicPeopleFromLabel_(label) {

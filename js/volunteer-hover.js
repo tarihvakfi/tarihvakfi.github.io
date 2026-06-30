@@ -99,9 +99,15 @@
     'betul iseri': 'Betül İşeri',
     'neslihan erkan': 'Neslihan Erkan'
   };
+  var SUPPRESSED_LEGACY_CREDIT_KEYS = {
+    'betul iseri': true
+  };
   function canonicalNameKey(value) {
     var key = foldName(value);
     return NAME_ALIASES[key] || key;
+  }
+  function isSuppressedCreditKey(key) {
+    return !!SUPPRESSED_LEGACY_CREDIT_KEYS[key];
   }
   function canonicalDisplayName(value) {
     var key = canonicalNameKey(value);
@@ -126,6 +132,7 @@
 
   var TRACK_LABELS = {
     tarama: 'Tarama',
+    tarama_is_bankasi: 'Tarama (İş Bankası Müzesi)',
     envanter: 'Envanter',
     kurumsal_bellek: 'Kurum belleği',
     osmanlica: 'Osmanlıca çeviri',
@@ -141,7 +148,9 @@
     var roster = window.TVF_ROSTER;
     var vols = roster && Array.isArray(roster.volunteers) ? roster.volunteers : [];
     var folded = canonicalNameKey(String(labelOrSlug || '').replace(/-/g, ' '));
+    if (isSuppressedCreditKey(folded)) return null;
     for (var i = 0; i < vols.length; i++) {
+      if (isSuppressedCreditKey(canonicalNameKey(vols[i].name))) continue;
       if (vols[i].slug === labelOrSlug || canonicalNameKey(vols[i].name) === folded) return vols[i];
     }
     return null;
@@ -158,7 +167,8 @@
     return rosterVol.log.filter(function (entry) {
       return entry && (entry.devam || entry.calisma || entry.notes);
     }).slice(0, 4).map(function (entry) {
-      var trackLabel = TRACK_LABELS[entry.track] || TRACK_LABELS.diger;
+      var trackKey = normalizeEntryTrack(entry.track, entry);
+      var trackLabel = TRACK_LABELS[trackKey] || TRACK_LABELS.diger;
       return {
         dateISO: entry.date,
         meta: [fmtDateShort(entry.date), trackLabel].filter(Boolean).join(' · '),
@@ -166,6 +176,13 @@
         detail: entry.devam || (entry.notes && entry.notes.length < 180 ? entry.notes : '')
       };
     });
+  }
+
+  function normalizeEntryTrack(track, entry) {
+    var key = String(track || 'diger');
+    var haystack = foldName([entry && entry.calisma, entry && entry.devam, entry && entry.notes].filter(Boolean).join(' '));
+    if ((key === 'egitim' || key === 'tarama') && haystack.indexOf('is bankasi') >= 0) return 'tarama_is_bankasi';
+    return key;
   }
 
   function liveWorkRows(activity) {
@@ -183,6 +200,7 @@
 
   // ── Get data for a volunteer label ─────────────────────────────────
   function getVolData(label) {
+    if (isSuppressedCreditKey(canonicalNameKey(label))) return null;
     var data = window.TVF_PUBLIC_DATA;
     var rosterVol = findRosterVolunteer(label);
     if (!data || !data.publicSummary) {
@@ -193,6 +211,7 @@
     var vRows = summary.byVolunteer || [];
     var volRow = null;
     var foldedLabel = foldName(label);
+    if (isSuppressedCreditKey(canonicalNameKey(label))) return null;
     for (var i = 0; i < vRows.length; i++) {
       if (foldName(vRows[i].label) === foldedLabel) { volRow = vRows[i]; break; }
     }
@@ -373,6 +392,10 @@
 
   // ── Show / hide ────────────────────────────────────────────────────
   function show(label, e, sourceNode) {
+    if (isSuppressedCreditKey(canonicalNameKey(label))) {
+      hide();
+      return;
+    }
     clearTimeout(hideTimer);
     ensureTip();
     var context = contextFromNode(sourceNode);
