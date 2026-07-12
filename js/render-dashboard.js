@@ -26,7 +26,105 @@
     hydrateLatestActivity(summary, latestActivity);
     hydrateFirsts(summary);
     hydratePullCite(summary);
+    hydrateArchiveLeaf(content);
+    hydrateAttendance(content);
+    hydrateWeeklyPlan(content);
+    hydrateEquipmentUsage(content);
     hydrateDiagnostics(summary, latestActivity, opts && opts.debug);
+  }
+
+  function hydrateAttendance(content) {
+    const el = document.getElementById('lpAttendance');
+    const rows = document.getElementById('lpAttendanceRows');
+    const head = document.getElementById('lpAttendanceHead');
+    if (!el || !rows) return;
+    const attendance = content.attendance;
+    if (!attendance || !Array.isArray(attendance.volunteers) || !attendance.volunteers.length) {
+      el.hidden = true;
+      if (head) head.hidden = true;
+      return;
+    }
+    el.hidden = false;
+    if (head) head.hidden = false;
+    const todayFull = U.weekdayTR ? U.weekdayTR(new Date()) : null;
+    const todayKey = (todayFull || '').slice(0, 3).toLocaleLowerCase('tr');
+    const isToday = (d) => (d || '').slice(0, 3).toLocaleLowerCase('tr') === todayKey;
+    rows.innerHTML = attendance.days.map((day) => {
+      const names = attendance.volunteers.filter((v) => v.byDay && v.byDay[day]).map((v) => v.name);
+      const cls = 'att-day' + (isToday(day) ? ' wp-today' : '');
+      const list = names.length
+        ? names.map((n) => `<span class="att-chip">${U.escapeHtml(n)}</span>`).join('')
+        : '<span class="att-empty">henüz işaretlenen yok</span>';
+      return `<div class="${cls}"><span class="att-day-label">${U.escapeHtml(day)}</span><div class="att-chips">${list}</div></div>`;
+    }).join('');
+  }
+
+  function hydrateArchiveLeaf(content) {
+    const el = document.getElementById('lpArchiveLeaf');
+    if (!el) return;
+    const leaves = Array.isArray(content.archiveLeaves) ? content.archiveLeaves : [];
+    if (!leaves.length) { el.hidden = true; return; }
+    const leaf = leaves[0];
+    el.hidden = false;
+    const titleEl = el.querySelector('.leaf-title');
+    const metaEl = el.querySelector('.leaf-meta');
+    if (titleEl) titleEl.textContent = leaf.title;
+    if (metaEl) {
+      const meta = [
+        leaf.docDate ? `Belge tarihi ${leaf.docDate}` : null,
+        leaf.code,
+        leaf.contributor ? `tarayan: ${leaf.contributor}` : null
+      ].filter(Boolean).join(' · ');
+      metaEl.textContent = meta;
+    }
+  }
+
+  function hydrateWeeklyPlan(content) {
+    const el = document.getElementById('lpWeeklyPlan');
+    const rows = document.getElementById('lpWeeklyPlanRows');
+    if (!el || !rows) return;
+    const plan = content.weeklyPlan;
+    const head = document.getElementById('lpWeeklyPlanHead');
+    if (!plan || !Array.isArray(plan.stations) || !plan.stations.length) {
+      el.hidden = true;
+      if (head) head.hidden = true;
+      return;
+    }
+    el.hidden = false;
+    if (head) head.hidden = false;
+    const todayFull = U.weekdayTR ? U.weekdayTR(new Date()) : null;
+    const todayKey = (todayFull || '').slice(0, 3).toLocaleLowerCase('tr');
+    const isToday = (d) => (d || '').slice(0, 3).toLocaleLowerCase('tr') === todayKey;
+    const headRow = `<div class="wp-row wp-head"><span class="wp-station"></span>${plan.days.map((d) => `<span class="wp-day${isToday(d) ? ' wp-today' : ''}">${U.escapeHtml(d.slice(0, 3))}</span>`).join('')}</div>`;
+    const body = plan.stations.map((s) => {
+      const cells = plan.days.map((d) => {
+        const name = s.byDay[d];
+        const cls = 'wp-cell' + (isToday(d) ? ' wp-today' : '') + (name ? '' : ' wp-empty');
+        return `<span class="${cls}">${U.escapeHtml(name || '—')}</span>`;
+      }).join('');
+      return `<div class="wp-row"><span class="wp-station">${U.escapeHtml(s.station)}</span>${cells}</div>`;
+    }).join('');
+    rows.innerHTML = headRow + body;
+  }
+
+  function hydrateEquipmentUsage(content) {
+    const el = document.getElementById('lpEquipment');
+    const bars = document.getElementById('lpEquipmentBars');
+    if (!el || !bars) return;
+    const usage = Array.isArray(content.equipmentUsage) ? content.equipmentUsage : [];
+    const eqHead = document.getElementById('lpEquipmentHead');
+    if (!usage.length) {
+      el.hidden = true;
+      if (eqHead) eqHead.hidden = true;
+      return;
+    }
+    el.hidden = false;
+    if (eqHead) eqHead.hidden = false;
+    const max = Math.max(1, ...usage.map((u) => Number(u.sessions || 0)));
+    bars.innerHTML = usage.map((u) => {
+      const pct = Math.max(4, Math.round((Number(u.sessions || 0) / max) * 100));
+      return `<div class="eq-row"><div class="eq-label"><span>${U.escapeHtml(u.device)}</span><span>${U.formatNum(u.sessions)}</span></div><div class="eq-track"><div class="eq-fill" style="width:${pct}%"></div></div></div>`;
+    }).join('');
   }
 
   function renderError() {
@@ -90,23 +188,28 @@
     setText('lpTruthActivities', U.formatNum(totals.activityRows));
     setText('lpTruthVolunteers', U.formatNum(publicVolunteerCount));
     setText('lpTruthBoxes', U.formatNum(totals.boxesActive));
-    setText('lpTruthProgress', progressIsReliable(summary) ? `%${U.formatPct(totals.progressPercent)}` : '—');
+    const truthProgress = progressStatus(summary);
+    setText('lpTruthProgress', truthProgress.ok ? `%${U.formatPct(truthProgress.percent)}` : '—');
   }
 
   function hydrateGlance(summary) {
     const totals = summary.totals || {};
     setText('lpWeekTotal', totals.records > 0 ? U.formatNum(totals.records) : '—');
-    setText('lpPct', progressIsReliable(summary) ? `%${U.formatPct(totals.progressPercent)}` : '—');
-    setText('lpProgressTotals', progressIsReliable(summary)
+    const glanceProgress = progressStatus(summary);
+    setText('lpPct', glanceProgress.ok ? `%${U.formatPct(glanceProgress.percent)}` : 'veri bekleniyor');
+    setText('lpProgressTotals', glanceProgress.ok
       ? `${U.formatNum(totals.pagesDone)} / ${U.formatNum(totals.pagesTarget)} sayfa`
       : 'ilerleme yeniden hesaplanıyor');
-    setText('lpBoxes', totals.boxesCatalogued ? U.formatNum(totals.boxesCatalogued) : '—');
-    setText('lpBoxesOf', '');
+    const fill = document.getElementById('lpPctFill');
+    if (fill) fill.style.width = glanceProgress.ok ? `${Math.max(0, Math.min(100, glanceProgress.percent))}%` : '0%';
+    setText('lpBoxes', totals.boxesTotal ? U.formatNum(totals.boxesTotal) : (totals.boxesCatalogued ? U.formatNum(totals.boxesCatalogued) : '—'));
+    setText('lpBoxesOf', 'kutu · toplam PNB fonu');
     setText('lpBoxesFoot', totals.boxesActive
       ? `${U.formatNum(totals.boxesActive)} kutuda dönem çalışması var`
       : 'bu dönemde çalışma yok');
     setText('lpDone', U.formatNum(totals.boxesCompleted || 0));
     setText('lpDoneFoot', totals.boxesCompleted ? 'tamamlanan kutu' : 'Henüz tamamlanan kutu yok');
+
 
     const spark = document.getElementById('lpSpark');
     if (!spark) return;
@@ -559,6 +662,10 @@
       `tam özetten hesaplandı: ${summary.source && summary.source.recordsAreFullAggregate ? 'evet' : 'hayır'}`
     ];
     (summary.warnings || []).forEach((warning) => diagnostics.push(`${warning.code}: ${warning.message}`));
+    const flaggedProgress = progressStatus(summary);
+    if (flaggedProgress.flaggedCount > 0) {
+      diagnostics.push(`progress_boxes_flagged: ${flaggedProgress.flaggedCount} kutuda ilerleme sinyali tutarsız (${flaggedProgress.flaggedBoxes.join(', ')}) — genel yüzdeye dahil, ayrı işaretlendi.`);
+    }
     if ((summary.warnings || []).some((warning) => warning.code === 'missing_volunteer_names')) {
       diagnostics.push('normal görünümden gizlenen etiket: Adı belirtilmeyen gönüllü');
     }
@@ -703,16 +810,13 @@
     return Number(totals && (totals.pageRows || totals.periodPagesDone) || 0);
   }
 
-  function progressIsReliable(summary) {
+  function progressStatus(summary) {
     const totals = (summary && summary.totals) || {};
-    if (!(Number(totals.pagesTarget || 0) > 0)) return false;
     const source = (summary && summary.source) || {};
     const reliableBasis = ['pnb_sayisallastirma_d103', 'workbook_progress_label_scan', 'pnb_inventory_done_total_scan'];
-    if (reliableBasis.indexOf(source.progressBasis) < 0) return false;
-    const pageRows = Number(totals.pageRows || 0);
-    const periodUnits = Number(totals.periodPagesDone || 0);
-    if (pageRows > 0 && periodUnits > pageRows * 1.5) return false;
-    return !(Array.isArray(summary && summary.byBox) ? summary.byBox : []).some((box) => {
+    const hasTarget = Number(totals.pagesTarget || 0) > 0;
+    const hasBasis = reliableBasis.indexOf(source.progressBasis) >= 0;
+    const flagged = (Array.isArray(summary && summary.byBox) ? summary.byBox : []).filter((box) => {
       const target = Number(box.target || 0);
       const done = Number(box.done || 0);
       const rows = Number(box.pageRows || box.periodPageRows || 0);
@@ -722,6 +826,17 @@
         (target > 0 && done > target && rows <= target)
       );
     });
+    return {
+      ok: hasTarget && hasBasis,
+      percent: hasTarget && hasBasis ? totals.progressPercent : null,
+      flaggedCount: flagged.length,
+      flaggedBoxes: flagged.map((b) => b.box)
+    };
+  }
+
+  // Back-compat boolean shim for any external callers.
+  function progressIsReliable(summary) {
+    return progressStatus(summary).ok;
   }
 
   function setText(id, value) {

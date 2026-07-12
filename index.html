@@ -63,6 +63,21 @@
       <div><p class="v" id="lpTruthProgress">—</p><p class="k">toplam ilerleme</p></div>
     </section>
 
+    <!-- ============ NEW: overall PNB archive progress (Module A) ============ -->
+    <section class="tv-glance" id="lpGlance" aria-label="PNB arşivinin genel ilerlemesi">
+      <div class="tv-glance-head">
+        <span class="tv-glance-label">PNB arşivi · genel ilerleme</span>
+        <span class="tv-glance-pct" id="lpPct">—</span>
+      </div>
+      <div class="tv-glance-track"><div class="tv-glance-fill" id="lpPctFill" style="width:0%"></div></div>
+      <p class="tv-glance-totals" id="lpProgressTotals">— / — sayfa</p>
+      <div class="tv-glance-foot">
+        <span><b id="lpBoxes">—</b> <span id="lpBoxesOf"></span></span>
+        <span id="lpBoxesFoot">—</span>
+        <span><b id="lpDone">—</b> <span id="lpDoneFoot"></span></span>
+      </div>
+    </section>
+
     <!-- ============ Latest work calendar ============ -->
     <section class="latest" id="lpLatest" hidden>
       <div class="boxes-head">
@@ -72,6 +87,13 @@
       <div class="latest-calendar" id="lpLatestRows"></div>
     </section>
 
+    <!-- ============ NEW: archive content teaser (Module C) ============ -->
+    <section class="tv-leaf" id="lpArchiveLeaf" hidden>
+      <p class="tv-leaf-kicker">Arşivden bir yaprak</p>
+      <p class="leaf-title"></p>
+      <p class="leaf-meta"></p>
+    </section>
+
     <!-- ============ Priority work context ============ -->
     <section class="context-card priority-context" aria-labelledby="priority-title">
       <p class="context-eyebrow">Öncelikli iş kalemi</p>
@@ -79,6 +101,33 @@
       <p>Tarih Vakfı’nda gönüllüler arşiv düzenleme, dijitalleştirme, kronoloji, web, proje hazırlığı ve koordinasyon gibi farklı işlerde katkı verir. Pertev Naili Boratav Arşivi’nin dijitalleştirilmesi, şu anda tamamlanması öncelikli olan büyük iş kalemidir.</p>
       <p>Pertev Naili Boratav (1907–1998), Türkiye’de halkbilimi ve halk edebiyatı çalışmalarının öncü isimlerinden biridir. Bu günlükte görünen yoğun sayfa/detay çalışması, ağırlıklı olarak PNB arşivindeki malzemenin düzenlenmesi ve görünür kılınmasından gelir; diğer vakıf işleri de çalışma alanlarına göre izlenir.</p>
       <p class="context-links">Daha fazla bilgi: <a href="https://tr.wikipedia.org/wiki/Pertev_Naili_Boratav" target="_blank" rel="noopener">Pertev Naili Boratav</a></p>
+    </section>
+
+    <!-- ============ NEW: self check-in attendance list ============ -->
+    <header class="section-head" id="lpAttendanceHead">
+      <h2>Bu hafta <em>gelecek gönüllüler</em></h2>
+      <a class="tag tv-checkin-link" href="./katilim.html">katılımını işaretle →</a>
+    </header>
+    <section class="tv-attendance" id="lpAttendance" hidden>
+      <div id="lpAttendanceRows"></div>
+    </section>
+
+    <!-- ============ NEW: this week's station schedule (Module D) ============ -->
+    <header class="section-head" id="lpWeeklyPlanHead">
+      <h2>Bu hafta <em>istasyon planı</em></h2>
+      <span class="tag">koordinatör ataması</span>
+    </header>
+    <section class="tv-weekly-plan" id="lpWeeklyPlan" hidden>
+      <div id="lpWeeklyPlanRows"></div>
+    </section>
+
+    <!-- ============ NEW: scanner/equipment usage (Module E) ============ -->
+    <header class="section-head" id="lpEquipmentHead">
+      <h2>Tarayıcı <em>kullanımı</em></h2>
+      <span class="tag">kümülatif oturum</span>
+    </header>
+    <section class="tv-equipment" id="lpEquipment" hidden>
+      <div id="lpEquipmentBars"></div>
     </section>
 
     <!-- ============ NEW: Active volunteer wall (Design A) ============ -->

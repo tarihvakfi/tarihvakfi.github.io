@@ -1631,3 +1631,68 @@ body.journal {
 
 /* Body scroll lock when drawer open */
 body.tv-drawer-open { overflow: hidden; }
+
+/* ============ NEW modules: overall progress, archive leaf, weekly plan, equipment ============ */
+
+.tv-glance {
+  margin: 24px 0;
+  padding: 20px 24px;
+  background: var(--paper-soft);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+}
+.tv-glance-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+.tv-glance-label { font-size: 13px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: .04em; }
+.tv-glance-pct { font-size: 24px; font-weight: 600; color: var(--accent); }
+.tv-glance-track { height: 10px; border-radius: 5px; background: var(--rule); overflow: hidden; }
+.tv-glance-fill { height: 100%; background: var(--accent); border-radius: 5px; transition: width .4s ease; }
+.tv-glance-totals { margin: 8px 0 0; font-size: 12px; color: var(--ink-mute); }
+.tv-glance-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+  font-size: 12px;
+  color: var(--ink-mute);
+}
+.tv-glance-foot b { color: var(--ink); font-weight: 600; }
+
+.tv-leaf {
+  margin: 20px 0;
+  padding: 18px 24px;
+  border-left: 3px solid var(--accent);
+  background: var(--paper-soft);
+}
+.tv-leaf-kicker { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); margin: 0 0 6px; }
+.tv-leaf .leaf-title { font-family: 'Crimson Pro', serif; font-style: italic; font-size: 18px; color: var(--ink); margin: 0 0 4px; }
+.tv-leaf .leaf-meta { font-size: 12px; color: var(--ink-mute); margin: 0; }
+
+.tv-weekly-plan { margin: 12px 0 24px; overflow-x: auto; }
+.tv-weekly-plan .wp-row { display: grid; grid-template-columns: 160px repeat(5, 1fr); align-items: center; gap: 4px; padding: 6px 0; border-top: 1px solid var(--rule); font-size: 13px; min-width: 480px; }
+.tv-weekly-plan .wp-row.wp-head { border-top: none; font-size: 12px; color: var(--ink-mute); font-weight: 600; padding-bottom: 8px; }
+.tv-weekly-plan .wp-station { color: var(--ink-mute); }
+.tv-weekly-plan .wp-cell, .tv-weekly-plan .wp-day { text-align: center; }
+.tv-weekly-plan .wp-empty { color: var(--ink-faint); }
+.tv-weekly-plan .wp-today { color: var(--accent); font-weight: 600; background: var(--accent-bg); border-radius: 6px; }
+
+.tv-equipment { margin: 12px 0 24px; }
+.tv-equipment .eq-row { margin-bottom: 10px; }
+.tv-equipment .eq-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; color: var(--ink); }
+.tv-equipment .eq-track { height: 6px; border-radius: 3px; background: var(--rule); overflow: hidden; }
+.tv-equipment .eq-fill { height: 100%; background: var(--accent); border-radius: 3px; }
+
+@media (max-width: 640px) {
+  .tv-glance-foot { flex-direction: column; gap: 4px; }
+}
+
+/* ============ NEW: self check-in attendance module ============ */
+.tv-checkin-link { text-decoration: none; }
+.tv-attendance { margin: 12px 0 24px; display: flex; flex-direction: column; gap: 10px; }
+.tv-attendance .att-day { display: flex; align-items: baseline; gap: 12px; padding: 8px 10px; border-radius: 8px; }
+.tv-attendance .att-day.wp-today { background: var(--accent-bg); }
+.tv-attendance .att-day-label { width: 90px; flex-shrink: 0; font-size: 12px; font-weight: 600; color: var(--ink-mute); text-transform: uppercase; letter-spacing: .03em; }
+.tv-attendance .att-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.tv-attendance .att-chip { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--paper-soft); border: 1px solid var(--rule); color: var(--ink); }
+.tv-attendance .att-empty { font-size: 12px; color: var(--ink-faint); font-style: italic; }

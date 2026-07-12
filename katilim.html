@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Katılımını işaretle · Tarih Vakfı</title>
+<link rel="stylesheet" href="./css/site.css" />
+<style>
+  body { max-width: 480px; margin: 0 auto; padding: 24px 20px 60px; background: var(--paper); font-family: var(--font, inherit); }
+  .ci-card { background: var(--paper-soft); border: 1px solid var(--rule); border-radius: 12px; padding: 22px; margin-bottom: 18px; }
+  .ci-title { font-size: 20px; font-weight: 600; color: var(--ink); margin: 0 0 4px; }
+  .ci-sub { font-size: 13px; color: var(--ink-mute); margin: 0 0 18px; }
+  .ci-field { margin-bottom: 14px; }
+  .ci-field label { display: block; font-size: 12px; color: var(--ink-mute); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .03em; }
+  .ci-field input[type="password"], .ci-field select {
+    width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--rule);
+    background: var(--paper); color: var(--ink); font-size: 15px; box-sizing: border-box;
+  }
+  .ci-btn {
+    width: 100%; padding: 11px; border-radius: 8px; border: none; background: var(--accent);
+    color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  .ci-btn:disabled { opacity: .5; cursor: default; }
+  .ci-days { display: flex; flex-direction: column; gap: 10px; }
+  .ci-day {
+    display: flex; align-items: center; justify-content: space-between; padding: 12px 14px;
+    border: 1px solid var(--rule); border-radius: 10px; background: var(--paper);
+  }
+  .ci-day.is-today { border-color: var(--accent); background: var(--accent-bg); }
+  .ci-day-label { font-size: 14px; color: var(--ink); }
+  .ci-day-date { font-size: 11px; color: var(--ink-mute); display: block; }
+  .ci-day-count { font-size: 11px; color: var(--accent); display: block; margin-top: 2px; }
+  .ci-toggle { position: relative; width: 46px; height: 26px; flex-shrink: 0; }
+  .ci-toggle input { opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+  .ci-toggle .track {
+    position: absolute; inset: 0; background: var(--rule); border-radius: 13px; transition: background .15s ease; pointer-events: none;
+  }
+  .ci-toggle .knob {
+    position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%;
+    background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: left .15s ease; pointer-events: none;
+  }
+  .ci-toggle input:checked ~ .track { background: var(--accent); }
+  .ci-toggle input:checked ~ .knob { left: 23px; }
+  .ci-status { font-size: 12px; margin-top: 12px; min-height: 16px; }
+  .ci-status.ok { color: #3f7a4f; }
+  .ci-status.err { color: #a3324a; }
+  .ci-hidden { display: none !important; }
+  .ci-back { display: inline-block; margin-top: 6px; font-size: 13px; color: var(--ink-mute); text-decoration: none; }
+</style>
+</head>
+<body>
+
+  <div class="ci-card" id="gateCard">
+    <p class="ci-title">Katılımını işaretle</p>
+    <p class="ci-sub">Bu hafta hangi gün geleceğini işaretle. Ortak şifreyi koordinatörden öğrenebilirsin.</p>
+    <div class="ci-field">
+      <label for="pw">Ortak şifre</label>
+      <input type="password" id="pw" autocomplete="off" />
+    </div>
+    <div class="ci-field">
+      <label for="nameSelect">Adın</label>
+      <select id="nameSelect">
+        <option value="">Seç…</option>
+      </select>
+    </div>
+    <button class="ci-btn" id="enterBtn">Devam et</button>
+    <p class="ci-status" id="gateStatus"></p>
+  </div>
+
+  <div class="ci-card ci-hidden" id="daysCard">
+    <p class="ci-title" id="greeting">Merhaba</p>
+    <p class="ci-sub">Bu hafta gelecek olduğun günleri işaretle. Her günün yanında o gün kaç kişinin geleceğini de görürsün. Değişiklik anında kaydedilir.</p>
+    <div class="ci-days" id="dayList"></div>
+    <p class="ci-status" id="daysStatus"></p>
+    <a href="./index.html" class="ci-back">← Panoya dön</a>
+  </div>
+
+<script src="./js/config.public.js?v=20260624-foundation-frame"></script>
+<script src="./js/snapshot.js?v=20260622-period-copy"></script>
+<script src="./js/roster.js?v=20260517-roster"></script>
+<script src="./js/utils.js?v=20260624-foundation-frame"></script>
+<script>
+(function () {
+  const TR_WEEKDAYS_5 = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma'];
+  const U = window.TVFUtils;
+  const pwInput = document.getElementById('pw');
+  const nameSelect = document.getElementById('nameSelect');
+  const enterBtn = document.getElementById('enterBtn');
+  const gateStatus = document.getElementById('gateStatus');
+  const gateCard = document.getElementById('gateCard');
+  const daysCard = document.getElementById('daysCard');
+  const dayList = document.getElementById('dayList');
+  const daysStatus = document.getElementById('daysStatus');
+  const greeting = document.getElementById('greeting');
+
+  let password = '';
+  let selectedName = '';
+  let currentByDay = {};
+  let allVolunteers = []; // full Katılım roster, used to compute per-day headcounts
+  let countEls = {}; // day label -> its count <span>, filled by renderDays
+
+  // Populate name dropdown from the roster the main dashboard already ships with.
+  const roster = (window.TVF_ROSTER && Array.isArray(window.TVF_ROSTER.volunteers)) ? window.TVF_ROSTER.volunteers : [];
+  const names = roster.map((v) => v.name).filter(Boolean).sort((a, b) => a.localeCompare(b, 'tr'));
+  names.forEach((name) => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    nameSelect.appendChild(opt);
+  });
+  const customOpt = document.createElement('option');
+  customOpt.value = '__other__';
+  customOpt.textContent = 'Listede yok, adımı yazacağım…';
+  nameSelect.appendChild(customOpt);
+
+  function weekDates() {
+    const now = new Date();
+    const day = now.getDay(); // 0 Sun .. 6 Sat
+    const mondayOffset = day === 0 ? -6 : 1 - day;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + mondayOffset);
+    return TR_WEEKDAYS_5.map((label, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      return { label: label, dateLabel: `${d.getDate()}.${d.getMonth() + 1}` };
+    });
+  }
+
+  function todayLabel() {
+    return U && U.weekdayTR ? U.weekdayTR(new Date()) : '';
+  }
+
+  function foldName(v) { return U && U.foldName ? U.foldName(v) : String(v || '').toLowerCase(); }
+
+  function dayCount(day) {
+    return allVolunteers.reduce((n, v) => n + ((v.byDay && v.byDay[day]) ? 1 : 0), 0);
+  }
+
+  function dayCountLabel(day) {
+    const n = dayCount(day);
+    if (n === 0) return 'henüz kimse yok';
+    return n === 1 ? '1 kişi geliyor' : `${n} kişi geliyor`;
+  }
+
+  async function fetchAttendance() {
+    const url = window.__SHEETSYNC_URL__;
+    if (!(typeof url === 'string' && url.includes('script.google.com'))) return { days: TR_WEEKDAYS_5, volunteers: [] };
+    try {
+      const sep = url.includes('?') ? '&' : '?';
+      const res = await fetch(`${url}${sep}public=1&period=rolling_7_days&t=${Date.now()}`, { method: 'GET', mode: 'cors', cache: 'no-store' });
+      const body = await res.json();
+      const attendance = body && body.data && body.data.content && body.data.content.attendance;
+      return attendance || { days: TR_WEEKDAYS_5, volunteers: [] };
+    } catch (err) {
+      return { days: TR_WEEKDAYS_5, volunteers: [] };
+    }
+  }
+
+  function renderDays() {
+    const today = todayLabel();
+    dayList.innerHTML = '';
+    countEls = {};
+    weekDates().forEach(({ label, dateLabel }) => {
+      const row = document.createElement('div');
+      row.className = 'ci-day' + (label === today ? ' is-today' : '');
+      row.dataset.day = label;
+      row.innerHTML = `
+        <div><span class="ci-day-label">${label}</span><span class="ci-day-date">${dateLabel}</span>
+          <span class="ci-day-count"></span></div>
+        <label class="ci-toggle">
+          <input type="checkbox" data-day="${label}" ${currentByDay[label] ? 'checked' : ''} />
+          <span class="track"></span><span class="knob"></span>
+        </label>`;
+      const countEl = row.querySelector('.ci-day-count');
+      countEl.textContent = dayCountLabel(label);
+      countEls[label] = countEl;
+      dayList.appendChild(row);
+    });
+    dayList.querySelectorAll('input[type="checkbox"]').forEach((box) => {
+      box.addEventListener('change', () => sendCheckIn(box.dataset.day, box.checked, box));
+    });
+  }
+
+  function refreshDayCount(day) {
+    if (countEls[day]) countEls[day].textContent = dayCountLabel(day);
+  }
+
+  function applyLocalCheckIn(day, present) {
+    let row = allVolunteers.find((v) => foldName(v.name) === foldName(selectedName));
+    if (!row) {
+      row = { name: selectedName, byDay: {} };
+      allVolunteers.push(row);
+    }
+    row.byDay = row.byDay || {};
+    row.byDay[day] = present;
+    refreshDayCount(day);
+  }
+
+  async function sendCheckIn(day, present, checkboxEl) {
+    daysStatus.className = 'ci-status';
+    daysStatus.textContent = 'Kaydediliyor…';
+    const url = window.__SHEETSYNC_URL__;
+    if (!(typeof url === 'string' && url.includes('script.google.com'))) {
+      daysStatus.className = 'ci-status err';
+      daysStatus.textContent = 'Canlı bağlantı yapılandırılmamış — kaydedilemedi.';
+      checkboxEl.checked = !present;
+      return;
+    }
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        // text/plain avoids a CORS preflight against the Apps Script web app.
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'checkin', password, name: selectedName, day, present })
+      });
+      const body = await res.json();
+      if (!body || body.ok !== true) throw new Error((body && body.error) || 'unknown_error');
+      currentByDay[day] = present;
+      applyLocalCheckIn(day, present);
+      daysStatus.className = 'ci-status ok';
+      daysStatus.textContent = present ? `${day} için işaretlendi ✓` : `${day} için kaldırıldı.`;
+    } catch (err) {
+      daysStatus.className = 'ci-status err';
+      daysStatus.textContent = 'Kaydedilemedi, tekrar dener misin? (' + (err && err.message) + ')';
+      checkboxEl.checked = !present;
+    }
+  }
+
+  enterBtn.addEventListener('click', async () => {
+    password = pwInput.value.trim();
+    selectedName = nameSelect.value;
+    if (selectedName === '__other__') {
+      selectedName = window.prompt('Adını yaz:') || '';
+    }
+    if (!password || !selectedName) {
+      gateStatus.className = 'ci-status err';
+      gateStatus.textContent = 'Şifre ve isim gerekli.';
+      return;
+    }
+    enterBtn.disabled = true;
+    gateStatus.className = 'ci-status';
+    gateStatus.textContent = 'Yükleniyor…';
+    const attendance = await fetchAttendance();
+    allVolunteers = Array.isArray(attendance.volunteers) ? attendance.volunteers : [];
+    const own = allVolunteers.find((v) => foldName(v.name) === foldName(selectedName));
+    currentByDay = (own && own.byDay) || {};
+    gateCard.classList.add('ci-hidden');
+    daysCard.classList.remove('ci-hidden');
+    greeting.textContent = `Merhaba, ${selectedName}`;
+    renderDays();
+    enterBtn.disabled = false;
+  });
+})();
+</script>
+</body>
+</html>

@@ -20,6 +20,8 @@ const TVF_UNNAMED = 'Adı belirtilmeyen gönüllü';
 const TVF_HIDDEN = 'İsmini gizlemeyi tercih eden gönüllü';
 const TVF_PROGRESS_CELL = 'PNB Sayısallaştırma!D103';
 const TVF_VOLUNTEER_PROFILE_SHEET = 'Gönüllü Kartları';
+const TVF_ATTENDANCE_SHEET = 'Katılım';
+const TVF_ATTENDANCE_DAYS = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma'];
 const TVF_VOLUNTEER_PROFILE_HEADERS = [
   'Slug',
   'Ad Soyad',
@@ -94,6 +96,79 @@ function doGet(e) {
   }
 }
 
+/**
+ * Self check-in endpoint for "Bu hafta kim geliyor".
+ * Expects a JSON body (sent as text/plain from the browser to dodge CORS
+ * preflight): { action: 'checkin', password, name, day, present }
+ * `password` is compared against the CHECKIN_PASSWORD script property —
+ * set it once via Project Settings → Script Properties, never commit it
+ * to source. This is a shared-team gate, not per-person authentication:
+ * it keeps random internet strangers out, it does not stop one volunteer
+ * from checking in as another.
+ */
+function doPost(e) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    const body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    if (body.action !== 'checkin') {
+      return tvfJson_({ ok: false, error: 'unknown_action' });
+    }
+    const expected = PropertiesService.getScriptProperties().getProperty('CHECKIN_PASSWORD');
+    if (!expected) return tvfJson_({ ok: false, error: 'checkin_not_configured' });
+    if (String(body.password || '') !== expected) {
+      return tvfJson_({ ok: false, error: 'wrong_password' });
+    }
+    const name = safePublicText_(body.name, 80);
+    if (!name) return tvfJson_({ ok: false, error: 'missing_name' });
+    if (TVF_ATTENDANCE_DAYS.indexOf(body.day) < 0) {
+      return tvfJson_({ ok: false, error: 'invalid_day' });
+    }
+    const present = body.present === true;
+    const sheetId = PropertiesService.getScriptProperties().getProperty('TARIH_VAKFI_SHEET_ID');
+    if (!sheetId) throw new Error('TARIH_VAKFI_SHEET_ID is not set');
+    writeAttendanceCheckIn_(sheetId, name, body.day, present);
+    return tvfJson_({ ok: true, name: name, day: body.day, present: present });
+  } catch (err) {
+    return tvfJson_({ ok: false, error: String((err && err.message) || err) });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function writeAttendanceCheckIn_(sheetId, name, day, present) {
+  const ss = SpreadsheetApp.openById(sheetId);
+  let sheet = ss.getSheetByName(TVF_ATTENDANCE_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(TVF_ATTENDANCE_SHEET);
+    sheet.appendRow(['Ad Soyad'].concat(TVF_ATTENDANCE_DAYS).concat(['Güncellenme']));
+  }
+  const lastRow = sheet.getLastRow();
+  const lastCol = Math.max(sheet.getLastColumn(), TVF_ATTENDANCE_DAYS.length + 2);
+  const headerRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  const nameCol = headerRow.indexOf('Ad Soyad') + 1 || 1;
+  const dayCol = headerRow.indexOf(day) + 1;
+  const updatedCol = headerRow.indexOf('Güncellenme') + 1 || (TVF_ATTENDANCE_DAYS.length + 2);
+  if (dayCol < 1) throw new Error('attendance_day_column_missing: ' + day);
+
+  let targetRow = 0;
+  if (lastRow >= 2) {
+    const names = sheet.getRange(2, nameCol, lastRow - 1, 1).getValues();
+    for (let i = 0; i < names.length; i++) {
+      if (asciiFold_(String(names[i][0] || '')).toLowerCase() === asciiFold_(name).toLowerCase()) {
+        targetRow = i + 2;
+        break;
+      }
+    }
+  }
+  if (!targetRow) {
+    targetRow = Math.max(lastRow + 1, 2);
+    sheet.getRange(targetRow, nameCol).setValue(name);
+  }
+  sheet.getRange(targetRow, dayCol).setValue(present);
+  sheet.getRange(targetRow, updatedCol).setValue(new Date());
+}
+
 function buildPublicDashboardPayload_(mode) {
   const sheetId = PropertiesService.getScriptProperties().getProperty('TARIH_VAKFI_SHEET_ID');
   if (!sheetId) throw new Error('TARIH_VAKFI_SHEET_ID is not set');
@@ -103,6 +178,7 @@ function buildPublicDashboardPayload_(mode) {
   const records = collectPublicRecords_(workbook.rowsBySheet, inventory);
   const volunteerProfiles = readPublicVolunteerProfiles_(workbook.rowsBySheet);
   const volunteerLogs = buildPublicVolunteerLogs_(records);
+  const attendance = readAttendance_(workbook.rowsBySheet);
   const generatedAt = new Date();
   const summary = buildPublicSummaryFromRows(records, inventory, inventoryTotals, generatedAt, mode || 'rolling_7_days', workbook.pnbProgress);
   const trackSummary = buildTrackSummary_(records, generatedAt);
@@ -111,7 +187,7 @@ function buildPublicDashboardPayload_(mode) {
     publicSummary: summary,
     trackSummary: trackSummary,
     latestActivity: latestActivity_(records, TVF_LATEST_LIMIT, generatedAt),
-    content: publicContent_(volunteerProfiles, volunteerLogs),
+    content: publicContent_(volunteerProfiles, volunteerLogs, attendance),
     stats: {
       projects: {
         pnb: {
@@ -127,10 +203,30 @@ function buildPublicDashboardPayload_(mode) {
   };
 }
 
-function publicContent_(volunteerProfiles, volunteerLogs) {
+function readAttendance_(rowsBySheet) {
+  const volunteers = [];
+  Object.keys(rowsBySheet || {}).forEach(function (title) {
+    if (classifySheet_(title) !== 'attendance') return;
+    (rowsBySheet[title] || []).forEach(function (row) {
+      const name = safePublicText_(row.adSoyad || row.name, 80);
+      if (!name) return;
+      const byDay = {};
+      TVF_ATTENDANCE_DAYS.forEach(function (day) {
+        const key = headerToKey_(day); // pazartesi, sali, carsamba, persembe, cuma
+        byDay[day] = row[key] === true || String(row[key] || '').trim().toLowerCase() === 'true';
+      });
+      volunteers.push({ name: name, byDay: byDay, updatedAt: row.guncellenme || null });
+    });
+  });
+  volunteers.sort(function (a, b) { return asciiFold_(a.name).localeCompare(asciiFold_(b.name)); });
+  return { days: TVF_ATTENDANCE_DAYS, volunteers: volunteers };
+}
+
+function publicContent_(volunteerProfiles, volunteerLogs, attendance) {
   const content = {};
   if (volunteerProfiles && volunteerProfiles.length) content.volunteerProfiles = volunteerProfiles;
   if (volunteerLogs && volunteerLogs.length) content.volunteerLogs = volunteerLogs;
+  if (attendance && attendance.volunteers && attendance.volunteers.length) content.attendance = attendance;
   return content;
 }
 
@@ -1729,6 +1825,7 @@ function classifySheet_(title) {
   if (slug === 'pnb_sayisallastirma') return 'pnb_inventory';
   if (slug === 'gunluk_akis') return 'activity';
   if (slug === 'gunluk_gonullu_akisi') return 'schedule';
+  if (slug === 'katilim') return 'attendance';
   if (slug === 'gonullu_kartlari' || slug === 'gonullu_kartlari_public') return 'volunteer_profiles';
   if (slug.indexOf('pnb_') === 0 && slug.indexOf('_zarf') < 0 && slug !== 'pnb_sayisallastirma') return 'pnb_detail';
   return 'other';

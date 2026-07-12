@@ -536,6 +536,10 @@ def classify_sheet(title: str) -> str:
         return "activity"
     if slug == "gunluk_gonullu_akisi":
         return "schedule"
+    if slug == "haftalik_plan":
+        return "weekly_plan"
+    if slug == "katilim":
+        return "attendance"
     if slug.startswith("pnb_") and "_zarf" not in slug and slug != "pnb_sayisallastirma":
         return "pnb_detail"
     return "other"
@@ -660,12 +664,15 @@ def load_workbook_rows(path: Path) -> tuple[list[dict[str, Any]], dict[str, list
     rows_by_sheet: dict[str, list[dict[str, Any]]] = {}
     progress_signal = None
     workbook_sheets = []
+    weekly_plan_matrix = None
     for ws in wb.worksheets:
         matrix = [list(row) for row in ws.iter_rows(values_only=True)]
         headers, rows = read_rows_from_matrix(ws.title, matrix)
         rows_by_sheet[ws.title] = rows
         classification = classify_sheet(ws.title)
         workbook_sheets.append({"title": ws.title, "classification": classification, "matrix": matrix})
+        if classification == "weekly_plan" and weekly_plan_matrix is None:
+            weekly_plan_matrix = matrix
         if classification == "pnb_inventory" and progress_signal is None:
             d103 = parse_progress_percent(ws["D103"].value)
             if d103 is not None:
@@ -679,7 +686,7 @@ def load_workbook_rows(path: Path) -> tuple[list[dict[str, Any]], dict[str, list
         })
     if progress_signal is None:
         progress_signal = find_workbook_progress(workbook_sheets)
-    return sheet_info, rows_by_sheet, {"progressSignal": progress_signal}
+    return sheet_info, rows_by_sheet, {"progressSignal": progress_signal, "weeklyPlanMatrix": weekly_plan_matrix}
 
 
 def find_workbook_progress(sheets: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -1425,6 +1432,115 @@ def build_public_volunteer_logs(records: list[SourceRecord]) -> list[dict[str, A
     return payload
 
 
+def extract_archive_leaves(rows_by_sheet: dict[str, list[dict[str, Any]]], limit: int = 20) -> list[dict[str, Any]]:
+    """Pull dated, titled document rows from PNB detail sheets for the
+    'arşivden bir yaprak' content module. Returns most recently digitized first."""
+    leaves: list[dict[str, Any]] = []
+    for sheet_name, rows in rows_by_sheet.items():
+        if classify_sheet(sheet_name) != "pnb_detail":
+            continue
+        for row in rows:
+            title = str(row.get("notlar") or "").strip()
+            if len(title) < 3:
+                continue
+            title_lower = title.lower()
+            skip_markers = (
+                "tarand", "kontrol edil", "tamamlan", "excel liste", "kodlama",
+                "numaraland", "el yazısı", "arka sayfa", "sayfasıdır", "müsvedde", "pnb-",
+            )
+            if any(marker in title_lower for marker in skip_markers):
+                continue
+            if len(title) > 80:
+                continue
+            creator = str(row.get("kaydi_olusturan") or row.get("kaydi_olusuran") or "").strip()
+            label = preferred_label([creator]) if creator else None
+            if creator and not is_public_named_label(label):
+                continue
+            leaves.append({
+                "title": title,
+                "docDate": str(row.get("belge_tarihi") or "").strip() or None,
+                "digitizedDate": str(row.get("tarih") or "").strip() or None,
+                "code": str(row.get("dijital_belge_kodu") or "").strip() or None,
+                "contributor": label,
+                "sheet": sheet_name,
+            })
+    seen: set[tuple[str, str | None]] = set()
+    deduped = []
+    for leaf in leaves:
+        key = (leaf["title"], leaf["code"])
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(leaf)
+    deduped.sort(key=lambda l: l.get("digitizedDate") or "", reverse=True)
+    return deduped[:limit]
+
+
+def extract_weekly_plan(matrix: list[list[Any]] | None) -> dict[str, Any] | None:
+    """Turn the 'Haftalık Plan' equipment x weekday grid into a public payload.
+    Row 1 = weekday headers (starting column B). Column A = station/equipment name."""
+    if not matrix or len(matrix) < 2:
+        return None
+    header_row = matrix[0]
+    days = [str(v).strip() for v in header_row[1:6] if v]
+    if not days:
+        return None
+    stations = []
+    for row in matrix[1:]:
+        if not row or not row[0]:
+            continue
+        station = str(row[0]).strip()
+        assignments = []
+        for i, day in enumerate(days):
+            cell = row[i + 1] if i + 1 < len(row) else None
+            assignments.append(str(cell).strip() if cell else None)
+        if any(assignments):
+            stations.append({"station": station, "byDay": dict(zip(days, assignments))})
+    return {"days": days, "stations": stations} if stations else None
+
+
+def extract_equipment_usage(rows_by_sheet: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """Count scanner/station usage from the 'Tarayıcı' column in Günlük Akış,
+    normalizing casing and whitespace variants of the same device name."""
+    counts: Counter[str] = Counter()
+    for sheet_name, rows in rows_by_sheet.items():
+        if classify_sheet(sheet_name) != "activity":
+            continue
+        for row in rows:
+            raw = str(row.get("tarayici") or "").strip()
+            if not raw:
+                continue
+            key = re.sub(r"\s+", " ", raw).strip().title()
+            counts[key] += 1
+    return [{"device": device, "sessions": n} for device, n in counts.most_common(12)]
+
+
+ATTENDANCE_DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma"]
+
+
+def extract_attendance(rows_by_sheet: dict[str, list[dict[str, Any]]]) -> dict[str, Any] | None:
+    """Read the self-check-in 'Katılım' sheet: Ad Soyad | Pazartesi..Cuma | Güncellenme.
+    Mirrors readAttendance_ in apps-script/SheetSync.gs — keep both in sync."""
+    volunteers = []
+    for sheet_name, rows in rows_by_sheet.items():
+        if classify_sheet(sheet_name) != "attendance":
+            continue
+        for row in rows:
+            name = str(row.get("ad_soyad") or row.get("name") or "").strip()
+            if not name:
+                continue
+            by_day = {}
+            for day in ATTENDANCE_DAYS:
+                key = header_key(day)  # pazartesi, sali, carsamba, persembe, cuma
+                val = row.get(key)
+                by_day[day] = val is True or str(val or "").strip().lower() == "true"
+            volunteers.append({"name": name, "byDay": by_day, "updatedAt": row.get("guncellenme")})
+    if not volunteers:
+        return None
+    volunteers.sort(key=lambda v: v["name"])
+    return {"days": ATTENDANCE_DAYS, "volunteers": volunteers}
+
+
 def build_payload(summary: dict[str, Any], records: list[SourceRecord]) -> dict[str, Any]:
     totals = summary["totals"]
     max_date = date.fromisoformat(summary["period"]["endDate"])
@@ -1693,6 +1809,13 @@ def main() -> int:
     }
     summary = summaries[selected_mode]
     payload = build_payload(summary, records)
+    payload["content"] = {
+        **payload.get("content", {}),
+        "archiveLeaves": extract_archive_leaves(rows_by_sheet),
+        "weeklyPlan": extract_weekly_plan(workbook_meta.get("weeklyPlanMatrix")),
+        "equipmentUsage": extract_equipment_usage(rows_by_sheet),
+        "attendance": extract_attendance(rows_by_sheet),
+    }
     validation_errors = validate_summary(summary, payload)
 
     print("Workbook sheets:")
