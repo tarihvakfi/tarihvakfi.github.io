@@ -20,8 +20,13 @@ const TVF_UNNAMED = 'Adı belirtilmeyen gönüllü';
 const TVF_HIDDEN = 'İsmini gizlemeyi tercih eden gönüllü';
 const TVF_PROGRESS_CELL = 'PNB Sayısallaştırma!D103';
 const TVF_VOLUNTEER_PROFILE_SHEET = 'Gönüllü Kartları';
-const TVF_ATTENDANCE_SHEET = 'Katılım';
-const TVF_ATTENDANCE_DAYS = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma'];
+const TVF_ATTENDANCE_SHEET = 'Katılım'; // legacy fallback, still read if present
+const TVF_WEEKLY_PLAN_SHEET = 'Haftalık Plan'; // primary check-in target (existing tab)
+const TVF_CHECKIN_DAYS = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma'];
+const TVF_ATTENDANCE_DAYS = TVF_CHECKIN_DAYS;
+const TVF_CHECKIN_KEY_HEADER = 'Kendi Girişi Anahtarı';
+const TVF_CHECKIN_UPDATED_HEADER = 'Güncellenme';
+const TVF_CHECKIN_DEVICE_HEADER = 'Tercih Edilen Cihaz';
 const TVF_VOLUNTEER_PROFILE_HEADERS = [
   'Slug',
   'Ad Soyad',
@@ -121,14 +126,18 @@ function doPost(e) {
     }
     const name = safePublicText_(body.name, 80);
     if (!name) return tvfJson_({ ok: false, error: 'missing_name' });
-    if (TVF_ATTENDANCE_DAYS.indexOf(body.day) < 0) {
+    if (TVF_CHECKIN_DAYS.indexOf(body.day) < 0) {
       return tvfJson_({ ok: false, error: 'invalid_day' });
     }
+    if (isPastCheckinDay_(body.day)) {
+      return tvfJson_({ ok: false, error: 'past_day_locked' });
+    }
     const present = body.present === true;
+    const device = safePublicText_(body.device, 60); // optional, e.g. "Vakıf T2 Viisan Flat"; blank is fine
     const sheetId = PropertiesService.getScriptProperties().getProperty('TARIH_VAKFI_SHEET_ID');
     if (!sheetId) throw new Error('TARIH_VAKFI_SHEET_ID is not set');
-    writeAttendanceCheckIn_(sheetId, name, body.day, present);
-    return tvfJson_({ ok: true, name: name, day: body.day, present: present });
+    writeWeeklyPlanCheckIn_(sheetId, name, body.day, present, device);
+    return tvfJson_({ ok: true, name: name, day: body.day, present: present, device: device || null });
   } catch (err) {
     return tvfJson_({ ok: false, error: String((err && err.message) || err) });
   } finally {
@@ -136,36 +145,113 @@ function doPost(e) {
   }
 }
 
-function writeAttendanceCheckIn_(sheetId, name, day, present) {
-  const ss = SpreadsheetApp.openById(sheetId);
-  let sheet = ss.getSheetByName(TVF_ATTENDANCE_SHEET);
-  if (!sheet) {
-    sheet = ss.insertSheet(TVF_ATTENDANCE_SHEET);
-    sheet.appendRow(['Ad Soyad'].concat(TVF_ATTENDANCE_DAYS).concat(['Güncellenme']));
-  }
-  const lastRow = sheet.getLastRow();
-  const lastCol = Math.max(sheet.getLastColumn(), TVF_ATTENDANCE_DAYS.length + 2);
-  const headerRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-  const nameCol = headerRow.indexOf('Ad Soyad') + 1 || 1;
-  const dayCol = headerRow.indexOf(day) + 1;
-  const updatedCol = headerRow.indexOf('Güncellenme') + 1 || (TVF_ATTENDANCE_DAYS.length + 2);
-  if (dayCol < 1) throw new Error('attendance_day_column_missing: ' + day);
+/**
+ * Maps a canonical weekday label (Pazartesi..Cuma) onto an actual calendar
+ * date in the *current* Mon-Fri week, Türkiye time, and reports whether
+ * that date has already passed. Today itself still counts as editable —
+ * only strictly earlier days lock. The "Haftalık Plan" sheet only tracks
+ * one week at a time (no date column), so "this week" is always assumed;
+ * there's currently no way to check in for a week beyond the one the
+ * coordinator has set up in the sheet.
+ */
+function isPastCheckinDay_(dayLabel) {
+  const tz = 'Europe/Istanbul';
+  const now = new Date();
+  const todayKey = Utilities.formatDate(now, tz, 'yyyy-MM-dd');
+  const dayIndex = TVF_CHECKIN_DAYS.indexOf(dayLabel); // 0 Pazartesi .. 4 Cuma
+  if (dayIndex < 0) return true;
+  const isoDow = Number(Utilities.formatDate(now, tz, 'u')); // 1 Mon .. 7 Sun
+  const mondayOffsetDays = -(isoDow - 1);
+  const monday = new Date(now.getTime() + mondayOffsetDays * 86400000);
+  const target = new Date(monday.getTime() + dayIndex * 86400000);
+  const targetKey = Utilities.formatDate(target, tz, 'yyyy-MM-dd');
+  return targetKey < todayKey;
+}
 
+/**
+ * Fuzzy weekday match: ascii-folds and compares a short prefix, so a sheet
+ * header typo like "Çarşama" (missing the 'b' in Çarşamba) still matches
+ * the canonical day name the client sends. Real Turkish weekday names are
+ * distinguishable within their first 4 letters (paza/sali/cars/pers/cuma).
+ */
+function daysMatch_(a, b) {
+  const fa = asciiFold_(String(a || '')).toLowerCase().trim();
+  const fb = asciiFold_(String(b || '')).toLowerCase().trim();
+  if (!fa || !fb) return false;
+  const n = Math.min(4, fa.length, fb.length);
+  return fa.slice(0, n) === fb.slice(0, n);
+}
+
+function findDayColumn_(headerRow, day) {
+  for (let i = 1; i < headerRow.length; i++) { // column A (0) is the station name, skip it
+    if (daysMatch_(headerRow[i], day)) return i + 1; // 1-based
+  }
+  return -1;
+}
+
+/**
+ * Writes a self check-in directly into the existing "Haftalık Plan" sheet
+ * instead of a separate tab. Each self-check-in volunteer gets their own
+ * dedicated row with column A left blank — the same shape as the existing
+ * unlabeled "extra volunteer" rows already on that sheet (e.g. Öykü, Arda),
+ * so the read side (readWeeklyPlan_ / extract_weekly_plan) picks these up
+ * automatically as part of "Ek gönüllüler" with no extra logic needed.
+ * A hidden key column (past the day columns) tracks row ownership per
+ * volunteer so repeated toggles update the same row instead of piling up
+ * duplicates. Device/equipment preference is fully optional — it's just
+ * a note for the coordinator, never required to check in.
+ */
+function writeWeeklyPlanCheckIn_(sheetId, name, day, present, device) {
+  const ss = SpreadsheetApp.openById(sheetId);
+  const sheet = ss.getSheetByName(TVF_WEEKLY_PLAN_SHEET);
+  if (!sheet) throw new Error('weekly_plan_sheet_missing: "' + TVF_WEEKLY_PLAN_SHEET + '" bulunamadı');
+
+  const lastRow = Math.max(sheet.getLastRow(), 1);
+  const lastCol = Math.max(sheet.getLastColumn(), 6);
+  const headerRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+
+  const dayCol = findDayColumn_(headerRow, day);
+  if (dayCol < 1) throw new Error('weekly_plan_day_column_missing: ' + day);
+
+  let keyCol = headerRow.indexOf(TVF_CHECKIN_KEY_HEADER) + 1;
+  let updatedCol = headerRow.indexOf(TVF_CHECKIN_UPDATED_HEADER) + 1;
+  let deviceCol = headerRow.indexOf(TVF_CHECKIN_DEVICE_HEADER) + 1;
+  if (!keyCol) {
+    keyCol = lastCol + 1;
+    sheet.getRange(1, keyCol).setValue(TVF_CHECKIN_KEY_HEADER);
+    updatedCol = keyCol + 1;
+    sheet.getRange(1, updatedCol).setValue(TVF_CHECKIN_UPDATED_HEADER);
+    deviceCol = updatedCol + 1;
+    sheet.getRange(1, deviceCol).setValue(TVF_CHECKIN_DEVICE_HEADER);
+  } else {
+    if (!updatedCol) {
+      updatedCol = Math.max(lastCol, keyCol) + 1;
+      sheet.getRange(1, updatedCol).setValue(TVF_CHECKIN_UPDATED_HEADER);
+    }
+    if (!deviceCol) {
+      deviceCol = Math.max(lastCol, keyCol, updatedCol) + 1;
+      sheet.getRange(1, deviceCol).setValue(TVF_CHECKIN_DEVICE_HEADER);
+    }
+  }
+
+  const foldedName = asciiFold_(name).toLowerCase();
   let targetRow = 0;
   if (lastRow >= 2) {
-    const names = sheet.getRange(2, nameCol, lastRow - 1, 1).getValues();
-    for (let i = 0; i < names.length; i++) {
-      if (asciiFold_(String(names[i][0] || '')).toLowerCase() === asciiFold_(name).toLowerCase()) {
+    const keys = sheet.getRange(2, keyCol, lastRow - 1, 1).getValues();
+    for (let i = 0; i < keys.length; i++) {
+      if (asciiFold_(String(keys[i][0] || '')).toLowerCase() === foldedName) {
         targetRow = i + 2;
         break;
       }
     }
   }
   if (!targetRow) {
-    targetRow = Math.max(lastRow + 1, 2);
-    sheet.getRange(targetRow, nameCol).setValue(name);
+    if (!present) return; // nothing to clear for a volunteer who has no row yet
+    targetRow = lastRow + 1;
+    sheet.getRange(targetRow, keyCol).setValue(name);
   }
-  sheet.getRange(targetRow, dayCol).setValue(present);
+  sheet.getRange(targetRow, dayCol).setValue(present ? name : '');
+  if (device) sheet.getRange(targetRow, deviceCol).setValue(device);
   sheet.getRange(targetRow, updatedCol).setValue(new Date());
 }
 
@@ -179,6 +265,8 @@ function buildPublicDashboardPayload_(mode) {
   const volunteerProfiles = readPublicVolunteerProfiles_(workbook.rowsBySheet);
   const volunteerLogs = buildPublicVolunteerLogs_(records);
   const attendance = readAttendance_(workbook.rowsBySheet);
+  const weeklyPlan = readWeeklyPlan_(workbook.weeklyPlanMatrix);
+  const equipmentUsage = readEquipmentUsage_(workbook.rowsBySheet);
   const generatedAt = new Date();
   const summary = buildPublicSummaryFromRows(records, inventory, inventoryTotals, generatedAt, mode || 'rolling_7_days', workbook.pnbProgress);
   const trackSummary = buildTrackSummary_(records, generatedAt);
@@ -187,7 +275,7 @@ function buildPublicDashboardPayload_(mode) {
     publicSummary: summary,
     trackSummary: trackSummary,
     latestActivity: latestActivity_(records, TVF_LATEST_LIMIT, generatedAt),
-    content: publicContent_(volunteerProfiles, volunteerLogs, attendance),
+    content: publicContent_(volunteerProfiles, volunteerLogs, attendance, weeklyPlan, equipmentUsage),
     stats: {
       projects: {
         pnb: {
@@ -222,11 +310,73 @@ function readAttendance_(rowsBySheet) {
   return { days: TVF_ATTENDANCE_DAYS, volunteers: volunteers };
 }
 
-function publicContent_(volunteerProfiles, volunteerLogs, attendance) {
+function readWeeklyPlan_(matrix) {
+  if (!matrix || matrix.length < 2) return null;
+  const headerRow = matrix[0] || [];
+  const days = headerRow.slice(1, 6).map(function (v) { return v == null ? '' : String(v).trim(); }).filter(Boolean);
+  if (!days.length) return null;
+  const keyCol = headerRow.indexOf('Kendi Girişi Anahtarı');
+  const stations = [];
+  const extras = {};
+  days.forEach(function (d) { extras[d] = []; });
+  matrix.slice(1).forEach(function (row) {
+    if (!row || !row.some(function (v) { return v != null && String(v).trim() !== ''; })) return;
+    const stationRaw = row[0];
+    const station = stationRaw ? String(stationRaw).trim() : '';
+    const checkinKey = (keyCol >= 0 && row[keyCol]) ? String(row[keyCol]).trim() : '';
+    const assignments = {};
+    let any = false;
+    days.forEach(function (day, i) {
+      const cell = row[i + 1];
+      const value = cell ? String(cell).trim() : null;
+      assignments[day] = value;
+      if (value) any = true;
+      if (!station && value) {
+        let names;
+        if (checkinKey) {
+          names = [checkinKey]; // self check-in: one verbatim name, never split
+        } else if (value.split(/\s+/).length > 1) {
+          names = value.split(/\s+(?=[A-ZÇĞİÖŞÜ])/); // coordinator shorthand, e.g. "Öykü Arda"
+        } else {
+          names = [value];
+        }
+        names.forEach(function (name) {
+          if (name && extras[day].indexOf(name) < 0) extras[day].push(name);
+        });
+      }
+    });
+    if (station && any) stations.push({ station: station, byDay: assignments });
+  });
+  const hasExtras = Object.keys(extras).some(function (d) { return extras[d].length; });
+  if (!stations.length && !hasExtras) return null;
+  return { days: days, stations: stations, extras: extras };
+}
+
+function readEquipmentUsage_(rowsBySheet) {
+  const counts = {};
+  Object.keys(rowsBySheet || {}).forEach(function (title) {
+    if (classifySheet_(title) !== 'activity') return;
+    (rowsBySheet[title] || []).forEach(function (row) {
+      const raw = row.tarayici;
+      if (!raw) return;
+      const key = String(raw).trim().replace(/\s+/g, ' ');
+      const label = key.replace(/\w\S*/g, function (w) { return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); });
+      counts[label] = (counts[label] || 0) + 1;
+    });
+  });
+  return Object.keys(counts)
+    .map(function (device) { return { device: device, sessions: counts[device] }; })
+    .sort(function (a, b) { return b.sessions - a.sessions; })
+    .slice(0, 12);
+}
+
+function publicContent_(volunteerProfiles, volunteerLogs, attendance, weeklyPlan, equipmentUsage) {
   const content = {};
   if (volunteerProfiles && volunteerProfiles.length) content.volunteerProfiles = volunteerProfiles;
   if (volunteerLogs && volunteerLogs.length) content.volunteerLogs = volunteerLogs;
   if (attendance && attendance.volunteers && attendance.volunteers.length) content.attendance = attendance;
+  if (weeklyPlan) content.weeklyPlan = weeklyPlan;
+  if (equipmentUsage && equipmentUsage.length) content.equipmentUsage = equipmentUsage;
   return content;
 }
 
@@ -559,11 +709,15 @@ function readWorkbook_(sheetId) {
   const rowsBySheet = {};
   const sheetInfo = [];
   let pnbProgress = null;
+  let weeklyPlanMatrix = null;
   const workbookSheets = [];
   titles.forEach(function (title) {
     const matrix = readSheetValues_(sheetId, title + '!A1:AZ5000');
     const classification = classifySheet_(title);
     workbookSheets.push({ title: title, classification: classification, matrix: matrix });
+    if (classification === 'weekly_plan' && weeklyPlanMatrix == null) {
+      weeklyPlanMatrix = matrix;
+    }
     if (classification === 'pnb_inventory' && pnbProgress == null) {
       const d103 = parseProgressPercent_(matrixValue_(matrix, 103, 4));
       if (d103 != null) {
@@ -575,7 +729,7 @@ function readWorkbook_(sheetId) {
     sheetInfo.push({ title: title, classification: classification, rows: rows.rows.length, headers: rows.headers });
   });
   if (pnbProgress == null) pnbProgress = findWorkbookProgress_(workbookSheets);
-  return { sheetInfo: sheetInfo, rowsBySheet: rowsBySheet, pnbProgress: pnbProgress };
+  return { sheetInfo: sheetInfo, rowsBySheet: rowsBySheet, pnbProgress: pnbProgress, weeklyPlanMatrix: weeklyPlanMatrix };
 }
 
 function matrixValue_(matrix, oneBasedRow, oneBasedCol) {
@@ -1825,6 +1979,7 @@ function classifySheet_(title) {
   if (slug === 'pnb_sayisallastirma') return 'pnb_inventory';
   if (slug === 'gunluk_akis') return 'activity';
   if (slug === 'gunluk_gonullu_akisi') return 'schedule';
+  if (slug === 'haftalik_plan') return 'weekly_plan';
   if (slug === 'katilim') return 'attendance';
   if (slug === 'gonullu_kartlari' || slug === 'gonullu_kartlari_public') return 'volunteer_profiles';
   if (slug.indexOf('pnb_') === 0 && slug.indexOf('_zarf') < 0 && slug !== 'pnb_sayisallastirma') return 'pnb_detail';

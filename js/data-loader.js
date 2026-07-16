@@ -48,7 +48,8 @@
     && url.includes('script.google.com')
     && !url.includes('REPLACE_ME');
 
-  if (configured) {
+  function fetchLiveOnce() {
+    if (!configured) return;
     const sep = url.includes('?') ? '&' : '?';
     fetch(`${url}${sep}public=1&period=rolling_7_days&t=${Date.now()}`, {
       method: 'GET',
@@ -66,8 +67,28 @@
       .catch(() => {
         if (!rendered) Renderer.renderError();
       });
+  }
+
+  if (configured) {
+    fetchLiveOnce();
   } else if (!rendered) {
     Renderer.renderError();
+  }
+
+  // Poll periodically so edits made directly in the Google Sheet (weekly
+  // plan assignments, coordinator changes, self check-ins from another
+  // device) show up here without the person having to reload the page.
+  // Paused while the tab is in the background to avoid burning Apps
+  // Script's request quota on tabs nobody is looking at.
+  const TVF_POLL_MS = 60000;
+  if (configured) {
+    setInterval(() => {
+      if (document.visibilityState === 'hidden') return;
+      fetchLiveOnce();
+    }, TVF_POLL_MS);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') fetchLiveOnce();
+    });
   }
 
   function isCompatibleSummary(summary) {

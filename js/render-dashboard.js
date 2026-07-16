@@ -33,13 +33,28 @@
     hydrateDiagnostics(summary, latestActivity, opts && opts.debug);
   }
 
+  function namesForDay_(plan, day) {
+    const seen = new Map();
+    (plan.stations || []).forEach((s) => {
+      const raw = s.byDay && s.byDay[day];
+      const cleaned = raw && raw.trim();
+      if (!cleaned || cleaned.toLowerCase() === 'gönüllü') return;
+      seen.set(cleaned.toLowerCase(), cleaned);
+    });
+    ((plan.extras && plan.extras[day]) || []).forEach((n) => {
+      if (n) seen.set(n.toLowerCase(), n);
+    });
+    return [...seen.values()];
+  }
+
   function hydrateAttendance(content) {
     const el = document.getElementById('lpAttendance');
     const rows = document.getElementById('lpAttendanceRows');
     const head = document.getElementById('lpAttendanceHead');
     if (!el || !rows) return;
-    const attendance = content.attendance;
-    if (!attendance || !Array.isArray(attendance.volunteers) || !attendance.volunteers.length) {
+    const plan = content.weeklyPlan;
+    const hasAny = plan && Array.isArray(plan.days) && plan.days.some((d) => namesForDay_(plan, d).length);
+    if (!plan || !hasAny) {
       el.hidden = true;
       if (head) head.hidden = true;
       return;
@@ -49,8 +64,8 @@
     const todayFull = U.weekdayTR ? U.weekdayTR(new Date()) : null;
     const todayKey = (todayFull || '').slice(0, 3).toLocaleLowerCase('tr');
     const isToday = (d) => (d || '').slice(0, 3).toLocaleLowerCase('tr') === todayKey;
-    rows.innerHTML = attendance.days.map((day) => {
-      const names = attendance.volunteers.filter((v) => v.byDay && v.byDay[day]).map((v) => v.name);
+    rows.innerHTML = plan.days.map((day) => {
+      const names = namesForDay_(plan, day);
       const cls = 'att-day' + (isToday(day) ? ' wp-today' : '');
       const list = names.length
         ? names.map((n) => `<span class="att-chip">${U.escapeHtml(n)}</span>`).join('')
@@ -85,7 +100,9 @@
     if (!el || !rows) return;
     const plan = content.weeklyPlan;
     const head = document.getElementById('lpWeeklyPlanHead');
-    if (!plan || !Array.isArray(plan.stations) || !plan.stations.length) {
+    const hasStations = plan && Array.isArray(plan.stations) && plan.stations.length;
+    const hasExtras = plan && plan.extras && Object.values(plan.extras).some((names) => Array.isArray(names) && names.length);
+    if (!plan || (!hasStations && !hasExtras)) {
       el.hidden = true;
       if (head) head.hidden = true;
       return;
@@ -96,7 +113,7 @@
     const todayKey = (todayFull || '').slice(0, 3).toLocaleLowerCase('tr');
     const isToday = (d) => (d || '').slice(0, 3).toLocaleLowerCase('tr') === todayKey;
     const headRow = `<div class="wp-row wp-head"><span class="wp-station"></span>${plan.days.map((d) => `<span class="wp-day${isToday(d) ? ' wp-today' : ''}">${U.escapeHtml(d.slice(0, 3))}</span>`).join('')}</div>`;
-    const body = plan.stations.map((s) => {
+    const body = (plan.stations || []).map((s) => {
       const cells = plan.days.map((d) => {
         const name = s.byDay[d];
         const cls = 'wp-cell' + (isToday(d) ? ' wp-today' : '') + (name ? '' : ' wp-empty');
@@ -104,7 +121,15 @@
       }).join('');
       return `<div class="wp-row"><span class="wp-station">${U.escapeHtml(s.station)}</span>${cells}</div>`;
     }).join('');
-    rows.innerHTML = headRow + body;
+    const extrasRow = hasExtras ? (() => {
+      const cells = plan.days.map((d) => {
+        const names = (plan.extras && plan.extras[d]) || [];
+        const cls = 'wp-cell wp-extra' + (isToday(d) ? ' wp-today' : '') + (names.length ? '' : ' wp-empty');
+        return `<span class="${cls}">${names.length ? names.map(U.escapeHtml).join(', ') : '—'}</span>`;
+      }).join('');
+      return `<div class="wp-row wp-extras"><span class="wp-station">Ek gönüllüler</span>${cells}</div>`;
+    })() : '';
+    rows.innerHTML = headRow + body + extrasRow;
   }
 
   function hydrateEquipmentUsage(content) {

@@ -13,6 +13,7 @@
   .ci-sub { font-size: 13px; color: var(--ink-mute); margin: 0 0 18px; }
   .ci-field { margin-bottom: 14px; }
   .ci-field label { display: block; font-size: 12px; color: var(--ink-mute); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .03em; }
+  .ci-optional-tag { text-transform: none; font-style: italic; color: var(--ink-faint); letter-spacing: normal; }
   .ci-field input[type="password"], .ci-field select {
     width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--rule);
     background: var(--paper); color: var(--ink); font-size: 15px; box-sizing: border-box;
@@ -24,13 +25,18 @@
   .ci-btn:disabled { opacity: .5; cursor: default; }
   .ci-days { display: flex; flex-direction: column; gap: 10px; }
   .ci-day {
-    display: flex; align-items: center; justify-content: space-between; padding: 12px 14px;
-    border: 1px solid var(--rule); border-radius: 10px; background: var(--paper);
+    padding: 12px 14px; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper);
   }
   .ci-day.is-today { border-color: var(--accent); background: var(--accent-bg); }
+  .ci-day.is-past { opacity: .55; }
+  .ci-locked-badge { font-size: 11px; color: var(--ink-mute); background: var(--rule); padding: 4px 10px; border-radius: 999px; flex-shrink: 0; }
+  .ci-day-top { display: flex; align-items: center; justify-content: space-between; }
   .ci-day-label { font-size: 14px; color: var(--ink); }
   .ci-day-date { font-size: 11px; color: var(--ink-mute); display: block; }
   .ci-day-count { font-size: 11px; color: var(--accent); display: block; margin-top: 2px; }
+  .ci-day-names { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+  .ci-name-chip { font-size: 11px; padding: 3px 9px; border-radius: 999px; background: var(--paper-soft); border: 1px solid var(--rule); color: var(--ink); }
+  .ci-name-empty { font-size: 11px; color: var(--ink-faint); font-style: italic; }
   .ci-toggle { position: relative; width: 46px; height: 26px; flex-shrink: 0; }
   .ci-toggle input { opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
   .ci-toggle .track {
@@ -71,6 +77,12 @@
   <div class="ci-card ci-hidden" id="daysCard">
     <p class="ci-title" id="greeting">Merhaba</p>
     <p class="ci-sub">Bu hafta gelecek olduğun günleri işaretle. Her günün yanında o gün kaç kişinin geleceğini de görürsün. Değişiklik anında kaydedilir.</p>
+    <div class="ci-field">
+      <label for="deviceSelect">Kullanmayı düşündüğün cihaz <span class="ci-optional-tag">(opsiyonel)</span></label>
+      <select id="deviceSelect">
+        <option value="">Belirtmek istemiyorum</option>
+      </select>
+    </div>
     <div class="ci-days" id="dayList"></div>
     <p class="ci-status" id="daysStatus"></p>
     <a href="./index.html" class="ci-back">← Panoya dön</a>
@@ -93,12 +105,14 @@
   const dayList = document.getElementById('dayList');
   const daysStatus = document.getElementById('daysStatus');
   const greeting = document.getElementById('greeting');
+  const deviceSelect = document.getElementById('deviceSelect');
 
   let password = '';
   let selectedName = '';
   let currentByDay = {};
-  let allVolunteers = []; // full Katılım roster, used to compute per-day headcounts
+  let weeklyPlan = { days: TR_WEEKDAYS_5, stations: [], extras: {} }; // from content.weeklyPlan (Haftalık Plan sheet)
   let countEls = {}; // day label -> its count <span>, filled by renderDays
+  let nameEls = {}; // day label -> its names <div>, filled by renderDays
 
   // Populate name dropdown from the roster the main dashboard already ships with.
   const roster = (window.TVF_ROSTER && Array.isArray(window.TVF_ROSTER.volunteers)) ? window.TVF_ROSTER.volunteers : [];
@@ -114,8 +128,13 @@
   customOpt.textContent = 'Listede yok, adımı yazacağım…';
   nameSelect.appendChild(customOpt);
 
+  function dateKey(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
   function weekDates() {
     const now = new Date();
+    const todayKey = dateKey(now);
     const day = now.getDay(); // 0 Sun .. 6 Sat
     const mondayOffset = day === 0 ? -6 : 1 - day;
     const monday = new Date(now);
@@ -123,58 +142,79 @@
     return TR_WEEKDAYS_5.map((label, i) => {
       const d = new Date(monday);
       d.setDate(monday.getDate() + i);
-      return { label: label, dateLabel: `${d.getDate()}.${d.getMonth() + 1}` };
+      const key = dateKey(d);
+      return { label: label, dateLabel: `${d.getDate()}.${d.getMonth() + 1}`, isPast: key < todayKey, isToday: key === todayKey };
     });
-  }
-
-  function todayLabel() {
-    return U && U.weekdayTR ? U.weekdayTR(new Date()) : '';
   }
 
   function foldName(v) { return U && U.foldName ? U.foldName(v) : String(v || '').toLowerCase(); }
 
-  function dayCount(day) {
-    return allVolunteers.reduce((n, v) => n + ((v.byDay && v.byDay[day]) ? 1 : 0), 0);
+  // A day's headcount = named station assignees ("Berfin", "Sibel Dağ"…, excluding
+  // the placeholder "Gönüllü" which just means "still needs someone") plus anyone
+  // who self-checked in via this page (the "Ek gönüllüler" extras).
+  function namesForDay(day) {
+    const set = new Map();
+    (weeklyPlan.stations || []).forEach((s) => {
+      const raw = s.byDay && s.byDay[day];
+      if (!raw) return;
+      const cleaned = raw.trim();
+      if (!cleaned || foldName(cleaned) === 'gonullu') return;
+      set.set(foldName(cleaned), cleaned);
+    });
+    ((weeklyPlan.extras && weeklyPlan.extras[day]) || []).forEach((n) => {
+      if (n) set.set(foldName(n), n);
+    });
+    return [...set.values()];
   }
 
   function dayCountLabel(day) {
-    const n = dayCount(day);
+    const n = namesForDay(day).length;
     if (n === 0) return 'henüz kimse yok';
     return n === 1 ? '1 kişi geliyor' : `${n} kişi geliyor`;
   }
 
-  async function fetchAttendance() {
+  async function fetchWeeklyPlan() {
+    const fallback = { days: TR_WEEKDAYS_5, stations: [], extras: {} };
     const url = window.__SHEETSYNC_URL__;
-    if (!(typeof url === 'string' && url.includes('script.google.com'))) return { days: TR_WEEKDAYS_5, volunteers: [] };
+    if (!(typeof url === 'string' && url.includes('script.google.com'))) return fallback;
     try {
       const sep = url.includes('?') ? '&' : '?';
       const res = await fetch(`${url}${sep}public=1&period=rolling_7_days&t=${Date.now()}`, { method: 'GET', mode: 'cors', cache: 'no-store' });
       const body = await res.json();
-      const attendance = body && body.data && body.data.content && body.data.content.attendance;
-      return attendance || { days: TR_WEEKDAYS_5, volunteers: [] };
+      const plan = body && body.data && body.data.content && body.data.content.weeklyPlan;
+      return plan || fallback;
     } catch (err) {
-      return { days: TR_WEEKDAYS_5, volunteers: [] };
+      return fallback;
     }
   }
 
   function renderDays() {
-    const today = todayLabel();
     dayList.innerHTML = '';
     countEls = {};
-    weekDates().forEach(({ label, dateLabel }) => {
+    nameEls = {};
+    weekDates().forEach(({ label, dateLabel, isPast, isToday }) => {
       const row = document.createElement('div');
-      row.className = 'ci-day' + (label === today ? ' is-today' : '');
+      row.className = 'ci-day' + (isToday ? ' is-today' : '') + (isPast ? ' is-past' : '');
       row.dataset.day = label;
+      const toggle = isPast
+        ? `<span class="ci-locked-badge">geçti</span>`
+        : `<label class="ci-toggle">
+             <input type="checkbox" data-day="${label}" ${currentByDay[label] ? 'checked' : ''} />
+             <span class="track"></span><span class="knob"></span>
+           </label>`;
       row.innerHTML = `
-        <div><span class="ci-day-label">${label}</span><span class="ci-day-date">${dateLabel}</span>
-          <span class="ci-day-count"></span></div>
-        <label class="ci-toggle">
-          <input type="checkbox" data-day="${label}" ${currentByDay[label] ? 'checked' : ''} />
-          <span class="track"></span><span class="knob"></span>
-        </label>`;
+        <div class="ci-day-top">
+          <div><span class="ci-day-label">${label}</span><span class="ci-day-date">${dateLabel}</span>
+            <span class="ci-day-count"></span></div>
+          ${toggle}
+        </div>
+        <div class="ci-day-names"></div>`;
       const countEl = row.querySelector('.ci-day-count');
+      const namesEl = row.querySelector('.ci-day-names');
       countEl.textContent = dayCountLabel(label);
+      namesEl.innerHTML = namesChipsHtml(label);
       countEls[label] = countEl;
+      nameEls[label] = namesEl;
       dayList.appendChild(row);
     });
     dayList.querySelectorAll('input[type="checkbox"]').forEach((box) => {
@@ -182,18 +222,24 @@
     });
   }
 
+  function namesChipsHtml(day) {
+    const names = namesForDay(day);
+    if (!names.length) return '<span class="ci-name-empty">henüz kimse yok</span>';
+    return names.map((n) => `<span class="ci-name-chip">${escapeHtml(n)}</span>`).join('');
+  }
+
+  function escapeHtml(v) { return U && U.escapeHtml ? U.escapeHtml(v) : String(v == null ? '' : v); }
+
   function refreshDayCount(day) {
     if (countEls[day]) countEls[day].textContent = dayCountLabel(day);
+    if (nameEls[day]) nameEls[day].innerHTML = namesChipsHtml(day);
   }
 
   function applyLocalCheckIn(day, present) {
-    let row = allVolunteers.find((v) => foldName(v.name) === foldName(selectedName));
-    if (!row) {
-      row = { name: selectedName, byDay: {} };
-      allVolunteers.push(row);
-    }
-    row.byDay = row.byDay || {};
-    row.byDay[day] = present;
+    weeklyPlan.extras = weeklyPlan.extras || {};
+    const list = weeklyPlan.extras[day] || [];
+    const withoutMe = list.filter((n) => foldName(n) !== foldName(selectedName));
+    weeklyPlan.extras[day] = present ? withoutMe.concat([selectedName]) : withoutMe;
     refreshDayCount(day);
   }
 
@@ -212,19 +258,67 @@
         method: 'POST',
         // text/plain avoids a CORS preflight against the Apps Script web app.
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'checkin', password, name: selectedName, day, present })
+        body: JSON.stringify({ action: 'checkin', password, name: selectedName, day, present, device: deviceSelect ? deviceSelect.value : '' })
       });
       const body = await res.json();
       if (!body || body.ok !== true) throw new Error((body && body.error) || 'unknown_error');
       currentByDay[day] = present;
       applyLocalCheckIn(day, present);
+      lastLocalChangeAt = Date.now();
       daysStatus.className = 'ci-status ok';
       daysStatus.textContent = present ? `${day} için işaretlendi ✓` : `${day} için kaldırıldı.`;
     } catch (err) {
+      const msg = err && err.message;
+      if (msg === 'past_day_locked') {
+        daysStatus.className = 'ci-status err';
+        daysStatus.textContent = `${day} artık geçmişte kaldı, değiştirilemez.`;
+        renderDays(); // re-render so the row flips to its locked "geçti" state
+        return;
+      }
       daysStatus.className = 'ci-status err';
-      daysStatus.textContent = 'Kaydedilemedi, tekrar dener misin? (' + (err && err.message) + ')';
+      daysStatus.textContent = 'Kaydedilemedi, tekrar dener misin? (' + msg + ')';
       checkboxEl.checked = !present;
     }
+  }
+
+  let pollTimer = null;
+  let lastLocalChangeAt = 0;
+
+  async function syncFromServer(preserveOwnToggles) {
+    const fresh = await fetchWeeklyPlan();
+    weeklyPlan = fresh;
+    if (preserveOwnToggles) {
+      // Re-derive my own checkbox state from the server truth too, so a
+      // coordinator's manual sheet edit (e.g. removing my name) is reflected.
+      (weeklyPlan.days || TR_WEEKDAYS_5).forEach((day) => {
+        currentByDay[day] = ((weeklyPlan.extras && weeklyPlan.extras[day]) || []).some((n) => foldName(n) === foldName(selectedName));
+      });
+    }
+    populateDeviceOptions();
+    renderDays();
+  }
+
+  function startPolling() {
+    if (pollTimer) return;
+    pollTimer = setInterval(() => {
+      if (document.visibilityState === 'hidden') return;
+      if (Date.now() - lastLocalChangeAt < 4000) return; // let our own optimistic update settle first
+      syncFromServer(true);
+    }, 20000);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && daysCard && !daysCard.classList.contains('ci-hidden')) {
+        syncFromServer(true);
+      }
+    });
+  }
+
+  function populateDeviceOptions() {
+    if (!deviceSelect) return;
+    const stationNames = (weeklyPlan.stations || []).map((s) => s.station).filter(Boolean);
+    const current = deviceSelect.value;
+    deviceSelect.innerHTML = '<option value="">Belirtmek istemiyorum</option>'
+      + stationNames.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+    if (stationNames.includes(current)) deviceSelect.value = current;
   }
 
   enterBtn.addEventListener('click', async () => {
@@ -241,15 +335,19 @@
     enterBtn.disabled = true;
     gateStatus.className = 'ci-status';
     gateStatus.textContent = 'Yükleniyor…';
-    const attendance = await fetchAttendance();
-    allVolunteers = Array.isArray(attendance.volunteers) ? attendance.volunteers : [];
-    const own = allVolunteers.find((v) => foldName(v.name) === foldName(selectedName));
-    currentByDay = (own && own.byDay) || {};
+    weeklyPlan = await fetchWeeklyPlan();
+    currentByDay = {};
+    (weeklyPlan.days || TR_WEEKDAYS_5).forEach((day) => {
+      const inExtras = ((weeklyPlan.extras && weeklyPlan.extras[day]) || []).some((n) => foldName(n) === foldName(selectedName));
+      currentByDay[day] = inExtras;
+    });
     gateCard.classList.add('ci-hidden');
     daysCard.classList.remove('ci-hidden');
     greeting.textContent = `Merhaba, ${selectedName}`;
+    populateDeviceOptions();
     renderDays();
     enterBtn.disabled = false;
+    startPolling();
   });
 })();
 </script>

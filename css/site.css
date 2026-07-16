@@ -1676,6 +1676,9 @@ body.tv-drawer-open { overflow: hidden; }
 .tv-weekly-plan .wp-cell, .tv-weekly-plan .wp-day { text-align: center; }
 .tv-weekly-plan .wp-empty { color: var(--ink-faint); }
 .tv-weekly-plan .wp-today { color: var(--accent); font-weight: 600; background: var(--accent-bg); border-radius: 6px; }
+.tv-weekly-plan .wp-extras { border-top: 1px dashed var(--rule); margin-top: 4px; padding-top: 10px; }
+.tv-weekly-plan .wp-extras .wp-station { font-style: italic; color: var(--ink-mute); }
+.tv-weekly-plan .wp-extra { font-size: 12px; }
 
 .tv-equipment { margin: 12px 0 24px; }
 .tv-equipment .eq-row { margin-bottom: 10px; }

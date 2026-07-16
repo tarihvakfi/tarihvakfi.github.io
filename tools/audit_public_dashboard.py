@@ -1478,25 +1478,48 @@ def extract_archive_leaves(rows_by_sheet: dict[str, list[dict[str, Any]]], limit
 
 def extract_weekly_plan(matrix: list[list[Any]] | None) -> dict[str, Any] | None:
     """Turn the 'Haftalık Plan' equipment x weekday grid into a public payload.
-    Row 1 = weekday headers (starting column B). Column A = station/equipment name."""
+    Row 1 = weekday headers (starting column B). Column A = station/equipment name.
+    Rows with a blank station are extra volunteers beyond the listed equipment,
+    collected separately per day. Two kinds of extra rows exist:
+    - coordinator shorthand, e.g. one cell holding "Öykü Arda" for two people —
+      split on capitalized-word boundaries.
+    - self check-in rows (via katilim.html), tagged with a value in the
+      'Kendi Girişi Anahtarı' column — the cell always holds exactly one full
+      name already, matching that key column verbatim, so it's never split."""
     if not matrix or len(matrix) < 2:
         return None
     header_row = matrix[0]
     days = [str(v).strip() for v in header_row[1:6] if v]
     if not days:
         return None
+    key_col = next((i for i, h in enumerate(header_row) if str(h or "").strip() == "Kendi Girişi Anahtarı"), None)
     stations = []
+    extras: dict[str, list[str]] = {day: [] for day in days}
     for row in matrix[1:]:
-        if not row or not row[0]:
+        if not row or not any(row):
             continue
-        station = str(row[0]).strip()
+        station = str(row[0]).strip() if row[0] else ""
+        checkin_key = str(row[key_col]).strip() if key_col is not None and key_col < len(row) and row[key_col] else ""
         assignments = []
         for i, day in enumerate(days):
             cell = row[i + 1] if i + 1 < len(row) else None
-            assignments.append(str(cell).strip() if cell else None)
-        if any(assignments):
+            value = str(cell).strip() if cell else None
+            assignments.append(value)
+            if not station and value:
+                if checkin_key:
+                    names = [checkin_key]  # self check-in: one verbatim name, never split
+                elif len(value.split()) > 1:
+                    names = re.split(r"\s+(?=[A-ZÇĞİÖŞÜ])", value)  # coordinator shorthand
+                else:
+                    names = [value]
+                for name in names:
+                    if name and name not in extras[day]:
+                        extras[day].append(name)
+        if station and any(assignments):
             stations.append({"station": station, "byDay": dict(zip(days, assignments))})
-    return {"days": days, "stations": stations} if stations else None
+    if not stations and not any(extras.values()):
+        return None
+    return {"days": days, "stations": stations, "extras": extras}
 
 
 def extract_equipment_usage(rows_by_sheet: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
