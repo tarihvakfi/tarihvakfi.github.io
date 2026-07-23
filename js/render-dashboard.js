@@ -40,10 +40,15 @@
       if (!cleaned || cleaned.toLowerCase() === 'gönüllü') return;
       seen.set(cleaned.toLowerCase(), cleaned);
     });
-    ((plan.extras && plan.extras[day]) || []).forEach((n) => {
+    ((plan.extras && plan.extras[day]) || []).forEach((e) => {
+      const n = e && e.name;
       if (n) seen.set(n.toLowerCase(), n);
     });
     return [...seen.values()];
+  }
+
+  function formatExtraLabel_(extra) {
+    return extra.device ? `${extra.name} (${extra.device})` : extra.name;
   }
 
   function hydrateArchiveLeaf(content) {
@@ -95,9 +100,9 @@
     }).join('');
     const extrasRow = hasExtras ? (() => {
       const cells = plan.days.map((d) => {
-        const names = (plan.extras && plan.extras[d]) || [];
-        const cls = 'wp-cell wp-extra' + (isToday(d) ? ' wp-today' : '') + (names.length ? '' : ' wp-empty');
-        return `<span class="${cls}">${names.length ? names.map(U.escapeHtml).join(', ') : '—'}</span>`;
+        const items = (plan.extras && plan.extras[d]) || [];
+        const cls = 'wp-cell wp-extra' + (isToday(d) ? ' wp-today' : '') + (items.length ? '' : ' wp-empty');
+        return `<span class="${cls}">${items.length ? items.map((e) => U.escapeHtml(formatExtraLabel_(e))).join(', ') : '—'}</span>`;
       }).join('');
       return `<div class="wp-row wp-extras"><span class="wp-station">Ek gönüllüler</span>${cells}</div>`;
     })() : '';

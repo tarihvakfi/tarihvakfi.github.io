@@ -157,12 +157,11 @@ function doPost(e) {
       return tvfJson_({ ok: false, error: 'past_day_locked' });
     }
     const present = body.present === true;
-    const device = safePublicText_(body.device, 60); // optional, e.g. "Vakıf T2 Viisan Flat"; blank is fine
     const sheetId = PropertiesService.getScriptProperties().getProperty('TARIH_VAKFI_SHEET_ID');
     if (!sheetId) throw new Error('TARIH_VAKFI_SHEET_ID is not set');
-    writeWeeklyPlanCheckIn_(sheetId, name, body.day, present, device);
+    writeWeeklyPlanCheckIn_(sheetId, name, body.day, present);
     invalidatePublicPayloadCache_();
-    return tvfJson_({ ok: true, name: name, day: body.day, present: present, device: device || null });
+    return tvfJson_({ ok: true, name: name, day: body.day, present: present });
   } catch (err) {
     return tvfJson_({ ok: false, error: String((err && err.message) || err) });
   } finally {
@@ -226,7 +225,7 @@ function findDayColumn_(headerRow, day) {
  * duplicates. Device/equipment preference is fully optional — it's just
  * a note for the coordinator, never required to check in.
  */
-function writeWeeklyPlanCheckIn_(sheetId, name, day, present, device) {
+function writeWeeklyPlanCheckIn_(sheetId, name, day, present) {
   const ss = SpreadsheetApp.openById(sheetId);
   const sheet = ss.getSheetByName(TVF_WEEKLY_PLAN_SHEET);
   if (!sheet) throw new Error('weekly_plan_sheet_missing: "' + TVF_WEEKLY_PLAN_SHEET + '" bulunamadı');
@@ -276,7 +275,6 @@ function writeWeeklyPlanCheckIn_(sheetId, name, day, present, device) {
     sheet.getRange(targetRow, keyCol).setValue(name);
   }
   sheet.getRange(targetRow, dayCol).setValue(present ? name : '');
-  if (device) sheet.getRange(targetRow, deviceCol).setValue(device);
   sheet.getRange(targetRow, updatedCol).setValue(new Date());
 }
 
@@ -341,6 +339,7 @@ function readWeeklyPlan_(matrix) {
   const days = headerRow.slice(1, 6).map(function (v) { return v == null ? '' : String(v).trim(); }).filter(Boolean);
   if (!days.length) return null;
   const keyCol = headerRow.indexOf('Kendi Girişi Anahtarı');
+  const deviceCol = headerRow.indexOf('Tercih Edilen Cihaz');
   const stations = [];
   const extras = {};
   days.forEach(function (d) { extras[d] = []; });
@@ -349,6 +348,7 @@ function readWeeklyPlan_(matrix) {
     const stationRaw = row[0];
     const station = stationRaw ? String(stationRaw).trim() : '';
     const checkinKey = (keyCol >= 0 && row[keyCol]) ? String(row[keyCol]).trim() : '';
+    const rowDevice = (deviceCol >= 0 && row[deviceCol]) ? String(row[deviceCol]).trim() : null;
     const assignments = {};
     let any = false;
     days.forEach(function (day, i) {
@@ -365,8 +365,12 @@ function readWeeklyPlan_(matrix) {
         } else {
           names = [value];
         }
+        const existingNames = extras[day].map(function (e) { return e.name; });
         names.forEach(function (name) {
-          if (name && extras[day].indexOf(name) < 0) extras[day].push(name);
+          if (name && existingNames.indexOf(name) < 0) {
+            extras[day].push({ name: name, device: checkinKey ? rowDevice : null });
+            existingNames.push(name);
+          }
         });
       }
     });

@@ -1480,12 +1480,15 @@ def extract_weekly_plan(matrix: list[list[Any]] | None) -> dict[str, Any] | None
     """Turn the 'Haftalık Plan' equipment x weekday grid into a public payload.
     Row 1 = weekday headers (starting column B). Column A = station/equipment name.
     Rows with a blank station are extra volunteers beyond the listed equipment,
-    collected separately per day. Two kinds of extra rows exist:
+    collected separately per day as {"name", "device"} objects. Two kinds of
+    extra rows exist:
     - coordinator shorthand, e.g. one cell holding "Öykü Arda" for two people —
-      split on capitalized-word boundaries.
+      split on capitalized-word boundaries, no device attached.
     - self check-in rows (via katilim.html), tagged with a value in the
       'Kendi Girişi Anahtarı' column — the cell always holds exactly one full
-      name already, matching that key column verbatim, so it's never split."""
+      name already, matching that key column verbatim, never split. If the
+      coordinator has filled in that row's 'Tercih Edilen Cihaz' column, it's
+      carried along so the site can show "Name (Device)"."""
     if not matrix or len(matrix) < 2:
         return None
     header_row = matrix[0]
@@ -1493,13 +1496,15 @@ def extract_weekly_plan(matrix: list[list[Any]] | None) -> dict[str, Any] | None
     if not days:
         return None
     key_col = next((i for i, h in enumerate(header_row) if str(h or "").strip() == "Kendi Girişi Anahtarı"), None)
+    device_col = next((i for i, h in enumerate(header_row) if str(h or "").strip() == "Tercih Edilen Cihaz"), None)
     stations = []
-    extras: dict[str, list[str]] = {day: [] for day in days}
+    extras: dict[str, list[dict[str, Any]]] = {day: [] for day in days}
     for row in matrix[1:]:
         if not row or not any(row):
             continue
         station = str(row[0]).strip() if row[0] else ""
         checkin_key = str(row[key_col]).strip() if key_col is not None and key_col < len(row) and row[key_col] else ""
+        row_device = str(row[device_col]).strip() if device_col is not None and device_col < len(row) and row[device_col] else None
         assignments = []
         for i, day in enumerate(days):
             cell = row[i + 1] if i + 1 < len(row) else None
@@ -1512,9 +1517,11 @@ def extract_weekly_plan(matrix: list[list[Any]] | None) -> dict[str, Any] | None
                     names = re.split(r"\s+(?=[A-ZÇĞİÖŞÜ])", value)  # coordinator shorthand
                 else:
                     names = [value]
+                existing = {e["name"] for e in extras[day]}
                 for name in names:
-                    if name and name not in extras[day]:
-                        extras[day].append(name)
+                    if name and name not in existing:
+                        extras[day].append({"name": name, "device": row_device if checkin_key else None})
+                        existing.add(name)
         if station and any(assignments):
             stations.append({"station": station, "byDay": dict(zip(days, assignments))})
     if not stations and not any(extras.values()):
