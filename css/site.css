@@ -1690,12 +1690,7 @@ body.tv-drawer-open { overflow: hidden; }
   .tv-glance-foot { flex-direction: column; gap: 4px; }
 }
 
-/* ============ NEW: self check-in attendance module ============ */
+/* ============ Check-in link + merged weekly plan totals row ============ */
 .tv-checkin-link { text-decoration: none; }
-.tv-attendance { margin: 12px 0 24px; display: flex; flex-direction: column; gap: 10px; }
-.tv-attendance .att-day { display: flex; align-items: baseline; gap: 12px; padding: 8px 10px; border-radius: 8px; }
-.tv-attendance .att-day.wp-today { background: var(--accent-bg); }
-.tv-attendance .att-day-label { width: 90px; flex-shrink: 0; font-size: 12px; font-weight: 600; color: var(--ink-mute); text-transform: uppercase; letter-spacing: .03em; }
-.tv-attendance .att-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.tv-attendance .att-chip { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--paper-soft); border: 1px solid var(--rule); color: var(--ink); }
-.tv-attendance .att-empty { font-size: 12px; color: var(--ink-faint); font-style: italic; }
+.tv-weekly-plan .wp-totals { border-top: 1px solid var(--rule); margin-top: 4px; padding-top: 10px; font-weight: 600; }
+.tv-weekly-plan .wp-total-cell { color: var(--accent); }

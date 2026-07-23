@@ -27,7 +27,6 @@
     hydrateFirsts(summary);
     hydratePullCite(summary);
     hydrateArchiveLeaf(content);
-    hydrateAttendance(content);
     hydrateWeeklyPlan(content);
     hydrateEquipmentUsage(content);
     hydrateDiagnostics(summary, latestActivity, opts && opts.debug);
@@ -45,33 +44,6 @@
       if (n) seen.set(n.toLowerCase(), n);
     });
     return [...seen.values()];
-  }
-
-  function hydrateAttendance(content) {
-    const el = document.getElementById('lpAttendance');
-    const rows = document.getElementById('lpAttendanceRows');
-    const head = document.getElementById('lpAttendanceHead');
-    if (!el || !rows) return;
-    const plan = content.weeklyPlan;
-    const hasAny = plan && Array.isArray(plan.days) && plan.days.some((d) => namesForDay_(plan, d).length);
-    if (!plan || !hasAny) {
-      el.hidden = true;
-      if (head) head.hidden = true;
-      return;
-    }
-    el.hidden = false;
-    if (head) head.hidden = false;
-    const todayFull = U.weekdayTR ? U.weekdayTR(new Date()) : null;
-    const todayKey = (todayFull || '').slice(0, 3).toLocaleLowerCase('tr');
-    const isToday = (d) => (d || '').slice(0, 3).toLocaleLowerCase('tr') === todayKey;
-    rows.innerHTML = plan.days.map((day) => {
-      const names = namesForDay_(plan, day);
-      const cls = 'att-day' + (isToday(day) ? ' wp-today' : '');
-      const list = names.length
-        ? names.map((n) => `<span class="att-chip">${U.escapeHtml(n)}</span>`).join('')
-        : '<span class="att-empty">henüz işaretlenen yok</span>';
-      return `<div class="${cls}"><span class="att-day-label">${U.escapeHtml(day)}</span><div class="att-chips">${list}</div></div>`;
-    }).join('');
   }
 
   function hydrateArchiveLeaf(content) {
@@ -129,7 +101,15 @@
       }).join('');
       return `<div class="wp-row wp-extras"><span class="wp-station">Ek gönüllüler</span>${cells}</div>`;
     })() : '';
-    rows.innerHTML = headRow + body + extrasRow;
+    const totalsRow = (() => {
+      const cells = plan.days.map((d) => {
+        const n = namesForDay_(plan, d).length;
+        const cls = 'wp-cell wp-total-cell' + (isToday(d) ? ' wp-today' : '');
+        return `<span class="${cls}">${n || '—'}</span>`;
+      }).join('');
+      return `<div class="wp-row wp-totals"><span class="wp-station">Toplam</span>${cells}</div>`;
+    })();
+    rows.innerHTML = headRow + body + extrasRow + totalsRow;
   }
 
   function hydrateEquipmentUsage(content) {

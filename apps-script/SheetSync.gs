@@ -94,8 +94,24 @@ function doGet(e) {
     if (params.public !== '1') {
       return tvfJson_({ ok: true, service: 'Tarih Vakfı Gönüllü Emek Günlüğü', hint: 'Add ?public=1' });
     }
-    const data = buildPublicDashboardPayload_(normalizePeriodMode_(params.period || params.mode));
-    return tvfJson_({ ok: true, generatedAt: data.generatedAt, data: data });
+    const mode = normalizePeriodMode_(params.period || params.mode);
+    const cache = CacheService.getScriptCache();
+    const cacheKey = 'public_payload_' + mode;
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return tvfJson_(JSON.parse(cached));
+    }
+    const data = buildPublicDashboardPayload_(mode);
+    const responseBody = { ok: true, generatedAt: data.generatedAt, data: data };
+    try {
+      // 45s: short enough that a coordinator's sheet edit shows up almost
+      // immediately, long enough that the 20-60s client-side polling we run
+      // mostly hits cache instead of re-reading the whole workbook.
+      cache.put(cacheKey, JSON.stringify(responseBody), 45);
+    } catch (cacheErr) {
+      // Payload too large for CacheService (100KB/key limit) — fine, just skip caching.
+    }
+    return tvfJson_(responseBody);
   } catch (err) {
     return tvfJson_({ ok: false, error: String((err && err.message) || err) });
   }
@@ -706,13 +722,27 @@ function readWorkbook_(sheetId) {
   const titles = ((metadata.sheets || []).map(function (sheet) {
     return sheet.properties && sheet.properties.title;
   }) || []).filter(Boolean);
+
+  // Single batched request instead of one HTTP round-trip per sheet — with
+  // ~90+ PNB detail tabs in this workbook, the old per-sheet loop meant
+  // ~90 sequential UrlFetch calls on every single page load/poll, which is
+  // what made the check-in page feel slow to load.
+  const rangeParams = titles.map(function (t) {
+    return 'ranges=' + encodeURIComponent(t + '!A1:AZ5000');
+  }).join('&');
+  const batch = titles.length ? fetchSheetsApi_(sheetId, '/values:batchGet?' + rangeParams) : { valueRanges: [] };
+  const matrixByTitle = {};
+  (batch.valueRanges || []).forEach(function (vr, i) {
+    matrixByTitle[titles[i]] = vr.values || [];
+  });
+
   const rowsBySheet = {};
   const sheetInfo = [];
   let pnbProgress = null;
   let weeklyPlanMatrix = null;
   const workbookSheets = [];
   titles.forEach(function (title) {
-    const matrix = readSheetValues_(sheetId, title + '!A1:AZ5000');
+    const matrix = matrixByTitle[title] || [];
     const classification = classifySheet_(title);
     workbookSheets.push({ title: title, classification: classification, matrix: matrix });
     if (classification === 'weekly_plan' && weeklyPlanMatrix == null) {

@@ -65,10 +65,14 @@
       <input type="password" id="pw" autocomplete="off" />
     </div>
     <div class="ci-field">
-      <label for="nameSelect">Adın</label>
+      <label for="nameSelect">Listeden adını seç — yoksa "listede yok" seçeneğini kullan</label>
       <select id="nameSelect">
         <option value="">Seç…</option>
       </select>
+    </div>
+    <div class="ci-field ci-hidden" id="customNameField">
+      <label for="customNameInput">Adını yaz</label>
+      <input type="text" id="customNameInput" autocomplete="off" placeholder="Ad Soyad" />
     </div>
     <button class="ci-btn" id="enterBtn">Devam et</button>
     <p class="ci-status" id="gateStatus"></p>
@@ -106,6 +110,8 @@
   const daysStatus = document.getElementById('daysStatus');
   const greeting = document.getElementById('greeting');
   const deviceSelect = document.getElementById('deviceSelect');
+  const customNameField = document.getElementById('customNameField');
+  const customNameInput = document.getElementById('customNameInput');
 
   let password = '';
   let selectedName = '';
@@ -127,6 +133,11 @@
   customOpt.value = '__other__';
   customOpt.textContent = 'Listede yok, adımı yazacağım…';
   nameSelect.appendChild(customOpt);
+  nameSelect.addEventListener('change', () => {
+    const isCustom = nameSelect.value === '__other__';
+    if (customNameField) customNameField.classList.toggle('ci-hidden', !isCustom);
+    if (isCustom && customNameInput) customNameInput.focus();
+  });
 
   function dateKey(d) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -323,10 +334,9 @@
 
   enterBtn.addEventListener('click', async () => {
     password = pwInput.value.trim();
-    selectedName = nameSelect.value;
-    if (selectedName === '__other__') {
-      selectedName = window.prompt('Adını yaz:') || '';
-    }
+    selectedName = nameSelect.value === '__other__'
+      ? (customNameInput ? customNameInput.value.trim() : '')
+      : nameSelect.value;
     if (!password || !selectedName) {
       gateStatus.className = 'ci-status err';
       gateStatus.textContent = 'Şifre ve isim gerekli.';
