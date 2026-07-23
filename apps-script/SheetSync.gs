@@ -88,6 +88,14 @@ const TVF_TRACK_LABELS = {
   diger: 'Diğer çalışma'
 };
 
+function invalidatePublicPayloadCache_() {
+  try {
+    CacheService.getScriptCache().removeAll(['public_payload_rolling_7_days', 'public_payload_calendar_week_to_date']);
+  } catch (err) {
+    // Non-fatal — worst case the next read is served from cache for up to 45s.
+  }
+}
+
 function doGet(e) {
   try {
     const params = (e && e.parameter) || {};
@@ -153,6 +161,7 @@ function doPost(e) {
     const sheetId = PropertiesService.getScriptProperties().getProperty('TARIH_VAKFI_SHEET_ID');
     if (!sheetId) throw new Error('TARIH_VAKFI_SHEET_ID is not set');
     writeWeeklyPlanCheckIn_(sheetId, name, body.day, present, device);
+    invalidatePublicPayloadCache_();
     return tvfJson_({ ok: true, name: name, day: body.day, present: present, device: device || null });
   } catch (err) {
     return tvfJson_({ ok: false, error: String((err && err.message) || err) });
