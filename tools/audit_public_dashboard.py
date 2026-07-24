@@ -882,6 +882,13 @@ def collect_records(rows_by_sheet: dict[str, list[dict[str, Any]]], boxes: dict[
                 role = get_public_role(row, label)
                 key = private_contributor_key(label, row)
                 when = parse_sheet_datetime(row.get("tarih"))
+                # Column E, "Yapılan Çalışmaya İlişkin Sayısal Bilgi" — the
+                # volunteer's own reported page/document count for that entry.
+                # This used to be hardcoded to 0, silently discarding every
+                # number logged here and undercounting anyone whose work only
+                # shows up in this sheet (not in a PNB per-page detail tab).
+                numeric_info = parse_locale_number(row.get("yapilan_calismaya_iliskin_sayisal_bilgi"))
+                units = int(round(numeric_info)) if numeric_info > 0 else 0
                 records.append(SourceRecord(
                     kind="activity",
                     source_type="activity",
@@ -893,7 +900,7 @@ def collect_records(rows_by_sheet: dict[str, list[dict[str, Any]]], boxes: dict[
                     public_label=label,
                     public_role=role,
                     credit_status=status,
-                    page_units=0,
+                    page_units=units,
                     work_title=public_work_title(row),
                     work_detail=public_work_detail(row),
                 ))

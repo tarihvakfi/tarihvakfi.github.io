@@ -990,6 +990,11 @@ function collectPublicRecords_(rowsBySheet, inventory) {
         const when = parseSheetDate_(row.tarih);
         const workTitle = publicWorkTitle_(row);
         const workDetail = publicWorkDetail_(row);
+        // Column E, "Yapılan Çalışmaya İlişkin Sayısal Bilgi" — the volunteer's
+        // own reported page/document count for that entry. This used to be
+        // hardcoded to 0, silently discarding every number logged here.
+        const numericInfo = parseLocaleNumber_(row.yapilanCalismayaIliskinSayisalBilgi);
+        const units = numericInfo > 0 ? Math.round(numericInfo) : 0;
         records.push({
           kind: 'activity',
           sourceType: 'activity',
@@ -1002,7 +1007,7 @@ function collectPublicRecords_(rowsBySheet, inventory) {
           publicRole: publicRole,
           creditStatus: creditStatus_(row),
           box: '',
-          pageUnits: 0,
+          pageUnits: units,
           workTitle: workTitle,
           workDetail: workDetail
         });
