@@ -1691,6 +1691,34 @@ body.tv-drawer-open { overflow: hidden; }
 }
 
 /* ============ Check-in link + merged weekly plan totals row ============ */
-.tv-checkin-link { text-decoration: none; }
+.tv-checkin-link { text-decoration: none; background: none; border: none; font: inherit; cursor: pointer; }
 .tv-weekly-plan .wp-totals { border-top: 1px solid var(--rule); margin-top: 4px; padding-top: 10px; font-weight: 600; }
 .tv-weekly-plan .wp-total-cell { color: var(--accent); }
+
+/* ============ Inline self check-in panel (embedded in the main page) ============ */
+.tv-checkin-inline { margin: 12px 0 28px; padding: 20px; background: var(--paper-soft); border: 1px solid var(--rule); border-radius: 12px; }
+.tv-checkin-inline .ci-field { margin-bottom: 14px; }
+.tv-checkin-inline .ci-field:last-of-type { margin-bottom: 0; }
+.tv-checkin-inline .ci-field label { display: block; font-size: 12px; color: var(--ink-mute); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .03em; }
+.tv-checkin-inline .ci-field input, .tv-checkin-inline .ci-field select {
+  width: 100%; max-width: 360px; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--rule);
+  background: var(--paper); color: var(--ink); font-size: 14px; box-sizing: border-box;
+}
+.tv-checkin-inline .ci-btn {
+  padding: 10px 20px; border-radius: 8px; border: none; background: var(--accent);
+  color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 4px;
+}
+.tv-checkin-inline .ci-btn:disabled { opacity: .5; cursor: default; }
+.tv-checkin-inline .ci-status { font-size: 12px; margin-top: 10px; min-height: 16px; }
+.tv-checkin-inline .ci-status.ok { color: #3f7a4f; }
+.tv-checkin-inline .ci-status.err { color: #a3324a; }
+.tv-checkin-inline .ci-greeting { font-size: 14px; font-weight: 600; color: var(--ink); margin: 0 0 12px; }
+.tv-checkin-inline #ciDayToggles { display: flex; flex-wrap: wrap; gap: 10px; }
+.ci-day-toggle {
+  display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px;
+  border: 1px solid var(--rule); background: var(--paper); font-size: 13px; cursor: pointer; user-select: none;
+}
+.ci-day-toggle.is-checked { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.ci-day-toggle.is-locked { opacity: .5; cursor: default; }
+.ci-day-toggle input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+.ci-hidden { display: none !important; }

@@ -13,6 +13,7 @@
       document.documentElement.style.setProperty('--accent', content.accentColor);
     }
 
+    window.TVF_LAST_CONTENT = content;
     applyContent(content);
     hydrateMasthead(summary);
     hydrateNow(latestActivity);
@@ -854,5 +855,5 @@
     if (el) el.textContent = value == null ? '' : String(value);
   }
 
-  window.TVFRenderDashboard = { renderDashboard, renderError };
+  window.TVFRenderDashboard = { renderDashboard, renderError, hydrateWeeklyPlan };
 })();
