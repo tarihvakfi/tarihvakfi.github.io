@@ -25,7 +25,7 @@ REPORT_PATH = OUTPUT_DIR / "public_dashboard_audit.md"
 SUMMARY_JSON_PATH = OUTPUT_DIR / "public_summary_from_excel.json"
 SNAPSHOT_PATH = ROOT / "js" / "snapshot.js"
 PROJECT_ID = "pnb"
-PROGRESS_CELL = "PNB Sayısallaştırma!D103"
+PROGRESS_CELL = "PNB Sayısallaştırma!L105"
 PUBLIC_TZ = timezone(timedelta(hours=3))
 
 TR_WEEKDAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
@@ -674,9 +674,9 @@ def load_workbook_rows(path: Path) -> tuple[list[dict[str, Any]], dict[str, list
         if classification == "weekly_plan" and weekly_plan_matrix is None:
             weekly_plan_matrix = matrix
         if classification == "pnb_inventory" and progress_signal is None:
-            d103 = parse_progress_percent(ws["D103"].value)
-            if d103 is not None:
-                progress_signal = {"percent": d103, "basis": "pnb_sayisallastirma_d103", "cell": PROGRESS_CELL}
+            l105 = parse_progress_percent(ws["L105"].value)
+            if l105 is not None:
+                progress_signal = {"percent": l105, "basis": "pnb_sayisallastirma_l105", "cell": PROGRESS_CELL}
         sheet_info.append({
             "title": ws.title,
             "classification": classification,
