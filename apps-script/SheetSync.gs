@@ -98,11 +98,13 @@ function invalidatePublicPayloadCache_() {
   }
 }
 
+const TVF_CODE_VERSION = 'v2026-08-07-gunluk-akis-l105';
+
 function doGet(e) {
   try {
     const params = (e && e.parameter) || {};
     if (params.public !== '1') {
-      return tvfJson_({ ok: true, service: 'Tarih Vakfı Gönüllü Emek Günlüğü', hint: 'Add ?public=1' });
+      return tvfJson_({ ok: true, service: 'Tarih Vakfı Gönüllü Emek Günlüğü', codeVersion: TVF_CODE_VERSION, hint: 'Add ?public=1' });
     }
     const mode = normalizePeriodMode_(params.period || params.mode);
     const cache = CacheService.getScriptCache();
@@ -112,7 +114,7 @@ function doGet(e) {
       return tvfJson_(JSON.parse(cached));
     }
     const data = buildPublicDashboardPayload_(mode);
-    const responseBody = { ok: true, generatedAt: data.generatedAt, data: data };
+    const responseBody = { ok: true, generatedAt: data.generatedAt, codeVersion: TVF_CODE_VERSION, data: data };
     try {
       // 45s: short enough that a coordinator's sheet edit shows up almost
       // immediately, long enough that the 20-60s client-side polling we run
