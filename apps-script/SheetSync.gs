@@ -19,6 +19,8 @@ const TVF_TR_MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', '
 const TVF_UNNAMED = 'Adı belirtilmeyen gönüllü';
 const TVF_HIDDEN = 'İsmini gizlemeyi tercih eden gönüllü';
 const TVF_PROGRESS_CELL = 'PNB Sayısallaştırma!L105';
+const TVF_PROGRESS_A1 = 'L105';
+const TVF_PROGRESS_NAMED_RANGE = 'toplam_ilerleme'; // optional: define this named range in the sheet to survive row inserts
 const TVF_VOLUNTEER_PROFILE_SHEET = 'Gönüllü Kartları';
 const TVF_ATTENDANCE_SHEET = 'Katılım'; // legacy fallback, still read if present
 const TVF_WEEKLY_PLAN_SHEET = 'Haftalık Plan'; // primary check-in target (existing tab)
@@ -762,10 +764,7 @@ function readWorkbook_(sheetId) {
       weeklyPlanMatrix = matrix;
     }
     if (classification === 'pnb_inventory' && pnbProgress == null) {
-      const l105 = parseProgressPercent_(matrixValue_(matrix, 105, 12));
-      if (l105 != null) {
-        pnbProgress = { percent: l105, basis: 'pnb_sayisallastirma_l105', cell: TVF_PROGRESS_CELL };
-      }
+      pnbProgress = readProgressCellSignal_(sheetId, title);
     }
     const rows = rowsFromMatrix_(title, matrix);
     rowsBySheet[title] = rows.rows;
@@ -778,6 +777,44 @@ function readWorkbook_(sheetId) {
 function matrixValue_(matrix, oneBasedRow, oneBasedCol) {
   const row = matrix && matrix[oneBasedRow - 1];
   return row ? row[oneBasedCol - 1] : null;
+}
+
+// Reads the "toplam ilerleme" value directly with UNFORMATTED_VALUE so we get
+// the raw number instead of a locale-formatted display string. Tries the
+// optional named range first (a named range follows the cell when rows are
+// inserted/deleted), then falls back to the fixed A1 address. Returns null on
+// any formula error (#REF!, #DIV/0!, ...), non-numeric text, or a value
+// outside (0, 100], so the caller can fall through to the inventory-based
+// fallback instead of confidently publishing a bogus 0%.
+function readProgressCellSignal_(sheetId, sheetTitle) {
+  const candidates = [
+    { range: TVF_PROGRESS_NAMED_RANGE, cell: TVF_PROGRESS_NAMED_RANGE },
+    { range: "'" + sheetTitle + "'!" + TVF_PROGRESS_A1, cell: sheetTitle + '!' + TVF_PROGRESS_A1 }
+  ];
+  for (let i = 0; i < candidates.length; i++) {
+    let raw = null;
+    try {
+      const encoded = '/values/' + encodeURIComponent(candidates[i].range) + '?valueRenderOption=UNFORMATTED_VALUE';
+      const result = fetchSheetsApi_(sheetId, encoded);
+      raw = result.values && result.values[0] ? result.values[0][0] : null;
+    } catch (err) {
+      continue; // named range not defined, or transient API error → try next candidate
+    }
+    const percent = strictProgressPercent_(raw);
+    if (percent != null) {
+      return { percent: percent, basis: 'pnb_sayisallastirma_l105', cell: candidates[i].cell };
+    }
+  }
+  return null;
+}
+
+function strictProgressPercent_(value) {
+  if (value == null || value === '') return null;
+  if (typeof value === 'string' && value.charAt(0) === '#') return null; // formula error cell
+  if (typeof value !== 'number' && !/\d/.test(String(value))) return null; // no digits at all → unparseable
+  const percent = parseProgressPercent_(value);
+  if (percent == null || !isFinite(percent) || percent <= 0 || percent > 100) return null;
+  return percent;
 }
 
 function findWorkbookProgress_(sheets) {
@@ -829,9 +866,7 @@ function progressLabelScore_(label, sheet) {
 }
 
 function parseProgressPercentCandidate_(value) {
-  const percent = parseProgressPercent_(value);
-  if (percent == null || percent < 0 || percent > 100) return null;
-  return percent;
+  return strictProgressPercent_(value);
 }
 
 function a1_(oneBasedRow, oneBasedCol) {

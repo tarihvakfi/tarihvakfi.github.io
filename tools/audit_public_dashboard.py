@@ -674,7 +674,7 @@ def load_workbook_rows(path: Path) -> tuple[list[dict[str, Any]], dict[str, list
         if classification == "weekly_plan" and weekly_plan_matrix is None:
             weekly_plan_matrix = matrix
         if classification == "pnb_inventory" and progress_signal is None:
-            l105 = parse_progress_percent(ws["L105"].value)
+            l105 = strict_progress_percent(ws["L105"].value)
             if l105 is not None:
                 progress_signal = {"percent": l105, "basis": "pnb_sayisallastirma_l105", "cell": PROGRESS_CELL}
         sheet_info.append({
@@ -738,11 +738,26 @@ def progress_label_score(value: Any, sheet: dict[str, Any]) -> float:
     return score
 
 
-def parse_progress_percent_candidate(value: Any) -> float | None:
+def strict_progress_percent(value: Any) -> float | None:
+    """Reject formula errors, digit-free text, and out-of-range values.
+
+    Mirrors strictProgressPercent_ in SheetSync.gs so the local audit and the
+    live Apps Script sync agree on what counts as a valid progress signal.
+    """
+    if value is None or value == "":
+        return None
+    if isinstance(value, str) and value.startswith("#"):
+        return None
+    if not isinstance(value, (int, float)) and not re.search(r"\d", str(value)):
+        return None
     percent = parse_progress_percent(value)
-    if percent is None or percent < 0 or percent > 100:
+    if percent is None or not math.isfinite(percent) or percent <= 0 or percent > 100:
         return None
     return percent
+
+
+def parse_progress_percent_candidate(value: Any) -> float | None:
+    return strict_progress_percent(value)
 
 
 def build_inventory(rows_by_sheet: dict[str, list[dict[str, Any]]]) -> dict[str, BoxInfo]:
