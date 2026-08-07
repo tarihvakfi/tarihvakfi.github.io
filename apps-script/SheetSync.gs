@@ -18,7 +18,7 @@ const TVF_TR_WEEKDAYS = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma'
 const TVF_TR_MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
 const TVF_UNNAMED = 'Adı belirtilmeyen gönüllü';
 const TVF_HIDDEN = 'İsmini gizlemeyi tercih eden gönüllü';
-const TVF_PROGRESS_CELL = 'PNB Sayısallaştırma!D103';
+const TVF_PROGRESS_CELL = 'PNB Sayısallaştırma!L105';
 const TVF_VOLUNTEER_PROFILE_SHEET = 'Gönüllü Kartları';
 const TVF_ATTENDANCE_SHEET = 'Katılım'; // legacy fallback, still read if present
 const TVF_WEEKLY_PLAN_SHEET = 'Haftalık Plan'; // primary check-in target (existing tab)
@@ -762,9 +762,9 @@ function readWorkbook_(sheetId) {
       weeklyPlanMatrix = matrix;
     }
     if (classification === 'pnb_inventory' && pnbProgress == null) {
-      const d103 = parseProgressPercent_(matrixValue_(matrix, 103, 4));
-      if (d103 != null) {
-        pnbProgress = { percent: d103, basis: 'pnb_sayisallastirma_d103', cell: TVF_PROGRESS_CELL };
+      const l105 = parseProgressPercent_(matrixValue_(matrix, 105, 12));
+      if (l105 != null) {
+        pnbProgress = { percent: l105, basis: 'pnb_sayisallastirma_l105', cell: TVF_PROGRESS_CELL };
       }
     }
     const rows = rowsFromMatrix_(title, matrix);

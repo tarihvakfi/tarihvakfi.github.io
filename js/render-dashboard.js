@@ -824,7 +824,7 @@
   function progressStatus(summary) {
     const totals = (summary && summary.totals) || {};
     const source = (summary && summary.source) || {};
-    const reliableBasis = ['pnb_sayisallastirma_d103', 'workbook_progress_label_scan', 'pnb_inventory_done_total_scan'];
+    const reliableBasis = ['pnb_sayisallastirma_l105', 'pnb_sayisallastirma_d103', 'workbook_progress_label_scan', 'pnb_inventory_done_total_scan'];
     const hasTarget = Number(totals.pagesTarget || 0) > 0;
     const hasBasis = reliableBasis.indexOf(source.progressBasis) >= 0;
     const flagged = (Array.isArray(summary && summary.byBox) ? summary.byBox : []).filter((box) => {
