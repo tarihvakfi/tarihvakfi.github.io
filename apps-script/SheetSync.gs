@@ -1049,6 +1049,52 @@ function collectPublicRecords_(rowsBySheet, inventory) {
       });
     }
   });
+  applySelfReportedDailyPages_(records);
+  return records;
+}
+
+// Günlük Akış is the volunteers' own end-of-day report; column E carries the
+// page count they state they scanned that day. The detail sheets, in contrast,
+// are per-page coding records whose Tarih column reflects when a row was
+// *entered*, which can lag or lead the actual scanning day (backlog coding).
+// When a scanning self-report exists for a (person, day), it is authoritative
+// for that day's public page count: redistribute the reported total across
+// that person's page records for the day so every downstream pagesDone sum
+// (day cards, contributor totals, box period deltas) reflects the report.
+// Days without a numeric self-report keep the detail-row count, so volunteers
+// who skip Günlük Akış (e.g. only coded rows exist) still get full credit.
+// Row counts (pageRows/records) are left untouched — they are labelled
+// "satır/kayıt" and box inventory progress is accumulated before this runs.
+function applySelfReportedDailyPages_(records) {
+  const reported = {};
+  (records || []).forEach(function (record) {
+    if (record.kind !== 'activity' || !record.dateISO || !record.privateKey) return;
+    if (record.privateKey === 'unnamed' || record.privateKey === 'hidden') return;
+    if (!(Number(record.pageUnits) > 0)) return;
+    const hay = asciiFold_(String(record.workTitle || '') + ' ' + String(record.workDetail || '')).toLowerCase();
+    if (hay.indexOf('tarama') < 0) return; // only scanning reports override page counts
+    const key = record.privateKey + '|' + record.dateISO;
+    reported[key] = (reported[key] || 0) + Math.round(Number(record.pageUnits));
+  });
+  const pagesByKey = {};
+  (records || []).forEach(function (record) {
+    if (record.kind !== 'page' || !record.dateISO || !record.privateKey) return;
+    const key = record.privateKey + '|' + record.dateISO;
+    if (reported[key] == null) return;
+    if (!pagesByKey[key]) pagesByKey[key] = [];
+    pagesByKey[key].push(record);
+  });
+  Object.keys(pagesByKey).forEach(function (key) {
+    const rows = pagesByKey[key];
+    const target = reported[key];
+    const base = Math.floor(target / rows.length);
+    let remainder = target - base * rows.length;
+    rows.forEach(function (record) {
+      record.pageUnits = base + (remainder > 0 ? 1 : 0);
+      if (remainder > 0) remainder -= 1;
+      record.pageUnitsBasis = 'gunluk_akis_self_report';
+    });
+  });
   return records;
 }
 
@@ -1394,7 +1440,8 @@ function daySummary_(dateISO, rows) {
   }).map(function (item) { return item.label; });
   const coordination = contributors.filter(function (item) { return item.publicRole; });
   const parts = [];
-  if (pageRows.length) parts.push(pageRows.length + ' sayfa/detay satırı');
+  const dayPagesDone = Math.round(pageRows.reduce(function (sum, record) { return sum + Number(record.pageUnits || 1); }, 0));
+  if (pageRows.length) parts.push(dayPagesDone + ' sayfa/detay');
   if (activityRows.length) parts.push(activityRows.length + ' faaliyet kaydı');
   if (contributors.length) parts.push(contributors.length + ' kişi');
   if (Object.keys(boxes).length) parts.push(Object.keys(boxes).length + ' kutu');

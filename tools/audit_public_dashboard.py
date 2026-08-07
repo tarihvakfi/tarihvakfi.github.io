@@ -919,6 +919,48 @@ def collect_records(rows_by_sheet: dict[str, list[dict[str, Any]]], boxes: dict[
                     work_title=public_work_title(row),
                     work_detail=public_work_detail(row),
                 ))
+    apply_self_reported_daily_pages(records)
+    return records
+
+
+def apply_self_reported_daily_pages(records: list[SourceRecord]) -> list[SourceRecord]:
+    """Mirror applySelfReportedDailyPages_ in SheetSync.gs.
+
+    Günlük Akış column E is the volunteer's own end-of-day scanned-page count;
+    detail-sheet rows carry the *coding* date, which can lag/lead scanning.
+    A numeric scanning self-report is authoritative for that (person, day):
+    redistribute it across the person's page records so pagesDone sums match.
+    Days without a report keep the detail-row count.
+    """
+    reported: dict[str, int] = {}
+    for rec in records:
+        if rec.kind != "activity" or rec.date is None or not rec.private_key:
+            continue
+        if rec.private_key in ("unnamed", "hidden"):
+            continue
+        if not (rec.page_units and rec.page_units > 0):
+            continue
+        hay = ascii_fold(f"{rec.work_title or ''} {rec.work_detail or ''}").lower()
+        if "tarama" not in hay:
+            continue
+        key = f"{rec.private_key}|{rec.date.isoformat()}"
+        reported[key] = reported.get(key, 0) + int(round(rec.page_units))
+    pages_by_key: dict[str, list[SourceRecord]] = {}
+    for rec in records:
+        if rec.kind != "page" or rec.date is None or not rec.private_key:
+            continue
+        key = f"{rec.private_key}|{rec.date.isoformat()}"
+        if key not in reported:
+            continue
+        pages_by_key.setdefault(key, []).append(rec)
+    for key, rows in pages_by_key.items():
+        target = reported[key]
+        base = target // len(rows)
+        remainder = target - base * len(rows)
+        for rec in rows:
+            rec.page_units = base + (1 if remainder > 0 else 0)
+            if remainder > 0:
+                remainder -= 1
     return records
 
 
@@ -1074,7 +1116,8 @@ def summarize_day(day: date, rows: list[SourceRecord]) -> dict[str, Any]:
     if rows:
         parts = []
         if page_rows:
-            parts.append(f"{len(page_rows)} sayfa/detay satırı")
+            day_pages_done = round(sum(r.page_units or 1 for r in page_rows))
+            parts.append(f"{day_pages_done} sayfa/detay")
         if activity_rows:
             parts.append(f"{len(activity_rows)} faaliyet kaydı")
         if contributors:
