@@ -8,7 +8,10 @@
 //   2. Deploy → Manage Deployments → New Deployment
 //   3. Type: Web App, Execute as: <foundation account>, Access: Anyone
 //   4. Copy the /exec URL below.
-window.__SHEETSYNC_URL__ = "https://script.google.com/macros/s/AKfycbzSGPTbBnrfhSDdw_iOrfxAfGLYp08qpZwl8rqZSb90o_x5cUK7Eo1HYnrjk-hvJWE/exec";
+//
+// 2026-08-07: endpoint rotated to a fresh deployment (…1IKi) to leave
+// behind the stale/poisoned instances of the previous one (…hvJWE).
+window.__SHEETSYNC_URL__ = "https://script.google.com/macros/s/AKfycbzYlAT_pkft3ePBZ12ABD1zPw6nyK-NnotzOBAfzaLdlblezSFLzCnbCUfODjBo1IKi/exec";
 
 window.__APP_CONFIG__ = {
   appName: "Tarih Vakfı Gönüllü Emek Günlüğü"
