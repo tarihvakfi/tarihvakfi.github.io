@@ -158,13 +158,26 @@
     const log = buildLiveVolunteerLog(label, summary, payload, volunteerLog);
     const trackKeys = liveTrackKeys(label, summary, volunteerLog, log);
     const boxes = liveBoxes(row, volunteerLog, log);
-    const byMonth = {};
+    const byMonthDates = {};
     log.forEach((entry) => {
       const iso = entry.date;
       const month = iso && iso.slice(0, 7);
-      if (month) byMonth[month] = (byMonth[month] || 0) + 1;
+      if (!month) return;
+      if (!byMonthDates[month]) byMonthDates[month] = {};
+      byMonthDates[month][iso] = true;
     });
-    const sessions = Number((volunteerLog && volunteerLog.records) || (row && row.records) || log.reduce((sum, item) => sum + Number(item.records || 1), 0));
+    const byMonth = {};
+    Object.keys(byMonthDates).forEach((month) => {
+      byMonth[month] = Object.keys(byMonthDates[month]).length;
+    });
+    const distinctDays = {};
+    log.forEach((entry) => { if (entry.date) distinctDays[entry.date] = true; });
+    const sessions = Number(
+      (volunteerLog && volunteerLog.sessions)
+      || Object.keys(distinctDays).length
+      || (row && row.records)
+      || 0
+    );
     return {
       name: label,
       slug: slugifyName(label),
@@ -335,7 +348,11 @@
 
   function dedupeLogRows(rows) {
     const seen = {};
-    return (rows || []).filter((row) => row && row.date).filter((row) => {
+    // Drop rows whose date is a sheet typo in the far future (e.g. 2027/2028
+    // autofill drift) so they cannot sit on top of the activity list.
+    const maxDate = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+    const maxISO = maxDate.toISOString().slice(0, 10);
+    return (rows || []).filter((row) => row && row.date && row.date <= maxISO).filter((row) => {
       const key = [
         row.date,
         row.track,
@@ -493,9 +510,14 @@
     // Monthly sparkline
     let sparkHtml = "";
     if (v.byMonth && Object.keys(v.byMonth).length) {
-      const months = (window.TVF_ROSTER.monthsActive || [])
-        .slice();
-      if (months.length === 0) months.push(...Object.keys(v.byMonth).sort());
+      // Axis = union of the roster snapshot's month window and the months the
+      // volunteer actually has data for. The snapshot window alone goes stale
+      // (e.g. frozen at OCA–MAY while live work is in TEM–AĞU), which used to
+      // render an all-empty chart.
+      const monthSet = {};
+      (window.TVF_ROSTER.monthsActive || []).forEach((m) => { monthSet[m] = true; });
+      Object.keys(v.byMonth).forEach((m) => { monthSet[m] = true; });
+      const months = Object.keys(monthSet).sort().slice(-8);
       const counts = months.map((m) => v.byMonth[m] || 0);
       const max = Math.max(1, ...counts);
       const bars = counts

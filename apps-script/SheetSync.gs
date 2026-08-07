@@ -488,7 +488,7 @@ function buildPublicSummaryFromRows(records, inventory, inventoryTotals, now, mo
       activityRows: 0,
       periodRecords: rows.length,
       periodPageRows: rows.length,
-      periodPagesDone: rows.reduce(function (sum, record) { return sum + Number(record.pageUnits || 1); }, 0),
+      periodPagesDone: rows.reduce(function (sum, record) { return sum + Number(record.pageUnits == null ? 1 : record.pageUnits); }, 0),
       materialCounts: counterToRows_(material),
       materials: counterToRows_(material),
       contributors: contributors,
@@ -529,7 +529,7 @@ function buildPublicSummaryFromRows(records, inventory, inventoryTotals, now, mo
       records: rows.length,
       pageRows: pageRows.length,
       activityRows: rows.length - pageRows.length,
-      pagesDone: pageRows.reduce(function (sum, record) { return sum + Number(record.pageUnits || 1); }, 0),
+      pagesDone: pageRows.reduce(function (sum, record) { return sum + Number(record.pageUnits == null ? 1 : record.pageUnits); }, 0),
       topBox: boxes[0] || null,
       boxes: boxes.slice(0, 4),
       boxBreakdown: boxes.slice(0, 4).map(function (boxLabel) {
@@ -577,7 +577,7 @@ function buildPublicSummaryFromRows(records, inventory, inventoryTotals, now, mo
       records: periodRecords.length,
       pageRows: pageRecords.length,
       activityRows: activityRecords.length,
-      periodPagesDone: pageRecords.reduce(function (sum, record) { return sum + Number(record.pageUnits || 1); }, 0),
+      periodPagesDone: pageRecords.reduce(function (sum, record) { return sum + Number(record.pageUnits == null ? 1 : record.pageUnits); }, 0),
       pagesDone: pagesDone,
       pagesTarget: targetPages,
       progressPercent: progressPercent,
@@ -661,7 +661,7 @@ function buildPeriodTrackRows_(periodRecords) {
     group.records += 1;
     if (record.kind === 'page') {
       group.pageRows += 1;
-      group.pagesDone += Number(record.pageUnits || 1);
+      group.pagesDone += Number(record.pageUnits == null ? 1 : record.pageUnits);
     } else {
       group.activityRows += 1;
     }
@@ -683,7 +683,7 @@ function buildPeriodTrackRows_(periodRecords) {
       contributor.records += 1;
       if (record.kind === 'page') {
         contributor.pageRows += 1;
-        contributor.pagesDone += Number(record.pageUnits || 1);
+        contributor.pagesDone += Number(record.pageUnits == null ? 1 : record.pageUnits);
       } else {
         contributor.activityRows += 1;
       }
@@ -968,6 +968,15 @@ function computeInventoryTotals_(rowsBySheet) {
 
 function collectPublicRecords_(rowsBySheet, inventory) {
   const records = [];
+  // Guard against date typos in the sheets (e.g. autofill drift writing
+  // 30.07.2027 / 30.07.2028). A record dated more than 2 days in the future
+  // keeps all its counts but loses its date, so it cannot pollute day cards,
+  // volunteer logs, monthly charts, or lastActivity ordering.
+  const maxValidTime = Date.now() + 2 * 24 * 60 * 60 * 1000;
+  function sanitizeWhen_(when) {
+    if (when && when.getTime && when.getTime() > maxValidTime) return null;
+    return when || null;
+  }
   Object.keys(rowsBySheet).forEach(function (title) {
     const classification = classifySheet_(title);
     const rows = rowsBySheet[title];
@@ -975,7 +984,7 @@ function collectPublicRecords_(rowsBySheet, inventory) {
       rows.forEach(function (row) {
         const enriched = copyObject_(row);
         let label = getVolunteerDisplayName_(enriched);
-        const when = parseSheetDate_(row.tarih);
+        const when = sanitizeWhen_(parseSheetDate_(row.tarih));
         const pageUnits = 1;
         const box = publicBoxLabel_(row.kutu || row.kutuNo);
         const workTitle = publicWorkTitle_(row);
@@ -1022,7 +1031,7 @@ function collectPublicRecords_(rowsBySheet, inventory) {
       rows.forEach(function (row) {
         const label = getVolunteerDisplayName_(row);
         const publicRole = getPublicRole_(row, label);
-        const when = parseSheetDate_(row.tarih);
+        const when = sanitizeWhen_(parseSheetDate_(row.tarih));
         const workTitle = publicWorkTitle_(row);
         const workDetail = publicWorkDetail_(row);
         // Column E, "Yapılan Çalışmaya İlişkin Sayısal Bilgi" — the volunteer's
@@ -1190,16 +1199,18 @@ function buildPublicVolunteerLogs_(records) {
           pagesDone: 0,
           boxes: {},
           tracks: {},
-          entries: {}
+          entries: {},
+          dates: {}
         };
       }
       const group = groups[key];
       group.label = preferredVolunteerLabel_([group.label, person.label]);
       if (!group.publicRole && record.publicRole) group.publicRole = record.publicRole;
       group.records += 1;
+      if (record.dateISO) group.dates[record.dateISO] = true;
       if (record.kind === 'page') {
         group.pageRows += 1;
-        group.pagesDone += Number(record.pageUnits || 1);
+        group.pagesDone += Number(record.pageUnits == null ? 1 : record.pageUnits);
       } else {
         group.activityRows += 1;
       }
@@ -1218,7 +1229,7 @@ function buildPublicVolunteerLogs_(records) {
       track.records += 1;
       if (record.kind === 'page') {
         track.pageRows += 1;
-        track.pagesDone += Number(record.pageUnits || 1);
+        track.pagesDone += Number(record.pageUnits == null ? 1 : record.pageUnits);
       } else {
         track.activityRows += 1;
       }
@@ -1253,7 +1264,7 @@ function buildPublicVolunteerLogs_(records) {
       entry.records += 1;
       if (record.kind === 'page') {
         entry.pageRows += 1;
-        entry.pagesDone += Number(record.pageUnits || 1);
+        entry.pagesDone += Number(record.pageUnits == null ? 1 : record.pageUnits);
       } else {
         entry.activityRows += 1;
       }
@@ -1283,6 +1294,7 @@ function buildPublicVolunteerLogs_(records) {
       slug: volunteerSlug_(label),
       publicRole: group.publicRole || preferredPublicRole_([], label),
       records: group.records,
+      sessions: Object.keys(group.dates || {}).length,
       pageRows: group.pageRows,
       activityRows: group.activityRows,
       pagesDone: group.pagesDone,
@@ -1431,7 +1443,7 @@ function daySummary_(dateISO, rows) {
       records: recs.length,
       pageRows: contributorPageRows.length,
       activityRows: contributorActivityRows.length,
-      pagesDone: contributorPageRows.reduce(function (sum, record) { return sum + Number(record.pageUnits || 1); }, 0),
+      pagesDone: contributorPageRows.reduce(function (sum, record) { return sum + Number(record.pageUnits == null ? 1 : record.pageUnits); }, 0),
       workRows: publicWorkRowsForContributor_(recs, 4)
     };
   }).filter(Boolean).sort(function (a, b) { return asciiFold_(a.label).localeCompare(asciiFold_(b.label)); });
@@ -1440,7 +1452,7 @@ function daySummary_(dateISO, rows) {
   }).map(function (item) { return item.label; });
   const coordination = contributors.filter(function (item) { return item.publicRole; });
   const parts = [];
-  const dayPagesDone = Math.round(pageRows.reduce(function (sum, record) { return sum + Number(record.pageUnits || 1); }, 0));
+  const dayPagesDone = Math.round(pageRows.reduce(function (sum, record) { return sum + Number(record.pageUnits == null ? 1 : record.pageUnits); }, 0));
   if (pageRows.length) parts.push(dayPagesDone + ' sayfa/detay');
   if (activityRows.length) parts.push(activityRows.length + ' faaliyet kaydı');
   if (contributors.length) parts.push(contributors.length + ' kişi');
@@ -1452,7 +1464,7 @@ function daySummary_(dateISO, rows) {
     records: rows.length,
     pageRows: pageRows.length,
     activityRows: activityRows.length,
-    pagesDone: pageRows.reduce(function (sum, record) { return sum + Number(record.pageUnits || 1); }, 0),
+    pagesDone: pageRows.reduce(function (sum, record) { return sum + Number(record.pageUnits == null ? 1 : record.pageUnits); }, 0),
     volunteersCount: contributors.length,
     volunteerNames: volunteerNames,
     coordination: coordination,
@@ -1495,7 +1507,7 @@ function publicWorkRowsForContributor_(records, limit) {
     group.records += 1;
     if (record.kind === 'page') {
       group.pageRows += 1;
-      group.pagesDone += Number(record.pageUnits || 1);
+      group.pagesDone += Number(record.pageUnits == null ? 1 : record.pageUnits);
     } else {
       group.activityRows += 1;
     }
@@ -1631,7 +1643,7 @@ function buildVolunteerProfileSeeds_(records, rowsBySheet, existingRows) {
     seed.records += 1;
     if (record.kind === 'page') {
       seed.pageRows += 1;
-      seed.pagesDone += Number(record.pageUnits || 1);
+      seed.pagesDone += Number(record.pageUnits == null ? 1 : record.pageUnits);
     }
     if (record.publicRole) addUnique_(seed.roles, record.publicRole);
     if (record.material) addUnique_(seed.materials, record.material);

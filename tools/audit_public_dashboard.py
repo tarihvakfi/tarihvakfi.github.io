@@ -844,6 +844,17 @@ def page_units_for_detail_rows(rows: list[dict[str, Any]]) -> list[int]:
     return [1 for _ in rows]
 
 
+def sanitize_when(when: datetime | None) -> datetime | None:
+    """Mirror sanitizeWhen_ in SheetSync.gs: a record dated more than 2 days
+    in the future is a sheet typo (autofill drift, e.g. 30.07.2027/2028);
+    keep its counts but drop the date so it stays out of day cards, logs,
+    monthly charts, and lastActivity ordering."""
+    if when is None:
+        return None
+    limit = datetime.now(when.tzinfo) + timedelta(days=2) if when.tzinfo else datetime.now() + timedelta(days=2)
+    return None if when > limit else when
+
+
 def collect_records(rows_by_sheet: dict[str, list[dict[str, Any]]], boxes: dict[str, BoxInfo]) -> list[SourceRecord]:
     records: list[SourceRecord] = []
     for title, rows in rows_by_sheet.items():
@@ -854,7 +865,7 @@ def collect_records(rows_by_sheet: dict[str, list[dict[str, Any]]], boxes: dict[
                 enriched = dict(row)
                 label, status = get_volunteer_display_name(enriched)
                 box = public_box_label(row.get("kutu") or row.get("kutu_no"))
-                when = parse_sheet_datetime(row.get("tarih"))
+                when = sanitize_when(parse_sheet_datetime(row.get("tarih")))
                 work_title = public_work_title(row)
                 work_detail = public_work_detail(row)
                 if is_suppressed_legacy_credit(label, "page", box):
@@ -896,7 +907,7 @@ def collect_records(rows_by_sheet: dict[str, list[dict[str, Any]]], boxes: dict[
                 label, status = get_volunteer_display_name(row)
                 role = get_public_role(row, label)
                 key = private_contributor_key(label, row)
-                when = parse_sheet_datetime(row.get("tarih"))
+                when = sanitize_when(parse_sheet_datetime(row.get("tarih")))
                 # Column E, "Yapılan Çalışmaya İlişkin Sayısal Bilgi" — the
                 # volunteer's own reported page/document count for that entry.
                 # This used to be hardcoded to 0, silently discarding every
@@ -1015,7 +1026,7 @@ def build_by_track(period_records: list[SourceRecord]) -> list[dict[str, Any]]:
         group["records"] += 1
         if rec.kind == "page":
             group["pageRows"] += 1
-            group["pagesDone"] += rec.page_units or 1
+            group["pagesDone"] += (1 if rec.page_units is None else rec.page_units)
         else:
             group["activityRows"] += 1
         for person in public_people_from_label(rec.public_label):
@@ -1042,7 +1053,7 @@ def build_by_track(period_records: list[SourceRecord]) -> list[dict[str, Any]]:
                 "records": len(recs),
                 "pageRows": len(page_rows),
                 "activityRows": len(activity_rows),
-                "pagesDone": sum(rec.page_units or 1 for rec in page_rows),
+                "pagesDone": sum((1 if rec.page_units is None else rec.page_units) for rec in page_rows),
             })
         contributors.sort(key=lambda row: (-row["records"], row["label"]))
         if contributors:
@@ -1116,7 +1127,7 @@ def summarize_day(day: date, rows: list[SourceRecord]) -> dict[str, Any]:
     if rows:
         parts = []
         if page_rows:
-            day_pages_done = round(sum(r.page_units or 1 for r in page_rows))
+            day_pages_done = round(sum((1 if r.page_units is None else r.page_units) for r in page_rows))
             parts.append(f"{day_pages_done} sayfa/detay")
         if activity_rows:
             parts.append(f"{len(activity_rows)} faaliyet kaydı")
@@ -1168,7 +1179,7 @@ def public_work_rows_for_contributor(records: list[SourceRecord], limit: int = 4
         row["records"] += 1
         if rec.kind == "page":
             row["pageRows"] += 1
-            row["pagesDone"] += rec.page_units or 1
+            row["pagesDone"] += (1 if rec.page_units is None else rec.page_units)
         else:
             row["activityRows"] += 1
     return sorted(
@@ -1404,14 +1415,16 @@ def build_public_volunteer_logs(records: list[SourceRecord]) -> list[dict[str, A
                 "boxes": set(),
                 "tracks": {},
                 "entries": {},
+                "dates": set(),
             })
             group["label"] = preferred_label([group["label"], person["label"]])
             if not group["publicRole"] and rec.public_role:
                 group["publicRole"] = rec.public_role
             group["records"] += 1
+            group["dates"].add(rec.date.isoformat())
             if rec.kind == "page":
                 group["pageRows"] += 1
-                group["pagesDone"] += rec.page_units or 1
+                group["pagesDone"] += (1 if rec.page_units is None else rec.page_units)
             else:
                 group["activityRows"] += 1
 
@@ -1427,7 +1440,7 @@ def build_public_volunteer_logs(records: list[SourceRecord]) -> list[dict[str, A
             track["records"] += 1
             if rec.kind == "page":
                 track["pageRows"] += 1
-                track["pagesDone"] += rec.page_units or 1
+                track["pagesDone"] += (1 if rec.page_units is None else rec.page_units)
             else:
                 track["activityRows"] += 1
 
@@ -1460,7 +1473,7 @@ def build_public_volunteer_logs(records: list[SourceRecord]) -> list[dict[str, A
             entry["records"] += 1
             if rec.kind == "page":
                 entry["pageRows"] += 1
-                entry["pagesDone"] += rec.page_units or 1
+                entry["pagesDone"] += (1 if rec.page_units is None else rec.page_units)
             else:
                 entry["activityRows"] += 1
 
@@ -1486,6 +1499,7 @@ def build_public_volunteer_logs(records: list[SourceRecord]) -> list[dict[str, A
             "slug": slugify(label).replace("_", "-") or "gonullu",
             "publicRole": group["publicRole"] or preferred_role([], label),
             "records": group["records"],
+            "sessions": len(group.get("dates") or ()),
             "pageRows": group["pageRows"],
             "activityRows": group["activityRows"],
             "pagesDone": group["pagesDone"],
