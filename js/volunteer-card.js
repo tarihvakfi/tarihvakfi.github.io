@@ -39,9 +39,12 @@
     "neslihan erkan": "Neslihan Erkan",
   };
 
-  const SUPPRESSED_LEGACY_CREDIT_KEYS = new Set([
-    "betul iseri",
-  ]);
+  // Legacy-credit suppression is handled server-side in SheetSync.gs
+  // (isSuppressedLegacyCredit_), scoped to Kutu 31 page rows only. A blanket
+  // client-side list here hid volunteers' *current* work too (Betül's 307
+  // records in the 2–8 Ağustos period vanished from every roster section
+  // while the day cards still showed her). Keep the mechanism, ship it empty.
+  const SUPPRESSED_LEGACY_CREDIT_KEYS = new Set([]);
 
   const SOCIAL_ICONS = {
     website:  { label: "Web sitesi",  prefix: "" },

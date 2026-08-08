@@ -243,13 +243,13 @@
     const topMaterial = summary.highlights && summary.highlights.topMaterial;
 
     const one = document.getElementById('lpSignal1Body');
-    if (one) one.innerHTML = `<em>${U.formatNum(totals.records)} kayıt</em>: ${U.formatNum(totals.pageRows)} sayfa/detay + ${U.formatNum(totals.activityRows)} faaliyet.`;
+    if (one) one.innerHTML = `<em>${U.formatNum(totals.records)} kayıt</em>: ${U.formatNum(totals.pageRows)} sayfa/detay satırı + ${U.formatNum(totals.activityRows)} faaliyet.`;
     setText('lpSignal1Meta', `${U.formatNum(periodDetailRows(totals))} arşiv detayı işlendi`);
 
     const two = document.getElementById('lpSignal2Body');
     if (two && busiest && busiest.records > 0) {
       two.innerHTML = `<em>${U.escapeHtml(busiest.weekdayTR)}</em> dönemin en yoğun günü — ${U.formatNum(busiest.records)} kayıt.`;
-      setText('lpSignal2Meta', `${U.formatDayMonth(busiest.dateISO)} · ${U.formatNum(busiest.pageRows)} sayfa/detay + ${U.formatNum(busiest.activityRows)} faaliyet`);
+      setText('lpSignal2Meta', `${U.formatDayMonth(busiest.dateISO)} · ${U.formatNum(busiest.pagesDone != null ? busiest.pagesDone : busiest.pageRows)} sayfa/detay + ${U.formatNum(busiest.activityRows)} faaliyet`);
     } else if (two) {
       two.textContent = 'Bu dönemde henüz kayıt görünmüyor.';
       setText('lpSignal2Meta', '');
@@ -328,7 +328,9 @@
     const boxText = (day.boxLabels || []).slice(0, 3).join(', ');
     const boxCount = Number(day.boxesCount || (day.boxLabels || []).length || 0);
     const dailyBits = [
-      `${U.formatNum(day.pageRows)} sayfa/detay`,
+      // pagesDone carries the volunteers' own end-of-day page reports
+      // (authoritative per SheetSync); pageRows is just "rows typed that day".
+      `${U.formatNum(day.pagesDone != null ? day.pagesDone : day.pageRows)} sayfa/detay`,
       `${U.formatNum(day.activityRows)} faaliyet`
     ];
     if (boxCount) dailyBits.push(`${U.formatNum(boxCount)} kutu`);
@@ -368,7 +370,8 @@
         ? row.boxBreakdown.slice(0, 3).map((item) => `${item.boxLabel}`).join(' · ')
         : (row.topBox || 'Genel destek');
       const unitParts = [];
-      if (row.pageRows) unitParts.push(`${U.formatNum(row.pageRows)} sayfa/detay`);
+      const rowPages = Number(row.pagesDone || 0) || Number(row.pageRows || 0);
+      if (rowPages) unitParts.push(`${U.formatNum(rowPages)} sayfa/detay`);
       if (row.activityRows) unitParts.push(`${U.formatNum(row.activityRows)} faaliyet kaydı`);
       if (!unitParts.length) unitParts.push(`${U.formatNum(row.records)} katkı kaydı`);
       const meta = row.publicRole
@@ -380,7 +383,7 @@
           <p class="vol-name">${U.escapeHtml(label)}</p>
           <p class="vol-meta">${U.escapeHtml(meta)}</p>
         </div>
-        <span class="vol-pages">${U.formatNum(row.pageRows || row.pagesDone || row.records)}</span>
+        <span class="vol-pages">${U.formatNum(row.pagesDone || row.pageRows || row.records)}</span>
       </article>`;
     }).join('');
     block.removeAttribute('hidden');
@@ -399,14 +402,13 @@
     setText('lpBoxesWeekMeta', `${U.formatNum(boxes.length)} kutu · ${U.formatNum(periodTotal)} dönem kaydı`);
     rows.innerHTML = `<div class="box-grid">${boxes.map((box) => {
       const target = Number(box.target || 0);
-      const rawDone = Number(box.done || 0);
-      const boxRows = Number(box.pageRows || box.periodPageRows || 0);
-      const boxPeriodUnits = Number(box.periodPagesDone || 0);
-      const inflatedBox = boxRows > 0 && (
-        boxPeriodUnits > boxRows * 1.5 ||
-        (target > 0 && rawDone > target && boxRows <= target)
-      );
-      const done = inflatedBox ? boxRows : rawDone;
+      // All-time progress comes straight from the server: `done` counts every
+      // detail row ever entered for the box. The old "inflatedBox" guard
+      // swapped in this week's row count, which understated boxes that had
+      // pre-period work (a completed Kutu 1 rendered as ~%65 "ilerliyor")
+      // and contradicted the "tamamlanan kutu" total on the same page.
+      // Over-target boxes are already handled by Math.min(done, target).
+      const done = Number(box.done || 0);
       const pct = target > 0 ? Math.round((Math.min(done, target) / target) * 1000) / 10 : (box.percent == null ? null : Number(box.percent));
       const progressWidth = pct == null ? 0 : Math.max(2, Math.min(100, pct));
       const pctText = pct == null ? '—' : `%${U.formatPct(pct)}`;
@@ -432,7 +434,7 @@
         </div>
         <div class="box-card-main">
           <div class="box-percent">${U.escapeHtml(pctText)}</div>
-          <div class="box-period"><b>+${U.formatNum(periodPageRows)}</b><span>sayfa/detay</span></div>
+          <div class="box-period"><b>+${U.formatNum(periodPageRows)}</b><span>detay satırı</span></div>
         </div>
         <div class="box-progress" aria-label="${U.escapeHtml(progressLabel)}"><span style="width:${progressWidth}%"></span></div>
         <div class="box-stats">
@@ -554,7 +556,8 @@
 
   function renderLatestDaySummary(day) {
     const bits = [];
-    if (Number(day.pageRows || 0)) bits.push(`${U.formatNum(day.pageRows)} sayfa/detay`);
+    const dayPages = Number(day.pagesDone != null ? day.pagesDone : day.pageRows) || 0;
+    if (dayPages) bits.push(`${U.formatNum(dayPages)} sayfa/detay`);
     if (Number(day.activityRows || 0)) bits.push(`${U.formatNum(day.activityRows)} faaliyet`);
     const boxCount = Number(day.boxesCount || (day.boxLabels || []).length || 0);
     if (boxCount) bits.push(`${U.formatNum(boxCount)} kutu`);
@@ -576,7 +579,8 @@
       detailParts.push(`${U.formatNum(row.records)} faaliyet`);
     } else if (row.kind === 'summary') {
       const summaryBits = [];
-      if (Number(row.pageRows || 0)) summaryBits.push(`${U.formatNum(row.pageRows)} sayfa/detay`);
+      const summaryPages = Number(row.pagesDone || 0) || Number(row.pageRows || 0);
+      if (summaryPages) summaryBits.push(`${U.formatNum(summaryPages)} sayfa/detay`);
       if (Number(row.activityRows || 0)) summaryBits.push(`${U.formatNum(row.activityRows)} faaliyet`);
       detailParts.push(summaryBits.length ? summaryBits.join(' · ') : `${U.formatNum(row.records)} çalışma`);
     } else {
@@ -733,7 +737,8 @@
     const parts = [];
     if (row.publicRole) parts.push(row.publicRole);
     if (row.activityRows) parts.push(`${U.formatNum(row.activityRows)} faaliyet`);
-    if (row.pageRows) parts.push(`${U.formatNum(row.pageRows)} sayfa/detay`);
+    const rolePages = Number(row.pagesDone || 0) || Number(row.pageRows || 0);
+    if (rolePages) parts.push(`${U.formatNum(rolePages)} sayfa/detay`);
     return `${U.escapeHtml(row.label)} — ${U.escapeHtml(parts.join(' · '))}`;
   }
 
@@ -792,7 +797,9 @@
     if (!row || row.kind !== 'page') return 0;
     const records = Math.max(1, Number(row.records || 1));
     const units = Number(row.pagesDone || 0);
-    if (row.recordType === 'page_detail' && units > records) return records;
+    // units may legitimately exceed records: the self-reported daily page
+    // count is authoritative and a volunteer can scan more pages than the
+    // rows they had time to enter. No clamping.
     return units > 0 ? units : records;
   }
 

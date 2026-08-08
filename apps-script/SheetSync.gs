@@ -98,7 +98,7 @@ function invalidatePublicPayloadCache_() {
   }
 }
 
-const TVF_CODE_VERSION = 'v2026-08-07-gunluk-akis-l105';
+const TVF_CODE_VERSION = 'v2026-08-08-box-aware-self-report';
 
 function doGet(e) {
   try {
@@ -1076,8 +1076,17 @@ function collectPublicRecords_(rowsBySheet, inventory) {
 // who skip Günlük Akış (e.g. only coded rows exist) still get full credit.
 // Row counts (pageRows/records) are left untouched — they are labelled
 // "satır/kayıt" and box inventory progress is accumulated before this runs.
+//
+// Distribution is box-aware: a report whose text names exactly one box
+// ("PNB Kutu 25") is authoritative for that box's rows only; other rows that
+// day keep their default 1 unit. Reports without a single box reference form
+// a generic pool spread over the person's remaining rows proportionally per
+// box (largest remainder) — NOT in sheet order, which used to front-load
+// units into whichever sheet happened to come first and produced phantom
+// per-box splits (e.g. 552 pages over 27+144+28 rows landing as 81/415/56).
 function applySelfReportedDailyPages_(records) {
-  const reported = {};
+  const boxReports = {};     // person|day -> { normalizedBoxKey: units }
+  const genericReports = {}; // person|day -> units
   (records || []).forEach(function (record) {
     if (record.kind !== 'activity' || !record.dateISO || !record.privateKey) return;
     if (record.privateKey === 'unnamed' || record.privateKey === 'hidden') return;
@@ -1085,26 +1094,88 @@ function applySelfReportedDailyPages_(records) {
     const hay = asciiFold_(String(record.workTitle || '') + ' ' + String(record.workDetail || '')).toLowerCase();
     if (hay.indexOf('tarama') < 0) return; // only scanning reports override page counts
     const key = record.privateKey + '|' + record.dateISO;
-    reported[key] = (reported[key] || 0) + Math.round(Number(record.pageUnits));
+    const units = Math.round(Number(record.pageUnits));
+    const boxSeen = {};
+    (hay.match(/kutu\s*(\d+)/g) || []).forEach(function (m) {
+      boxSeen[m.replace(/[^0-9]/g, '')] = true;
+    });
+    const boxKeys = Object.keys(boxSeen);
+    if (boxKeys.length === 1) {
+      if (!boxReports[key]) boxReports[key] = {};
+      boxReports[key][boxKeys[0]] = (boxReports[key][boxKeys[0]] || 0) + units;
+    } else {
+      // zero or several boxes named → treat as a day-level pool
+      genericReports[key] = (genericReports[key] || 0) + units;
+    }
   });
   const pagesByKey = {};
   (records || []).forEach(function (record) {
     if (record.kind !== 'page' || !record.dateISO || !record.privateKey) return;
     const key = record.privateKey + '|' + record.dateISO;
-    if (reported[key] == null) return;
+    if (boxReports[key] == null && genericReports[key] == null) return;
     if (!pagesByKey[key]) pagesByKey[key] = [];
     pagesByKey[key].push(record);
   });
-  Object.keys(pagesByKey).forEach(function (key) {
-    const rows = pagesByKey[key];
-    const target = reported[key];
+  function spreadEvenly_(rows, target, additive) {
+    if (!rows.length) return;
     const base = Math.floor(target / rows.length);
     let remainder = target - base * rows.length;
     rows.forEach(function (record) {
-      record.pageUnits = base + (remainder > 0 ? 1 : 0);
+      const units = base + (remainder > 0 ? 1 : 0);
+      record.pageUnits = additive ? Number(record.pageUnits || 0) + units : units;
       if (remainder > 0) remainder -= 1;
       record.pageUnitsBasis = 'gunluk_akis_self_report';
     });
+  }
+  function spreadProportionalByBox_(rows, target, additive) {
+    if (!rows.length) return;
+    const groups = {};
+    rows.forEach(function (record) {
+      const bk = normalizeBox_(record.box) || '_';
+      if (!groups[bk]) groups[bk] = [];
+      groups[bk].push(record);
+    });
+    const total = rows.length;
+    let allocated = 0;
+    const alloc = Object.keys(groups).map(function (bk) {
+      const exact = target * groups[bk].length / total;
+      const floor = Math.floor(exact);
+      allocated += floor;
+      return { bk: bk, units: floor, frac: exact - floor };
+    });
+    let left = target - allocated;
+    alloc.sort(function (a, b) { return b.frac - a.frac; });
+    alloc.forEach(function (a) { if (left > 0) { a.units += 1; left -= 1; } });
+    alloc.forEach(function (a) { spreadEvenly_(groups[a.bk], a.units, additive); });
+  }
+  Object.keys(pagesByKey).forEach(function (key) {
+    const rows = pagesByKey[key];
+    const perBox = boxReports[key] || {};
+    let generic = genericReports[key] || 0;
+    const claimedRows = [];
+    const remainingRows = [];
+    rows.forEach(function (record) {
+      const bk = normalizeBox_(record.box);
+      (perBox[bk] != null ? claimedRows : remainingRows).push(record);
+    });
+    Object.keys(perBox).forEach(function (bk) {
+      const boxRows = claimedRows.filter(function (record) { return normalizeBox_(record.box) === bk; });
+      if (!boxRows.length) {
+        // report names a box with no rows that day → fall back to the pool
+        generic += perBox[bk];
+        return;
+      }
+      spreadEvenly_(boxRows, perBox[bk]);
+    });
+    if (generic > 0) {
+      // If every row that day was already claimed by a box-specific report,
+      // add the generic pool on top instead of overwriting those units.
+      if (remainingRows.length) {
+        spreadProportionalByBox_(remainingRows, generic, false);
+      } else {
+        spreadProportionalByBox_(rows, generic, true);
+      }
+    }
   });
   return records;
 }
@@ -2076,10 +2147,13 @@ function publicWorkTitle_(row) {
 }
 
 function publicWorkDetail_(row) {
+  // Column E (yapilanCalismayaIliskinSayisalBilgi) is deliberately NOT in
+  // this fallback chain: it holds the numeric self-reported page count, and
+  // falling back to it rendered bare numbers ("552") as work descriptions
+  // in volunteer cards whenever "Devam Eden Çalışma" was left empty.
   return safePublicLongText_(
     row.devamEdenCalisma
       || row.notlar
-      || row.yapilanCalismayaIliskinSayisalBilgi
       || row.devam
       || row.yapilanIs
       || row.aciklama

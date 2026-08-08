@@ -99,9 +99,9 @@
     'betul iseri': 'Betül İşeri',
     'neslihan erkan': 'Neslihan Erkan'
   };
-  var SUPPRESSED_LEGACY_CREDIT_KEYS = {
-    'betul iseri': true
-  };
+  // Server-side suppression (SheetSync.gs, Kutu 31 only) is the single
+  // source of truth; the blanket client-side list hid current work too.
+  var SUPPRESSED_LEGACY_CREDIT_KEYS = {};
   function canonicalNameKey(value) {
     var key = foldName(value);
     return NAME_ALIASES[key] || key;

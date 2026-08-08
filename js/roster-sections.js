@@ -66,9 +66,12 @@
     "betul iseri": "Betül İşeri",
     "neslihan erkan": "Neslihan Erkan",
   };
-  const SUPPRESSED_LEGACY_CREDIT_KEYS = new Set([
-    "betul iseri",
-  ]);
+  // Legacy-credit suppression lives server-side in SheetSync.gs
+  // (isSuppressedLegacyCredit_), scoped to Kutu 31 page rows only. The
+  // blanket client-side copy of that list also erased volunteers' current
+  // work (ör. Betül'ün 2–8 Ağustos'taki 307 kaydı) and made this section
+  // disagree with the KPI band on the same page. Keep the mechanism, empty.
+  const SUPPRESSED_LEGACY_CREDIT_KEYS = new Set([]);
 
   // --- helpers ---------------------------------------------------------
   function esc(s) {
@@ -526,6 +529,11 @@
     }
 
     const months = trackMonths(trackData, data);
+
+    // Keep the section tag in sync with the data instead of a hardcoded
+    // month count (it was frozen at "5 ay" while the log grew to 8 months).
+    const tagEl = document.getElementById("lpTracksTag");
+    if (tagEl && months.length) tagEl.textContent = `paralel iş · ${months.length} ay`;
 
     const monthCols = months
       .map((ym) => `<span>${MONTHS_TR[Number(ym.slice(5, 7))]}</span>`)
