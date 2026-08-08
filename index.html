@@ -103,40 +103,6 @@
       <p class="context-links">Daha fazla bilgi: <a href="https://tr.wikipedia.org/wiki/Pertev_Naili_Boratav" target="_blank" rel="noopener">Pertev Naili Boratav</a></p>
     </section>
 
-    <!-- ============ Weekly station plan + daily totals (merged) ============ -->
-    <header class="section-head" id="lpWeeklyPlanHead">
-      <h2>Bu hafta <em>istasyon planı</em></h2>
-      <button class="tag tv-checkin-link" id="lpCheckinToggle" type="button">katılımını işaretle →</button>
-    </header>
-    <section class="tv-weekly-plan" id="lpWeeklyPlan" hidden>
-      <div id="lpWeeklyPlanRows"></div>
-    </section>
-
-    <!-- ============ Inline self check-in (no separate page) ============ -->
-    <section class="tv-checkin-inline ci-hidden" id="lpCheckinInline">
-      <div class="ci-gate" id="ciGate">
-        <div class="ci-field">
-          <label for="ciPw">Ortak şifre</label>
-          <input type="password" id="ciPw" autocomplete="off" />
-        </div>
-        <div class="ci-field">
-          <label for="ciNameSelect">Listeden adını seç — yoksa "listede yok" seçeneğini kullan</label>
-          <select id="ciNameSelect"><option value="">Seç…</option></select>
-        </div>
-        <div class="ci-field ci-hidden" id="ciCustomNameField">
-          <label for="ciCustomNameInput">Adını yaz</label>
-          <input type="text" id="ciCustomNameInput" autocomplete="off" placeholder="Ad Soyad" />
-        </div>
-        <button class="ci-btn" id="ciEnterBtn" type="button">Devam et</button>
-        <p class="ci-status" id="ciGateStatus"></p>
-      </div>
-      <div class="ci-days-inline ci-hidden" id="ciDaysWrap">
-        <p class="ci-greeting" id="ciGreeting"></p>
-        <div id="ciDayToggles"></div>
-        <p class="ci-status" id="ciDaysStatus"></p>
-      </div>
-    </section>
-
     <!-- ============ NEW: scanner/equipment usage (Module E) ============ -->
     <header class="section-head" id="lpEquipmentHead">
       <h2>Tarayıcı <em>kullanımı</em></h2>
@@ -255,7 +221,6 @@
 
   <!-- =========== Existing scripts (unchanged) =========== -->
   <script src="./js/data-loader.js?v=20260630-volunteer-pages"></script>
-  <script src="./js/checkin-inline.js?v=20260723-inline-checkin"></script>
   <script>
     (function () {
       var link = document.getElementById('volunteerContactLink');
