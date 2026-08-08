@@ -344,8 +344,13 @@
     return { key, label: (track && track.label) || key };
   }
 
-  function isSuppressedCreditKey(key) {
-    return key === foldName('Betül İşeri');
+  function isSuppressedCreditKey() {
+    // Blanket name-based suppression removed: the server (SheetSync.gs)
+    // already anonymises legacy Kutu 31 credit at the source, and the
+    // box-scoped legacyFalseCreditRules() above cover stale cached payloads.
+    // The unscoped filter here also stripped the volunteer's *current*
+    // profile/log from content, emptying her volunteer card.
+    return false;
   }
 
   function isPublicLabel(label) {
