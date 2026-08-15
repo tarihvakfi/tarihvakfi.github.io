@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>Gönüllü Planlaması · Tarih Vakfı</title>
+  <meta name="description" content="Tarih Vakfı gönüllü görev tercihi: kütüphane taşınma/kataloglama ve arşiv çalışmaları için uygunluk bildirimi." />
+  <meta property="og:title" content="Gönüllü Planlaması · Tarih Vakfı" />
+  <meta property="og:description" content="Tarih Vakfı gönüllü görev tercihi: kütüphane taşınma/kataloglama ve arşiv çalışmaları için uygunluk bildirimi." />
+  <meta name="twitter:title" content="Gönüllü Planlaması · Tarih Vakfı" />
+  <meta name="twitter:description" content="Tarih Vakfı gönüllü görev tercihi: kütüphane taşınma/kataloglama ve arşiv çalışmaları için uygunluk bildirimi." />
+
+  <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./css/site.css?v=20260815-gorev-tercihi" />
+
+  <style>
+    /* ===== Gönüllü Planlaması · gönüllü görev tercihi (sayfaya özel) ===== */
+    .mast-actions { display: grid; gap: 10px; justify-items: end; }
+
+    .top-tabs {
+      display: inline-flex; align-items: center; gap: 6px; padding: 4px;
+      border: 1px solid var(--rule); background: var(--paper-soft);
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .top-tabs a {
+      display: inline-block; padding: 7px 10px; color: var(--ink-mute);
+      text-decoration: none; border: 1px solid transparent;
+    }
+    .top-tabs a:hover { color: var(--accent); border-color: var(--accent-soft); background: var(--paper); }
+    .top-tabs a[aria-current="page"] { color: var(--paper); background: var(--accent); border-color: var(--accent); }
+
+    .planning-note {
+      margin-top: 28px; padding: 18px 20px;
+      border: 1px solid var(--accent-soft); border-left: 3px solid var(--accent);
+      background: var(--accent-bg); color: var(--ink-soft);
+      font-size: 17px; line-height: 1.55;
+    }
+    .planning-note strong { color: var(--accent-deep); font-weight: 600; }
+
+    /* --- kart --- */
+    .gp-card {
+      margin-top: 30px; padding: 26px 26px 28px;
+      border: 1px solid var(--rule); background: var(--paper);
+    }
+    .gp-card h2 { margin: 0 0 6px; font-size: 24px; }
+    .gp-hint { margin: 0 0 18px; color: var(--ink-mute); font-size: 16px; line-height: 1.5; }
+
+    /* --- form öğeleri (Inter) --- */
+    .gp-card input, .gp-card select, .gp-card textarea, .gp-card button, .gp-lbl, .gp-box, .gp-msg,
+    .gp-liste dt, .gp-liste dd, .gp-kimlik, .gp-gecmis {
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+    .gp-lbl {
+      display: block; font-weight: 600; font-size: 15px; margin: 26px 0 10px;
+      letter-spacing: 0.01em;
+    }
+    .gp-lbl:first-of-type { margin-top: 0; }
+    .gp-alt { margin: -6px 0 10px; color: var(--ink-mute); font-size: 13.5px; }
+    .gp-card input[type=text], .gp-card input[type=email], .gp-card input[type=tel],
+    .gp-card input[type=date], .gp-card select, .gp-card textarea {
+      width: 100%; padding: 12px 13px; border: 1px solid var(--rule);
+      background: var(--paper); color: var(--ink); font-size: 15.5px; border-radius: 0;
+    }
+    .gp-card textarea { min-height: 78px; resize: vertical; }
+    .gp-card input:focus, .gp-card select:focus, .gp-card textarea:focus {
+      outline: 2px solid var(--accent-soft); outline-offset: 1px; border-color: var(--accent);
+    }
+
+    /* --- büyük seçim kutucukları --- */
+    .gp-kutular { display: grid; gap: 8px; }
+    .gp-kutular.uc { grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); }
+    .gp-kutular.iki { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+    .gp-box {
+      position: relative; display: flex; align-items: center; gap: 12px;
+      border: 1px solid var(--rule); background: var(--paper);
+      padding: 15px 16px; cursor: pointer; font-weight: 500; font-size: 16px;
+      transition: border-color .12s, background .12s;
+    }
+    .gp-box:hover { border-color: var(--accent-soft); background: var(--paper-soft); }
+    .gp-box input { position: absolute; opacity: 0; pointer-events: none; }
+    .gp-tik {
+      flex: none; width: 22px; height: 22px; border: 1px solid var(--ink-faint);
+      background: var(--paper); display: grid; place-items: center; transition: .12s;
+    }
+    .gp-tik svg { width: 13px; height: 13px; opacity: 0; transform: scale(.6); transition: .12s; }
+    .gp-box.sec { border-color: var(--accent); background: var(--accent-bg); }
+    .gp-box.sec .gp-tik { background: var(--accent); border-color: var(--accent); }
+    .gp-box.sec .gp-tik svg { opacity: 1; transform: scale(1); }
+
+    .gp-aylar { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 6px; }
+    .gp-aylar .gp-box { padding: 9px 11px; font-size: 13.5px; gap: 9px; }
+    .gp-aylar .gp-tik { width: 17px; height: 17px; }
+    .gp-aylar .gp-tik svg { width: 11px; height: 11px; }
+    .gp-kutular.kucuk .gp-box { padding: 11px 13px; font-size: 14.5px; }
+    .gp-kutular.kucuk .gp-tik { width: 19px; height: 19px; }
+
+    /* --- düğmeler --- */
+    .gp-dugmeler { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 26px; }
+    .gp-card button {
+      font-size: 15px; font-weight: 600; padding: 13px 24px; cursor: pointer;
+      border: 1px solid var(--accent); background: var(--accent); color: var(--paper);
+      letter-spacing: 0.01em;
+    }
+    .gp-card button:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
+    .gp-card button:disabled { opacity: .5; cursor: not-allowed; }
+    .gp-card button.ikincil { background: var(--paper); color: var(--ink); border-color: var(--rule); font-weight: 500; }
+    .gp-card button.ikincil:hover { background: var(--paper-soft); border-color: var(--accent-soft); }
+    .gp-baglink {
+      background: none; border: none; color: var(--accent); text-decoration: underline;
+      padding: 0; font-size: 14.5px; cursor: pointer; font-family: 'Inter', sans-serif; font-weight: 500;
+    }
+
+    /* --- mesajlar --- */
+    .gp-msg { padding: 12px 15px; font-size: 15px; margin-top: 16px; display: none; border: 1px solid; }
+    .gp-msg.gor { display: block; }
+    .gp-msg.hata { background: #fdf2f4; color: #8a1230; border-color: #f0cdd6; }
+    .gp-msg.tamam { background: #f1f7f2; color: #2e6440; border-color: #cfe4d5; }
+    .gp-msg.bilgi { background: var(--accent-bg); color: var(--accent-deep); border-color: var(--accent-soft); }
+
+    .gp-kod {
+      font-size: 27px; letter-spacing: 12px; text-align: center;
+      font-weight: 600; font-family: 'DM Mono', monospace;
+    }
+    .gp-gizli { display: none !important; }
+
+    /* --- kimlik satırı --- */
+    .gp-kimlik {
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      flex-wrap: wrap; border: 1px solid var(--rule); background: var(--paper-soft);
+      padding: 12px 18px; margin-top: 30px; font-size: 14px; color: var(--ink-mute);
+    }
+    .gp-kimlik b { color: var(--ink); }
+
+    /* --- mevcut tercih özeti --- */
+    .gp-ozetbas { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .gp-rozet {
+      font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .08em;
+      text-transform: uppercase; padding: 5px 11px; border: 1px solid #cfe4d5;
+      background: #f1f7f2; color: #2e6440;
+    }
+    .gp-rozet.bekle { background: var(--accent-bg); color: var(--accent-deep); border-color: var(--accent-soft); }
+    .gp-liste { margin: 18px 0 0; display: grid; grid-template-columns: auto 1fr; }
+    .gp-liste dt {
+      color: var(--ink-mute); font-size: 14px; padding: 10px 22px 10px 0;
+      border-top: 1px solid var(--rule); white-space: nowrap;
+    }
+    .gp-liste dd {
+      margin: 0; font-weight: 600; font-size: 15.5px; padding: 10px 0; border-top: 1px solid var(--rule);
+    }
+    .gp-liste dt:first-of-type, .gp-liste dd:first-of-type { border-top: none; padding-top: 0; }
+
+    .gp-gecmis {
+      font-size: 13.5px; color: var(--ink-mute); border-top: 1px solid var(--rule);
+      padding-top: 14px; margin-top: 24px;
+    }
+    .gp-gecmis ul { margin: 8px 0 0; padding-left: 18px; }
+    .gp-gecmis li { margin-bottom: 3px; }
+    .gp-kvkk { font-family: 'Inter', sans-serif; font-size: 13px; color: var(--ink-mute); margin-top: 20px; line-height: 1.5; }
+
+    .gp-donen {
+      display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,.35);
+      border-top-color: #fff; border-radius: 50%; animation: gp-don .7s linear infinite;
+      vertical-align: -2px; margin-right: 8px;
+    }
+    @keyframes gp-don { to { transform: rotate(360deg); } }
+
+    @media (max-width: 560px) {
+      .gp-card { padding: 20px 18px 22px; }
+      .gp-liste { grid-template-columns: 1fr; }
+      .gp-liste dt { padding: 12px 0 0; }
+      .gp-liste dd { padding: 2px 0 12px; border-top: none; }
+      .gp-liste dd:first-of-type { padding-top: 2px; }
+    }
+  </style>
+</head>
+<body class="journal">
+
+  <main class="page">
+
+    <!-- ============ Masthead ============ -->
+    <header class="masthead">
+      <div class="brand-lockup">
+        <img src="./assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" class="brand-logo" />
+        <div>
+          <b>Tarih Vakfı</b>
+          <span>Gönüllü Planlaması</span>
+        </div>
+      </div>
+
+      <div class="mast-actions">
+        <nav class="top-tabs" aria-label="Site bölümleri">
+          <a href="./index.html">Emek Günlüğü</a>
+          <a href="./gonullu-planlamasi.html" aria-current="page">Gönüllü Planlaması</a>
+        </nav>
+      </div>
+    </header>
+
+    <!-- ============ Intro ============ -->
+    <section class="intro">
+      <p class="label">Tarih Vakfı · Gönüllü çalışma planlaması</p>
+      <h1>Hangi çalışmaya<br><em>katkı vermek istersiniz?</em></h1>
+      <p class="hero-subtitle">Kütüphane taşınma · Arşiv çalışmaları</p>
+      <p class="lede">
+        Üç soruyu yanıtlamanız yeterli. Planlar dönem içinde değişebildiği için tercihiniz
+        bağlayıcı değildir; aynı e-posta adresinizle bu sayfaya tekrar girip dilediğiniz
+        zaman güncelleyebilir ya da bir süre ara verebilirsiniz.
+      </p>
+
+      <div class="planning-note">
+        <strong>Kararsızsanız da kaydolabilirsiniz.</strong> “Henüz karar vermedim”
+        seçeneğiyle listeye girer, hazır olduğunuzda buradan güncellersiniz. Her
+        değişiklik koordinatöre otomatik bildirilir.
+      </div>
+    </section>
+
+    <!-- ============ 1. adım: e-posta ============ -->
+    <section class="gp-card" id="adim-eposta">
+      <h2>E-posta adresinizle girin</h2>
+      <p class="gp-hint">
+        <b>İlk kez kaydolacaksanız</b> da, <b>daha önce verdiğiniz tercihi görmek ya da
+        değiştirecekseniz</b> de aynı yer: adresinizi yazın, size 6 haneli bir kod gönderelim.
+      </p>
+      <input type="email" id="email" placeholder="ornek@eposta.com" autocomplete="email" inputmode="email" />
+      <div class="gp-dugmeler"><button type="button" id="btnKod">Kod gönder</button></div>
+      <div class="gp-msg" id="msgEposta"></div>
+    </section>
+
+    <!-- ============ 2. adım: kod ============ -->
+    <section class="gp-card gp-gizli" id="adim-kod">
+      <h2>Gelen kodu girin</h2>
+      <p class="gp-hint"><b id="kodEposta"></b> adresine gönderdik. 10 dakika geçerli.</p>
+      <input type="text" id="kod" class="gp-kod" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="······" />
+      <div class="gp-dugmeler">
+        <button type="button" id="btnGir">Devam et</button>
+        <button type="button" class="ikincil" id="btnTekrar">Tekrar gönder</button>
+        <button type="button" class="gp-baglink" id="btnGeri">E-postayı değiştir</button>
+      </div>
+      <div class="gp-msg" id="msgKod"></div>
+    </section>
+
+    <!-- ============ 3. adım: özet / form ============ -->
+    <section id="adim-kayit" class="gp-gizli">
+      <div class="gp-kimlik">
+        <span><b id="kimEposta"></b><span id="kimDurum"></span></span>
+        <button type="button" class="gp-baglink" id="btnCikis">Çıkış</button>
+      </div>
+
+      <!-- mevcut tercih -->
+      <section class="gp-card gp-gizli" id="ozet">
+        <div class="gp-ozetbas">
+          <h2>Şu anki tercihiniz</h2>
+          <span class="gp-rozet" id="ozetRozet"></span>
+        </div>
+        <p class="gp-hint" id="ozetTarih" style="margin-bottom:0"></p>
+        <div class="gp-msg" id="msgOzet"></div>
+        <dl class="gp-liste" id="ozetListe"></dl>
+        <div class="gp-dugmeler">
+          <button type="button" id="btnDegistir">Tercihimi değiştir</button>
+          <button type="button" class="ikincil" id="btnAra"></button>
+        </div>
+      </section>
+
+      <!-- form -->
+      <form class="gp-card gp-gizli" id="form" novalidate>
+        <div class="gp-msg bilgi" id="msgDuzenle" style="margin:0 0 22px">
+          Tercihinizi değiştiriyorsunuz. Kaydettiğinizde koordinatöre bildirim gider.
+        </div>
+
+        <label class="gp-lbl" for="full_name">Adınız soyadınız</label>
+        <input type="text" id="full_name" autocomplete="name" placeholder="Ad Soyad" />
+
+        <span class="gp-lbl">Hangi çalışmaya katılmak istersiniz?</span>
+        <div class="gp-kutular" id="alanKutu"></div>
+
+        <span class="gp-lbl">Ne zaman başlayabilirsiniz?</span>
+        <div class="gp-kutular" id="zamanKutu"></div>
+
+        <span class="gp-lbl">Hangi günler uygunsunuz?</span>
+        <p class="gp-alt">Birden fazla seçebilirsiniz.</p>
+        <div class="gp-kutular uc" id="gunKutu"></div>
+
+        <details id="ekBilgi" style="margin-top:26px;border:1px solid var(--rule)">
+          <summary style="cursor:pointer;padding:14px 16px;font-family:'Inter',sans-serif;font-weight:600;font-size:15px;color:var(--accent)">
+            Ek bilgiler (isteğe bağlı)
+          </summary>
+          <div style="padding:4px 16px 20px">
+            <label class="gp-lbl" for="phone">Telefon</label>
+            <input type="tel" id="phone" placeholder="05xx xxx xx xx" autocomplete="tel" />
+
+            <label class="gp-lbl" for="start_date">Başlayabileceğiniz tarih</label>
+            <input type="date" id="start_date" />
+
+            <span class="gp-lbl">Saat aralığı</span>
+            <div class="gp-kutular uc kucuk" id="saatKutu"></div>
+
+            <span class="gp-lbl">Uygun olduğunuz aylar</span>
+            <div class="gp-aylar" id="ayKutu"></div>
+
+            <label class="gp-lbl" for="frequency">Ayda ayırabileceğiniz süre</label>
+            <select id="frequency"></select>
+
+            <span class="gp-lbl">Bu plan sizin için</span>
+            <div class="gp-kutular iki kucuk" id="planKutu"></div>
+
+            <label class="gp-lbl" for="status">Katılım durumunuz</label>
+            <select id="status"></select>
+
+            <label class="gp-lbl" for="notes">Eklemek istedikleriniz</label>
+            <textarea id="notes" placeholder="Deneyiminiz, kısıtlarınız, sorularınız…"></textarea>
+          </div>
+        </details>
+
+        <div class="gp-dugmeler">
+          <button type="submit" id="btnKaydet">Kaydet</button>
+          <button type="button" class="ikincil" id="btnVazgec">Vazgeç</button>
+        </div>
+        <div class="gp-msg" id="msgForm"></div>
+        <p class="gp-kvkk">
+          Bilgileriniz yalnızca gönüllü görev planlaması için kullanılır, üçüncü kişilerle
+          paylaşılmaz. Kamuya açık emek günlüğünde e-posta, telefon ve özel notlar gösterilmez.
+          Kaydınızın silinmesini istediğinizde koordinatöre yazmanız yeterlidir.
+        </p>
+      </form>
+
+      <div class="gp-gecmis gp-gizli" id="gecmis"></div>
+    </section>
+
+    <!-- ============ Kurum bilgisi ============ -->
+    <section class="context-card about-foundation" aria-labelledby="foundation-title">
+      <div class="context-mark">
+        <img src="./assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" />
+      </div>
+      <div>
+        <p class="context-eyebrow">Kurum bilgisi</p>
+        <h2 id="foundation-title">Tarih Vakfı hakkında</h2>
+        <p>Tarih Vakfı, tarihsel bilgiye ve belgelere kamusal erişimi güçlendirmeyi; arşiv, yayın, araştırma ve bellek çalışmalarını desteklemeyi amaçlar.</p>
+        <p>Kütüphane taşınma ve kataloglama çalışması ile PNB arşivi sayısallaştırması, şu anda gönüllü emeğine en çok ihtiyaç duyulan iki iş kalemidir. Bu form, iki çalışmaya katkı verecek gönüllülerin uygunluğunu tek yerde toplar.</p>
+        <p class="context-links">
+          <a href="https://tarihvakfi.org.tr/hakkimizda/" target="_blank" rel="noopener">Tarih Vakfı hakkında</a>
+          <a href="https://tarihvakfi.org.tr/bilgi-belge-merkezi-hakkinda/" target="_blank" rel="noopener">Bilgi Belge Merkezi</a>
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ Colophon ============ -->
+    <footer class="colophon">
+      <div class="footer-brand">
+        <img src="./assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" />
+        <p class="signoff">Tarih Vakfı · Gönüllü Görev Tercihi</p>
+      </div>
+
+      <p>Zindankapı Değirmen Sok. No: 10, Eminönü, İstanbul · <a href="https://tarihvakfi.org.tr/" target="_blank" rel="noopener">tarihvakfi.org.tr</a></p>
+
+      <p>
+        Bu formdan gelen bilgiler çalışma planlaması için kullanılır.
+        Kamuya açık emek günlüğünde e-posta, telefon, özel not ve ham kayıt satırları gösterilmez.
+      </p>
+      <p class="design-credit">Tasarım: Arif Solmaz</p>
+
+      <p class="footer-links">
+        <a href="./index.html">Emek Günlüğü</a>
+        <span aria-hidden="true">·</span>
+        <a href="./gonullu-planlamasi.html">Gönüllü Planlaması</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://tarihvakfi.org.tr/bilgi-belge-merkezi-hakkinda/" target="_blank" rel="noopener">Bilgi Belge Merkezi</a>
+      </p>
+    </footer>
+
+  </main>
+
+<script>
+/* ===== Gönüllü görev tercihi · Apps Script web uygulaması adresi =====
+   Apps Script'te "Dağıt → Web uygulaması" adımında verilen /exec adresi.
+   Not: Bu, sitenin SheetSync betiğinden AYRI bir projedir. */
+var GOREV_TERCIHI_URL = window.TV_APP_URL || 'https://script.google.com/macros/s/AKfycbxKD1hzj0Qh6Oqm8Olocn8FMozDd026uZngj0yy70mu7clOn2S0laKpij7INgT8Fg/exec';
+
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var D = { token: null, email: null, kayit: null, cfg: null };
+  var TIK = '<span class="gp-tik"><svg viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5l3.5 3.5 7.5-8" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+
+  var KISA = {
+    area: { kutuphane: 'Kütüphane', arsiv: 'Arşiv', ikisi: 'Her ikisi' },
+    start_pref: { hemen: 'Hemen', tarihten_sonra: 'Belirli bir tarihten sonra', karar_verilmedi: 'Henüz karar vermedim' },
+    certainty: { kesin: 'Kesin', gecici: 'Geçici, değişebilir' }
+  };
+
+  function goster(el, sinif, metin) { el.className = 'gp-msg ' + sinif + ' gor'; el.textContent = metin; }
+  function gizle(el) { el.className = 'gp-msg'; }
+  function mesgul(b, acik, metin) {
+    if (acik) { b.dataset.eski = b.innerHTML; b.innerHTML = '<span class="gp-donen"></span>' + (metin || 'Bekleyin…'); b.disabled = true; }
+    else { b.innerHTML = b.dataset.eski || b.innerHTML; b.disabled = false; }
+  }
+  var esc = function (s) {
+    return String(s === null || s === undefined ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  };
+
+  /* Apps Script'e istek: text/plain kullanılır, böylece tarayıcı ön kontrol
+     (preflight) göndermez ve CORS sorunu çıkmaz. */
+  function api(action, yuk) {
+    if (/BURAYA_APPS_SCRIPT/.test(GOREV_TERCIHI_URL)) {
+      return Promise.reject(new Error('Sistem adresi henüz tanımlanmamış. Lütfen koordinatöre bildirin.'));
+    }
+    var govde = { action: action };
+    for (var k in (yuk || {})) govde[k] = yuk[k];
+    return fetch(GOREV_TERCIHI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(govde),
+      redirect: 'follow'
+    }).catch(function () {
+      throw new Error('Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.');
+    }).then(function (r) { return r.text(); }).then(function (metin) {
+      var d;
+      try { d = JSON.parse(metin); }
+      catch (e) { throw new Error('Sunucudan beklenmeyen yanıt geldi. Birkaç dakika sonra tekrar deneyin.'); }
+      if (!d.ok) throw new Error(d.error || 'Bir hata oluştu.');
+      return d;
+    });
+  }
+
+  /* ---------- kutucuklar ---------- */
+  function kutuCiz(kap, sozluk, tur, ad, kisa) {
+    kap.innerHTML = '';
+    Object.keys(sozluk).forEach(function (deger) {
+      var l = document.createElement('label');
+      l.className = 'gp-box';
+      l.innerHTML = '<input type="' + tur + '" name="' + ad + '" value="' + deger + '">' + TIK +
+        '<span>' + ((kisa && kisa[deger]) || sozluk[deger]) + '</span>';
+      l.querySelector('input').addEventListener('change', function () { esitle(kap); });
+      kap.appendChild(l);
+    });
+  }
+  function esitle(kap) {
+    Array.prototype.forEach.call(kap.querySelectorAll('.gp-box'), function (b) {
+      b.classList.toggle('sec', b.querySelector('input').checked);
+    });
+  }
+  function secililer(kap) {
+    return Array.prototype.map.call(kap.querySelectorAll('input:checked'), function (i) { return i.value; });
+  }
+  function tekSecili(kap) {
+    var i = kap.querySelector('input:checked');
+    return i ? i.value : '';
+  }
+  function isaretle(kap, degerler) {
+    Array.prototype.forEach.call(kap.querySelectorAll('input'), function (i) {
+      i.checked = (degerler || []).indexOf(i.value) >= 0;
+    });
+    esitle(kap);
+  }
+
+  /* ---------- açılış ---------- */
+  function baslat() {
+    return api('config').then(function (cfg) {
+      D.cfg = cfg;
+      kutuCiz($('alanKutu'), cfg.area, 'radio', 'area', KISA.area);
+      kutuCiz($('zamanKutu'), cfg.start_pref, 'radio', 'start_pref', KISA.start_pref);
+      kutuCiz($('gunKutu'), cfg.days, 'checkbox', 'days');
+      kutuCiz($('saatKutu'), cfg.times, 'checkbox', 'times');
+      kutuCiz($('planKutu'), cfg.certainty, 'radio', 'certainty', KISA.certainty);
+
+      $('ayKutu').innerHTML = cfg.months.map(function (m) {
+        return '<label class="gp-box"><input type="checkbox" name="months" value="' + m.key + '">' +
+          TIK + '<span>' + m.label + '</span></label>';
+      }).join('');
+      Array.prototype.forEach.call($('ayKutu').querySelectorAll('input'), function (i) {
+        i.addEventListener('change', function () { esitle($('ayKutu')); });
+      });
+
+      $('frequency').innerHTML = '<option value="">Belirtmek istemiyorum</option>' +
+        Object.keys(cfg.frequency).map(function (v) {
+          return '<option value="' + v + '">' + cfg.frequency[v] + '</option>';
+        }).join('');
+      $('status').innerHTML = Object.keys(cfg.status).map(function (v) {
+        return '<option value="' + v + '">' + cfg.status[v] + '</option>';
+      }).join('');
+
+      $('zamanKutu').addEventListener('change', function () {
+        if (tekSecili($('zamanKutu')) === 'tarihten_sonra') { $('ekBilgi').open = true; $('start_date').focus(); }
+      });
+
+      var t = sessionStorage.getItem('tv_gt_token'), e = sessionStorage.getItem('tv_gt_eposta');
+      if (t && e) {
+        D.token = t; D.email = e;
+        return kaydiYukle()['catch'](function () { sessionStorage.clear(); D.token = null; });
+      }
+    });
+  }
+
+  /* ---------- giriş ---------- */
+  $('btnKod').addEventListener('click', function () { kodIste($('email').value, $('msgEposta'), $('btnKod')); });
+  $('btnTekrar').addEventListener('click', function () { kodIste(D.email, $('msgKod'), $('btnTekrar')); });
+  $('email').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); $('btnKod').click(); } });
+
+  function kodIste(eposta, msgEl, btn) {
+    eposta = String(eposta || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(eposta)) { goster(msgEl, 'hata', 'Geçerli bir e-posta adresi girin.'); return; }
+    mesgul(btn, true, 'Gönderiliyor…');
+    api('requestCode', { email: eposta }).then(function () {
+      D.email = eposta;
+      $('kodEposta').textContent = eposta;
+      $('adim-eposta').classList.add('gp-gizli');
+      $('adim-kod').classList.remove('gp-gizli');
+      gizle(msgEl);
+      goster($('msgKod'), 'tamam', 'Kod gönderildi. Gelen kutunuzu ve spam klasörünü kontrol edin.');
+      $('kod').focus();
+    })['catch'](function (e) { goster(msgEl, 'hata', e.message); })
+      .then(function () { mesgul(btn, false); });
+  }
+
+  $('btnGeri').addEventListener('click', function () {
+    $('adim-kod').classList.add('gp-gizli');
+    $('adim-eposta').classList.remove('gp-gizli');
+    gizle($('msgKod'));
+  });
+  $('btnGir').addEventListener('click', dogrula);
+  $('kod').addEventListener('keydown', function (e) { if (e.key === 'Enter') dogrula(); });
+
+  function dogrula() {
+    var kod = $('kod').value.trim();
+    if (kod.length !== 6) { goster($('msgKod'), 'hata', 'Kod 6 haneli olmalı.'); return; }
+    mesgul($('btnGir'), true, 'Kontrol ediliyor…');
+    api('verify', { email: D.email, code: kod }).then(function (r) {
+      D.token = r.token; D.email = r.email;
+      sessionStorage.setItem('tv_gt_token', r.token);
+      sessionStorage.setItem('tv_gt_eposta', r.email);
+      return kaydiYukle();
+    })['catch'](function (e) { goster($('msgKod'), 'hata', e.message); })
+      .then(function () { mesgul($('btnGir'), false); });
+  }
+
+  $('btnCikis').addEventListener('click', function () { sessionStorage.clear(); location.reload(); });
+
+  /* ---------- kayıt ---------- */
+  function kaydiYukle() {
+    return api('get', { token: D.token }).then(function (r) {
+      D.kayit = r.volunteer;
+      $('adim-eposta').classList.add('gp-gizli');
+      $('adim-kod').classList.add('gp-gizli');
+      $('adim-kayit').classList.remove('gp-gizli');
+      $('kimEposta').textContent = D.email;
+      $('kimDurum').textContent = r.volunteer ? '' : ' · yeni kayıt';
+      doldur(r.volunteer);
+      gecmisCiz(r.history);
+      if (r.volunteer) { ozetCiz(r.volunteer); ekranGoster('ozet'); } else { ekranGoster('form'); }
+    });
+  }
+
+  function ekranGoster(hangi) {
+    $('ozet').classList.toggle('gp-gizli', hangi !== 'ozet');
+    $('form').classList.toggle('gp-gizli', hangi !== 'form');
+    $('msgDuzenle').style.display = (hangi === 'form' && D.kayit) ? 'block' : 'none';
+  }
+
+  var etiket = function (grup, deger) { return (D.cfg && D.cfg[grup] && D.cfg[grup][deger]) || ''; };
+  var etiketler = function (grup, dizi) {
+    return (dizi || []).map(function (d) { return etiket(grup, d); })
+      .filter(Boolean).join(', ');
+  };
+  function ayEtiketi(anahtar) {
+    var b = (D.cfg.months || []).filter(function (m) { return m.key === anahtar; })[0];
+    return b ? b.label : anahtar;
+  }
+
+  function ozetCiz(v) {
+    var rozet = $('ozetRozet');
+    rozet.textContent = etiket('status', v.status) || 'Aktif';
+    rozet.className = 'gp-rozet' + (v.status === 'aktif' ? '' : ' bekle');
+
+    var g = v.updated_at ? new Date(v.updated_at) : null;
+    $('ozetTarih').textContent = (g && !isNaN(g))
+      ? 'Son güncelleme: ' + g.toLocaleString('tr-TR', { dateStyle: 'long', timeStyle: 'short' }) : '';
+
+    var baslangic = etiket('start_pref', v.start_pref);
+    if (v.start_pref === 'tarihten_sonra' && v.start_date) {
+      var t = new Date(v.start_date);
+      if (!isNaN(t)) baslangic += ' — ' + t.toLocaleDateString('tr-TR', { dateStyle: 'long' });
+    }
+
+    var satirlar = [
+      ['Ad Soyad', v.full_name],
+      ['Çalışma', etiket('area', v.area)],
+      ['Başlangıç', baslangic],
+      ['Günler', etiketler('days', v.days)],
+      ['Saat aralığı', etiketler('times', v.times)],
+      ['Uygun aylar', (v.months || []).map(ayEtiketi).join(', ')],
+      ['Ayda süre', etiket('frequency', v.frequency)],
+      ['Planınız', etiket('certainty', v.certainty)],
+      ['Telefon', v.phone],
+      ['Notunuz', v.notes]
+    ].filter(function (s) { return s[1]; });
+
+    $('ozetListe').innerHTML = satirlar.map(function (s) {
+      return '<dt>' + s[0] + '</dt><dd>' + esc(s[1]) + '</dd>';
+    }).join('');
+
+    var b = $('btnAra');
+    b.textContent = v.status === 'aktif' ? 'Şimdilik ara vermek istiyorum' : 'Yeniden katılmak istiyorum';
+    b.dataset.hedef = v.status === 'aktif' ? 'beklemede' : 'aktif';
+  }
+
+  function doldur(v) {
+    var bos = !v;
+    $('full_name').value = bos ? '' : (v.full_name || '');
+    $('phone').value = bos ? '' : (v.phone || '');
+    $('notes').value = bos ? '' : (v.notes || '');
+    $('frequency').value = bos ? '' : (v.frequency || '');
+    $('status').value = bos ? 'aktif' : (v.status || 'aktif');
+    $('start_date').value = bos ? '' : (v.start_date || '');
+    isaretle($('alanKutu'), bos ? [] : [v.area]);
+    isaretle($('zamanKutu'), bos ? [] : [v.start_pref]);
+    isaretle($('gunKutu'), bos ? [] : v.days);
+    isaretle($('saatKutu'), bos ? [] : v.times);
+    isaretle($('planKutu'), bos ? ['gecici'] : [v.certainty]);
+    isaretle($('ayKutu'), bos ? [] : v.months);
+    $('btnKaydet').textContent = bos ? 'Kaydet' : 'Güncelle';
+  }
+
+  function gecmisCiz(gecmis) {
+    var el = $('gecmis');
+    if (!gecmis || !gecmis.length) { el.classList.add('gp-gizli'); return; }
+    el.classList.remove('gp-gizli');
+    el.innerHTML = '<b>Kayıt geçmişiniz</b><ul>' + gecmis.map(function (h) {
+      var d = new Date(h.created_at);
+      var ne = h.kind === 'yeni' ? 'Kayıt oluşturuldu'
+        : ((h.text || '').split('\n').map(function (s) { return s.split(':')[0]; }).filter(Boolean).join(', ') || 'Güncellendi');
+      return '<li>' + (isNaN(d) ? '' : d.toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' })) +
+        ' — ' + (h.kind === 'yeni' ? ne : 'Güncellendi: ' + ne) + '</li>';
+    }).join('') + '</ul>';
+  }
+
+  $('btnDegistir').addEventListener('click', function () {
+    doldur(D.kayit); gizle($('msgForm')); gizle($('msgOzet')); ekranGoster('form');
+    $('form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  $('btnVazgec').addEventListener('click', function () {
+    doldur(D.kayit); gizle($('msgForm'));
+    if (D.kayit) ekranGoster('ozet');
+  });
+
+  $('btnAra').addEventListener('click', function () {
+    var b = $('btnAra');
+    var veri = {};
+    for (var k in D.kayit) veri[k] = D.kayit[k];
+    veri.status = b.dataset.hedef;
+    mesgul(b, true, 'Kaydediliyor…');
+    api('save', { token: D.token, data: veri }).then(function (r) {
+      D.kayit = r.volunteer;
+      ozetCiz(r.volunteer);
+      goster($('msgOzet'), 'tamam', r.volunteer.status === 'beklemede'
+        ? 'Durumunuz “beklemede” olarak güncellendi. Hazır olduğunuzda buradan geri dönebilirsiniz.'
+        : 'Tekrar aramızdasınız — durumunuz “aktif” olarak güncellendi.');
+      return api('get', { token: D.token }).then(function (me) { gecmisCiz(me.history); });
+    })['catch'](function (e) { goster($('msgOzet'), 'hata', e.message); })
+      .then(function () { mesgul(b, false); });
+  });
+
+  $('form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var veri = {
+      full_name: $('full_name').value.trim(),
+      phone: $('phone').value.trim(),
+      area: tekSecili($('alanKutu')),
+      start_pref: tekSecili($('zamanKutu')),
+      start_date: $('start_date').value || '',
+      days: secililer($('gunKutu')),
+      times: secililer($('saatKutu')),
+      months: secililer($('ayKutu')),
+      frequency: $('frequency').value,
+      certainty: tekSecili($('planKutu')) || 'gecici',
+      status: $('status').value,
+      notes: $('notes').value.trim()
+    };
+    mesgul($('btnKaydet'), true, 'Kaydediliyor…');
+    api('save', { token: D.token, data: veri }).then(function (r) {
+      D.kayit = r.volunteer;
+      doldur(r.volunteer);
+      $('kimDurum').textContent = '';
+      ozetCiz(r.volunteer);
+      ekranGoster('ozet');
+      goster($('msgOzet'), 'tamam', r.isNew
+        ? 'Kaydınız alındı, teşekkürler. Özet e-postası adresinize gönderildi.'
+        : (r.changed > 0
+            ? 'Tercihiniz güncellendi (' + r.changed + ' alan değişti). Koordinatöre bildirim gönderildi.'
+            : 'Kaydedildi; bir değişiklik yoktu.'));
+      $('ozet').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return api('get', { token: D.token }).then(function (me) { gecmisCiz(me.history); });
+    })['catch'](function (err) {
+      goster($('msgForm'), 'hata', err.message);
+      if (/oturum/i.test(err.message)) { sessionStorage.clear(); setTimeout(function () { location.reload(); }, 2500); }
+    }).then(function () { mesgul($('btnKaydet'), false); });
+  });
+
+  baslat()['catch'](function (e) { goster($('msgEposta'), 'hata', e.message); });
+})();
+</script>
+
+</body>
+</html>

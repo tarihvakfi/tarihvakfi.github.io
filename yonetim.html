@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+
+  <title>Gönüllü Paneli · Tarih Vakfı</title>
+
+  <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./css/site.css?v=20260815-gorev-tercihi" />
+
+  <style>
+    /* ===== Gönüllü paneli (koordinatör) ===== */
+    .page { width: min(100%, 1040px); max-width: 1040px; }
+
+    .yp-card { margin-top: 26px; padding: 24px 26px 26px; border: 1px solid var(--rule); background: var(--paper); }
+    .yp-card h2 { margin: 0 0 6px; font-size: 22px; }
+    .yp-hint { margin: 0 0 16px; color: var(--ink-mute); font-size: 16px; }
+
+    .yp-card input[type=email], .yp-card input[type=text],
+    .yp-ust select, .yp-card button, .yp-msg, table.yp, .yp-sayi, .yp-bilgi,
+    .yp-sayilar, .yp-gunluk, summary.yp-sum {
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+    .yp-card input[type=email], .yp-card input[type=text] {
+      width: 100%; padding: 12px 13px; border: 1px solid var(--rule);
+      background: var(--paper); color: var(--ink); font-size: 15.5px;
+    }
+    .yp-card input:focus, .yp-ust select:focus { outline: 2px solid var(--accent-soft); outline-offset: 1px; border-color: var(--accent); }
+    .yp-kod { font-size: 26px; letter-spacing: 12px; text-align: center; font-weight: 600; font-family: 'DM Mono', monospace !important; }
+
+    button.yp { font-size: 14.5px; font-weight: 600; padding: 11px 20px; cursor: pointer;
+      border: 1px solid var(--accent); background: var(--accent); color: var(--paper); }
+    button.yp:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
+    button.yp:disabled { opacity: .45; cursor: not-allowed; }
+    button.yp.ikincil { background: var(--paper); color: var(--ink); border-color: var(--rule); font-weight: 500; }
+    button.yp.ikincil:hover { background: var(--paper-soft); border-color: var(--accent-soft); }
+    .yp-baglink { background: none; border: none; color: var(--ink-mute); text-decoration: underline;
+      padding: 0 0 0 14px; font-size: 13px; cursor: pointer; font-family: 'Inter', sans-serif; }
+    .yp-baglink:hover { color: var(--accent); }
+    .yp-dugmeler { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+
+    .yp-msg { padding: 12px 15px; font-size: 14.5px; margin-top: 14px; display: none; border: 1px solid; }
+    .yp-msg.gor { display: block; }
+    .yp-msg.hata { background: #fdf2f4; color: #8a1230; border-color: #f0cdd6; }
+    .yp-msg.tamam { background: #f1f7f2; color: #2e6440; border-color: #cfe4d5; }
+    .yp-gizli { display: none !important; }
+
+    /* --- panel başlığı --- */
+    .yp-bas { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .yp-bas .sag { font-family: 'Inter', sans-serif; font-size: 13px; color: var(--ink-mute); }
+    .yp-bilgi { color: var(--ink-mute); font-size: 14.5px; margin: 4px 0 24px; }
+    .yp-bilgi b { color: var(--ink); }
+
+    /* --- kontrol satırı --- */
+    .yp-ust { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+    .yp-ust select {
+      padding: 11px 13px; border: 1px solid var(--rule); background: var(--paper); color: var(--ink);
+      font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600; min-width: 280px; max-width: 100%;
+    }
+    .yp-sayi { color: var(--ink-mute); font-size: 13.5px; margin-left: auto; }
+
+    /* --- tablo --- */
+    .yp-tablo { overflow-x: auto; border: 1px solid var(--rule); background: var(--paper); }
+    table.yp { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 640px; }
+    table.yp th, table.yp td { text-align: left; padding: 12px 15px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+    table.yp th {
+      font-family: 'DM Mono', monospace; font-size: 9.5px; letter-spacing: .09em;
+      text-transform: uppercase; color: var(--ink-mute); font-weight: 400; padding-bottom: 8px;
+    }
+    table.yp tr:last-child td { border-bottom: none; }
+    table.yp .ad { font-weight: 600; }
+    table.yp .alt { color: var(--ink-mute); font-size: 12.5px; margin-top: 2px; }
+    table.yp a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+    table.yp a:hover { color: var(--accent); border-color: var(--accent); }
+    .nw { white-space: nowrap; }
+    .yp-hemen { color: var(--accent); font-weight: 600; }
+    .yp-duraklat { color: var(--accent-deep); font-size: 12px; font-weight: 600; }
+    .yp-bos { padding: 32px 16px; text-align: center; color: var(--ink-mute); }
+
+    /* --- alt bölümler --- */
+    details.yp-alt { margin-top: 12px; border-top: 1px solid var(--rule); }
+    summary.yp-sum { cursor: pointer; list-style: none; padding: 12px 2px; font-size: 14px; color: var(--ink-mute); font-weight: 600; }
+    summary.yp-sum::-webkit-details-marker { display: none; }
+    summary.yp-sum::before { content: '▸ '; color: var(--accent); }
+    details[open] > summary.yp-sum::before { content: '▾ '; }
+    summary.yp-sum:hover { color: var(--accent); }
+    .yp-icerik { padding: 4px 2px 18px; }
+    .yp-sayilar { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 30px; }
+    .yp-sy { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--rule); font-size: 14px; }
+    .yp-sy span { color: var(--ink-mute); }
+    .yp-grup { grid-column: 1/-1; font-family: 'DM Mono', monospace; font-size: 9.5px; letter-spacing: .09em;
+      text-transform: uppercase; color: var(--accent); margin: 16px 0 2px; }
+    .yp-gsatir { padding: 11px 0; border-bottom: 1px solid var(--rule); font-size: 14px; }
+    .yp-gsatir:last-child { border-bottom: none; }
+    .yp-gsatir .ust { color: var(--ink-mute); font-size: 12.5px; }
+    .yp-gsatir .ust b { color: var(--ink); font-size: 14px; }
+    .yp-gsatir pre { margin: 5px 0 0; font-family: 'Inter', sans-serif; font-size: 13px; color: var(--ink-soft); white-space: pre-wrap; }
+
+    .yp-donen { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,.35);
+      border-top-color: #fff; border-radius: 50%; animation: yp-don .7s linear infinite; vertical-align: -2px; margin-right: 7px; }
+    @keyframes yp-don { to { transform: rotate(360deg); } }
+
+    @media (max-width: 560px) {
+      .yp-card { padding: 20px 18px; }
+      .yp-ust select { min-width: 100%; }
+      .yp-sayi { margin-left: 0; }
+    }
+  </style>
+</head>
+<body class="journal">
+
+  <main class="page">
+
+    <!-- GİRİŞ -->
+    <section id="giris">
+      <header class="masthead">
+        <div class="brand-lockup">
+          <img src="./assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" class="brand-logo" />
+          <div><b>Tarih Vakfı</b><span>Gönüllü Paneli</span></div>
+        </div>
+      </header>
+
+      <section class="intro">
+        <p class="label">Koordinasyon</p>
+        <h1>Gönüllü <em>paneli</em></h1>
+        <p class="lede">Yalnızca koordinatör e-postalarıyla girilebilir.</p>
+      </section>
+
+      <section class="yp-card" id="adim-eposta">
+        <p class="yp-hint">E-posta adresinizi girin, size 6 haneli bir kod gönderelim.</p>
+        <input type="email" id="email" placeholder="ornek@eposta.com" autocomplete="email" inputmode="email" />
+        <div class="yp-dugmeler"><button type="button" class="yp" id="btnKod">Kod gönder</button></div>
+        <div class="yp-msg" id="msgEposta"></div>
+      </section>
+
+      <section class="yp-card yp-gizli" id="adim-kod">
+        <p class="yp-hint"><b id="kodEposta"></b> adresine gönderilen kodu girin.</p>
+        <input type="text" id="kod" class="yp-kod" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="······" />
+        <div class="yp-dugmeler">
+          <button type="button" class="yp" id="btnGir">Gir</button>
+          <button type="button" class="yp ikincil" id="btnGeri">E-postayı değiştir</button>
+        </div>
+        <div class="yp-msg" id="msgKod"></div>
+      </section>
+    </section>
+
+    <!-- PANEL -->
+    <section id="panel" class="yp-gizli" style="padding-top:26px">
+      <div class="yp-bas">
+        <h1 style="font-size:26px;margin:0">Gönüllü Paneli</h1>
+        <span class="sag"><span id="pEposta"></span>
+          <button class="yp-baglink" id="btnYenile">Yenile</button>
+          <button class="yp-baglink" id="btnCik">Çıkış</button>
+        </span>
+      </div>
+      <p class="yp-bilgi" id="ozetSatir"></p>
+
+      <div class="yp-ust">
+        <select id="liste"></select>
+        <button class="yp ikincil" id="btnPosta">E-posta yaz</button>
+        <button class="yp ikincil" id="btnKopyala">Adresleri kopyala</button>
+        <button class="yp ikincil" id="btnCsv">CSV</button>
+        <span class="yp-sayi" id="sayi"></span>
+      </div>
+
+      <div class="yp-tablo"><table class="yp" id="tablo"></table></div>
+
+      <details class="yp-alt" id="dOzet">
+        <summary class="yp-sum">Bütün sayılar</summary>
+        <div class="yp-icerik"><div class="yp-sayilar" id="sayilar"></div></div>
+      </details>
+
+      <details class="yp-alt" id="dGunluk">
+        <summary class="yp-sum">Son değişiklikler</summary>
+        <div class="yp-icerik yp-gunluk" id="gunluk"></div>
+      </details>
+
+      <details class="yp-alt">
+        <summary class="yp-sum">Tablo ve yardım</summary>
+        <div class="yp-icerik" style="font-size:14.5px;color:var(--ink-mute)">
+          <p style="margin:0 0 10px">Bütün kayıtlar Google E-Tablo'da da duruyor; oradan sütun
+            ekleyebilir, not tutabilir, arşivleyebilirsiniz.</p>
+          <p style="margin:0"><a id="pTablo" href="#" target="_blank" rel="noopener">Google E-Tablo'yu aç →</a>
+            &nbsp;·&nbsp; <a href="./gonullu-planlamasi.html">Gönüllü formunu aç →</a></p>
+        </div>
+      </details>
+
+      <footer class="colophon">
+        <p class="signoff">Tarih Vakfı · Gönüllü Görev Paylaşımı</p>
+      </footer>
+    </section>
+
+  </main>
+
+<script>
+/* Apps Script web uygulamasının adresi — gonullu-planlamasi.html ile aynı adres. */
+var GOREV_TERCIHI_URL = window.TV_APP_URL || 'https://script.google.com/macros/s/AKfycbxKD1hzj0Qh6Oqm8Olocn8FMozDd026uZngj0yy70mu7clOn2S0laKpij7INgT8Fg/exec';
+
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var D = { token: null, email: null, veri: null };
+
+  var esc = function (s) {
+    return String(s === null || s === undefined ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  };
+  function goster(el, sinif, m) { el.className = 'yp-msg ' + sinif + ' gor'; el.textContent = m; }
+  function gizle(el) { el.className = 'yp-msg'; }
+  function mesgul(b, acik, m) {
+    if (acik) { b.dataset.eski = b.innerHTML; b.innerHTML = '<span class="yp-donen"></span>' + (m || 'Bekleyin…'); b.disabled = true; }
+    else { b.innerHTML = b.dataset.eski || b.innerHTML; b.disabled = false; }
+  }
+
+  function api(action, yuk) {
+    if (/BURAYA_APPS_SCRIPT/.test(GOREV_TERCIHI_URL)) {
+      return Promise.reject(new Error('Sistem adresi tanımlanmamış (GOREV_TERCIHI_URL).'));
+    }
+    var govde = { action: action };
+    for (var k in (yuk || {})) govde[k] = yuk[k];
+    return fetch(GOREV_TERCIHI_URL, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(govde), redirect: 'follow'
+    }).catch(function () { throw new Error('Sunucuya ulaşılamadı. Bağlantınızı kontrol edin.'); })
+      .then(function (r) { return r.text(); })
+      .then(function (metin) {
+        var d;
+        try { d = JSON.parse(metin); } catch (e) { throw new Error('Sunucudan beklenmeyen yanıt geldi.'); }
+        if (!d.ok) throw new Error(d.error || 'Bir hata oluştu.');
+        return d;
+      });
+  }
+
+  var E = function (g, v) { return (D.veri && D.veri.etiketler[g] && D.veri.etiketler[g][v]) || ''; };
+  var EL = function (g, d) {
+    return (d || []).map(function (x) { return E(g, x); }).filter(Boolean).join(', ') || '—';
+  };
+  function gunTarih(s) { var d = new Date(s); return isNaN(d) ? String(s || '—')
+    : d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }); }
+  function kisaTarih(s) { var d = new Date(s); return isNaN(d) ? String(s || '')
+    : d.toLocaleString('tr-TR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }); }
+
+  /* ---------- giriş ---------- */
+  $('btnKod').addEventListener('click', kodIste);
+  $('email').addEventListener('keydown', function (e) { if (e.key === 'Enter') kodIste(); });
+  function kodIste() {
+    var e = $('email').value.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) { goster($('msgEposta'), 'hata', 'Geçerli bir e-posta adresi girin.'); return; }
+    mesgul($('btnKod'), true, 'Gönderiliyor…');
+    api('requestCode', { email: e }).then(function () {
+      D.email = e; $('kodEposta').textContent = e;
+      $('adim-eposta').classList.add('yp-gizli');
+      $('adim-kod').classList.remove('yp-gizli');
+      gizle($('msgEposta')); goster($('msgKod'), 'tamam', 'Kod gönderildi.'); $('kod').focus();
+    })['catch'](function (err) { goster($('msgEposta'), 'hata', err.message); })
+      .then(function () { mesgul($('btnKod'), false); });
+  }
+  $('btnGeri').addEventListener('click', function () {
+    $('adim-kod').classList.add('yp-gizli'); $('adim-eposta').classList.remove('yp-gizli'); gizle($('msgKod'));
+  });
+  $('btnGir').addEventListener('click', dogrula);
+  $('kod').addEventListener('keydown', function (e) { if (e.key === 'Enter') dogrula(); });
+  function dogrula() {
+    var k = $('kod').value.trim();
+    if (k.length !== 6) { goster($('msgKod'), 'hata', 'Kod 6 haneli olmalı.'); return; }
+    mesgul($('btnGir'), true, 'Kontrol ediliyor…');
+    api('verify', { email: D.email, code: k }).then(function (r) {
+      D.token = r.token; sessionStorage.setItem('tv_yonetim', r.token);
+      return yukle();
+    })['catch'](function (e) { goster($('msgKod'), 'hata', e.message); })
+      .then(function () { mesgul($('btnGir'), false); });
+  }
+  $('btnCik').addEventListener('click', function () { sessionStorage.removeItem('tv_yonetim'); location.reload(); });
+  $('btnYenile').addEventListener('click', function () {
+    mesgul($('btnYenile'), true, '…');
+    yukle()['catch'](function (e) { alert(e.message); }).then(function () { mesgul($('btnYenile'), false); });
+  });
+
+  /* ---------- veri ---------- */
+  function yukle() {
+    return api('adminData', { token: D.token }).then(function (r) {
+      D.veri = r;
+      $('giris').classList.add('yp-gizli');
+      $('panel').classList.remove('yp-gizli');
+      $('pEposta').textContent = r.email;
+      $('pTablo').href = r.tabloAdresi;
+
+      var bul = function (ad) {
+        var s = r.ozet.filter(function (x) { return x.ad === ad; })[0];
+        return s ? s.sayi : 0;
+      };
+      $('ozetSatir').innerHTML = '<b>' + bul('Toplam gönüllü') + '</b> gönüllü · <b>' +
+        bul('Aktif') + '</b> aktif · <b>' + bul('Beklemede (ara vermiş)') +
+        '</b> ara vermiş · son güncelleme ' + esc(r.hesaplama);
+
+      var secili = $('liste').value;
+      $('liste').innerHTML = r.listeler.map(function (l, i) {
+        return '<option value="' + i + '">' + esc(l.ad) + '  (' + l.uyeler.length + ')</option>';
+      }).join('') + '<option value="tum">Tüm gönüllüler  (' + r.kayitlar.length + ')</option>';
+      $('liste').value = secili || '0';
+      ciz(); sayilarCiz(); gunlukCiz();
+    });
+  }
+
+  function secilenler() {
+    var v = $('liste').value;
+    return v === 'tum' ? D.veri.kayitlar : D.veri.listeler[+v].uyeler;
+  }
+  function secilenAd() {
+    var v = $('liste').value;
+    return v === 'tum' ? 'Tüm gönüllüler' : D.veri.listeler[+v].ad;
+  }
+
+  function ciz() {
+    var k = secilenler();
+    $('sayi').textContent = k.length + ' kişi';
+    ['btnPosta', 'btnKopyala', 'btnCsv'].forEach(function (id) { $(id).disabled = k.length === 0; });
+    if (!k.length) { $('tablo').innerHTML = '<tr><td class="yp-bos">Bu koşula uyan gönüllü yok.</td></tr>'; return; }
+
+    $('tablo').innerHTML =
+      '<tr><th>Gönüllü</th><th>İletişim</th><th>Çalışma</th><th>Günler</th><th>Başlangıç</th></tr>' +
+      k.map(function (v) {
+        var baslangic = v.start_pref === 'hemen' ? '<span class="yp-hemen">Hemen</span>'
+          : v.start_pref === 'tarihten_sonra' ? esc(gunTarih(v.start_date)) : 'Karar vermedi';
+        var saat = (v.times || []).map(function (t) { return E('times', t).replace(/\s*\(.*\)/, ''); }).join(', ');
+        return '<tr>' +
+          '<td><div class="ad">' + esc(v.full_name) + '</div>' +
+            (v.status !== 'aktif' ? '<div class="yp-duraklat">' + esc(E('status', v.status)) + '</div>' : '') +
+            (v.notes ? '<div class="alt">' + esc(v.notes) + '</div>' : '') + '</td>' +
+          '<td class="nw"><a href="mailto:' + esc(v.email) + '">' + esc(v.email) + '</a>' +
+            (v.phone ? '<div class="alt"><a href="tel:' + esc(v.phone.replace(/\s/g, '')) + '">' + esc(v.phone) + '</a></div>' : '') + '</td>' +
+          '<td>' + esc(E('area', v.area)) + '</td>' +
+          '<td class="nw">' + esc(EL('days', v.days)) + (saat ? '<div class="alt">' + esc(saat) + '</div>' : '') + '</td>' +
+          '<td class="nw">' + baslangic + '</td></tr>';
+      }).join('');
+  }
+  $('liste').addEventListener('change', ciz);
+
+  /* ---------- eylemler ---------- */
+  function adresler() { return secilenler().map(function (k) { return k.email; }); }
+
+  $('btnPosta').addEventListener('click', function () {
+    location.href = 'mailto:?bcc=' + encodeURIComponent(adresler().join(','));
+  });
+
+  $('btnKopyala').addEventListener('click', function () {
+    var metin = adresler().join(', ');
+    var bitir = function () {
+      var b = $('btnKopyala'), eski = b.textContent;
+      b.textContent = adresler().length + ' adres kopyalandı ✓';
+      setTimeout(function () { b.textContent = eski; }, 2000);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(metin).then(bitir, bitir);
+    } else {
+      var t = document.createElement('textarea');
+      t.value = metin; document.body.appendChild(t); t.select();
+      document.execCommand('copy'); t.remove(); bitir();
+    }
+  });
+
+  var BASLIK = ['Ad Soyad','E-posta','Telefon','Çalışma','Ne zaman','Başlangıç tarihi','Günler',
+    'Saat aralığı','Ayda süre','Plan','Durum','Notlar'];
+  $('btnCsv').addEventListener('click', function () {
+    var satirlar = [BASLIK].concat(secilenler().map(function (k) {
+      return [k.full_name, k.email, k.phone, E('area', k.area), E('start_pref', k.start_pref),
+        k.start_date ? gunTarih(k.start_date) : '', EL('days', k.days), EL('times', k.times),
+        E('frequency', k.frequency), E('certainty', k.certainty), E('status', k.status), k.notes];
+    })).map(function (s) {
+      return s.map(function (h) { return '"' + String(h === null || h === undefined ? '' : h).replace(/"/g, '""') + '"'; }).join(';');
+    }).join('\r\n');
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['﻿' + satirlar], { type: 'text/csv;charset=utf-8' }));
+    a.download = secilenAd().replace(/[^\wğüşıöçĞÜŞİÖÇ]+/gi, '-').toLowerCase() + '.csv';
+    a.click(); URL.revokeObjectURL(a.href);
+  });
+
+  /* ---------- alt bölümler ---------- */
+  function sayilarCiz() {
+    $('sayilar').innerHTML = D.veri.ozet.map(function (v) {
+      return v.tur === 'baslik'
+        ? '<div class="yp-grup">' + esc(v.ad) + '</div>'
+        : '<div class="yp-sy"><span>' + esc(v.ad) + '</span><b>' + v.sayi + '</b></div>';
+    }).join('');
+  }
+
+  function gunlukCiz() {
+    var g = D.veri.gunluk;
+    $('gunluk').innerHTML = g.length ? g.map(function (x) {
+      return '<div class="yp-gsatir"><div class="ust"><b>' + esc(x.ad || x.email) + '</b> — ' +
+        esc(String(x.tur).toLowerCase()) + ' · ' + esc(kisaTarih(x.tarih)) + '</div>' +
+        (x.metin ? '<pre>' + esc(x.metin) + '</pre>' : '') + '</div>';
+    }).join('') : '<p style="color:var(--ink-mute);margin:0">Henüz kayıt yok.</p>';
+  }
+
+  /* ---------- açılış ---------- */
+  var kayitli = sessionStorage.getItem('tv_yonetim');
+  if (kayitli) {
+    D.token = kayitli;
+    yukle()['catch'](function () { sessionStorage.removeItem('tv_yonetim'); D.token = null; });
+  }
+})();
+</script>
+
+</body>
+</html>
