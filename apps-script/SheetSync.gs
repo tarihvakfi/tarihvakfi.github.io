@@ -98,7 +98,7 @@ function invalidatePublicPayloadCache_() {
   }
 }
 
-const TVF_CODE_VERSION = 'v2026-08-08-box-aware-self-report';
+const TVF_CODE_VERSION = 'v2026-08-14-e-column-day-total';
 
 function doGet(e) {
   try {
@@ -1033,7 +1033,11 @@ function collectPublicRecords_(rowsBySheet, inventory) {
       rows.forEach(function (row) {
         const label = getVolunteerDisplayName_(row);
         const publicRole = getPublicRole_(row, label);
-        const when = sanitizeWhen_(parseSheetDate_(row.tarih));
+        // Fall back to the first column when the "Tarih" header cell is
+        // blank/whitespace (seen live on 2026-08-14: A1 held a space, which
+        // renamed the key to column1 and silently undated every activity
+        // row — killing faaliyet counts AND all column-E day totals).
+        const when = sanitizeWhen_(parseSheetDate_(row.tarih != null ? row.tarih : row.column1));
         const workTitle = publicWorkTitle_(row);
         const workDetail = publicWorkDetail_(row);
         // Column E, "Yapılan Çalışmaya İlişkin Sayısal Bilgi" — the volunteer's
@@ -1064,70 +1068,53 @@ function collectPublicRecords_(rowsBySheet, inventory) {
   return records;
 }
 
-// Günlük Akış is the volunteers' own end-of-day report; column E carries the
-// page count they state they scanned that day. The detail sheets, in contrast,
-// are per-page coding records whose Tarih column reflects when a row was
-// *entered*, which can lag or lead the actual scanning day (backlog coding).
-// When a scanning self-report exists for a (person, day), it is authoritative
-// for that day's public page count: redistribute the reported total across
-// that person's page records for the day so every downstream pagesDone sum
-// (day cards, contributor totals, box period deltas) reflects the report.
-// Days without a numeric self-report keep the detail-row count, so volunteers
-// who skip Günlük Akış (e.g. only coded rows exist) still get full credit.
-// Row counts (pageRows/records) are left untouched — they are labelled
-// "satır/kayıt" and box inventory progress is accumulated before this runs.
-//
-// Distribution is box-aware: a report whose text names exactly one box
-// ("PNB Kutu 25") is authoritative for that box's rows only; other rows that
-// day keep their default 1 unit. Reports without a single box reference form
-// a generic pool spread over the person's remaining rows proportionally per
-// box (largest remainder) — NOT in sheet order, which used to front-load
-// units into whichever sheet happened to come first and produced phantom
-// per-box splits (e.g. 552 pages over 27+144+28 rows landing as 81/415/56).
+// Günlük Akış column E ("Yapılan Çalışmaya İlişkin Sayısal Bilgi") is the
+// volunteer's own statement of how much they did that day. Coordinator rule
+// (2026-08-14): whenever E holds a number, that number IS the person's
+// public page/detay amount for that day — regardless of how the work is
+// described (tarama, kontrol, kodlama...). Multiple numeric rows on the
+// same day sum. The detail sheets' Tarih column reflects when rows were
+// *typed*, which can lag or lead the actual work day (backlog coding), so
+// the reported total replaces the row count: it is spread over the
+// person's page records for that day proportionally per box (largest
+// remainder — never sheet order). When the person typed no detail rows at
+// all that day, a synthetic page record carries the total so day cards,
+// volunteer totals, the feed and period sums still show the work (it used
+// to vanish, e.g. a 504-page Bookeye day logged only in Günlük Akış).
+// Days without a numeric E keep the detail-row count, so volunteers who
+// skip the log still get full credit. Row counts (pageRows/records) stay
+// untouched — they are labelled "satır/kayıt" — and box inventory
+// progress (İŞLENEN) counts real typed rows only.
 function applySelfReportedDailyPages_(records) {
-  const boxReports = {};     // person|day -> { normalizedBoxKey: units }
-  const genericReports = {}; // person|day -> units
+  const reported = {};   // person|day -> reported units
+  const reportMeta = {}; // person|day -> first source activity (labels, dates)
   (records || []).forEach(function (record) {
     if (record.kind !== 'activity' || !record.dateISO || !record.privateKey) return;
     if (record.privateKey === 'unnamed' || record.privateKey === 'hidden') return;
     if (!(Number(record.pageUnits) > 0)) return;
-    const hay = asciiFold_(String(record.workTitle || '') + ' ' + String(record.workDetail || '')).toLowerCase();
-    if (hay.indexOf('tarama') < 0) return; // only scanning reports override page counts
     const key = record.privateKey + '|' + record.dateISO;
-    const units = Math.round(Number(record.pageUnits));
-    const boxSeen = {};
-    (hay.match(/kutu\s*(\d+)/g) || []).forEach(function (m) {
-      boxSeen[m.replace(/[^0-9]/g, '')] = true;
-    });
-    const boxKeys = Object.keys(boxSeen);
-    if (boxKeys.length === 1) {
-      if (!boxReports[key]) boxReports[key] = {};
-      boxReports[key][boxKeys[0]] = (boxReports[key][boxKeys[0]] || 0) + units;
-    } else {
-      // zero or several boxes named → treat as a day-level pool
-      genericReports[key] = (genericReports[key] || 0) + units;
-    }
+    reported[key] = (reported[key] || 0) + Math.round(Number(record.pageUnits));
+    if (!reportMeta[key]) reportMeta[key] = record;
   });
   const pagesByKey = {};
   (records || []).forEach(function (record) {
     if (record.kind !== 'page' || !record.dateISO || !record.privateKey) return;
     const key = record.privateKey + '|' + record.dateISO;
-    if (boxReports[key] == null && genericReports[key] == null) return;
+    if (reported[key] == null) return;
     if (!pagesByKey[key]) pagesByKey[key] = [];
     pagesByKey[key].push(record);
   });
-  function spreadEvenly_(rows, target, additive) {
+  function spreadEvenly_(rows, target) {
     if (!rows.length) return;
     const base = Math.floor(target / rows.length);
     let remainder = target - base * rows.length;
     rows.forEach(function (record) {
-      const units = base + (remainder > 0 ? 1 : 0);
-      record.pageUnits = additive ? Number(record.pageUnits || 0) + units : units;
+      record.pageUnits = base + (remainder > 0 ? 1 : 0);
       if (remainder > 0) remainder -= 1;
       record.pageUnitsBasis = 'gunluk_akis_self_report';
     });
   }
-  function spreadProportionalByBox_(rows, target, additive) {
+  function spreadProportionalByBox_(rows, target) {
     if (!rows.length) return;
     const groups = {};
     rows.forEach(function (record) {
@@ -1146,36 +1133,35 @@ function applySelfReportedDailyPages_(records) {
     let left = target - allocated;
     alloc.sort(function (a, b) { return b.frac - a.frac; });
     alloc.forEach(function (a) { if (left > 0) { a.units += 1; left -= 1; } });
-    alloc.forEach(function (a) { spreadEvenly_(groups[a.bk], a.units, additive); });
+    alloc.forEach(function (a) { spreadEvenly_(groups[a.bk], a.units); });
   }
-  Object.keys(pagesByKey).forEach(function (key) {
-    const rows = pagesByKey[key];
-    const perBox = boxReports[key] || {};
-    let generic = genericReports[key] || 0;
-    const claimedRows = [];
-    const remainingRows = [];
-    rows.forEach(function (record) {
-      const bk = normalizeBox_(record.box);
-      (perBox[bk] != null ? claimedRows : remainingRows).push(record);
-    });
-    Object.keys(perBox).forEach(function (bk) {
-      const boxRows = claimedRows.filter(function (record) { return normalizeBox_(record.box) === bk; });
-      if (!boxRows.length) {
-        // report names a box with no rows that day → fall back to the pool
-        generic += perBox[bk];
-        return;
-      }
-      spreadEvenly_(boxRows, perBox[bk]);
-    });
-    if (generic > 0) {
-      // If every row that day was already claimed by a box-specific report,
-      // add the generic pool on top instead of overwriting those units.
-      if (remainingRows.length) {
-        spreadProportionalByBox_(remainingRows, generic, false);
-      } else {
-        spreadProportionalByBox_(rows, generic, true);
-      }
+  Object.keys(reported).forEach(function (key) {
+    const rows = pagesByKey[key] || [];
+    if (rows.length) {
+      spreadProportionalByBox_(rows, reported[key]);
+      return;
     }
+    // No detail rows typed that day → emit one synthetic page record so the
+    // reported amount still reaches every downstream aggregate.
+    const meta = reportMeta[key];
+    if (!meta) return;
+    records.push({
+      kind: 'page',
+      sourceType: 'self_report_total',
+      dateISO: meta.dateISO,
+      when: meta.when,
+      material: meta.material || 'belgeler',
+      projectId: meta.projectId,
+      privateKey: meta.privateKey,
+      publicLabel: meta.publicLabel,
+      publicRole: meta.publicRole,
+      creditStatus: meta.creditStatus,
+      box: '',
+      pageUnits: reported[key],
+      pageUnitsBasis: 'gunluk_akis_self_report_unattached',
+      workTitle: meta.workTitle,
+      workDetail: meta.workDetail
+    });
   });
   return records;
 }
