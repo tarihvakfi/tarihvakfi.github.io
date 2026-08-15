@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./css/site.css?v=20260623-full-audit" />
+  <link rel="stylesheet" href="./css/site.css?v=20260815-gorev-tercihi" />
 </head>
 <body class="journal">
 
@@ -28,9 +28,15 @@
           <span data-edit="mastheadLabel">Gönüllü Emek Günlüğü</span>
         </div>
       </div>
-      <div class="mast-meta">
-        <span><span class="pulse" id="lpPulse"></span><span id="lpSyncLabel">az önce senkron</span></span>
-        <span id="lpWeekLabel">Güncel dönem · —</span>
+      <div class="mast-actions">
+        <div class="mast-meta">
+          <span><span class="pulse" id="lpPulse"></span><span id="lpSyncLabel">az önce senkron</span></span>
+          <span id="lpWeekLabel">Güncel dönem · —</span>
+        </div>
+        <nav class="top-tabs" aria-label="Site bölümleri">
+          <a href="./index.html" aria-current="page">Emek Günlüğü</a>
+          <a href="./gonullu-planlamasi.html">Gönüllü Planlaması</a>
+        </nav>
       </div>
     </header>
 
@@ -191,7 +197,9 @@
       <p data-edit="colophonNote">Bu günlük, Tarih Vakfı’nda süren gönüllü emeğin kamuya açık kısa kaydıdır.<br>Katkılar yalnızca paylaşımı uygun bilgilerle özetlenir; iletişim bilgileri, teknik kimlikler ve özel notlar yayımlanmaz.</p>
       <p class="design-credit">Tasarım: Arif Solmaz</p>
       <p class="footer-links">
-        <a href="#" id="volunteerContactLink" data-local="gulistaneren" data-host="gmail" data-tld="com">Gönüllü olmak ister misin?</a>
+        <a href="./gonullu-planlamasi.html">Gönüllü olmak ister misin?</a>
+        <span aria-hidden="true">·</span>
+        <a href="#" id="volunteerContactLink" data-local="gulistaneren" data-host="gmail" data-tld="com">Koordinatöre yaz</a>
       </p>
     </footer>
 

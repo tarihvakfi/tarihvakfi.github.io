@@ -1722,3 +1722,21 @@ body.tv-drawer-open { overflow: hidden; }
 .ci-day-toggle.is-locked { opacity: .5; cursor: default; }
 .ci-day-toggle input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
 .ci-hidden { display: none !important; }
+
+/* ── Üst gezinme sekmeleri (Emek Günlüğü · Yaz Planlaması) ───────────── */
+.mast-actions { display: grid; gap: 10px; justify-items: end; }
+.top-tabs {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px;
+  border: 1px solid var(--rule); background: var(--paper-soft);
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+.top-tabs a {
+  display: inline-block; padding: 7px 10px; color: var(--ink-mute);
+  text-decoration: none; border: 1px solid transparent;
+}
+.top-tabs a:hover { color: var(--accent); border-color: var(--accent-soft); background: var(--paper); }
+.top-tabs a[aria-current="page"] { color: var(--paper); background: var(--accent); border-color: var(--accent); }
+@media (max-width: 560px) {
+  .mast-actions { justify-items: center; }
+}
