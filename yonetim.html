@@ -110,11 +110,27 @@
     details[open] > summary.yp-sum::before { content: '▾ '; }
     summary.yp-sum:hover { color: var(--accent); }
     .yp-icerik { padding: 4px 2px 18px; }
-    .yp-sayilar { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 30px; }
-    .yp-sy { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--rule); font-size: 14px; }
-    .yp-sy span { color: var(--ink-mute); }
-    .yp-grup { grid-column: 1/-1; font-family: 'DM Mono', monospace; font-size: 9.5px; letter-spacing: .09em;
-      text-transform: uppercase; color: var(--accent); margin: 16px 0 2px; }
+
+    /* --- özet sayıları: her grup tek satır --- */
+    .yp-sayilar { display: grid; grid-template-columns: auto 1fr; gap: 0 24px; }
+    .yp-grup, .yp-deger { padding: 10px 0; border-top: 1px solid var(--rule); }
+    .yp-grup:first-child, .yp-grup:first-child + .yp-deger { border-top: none; padding-top: 2px; }
+    .yp-grup {
+      font-family: 'DM Mono', monospace; font-size: 9.5px; letter-spacing: .09em;
+      text-transform: uppercase; color: var(--ink-mute); white-space: nowrap; padding-top: 14px;
+    }
+    .yp-grup:first-child { padding-top: 4px; }
+    .yp-deger { font-size: 14.5px; color: var(--ink-mute); }
+    .yp-deger b { color: var(--ink); font-variant-numeric: tabular-nums; font-weight: 700; }
+    .yp-deger .sfr b { color: #b9b2ad; font-weight: 500; }
+    .yp-deger i { color: var(--rule); font-style: normal; margin: 0 9px; }
+    .yp-dipnot { margin: 16px 0 0; font-size: 12.5px; color: var(--ink-mute); }
+    @media (max-width: 560px) {
+      .yp-sayilar { grid-template-columns: 1fr; gap: 0; }
+      .yp-grup { padding: 14px 0 0; border-top: 1px solid var(--rule); }
+      .yp-deger { padding: 3px 0 12px; border-top: none; }
+      .yp-grup:first-child + .yp-deger { padding-top: 3px; }
+    }
     .yp-gsatir { padding: 11px 0; border-bottom: 1px solid var(--rule); font-size: 14px; }
     .yp-gsatir:last-child { border-bottom: none; }
     .yp-gsatir .ust { color: var(--ink-mute); font-size: 12.5px; }
@@ -460,12 +476,43 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   });
 
   /* ---------- alt bölümler ---------- */
+  /* Sunucudan gelen uzun etiketler yerine panelde kısa adlar gösterilir.
+     [grup adı, [[kısa ad, sunucudaki etiket], ...]] */
+  var OZET_GORUNUM = [
+    ['Çalışma alanı', [['Kütüphane', 'Kütüphaneye gelebilecek'],
+                       ['Arşiv', 'Arşive gelebilecek'],
+                       ['Her ikisi', '— her ikisi birden']]],
+    ['Ne zaman', [['Hemen', 'Hemen'],
+                  ['Tarih verenler', 'Belirli bir tarihten sonra'],
+                  ['Kararsız', 'Henüz karar vermedi']]],
+    ['Günler', [['Hafta içi', 'Hafta içi gelebilir'],
+                ['Hafta sonu', 'Hafta sonu gelebilir']]],
+    ['Plan', [['Kesin', 'Kesin — programa alınabilir'],
+              ['Geçici', 'Geçici — değişebilir']]],
+    ['Durum', [['Aktif', 'Aktif'],
+               ['Ara vermiş', 'Beklemede (ara vermiş)'],
+               ['Ayrılmış', 'Ayrıldı']]]
+  ];
+
   function sayilarCiz() {
-    $('sayilar').innerHTML = D.veri.ozet.map(function (v) {
-      return v.tur === 'baslik'
-        ? '<div class="yp-grup">' + esc(v.ad) + '</div>'
-        : '<div class="yp-sy"><span>' + esc(v.ad) + '</span><b>' + v.sayi + '</b></div>';
-    }).join('');
+    var bul = function (etiket) {
+      var s = D.veri.ozet.filter(function (x) { return x.tur === 'satir' && x.ad === etiket; })[0];
+      return s ? s.sayi : null;
+    };
+
+    $('sayilar').innerHTML = OZET_GORUNUM.map(function (g) {
+      var parcalar = g[1].map(function (p) {
+        var sayi = bul(p[1]);
+        if (sayi === null) return '';
+        return '<span class="' + (sayi === 0 ? 'sfr' : '') + '">' +
+          esc(p[0]) + ' <b>' + sayi + '</b></span>';
+      }).filter(Boolean).join('<i>·</i>');
+      if (!parcalar) return '';
+      return '<div class="yp-grup">' + esc(g[0]) + '</div><div class="yp-deger">' + parcalar + '</div>';
+    }).join('') +
+      '<p class="yp-dipnot" style="grid-column:1/-1">Çalışma alanı, zaman, gün ve plan sayıları ' +
+      'yalnızca aktif gönüllüleri kapsar. “Fark etmez” diyenler hem hafta içi hem hafta sonunda, ' +
+      '“her ikisi” diyenler hem kütüphane hem arşivde sayılır.</p>';
   }
 
   function gunlukCiz() {
