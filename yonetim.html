@@ -82,6 +82,26 @@
     .yp-duraklat { color: var(--accent-deep); font-size: 12px; font-weight: 600; }
     .yp-bos { padding: 32px 16px; text-align: center; color: var(--ink-mute); }
 
+    /* --- satır işlemleri --- */
+    td.yp-islem { white-space: nowrap; }
+    select.yp-durum {
+      font-family: 'Inter', sans-serif; font-size: 12.5px; padding: 5px 7px;
+      border: 1px solid var(--rule); background: var(--paper); color: var(--ink-mute); max-width: 132px;
+    }
+    select.yp-durum:hover { border-color: var(--accent-soft); color: var(--ink); }
+    button.yp-sil {
+      background: none; border: none; color: var(--ink-mute); text-decoration: underline;
+      font-family: 'Inter', sans-serif; font-size: 12.5px; cursor: pointer; padding: 4px 2px; margin-left: 8px;
+    }
+    button.yp-sil:hover { color: #b91c1c; }
+    .yp-onay { font-family: 'Inter', sans-serif; font-size: 12.5px; color: #8a1230; }
+    .yp-onay button {
+      background: none; border: none; cursor: pointer; font-family: 'Inter', sans-serif;
+      font-size: 12.5px; padding: 4px 4px; text-decoration: underline;
+    }
+    .yp-onay .evet { color: #b91c1c; font-weight: 700; }
+    .yp-onay .hayir { color: var(--ink-mute); }
+
     /* --- alt bölümler --- */
     details.yp-alt { margin-top: 12px; border-top: 1px solid var(--rule); }
     summary.yp-sum { cursor: pointer; list-style: none; padding: 12px 2px; font-size: 14px; color: var(--ink-mute); font-weight: 600; }
@@ -199,7 +219,7 @@
 
 <script>
 /* Apps Script web uygulamasının adresi — gonullu-planlamasi.html ile aynı adres. */
-var GOREV_TERCIHI_URL = window.TV_APP_URL || 'https://script.google.com/macros/s/AKfycbxKD1hzj0Qh6Oqm8Olocn8FMozDd026uZngj0yy70mu7clOn2S0laKpij7INgT8Fg/exec';
+var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPISTIRIN';
 
 (function () {
   'use strict';
@@ -323,12 +343,16 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'https://script.google.com/macros/s
     if (!k.length) { $('tablo').innerHTML = '<tr><td class="yp-bos">Bu koşula uyan gönüllü yok.</td></tr>'; return; }
 
     $('tablo').innerHTML =
-      '<tr><th>Gönüllü</th><th>İletişim</th><th>Çalışma</th><th>Günler</th><th>Başlangıç</th></tr>' +
+      '<tr><th>Gönüllü</th><th>İletişim</th><th>Çalışma</th><th>Günler</th><th>Başlangıç</th><th>İşlem</th></tr>' +
       k.map(function (v) {
         var baslangic = v.start_pref === 'hemen' ? '<span class="yp-hemen">Hemen</span>'
           : v.start_pref === 'tarihten_sonra' ? esc(gunTarih(v.start_date)) : 'Karar vermedi';
         var saat = (v.times || []).map(function (t) { return E('times', t).replace(/\s*\(.*\)/, ''); }).join(', ');
-        return '<tr>' +
+        var durumlar = Object.keys(D.veri.etiketler.status).map(function (s) {
+          return '<option value="' + s + '"' + (s === v.status ? ' selected' : '') + '>' +
+            esc(D.veri.etiketler.status[s]) + '</option>';
+        }).join('');
+        return '<tr data-eposta="' + esc(v.email) + '">' +
           '<td><div class="ad">' + esc(v.full_name) + '</div>' +
             (v.status !== 'aktif' ? '<div class="yp-duraklat">' + esc(E('status', v.status)) + '</div>' : '') +
             (v.notes ? '<div class="alt">' + esc(v.notes) + '</div>' : '') + '</td>' +
@@ -336,8 +360,62 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'https://script.google.com/macros/s
             (v.phone ? '<div class="alt"><a href="tel:' + esc(v.phone.replace(/\s/g, '')) + '">' + esc(v.phone) + '</a></div>' : '') + '</td>' +
           '<td>' + esc(E('area', v.area)) + '</td>' +
           '<td class="nw">' + esc(EL('days', v.days)) + (saat ? '<div class="alt">' + esc(saat) + '</div>' : '') + '</td>' +
-          '<td class="nw">' + baslangic + '</td></tr>';
+          '<td class="nw">' + baslangic + '</td>' +
+          '<td class="yp-islem"><select class="yp-durum">' + durumlar + '</select>' +
+            '<button type="button" class="yp-sil">Sil</button></td>' +
+          '</tr>';
       }).join('');
+  }
+
+  /* ---------- satır işlemleri: durum değiştir / sil ---------- */
+  var epostaBul = function (el) {
+    var tr = el.closest ? el.closest('tr') : null;
+    return tr ? tr.getAttribute('data-eposta') : '';
+  };
+
+  $('tablo').addEventListener('change', function (e) {
+    if (!e.target.classList.contains('yp-durum')) return;
+    var eposta = epostaBul(e.target), durum = e.target.value;
+    e.target.disabled = true;
+    api('adminStatus', { token: D.token, email: eposta, status: durum })
+      .then(function () { return yukle(); })
+      .catch(function (err) { alert(err.message); e.target.disabled = false; });
+  });
+
+  $('tablo').addEventListener('click', function (e) {
+    var hucre;
+    if (e.target.classList.contains('yp-sil')) {
+      hucre = e.target.parentNode;
+      hucre.dataset.eski = hucre.innerHTML;
+      hucre.innerHTML = '<span class="yp-onay">Silinsin mi? ' +
+        '<button type="button" class="evet">Evet, sil</button>' +
+        '<button type="button" class="hayir">Vazgeç</button></span>';
+      return;
+    }
+    if (e.target.classList.contains('hayir')) {
+      hucre = e.target.closest('td');
+      hucre.innerHTML = hucre.dataset.eski;
+      return;
+    }
+    if (e.target.classList.contains('evet')) {
+      hucre = e.target.closest('td');
+      var eposta = epostaBul(e.target);
+      hucre.innerHTML = '<span class="yp-onay">Siliniyor…</span>';
+      api('adminDelete', { token: D.token, email: eposta })
+        .then(function (r) {
+          return yukle().then(function () {
+            gecici($('sayi'), (r.ad || eposta) + ' silindi');
+          });
+        })
+        .catch(function (err) { alert(err.message); yukle(); });
+    }
+  });
+
+  /* Sayaç alanında iki saniyelik bilgi gösterir. */
+  function gecici(el, mesaj) {
+    var eski = el.textContent;
+    el.textContent = mesaj;
+    setTimeout(function () { if (el.textContent === mesaj) el.textContent = eski; }, 2500);
   }
   $('liste').addEventListener('change', ciz);
 
