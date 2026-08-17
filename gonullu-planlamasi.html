@@ -177,6 +177,7 @@
       .gp-liste dd:first-of-type { padding-top: 2px; }
     }
   </style>
+  <script src="./js/gonullu-config.js?v=20260817"></script>
 </head>
 <body class="journal">
 
@@ -374,10 +375,9 @@
   </main>
 
 <script>
-/* ===== Gönüllü görev tercihi · Apps Script web uygulaması adresi =====
-   Apps Script'te "Dağıt → Web uygulaması" adımında verilen /exec adresi.
-   Not: Bu, sitenin SheetSync betiğinden AYRI bir projedir. */
-var GOREV_TERCIHI_URL = window.TV_APP_URL || 'https://script.google.com/macros/s/AKfycbxKD1hzj0Qh6Oqm8Olocn8FMozDd026uZngj0yy70mu7clOn2S0laKpij7INgT8Fg/exec';
+/* Apps Script adresi js/gonullu-config.js dosyasından gelir.
+   Aşağıdaki değer yalnızca o dosya yoksa devreye giren yedektir. */
+var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPISTIRIN';
 
 (function () {
   'use strict';
