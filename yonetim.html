@@ -243,6 +243,16 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   var $ = function (id) { return document.getElementById(id); };
   var D = { token: null, email: null, veri: null };
 
+  /* Oturum tarayıcıda localStorage'da tutulur: sekme ya da tarayıcı kapansa da
+     giriş açık kalır. Özel/gizli pencerede localStorage yoksa sessionStorage'a düşer. */
+  var kutu = (function () {
+    try {
+      window.localStorage.setItem('tv_deneme', '1');
+      window.localStorage.removeItem('tv_deneme');
+      return window.localStorage;
+    } catch (h) { return window.sessionStorage; }
+  })();
+
   var esc = function (s) {
     return String(s === null || s === undefined ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -307,12 +317,18 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     if (k.length !== 6) { goster($('msgKod'), 'hata', 'Kod 6 haneli olmalı.'); return; }
     mesgul($('btnGir'), true, 'Kontrol ediliyor…');
     api('verify', { email: D.email, code: k }).then(function (r) {
-      D.token = r.token; sessionStorage.setItem('tv_yonetim', r.token);
+      D.token = r.token; kutu.setItem('tv_yonetim', r.token);
       return yukle();
     })['catch'](function (e) { goster($('msgKod'), 'hata', e.message); })
       .then(function () { mesgul($('btnGir'), false); });
   }
-  $('btnCik').addEventListener('click', function () { sessionStorage.removeItem('tv_yonetim'); location.reload(); });
+  $('btnCik').addEventListener('click', function () {
+    var token = D.token;
+    kutu.removeItem('tv_yonetim');
+    // Sunucudaki oturumu da kapat; yanıtı beklemeden sayfayı yenile.
+    if (token) { api('logout', { token: token })['catch'](function () {}); }
+    setTimeout(function () { location.reload(); }, 250);
+  });
   $('btnYenile').addEventListener('click', function () {
     mesgul($('btnYenile'), true, '…');
     yukle()['catch'](function (e) { alert(e.message); }).then(function () { mesgul($('btnYenile'), false); });
@@ -525,10 +541,10 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
 
   /* ---------- açılış ---------- */
-  var kayitli = sessionStorage.getItem('tv_yonetim');
+  var kayitli = kutu.getItem('tv_yonetim');
   if (kayitli) {
     D.token = kayitli;
-    yukle()['catch'](function () { sessionStorage.removeItem('tv_yonetim'); D.token = null; });
+    yukle()['catch'](function () { kutu.removeItem('tv_yonetim'); D.token = null; });
   }
 })();
 </script>

@@ -537,7 +537,12 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       .then(function () { mesgul($('btnGir'), false); });
   }
 
-  $('btnCikis').addEventListener('click', function () { sessionStorage.clear(); location.reload(); });
+  $('btnCikis').addEventListener('click', function () {
+    var token = D.token;
+    sessionStorage.clear();
+    if (token) { api('logout', { token: token })['catch'](function () {}); }
+    setTimeout(function () { location.reload(); }, 250);
+  });
 
   /* ---------- kayıt ---------- */
   function kaydiYukle() {
