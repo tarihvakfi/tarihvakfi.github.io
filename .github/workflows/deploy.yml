@@ -44,7 +44,7 @@ jobs:
         run: |
           rm -rf _site
           mkdir -p _site
-          cp index.html 404.html gonullu-planlamasi.html yaz-planlamasi.html yonetim.html katilim.html _site/
+          cp index.html 404.html gonullu-planlamasi.html yaz-planlamasi.html yonetim.html katilim.html kitap-envanteri.html kunye-onay.html envanter-manifest.json sw.js _site/
           cp -R assets css js kronoloji _site/
           rm -rf _site/kronoloji/apps-script
           rm -f _site/kronoloji/data.html _site/kronoloji/methodology.html
