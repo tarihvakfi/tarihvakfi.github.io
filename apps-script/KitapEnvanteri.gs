@@ -39,7 +39,7 @@ var AYAR = {
   RAF_HARFLERI: 'ABCDEFGHIJKL',
 
   // Bir rafta en fazla kaç sıra (göz) var
-  SIRA_SAYISI: 5,
+  SIRA_SAYISI: 8,
 
   // ── Fotoğraf ve OCR ──────────────────────────────────────────────
   // Künye sayfası fotoğraflarının kaydedileceği Drive klasörü.
@@ -98,7 +98,7 @@ var SUTUNLAR = ['Kayıt no', 'Yer kodu', 'Mekân', 'Raf', 'Sıra', 'Sıra no',
                 'Yazar', 'Başlık', 'Yıl', 'Nüsha',
                 'Kategori', 'Kural', 'Durum', 'Not', 'Kaydeden', 'Kutu no', 'Tarih',
                 'Fotoğraf', 'OCR durumu', 'Öneri başlık', 'Öneri yazar', 'Öneri yıl',
-                'Öneri yayınevi', 'OCR metni', 'Onay'];
+                'Öneri yayınevi', 'OCR metni', 'Onay', 'Kapak'];
 
 // Sık kullanılan sütun numaraları (1'den başlar)
 var S = {
@@ -106,7 +106,7 @@ var S = {
   yazar: 7, baslik: 8, yil: 9, nusha: 10, kategori: 11, kural: 12,
   durum: 13, not: 14, kaydeden: 15, kutu: 16, tarih: 17,
   foto: 18, ocrDurum: 19, oneriBaslik: 20, oneriYazar: 21, oneriYil: 22,
-  oneriYayinevi: 23, ocrMetin: 24, onay: 25
+  oneriYayinevi: 23, ocrMetin: 24, onay: 25, kapak: 26
 };
 
 /* ═══════════════ YER KODU ═══════════════ */
@@ -194,7 +194,7 @@ function islet_(istek) {
       case 'sil':         return cikti_(sil_(istek.no));
       case 'sayac':       return cikti_(sayac_(istek.kaydeden));
       case 'rafDurum':    return cikti_(rafDurum_(istek.mekan, istek.raf, istek.sira));
-      case 'fotoEkle':    return cikti_(fotoEkle_(istek.no, istek.veri, istek.tur));
+      case 'fotoEkle':    return cikti_(fotoEkle_(istek.no, istek.veri, istek.tur, istek.hangi));
       case 'onayBekleyen':return cikti_(onayBekleyen_(istek.adet));
       case 'onayla':      return cikti_(onayla_(istek.no, istek.kayit || {}));
       default:            return cikti_({ ok: false, error: 'Bilinmeyen istek.' });
@@ -206,6 +206,9 @@ function islet_(istek) {
 }
 
 function cikti_(nesne) {
+  // Hatalar 'ok: false' ile açıkça dönüyor; alan hiç yoksa istek başarılıdır.
+  // (Bir yanıtta 'ok' unutulursa form onu hata sanar — bu satır onu engeller.)
+  if (nesne && nesne.ok === undefined) nesne.ok = true;
   return ContentService.createTextOutput(JSON.stringify(nesne))
     .setMimeType(ContentService.MimeType.JSON);
 }
@@ -244,7 +247,7 @@ function ekle_(g) {
     sayfa.appendRow([no, yer, d.k.mekan, d.k.raf, pad_(d.k.sira, 2), s.siraNo,
                      d.k.yazar, d.k.baslik, d.k.yil, d.k.nusha,
                      d.k.kategori, d.k.kural, d.k.durum, d.k.not, d.k.kaydeden, '', simdi,
-                     '', '', '', '', '', '', '', '']);
+                     '', '', '', '', '', '', '', '', '']);
     return { ok: true, no: no, yerKodu: yer, siraNo: s.siraNo, duzeltildi: s.duzeltildi,
              rafAdet: s.adet + 1, sayac: sayac_(d.k.kaydeden) };
   } finally {
@@ -476,8 +479,11 @@ function fotoKlasoru_() {
   return DriveApp.createFolder(ad);
 }
 
-/** Telefondan gelen base64 fotoğrafı Drive'a yazar, satıra bağlar. */
-function fotoEkle_(no, veri, tur) {
+/**
+ * Telefondan gelen base64 fotoğrafı Drive'a yazar, satıra bağlar.
+ * hangi: 'kunye' (künye sayfası, OCR bundan yapılır) ya da 'kapak' (kitabın kapağı).
+ */
+function fotoEkle_(no, veri, tur, hangi) {
   no = Number(no);
   if (!no) return { ok: false, error: 'Kayıt numarası yok.' };
   if (!veri) return { ok: false, error: 'Fotoğraf boş geldi.' };
@@ -485,20 +491,26 @@ function fotoEkle_(no, veri, tur) {
   var bulunan = satirBul_(no);
   if (!bulunan) return { ok: false, error: 'Kayıt bulunamadı.' };
 
+  var kapakMi = String(hangi || 'kunye') === 'kapak';
+
   // "data:image/jpeg;base64,..." önekini at
   var temiz = String(veri).replace(/^data:[^,]+,/, '');
   var mime = tur || 'image/jpeg';
-  var blob = Utilities.newBlob(Utilities.base64Decode(temiz), mime, 'kunye-' + no + '.jpg');
+  var ad = (kapakMi ? 'kapak-' : 'kunye-') + no + '.jpg';
+  var blob = Utilities.newBlob(Utilities.base64Decode(temiz), mime, ad);
 
   var dosya = fotoKlasoru_().createFile(blob);
   try { dosya.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); }
   catch (h) { /* alan ilkeleri izin vermiyorsa kayıt yine de sürer */ }
 
   var sayfa = sayfaAl_('Envanter');
-  sayfa.getRange(bulunan.satir, S.foto).setValue(dosya.getUrl());
-  sayfa.getRange(bulunan.satir, S.ocrDurum).setValue(AYAR.OCR_ACIK ? 'bekliyor' : '—');
+  sayfa.getRange(bulunan.satir, kapakMi ? S.kapak : S.foto).setValue(dosya.getUrl());
 
-  return { ok: true, no: no, url: dosya.getUrl() };
+  // OCR yalnızca bir kez sıraya girsin: künye varsa ondan, yoksa kapaktan okunur.
+  var durum = sayfa.getRange(bulunan.satir, S.ocrDurum).getValue();
+  if (!durum) sayfa.getRange(bulunan.satir, S.ocrDurum).setValue(AYAR.OCR_ACIK ? 'bekliyor' : '—');
+
+  return { ok: true, no: no, hangi: kapakMi ? 'kapak' : 'kunye', url: dosya.getUrl() };
 }
 
 /**
@@ -518,7 +530,9 @@ function ocrKuyruguIsle() {
   for (var i = 0; i < durumlar.length && islenen < AYAR.OCR_TOPLU; i++) {
     if (String(durumlar[i][0]) !== 'bekliyor') continue;
     var satir = i + 2;
-    var url = String(sayfa.getRange(satir, S.foto).getValue());
+    // Künye sayfası varsa ondan okunur; yoksa kapaktan (eski kitaplarda künye sayfası olmaz).
+    var url = String(sayfa.getRange(satir, S.foto).getValue() || '');
+    if (!url) url = String(sayfa.getRange(satir, S.kapak).getValue() || '');
     if (!url) { sayfa.getRange(satir, S.ocrDurum).setValue('fotoğraf yok'); continue; }
 
     try {
@@ -566,51 +580,131 @@ function ocrYap_(dosya) {
  * Sezgiler: yayınevi anahtar kelimeleri, 4 haneli yıl, satır sırası.
  */
 function kunyeCikar_(metin) {
-  var ham = String(metin || '');
+  var ham = String(metin || '').replace(/\r/g, '');
   var sonuc = { baslik: '', yazar: '', yil: '', yayinevi: '' };
 
-  // Künye sayfası bloklar hâlinde okunur: boş satırla ayrılan parçalar bir arada
-  // değerlendirilir, böylece iki satıra bölünmüş başlık bütün kalır.
-  var bloklar = ham.split(/\n\s*\n/)
-    .map(function (b) { return b.replace(/\s*\n\s*/g, ' ').replace(/\s+/g, ' ').trim(); })
-    .filter(function (b) { return b.length > 1; });
-  if (!bloklar.length) return sonuc;
+  var duzelt = function (b) { return b.replace(/\s*\n\s*/g, ' ').replace(/\s+/g, ' ').trim(); };
+  var dolu = function (b) { return b.length > 1; };
 
-  // Yıl: 1800–2099 arası; birden fazlaysa en büyüğü genelde basım yılıdır
+  /* Tarama çıktısı iki biçimde gelebilir:
+     - paragraflar boş satırla ayrılmış  → başlık iki satıra bölünmüşse birleşik kalsın diye
+       parçalar kullanılır
+     - her şey alt alta, boş satır yok   → o zaman satır satır çalışılır
+     İkisini de desteklemek şart; gerçek künye sayfalarında ikisi de görülüyor. */
+  var parcalar = ham.split(/\n\s*\n/).map(duzelt).filter(dolu);
+  var satirlar = ham.split(/\n/).map(duzelt).filter(dolu);
+  var adaylar = (parcalar.length >= 2) ? parcalar : satirlar;
+  if (!adaylar.length) return sonuc;
+
+  // Yıl: 1800–2099; birden fazlaysa en büyüğü genelde basım yılıdır
   var yillar = ham.match(/\b(1[89]\d{2}|20\d{2})\b/g);
   if (yillar) sonuc.yil = yillar.map(Number).sort(function (a, b) { return b - a; })[0];
 
-  var yayinci = /(yayın|yayin|neşriyat|nesriyat|kitabevi|kitapevi|basımevi|basimevi|matbaa|press|verlag|éditions|editions|university)/i;
-  var eleme = /^(isbn|copyright|©|all rights|tüm hakları|birinci|ikinci|üçüncü|dördüncü|\d+\.?\s*bas[kı|ım])/i;
+  /* Türkçe büyük harf tuzağı: "KİTAP" ile "kitap", "BASIMEVİ" ile "basımevi"
+     normal küçültmeyle eşleşmez (noktalı İ / noktasız ı). Künye sayfalarında
+     yayınevi çoğunlukla büyük harfle yazılı olduğu için bu tuzağa düşülüyor.
+     Bu yüzden karşılaştırmadan önce metni sadeleştiriyoruz. */
+  var sade = function (b) {
+    return String(b)
+      .replace(/[İIıi]/g, 'i').replace(/[Ğğ]/g, 'g').replace(/[Şş]/g, 's')
+      .replace(/[Öö]/g, 'o').replace(/[Üü]/g, 'u').replace(/[Çç]/g, 'c')
+      .toLowerCase();
+  };
+  var yayinci = function (b) {
+    return /(yayin|yayinev|yayincilik|nesriyat|kitabevi|kitapevi|kitap\b|basimevi|matbaa|press|verlag|editions|university)/.test(sade(b));
+  };
+  // Künyede işe yaramayan satırlar
+  var eleme = function (b) {
+    return /^(isbn|issn|copyright|©|all rights|tum haklari|sertifika|birinci|ikinci|ucuncu|dorduncu|\d+\.?\s*bas(ki|im))/.test(sade(b));
+  };
+  // Rol satırları: yazar sanılmamalı
+  var rol = function (b) {
+    return /^(ceviren|cev\.|hazirlayan|haz\.|derleyen|editor|yayina hazirlayan|yayima hazirlayan|son okuma|redaksiyon|kapak|tasarim|sayfa duzeni|dizgi|baski|basim ve cilt|baski ve cilt|cilt|sertifika)\b/.test(sade(b));
+  };
 
-  // Yayınevi: anahtar kelime geçen en son blok (künyede genelde altta durur)
-  for (var i = bloklar.length - 1; i >= 0; i--) {
-    if (yayinci.test(bloklar[i]) && bloklar[i].length < 90) {
-      sonuc.yayinevi = bloklar[i]
+  /* Çoğu yeni Türkçe kitapta künye sayfası etiketlidir:
+       ESER ADI ... / YAZAR ADI ... / ÇEVİREN ... / BASKI Nisan 2023
+     Etiket varsa tahmine gerek yok, doğrudan okunur. sade() harf sayısını
+     değiştirmediği için eşleşmenin uzunluğu özgün satırda da aynı yere düşer. */
+  var etiketOku = function (satir, kalip) {
+    var m = kalip.exec(sade(satir));
+    if (!m) return '';
+    return satir.slice(m[0].length).replace(/^[\s:\-–—]+/, '').trim();
+  };
+
+  satirlar.forEach(function (satir) {
+    var d;
+    if (!sonuc.baslik) {
+      d = etiketOku(satir, /^(eser adi|eserin adi|kitabin adi|kitap adi|kitabin ismi)\s*[:\-–—]?\s*/);
+      if (d) sonuc.baslik = d.slice(0, 200);
+    }
+    if (!sonuc.yazar) {
+      d = etiketOku(satir, /^(yazar adi|yazarin adi|yazari|yazar)\s*[:\-–—]?\s*/);
+      if (d && d.split(/\s+/).length <= 5) sonuc.yazar = d;
+    }
+    if (!sonuc.yayinevi) {
+      d = etiketOku(satir, /^(yayinevi|yayin evi|yayina hazirlayan kurum)\s*[:\-–—]?\s*/);
+      if (d) sonuc.yayinevi = d;
+    }
+  });
+
+  var temiz = adaylar.filter(function (b) {
+    if (eleme(b) || rol(b)) return false;
+    if (/^[\d\s.,;:\-–—()\/]+$/.test(b)) return false;             // salt sayı/işaret
+    // Sayfa kenarından sızmış kırık kelimeler: hiç büyük harf içermeyen kısa parçalar
+    if (b.length < 15 && !/[A-ZÇĞİÖŞÜ]/.test(b)) return false;
+    return true;
+  });
+  if (!temiz.length) return sonuc;
+
+  /* Başlık: büyük harfle yazılmış olan öne çıkar (Türkçe künyelerde yaygın),
+     eşitlikte uzun olan seçilir. */
+  var buyukMu = function (b) {
+    var harf = b.replace(/[^A-Za-zÇĞİÖŞÜçğıöşü]/g, '');
+    return harf.length > 2 && !/[a-zçğıöşü]/.test(harf);
+  };
+  var puan = function (b) {
+    return (buyukMu(b) ? 1000 : 0) + Math.min(b.length, 120) - (yayinci(b) ? 500 : 0);
+  };
+  var baslik = temiz[0];
+  temiz.forEach(function (b) { if (puan(b) > puan(baslik)) baslik = b; });
+  if (sonuc.baslik) baslik = sonuc.baslik;          // etiketten okunduysa o geçerli
+
+  /* Parçalar kullanıldıysa ve seçilen parça aşırı uzunsa, muhtemelen başlıkla
+     birlikte başka satırlar da birleşmiştir; o parçayı satırlarına bölüp en iyisini al. */
+  if (baslik.length > 70) {
+    var altlar = baslik.split(/\s{2,}/);
+    if (altlar.length < 2) {
+      altlar = satirlar.filter(function (s) { return baslik.indexOf(s) >= 0; });
+    }
+    if (altlar.length > 1) {
+      var en = altlar[0];
+      altlar.forEach(function (b) { if (puan(b) > puan(en)) en = b; });
+      if (en.length >= 3) baslik = en;
+    }
+  }
+  if (baslik.length >= 3) sonuc.baslik = baslik.slice(0, 200);
+
+  var kalan = temiz.filter(function (b) { return b.indexOf(baslik) < 0; });
+
+  // Yayınevi: anahtar kelime geçen en son aday (künyede genelde en altta durur)
+  for (var i = kalan.length - 1; i >= 0 && !sonuc.yayinevi; i--) {
+    if (yayinci(kalan[i]) && kalan[i].length < 90) {
+      sonuc.yayinevi = kalan[i]
         .replace(/[\s,;.\-–—]*\b(1[89]\d{2}|20\d{2})\b\s*$/, '')   // sondaki yılı at
         .replace(/[\s,;.\-–—]+$/, '').trim();
+      kalan.splice(i, 1);
       break;
     }
   }
 
-  // Aday bloklar: ilk 7 blok; yayıncı, ISBN, baskı bilgisi ve salt sayı olanlar dışta
-  var adaylar = bloklar.slice(0, 7).filter(function (b) {
-    return !yayinci.test(b) && !eleme.test(b) && !/^[\d\s.,;:\-–—()\/]+$/.test(b);
-  });
-  if (!adaylar.length) return sonuc;
-
-  // Başlık: adaylar arasında en uzun olan
-  var baslik = adaylar[0];
-  adaylar.forEach(function (b) { if (b.length > baslik.length) baslik = b; });
-  if (baslik.length >= 3) sonuc.baslik = baslik.slice(0, 200);
-
-  // Yazar: başlık dışındaki adaylardan; 2–4 kelime, rakamsız, her kelime en az 2 harf.
-  // Unvanlı olan ("Prof. Dr.") öne alınır.
-  var kalan = adaylar.filter(function (b) { return b !== baslik; });
+  /* Yazar: 2–4 kelime, rakamsız, her kelime en az iki harf.
+     Unvanlı ("Prof. Dr.") olan öne alınır. */
   var unvan = /(^|\s)(prof|doç|doc|dr|yrd|öğr|ord)\.?(?=\s|$)/gi;
-  var enIyi = '', unvanliBulundu = false;
+  var enIyi = sonuc.yazar || '', unvanliBulundu = !!sonuc.yazar;
 
   kalan.forEach(function (b) {
+    if (yayinci(b)) return;
     var unvanli = unvan.test(b);
     unvan.lastIndex = 0;
     var t = b.replace(unvan, '').replace(/\s+/g, ' ').trim();
@@ -639,7 +733,7 @@ function onayBekleyen_(adet) {
 
   var satirlar = sayfa.getRange(2, 1, son - 1, SUTUNLAR.length).getValues();
   var bekleyen = satirlar.filter(function (s) {
-    return s[S.foto - 1] && !s[S.onay - 1];
+    return (s[S.foto - 1] || s[S.kapak - 1]) && !s[S.onay - 1];
   });
 
   var liste = bekleyen.slice(0, adet).map(function (s) {
@@ -649,6 +743,7 @@ function onayBekleyen_(adet) {
       kategori: s[S.kategori - 1], kural: s[S.kural - 1], durum: s[S.durum - 1],
       not: s[S.not - 1], kaydeden: s[S.kaydeden - 1],
       foto: s[S.foto - 1], fotoId: (String(s[S.foto - 1]).match(/[-\w]{25,}/) || [''])[0],
+      kapak: s[S.kapak - 1], kapakId: (String(s[S.kapak - 1]).match(/[-\w]{25,}/) || [''])[0],
       ocrDurum: s[S.ocrDurum - 1], ocrMetin: s[S.ocrMetin - 1],
       oneriBaslik: s[S.oneriBaslik - 1], oneriYazar: s[S.oneriYazar - 1],
       oneriYil: s[S.oneriYil - 1], oneriYayinevi: s[S.oneriYayinevi - 1]
@@ -772,6 +867,23 @@ function ozetiGuncelle() {
   try { dosya_().toast('Özet güncellendi.', 'Kitap Envanteri', 5); } catch (h) {}
 }
 
+/**
+ * Başlık satırını güncel sütun listesiyle eşitler.
+ * Yeni sütun eklendiğinde (örn. "Kapak") mevcut tabloya da başlığını yazar.
+ * Yalnızca 1. satırı değiştirir; veriye dokunmaz.
+ */
+function basliklariOnar_() {
+  var sayfa = sayfaAl_('Envanter');
+  var mevcut = sayfa.getRange(1, 1, 1, sayfa.getLastColumn() || 1).getValues()[0];
+  var ayni = mevcut.length === SUTUNLAR.length &&
+    SUTUNLAR.every(function (b, i) { return String(mevcut[i]) === b; });
+  if (ayni) return;
+
+  sayfa.getRange(1, 1, 1, SUTUNLAR.length).setValues([SUTUNLAR])
+    .setFontWeight('bold').setBackground('#601040').setFontColor('#ffffff');
+  Logger.log('Başlık satırı güncellendi.');
+}
+
 function onOpen() {
   try {
     SpreadsheetApp.getUi().createMenu('Kitap Envanteri')
@@ -784,6 +896,7 @@ function onOpen() {
 function kurulum() {
   var tablo = dosya_();
   sayfaAl_('Envanter');
+  basliklariOnar_();
   sayfaAl_('Kurallar');
   sayfaAl_('Kutular');
   ozetiGuncelle();

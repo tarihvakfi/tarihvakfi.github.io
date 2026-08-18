@@ -4,9 +4,9 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
-<title>Kitap Envanteri · Tarih Vakfı</title>
+<title>Kitap Envanteri · DENEME</title>
 <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
-<link rel="manifest" href="./envanter-manifest.json" />
+
 <meta name="theme-color" content="#601040" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -298,6 +298,242 @@
 </div>
 
 <script src="./js/gonullu-config.js?v=20260818"></script>
+
+<script>
+/* ══════════════ DENEME ARKA UCU ══════════════
+   Bu sayfa Google'a hiç bağlanmaz. İstekler burada karşılanır, kayıtlar
+   yalnızca bu telefonun hafızasında durur. Gerçek sayfa: kitap-envanteri.html */
+(function () {
+  'use strict';
+  window.TV_ENVANTER_URL = 'https://deneme.yerel/exec';
+  var DEPO = 'tv_demo_veri';
+  var SIFRE = 'deneme';
+  var agKapali = false;
+
+  var KATEGORILER = {
+    gidecek:   { ad: 'Gidecek' },      belki:     { ad: 'Gitse de olur' },
+    gitmeyecek:{ ad: 'Gitmeyecek' },   belirsiz:  { ad: 'Belirsiz' }
+  };
+  var DURUMLAR = ['Sağlam', 'Yıpranmış', 'Küflü/böcekli'];
+  var KURALLAR = [
+    ['Y1','gidecek','Tarih Vakfı yayınları ve vakıf tarihine ait her şey'],
+    ['Y2','gidecek','Türkiye ekonomik/toplumsal tarihi, kent tarihi, sözlü tarih'],
+    ['Y3','gidecek','İmzalı, ithaflı veya ex-libris’li nüsha'],
+    ['Y4','gidecek','1950 öncesi baskı; Osmanlıca / eski harfli eser'],
+    ['Y5','gidecek','Rapor, tez, bülten, katalog, broşür'],
+    ['Y6','gidecek','Süreli yayının tam serisi'],
+    ['Y7','gidecek','Şartlı bağış koleksiyonunun parçası'],
+    ['S1','belki','İkinci veya üçüncü kopya'],
+    ['S2','belki','Genel başvuru kaynağı'],
+    ['S3','belki','Dolaylı ilgili, yabancı dilde'],
+    ['S4','belki','Güncelliğini kısmen yitirmiş'],
+    ['S5','belki','Sağlam ama önceliği düşük'],
+    ['K1','gitmeyecek','Alan dışı: ders/sınav kitabı, popüler kurgu'],
+    ['K2','gitmeyecek','Güncelliğini yitirmiş mevzuat, yıllık/katalog fazlası'],
+    ['K3','gitmeyecek','Üçten fazla mükerrer nüshanın fazlası'],
+    ['K4','gitmeyecek','Ağır hasarlı ve kolay bulunabilir'],
+    ['K5','gitmeyecek','Süreli yayının dağınık tek sayısı'],
+    ['K6','gitmeyecek','Tanıtım/promosyon malzemesi'],
+    ['M1','belirsiz','On saniyede karar veremedim'],
+    ['M2','belirsiz','Değerli olabilir şüphesi'],
+    ['M3','belirsiz','Yabancı dilde, içeriği anlamadım'],
+    ['M4','belirsiz','Kurallar çelişiyor']
+  ];
+  var MEKANLAR = [{ kod:'K1', ad:'1. kat' }, { kod:'K2', ad:'2. kat' }, { kod:'D', ad:'Depo' }];
+  var RAF_HARFLERI = 'ABCDEFGH'.split('');
+  var SIRA_SAYISI = 8;
+
+  function oku() {
+    try { return JSON.parse(localStorage.getItem(DEPO) || '{}'); } catch (h) { return {}; }
+  }
+  function yaz(v) { try { localStorage.setItem(DEPO, JSON.stringify(v)); } catch (h) {} }
+  function veri() {
+    var v = oku();
+    if (!v.kayitlar) v.kayitlar = [];
+    if (!v.sonraki) v.sonraki = 1;
+    if (!v.fotolar) v.fotolar = {};
+    return v;
+  }
+  function pad(n, h) { var m = String(n); while (m.length < h) m = '0' + m; return m; }
+  function anahtar(m, r, s) { return (m ? m + '-' : '') + String(r || '').toUpperCase() + pad(Number(s) || 0, 2); }
+
+  function islet(g) {
+    var v = veri(), i;
+    if (g.action === 'config') {
+      return { ok:true, org:'Tarih Vakfı (DENEME)', kategoriler:KATEGORILER, durumlar:DURUMLAR,
+        kurallar: KURALLAR.map(function (k) { return { kod:k[0], kategori:k[1], aciklama:k[2] }; }),
+        mekanlar: MEKANLAR, rafHarfleri: RAF_HARFLERI, siraSayisi: SIRA_SAYISI };
+    }
+    if (String(g.sifre || '') !== SIFRE) {
+      return { ok:false, error:'Çalışma şifresi hatalı. (Denemede şifre: deneme)', sifreHatasi:true };
+    }
+    if (g.action === 'sayac') {
+      var ad = String(g.kaydeden || '').toLowerCase();
+      return { ok:true, toplam: v.kayitlar.length, bugun: v.kayitlar.length,
+        benim: v.kayitlar.filter(function (k) { return String(k.kaydeden).toLowerCase() === ad; }).length };
+    }
+    if (g.action === 'rafDurum') {
+      var a = anahtar(g.mekan, g.raf, g.sira);
+      var ayni = v.kayitlar.filter(function (k) { return k.anahtar === a; });
+      var son = ayni.reduce(function (e, k) { return Math.max(e, Number(k.siraNo) || 0); }, 0);
+      return { ok:true, anahtar:a, sonNo:son, adet:ayni.length };
+    }
+    if (g.action === 'ekle' || g.action === 'guncelle') {
+      var k = g.kayit || {};
+      var baslik = String(k.baslik || '').trim();
+      if (!baslik && !k.fotoVar) return { ok:false, error:'Başlık boş olamaz (ya da künye fotoğrafı çekin).' };
+      if (!baslik) baslik = '(künye fotoğraftan gelecek)';
+      if (!k.raf) return { ok:false, error:'Raf seçilmeli.' };
+      if (!KATEGORILER[k.kategori]) return { ok:false, error:'Kategori seçilmeli.' };
+      var uygun = KURALLAR.some(function (r) { return r[0] === k.kural && r[1] === k.kategori; });
+      if (!uygun) return { ok:false, error:'Kural kodu bu kategoriye uymuyor.' };
+
+      if (g.action === 'guncelle') {
+        for (i = 0; i < v.kayitlar.length; i++) if (v.kayitlar[i].no === Number(g.no)) {
+          v.kayitlar[i].yazar = k.yazar || ''; v.kayitlar[i].baslik = baslik;
+          v.kayitlar[i].yil = k.yil || ''; v.kayitlar[i].not = k.not || '';
+          v.kayitlar[i].kategori = KATEGORILER[k.kategori].ad; v.kayitlar[i].kural = k.kural;
+          v.kayitlar[i].durum = k.durum || 'Sağlam';
+          yaz(v); return { ok:true, no:Number(g.no) };
+        }
+        return { ok:false, error:'Kayıt bulunamadı.' };
+      }
+
+      var a2 = anahtar(k.mekan, k.raf, k.sira);
+      var ayni2 = v.kayitlar.filter(function (x) { return x.anahtar === a2; });
+      var dolu = {}; ayni2.forEach(function (x) { dolu[Number(x.siraNo)] = true; });
+      var onerilen = Number(g.siraNo) || 0;
+      var siraNo = (onerilen > 0 && !dolu[onerilen]) ? onerilen
+        : ayni2.reduce(function (e, x) { return Math.max(e, Number(x.siraNo) || 0); }, 0) + 1;
+
+      var kayit = {
+        no: v.sonraki++, anahtar: a2, siraNo: siraNo,
+        yer: a2 + '-' + pad(siraNo, 3),
+        mekan: k.mekan || '', raf: k.raf, sira: pad(Number(k.sira) || 0, 2),
+        yazar: k.yazar || '', baslik: baslik, yil: k.yil || '', nusha: k.nusha || 1,
+        kategori: KATEGORILER[k.kategori].ad, kural: k.kural,
+        durum: DURUMLAR.indexOf(k.durum) >= 0 ? k.durum : 'Sağlam',
+        not: k.not || '', kaydeden: k.kaydeden || '', tarih: new Date().toISOString()
+      };
+      v.kayitlar.push(kayit); yaz(v);
+      return { ok:true, no:kayit.no, yerKodu:kayit.yer, siraNo:siraNo,
+        duzeltildi: onerilen > 0 && onerilen !== siraNo, rafAdet: ayni2.length + 1,
+        sayac: { toplam: v.kayitlar.length } };
+    }
+    if (g.action === 'sil') {
+      for (i = 0; i < v.kayitlar.length; i++) if (v.kayitlar[i].no === Number(g.no)) {
+        delete v.fotolar[g.no]; v.kayitlar.splice(i, 1); yaz(v);
+        return { ok:true, no:Number(g.no) };
+      }
+      return { ok:false, error:'Kayıt bulunamadı.' };
+    }
+    if (g.action === 'sonKayitlar') {
+      var ad2 = String(g.kaydeden || '').trim().toLowerCase();
+      return { ok:true, kayitlar: v.kayitlar.filter(function (k) {
+        return !ad2 || String(k.kaydeden).toLowerCase() === ad2; }).slice(-8).reverse() };
+    }
+    if (g.action === 'fotoEkle') {
+      for (i = 0; i < v.kayitlar.length; i++) if (v.kayitlar[i].no === Number(g.no)) {
+        // Depo dolmasın diye yalnızca son birkaç fotoğraf tutulur.
+        var anahtarlar = Object.keys(v.fotolar);
+        while (anahtarlar.length > 3) delete v.fotolar[anahtarlar.shift()];
+        if (String(g.hangi || 'kunye') === 'kapak') {
+          v.fotolar['kapak-' + g.no] = g.veri;
+          v.kayitlar[i].kapak = 'deneme';
+          v.kayitlar[i].kapakGoruntu = g.veri;
+          try { yaz(v); } catch (h) {}
+          return { ok: true, no: Number(g.no), hangi: 'kapak' };
+        }
+        v.fotolar[g.no] = g.veri;
+        v.kayitlar[i].foto = 'deneme';
+        v.kayitlar[i].fotoGoruntu = g.veri;
+        v.kayitlar[i].ocrDurum = 'bitti (deneme)';
+        v.kayitlar[i].ocrMetin = 'DENEME — gerçek sistemde bu alanda fotoğraftan okunan metin olur.';
+        v.kayitlar[i].oneriBaslik = 'ÖRNEK BAŞLIK (deneme)';
+        v.kayitlar[i].oneriYazar = 'Örnek Yazar';
+        v.kayitlar[i].oneriYil = '1946';
+        try { yaz(v); } catch (h) {}
+        return { ok:true, no:Number(g.no) };
+      }
+      return { ok:false, error:'Kayıt bulunamadı.' };
+    }
+    if (g.action === 'onayBekleyen') {
+      var bek = v.kayitlar.filter(function (k) { return (k.foto || k.kapak) && !k.onay; });
+      return { ok:true, kayitlar: bek.slice(0, Number(g.adet) || 25), kalan: bek.length };
+    }
+    if (g.action === 'onayla') {
+      for (i = 0; i < v.kayitlar.length; i++) if (v.kayitlar[i].no === Number(g.no)) {
+        var y = g.kayit || {};
+        if (!String(y.baslik || '').trim()) return { ok:false, error:'Başlık boş olamaz.' };
+        v.kayitlar[i].baslik = y.baslik; v.kayitlar[i].yazar = y.yazar || '';
+        v.kayitlar[i].yil = y.yil || ''; v.kayitlar[i].not = y.not || '';
+        v.kayitlar[i].onay = 'Onaylandı — ' + (y.onaylayan || '');
+        yaz(v); return { ok:true, no:Number(g.no) };
+      }
+      return { ok:false, error:'Kayıt bulunamadı.' };
+    }
+    return { ok:false, error:'Bilinmeyen istek.' };
+  }
+
+  var gercekFetch = window.fetch.bind(window);
+  window.fetch = function (adres, ayar) {
+    if (String(adres).indexOf('deneme.yerel') < 0) return gercekFetch(adres, ayar);
+    return new Promise(function (tamam, hata) {
+      setTimeout(function () {
+        if (agKapali) return hata(new TypeError('deneme: ağ kapalı'));
+        var g = {};
+        try { g = JSON.parse((ayar && ayar.body) || '{}'); } catch (h) {}
+        var sonuc;
+        try { sonuc = islet(g); } catch (h) { sonuc = { ok:false, error:'deneme hatası: ' + h.message }; }
+        tamam({ ok:true, text: function () { return Promise.resolve(JSON.stringify(sonuc)); } });
+      }, 250);
+    });
+  };
+
+  /* ── deneme şeridi ── */
+  document.addEventListener('DOMContentLoaded', function () {
+    var s = document.createElement('div');
+    s.id = 'demoSerit';
+    s.innerHTML =
+      '<div class="demo-ust"><b>DENEME MODU</b> — kayıtlar yalnızca bu telefonda, ' +
+      'Google\'a hiçbir şey gitmiyor. Şifre: <b>deneme</b></div>' +
+      '<div class="demo-dugmeler">' +
+        '<button type="button" id="demoAg">İnterneti kes</button>' +
+        '<button type="button" id="demoSil">Deneme kayıtlarını sil</button>' +
+      '</div>';
+    document.body.insertBefore(s, document.body.firstChild);
+
+    var d = document.getElementById('demoAg');
+    d.addEventListener('click', function () {
+      agKapali = !agKapali;
+      d.textContent = agKapali ? 'İnterneti aç' : 'İnterneti kes';
+      d.className = agKapali ? 'kapali' : '';
+      s.className = agKapali ? 'kesik' : '';
+    });
+    document.getElementById('demoSil').addEventListener('click', function () {
+      if (!confirm('Deneme kayıtlarının hepsi silinsin mi?')) return;
+      localStorage.removeItem(DEPO);
+      localStorage.removeItem('tv_env_kuyruk');
+      localStorage.removeItem('tv_env_foto_kuyruk');
+      localStorage.removeItem('tv_env_sira');
+      location.reload();
+    });
+  });
+})();
+</script>
+<style>
+  #demoSerit{background:#1f2937;color:#fff;padding:8px 12px;font:14px/1.4 system-ui,sans-serif;
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  #demoSerit.kesik{background:#92400e}
+  #demoSerit .demo-ust{flex:1;min-width:200px;font-size:12.5px;opacity:.95}
+  #demoSerit .demo-dugmeler{display:flex;gap:8px;margin-left:auto}
+  #demoSerit button{background:#ffffff26;border:1px solid #ffffff59;color:#fff;border-radius:7px;
+    padding:7px 11px;font:inherit;font-size:12.5px;cursor:pointer;white-space:nowrap}
+  #demoSerit button.kapali{background:#fbbf24;border-color:#fbbf24;color:#3b2600;font-weight:700}
+  /* denemede Drive bağlantısı anlamsız */
+  #fotoBag{display:none!important}
+</style>
+
 <script>
 /* Apps Script web uygulamasının adresi.
    js/gonullu-config.js içinde window.TV_ENVANTER_URL tanımlıysa oradan okunur. */
@@ -307,7 +543,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
   var D = { ad: '', sifre: '', cfg: null, kategori: '', durum: 'Sağlam',
-            duzenleNo: null, sayac: 0, foto: null, kapak: null,
+            duzenleNo: null, sayac: 0, foto: null,
             mekan: '', raf: '', sira: 0, anahtar: '', sonraki: 1 };
   var KUYRUK = 'tv_env_kuyruk';
   var SIRA_DEPO = 'tv_env_sira';        // her sıranın sıradaki numarası (çevrimdışı için)
@@ -381,47 +617,33 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     });
   }
 
-  /* İki fotoğraf var: künye sayfası (OCR bundan yapılır) ve kapak (kitabı tanımak için).
-     İkisi de aynı mantıkla çalıştığından tek yerden yönetiliyor. */
-  var FOTOLAR = [
-    { alan: 'foto',  kutu: 'fotoKutu',  bos: 'fotoBos',  gorunum: 'fotoVar',
-      resim: 'fotoOnizleme',  bilgi: 'fotoBilgi',  girdi: 'fotoGirdi',
-      dugmeler: ['btnFoto', 'btnFotoYeni'], sil: 'btnFotoSil' },
-    { alan: 'kapak', kutu: 'kapakKutu', bos: 'kapakBos', gorunum: 'kapakVar',
-      resim: 'kapakOnizleme', bilgi: 'kapakBilgi', girdi: 'kapakGirdi',
-      dugmeler: ['btnKapak', 'btnKapakYeni'], sil: 'btnKapakSil' }
-  ];
-
   function fotoGoster() {
-    FOTOLAR.forEach(function (f) {
-      var deger = D[f.alan], v = !!deger;
-      $(f.bos).classList.toggle('gizli', v);
-      $(f.gorunum).classList.toggle('gizli', !v);
-      $(f.kutu).classList.toggle('dolu', v);
-      if (v) {
-        $(f.resim).src = deger.veri;
-        $(f.bilgi).textContent = '~' + Math.round(deger.veri.length * 0.75 / 1024) + ' KB';
-      } else {
-        $(f.resim).removeAttribute('src');
-      }
-    });
+    var v = !!D.foto;
+    $('fotoBos').classList.toggle('gizli', v);
+    $('fotoVar').classList.toggle('gizli', !v);
+    $('fotoKutu').classList.toggle('dolu', v);
+    if (v) {
+      $('fotoOnizleme').src = D.foto.veri;
+      var kb = Math.round(D.foto.veri.length * 0.75 / 1024);
+      $('fotoBilgi').textContent = 'Künye bu fotoğraftan tamamlanacak · ~' + kb + ' KB';
+    } else {
+      $('fotoOnizleme').removeAttribute('src');
+    }
   }
 
-  FOTOLAR.forEach(function (f) {
-    f.dugmeler.forEach(function (d) {
-      $(d).addEventListener('click', function () { $(f.girdi).click(); });
-    });
-    $(f.sil).addEventListener('click', function () { D[f.alan] = null; fotoGoster(); });
-    $(f.girdi).addEventListener('change', function () {
-      var dosya = this.files && this.files[0];
-      this.value = '';                                 // aynı fotoğraf tekrar seçilebilsin
-      if (!dosya) return;
-      goster($('msgKayit'), 'uyari', 'Fotoğraf hazırlanıyor…');
-      kucult(dosya).then(function (x) {
-        D[f.alan] = x; fotoGoster(); gizle($('msgKayit'));
-      })['catch'](function (e) {
-        goster($('msgKayit'), 'hata', e.message);
-      });
+  $('btnFoto').addEventListener('click', function () { $('fotoGirdi').click(); });
+  $('btnFotoYeni').addEventListener('click', function () { $('fotoGirdi').click(); });
+  $('btnFotoSil').addEventListener('click', function () { D.foto = null; fotoGoster(); });
+
+  $('fotoGirdi').addEventListener('change', function () {
+    var dosya = this.files && this.files[0];
+    this.value = '';                                   // aynı fotoğraf tekrar seçilebilsin
+    if (!dosya) return;
+    goster($('msgKayit'), 'uyari', 'Fotoğraf hazırlanıyor…');
+    kucult(dosya).then(function (f) {
+      D.foto = f; fotoGoster(); gizle($('msgKayit'));
+    })['catch'](function (e) {
+      goster($('msgKayit'), 'hata', e.message);
     });
   });
 
@@ -945,7 +1167,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   /* ───────── uygulama gibi kurulum (PWA) ───────── */
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('./sw.js')['catch'](function () { /* çevrimdışı kabuk yok, sorun değil */ });
+      Promise.resolve()  /* denemede servis çalışanı kurulmaz */['catch'](function () { /* çevrimdışı kabuk yok, sorun değil */ });
     });
   }
 
