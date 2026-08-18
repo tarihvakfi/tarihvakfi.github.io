@@ -307,7 +307,7 @@ function sonKayitlar_(kaydeden) {
 function sayac_(kaydeden) {
   var sayfa = sayfaAl_('Envanter');
   var son = sayfa.getLastRow();
-  if (son < 2) return { toplam: 0, bugun: 0, benim: 0 };
+  if (son < 2) return { ok: true, toplam: 0, bugun: 0, benim: 0 };
 
   var satirlar = sayfa.getRange(2, 1, son - 1, SUTUNLAR.length).getValues();
   var bugunKey = gunAnahtari_(new Date());
@@ -322,7 +322,7 @@ function sayac_(kaydeden) {
     if (ayniGun) bugun++;
     if (ayniGun && ad && String(s[S.kaydeden - 1]).trim().toLowerCase() === ad) benim++;
   });
-  return { toplam: toplam, bugun: bugun, benim: benim };
+  return { ok: true, toplam: toplam, bugun: bugun, benim: benim };
 }
 
 /* ═══════════════ YARDIMCILAR ═══════════════ */
