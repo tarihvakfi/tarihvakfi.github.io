@@ -17,7 +17,7 @@ var AYAR = {
 
   // Gönüllülerin forma girerken bir kez yazacağı ortak çalışma şifresi.
   // Kısa ve söylemesi kolay olsun; her çalışma gününde değiştirmeye gerek yok.
-  CALISMA_SIFRESI: 'kitap2026@tv',
+  CALISMA_SIFRESI: 'kitap2026',
 
   // Formda kaç son kayıt görünsün (düzeltme/silme için)
   SON_KAYIT: 8,
@@ -197,6 +197,7 @@ function islet_(istek) {
       case 'fotoEkle':    return cikti_(fotoEkle_(istek.no, istek.veri, istek.tur, istek.hangi));
       case 'onayBekleyen':return cikti_(onayBekleyen_(istek.adet));
       case 'onayla':      return cikti_(onayla_(istek.no, istek.kayit || {}));
+      case 'katalog':     return cikti_(katalog_(istek));
       default:            return cikti_({ ok: false, error: 'Bilinmeyen istek.' });
     }
   } catch (hata) {
@@ -750,6 +751,59 @@ function onayBekleyen_(adet) {
     };
   });
   return { ok: true, kayitlar: liste, kalan: bekleyen.length };
+}
+
+/**
+ * Katalog: kaydedilmiş kitapları listeler. Varsayılan olarak yalnızca onaylanmışları.
+ * Zayıf bağlantı için sayfa sayfa döner; arama ve süzme sunucuda yapılır ki
+ * telefona binlerce satır inmesin.
+ *
+ * secenek: { yalnizOnayli, ara, kategori, mekan, sirala:'yeni'|'yer', bas, adet }
+ */
+function katalog_(g) {
+  g = g || {};
+  var sayfa = sayfaAl_('Envanter');
+  var son = sayfa.getLastRow();
+  if (son < 2) return { ok: true, kayitlar: [], toplam: 0, bas: 0 };
+
+  var satirlar = sayfa.getRange(2, 1, son - 1, SUTUNLAR.length).getValues();
+  var yalnizOnayli = g.yalnizOnayli !== false;          // varsayılan: onaylananlar
+  var ara = String(g.ara || '').trim().toLocaleLowerCase('tr');
+  var kategori = String(g.kategori || '');
+  var mekan = String(g.mekan || '');
+
+  var liste = [];
+  satirlar.forEach(function (s) {
+    if (!s[S.no - 1]) return;
+    if (yalnizOnayli && !s[S.onay - 1]) return;
+    if (kategori && String(s[S.kategori - 1]) !== kategori) return;
+    if (mekan && String(s[S.mekan - 1]) !== mekan) return;
+    if (ara) {
+      var havuz = [s[S.baslik - 1], s[S.yazar - 1], s[S.yer - 1], s[S.not - 1], s[S.kutu - 1]]
+        .join(' ').toLocaleLowerCase('tr');
+      if (havuz.indexOf(ara) < 0) return;
+    }
+    liste.push({
+      no: s[S.no - 1], yer: s[S.yer - 1], mekan: s[S.mekan - 1],
+      yazar: s[S.yazar - 1], baslik: s[S.baslik - 1], yil: s[S.yil - 1],
+      nusha: s[S.nusha - 1], kategori: s[S.kategori - 1], kural: s[S.kural - 1],
+      durum: s[S.durum - 1], not: s[S.not - 1], kaydeden: s[S.kaydeden - 1],
+      kutu: s[S.kutu - 1], onay: s[S.onay - 1],
+      foto: s[S.foto - 1], fotoId: (String(s[S.foto - 1]).match(/[-\w]{25,}/) || [''])[0],
+      kapak: s[S.kapak - 1], kapakId: (String(s[S.kapak - 1]).match(/[-\w]{25,}/) || [''])[0]
+    });
+  });
+
+  if (String(g.sirala || 'yeni') === 'yer') {
+    liste.sort(function (a, b) { return String(a.yer).localeCompare(String(b.yer)); });
+  } else {
+    liste.sort(function (a, b) { return Number(b.no) - Number(a.no); });   // en yeni önce
+  }
+
+  var bas = Math.max(0, Number(g.bas) || 0);
+  var adet = Math.min(Math.max(Number(g.adet) || 60, 1), 300);
+  return { ok: true, toplam: liste.length, bas: bas,
+           kayitlar: liste.slice(bas, bas + adet) };
 }
 
 /** Onay ekranından gelen künyeyi ana alanlara yazar. */

@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Envanter Kataloğu · Tarih Vakfı</title>
+<link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
+<style>
+  :root{
+    --bordo:#601040; --krem:#fbf7f1; --kagit:#fffdf8; --murekkep:#211a1d;
+    --soluk:#74686e; --cizgi:#e8dbe2; --vurgu-bg:#fbf2f7;
+    --yesil:#2e6440; --sari:#a06a12; --kirmizi:#9c2233; --mavi:#2a5b86;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--krem);color:var(--murekkep);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:16px;line-height:1.45}
+  .gizli{display:none!important}
+
+  .ust{background:var(--bordo);color:#fff;padding:11px 18px;display:flex;align-items:center;
+    gap:14px;flex-wrap:wrap;position:sticky;top:0;z-index:10}
+  .ust h1{font-size:17px;margin:0;font-weight:700}
+  .ust .sag{margin-left:auto;display:flex;gap:10px;align-items:center;font-size:13px}
+  .ust button{background:#ffffff26;border:1px solid #ffffff4d;color:#fff;border-radius:7px;
+    padding:7px 12px;font:inherit;font-size:13px;cursor:pointer}
+
+  .sayfa{max-width:1180px;margin:0 auto;padding:18px}
+  .kart{background:var(--kagit);border:1px solid var(--cizgi);border-radius:12px;padding:20px}
+  .giris{max-width:420px;margin:60px auto}
+  h2{font-size:20px;margin:0 0 4px;color:var(--bordo)}
+  .ipucu{color:var(--soluk);font-size:14px;margin:0 0 16px}
+  label{display:block;font-weight:600;font-size:12.5px;margin:14px 0 5px;color:var(--soluk);
+    text-transform:uppercase;letter-spacing:.05em}
+  input,select{width:100%;padding:11px 12px;border:1.5px solid var(--cizgi);border-radius:9px;
+    font:inherit;font-size:16px;background:#fff;color:var(--murekkep)}
+  input:focus,select:focus{outline:2px solid var(--bordo);outline-offset:1px;border-color:transparent}
+  .btn{padding:12px 18px;border:none;border-radius:10px;background:var(--bordo);color:#fff;
+    font:inherit;font-size:16px;font-weight:700;cursor:pointer}
+  .btn.genis{width:100%;margin-top:16px}
+  .btn.ikincil{background:#fff;color:var(--murekkep);border:1.5px solid var(--cizgi);font-weight:500}
+  .btn:disabled{opacity:.5;cursor:default}
+
+  /* süzgeçler */
+  .suzgec{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;align-items:end;
+    background:var(--kagit);border:1px solid var(--cizgi);border-radius:12px;padding:14px 16px}
+  .suzgec label{margin-top:0}
+  .suzgec .alan{min-width:0}
+  @media (max-width:760px){ .suzgec{grid-template-columns:1fr 1fr} }
+
+  .durum{margin:14px 2px;color:var(--soluk);font-size:14px}
+  .durum b{color:var(--murekkep);font-size:16px}
+
+  /* kartlar */
+  .izgara{display:grid;grid-template-columns:repeat(auto-fill,minmax(196px,1fr));gap:14px}
+  .kitap{background:var(--kagit);border:1px solid var(--cizgi);border-radius:11px;overflow:hidden;
+    display:flex;flex-direction:column;border-top:4px solid var(--cizgi)}
+  .kitap.gidecek{border-top-color:var(--yesil)} .kitap.belki{border-top-color:var(--sari)}
+  .kitap.gitmeyecek{border-top-color:var(--kirmizi)} .kitap.belirsiz{border-top-color:var(--mavi)}
+  .kitap .resim{display:block;height:190px;background:#2a2226;position:relative}
+  .kitap .resim img{width:100%;height:100%;object-fit:cover;display:block}
+  .kitap .resim .yok{color:#e8dbe2;font-size:12.5px;display:flex;align-items:center;
+    justify-content:center;height:100%;text-align:center;padding:10px}
+  .kitap .resim .rozet{position:absolute;left:7px;top:7px;background:#000000a6;color:#fff;
+    font-size:10.5px;padding:2px 7px;border-radius:20px;letter-spacing:.03em}
+  .kitap .govde{padding:11px 12px 13px;flex:1;display:flex;flex-direction:column;gap:3px}
+  .kitap .bas{font-weight:700;font-size:14.5px;line-height:1.25}
+  .kitap .yaz{color:var(--soluk);font-size:13px}
+  .kitap .alt{margin-top:auto;padding-top:8px;display:flex;gap:8px;align-items:center;
+    font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--bordo)}
+  .kitap .alt .kat{margin-left:auto;font-family:inherit;font-size:11px;color:var(--soluk)}
+
+  .msg{padding:12px 14px;border-radius:9px;font-size:14.5px;margin:0 0 14px;display:none;border:1px solid}
+  .msg.gor{display:block}
+  .msg.hata{background:#fdf2f4;color:#8a1230;border-color:#f0cdd6}
+  .msg.bos{background:var(--vurgu-bg);color:var(--bordo);border-color:var(--cizgi)}
+  .donen{display:inline-block;width:14px;height:14px;border:2px solid #ffffff59;border-top-color:#fff;
+    border-radius:50%;animation:don .7s linear infinite;vertical-align:-2px;margin-right:7px}
+  @keyframes don{to{transform:rotate(360deg)}}
+  .orta{text-align:center;margin:22px 0}
+</style>
+</head>
+<body>
+
+<div class="ust gizli" id="ust">
+  <h1>Envanter Kataloğu</h1>
+  <div class="sag">
+    <span id="ustSayi"></span>
+    <button id="btnCsv">CSV indir</button>
+    <button id="btnCikis">Çıkış</button>
+  </div>
+</div>
+
+<div class="sayfa">
+  <section id="adim-giris" class="kart giris">
+    <h2>Envanter Kataloğu</h2>
+    <p class="ipucu">Kaydedilmiş kitapları fotoğraflarıyla birlikte gösterir.</p>
+    <div class="msg" id="msgGiris"></div>
+    <label for="ad">Adınız</label>
+    <input type="text" id="ad" placeholder="Ad Soyad" autocomplete="name">
+    <label for="sifre">Çalışma şifresi</label>
+    <input type="text" id="sifre" placeholder="Koordinatörden alın" autocapitalize="none" autocorrect="off">
+    <button class="btn genis" id="btnGiris">Aç</button>
+  </section>
+
+  <section id="adim-liste" class="gizli">
+    <div class="suzgec">
+      <div class="alan">
+        <label for="ara">Ara</label>
+        <input type="search" id="ara" placeholder="Başlık, yazar, yer kodu, kutu no…">
+      </div>
+      <div class="alan">
+        <label for="kategori">Karar</label>
+        <select id="kategori"></select>
+      </div>
+      <div class="alan">
+        <label for="sirala">Sıralama</label>
+        <select id="sirala">
+          <option value="yeni">En yeni kayıt önce</option>
+          <option value="yer">Yer koduna göre</option>
+        </select>
+      </div>
+      <div class="alan">
+        <label for="kapsam">Kapsam</label>
+        <select id="kapsam">
+          <option value="onayli">Yalnızca onaylananlar</option>
+          <option value="hepsi">Tüm kayıtlar</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="msg" id="msg"></div>
+    <p class="durum" id="durum"></p>
+    <div class="izgara" id="izgara"></div>
+    <div class="orta">
+      <button class="btn ikincil gizli" id="btnDaha">Daha fazla göster</button>
+    </div>
+  </section>
+</div>
+
+<script src="./js/gonullu-config.js?v=20260818"></script>
+<script>
+var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPISTIRIN';
+
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var D = { ad: '', sifre: '', kayitlar: [], toplam: 0, bas: 0, istekNo: 0 };
+  var ADET = 60;
+
+  var esc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  };
+  function goster(el, sinif, metin) { el.className = 'msg ' + sinif + ' gor'; el.innerHTML = metin; }
+  function gizle(el) { el.className = 'msg'; }
+  function mesgul(b, acik, metin) {
+    if (acik) { b.dataset.eski = b.innerHTML; b.innerHTML = '<span class="donen"></span>' + (metin || '…'); b.disabled = true; }
+    else { b.innerHTML = b.dataset.eski || b.innerHTML; b.disabled = false; }
+  }
+
+  function api(action, yuk) {
+    if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
+      return Promise.reject(new Error('Sistem adresi tanımlanmamış (TV_ENVANTER_URL).'));
+    }
+    var govde = { action: action, sifre: D.sifre };
+    for (var k in (yuk || {})) govde[k] = yuk[k];
+    var kes = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var saat = setTimeout(function () { if (kes) kes.abort(); }, 25000);
+    var bitir = function () { clearTimeout(saat); };
+    return fetch(ENVANTER_URL, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(govde), redirect: 'follow', signal: kes ? kes.signal : undefined
+    }).catch(function () { bitir(); throw new Error('AĞ'); })
+      .then(function (r) { bitir(); return r.text(); })
+      .then(function (m) {
+        var d; try { d = JSON.parse(m); } catch (h) { throw new Error('Sunucudan beklenmeyen yanıt.'); }
+        if (!d.ok) throw new Error(d.error || 'Hata');
+        return d;
+      });
+  }
+  function agHata(e) { return e.message === 'AĞ' ? 'Sunucuya ulaşılamadı.' : e.message; }
+
+  /* ───────── giriş ───────── */
+  $('btnGiris').addEventListener('click', function () {
+    var ad = $('ad').value.trim(), sifre = $('sifre').value.trim();
+    if (ad.length < 2) return goster($('msgGiris'), 'hata', 'Adınızı yazın.');
+    if (!sifre) return goster($('msgGiris'), 'hata', 'Çalışma şifresini yazın.');
+    D.ad = ad; D.sifre = sifre;
+    mesgul($('btnGiris'), true, 'Açılıyor…');
+    api('config').then(function (cfg) {
+      $('kategori').innerHTML = '<option value="">Hepsi</option>' +
+        Object.keys(cfg.kategoriler).map(function (a) {
+          return '<option value="' + esc(cfg.kategoriler[a].ad) + '">' + esc(cfg.kategoriler[a].ad) + '</option>';
+        }).join('');
+      return yukle(true);
+    }).then(function () {
+      localStorage.setItem('tv_env_ad', ad);
+      localStorage.setItem('tv_env_sifre', sifre);
+      gizle($('msgGiris'));
+      $('adim-giris').classList.add('gizli');
+      $('adim-liste').classList.remove('gizli');
+      $('ust').classList.remove('gizli');
+    })['catch'](function (e) {
+      goster($('msgGiris'), 'hata', agHata(e));
+    }).then(function () { mesgul($('btnGiris'), false); });
+  });
+  $('sifre').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('btnGiris').click(); });
+
+  $('btnCikis').addEventListener('click', function () {
+    localStorage.removeItem('tv_env_sifre');
+    location.reload();
+  });
+
+  /* ───────── liste ───────── */
+  function secenekler() {
+    return {
+      yalnizOnayli: $('kapsam').value === 'onayli',
+      ara: $('ara').value.trim(),
+      kategori: $('kategori').value,
+      sirala: $('sirala').value
+    };
+  }
+
+  function yukle(bastan) {
+    var no = ++D.istekNo;                        // hızlı yazarken eski yanıtlar ekranı bozmasın
+    if (bastan) { D.bas = 0; D.kayitlar = []; }
+    var y = secenekler();
+    y.bas = D.bas; y.adet = ADET;
+    $('durum').textContent = 'Yükleniyor…';
+    return api('katalog', y).then(function (r) {
+      if (no !== D.istekNo) return;
+      D.toplam = r.toplam;
+      D.kayitlar = D.kayitlar.concat(r.kayitlar);
+      D.bas = D.kayitlar.length;
+      ciz();
+    })['catch'](function (e) {
+      if (no !== D.istekNo) return;
+      $('durum').textContent = '';
+      goster($('msg'), 'hata', agHata(e));
+      throw e;
+    });
+  }
+
+  // Drive küçük resmi açılmazsa kartı boş bırakma; yerine kısa bir not koy.
+  window.tvResimHata = function (img) {
+    if (img && img.parentNode) img.parentNode.innerHTML = '<div class="yok">fotoğraf açılamadı</div>';
+  };
+
+  function resimKutusu(k) {
+    // Kapak varsa kapak, yoksa künye sayfası gösterilir.
+    var kapakMi = !!(k.kapakId || k.kapakGoruntu);
+    var kimlik = kapakMi ? k.kapakId : k.fotoId;
+    var dogrudan = kapakMi ? k.kapakGoruntu : k.fotoGoruntu;
+    var adres = dogrudan || (kimlik ? 'https://drive.google.com/thumbnail?id=' + kimlik + '&sz=w400' : '');
+    var bag = (kapakMi ? k.kapak : k.foto) || '';
+    var etiket = kapakMi ? 'kapak' : 'künye';
+
+    if (!adres) {
+      return '<div class="resim"><div class="yok">fotoğraf yok</div></div>';
+    }
+    return '<a class="resim" href="' + esc(bag || '#') + '" target="_blank" rel="noopener">' +
+      '<img src="' + esc(adres) + '" alt="" loading="lazy" onerror="tvResimHata(this)">' +
+      '<span class="rozet">' + etiket + '</span></a>';
+  }
+
+  function ciz() {
+    var sinif = { 'Gidecek': 'gidecek', 'Gitse de olur': 'belki',
+                  'Gitmeyecek': 'gitmeyecek', 'Belirsiz': 'belirsiz' };
+    gizle($('msg'));
+
+    if (!D.kayitlar.length) {
+      $('izgara').innerHTML = '';
+      $('durum').textContent = '';
+      goster($('msg'), 'bos', $('kapsam').value === 'onayli'
+        ? 'Bu süzgeçle onaylanmış kayıt yok. “Tüm kayıtlar”ı seçip bakabilirsiniz.'
+        : 'Bu süzgeçle kayıt yok.');
+      $('btnDaha').classList.add('gizli');
+      $('ustSayi').textContent = '';
+      return;
+    }
+
+    $('izgara').innerHTML = D.kayitlar.map(function (k) {
+      var altSatir = [k.yil, k.durum && k.durum !== 'Sağlam' ? k.durum : '',
+                      k.kutu ? 'kutu ' + k.kutu : ''].filter(Boolean).join(' · ');
+      return '<article class="kitap ' + (sinif[k.kategori] || '') + '">' +
+        resimKutusu(k) +
+        '<div class="govde">' +
+          '<div class="bas">' + esc(k.baslik || '(başlıksız)') + '</div>' +
+          (k.yazar ? '<div class="yaz">' + esc(k.yazar) + '</div>' : '') +
+          (altSatir ? '<div class="yaz">' + esc(altSatir) + '</div>' : '') +
+          '<div class="alt">' + esc(k.yer || ('#' + k.no)) +
+            '<span class="kat">' + esc(k.kural || '') + '</span></div>' +
+        '</div></article>';
+    }).join('');
+
+    $('durum').innerHTML = '<b>' + D.kayitlar.length + '</b> / ' + D.toplam + ' kitap gösteriliyor';
+    $('ustSayi').textContent = D.toplam + ' kayıt';
+    $('btnDaha').classList.toggle('gizli', D.kayitlar.length >= D.toplam);
+  }
+
+  $('btnDaha').addEventListener('click', function () {
+    mesgul($('btnDaha'), true, 'Yükleniyor…');
+    yukle(false)['catch'](function () {}).then(function () { mesgul($('btnDaha'), false); });
+  });
+
+  var zaman = null;
+  $('ara').addEventListener('input', function () {
+    clearTimeout(zaman);
+    zaman = setTimeout(function () { yukle(true)['catch'](function () {}); }, 350);
+  });
+  ['kategori', 'sirala', 'kapsam'].forEach(function (id) {
+    $(id).addEventListener('change', function () { yukle(true)['catch'](function () {}); });
+  });
+
+  /* ───────── CSV ───────── */
+  $('btnCsv').addEventListener('click', function () {
+    mesgul($('btnCsv'), true, 'Hazırlanıyor…');
+    var y = secenekler(); y.bas = 0; y.adet = 300;
+    var hepsi = [];
+    var devam = function () {
+      return api('katalog', y).then(function (r) {
+        hepsi = hepsi.concat(r.kayitlar);
+        y.bas = hepsi.length;
+        if (hepsi.length < r.toplam && r.kayitlar.length) return devam();
+      });
+    };
+    devam().then(function () {
+      var basliklar = ['Kayıt no', 'Yer kodu', 'Yazar', 'Başlık', 'Yıl', 'Nüsha', 'Kategori',
+        'Kural', 'Durum', 'Not', 'Kaydeden', 'Kutu no', 'Onay', 'Kapak', 'Künye fotoğrafı'];
+      var satirlar = [basliklar].concat(hepsi.map(function (k) {
+        return [k.no, k.yer, k.yazar, k.baslik, k.yil, k.nusha, k.kategori, k.kural,
+                k.durum, k.not, k.kaydeden, k.kutu, k.onay, k.kapak, k.foto];
+      })).map(function (s) {
+        return s.map(function (h) {
+          return '"' + String(h == null ? '' : h).replace(/"/g, '""') + '"';
+        }).join(';');
+      }).join('\r\n');
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob(['﻿' + satirlar], { type: 'text/csv;charset=utf-8' }));
+      a.download = 'kitap-envanteri.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    })['catch'](function (e) { goster($('msg'), 'hata', agHata(e)); })
+      .then(function () { mesgul($('btnCsv'), false); });
+  });
+
+  /* ───────── açılış ───────── */
+  var ad = localStorage.getItem('tv_env_ad'), sifre = localStorage.getItem('tv_env_sifre');
+  if (ad) $('ad').value = ad;
+  if (sifre) $('sifre').value = sifre;
+})();
+</script>
+</body>
+</html>
