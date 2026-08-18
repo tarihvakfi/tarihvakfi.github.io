@@ -49,11 +49,14 @@ jobs:
             kitap-envanteri.html \
             kunye-onay.html \
             envanter-katalog.html \
+
             envanter-durum.html \
             envanter-deneme.html \
             kunye-onay-deneme.html \
             envanter-katalog-deneme.html \
             envanter-durum-deneme.html \
+
+            
             envanter-manifest.json \
             sw.js \
           ; do
