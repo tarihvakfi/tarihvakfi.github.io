@@ -1,0 +1,17 @@
+{
+  "name": "Tarih Vakfı — Kitap Envanteri",
+  "short_name": "Envanter",
+  "description": "Kütüphane taşınması için raf başında kitap kaydı.",
+  "start_url": "./kitap-envanteri.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fbf7f1",
+  "theme_color": "#601040",
+  "lang": "tr",
+  "icons": [
+    { "src": "./assets/envanter-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/envanter-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/envanter-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
