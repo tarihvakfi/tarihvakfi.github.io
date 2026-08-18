@@ -20,8 +20,11 @@ var AYAR = {
 
   // Bildirimlerin gideceği adres(ler).
   // Başkalarını da eklemek için virgülle yazmanız yeterli — başka hiçbir yeri değiştirmeyin:
-  //   ADMIN_EPOSTA: 'arif.solmaz@gmail.com, koordinator@tarihvakfi.org.tr'
-  ADMIN_EPOSTA: 'arif.solmaz@gmail.com',
+  //   ADMIN_EPOSTA: 'ad@ornek.com, koordinator@tarihvakfi.org.tr'
+  //
+  // ⚠️ Bu dosya herkese açık depoda duruyor. Gerçek adresleri buraya yazmayın;
+  //    yalnızca Apps Script'teki çalışan kopyada bulunsunlar.
+  ADMIN_EPOSTA: 'BURAYA_YONETICI_EPOSTALARI',
 
   KURUM: 'Tarih Vakfı',
 

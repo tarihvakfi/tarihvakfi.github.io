@@ -1,5 +1,10 @@
 /**
  * Tarih Vakfı Kütüphanesi — Kitap Envanteri
+ *
+ * ⚠️  BU DOSYA HERKESE AÇIK BİR DEPODA DURUYOR.
+ *     Gerçek şifreleri buraya yazmayın. Şifreler yalnızca Apps Script'teki
+ *     çalışan kopyada bulunur; buradaki değerler yer tutucudur.
+ *
  * Google Apps Script arka ucu. Kayıtlar bağlı olduğu Google E-Tablo'ya yazılır.
  *
  * Gönüllü sistemiyle aynı mantık: web uygulaması olarak dağıtılır, telefondaki
@@ -17,12 +22,12 @@ var AYAR = {
 
   // Gönüllülerin forma girerken bir kez yazacağı ortak çalışma şifresi.
   // Kısa ve söylemesi kolay olsun; her çalışma gününde değiştirmeye gerek yok.
-  CALISMA_SIFRESI: 'kitap2026',
+  CALISMA_SIFRESI: 'BURAYA_CALISMA_SIFRESI',
 
   // Koordinatör şifresi: künye onay ekranı ve katalog bunu ister.
   // Çalışma şifresini bilen gönüllü bu iki ekranı açamaz.
   // Boş bırakırsanız ayrım kalkar, ikisi de çalışma şifresiyle açılır.
-  KOORDINATOR_SIFRESI: 'koordinator2026',
+  KOORDINATOR_SIFRESI: 'BURAYA_KOORDINATOR_SIFRESI',
 
   // Formda kaç son kayıt görünsün (düzeltme/silme için)
   SON_KAYIT: 8,
