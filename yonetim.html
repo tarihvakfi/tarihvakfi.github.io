@@ -283,7 +283,15 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       });
   }
 
-  var E = function (g, v) { return (D.veri && D.veri.etiketler[g] && D.veri.etiketler[g][v]) || ''; };
+  /* Sunucudaki uzun etiketler tabloda yer kaplıyor; panelde kısa karşılıkları gösterilir. */
+  var KISALT = {
+    days: { hafta_sonu_olursa: '★ hafta sonu', hafta_ici: 'hafta içi (eski)',
+            hafta_sonu: 'hafta sonu (eski)', farketmez: 'fark etmez (eski)' }
+  };
+  var E = function (g, v) {
+    if (KISALT[g] && KISALT[g][v]) return KISALT[g][v];
+    return (D.veri && D.veri.etiketler[g] && D.veri.etiketler[g][v]) || '';
+  };
   var EL = function (g, d) {
     return (d || []).map(function (x) { return E(g, x); }).filter(Boolean).join(', ') || '—';
   };
@@ -476,12 +484,12 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   });
 
   var BASLIK = ['Ad Soyad','E-posta','Telefon','Çalışma','Ne zaman','Başlangıç tarihi','Günler',
-    'Saat aralığı','Ayda süre','Plan','Durum','Notlar'];
+    'Saat aralığı','Ayda süre','Durum','Notlar'];
   $('btnCsv').addEventListener('click', function () {
     var satirlar = [BASLIK].concat(secilenler().map(function (k) {
       return [k.full_name, k.email, k.phone, E('area', k.area), E('start_pref', k.start_pref),
         k.start_date ? gunTarih(k.start_date) : '', EL('days', k.days), EL('times', k.times),
-        E('frequency', k.frequency), E('certainty', k.certainty), E('status', k.status), k.notes];
+        E('frequency', k.frequency), E('status', k.status), k.notes];
     })).map(function (s) {
       return s.map(function (h) { return '"' + String(h === null || h === undefined ? '' : h).replace(/"/g, '""') + '"'; }).join(';');
     }).join('\r\n');
@@ -499,12 +507,10 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
                        ['Arşiv', 'Arşive gelebilecek'],
                        ['Her ikisi', '— her ikisi birden']]],
     ['Ne zaman', [['Hemen', 'Hemen'],
-                  ['Tarih verenler', 'Belirli bir tarihten sonra'],
-                  ['Kararsız', 'Henüz karar vermedi']]],
-    ['Günler', [['Hafta içi', 'Hafta içi gelebilir'],
-                ['Hafta sonu', 'Hafta sonu gelebilir']]],
-    ['Plan', [['Kesin', 'Kesin — programa alınabilir'],
-              ['Geçici', 'Geçici — değişebilir']]],
+                  ['Tarih verenler', 'Belirli bir tarihten sonra']]],
+    ['Hafta içi', [['Pzt', 'Pazartesi'], ['Sal', 'Salı'], ['Çar', 'Çarşamba'],
+                   ['Per', 'Perşembe'], ['Cum', 'Cuma']]],
+    ['Hafta sonu ★', [['Olursa gelirim', '★ Hafta sonu gelebilecek']]],
     ['Durum', [['Aktif', 'Aktif'],
                ['Ara vermiş', 'Beklemede (ara vermiş)'],
                ['Ayrılmış', 'Ayrıldı']]]
@@ -526,9 +532,9 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       if (!parcalar) return '';
       return '<div class="yp-grup">' + esc(g[0]) + '</div><div class="yp-deger">' + parcalar + '</div>';
     }).join('') +
-      '<p class="yp-dipnot" style="grid-column:1/-1">Çalışma alanı, zaman, gün ve plan sayıları ' +
-      'yalnızca aktif gönüllüleri kapsar. “Fark etmez” diyenler hem hafta içi hem hafta sonunda, ' +
-      '“her ikisi” diyenler hem kütüphane hem arşivde sayılır.</p>';
+      '<p class="yp-dipnot" style="grid-column:1/-1">Sayılar yalnızca aktif gönüllüleri kapsar. ' +
+      '“Her ikisi” diyenler hem kütüphane hem arşivde sayılır. Hafta sonu düzenli çalışma günü ' +
+      'değildir; ★ sayısı yalnızca “hafta sonu çalışma açılırsa gelirim” diyenleri gösterir.</p>';
   }
 
   function gunlukCiz() {

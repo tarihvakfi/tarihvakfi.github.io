@@ -33,10 +33,11 @@ var AYAR = {
   // Örn: 'https://tarihvakfi.github.io'
   IZINLI_SITE: '',
 
-  KOD_DAKIKA: 10,       // giriş kodunun geçerlilik süresi
-  OTURUM_SAAT: 6,       // giriş sonrası oturum süresi (en fazla 6)
-  KOD_BEKLEME_SN: 60,   // yeni kod istemek için bekleme
-  MAX_DENEME: 5,        // hatalı kod denemesi sınırı
+  KOD_DAKIKA: 10,             // giriş kodunun geçerlilik süresi
+  OTURUM_GUN_GONULLU: 7,      // gönüllü girişi kaç gün açık kalsın
+  OTURUM_GUN_YONETICI: 30,    // koordinatör girişi kaç gün açık kalsın
+  KOD_BEKLEME_SN: 60,         // yeni kod istemek için bekleme
+  MAX_DENEME: 5,              // hatalı kod denemesi sınırı
 };
 
 /* ═══════════════ SÖZLÜKLER ═══════════════ */
@@ -48,17 +49,37 @@ var ALAN = {
 };
 var BASLANGIC = {
   hemen: 'Hemen başlayabilirim',
-  tarihten_sonra: 'Belirli bir tarihten sonra',
-  karar_verilmedi: 'Henüz karar vermedim'
+  tarihten_sonra: 'Belirli bir tarihten sonra'
 };
-var GUNLER = { hafta_ici: 'Hafta içi', hafta_sonu: 'Hafta sonu', farketmez: 'Fark etmez' };
+
+/* Hafta içi günler tek tek sorulur; hafta sonu normal koşullarda çalışma günü değildir,
+   yalnızca yıldızlı seçenekle "olursa gelirim" bilgisi toplanır. */
+var GUNLER = {
+  pazartesi: 'Pazartesi',
+  sali: 'Salı',
+  carsamba: 'Çarşamba',
+  persembe: 'Perşembe',
+  cuma: 'Cuma',
+  hafta_sonu_olursa: '★ Hafta sonu çalışma olursa katılabilirim'
+};
+var HAFTA_ICI = ['pazartesi', 'sali', 'carsamba', 'persembe', 'cuma'];
+
+/* Kaldırılan seçenekler. Eski kayıtlar tabloda duruyor; etiketsiz kalmasınlar diye
+   yalnızca GÖSTERİM için tutuluyor — forma bir daha çıkmazlar. */
+var ESKI_SECENEK = {
+  karar_verilmedi: 'Henüz karar vermedim (kaldırıldı)',
+  hafta_ici: 'Hafta içi (eski kayıt)',
+  hafta_sonu: 'Hafta sonu (eski kayıt)',
+  farketmez: 'Fark etmez (eski kayıt)'
+};
 var SAATLER = {
   sabah: 'Sabah (09.00–13.00)',
   ogleden_sonra: 'Öğleden sonra (13.00–18.00)',
   tam_gun: 'Tam gün'
 };
 var SURE = { '1-2': 'Ayda 1–2 gün', '3-4': 'Ayda 3–4 gün', '5-8': 'Ayda 5–8 gün', '8+': 'Ayda 8 günden fazla' };
-var PLAN = { kesin: 'Kesin', gecici: 'Geçici, değişebilir' };
+// "Bu plan sizin için" sorusu kaldırıldı. Sütun, eski tabloların düzeni bozulmasın diye
+// yerinde bırakıldı; yeni kayıtlarda boş geçilir.
 var DURUM = { aktif: 'Aktif', beklemede: 'Beklemede', ayrildi: 'Ayrıldı' };
 
 var AY_ADI = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
@@ -75,7 +96,7 @@ var SUTUNLAR = [
   ['times',      'Saat aralığı'],
   ['months',     'Uygun aylar'],
   ['frequency',  'Ayda süre'],
-  ['certainty',  'Plan'],
+  ['certainty',  'Plan (kullanılmıyor)'],
   ['status',     'Durum'],
   ['notes',      'Notlar'],
   ['created_at', 'Kayıt tarihi'],
@@ -83,7 +104,10 @@ var SUTUNLAR = [
 ];
 
 // Değişiklik karşılaştırmasında gösterilecek alanlar
-var IZLENEN = ['full_name','phone','area','start_pref','start_date','days','times','months','frequency','certainty','status','notes'];
+var IZLENEN = ['full_name','phone','area','start_pref','start_date','days','times','months','frequency','status','notes'];
+
+// Artık sorulmayan, yalnızca sütun düzeni için duran alanlar
+var KULLANILMAYAN = ['certainty'];
 
 /* ═══════════════ HAZIR LİSTELER ═══════════════
    "Listeler" sayfasında her kayıttan sonra otomatik oluşturulur.
@@ -91,28 +115,46 @@ var IZLENEN = ['full_name','phone','area','start_pref','start_date','days','time
      ['Listenin adı', function (k) { return <koşul>; }]
    Kullanabileceğiniz kısayollar:
      alan_(k,'kutuphane'|'arsiv')   → o alana gelebilir ("her ikisi" de sayılır)
-     gun_(k,'hafta_ici'|'hafta_sonu') → o gün gelebilir ("fark etmez" de sayılır)
+     gun_(k,'pazartesi'|…|'cuma')   → o gün gelebilir
+     haftaIci_(k)                   → hafta içi en az bir gün gelebilir
+     haftaSonu_(k)                  → hafta sonu çalışma açılırsa gelebilir (★)
      saat_(k,'sabah'|'ogleden_sonra'|'tam_gun')
-     k.start_pref / k.certainty / k.frequency / k.status alanları
+     k.start_pref / k.frequency / k.status alanları
    Üçüncü değer 'hepsi' yazılmazsa liste yalnızca aktif gönüllüleri gösterir. */
 
 function alan_(k, a) { return k.area === a || k.area === 'ikisi'; }
-function gun_(k, g)  { return k.days.indexOf(g) >= 0 || k.days.indexOf('farketmez') >= 0; }
+
+/* Eski kayıtlarda gün olarak 'hafta_ici' / 'farketmez' yazıyor olabilir;
+   bunlar hafta içi her güne sayılır ki eski gönüllüler listelerden düşmesin. */
+function gun_(k, g) {
+  var d = k.days || [];
+  if (d.indexOf(g) >= 0) return true;
+  if (HAFTA_ICI.indexOf(g) >= 0) return d.indexOf('hafta_ici') >= 0 || d.indexOf('farketmez') >= 0;
+  return false;
+}
+function haftaIci_(k) {
+  return HAFTA_ICI.some(function (g) { return gun_(k, g); });
+}
+function haftaSonu_(k) {
+  var d = k.days || [];
+  return d.indexOf('hafta_sonu_olursa') >= 0 || d.indexOf('hafta_sonu') >= 0 || d.indexOf('farketmez') >= 0;
+}
 function saat_(k, s) { return k.times.indexOf(s) >= 0 || k.times.indexOf('tam_gun') >= 0; }
 
 var LISTELER = [
-  ['Hemen gelebilecekler',              function (k) { return k.start_pref === 'hemen'; }],
-  ['Hemen — hafta içi',                 function (k) { return k.start_pref === 'hemen' && gun_(k, 'hafta_ici'); }],
-  ['Hemen — hafta sonu',                function (k) { return k.start_pref === 'hemen' && gun_(k, 'hafta_sonu'); }],
-  ['Kütüphane — hafta içi',             function (k) { return alan_(k, 'kutuphane') && gun_(k, 'hafta_ici'); }],
-  ['Kütüphane — hafta sonu',            function (k) { return alan_(k, 'kutuphane') && gun_(k, 'hafta_sonu'); }],
-  ['Arşiv — hafta içi',                 function (k) { return alan_(k, 'arsiv') && gun_(k, 'hafta_ici'); }],
-  ['Arşiv — hafta sonu',                function (k) { return alan_(k, 'arsiv') && gun_(k, 'hafta_sonu'); }],
-  ['Tam gün kalabilecekler',            function (k) { return k.times.indexOf('tam_gun') >= 0; }],
-  ['Planı kesin olanlar',               function (k) { return k.certainty === 'kesin'; }],
-  ['Tarih verenler (tarihe göre)',      function (k) { return k.start_pref === 'tarihten_sonra'; }, 'aktif', 'tarih'],
-  ['Kararsızlar — sonra tekrar sorulacak', function (k) { return k.start_pref === 'karar_verilmedi'; }],
-  ['Ara verenler (beklemede)',          function (k) { return k.status === 'beklemede'; }, 'hepsi'],
+  ['Hemen gelebilecekler',        function (k) { return k.start_pref === 'hemen'; }],
+  ['Kütüphane — hemen',           function (k) { return alan_(k, 'kutuphane') && k.start_pref === 'hemen'; }],
+  ['Arşiv — hemen',               function (k) { return alan_(k, 'arsiv') && k.start_pref === 'hemen'; }],
+  ['Pazartesi gelebilecekler',    function (k) { return gun_(k, 'pazartesi'); }],
+  ['Salı gelebilecekler',         function (k) { return gun_(k, 'sali'); }],
+  ['Çarşamba gelebilecekler',     function (k) { return gun_(k, 'carsamba'); }],
+  ['Perşembe gelebilecekler',     function (k) { return gun_(k, 'persembe'); }],
+  ['Cuma gelebilecekler',         function (k) { return gun_(k, 'cuma'); }],
+  ['★ Hafta sonu çalışma olursa gelebilecekler', function (k) { return haftaSonu_(k); }],
+  ['★ Hafta sonu — kütüphane',    function (k) { return alan_(k, 'kutuphane') && haftaSonu_(k); }],
+  ['Tam gün kalabilecekler',      function (k) { return k.times.indexOf('tam_gun') >= 0; }],
+  ['Tarih verenler (tarihe göre)', function (k) { return k.start_pref === 'tarihten_sonra'; }, 'aktif', 'tarih'],
+  ['Ara verenler (beklemede)',    function (k) { return k.status === 'beklemede'; }, 'hepsi'],
 ];
 
 /* ═══════════════ GİRİŞ NOKTALARI ═══════════════ */
@@ -140,6 +182,7 @@ function islet_(istek) {
       case 'verify':      return cikti_(kodDogrula_(istek.email, istek.code));
       case 'get':         return cikti_(kaydiGetir_(istek.token));
       case 'save':        return cikti_(kaydet_(istek.token, istek.data || {}));
+      case 'logout':      return cikti_(oturumKapat_(istek.token));
       case 'adminData':   return cikti_(yonetimVerisi_(istek.token));
       case 'adminDelete': return cikti_(yonetimSil_(istek.token, istek.email));
       case 'adminStatus': return cikti_(yonetimDurum_(istek.token, istek.email, istek.status));
@@ -163,7 +206,7 @@ function ayarlar_() {
     ok: true,
     org: AYAR.KURUM,
     area: ALAN, start_pref: BASLANGIC, days: GUNLER, times: SAATLER,
-    frequency: SURE, certainty: PLAN, status: DURUM,
+    frequency: SURE, status: DURUM,
     months: gelecekAylar_(12)
   };
 }
@@ -219,15 +262,60 @@ function kodDogrula_(eposta, kod) {
   }
 
   onbellek.remove(anahtar);
-  var token = Utilities.getUuid() + Utilities.getUuid();
-  onbellek.put('otr_' + token, eposta, AYAR.OTURUM_SAAT * 3600);
-
+  var token = oturumAc_(eposta);
   return { ok: true, token: token, email: eposta, volunteer: satirBul_(eposta).kayit };
+}
+
+/* ── Oturumlar ──────────────────────────────────────────────────────────
+   Oturumlar PropertiesService'te tutulur. (Önbellek/CacheService en fazla
+   6 saat saklıyor ve yer sıkışınca erken siliyordu; koordinatörler günde
+   birkaç kez yeniden kod istemek zorunda kalıyordu.) */
+
+function oturumAc_(eposta) {
+  var token = Utilities.getUuid() + Utilities.getUuid();
+  var gun = yoneticiMi_(eposta) ? AYAR.OTURUM_GUN_YONETICI : AYAR.OTURUM_GUN_GONULLU;
+  var bitis = Date.now() + Math.max(1, Number(gun) || 1) * 86400000;
+
+  PropertiesService.getScriptProperties()
+    .setProperty('otr_' + token, JSON.stringify({ e: eposta, b: bitis }));
+  eskiOturumlariSil_();
+  return token;
 }
 
 function oturumEpostasi_(token) {
   if (!token) return null;
-  return CacheService.getScriptCache().get('otr_' + String(token));
+  var ozellikler = PropertiesService.getScriptProperties();
+  var ham = ozellikler.getProperty('otr_' + String(token));
+  if (!ham) return null;
+
+  var kayit;
+  try { kayit = JSON.parse(ham); } catch (h) { return null; }
+  if (!kayit || !kayit.b || kayit.b < Date.now()) {
+    ozellikler.deleteProperty('otr_' + String(token));
+    return null;
+  }
+  return kayit.e;
+}
+
+function oturumKapat_(token) {
+  if (token) PropertiesService.getScriptProperties().deleteProperty('otr_' + String(token));
+  return { ok: true };
+}
+
+/** Süresi dolmuş oturumları temizler; her girişte bir kez çalışır. */
+function eskiOturumlariSil_() {
+  var ozellikler = PropertiesService.getScriptProperties();
+  var hepsi = ozellikler.getProperties();
+  var simdi = Date.now();
+  for (var anahtar in hepsi) {
+    if (anahtar.indexOf('otr_') !== 0) continue;
+    var gecerli = false;
+    try {
+      var k = JSON.parse(hepsi[anahtar]);
+      gecerli = k && k.b && k.b >= simdi;
+    } catch (h) { gecerli = false; }
+    if (!gecerli) ozellikler.deleteProperty(anahtar);
+  }
 }
 
 function kaydiGetir_(token) {
@@ -311,7 +399,7 @@ function yonetimVerisi_(token) {
     kayitlar: kayitlar,
     gunluk: gunluk,
     etiketler: { area: ALAN, start_pref: BASLANGIC, days: GUNLER, times: SAATLER,
-                 frequency: SURE, certainty: PLAN, status: DURUM }
+                 frequency: SURE, status: DURUM }
   };
 }
 
@@ -433,7 +521,6 @@ function dogrula_(g) {
 
   var aylar = (Array.isArray(g.months) ? g.months : []).filter(function (a) { return /^\d{4}-\d{2}$/.test(a); });
   var sure = SURE[g.frequency] ? g.frequency : '';
-  var plan = PLAN[g.certainty] ? g.certainty : 'gecici';
   var durum = DURUM[g.status] ? g.status : 'aktif';
 
   return {
@@ -441,7 +528,7 @@ function dogrula_(g) {
     deger: {
       full_name: ad, phone: telefon, area: alan, start_pref: baslangic, start_date: tarih,
       days: gunler, times: dizi(g.times, SAATLER), months: aylar,
-      frequency: sure, certainty: plan, status: durum,
+      frequency: sure, certainty: '', status: durum,
       notes: String(g.notes || '').trim().slice(0, 2000)
     }
   };
@@ -515,13 +602,13 @@ function satirBul_(eposta) {
 
 // E-Tablo hücresi ← değer  (diziler etikete çevrilerek yazılır, insan okusun diye)
 function hucre_(alan, deger) {
-  if (alan === 'days')   return (deger || []).map(function (d) { return GUNLER[d] || d; }).join(', ');
+  if (alan === 'days')   return (deger || []).map(function (d) { return GUNLER[d] || ESKI_SECENEK[d] || d; }).join(', ');
   if (alan === 'times')  return (deger || []).map(function (d) { return SAATLER[d] || d; }).join(', ');
   if (alan === 'months') return (deger || []).map(ayEtiketi_).join(', ');
   if (alan === 'area')       return ALAN[deger] || '';
-  if (alan === 'start_pref') return BASLANGIC[deger] || '';
+  if (alan === 'start_pref') return BASLANGIC[deger] || ESKI_SECENEK[deger] || '';
   if (alan === 'frequency')  return SURE[deger] || '';
-  if (alan === 'certainty')  return PLAN[deger] || '';
+  if (alan === 'certainty')  return '';                       // kaldırılan alan
   if (alan === 'status')     return DURUM[deger] || '';
   if (alan === 'start_date')  return tarihEtiketi_(deger);
   return deger === null || deger === undefined ? '' : deger;
@@ -542,7 +629,7 @@ function satirdanNesne_(satir) {
     times: coklu_(SAATLER, nesne.times),
     months: aylariCoz_(nesne.months),
     frequency: anahtarBul_(SURE, nesne.frequency),
-    certainty: anahtarBul_(PLAN, nesne.certainty) || 'gecici',
+    certainty: '',
     status: anahtarBul_(DURUM, nesne.status) || 'aktif',
     notes: String(nesne.notes || ''),
     created_at: nesne.created_at,
@@ -620,13 +707,14 @@ function ozetVerisi_(kayitlar) {
     b('NE ZAMAN BAŞLAYABİLİR'),
     s('Hemen', say(function (k) { return aktif(k) && k.start_pref === 'hemen'; })),
     s('Belirli bir tarihten sonra', say(function (k) { return aktif(k) && k.start_pref === 'tarihten_sonra'; })),
-    s('Henüz karar vermedi', say(function (k) { return aktif(k) && k.start_pref === 'karar_verilmedi'; })),
-    b('GÜNLER'),
-    s('Hafta içi gelebilir', say(function (k) { return aktif(k) && gun_(k, 'hafta_ici'); })),
-    s('Hafta sonu gelebilir', say(function (k) { return aktif(k) && gun_(k, 'hafta_sonu'); })),
-    b('PLANIN KESİNLİĞİ'),
-    s('Kesin — programa alınabilir', say(function (k) { return aktif(k) && k.certainty === 'kesin'; })),
-    s('Geçici — değişebilir', say(function (k) { return aktif(k) && k.certainty === 'gecici'; }))
+    b('GÜNLER  (hafta içi)'),
+    s('Pazartesi', say(function (k) { return aktif(k) && gun_(k, 'pazartesi'); })),
+    s('Salı', say(function (k) { return aktif(k) && gun_(k, 'sali'); })),
+    s('Çarşamba', say(function (k) { return aktif(k) && gun_(k, 'carsamba'); })),
+    s('Perşembe', say(function (k) { return aktif(k) && gun_(k, 'persembe'); })),
+    s('Cuma', say(function (k) { return aktif(k) && gun_(k, 'cuma'); })),
+    b('HAFTA SONU  (yalnızca çalışma açılırsa)'),
+    s('★ Hafta sonu gelebilecek', say(function (k) { return aktif(k) && haftaSonu_(k); }))
   ];
 }
 
@@ -858,7 +946,9 @@ function bildirimGonder_(kayit, fark, ilkKez) {
 }
 
 function tablo_(kayit) {
-  var satirlar = SUTUNLAR.filter(function (s) { return s[0] !== 'created_at' && s[0] !== 'updated_at'; })
+  var satirlar = SUTUNLAR.filter(function (s) {
+      return s[0] !== 'created_at' && s[0] !== 'updated_at' && KULLANILMAYAN.indexOf(s[0]) < 0;
+    })
     .map(function (s) {
       return '<tr><td style="padding:6px 12px 6px 0;color:#78716c;vertical-align:top;white-space:nowrap">' + s[1] + '</td>' +
         '<td style="padding:6px 0"><b>' + kacir_(hucre_(s[0], kayit[s[0]]) || '—') + '</b></td></tr>';

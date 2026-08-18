@@ -42,6 +42,16 @@
     }
     .planning-note strong { color: var(--accent-deep); font-weight: 600; }
 
+    /* beş hafta içi günü tek satıra sığsın */
+    #gunKutu { grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); }
+
+    /* hafta sonu: normal çalışma günü değil, ayrı bir kutuda sorulur */
+    .gp-yildiz {
+      margin-top: 12px; padding: 14px 16px 4px;
+      border: 1px dashed var(--accent-soft); background: var(--accent-bg);
+    }
+    .gp-yildiz .gp-alt { margin: 10px 0 12px; }
+
     /* --- kart --- */
     .gp-card {
       margin-top: 30px; padding: 26px 26px 28px;
@@ -213,9 +223,9 @@
       </p>
 
       <div class="planning-note">
-        <strong>Kararsızsanız da kaydolabilirsiniz.</strong> “Henüz karar vermedim”
-        seçeneğiyle listeye girer, hazır olduğunuzda buradan güncellersiniz. Her
-        değişiklik koordinatöre otomatik bildirilir.
+        <strong>Tercihiniz bağlayıcı değil.</strong> Hemen başlayamıyorsanız ileri bir
+        tarih verebilir, sonradan buradan değiştirebilir ya da bir süre ara verebilirsiniz.
+        Her değişiklik koordinatöre otomatik bildirilir.
       </div>
     </section>
 
@@ -282,8 +292,15 @@
         <div class="gp-kutular" id="zamanKutu"></div>
 
         <span class="gp-lbl">Hangi günler uygunsunuz?</span>
-        <p class="gp-alt">Birden fazla seçebilirsiniz.</p>
+        <p class="gp-alt">Birden fazla gün seçebilirsiniz.</p>
         <div class="gp-kutular uc" id="gunKutu"></div>
+
+        <div class="gp-yildiz">
+          <div class="gp-kutular" id="gunSonuKutu"></div>
+          <p class="gp-alt">Hafta sonu şu anda düzenli çalışma günü değil. Bu seçenek
+            “hafta sonu çalışma açılırsa bana da haber verin” demektir; yeterli sayıda
+            gönüllü işaretlerse koordinasyon buna göre karar verecek.</p>
+        </div>
 
         <details id="ekBilgi" style="margin-top:26px;border:1px solid var(--rule)">
           <summary style="cursor:pointer;padding:14px 16px;font-family:'Inter',sans-serif;font-weight:600;font-size:15px;color:var(--accent)">
@@ -305,13 +322,12 @@
             <label class="gp-lbl" for="frequency">Ayda ayırabileceğiniz süre</label>
             <select id="frequency"></select>
 
-            <span class="gp-lbl">Bu plan sizin için</span>
-            <div class="gp-kutular iki kucuk" id="planKutu"></div>
-
             <label class="gp-lbl" for="status">Katılım durumunuz</label>
             <select id="status"></select>
 
             <label class="gp-lbl" for="notes">Eklemek istedikleriniz</label>
+            <p class="gp-alt">Süre, kısıt, plan değişikliği ihtimali — aklınızda ne varsa
+              buraya yazabilirsiniz.</p>
             <textarea id="notes" placeholder="Deneyiminiz, kısıtlarınız, sorularınız…"></textarea>
           </div>
         </details>
@@ -387,9 +403,9 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
   var KISA = {
     area: { kutuphane: 'Kütüphane', arsiv: 'Arşiv', ikisi: 'Her ikisi' },
-    start_pref: { hemen: 'Hemen', tarihten_sonra: 'Belirli bir tarihten sonra', karar_verilmedi: 'Henüz karar vermedim' },
-    certainty: { kesin: 'Kesin', gecici: 'Geçici, değişebilir' }
+    start_pref: { hemen: 'Hemen', tarihten_sonra: 'Belirli bir tarihten sonra' }
   };
+  var HAFTA_SONU = 'hafta_sonu_olursa';   // ayrı kutuda gösterilen yıldızlı seçenek
 
   function goster(el, sinif, metin) { el.className = 'gp-msg ' + sinif + ' gor'; el.textContent = metin; }
   function gizle(el) { el.className = 'gp-msg'; }
@@ -463,9 +479,14 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       D.cfg = cfg;
       kutuCiz($('alanKutu'), cfg.area, 'radio', 'area', KISA.area);
       kutuCiz($('zamanKutu'), cfg.start_pref, 'radio', 'start_pref', KISA.start_pref);
-      kutuCiz($('gunKutu'), cfg.days, 'checkbox', 'days');
+      // hafta içi günler bir arada, hafta sonu seçeneği ayrı kutuda
+      var haftaIci = {}, haftaSonu = {};
+      Object.keys(cfg.days).forEach(function (a) {
+        (a === HAFTA_SONU ? haftaSonu : haftaIci)[a] = cfg.days[a];
+      });
+      kutuCiz($('gunKutu'), haftaIci, 'checkbox', 'days');
+      kutuCiz($('gunSonuKutu'), haftaSonu, 'checkbox', 'days');
       kutuCiz($('saatKutu'), cfg.times, 'checkbox', 'times');
-      kutuCiz($('planKutu'), cfg.certainty, 'radio', 'certainty', KISA.certainty);
 
       $('ayKutu').innerHTML = cfg.months.map(function (m) {
         return '<label class="gp-box"><input type="checkbox" name="months" value="' + m.key + '">' +
@@ -475,7 +496,7 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         i.addEventListener('change', function () { esitle($('ayKutu')); });
       });
 
-      $('frequency').innerHTML = '<option value="">Belirtmek istemiyorum</option>' +
+      $('frequency').innerHTML = '<option value="">—</option>' +
         Object.keys(cfg.frequency).map(function (v) {
           return '<option value="' + v + '">' + cfg.frequency[v] + '</option>';
         }).join('');
@@ -598,7 +619,6 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       ['Saat aralığı', etiketler('times', v.times)],
       ['Uygun aylar', (v.months || []).map(ayEtiketi).join(', ')],
       ['Ayda süre', etiket('frequency', v.frequency)],
-      ['Planınız', etiket('certainty', v.certainty)],
       ['Telefon', v.phone],
       ['Notunuz', v.notes]
     ].filter(function (s) { return s[1]; });
@@ -623,8 +643,8 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     isaretle($('alanKutu'), bos ? [] : [v.area]);
     isaretle($('zamanKutu'), bos ? [] : [v.start_pref]);
     isaretle($('gunKutu'), bos ? [] : v.days);
+    isaretle($('gunSonuKutu'), bos ? [] : v.days);
     isaretle($('saatKutu'), bos ? [] : v.times);
-    isaretle($('planKutu'), bos ? ['gecici'] : [v.certainty]);
     isaretle($('ayKutu'), bos ? [] : v.months);
     $('btnKaydet').textContent = bos ? 'Kaydet' : 'Güncelle';
   }
@@ -677,11 +697,10 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       area: tekSecili($('alanKutu')),
       start_pref: tekSecili($('zamanKutu')),
       start_date: $('start_date').value || '',
-      days: secililer($('gunKutu')),
+      days: secililer($('gunKutu')).concat(secililer($('gunSonuKutu'))),
       times: secililer($('saatKutu')),
       months: secililer($('ayKutu')),
       frequency: $('frequency').value,
-      certainty: tekSecili($('planKutu')) || 'gecici',
       status: $('status').value,
       notes: $('notes').value.trim()
     };
