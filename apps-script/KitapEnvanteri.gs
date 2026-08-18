@@ -19,8 +19,17 @@ var AYAR = {
   // Kısa ve söylemesi kolay olsun; her çalışma gününde değiştirmeye gerek yok.
   CALISMA_SIFRESI: 'kitap2026',
 
+  // Koordinatör şifresi: künye onay ekranı ve katalog bunu ister.
+  // Çalışma şifresini bilen gönüllü bu iki ekranı açamaz.
+  // Boş bırakırsanız ayrım kalkar, ikisi de çalışma şifresiyle açılır.
+  KOORDINATOR_SIFRESI: 'koordinator2026',
+
   // Formda kaç son kayıt görünsün (düzeltme/silme için)
   SON_KAYIT: 8,
+
+  // Durum panosundaki hedef çubuğu için: yeni binaya kaç kitap sığacak?
+  // Bilmiyorsanız 0 bırakın, çubuk gizlenir. (Raf metresi × 30–35 kitap)
+  HEDEF_KITAP: 0,
 
   // ── Yer kodu ────────────────────────────────────────────────────
   // Kitabın nereden geldiğini gösteren kod:  K1-A01-007
@@ -178,12 +187,23 @@ function doPost(e) {
   return islet_(istek);
 }
 
+// Yalnızca koordinatörün açabileceği işlemler
+var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayla', 'katalog', 'durum'];
+
 function islet_(istek) {
   try {
     if (istek.action === 'config') return cikti_(ayarlar_());
 
-    // Bundan sonrası çalışma şifresi ister
-    if (String(istek.sifre || '') !== String(AYAR.CALISMA_SIFRESI)) {
+    var sifre = String(istek.sifre || '');
+    var koordinatorSifresi = String(AYAR.KOORDINATOR_SIFRESI || '').trim();
+
+    if (KOORDINATOR_EYLEMLERI.indexOf(istek.action) >= 0 && koordinatorSifresi) {
+      // Onay ekranı ve katalog ayrı şifre ister; çalışma şifresi buraya yetmez.
+      if (sifre !== koordinatorSifresi) {
+        return cikti_({ ok: false, sifreHatasi: true,
+          error: 'Bu ekran koordinatör şifresi ister.' });
+      }
+    } else if (sifre !== String(AYAR.CALISMA_SIFRESI)) {
       return cikti_({ ok: false, error: 'Çalışma şifresi hatalı.', sifreHatasi: true });
     }
 
@@ -198,6 +218,7 @@ function islet_(istek) {
       case 'onayBekleyen':return cikti_(onayBekleyen_(istek.adet));
       case 'onayla':      return cikti_(onayla_(istek.no, istek.kayit || {}));
       case 'katalog':     return cikti_(katalog_(istek));
+      case 'durum':       return cikti_(durum_());
       default:            return cikti_({ ok: false, error: 'Bilinmeyen istek.' });
     }
   } catch (hata) {
@@ -804,6 +825,90 @@ function katalog_(g) {
   var adet = Math.min(Math.max(Number(g.adet) || 60, 1), 300);
   return { ok: true, toplam: liste.length, bas: bas,
            kayitlar: liste.slice(bas, bas + adet) };
+}
+
+/**
+ * Durum panosu için bütün sayılar tek geçişte hesaplanır.
+ * Binlerce satırda bile tek okuma yaptığı için hızlıdır.
+ */
+function durum_() {
+  var sayfa = sayfaAl_('Envanter');
+  var son = sayfa.getLastRow();
+  var bos = {
+    ok: true, toplam: 0, onayli: 0, onayBekleyen: 0, kunyeEksik: 0, tamam: 0,
+    fotoli: 0, kapakli: 0, kategori: {}, fiziksel: {}, ocr: {},
+    gunluk: [], kisiler: [], siralar: [], hedef: Number(AYAR.HEDEF_KITAP || 0),
+    hesaplandi: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'd MMMM yyyy HH:mm')
+  };
+  if (son < 2) return bos;
+
+  var satirlar = sayfa.getRange(2, 1, son - 1, SUTUNLAR.length).getValues();
+  var d = bos;
+  var gunler = {}, kisiler = {}, siralar = {};
+  var bugunKey = gunAnahtari_(new Date());
+
+  satirlar.forEach(function (s) {
+    if (!s[S.no - 1]) return;
+    d.toplam++;
+
+    var onay = String(s[S.onay - 1] || '');
+    var foto = String(s[S.foto - 1] || ''), kapak = String(s[S.kapak - 1] || '');
+    var baslik = String(s[S.baslik - 1] || '');
+    var bekleyenKunye = /künye fotoğraftan/i.test(baslik);
+
+    if (foto) d.fotoli++;
+    if (kapak) d.kapakli++;
+
+    if (onay) d.onayli++;
+    else if (foto || kapak) d.onayBekleyen++;
+    else if (bekleyenKunye) d.kunyeEksik++;        // ne künye var ne fotoğraf
+    else d.tamam++;                                 // rafta elle yazılmış, onaya gerek yok
+
+    var kat = String(s[S.kategori - 1] || '—');
+    d.kategori[kat] = (d.kategori[kat] || 0) + 1;
+
+    var fiz = String(s[S.durum - 1] || '—');
+    d.fiziksel[fiz] = (d.fiziksel[fiz] || 0) + 1;
+
+    var od = String(s[S.ocrDurum - 1] || '');
+    if (foto || kapak) {
+      var anahtar = /hata/i.test(od) ? 'hata' : (od || 'yok');
+      d.ocr[anahtar] = (d.ocr[anahtar] || 0) + 1;
+    }
+
+    var t = s[S.tarih - 1];
+    var gun = (t instanceof Date) ? gunAnahtari_(t) : '';
+    if (gun) gunler[gun] = (gunler[gun] || 0) + 1;
+
+    var ad = String(s[S.kaydeden - 1] || '—').trim() || '—';
+    if (!kisiler[ad]) kisiler[ad] = { ad: ad, bugun: 0, toplam: 0 };
+    kisiler[ad].toplam++;
+    if (gun === bugunKey) kisiler[ad].bugun++;
+
+    var sira = rafAnahtari_(s[S.mekan - 1], s[S.raf - 1], s[S.sira - 1]);
+    if (sira) {
+      if (!siralar[sira]) siralar[sira] = { sira: sira, sayi: 0, sonNo: 0, son: '' };
+      siralar[sira].sayi++;
+      var n = Number(s[S.siraNo - 1]) || 0;
+      if (n > siralar[sira].sonNo) siralar[sira].sonNo = n;
+      if (gun > siralar[sira].son) siralar[sira].son = gun;
+    }
+  });
+
+  // Son 14 gün — kayıt olmayan günler de 0 olarak görünsün ki grafik yalan söylemesin
+  var bugun = new Date();
+  for (var i = 13; i >= 0; i--) {
+    var g = new Date(bugun.getTime() - i * 86400000);
+    var k = gunAnahtari_(g);
+    d.gunluk.push({ gun: k, sayi: gunler[k] || 0 });
+  }
+
+  d.kisiler = Object.keys(kisiler).map(function (a) { return kisiler[a]; })
+    .sort(function (a, b) { return b.toplam - a.toplam; });
+  d.siralar = Object.keys(siralar).map(function (a) { return siralar[a]; })
+    .sort(function (a, b) { return String(a.sira).localeCompare(String(b.sira)); });
+
+  return d;
 }
 
 /** Onay ekranından gelen künyeyi ana alanlara yazar. */

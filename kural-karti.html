@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Kural Kartı — Kütüphane Ayıklama</title>
+<style>
+  @page { size: A4; margin: 12mm 11mm; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: "Helvetica Neue", Arial, sans-serif;
+    color: #211a1d; font-size: 9.4pt; line-height: 1.35;
+  }
+  .bas { border-bottom: 2.5px solid #601040; padding-bottom: 5px; margin-bottom: 9px;
+    display: flex; justify-content: space-between; align-items: baseline; }
+  .bas h1 { font-size: 15pt; margin: 0; color: #601040; letter-spacing: -0.2px; }
+  .bas span { font-size: 8pt; color: #74686e; letter-spacing: .06em; text-transform: uppercase; }
+
+  .altin {
+    background: #fbf2f7; border: 1px solid #ead5e2; border-left: 3px solid #601040;
+    padding: 7px 10px; margin-bottom: 10px; font-size: 9.6pt;
+  }
+  .altin b { color: #601040; }
+
+  .sut { display: flex; gap: 9px; }
+  .kutu { flex: 1; border: 1px solid #ded7da; }
+  .kutu h2 {
+    margin: 0; padding: 5px 9px; font-size: 10pt; color: #fff; display: flex;
+    justify-content: space-between; align-items: center;
+  }
+  .kutu h2 em { font-style: normal; font-size: 7.6pt; font-weight: 400; opacity: .9; }
+  .yesil h2 { background: #2e6440; }
+  .sari  h2 { background: #a06a12; }
+  .kirmizi h2 { background: #9c2233; }
+  .mavi h2 { background: #2a5b86; }
+  .kutu ul { margin: 0; padding: 7px 9px 8px 9px; list-style: none; }
+  .kutu li { margin-bottom: 4.5px; padding-left: 24px; text-indent: -24px; }
+  .kod {
+    display: inline-block; width: 19px; font-weight: 700; font-size: 8.4pt;
+    font-family: "Courier New", monospace; color: #601040; text-indent: 0;
+  }
+
+  .sat { display: flex; gap: 9px; margin-top: 9px; }
+
+  .uyari { border: 1px solid #ded7da; padding: 7px 10px; flex: 1; }
+  .uyari h3 { margin: 0 0 4px; font-size: 9.4pt; color: #601040; }
+  .uyari ul { margin: 0; padding-left: 14px; }
+  .uyari li { margin-bottom: 2.5px; }
+
+  .on-saniye {
+    margin-top: 9px; border: 2px solid #601040; padding: 8px 12px; text-align: center;
+    background: #fbf2f7;
+  }
+  .on-saniye b { font-size: 11.5pt; color: #601040; }
+  .on-saniye span { display: block; font-size: 8.6pt; color: #57474f; margin-top: 2px; }
+
+  .dip { margin-top: 9px; font-size: 7.8pt; color: #74686e; display: flex;
+    justify-content: space-between; border-top: 1px solid #ded7da; padding-top: 5px; }
+</style>
+</head>
+<body>
+
+  <div class="bas">
+    <h1>Kitap Ayıklama — Kural Kartı</h1>
+    <span>Tarih Vakfı Kütüphanesi · Taşınma</span>
+  </div>
+
+  <div class="altin">
+    Kitabı elinize <b>bir kez</b> alın: künyeyi kaydedin, kategoriyi verin, etiketi yapıştırın.
+    Kategoriyi verirken <b>kural kodunu</b> da işaretleyin (Y1, S2, K3…). Neden yazmanıza gerek yok.
+  </div>
+
+  <div class="sut">
+    <div class="kutu yesil">
+      <h2>🟩 GİDECEK <em>yeşil etiket</em></h2>
+      <ul>
+        <li><span class="kod">Y1</span>Tarih Vakfı yayınları ve vakıf tarihine ait her şey</li>
+        <li><span class="kod">Y2</span>Türkiye ekonomik/toplumsal tarihi, kent tarihi, sözlü tarih, bellek çalışmaları</li>
+        <li><span class="kod">Y3</span>İmzalı, ithaflı veya ex-libris'li nüsha <b>(ilk sayfayı aç, bak)</b></li>
+        <li><span class="kod">Y4</span>1950 öncesi baskı; Osmanlıca / eski harfli eser</li>
+        <li><span class="kod">Y5</span>Rapor, tez, bülten, katalog, broşür — başka yerde bulunmayan malzeme</li>
+        <li><span class="kod">Y6</span>Süreli yayının tam serisi</li>
+        <li><span class="kod">Y7</span>Şartlı bağış koleksiyonunun parçası</li>
+      </ul>
+    </div>
+
+    <div class="kutu sari">
+      <h2>🟨 GİTSE DE OLUR <em>sarı etiket</em></h2>
+      <ul>
+        <li><span class="kod">S1</span>Alanla ilgili ama ikinci veya üçüncü kopya</li>
+        <li><span class="kod">S2</span>Genel başvuru kaynağı (sözlük, ansiklopedi, el kitabı)</li>
+        <li><span class="kod">S3</span>Alanla dolaylı ilgili yabancı dilde kitap</li>
+        <li><span class="kod">S4</span>İlgili ama güncelliğini kısmen yitirmiş</li>
+        <li><span class="kod">S5</span>Sağlam, kullanışlı, ama önceliği düşük</li>
+      </ul>
+      <p style="margin:0;padding:0 9px 8px;font-size:8.2pt;color:#74686e">
+        Sarı = tampon. Yeni binada yer kalırsa gider, kalmazsa gitmez. Kararsız kaldığınızda
+        <b>sarı değil mavi</b> işaretleyin.
+      </p>
+    </div>
+  </div>
+
+  <div class="sut" style="margin-top:9px">
+    <div class="kutu kirmizi">
+      <h2>🟥 GİTMEYECEK <em>kırmızı etiket</em></h2>
+      <ul>
+        <li><span class="kod">K1</span>Alan dışı: ders kitabı, sınav kitabı, popüler kurgu</li>
+        <li><span class="kod">K2</span>Güncelliğini yitirmiş mevzuat, eski yıllık/katalog fazlası</li>
+        <li><span class="kod">K3</span>Üçten fazla mükerrer nüshanın fazlası <em>(3 nüsha kalsın)</em></li>
+        <li><span class="kod">K4</span>Ağır hasarlı <b>ve</b> kolay bulunabilir</li>
+        <li><span class="kod">K5</span>Süreli yayının dağınık tek sayısı (seri değil)</li>
+        <li><span class="kod">K6</span>Tanıtım/promosyon basılı malzeme</li>
+      </ul>
+    </div>
+
+    <div class="kutu mavi">
+      <h2>🟦 BELİRSİZ <em>mavi etiket</em></h2>
+      <ul>
+        <li><span class="kod">M1</span>On saniyede karar veremediğim her kitap</li>
+        <li><span class="kod">M2</span>Değerli olabilir şüphesi var</li>
+        <li><span class="kod">M3</span>Yabancı dilde, içeriğini anlamadım</li>
+        <li><span class="kod">M4</span>Kurallar birbiriyle çelişiyor</li>
+      </ul>
+      <p style="margin:0;padding:0 9px 8px;font-size:8.2pt;color:#74686e">
+        Mavi işaretlemek başarısızlık değil. Uzman masası toplu bakacak — siz durmayın, devam edin.
+      </p>
+    </div>
+  </div>
+
+  <div class="on-saniye">
+    <b>On saniyede karar veremiyorsan MAVİ işaretle ve devam et.</b>
+    <span>Beş dakika düşünmek, uzmanın otuz saniyede vereceği karardan daha iyi sonuç vermez.</span>
+  </div>
+
+  <div class="sat">
+    <div class="uyari">
+      <h3>Durup haber verilecek durumlar</h3>
+      <ul>
+        <li><b>Küf veya böcek</b> → kitabı poşetle, ayrı alana koy, koordinatöre söyle. Bulaşıcıdır.</li>
+        <li>İçinden mektup, fotoğraf, belge, not çıkan kitap</li>
+        <li>Çok eski görünen, kırılgan, dağılan cilt</li>
+        <li>Üzerinde kurum mührü/kaşesi olan başka kuruma ait kitap</li>
+      </ul>
+    </div>
+    <div class="uyari">
+      <h3>Her kayıtta yazılacaklar</h3>
+      <ul>
+        <li><b>Sıra kodu</b> (K1-A03) — bir kez seçilir, ekranda kalır; kitap numarasını
+          sistem verir</li>
+        <li>Yazar (soyadı, adı) · Başlık · Yıl</li>
+        <li>Aynı kitaptan kaç nüsha var</li>
+        <li>Kategori + kural kodu · Durum (sağlam/yıpranmış)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="dip">
+    <span>Bu kart vakıf yönetiminin onayladığı ayıklama politikasına dayanır. Tereddütte: koordinatöre sorun.</span>
+    <span>Sürüm 1 · ____/____/2026</span>
+  </div>
+
+</body>
+</html>

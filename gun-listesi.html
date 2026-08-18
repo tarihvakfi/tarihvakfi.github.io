@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><title>Gün başı · Gün sonu</title>
+<style>
+  @page { size: A4; margin: 12mm; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'DejaVu Sans', Arial, sans-serif; color:#211a1d; font-size:9.5pt; }
+  h1 { font-size:17pt; color:#601040; margin:0 0 1mm; letter-spacing:.2pt; }
+  .ust { font-size:9pt; color:#74686e; margin-bottom:5mm; }
+  .iki { display:grid; grid-template-columns:1fr 1fr; gap:7mm; }
+  .blok { border:1.4pt solid #601040; border-radius:2.5mm; padding:5mm 6mm 4mm; }
+  .blok h2 { margin:0 0 1mm; font-size:13pt; color:#601040; }
+  .blok .sure { font-size:8.5pt; color:#74686e; margin:0 0 3.5mm; }
+  ul { margin:0; padding:0; list-style:none; }
+  li { padding:1.8mm 0 1.8mm 8mm; border-bottom:.5pt solid #ece2e7; position:relative;
+       font-size:10pt; line-height:1.35; }
+  li:last-child { border-bottom:none; }
+  li::before { content:""; position:absolute; left:0; top:2.6mm; width:4.2mm; height:4.2mm;
+               border:1pt solid #a8949e; border-radius:.8mm; }
+  li b { color:#601040; }
+  .alt { margin-top:5mm; display:grid; grid-template-columns:1fr 1fr; gap:7mm; }
+  .kutu { border:1pt solid #d9ccd3; border-radius:2.5mm; padding:4mm 5mm; background:#fdf9fb; }
+  .kutu h3 { margin:0 0 2mm; font-size:10.5pt; color:#601040; }
+  .kutu p { margin:0 0 1.5mm; font-size:9.5pt; line-height:1.4; }
+  .sayilar { margin-top:5mm; border:1pt solid #d9ccd3; border-radius:2.5mm; padding:4mm 5mm; }
+  .sayilar h3 { margin:0 0 2.5mm; font-size:10.5pt; color:#601040; }
+  .satir { display:grid; grid-template-columns:repeat(4,1fr); gap:4mm; }
+  .satir div { font-size:9pt; color:#74686e; }
+  .satir span { display:block; border-bottom:.8pt solid #a8949e; height:8mm; margin-top:1mm; }
+  .dip { margin-top:4mm; font-size:8.5pt; color:#74686e; text-align:center;
+         border-top:.8pt solid #601040; padding-top:2.5mm; }
+  .vurgu { background:#fbf2f7; border-left:2.5pt solid #601040; padding:3mm 4mm; margin-top:3mm;
+           font-size:9.5pt; line-height:1.4; }
+</style></head>
+<body>
+  <h1>Gün başı · Gün sonu</h1>
+  <p class="ust">Tarih Vakfı Kütüphanesi — taşınma ve envanter çalışması · koordinatör listesi</p>
+
+  <div class="iki">
+    <div class="blok">
+      <h2>Gün başı</h2>
+      <p class="sure">ilk 20 dakika</p>
+      <ul>
+        <li>Kural kartları masalarda</li>
+        <li>Yeni gelenlere <b>on saniye kuralı</b> söylendi</li>
+        <li>Herkes formu açtı, ad + şifre girdi</li>
+        <li>Her ekibe <b>bir sıra</b> verildi (iki ekip aynı sırada değil)</li>
+        <li>Ekranda "bu sırada N kitap kayıtlı" göründü</li>
+        <li>Kutu, koli bandı, dört renk etiket dağıtıldı</li>
+        <li>Poşet ve ayrı alan hazır (küflü kitap için)</li>
+        <li>Tabloda <b>Özeti yenile</b> — başlangıç sayısı yazıldı</li>
+      </ul>
+    </div>
+
+    <div class="blok">
+      <h2>Gün sonu</h2>
+      <p class="sure">son 30 dakika — atlanmaz</p>
+      <ul>
+        <li><b>Her telefonda</b> "gönderilmeyi bekliyor" uyarısı kalmadı</li>
+        <li>Açık kutular kapatıldı, numaralandı</li>
+        <li>Kutular sayfasına işlendi (kutu no · kaynak sıra · yer kodu aralığı)</li>
+        <li>Mavi etiketliler belirsiz masasına taşındı</li>
+        <li>Küflü kitap poşetli ve ayrı alanda</li>
+        <li>Tabloda <b>Özeti yenile</b></li>
+        <li>Dört sayı deftere yazıldı (aşağıda)</li>
+        <li><b>Yarım kalan sıralar</b> not edildi</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sayilar">
+    <h3>Gün sonu sayıları</h3>
+    <div class="satir">
+      <div>Kaydedilen kitap<span></span></div>
+      <div>Biten raf metresi<span></span></div>
+      <div>Belirsiz oranı (%)<span></span></div>
+      <div>Onay bekleyen künye<span></span></div>
+    </div>
+    <p style="margin:4mm 0 0;font-size:9pt;color:#74686e">
+      Yarım kalan sıralar: ________________________________________________________________</p>
+  </div>
+
+  <div class="alt">
+    <div class="kutu">
+      <h3>Gün içinde her molada bak</h3>
+      <p><b>Belirsiz oranı %15'i geçti mi?</b> Geçtiyse dur, kuralı netleştir.</p>
+      <p><b>Bir telefonda kuyruk büyüyor mu?</b> O kişiyi bağlantının iyi olduğu yere gönder.</p>
+      <p><b>Ekip başına saatte 60–80 kitap</b> normaldir. Düşükse sebebini sor.</p>
+    </div>
+    <div class="kutu">
+      <h3>Bağlantı zayıfsa</h3>
+      <p>Kayıtlar telefonda birikir, <b>hiçbiri kaybolmaz</b>. Üstteki rozet "çevrimdışı" der.</p>
+      <p>Yarım çalışan wifi, hiç bağlantı olmamasından kötüdür — <b>wifi'yi kapatıp mobil
+        veriyle</b> çalışmak çoğu zaman daha iyidir.</p>
+      <p>Bekleyen kaydı olan gönüllü <b>tarayıcı verilerini temizlemesin</b>.</p>
+    </div>
+  </div>
+
+  <div class="vurgu">
+    <b>Gönüllüye söylenecek tek cümle:</b> On saniyede karar veremiyorsan <b>Belirsiz</b>
+    işaretle ve devam et. Belirsiz olmak başarısızlık değil, sistemin çalışması demektir.
+  </div>
+
+  <p class="dip">Ayrıntılar: Çalışma Günü Kılavuzu · Kural Kartı · KURULUM.md</p>
+</body></html>

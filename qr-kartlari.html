@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><title>QR kartları</title>
+<style>
+  @page { size: A4; margin: 11mm; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'DejaVu Sans', Arial, sans-serif; color:#211a1d; }
+  h1 { font-size:15pt; color:#601040; margin:0 0 1mm; }
+  .bas { font-size:9pt; color:#74686e; margin:0 0 5mm; }
+  .izgara { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4.5mm; }
+  .kart { border:1.6pt solid #601040; border-radius:3mm; overflow:hidden;
+           page-break-inside:avoid; display:flex; flex-direction:column; }
+  .ust { color:#fff; padding:2.8mm 5mm; }
+  .ust .ad { font-size:11.5pt; font-weight:700; letter-spacing:.2pt; }
+  .ust .kim { font-size:8pt; opacity:.9; margin-top:.6mm; }
+  .orta { text-align:center; padding:3mm 4mm 1.5mm; }
+  .orta img { width:38mm; height:38mm; display:block; margin:0 auto; }
+  .adres { font-family:'DejaVu Sans Mono', monospace; font-size:7pt; color:#74686e;
+            margin-top:2mm; word-break:break-all; }
+  .not { padding:0 4mm 3mm; font-size:8pt; color:#4a4045; line-height:1.35; }
+  .dip { margin-top:5mm; border-top:.8pt solid #601040; padding-top:2.5mm;
+          font-size:8.5pt; color:#74686e; }
+  .dip b { color:#601040; }
+</style></head>
+<body>
+  <h1>Kamerayı QR'a tutun</h1>
+  <p class="bas">Tarih Vakfı Kütüphanesi — taşınma ve envanter çalışması ·
+     adres yazmaya gerek yok</p>
+  <div class="izgara">
+  <div class="kart" style="border-color:#601040">
+    <div class="ust" style="background:#601040">
+      <div class="ad">Kitap kaydı</div>
+      <div class="kim">Rafta çalışan gönüllü</div>
+    </div>
+    <div class="orta">
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAaQAAAGkAQAAAABWN2yYAAACr0lEQVR4nO2cUY7kIAxEy6v8ww3m/sfqG8AJaj8wBrpnNNoVkYJU+UBpmqfIUskYGzDi35/65z8gQJSon6lq8QCwDFQDvDUzVGud07AT7BJ1GsX2FO+y3NtqrZMvW4edYZeow6jqzrD5QJKuwEQk2lefumPYKXaJOpeqhmpNgW1G5suah9z/LVGi/Lk+uyyxeT0mNk3anm+JEvXTcwFAmhbNqYwWsERU87/HsOfbJeos6gIwuztWY829zWwirJnLsOfbJeos6lqcIWDNB37+XIY93y5RZ1FgQWRsSC5tIpLnc+YxLM+3S9RZ1JQVbKoL+ZExwNXYXaJ0KGo35f4wnN6c0A75hVb9p3QoajPVZ+GCcIAAYjoe79EjHYraT/U4sL+HewzfGPJrreJDUTdQHh9iFaTXU7q3bM4wpmzpUNRu6iMmxLwewTIjQ/GhqJuoq5XtCESm2t+9sEKrnsDmaJ9vl6izqL5CefOBGGmc8IoYAeTz7RJ1FjUyNpGfccmVERxiKqlIh6JuoLAskAuAkcAJKSo+FHUzhfCBUVWJmXr4Q9X1RN1LTbFfmTQZi+hZlqUHjdKhqM3UEge+Z2nIeRUzJCoditpMXYBvL4z9rpboPX3TFwGkYoAfGTjALlFnUSNZvWyziem4jZkP9GleFrWfes8fAtOqOcVE3P+i6sui7qC6tOadXVh313DOYAOqL4vaTw1fB3yka9bKsvYfirqNutALx6gZcTAKYDVUYxwaTcQ4KvV8u0QdSI2LGmBftDxCxPbOAjOzDCTypfttRG2nvjlHz3Z2vmdv/Fh9KqjZr2A6wC5RZ1Hf6NDXzrHdq59ojh1iJ9gl6ixqlPNGAietGZs0in1QfVnULdR6n0PN6PtgEYfo2yVgvbZiqZxgl6izKOPvYz4e3QcrajP1F7Gley+hObk0AAAAAElFTkSuQmCC" alt="QR">
+      <div class="adres">tarihvakfi.github.io/kitap-envanteri.html</div>
+    </div>
+    <div class="not">Çalışma şifresiyle girilir. Açılınca “Ana Ekrana Ekle” deyin; uygulama gibi açılır, çevrimdışı da çalışır.</div>
+  </div>
+  <div class="kart" style="border-color:#2e6440">
+    <div class="ust" style="background:#2e6440">
+      <div class="ad">Künye onayı</div>
+      <div class="kim">Masa başındaki koordinatör</div>
+    </div>
+    <div class="orta">
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAaQAAAGkAQAAAABWN2yYAAACpElEQVR4nO2cXW7cMAyEh8W+SzfI/Y+VG0gnYB/0Q9JI0aSVWxMZIdj12vqwIUBQ4pArUXx99B9/AAGkSP1yaHPXqtqgqgBQ1P+Fae35dpHKRb0AzJDY63iX0saFdtEuO2C6ac+3i1RCqouIjM/yptqAsryvqIigS5yWxC5SaajX5bMCAqCLTt+r2JHwb7+LFKnPUlKBsWksqg1SoaozHp7+LlKkAlV05iZddj4yl+Ci6DKX6T0ti12kUlEyRgVgrjhf3+fOME7LYRepPBQ0DgCm0lgAjNOo25A6TGEKhkXt2t0fj2YGXeiHpG6jis61uCjGtnDtBqXCMpR1ISI57CKViYI2y45HPeV6f0XFfZPxkNRp6oUlGFoYBLBLKoAAOmsrVQrzZVK3UWWKNlKnYKjvIX0eGo68rbpzFrtIpaFewNr7lYYuOwDukChFZ1XFnj7fLlK5KMuRbZfYXBNOCeXmNef5dpHKRWErMybRwNzPpy2uB+z5dpHKRa26iYYOQ2AJhs2mOV99vl2kclFLrHYVky3RXJ6alE0/JHWYsgJKGCVUUkxIbAD7sUmdp+y3AKHEvB5hF/iauSL9kNRpyvmY+2WKZSVwN/caTT8kdZhakdAV9XxqHJZjrsuk7qKw5cHghL4PJ4qKXJdJ3UC5Rq/YangVD4OLPt8uUrkorwpaI+I1U25rMvVDUrdQl0brkCNbqtJiOkM/JHWY+vg8h7gbhN8fMh6SuoGK5zn0itGOuIaMdkSsneF/+A9JfQcqJsJuLbY02ZeeuS6TuoWK5zn0OnoRFZDRbTjbsxW96njKPlhS56lrPNybQJtRlHkKqX9BFSsrz3OW4DScdciS64lNYhepNFTMl9t83eqN1VNU3cfn20UqFyUfdX39bvA8WFKHqZ+pg6tCkNioEwAAAABJRU5ErkJggg==" alt="QR">
+      <div class="adres">tarihvakfi.github.io/kunye-onay.html</div>
+    </div>
+    <div class="not">Koordinatör şifresi ister. Fotoğraflı kayıtların künyesi burada tamamlanır.</div>
+  </div>
+  <div class="kart" style="border-color:#2a5b86">
+    <div class="ust" style="background:#2a5b86">
+      <div class="ad">Envanter kataloğu</div>
+      <div class="kim">Koordinatör</div>
+    </div>
+    <div class="orta">
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAaQAAAGkAQAAAABWN2yYAAACmElEQVR4nO2c0Yr0IAyFT5a5t2+w7/92+gT5LxI1dmbh38WCgeNFaTt+DIFwYtKoKH4/2tcfIIAUqR+H1nCviqJ+rUDpTmqPEznfLlK5qBcA97Z2AdAmAGBXQNul7dImukw73y5SCakmIu5+8q1AF8AmKCpXnzumZbGLVBrqdXtW10AXQOnXHf9FitR/UxaRi8q3oomqyhUWinv/ixQpHy/g7mYCoF1ookXRtXGddr5dpPJRYuPyV5Ya+/rQRpN1Wg67SOWhXncxLCpF7QYAivqbZdr5dpHKRUHrLCGqBmcrXkuc8tjnsH5IajcFrVCdtWtzPHvjHriWtbWyjk1qO4WoeOaB/kllvBnOacpZqIektlP4rIHDJzE/6nloph+S2k+5AI77KYA6wzTQiza+YjzfLlK5qL44XG/8t7Es7EvHvkQ83y5SuahFDzHqMyNT7k4IxHTmfLtI5aKCH3b1m+lJDXNGfZtxmdR+aklJbmvFKIbRV+mHpHZTMwsO5UEsBcMgmH3C+XaRykUttcFZsrYRerNnaOb6kNR+CrP/v3tdVL95M+I19ZDUfmr9YhLzkSCP0Veph6QeoD40OdxqhosTUg9JPUKtiUl4RC8YjrIhuD4k9RQV/FBj5A2l7BCjQT0k9Qjl+6R8M1Sp1oHt11KlqO0nFQC2QaBoBrtI5aKW4Puxy2vG6DpSmPPtIpWLup/nsJRx4qc99h+SepBau7zqXBbGPm3c22XPt4tULgoh2r5lyvWuiuz7IvUM9eaH7xXF2I3jyPl2kcpF3c8VQc+R/VAR20ffLrWzbmCnLZ1vF6lc1HqeQ1GrzwBAu9QqNkVtF/PcVp/ALlK5qDVfjknxbZPUaIFgvkxqP9XPrvnV4HmwpDZT/wDyGMHpHP0oogAAAABJRU5ErkJggg==" alt="QR">
+      <div class="adres">tarihvakfi.github.io/envanter-katalog.html</div>
+    </div>
+    <div class="not">Kaydedilen kitapları fotoğraflarıyla gösterir. Arama, süzgeç, CSV.</div>
+  </div>
+  <div class="kart" style="border-color:#0d6b3e">
+    <div class="ust" style="background:#0d6b3e">
+      <div class="ad">Durum panosu</div>
+      <div class="kim">Koordinatör</div>
+    </div>
+    <div class="orta">
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAaQAAAGkAQAAAABWN2yYAAACnUlEQVR4nO2cXW4cIRCEq6N5hxvk/sfyDeAElYcGGsbOQyImGeRCqxXj5ZO3pVbRP7BG/PmoP/4CAkSJ+u1gWeYkASCRBUhsC/wxlr3fLlHnUfRRAMByd0WAH0bSvXFddoZdos6hwNIkcRFDd79EV0J3v1gmPRS1mbqWp5oJoBprZrU2BwxYw8j32yXqZCpxfrccGrj/f4kSFeMCMCJAuPTV7HNWA2CJi3/+628o6rtQ5iMD1UIAq/mEH+bzWHaIXaLOoa5ZDH1Yz1Bs3ab/0zcU9R2oni+nyJTn7PiWNfeK4vvtEnUW1aqCPokqzVRRHH44ytryQ1G7qe6Hc51w6GGavNGH9FDUI1To4VK+Ruvltddc1iblh6J2U5/iwwJMLbxldwbkh6KeoS4Almi9e4JE80+8t4LmgQYgFVRDKifYJeosqvWUIyAsU8d5yp3nHrT0UNRuajneAERAGKWbyVd9Lj8UtZta9HCkJLczh8sa+aGo/VTo4X0XTqGBwO2P77dL1FkUbuHfUjNMjB15OZv9frtEnUV9UR6M7t5U3x4rtS+LeoDqWjftwiGGc1dlav/JD0Xtpi4A7C/r7zG8eJhKqx/C64rvt0vUWVT0lwF8VsX4CMpTRD1LWQawHG8YDulXA6LxB5+cYZeoc6hIlufH4Y2fC9qKD0U9QE2nDcn7XjwfvCHDOeWHojZTdzGco8GRIGNupkgPRT1DLWJYIj70jzx6bImz+Z2pM+wSdQ51AUDN8JvyiePKvCV6uaY9AgBYsylPEbWfuv+ew5iy319GzV45tFQsEdVUPxT1NNXCRb+wnHvBsF9h9oOyJ9ol6gCqn2dAov2kWbs1f7+5XI2k4kNRD1BfFA+BOBkbRyB0DlbUg5Tp92BFvYD6BU7YtyxFA78eAAAAAElFTkSuQmCC" alt="QR">
+      <div class="adres">tarihvakfi.github.io/envanter-durum.html</div>
+    </div>
+    <div class="not">Kaç kayıt, kaç onay, karar dağılımı, günlük ilerleme, sıra sıra durum.</div>
+  </div>
+  <div class="kart" style="border-color:#a06a12">
+    <div class="ust" style="background:#a06a12">
+      <div class="ad">Deneme sayfası</div>
+      <div class="kim">Yeni gönüllüye öğretmek için</div>
+    </div>
+    <div class="orta">
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAaQAAAGkAQAAAABWN2yYAAACoElEQVR4nO2cTW4sIQyEy9Hs4Qa5/7HeDeAEzoIfm+5kkYSOsF6xaPX08GnGUsnYxo0ovj/q2w8ggBSpr6kqcwBAFdRxA4gIqkjGOi2CXaSiUdpG6Y8kj2uV9lD/yTothl2kglHVOcM2mgKTIqm863zYp0Wxi1QY6nV/pOgKRM1IRac4f/tbpEh9NT7RoaSCmgFoUlRB0psQz7eLVCzqBQDJkmZp/nBcJSmq9K9t2vl2kYpH9TQ4A4AWWL5cpWUoM3ce02LYRSoO9fLOEIAAcvnYYsVl2vl2kYpFQQtmxcYXcFS7/NqEZU453y5SsSh04Q2PN+9VdU5oapwTqENSuylocW4wLQXtKb8pxf6ROiS1meoinA7QL8d9NAVOfVKHpPZTLvAr3TdaTKhqkWHLU7rDPN8uUrEo5wDV5cUzXNQhvyFRgPEhqe2ULbhLJqIzJYFfsoe3PN8uUrGoqz/0RRsT5JAlWLch9Qg1kmWXL2Ot3lzjQ9ZtSO2nbDnuqlOT3wwOLWhk/ZDUIxR8ArL4wzVQ9FVu6pDUbmqpH1429cwfwppt6A9JPUBZ9gHAajUzMnTbKH0C/SGp/ZTVsS8FQ4ySDveXST1PvQBozQrI6HdV1w0rTXuAJJUqWrMkjWAXqZCU5O4JWzcsYN2w7d2o5g/Ht2HsIhWEsn4bfLqLl9wWszUonm8XqViUq2P7aNCVr21Tr8x6zvl2kYpFuTwF121l3/1lXdnMl0ntp5Y+WO8Dl3rO2g5BHZJ6hLKDGrD4QFXJ3Q32N/V6qhLELlJhKLioz26Aa8/hukafbxepWNTtPIdUpF3HcSJaRWvWcbCD/vU/JPU/UGt8eK/elFvzA+s2pPZTa75cXJq8Lsf2binzZVL7qXF2zbcGz4MltZn6ACZBsPZSXdRQAAAAAElFTkSuQmCC" alt="QR">
+      <div class="adres">tarihvakfi.github.io/envanter-deneme.html</div>
+    </div>
+    <div class="not">Kayıtlar yalnızca telefonda kalır, gerçek tabloya hiçbir şey gitmez. Şifre: deneme</div>
+  </div></div>
+  <p class="dip"><b>İlk açılışta:</b> sayfa açılınca üstteki “Kur” şeridine dokunun
+     (iPhone'da <b>Paylaş → Ana Ekrana Ekle</b>). Kitap kaydı ekranı bundan sonra
+     telefonda uygulama gibi durur; QR'a bir daha ihtiyaç olmaz ve internet
+     kesikken de açılır.</p>
+</body></html>

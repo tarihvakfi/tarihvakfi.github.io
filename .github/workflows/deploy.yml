@@ -1,5 +1,4 @@
 name: Deploy to GitHub Pages
-
 on:
   push:
     branches:
@@ -7,31 +6,24 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 * * * *"
-
 permissions:
   contents: read
   pages: write
   id-token: write
-
 concurrency:
   group: pages
   cancel-in-progress: true
-
 jobs:
   deploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Refresh public snapshot
         run: node tools/refresh_public_snapshot.mjs
-
       - name: Check required files
         run: |
           test -f index.html
@@ -39,12 +31,35 @@ jobs:
           if [ ! -f js/snapshot.js ]; then
             echo "Warning: js/snapshot.js not found. The site must use the live Apps Script endpoint."
           fi
-
       - name: Build Pages artifact
         run: |
           rm -rf _site
           mkdir -p _site
-          cp index.html 404.html gonullu-planlamasi.html yaz-planlamasi.html yonetim.html katilim.html kitap-envanteri.html kunye-onay.html envanter-manifest.json sw.js _site/
+
+          # Olmazsa olmazlar: eksikse yayın durmalı
+          cp index.html 404.html _site/
+
+          # Sayfalar: depoda olmayan atlanır, günlüğe yazılır.
+          # (Düz "cp a.html b.html" kullanılırsa eksik tek dosya bütün yayını çökertir.)
+          for f in \
+            gonullu-planlamasi.html \
+            yaz-planlamasi.html \
+            yonetim.html \
+            katilim.html \
+            kitap-envanteri.html \
+            kunye-onay.html \
+            envanter-katalog.html \
+            envanter-durum.html \
+            envanter-deneme.html \
+            kunye-onay-deneme.html \
+            envanter-katalog-deneme.html \
+            envanter-durum-deneme.html \
+            envanter-manifest.json \
+            sw.js \
+          ; do
+            if [ -f "$f" ]; then cp "$f" _site/; else echo "ATLANDI (depoda yok): $f"; fi
+          done
+
           cp -R assets css js kronoloji _site/
           rm -rf _site/kronoloji/apps-script
           rm -f _site/kronoloji/data.html _site/kronoloji/methodology.html
@@ -60,14 +75,14 @@ jobs:
           test ! -e _site/kronoloji/data.html
           test ! -e _site/kronoloji/methodology.html
 
+          echo "── yayına giden sayfalar ──"
+          ls _site/*.html
       - name: Setup Pages
         uses: actions/configure-pages@v5
-
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: "_site"
-
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

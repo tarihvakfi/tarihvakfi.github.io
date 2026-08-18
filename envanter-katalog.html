@@ -97,8 +97,8 @@
     <div class="msg" id="msgGiris"></div>
     <label for="ad">Adınız</label>
     <input type="text" id="ad" placeholder="Ad Soyad" autocomplete="name">
-    <label for="sifre">Çalışma şifresi</label>
-    <input type="text" id="sifre" placeholder="Koordinatörden alın" autocapitalize="none" autocorrect="off">
+    <label for="sifre">Koordinatör şifresi</label>
+    <input type="text" id="sifre" placeholder="Gönüllülerinkinden farklı" autocapitalize="none" autocorrect="off">
     <button class="btn genis" id="btnGiris">Aç</button>
   </section>
 
@@ -196,7 +196,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       return yukle(true);
     }).then(function () {
       localStorage.setItem('tv_env_ad', ad);
-      localStorage.setItem('tv_env_sifre', sifre);
+      localStorage.setItem('tv_env_koord_sifre', sifre);
       gizle($('msgGiris'));
       $('adim-giris').classList.add('gizli');
       $('adim-liste').classList.remove('gizli');
@@ -208,7 +208,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   $('sifre').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('btnGiris').click(); });
 
   $('btnCikis').addEventListener('click', function () {
-    localStorage.removeItem('tv_env_sifre');
+    localStorage.removeItem('tv_env_koord_sifre');
     location.reload();
   });
 
@@ -346,7 +346,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   });
 
   /* ───────── açılış ───────── */
-  var ad = localStorage.getItem('tv_env_ad'), sifre = localStorage.getItem('tv_env_sifre');
+  var ad = localStorage.getItem('tv_env_ad'), sifre = localStorage.getItem('tv_env_koord_sifre');
   if (ad) $('ad').value = ad;
   if (sifre) $('sifre').value = sifre;
 })();

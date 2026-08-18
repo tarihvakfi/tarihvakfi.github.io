@@ -107,8 +107,8 @@
     <div class="msg" id="msgGiris"></div>
     <label for="ad">Adınız</label>
     <input type="text" id="ad" placeholder="Ad Soyad" autocomplete="name">
-    <label for="sifre">Çalışma şifresi</label>
-    <input type="text" id="sifre" placeholder="Koordinatörden alın" autocapitalize="none" autocorrect="off">
+    <label for="sifre">Koordinatör şifresi</label>
+    <input type="text" id="sifre" placeholder="Gönüllülerinkinden farklı" autocapitalize="none" autocorrect="off">
     <button class="btn genis" id="btnGiris">Başla</button>
   </section>
 
@@ -193,6 +193,8 @@
   window.TV_ENVANTER_URL = 'https://deneme.yerel/exec';
   var DEPO = 'tv_demo_veri';
   var SIFRE = 'deneme';
+  var KOORD_SIFRE = 'koordinator';
+  var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayla', 'katalog', 'durum'];
   var agKapali = false;
 
   var KATEGORILER = {
@@ -249,7 +251,12 @@
         kurallar: KURALLAR.map(function (k) { return { kod:k[0], kategori:k[1], aciklama:k[2] }; }),
         mekanlar: MEKANLAR, rafHarfleri: RAF_HARFLERI, siraSayisi: SIRA_SAYISI };
     }
-    if (String(g.sifre || '') !== SIFRE) {
+    if (KOORDINATOR_EYLEMLERI.indexOf(g.action) >= 0) {
+      if (String(g.sifre || '') !== KOORD_SIFRE) {
+        return { ok:false, sifreHatasi:true,
+          error:'Bu ekran koordinatör şifresi ister. (Denemede: koordinator)' };
+      }
+    } else if (String(g.sifre || '') !== SIFRE) {
       return { ok:false, error:'Çalışma şifresi hatalı. (Denemede şifre: deneme)', sifreHatasi:true };
     }
     if (g.action === 'sayac') {
@@ -346,6 +353,65 @@
       var bek = v.kayitlar.filter(function (k) { return (k.foto || k.kapak) && !k.onay; });
       return { ok:true, kayitlar: bek.slice(0, Number(g.adet) || 25), kalan: bek.length };
     }
+    if (g.action === 'durum') {
+      var bugun = new Date().toISOString().slice(0, 10);
+      var d2 = { ok:true, toplam:0, onayli:0, onayBekleyen:0, kunyeEksik:0, tamam:0,
+        fotoli:0, kapakli:0, kategori:{}, fiziksel:{}, ocr:{}, gunluk:[], kisiler:[],
+        siralar:[], hedef:0, hesaplandi:'deneme' };
+      var kis = {}, sir = {}, gun2 = {};
+      v.kayitlar.forEach(function (k) {
+        d2.toplam++;
+        if (k.foto) d2.fotoli++;
+        if (k.kapak) d2.kapakli++;
+        if (k.onay) d2.onayli++;
+        else if (k.foto || k.kapak) d2.onayBekleyen++;
+        else if (/künye fotoğraftan/i.test(k.baslik || '')) d2.kunyeEksik++;
+        else d2.tamam++;
+        d2.kategori[k.kategori] = (d2.kategori[k.kategori] || 0) + 1;
+        d2.fiziksel[k.durum] = (d2.fiziksel[k.durum] || 0) + 1;
+        if (k.foto || k.kapak) { var o = k.ocrDurum || 'yok'; d2.ocr[o] = (d2.ocr[o] || 0) + 1; }
+        var g3 = String(k.tarih || '').slice(0, 10);
+        if (g3) gun2[g3] = (gun2[g3] || 0) + 1;
+        var ad2 = k.kaydeden || '—';
+        if (!kis[ad2]) kis[ad2] = { ad: ad2, bugun: 0, toplam: 0 };
+        kis[ad2].toplam++;
+        if (g3 === bugun) kis[ad2].bugun++;
+        if (k.anahtar) {
+          if (!sir[k.anahtar]) sir[k.anahtar] = { sira: k.anahtar, sayi: 0, sonNo: 0, son: g3 };
+          sir[k.anahtar].sayi++;
+          sir[k.anahtar].sonNo = Math.max(sir[k.anahtar].sonNo, Number(k.siraNo) || 0);
+        }
+      });
+      for (var j = 13; j >= 0; j--) {
+        var g4 = new Date(new Date().getTime() - j * 86400000).toISOString().slice(0, 10);
+        d2.gunluk.push({ gun: g4, sayi: gun2[g4] || 0 });
+      }
+      d2.kisiler = Object.keys(kis).map(function (a3) { return kis[a3]; });
+      d2.siralar = Object.keys(sir).map(function (a3) { return sir[a3]; });
+      return d2;
+    }
+
+    if (g.action === 'katalog') {
+      var yalniz = g.yalnizOnayli !== false;
+      var ara = String(g.ara || '').trim().toLowerCase();
+      var liste = v.kayitlar.filter(function (k) {
+        if (yalniz && !k.onay) return false;
+        if (g.kategori && k.kategori !== g.kategori) return false;
+        if (ara) {
+          var havuz = [k.baslik, k.yazar, k.yer, k.not, k.kutu].join(' ').toLowerCase();
+          if (havuz.indexOf(ara) < 0) return false;
+        }
+        return true;
+      }).slice();
+      liste.sort(function (a, b) {
+        return String(g.sirala) === 'yer'
+          ? String(a.yer).localeCompare(String(b.yer)) : Number(b.no) - Number(a.no);
+      });
+      var bas = Math.max(0, Number(g.bas) || 0);
+      var adet = Math.min(Math.max(Number(g.adet) || 60, 1), 300);
+      return { ok: true, toplam: liste.length, bas: bas, kayitlar: liste.slice(bas, bas + adet) };
+    }
+
     if (g.action === 'onayla') {
       for (i = 0; i < v.kayitlar.length; i++) if (v.kayitlar[i].no === Number(g.no)) {
         var y = g.kayit || {};
@@ -381,7 +447,8 @@
     s.id = 'demoSerit';
     s.innerHTML =
       '<div class="demo-ust"><b>DENEME MODU</b> — kayıtlar yalnızca bu telefonda, ' +
-      'Google\'a hiçbir şey gitmiyor. Şifre: <b>deneme</b></div>' +
+      'Google\'a hiçbir şey gitmiyor. Şifreler: gönüllü <b>deneme</b>, koordinatör ' +
+      '<b>koordinator</b></div>' +
       '<div class="demo-dugmeler">' +
         '<button type="button" id="demoAg">İnterneti kes</button>' +
         '<button type="button" id="demoSil">Deneme kayıtlarını sil</button>' +
@@ -474,7 +541,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     mesgul($('btnGiris'), true, 'Kontrol ediliyor…');
     listeGetir().then(function () {
       localStorage.setItem('tv_env_ad', ad);
-      localStorage.setItem('tv_env_sifre', sifre);
+      localStorage.setItem('tv_env_koord_sifre', sifre);
       gizle($('msgGiris'));
       $('adim-giris').classList.add('gizli');
       $('adim-onay').classList.remove('gizli');
@@ -633,7 +700,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   });
 
   /* ───────── açılış ───────── */
-  var ad = localStorage.getItem('tv_env_ad'), sifre = localStorage.getItem('tv_env_sifre');
+  var ad = localStorage.getItem('tv_env_ad'), sifre = localStorage.getItem('tv_env_koord_sifre');
   if (ad) $('ad').value = ad;
   if (sifre) $('sifre').value = sifre;
 })();
