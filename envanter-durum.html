@@ -217,7 +217,16 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     }).catch(function () { bitir(); throw new Error('AĞ'); })
       .then(function (r) { bitir(); return r.text(); })
       .then(function (m) {
-        var d; try { d = JSON.parse(m); } catch (h) { throw new Error('Sunucudan beklenmeyen yanıt.'); }
+        var d;
+        try { d = JSON.parse(m); } catch (h) {
+          /* JSON yerine HTML geldiyse istek sunucuya ulaşıyor ama Apps Script yanıt
+             vermiyor demektir. En sık sebebi dağıtımın erişim ayarıdır: yeni
+             dağıtımlarda varsayılan "Yalnızca kendim"dir ve Google giriş sayfası döner. */
+          throw new Error(/^\s*</.test(m)
+            ? 'Sunucu JSON yerine web sayfası döndürdü. Apps Script dağıtımında ' +
+              '“Erişimi olan: Herkes” seçili mi? (Yeni dağıtımlarda varsayılan “Yalnızca kendim”dir.)'
+            : 'Sunucudan beklenmeyen yanıt.');
+        }
         if (!d.ok) throw new Error(d.error || 'Hata');
         return d;
       });
