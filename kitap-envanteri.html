@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
 <title>Kitap Envanteri · Tarih Vakfı</title>
-<link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
+<link rel="icon" type="image/png" href="./assets/envanter-192.png" />
 <link rel="manifest" href="./envanter-manifest.json" />
 <meta name="theme-color" content="#601040" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -202,6 +202,8 @@
       <span id="kuyrukMetin"></span>
       <button id="btnKuyruk">Tekrar dene</button>
     </div>
+    <div class="msg hata gizli" id="sorunlu" style="margin:0 0 14px"></div>
+    <div class="msg uyari gizli" id="duzeltilen" style="margin:0 0 14px"></div>
     <div class="msg" id="msgKayit"></div>
 
     <div class="kart">
@@ -358,6 +360,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
   /* ───────── fotoğraf ───────── */
   var FOTO_KUYRUK = 'tv_env_foto_kuyruk';
+  var SORUNLU = 'tv_env_sorunlu';        // sunucunun kalıcı olarak reddettiği kayıtlar
+  var DUZELTILEN = 'tv_env_duzeltilen';  // sunucunun yer kodunu değiştirdiği kayıtlar
 
   function fotoAnahtari() {
     return 'f' + new Date().getTime() + '-' + Math.random().toString(36).slice(2, 8);
@@ -779,6 +783,13 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     }
   }
 
+  /** Sunucu kategoriyi okunur adla döner ('Gidecek'); düğmeler kodla çalışır. */
+  function kategoriKodu(ad) {
+    var kler = (D.cfg && D.cfg.kategoriler) || {};
+    for (var kod in kler) if (kler[kod].ad === ad) return kod;
+    return '';
+  }
+
   function kategoriSec(kat) {
     D.kategori = kat;
     Array.prototype.forEach.call($('katlar').querySelectorAll('.kat'), function (b) {
@@ -814,6 +825,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       return;
     }
     var kayit = {
+      istemciId: yeniKimlik(),
       mekan: D.mekan, raf: D.raf, sira: D.sira,
       yazar: $('yazar').value.trim(), baslik: baslik,
       yil: $('yil').value.trim(), nusha: $('nusha').value.trim() || 1,
@@ -827,10 +839,11 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var benimNo = D.sonraki;                      // telefonun verdiği sıra numarası
     var benimKod = yerKodu(D.anahtar, benimNo);
     mesgul(dugme, true, 'Kaydediliyor…');
+    cipleriKilitle(true);            // yan taraftaki kurala da basılıp iki kayıt açılmasın
 
     var istek = duzenleme
       ? api('guncelle', { no: duzenleme, kayit: kayit })
-      : api('ekle', { kayit: kayit, siraNo: benimNo });
+      : api('ekle', { kayit: kayit, siraNo: benimNo, istemciId: kayit.istemciId });
 
     istek.then(function (r) {
       var no = duzenleme || r.no;
@@ -864,6 +877,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     })['catch'](function (e) {
       if (e.message === 'AĞ' && !duzenleme) {
         kayit.siraNo = benimNo;
+        kayit.yerKodu = benimKod;
         kuyrugaEkle(kayit, foto, kapak);
         D.sonraki++;
         siraDepoYaz(D.anahtar, D.sonraki);
@@ -876,7 +890,22 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       } else {
         goster($('msgKayit'), 'hata', e.message === 'AĞ' ? 'Sunucuya ulaşılamadı.' : e.message);
       }
-    }).then(function () { mesgul(dugme, false); });
+    }).then(function () { mesgul(dugme, false); cipleriKilitle(false); });
+  }
+
+  /** Kaydederken bütün kural düğmelerini kapat: ikinci dokunuş ikinci kayıt açıyordu. */
+  function cipleriKilitle(kapali) {
+    Array.prototype.forEach.call($('kurallarListe').querySelectorAll('.cip'), function (b) {
+      b.disabled = kapali;
+      b.style.opacity = kapali ? '.5' : '';
+    });
+  }
+
+  /** Kayda özel kimlik: aynı kayıt ikinci kez giderse sunucu tekrarı tanır. */
+  function yeniKimlik() {
+    return 'k' + Date.now().toString(36) + '-' +
+      Math.random().toString(36).slice(2, 8) + '-' +
+      (D.ad || '').replace(/\W/g, '').slice(0, 6).toLowerCase();
   }
 
   function formTemizle() {
@@ -899,6 +928,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     api('sonKayitlar', { kaydeden: D.ad }).then(function (r) {
       var sinif = { 'Gidecek': 'gidecek', 'Gitse de olur': 'belki',
                     'Gitmeyecek': 'gitmeyecek', 'Belirsiz': 'belirsiz' };
+      D.sonKayitlar = {};
+      r.kayitlar.forEach(function (k) { D.sonKayitlar[k.no] = k; });
       $('sonListe').innerHTML = r.kayitlar.length ? r.kayitlar.map(function (k) {
         return '<div class="kayit ' + (sinif[k.kategori] || '') + '" data-no="' + k.no + '">' +
           '<div class="bas">' + esc(k.baslik) + '</div>' +
@@ -917,12 +948,25 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var no = Number(kart.dataset.no);
 
     if (e.target.classList.contains('duzelt')) {
-      var alt = kart.querySelector('.alt').textContent;
-      $('baslik').value = kart.querySelector('.bas').textContent;
+      // Kaydın TAMAMINI forma getir. Yalnız başlığı doldurmak, kaydetme anında
+      // yazar/yıl/nüsha/durum/notu sessizce siliyordu.
+      var k = D.sonKayitlar[no] || {};
+      $('baslik').value = k.baslik || kart.querySelector('.bas').textContent;
+      $('yazar').value = k.yazar || '';
+      $('yil').value = k.yil ? String(k.yil) : '';
+      $('nusha').value = k.nusha || 1;
+      $('not').value = k.not || '';
+      durumSec(k.durum || 'Sağlam');
+      D.foto = null; D.kapak = null; fotoGoster();
+      var kod = kategoriKodu(k.kategori);
+      if (kod) kategoriSec(kod); else D.kategori = '';
       D.duzenleNo = no;
       $('duzenleNo').textContent = no;
       $('duzenleUyari').classList.remove('gizli');
-      goster($('msgKayit'), 'uyari', 'Alanları düzeltip yeniden kategori seçin — kayıt güncellenecek.');
+      goster($('msgKayit'), 'uyari', 'Alanları düzeltip yeniden kural seçin — kayıt güncellenecek. ' +
+        '<button type="button" id="btnDuzenleVazgec" style="margin-left:6px;font-size:13px">Vazgeç</button>');
+      var vz = $('btnDuzenleVazgec');
+      if (vz) vz.addEventListener('click', formTemizle);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -990,7 +1034,16 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       : ' Gün sonunda bu uyarı kaybolmalı.';
     $('kuyrukMetin').innerHTML = parca.join(' ve ') + boyut + ' gönderilmeyi bekliyor.' + uyari;
   }
+  var kuyrukMesgul = false;              // iki tur üst üste binip aynı kaydı iki kez göndermesin
+
   function kuyruguGonder() {
+    if (kuyrukMesgul) return Promise.resolve();
+    kuyrukMesgul = true;
+    return kuyrukTuru()['catch'](function () {})
+      .then(function () { kuyrukMesgul = false; });
+  }
+
+  function kuyrukTuru() {
     var k = kuyrukOku();
     if (!k.length) return fotoKuyruguGonder();
     var ilk = k[0];
@@ -998,7 +1051,16 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var fotolar = [[ilk && ilk.f, 'kunye'], [ilk && ilk.kp, 'kapak']]
       .filter(function (c) { return c[0]; });
 
-    return api('ekle', { kayit: kayit, siraNo: kayit.siraNo }).then(function (r) {
+    return api('ekle', { kayit: kayit, siraNo: kayit.siraNo,
+                        istemciId: kayit.istemciId }).then(function (r) {
+      // Aynı sırada başkası da çevrimdışı çalıştıysa sunucu numarayı değiştirmiş
+      // olabilir. Kitabın üstüne yazılan kod artık yanlış — söylemek şart.
+      if (r.duzeltildi && r.yerKodu) {
+        var d = duzeltilenOku();
+        d.push({ eski: kayit.yerKodu || '', yeni: r.yerKodu, baslik: kayit.baslik || '' });
+        try { localStorage.setItem(DUZELTILEN, JSON.stringify(d)); } catch (h) {}
+        duzeltilenGoster();
+      }
       return fotolar.reduce(function (zincir, c) {
         return zincir.then(function () {
           return IDB.oku(c[0]).then(function (foto) {
@@ -1014,11 +1076,75 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         });
       }, Promise.resolve());
     }).then(function () {
-      var kalan = kuyrukOku(); kalan.shift();
-      localStorage.setItem(KUYRUK, JSON.stringify(kalan));
-      kuyrukGoster();
-      return kuyruguGonder();               // sıradakini gönder
-    })['catch'](function () { /* hâlâ ağ yok; sonra dener */ });
+      kuyruktanCikar();
+      return kuyrukTuru();                  // sıradakini gönder
+    })['catch'](function (e) {
+      // Ağ yoksa kuyruk beklesin. Ama sunucu bu kaydı KALICI olarak reddettiyse
+      // (eksik başlık, değişmiş şifre, kaldırılmış raf) baştan çıkarılmalı;
+      // yoksa arkasındaki bütün kayıtları sonsuza kadar tıkıyordu.
+      if (e && e.message === 'AĞ') return;
+      var kalan = kuyrukOku();
+      var basi = kalan[0];
+      if (basi) {
+        var sr = sorunluOku();
+        sr.push({ k: (basi.k || basi), hata: (e && e.message) || 'bilinmeyen hata' });
+        try { localStorage.setItem(SORUNLU, JSON.stringify(sr)); } catch (h) {}
+      }
+      kuyruktanCikar();
+      sorunluGoster();
+      return kuyrukTuru();                  // arkadakiler akmaya devam etsin
+    });
+  }
+
+  function kuyruktanCikar() {
+    var kalan = kuyrukOku(); kalan.shift();
+    try { localStorage.setItem(KUYRUK, JSON.stringify(kalan)); } catch (h) {}
+    kuyrukGoster();
+  }
+
+  function sorunluOku() {
+    try { return JSON.parse(localStorage.getItem(SORUNLU) || '[]'); } catch (h) { return []; }
+  }
+
+  function duzeltilenOku() {
+    try { return JSON.parse(localStorage.getItem(DUZELTILEN) || '[]'); } catch (h) { return []; }
+  }
+
+  function duzeltilenGoster() {
+    var d = duzeltilenOku();
+    $('duzeltilen').classList.toggle('gizli', !d.length);
+    $('duzeltilen').classList.toggle('gor', !!d.length);
+    if (!d.length) return;
+    $('duzeltilen').innerHTML = '<b>' + d.length + ' kitabın yer kodu değişti</b> — ' +
+      'aynı sırada başka bir gönüllü de çalışmış. Kitapların üstündeki/kutudaki kodu düzeltin:<br>' +
+      d.map(function (x) {
+        return esc(x.eski || '?') + ' → <b>' + esc(x.yeni) + '</b>' +
+               (x.baslik ? ' · ' + esc(x.baslik) : '');
+      }).join('<br>') +
+      '<br><button type="button" id="btnDuzeltilenTamam" style="margin-top:8px">Düzelttim</button>';
+    var b = $('btnDuzeltilenTamam');
+    if (b) b.addEventListener('click', function () {
+      localStorage.removeItem(DUZELTILEN); duzeltilenGoster();
+    });
+  }
+
+  function sorunluGoster() {
+    var sr = sorunluOku();
+    $('sorunlu').classList.toggle('gizli', !sr.length);
+    $('sorunlu').classList.toggle('gor', !!sr.length);
+    if (!sr.length) return;
+    $('sorunlu').innerHTML = '<b>' + sr.length + ' kayıt sunucuya girmedi.</b> ' +
+      'Sebep: ' + esc(sr[0].hata) + '<br>' +
+      sr.map(function (x, i) {
+        return (i + 1) + '. ' + esc(x.k.baslik || '(başlıksız)') +
+               (x.k.yazar ? ' · ' + esc(x.k.yazar) : '');
+      }).join('<br>') +
+      '<br><button type="button" id="btnSorunluSil" style="margin-top:8px">' +
+      'Listeyi temizle</button> — bu kitapları elle yeniden kaydedin.';
+    var d = $('btnSorunluSil');
+    if (d) d.addEventListener('click', function () {
+      localStorage.removeItem(SORUNLU); sorunluGoster();
+    });
   }
   $('btnKuyruk').addEventListener('click', function () {
     mesgul($('btnKuyruk'), true, 'Gönderiliyor…');
@@ -1068,6 +1194,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   /* ───────── açılış ───────── */
   fotoGoster();
   kuyrukGoster();
+  sorunluGoster();
+  duzeltilenGoster();
   var ad = localStorage.getItem('tv_env_ad'), sifre = localStorage.getItem('tv_env_sifre');
   if (ad && sifre) { $('ad').value = ad; $('sifre').value = sifre; }
 

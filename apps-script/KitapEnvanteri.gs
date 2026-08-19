@@ -112,7 +112,8 @@ var SUTUNLAR = ['Kayıt no', 'Yer kodu', 'Mekân', 'Raf', 'Sıra', 'Sıra no',
                 'Yazar', 'Başlık', 'Yıl', 'Nüsha',
                 'Kategori', 'Kural', 'Durum', 'Not', 'Kaydeden', 'Kutu no', 'Tarih',
                 'Fotoğraf', 'OCR durumu', 'Öneri başlık', 'Öneri yazar', 'Öneri yıl',
-                'Öneri yayınevi', 'OCR metni', 'Onay', 'Kapak'];
+                'Öneri yayınevi', 'OCR metni', 'Onay', 'Kapak',
+                'İstemci no', 'Silindi'];
 
 // Sık kullanılan sütun numaraları (1'den başlar)
 var S = {
@@ -120,8 +121,13 @@ var S = {
   yazar: 7, baslik: 8, yil: 9, nusha: 10, kategori: 11, kural: 12,
   durum: 13, not: 14, kaydeden: 15, kutu: 16, tarih: 17,
   foto: 18, ocrDurum: 19, oneriBaslik: 20, oneriYazar: 21, oneriYil: 22,
-  oneriYayinevi: 23, ocrMetin: 24, onay: 25, kapak: 26
+  oneriYayinevi: 23, ocrMetin: 24, onay: 25, kapak: 26,
+  istemci: 27, silindi: 28
 };
+
+/* Silinen kayıt satırdan atılmaz, işaretlenir: kayıt no ve sıra no yeniden
+   kullanılmasın, geç gelen fotoğraf yanlış kitaba yapışmasın diye. */
+function silinmis_(satir) { return !!satir[S.silindi - 1]; }
 
 /* ═══════════════ YER KODU ═══════════════ */
 
@@ -153,12 +159,15 @@ function siraKullanimi_(sayfa, anahtar) {
   if (son < 2) return sonuc;
 
   var veri = sayfa.getRange(2, S.mekan, son - 1, 4).getValues();   // Mekân, Raf, Sıra, Sıra no
-  veri.forEach(function (r) {
+  var silinenler = sayfa.getRange(2, S.silindi, son - 1, 1).getValues();
+  veri.forEach(function (r, i) {
     if (rafAnahtari_(r[0], r[1], r[2]) !== anahtar) return;
     var n = Number(r[3]) || 0;
-    sonuc.adet++;
+    // Silinen kayıt sayılmaz, ama numarası yeniden dağıtılmaz: o numara
+    // kitabın üstüne ya da kutuya yazılmış olabilir.
     sonuc.kullanilan[n] = true;
     if (n > sonuc.sonNo) sonuc.sonNo = n;
+    if (!silinenler[i][0]) sonuc.adet++;
   });
   return sonuc;
 }
@@ -180,8 +189,17 @@ function rafDurum_(mekan, raf, sira) {
 
 /* ═══════════════ GİRİŞ NOKTALARI ═══════════════ */
 
+// Bağlantıya (GET) tıklanarak çalıştırılamayacak işlemler: bir bağlantı
+// önizlemesi ya da yanlışlıkla paylaşılan adres kayıt silmemeli.
+var YAZAN_EYLEMLER = ['ekle', 'guncelle', 'sil', 'fotoEkle', 'onayla'];
+
 function doGet(e) {
-  if (e && e.parameter && e.parameter.action) return islet_(e.parameter);
+  if (e && e.parameter && e.parameter.action) {
+    if (YAZAN_EYLEMLER.indexOf(e.parameter.action) >= 0) {
+      return cikti_({ ok: false, error: 'Bu işlem bağlantı ile yapılamaz.' });
+    }
+    return islet_(e.parameter);
+  }
   return cikti_({ ok: true, mesaj: AYAR.KURUM + ' kitap envanteri çalışıyor.' });
 }
 
@@ -259,10 +277,24 @@ function ekle_(g) {
   var d = dogrula_(g);
   if (d.hata) return { ok: false, error: d.hata };
 
+  var istemciId = String(g.istemciId || '').trim().slice(0, 40);
+  var sonuc;
+
   var kilit = LockService.getScriptLock();
   kilit.waitLock(20000);
   try {
     var sayfa = sayfaAl_('Envanter');
+
+    // Aynı kayıt ikinci kez gelirse (zaman aşımı sonrası tekrar gönderim,
+    // çift sekme, üst üste binen kuyruk) yeni satır açma; eskisini geri ver.
+    if (istemciId) {
+      var eski = istemciIleBul_(sayfa, istemciId);
+      if (eski) {
+        return { ok: true, no: eski.no, yerKodu: eski.yer, siraNo: eski.siraNo,
+                 duzeltildi: false, tekrar: true };
+      }
+    }
+
     var no = sonrakiNo_(sayfa);
     var simdi = new Date();
 
@@ -274,24 +306,62 @@ function ekle_(g) {
     sayfa.appendRow([no, yer, d.k.mekan, d.k.raf, pad_(d.k.sira, 2), s.siraNo,
                      d.k.yazar, d.k.baslik, d.k.yil, d.k.nusha,
                      d.k.kategori, d.k.kural, d.k.durum, d.k.not, d.k.kaydeden, '', simdi,
-                     '', '', '', '', '', '', '', '', '']);
-    return { ok: true, no: no, yerKodu: yer, siraNo: s.siraNo, duzeltildi: s.duzeltildi,
-             rafAdet: s.adet + 1, sayac: sayac_(d.k.kaydeden) };
+                     '', '', '', '', '', '', '', '', '', istemciId, '']);
+    sonuc = { ok: true, no: no, yerKodu: yer, siraNo: s.siraNo, duzeltildi: s.duzeltildi,
+              rafAdet: s.adet + 1 };
   } finally {
     kilit.releaseLock();
   }
+
+  // Sayaç tüm sayfayı okur; kilidin dışında kalsın ki sıradaki gönüllü beklemesin.
+  sonuc.sayac = sayac_(d.k.kaydeden);
+  return sonuc;
+}
+
+/** Aynı istemci kimliğiyle kaydedilmiş satırı arar (tekrar gönderim koruması). */
+function istemciIleBul_(sayfa, istemciId) {
+  var son = sayfa.getLastRow();
+  if (son < 2) return null;
+  var kimlikler = sayfa.getRange(2, S.istemci, son - 1, 1).getValues();
+  for (var i = kimlikler.length - 1; i >= 0; i--) {
+    if (String(kimlikler[i][0]) === istemciId) {
+      var satir = sayfa.getRange(i + 2, 1, 1, S.siraNo).getValues()[0];
+      return { no: satir[S.no - 1], yer: satir[S.yer - 1], siraNo: satir[S.siraNo - 1] };
+    }
+  }
+  return null;
 }
 
 function guncelle_(no, g) {
-  var d = dogrula_(g);
-  if (d.hata) return { ok: false, error: d.hata };
-
   var kilit = LockService.getScriptLock();
   kilit.waitLock(20000);
   try {
     var bulunan = satirBul_(no);
     if (!bulunan) return { ok: false, error: 'Kayıt bulunamadı.' };
+    if (bulunan.silindi) return { ok: false, error: 'Bu kayıt silinmiş.' };
     var sayfa = sayfaAl_('Envanter');
+    var mevcut = sayfa.getRange(bulunan.satir, 1, 1, SUTUNLAR.length).getValues()[0];
+
+    // Yalnızca gönderilen alanlar değişir. Boş bırakılan alan "sil" demek değildir —
+    // telefonda görünmeyen bir alanın sessizce silinmesi eskiden veri kaybettiriyordu.
+    var birlesik = {
+      mekan: mevcut[S.mekan - 1], raf: mevcut[S.raf - 1],
+      sira: parseInt(mevcut[S.sira - 1], 10),
+      yazar:    g.yazar    != null ? g.yazar    : mevcut[S.yazar - 1],
+      baslik:   g.baslik   != null ? g.baslik   : mevcut[S.baslik - 1],
+      yil:      g.yil      != null ? g.yil      : mevcut[S.yil - 1],
+      nusha:    g.nusha    != null ? g.nusha    : mevcut[S.nusha - 1],
+      kategori: g.kategori != null ? g.kategori : kategoriKodu_(mevcut[S.kategori - 1]),
+      kural:    g.kural    != null ? g.kural    : mevcut[S.kural - 1],
+      durum:    g.durum    != null ? g.durum    : mevcut[S.durum - 1],
+      not:      g.not      != null ? g.not      : mevcut[S.not - 1],
+      kaydeden: mevcut[S.kaydeden - 1],
+      fotoVar: true                    // kayıt zaten var; başlık boş kalabilir
+    };
+
+    var d = dogrula_(birlesik);
+    if (d.hata) return { ok: false, error: d.hata };
+
     // Yer kodu, kutu no ve kayıt tarihi korunur — düzeltme yalnızca künyeyi değiştirir.
     sayfa.getRange(bulunan.satir, S.yazar, 1, 8).setValues([[d.k.yazar, d.k.baslik, d.k.yil,
       d.k.nusha, d.k.kategori, d.k.kural, d.k.durum, d.k.not]]);
@@ -301,13 +371,27 @@ function guncelle_(no, g) {
   }
 }
 
+/** Tabloda okunur kategori adı yazar; doğrulama kodu ister. Geriye çevirir. */
+function kategoriKodu_(ad) {
+  var metin = String(ad || '');
+  for (var kod in KATEGORILER) {
+    if (KATEGORILER[kod].ad === metin) return kod;
+  }
+  return metin;
+}
+
 function sil_(no) {
   var kilit = LockService.getScriptLock();
   kilit.waitLock(20000);
   try {
     var bulunan = satirBul_(no);
     if (!bulunan) return { ok: false, error: 'Kayıt bulunamadı.' };
-    sayfaAl_('Envanter').deleteRow(bulunan.satir);
+    if (bulunan.silindi) return { ok: true, no: no };
+    // Satır silinmez, işaretlenir: kayıt no ve sıra no yeniden kullanılmasın,
+    // yolda olan bir fotoğraf başka kitaba yapışmasın, geri alınabilsin diye.
+    sayfaAl_('Envanter').getRange(bulunan.satir, S.silindi).setValue(
+      'Silindi · ' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(),
+                                          'd.MM.yyyy HH:mm'));
     return { ok: true, no: no };
   } finally {
     kilit.releaseLock();
@@ -324,7 +408,8 @@ function sonKayitlar_(kaydeden) {
   var ad = String(kaydeden || '').trim().toLowerCase();
 
   var liste = satirlar.filter(function (s) {
-    return s[0] && (!ad || String(s[S.kaydeden - 1]).trim().toLowerCase() === ad);
+    return s[0] && !silinmis_(s) &&
+           (!ad || String(s[S.kaydeden - 1]).trim().toLowerCase() === ad);
   }).slice(-AYAR.SON_KAYIT).reverse().map(function (s) {
     return { no: s[S.no - 1], yer: s[S.yer - 1], yazar: s[S.yazar - 1], baslik: s[S.baslik - 1],
              yil: s[S.yil - 1], nusha: s[S.nusha - 1], kategori: s[S.kategori - 1],
@@ -345,7 +430,7 @@ function sayac_(kaydeden) {
   var toplam = 0, bugun = 0, benim = 0;
 
   satirlar.forEach(function (s) {
-    if (!s[S.no - 1]) return;
+    if (!s[S.no - 1] || silinmis_(s)) return;
     toplam++;
     var t = s[S.tarih - 1];
     var ayniGun = t instanceof Date && gunAnahtari_(t) === bugunKey;
@@ -423,7 +508,10 @@ function satirBul_(no) {
   if (son < 2) return null;
   var numaralar = sayfa.getRange(2, 1, son - 1, 1).getValues();
   for (var i = numaralar.length - 1; i >= 0; i--) {     // sondan ara: son kayıtlar düzeltilir
-    if (Number(numaralar[i][0]) === no) return { satir: i + 2 };
+    if (Number(numaralar[i][0]) === no) {
+      return { satir: i + 2,
+               silindi: !!sayfa.getRange(i + 2, S.silindi).getValue() };
+    }
   }
   return null;
 }
@@ -517,6 +605,7 @@ function fotoEkle_(no, veri, tur, hangi) {
 
   var bulunan = satirBul_(no);
   if (!bulunan) return { ok: false, error: 'Kayıt bulunamadı.' };
+  if (bulunan.silindi) return { ok: false, error: 'Bu kayıt silinmiş.' };
 
   var kapakMi = String(hangi || 'kunye') === 'kapak';
 
@@ -552,10 +641,12 @@ function ocrKuyruguIsle() {
   if (son < 2) return;
 
   var durumlar = sayfa.getRange(2, S.ocrDurum, son - 1, 1).getValues();
+  var silinenler = sayfa.getRange(2, S.silindi, son - 1, 1).getValues();
   var islenen = 0;
 
   for (var i = 0; i < durumlar.length && islenen < AYAR.OCR_TOPLU; i++) {
     if (String(durumlar[i][0]) !== 'bekliyor') continue;
+    if (silinenler[i][0]) continue;
     var satir = i + 2;
     // Künye sayfası varsa ondan okunur; yoksa kapaktan (eski kitaplarda künye sayfası olmaz).
     var url = String(sayfa.getRange(satir, S.foto).getValue() || '');
@@ -577,6 +668,8 @@ function ocrKuyruguIsle() {
       Logger.log('OCR hatası (satır ' + satir + '): ' + h.message);
       islenen++;
     }
+    /* Kalıcı takılmasın: "OCR hatası" yazan satırları ocrYenidenDene() ile
+       toplu olarak 'bekliyor'a çevirebilirsiniz (Drive API sonradan açıldıysa). */
   }
 }
 
@@ -760,7 +853,7 @@ function onayBekleyen_(adet) {
 
   var satirlar = sayfa.getRange(2, 1, son - 1, SUTUNLAR.length).getValues();
   var bekleyen = satirlar.filter(function (s) {
-    return (s[S.foto - 1] || s[S.kapak - 1]) && !s[S.onay - 1];
+    return !silinmis_(s) && (s[S.foto - 1] || s[S.kapak - 1]) && !s[S.onay - 1];
   });
 
   var liste = bekleyen.slice(0, adet).map(function (s) {
@@ -800,7 +893,7 @@ function katalog_(g) {
 
   var liste = [];
   satirlar.forEach(function (s) {
-    if (!s[S.no - 1]) return;
+    if (!s[S.no - 1] || silinmis_(s)) return;
     if (yalnizOnayli && !s[S.onay - 1]) return;
     if (kategori && String(s[S.kategori - 1]) !== kategori) return;
     if (mekan && String(s[S.mekan - 1]) !== mekan) return;
@@ -853,7 +946,7 @@ function durum_() {
   var bugunKey = gunAnahtari_(new Date());
 
   satirlar.forEach(function (s) {
-    if (!s[S.no - 1]) return;
+    if (!s[S.no - 1] || silinmis_(s)) return;
     d.toplam++;
 
     var onay = String(s[S.onay - 1] || '');
@@ -919,15 +1012,16 @@ function durum_() {
 /** Onay ekranından gelen künyeyi ana alanlara yazar. */
 function onayla_(no, k) {
   no = Number(no);
-  var bulunan = satirBul_(no);
-  if (!bulunan) return { ok: false, error: 'Kayıt bulunamadı.' };
-
   var baslik = String(k.baslik || '').trim();
   if (!baslik) return { ok: false, error: 'Başlık boş olamaz.' };
 
   var kilit = LockService.getScriptLock();
   kilit.waitLock(20000);
   try {
+    // Satır araması kilidin içinde: arada bir kayıt silinirse yanlış satıra yazmayalım.
+    var bulunan = satirBul_(no);
+    if (!bulunan) return { ok: false, error: 'Kayıt bulunamadı.' };
+    if (bulunan.silindi) return { ok: false, error: 'Bu kayıt silinmiş.' };
     var sayfa = sayfaAl_('Envanter');
     sayfa.getRange(bulunan.satir, S.yazar).setValue(String(k.yazar || '').trim());
     sayfa.getRange(bulunan.satir, S.baslik).setValue(baslik);
@@ -941,6 +1035,27 @@ function onayla_(no, k) {
   } finally {
     kilit.releaseLock();
   }
+}
+
+/**
+ * "OCR hatası" yazan satırları yeniden sıraya alır.
+ * Drive API'yi sonradan açtıysanız ya da geçici bir kota/ağ sorunu olduysa
+ * betik menüsünden bir kez çalıştırın; o kitaplar yeniden okunur.
+ */
+function ocrYenidenDene() {
+  var sayfa = sayfaAl_('Envanter');
+  var son = sayfa.getLastRow();
+  if (son < 2) return 0;
+  var durumlar = sayfa.getRange(2, S.ocrDurum, son - 1, 1).getValues();
+  var sayi = 0;
+  durumlar.forEach(function (d, i) {
+    if (/^OCR hatası/i.test(String(d[0]))) {
+      sayfa.getRange(i + 2, S.ocrDurum).setValue('bekliyor');
+      sayi++;
+    }
+  });
+  Logger.log(sayi + ' kayıt yeniden OCR sırasına alındı.');
+  return sayi;
 }
 
 /** OCR zamanlayıcısını kurar (5 dakikada bir). Kurulumda bir kez çalışır. */
@@ -960,7 +1075,7 @@ function ozetiGuncelle() {
   var sayfa = sayfaAl_('Envanter');
   var son = sayfa.getLastRow();
   var satirlar = son < 2 ? [] : sayfa.getRange(2, 1, son - 1, SUTUNLAR.length).getValues()
-    .filter(function (s) { return s[0]; });
+    .filter(function (s) { return s[0] && !silinmis_(s); });
 
   var say = function (sutun, deger) {
     return satirlar.filter(function (s) { return s[sutun - 1] === deger; }).length;
@@ -1038,6 +1153,11 @@ function ozetiGuncelle() {
  */
 function basliklariOnar_() {
   var sayfa = sayfaAl_('Envanter');
+  // Yeni sütun eklendiyse tabloyu genişlet (yoksa appendRow "sütun sayısı uymuyor" der).
+  if (sayfa.getMaxColumns() < SUTUNLAR.length) {
+    sayfa.insertColumnsAfter(sayfa.getMaxColumns(),
+                             SUTUNLAR.length - sayfa.getMaxColumns());
+  }
   var mevcut = sayfa.getRange(1, 1, 1, sayfa.getLastColumn() || 1).getValues()[0];
   var ayni = mevcut.length === SUTUNLAR.length &&
     SUTUNLAR.every(function (b, i) { return String(mevcut[i]) === b; });
@@ -1052,6 +1172,7 @@ function onOpen() {
   try {
     SpreadsheetApp.getUi().createMenu('Kitap Envanteri')
       .addItem('Özeti yenile', 'ozetiGuncelle')
+      .addItem('OCR hatalarını yeniden dene', 'ocrYenidenDene')
       .addToUi();
   } catch (h) {}
 }
