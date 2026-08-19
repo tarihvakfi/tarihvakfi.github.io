@@ -20,12 +20,16 @@ dosyasının tamamını yapıştırın.
 **2. Ayarları düzenleyin** (betiğin ilk 40 satırı)
 
 ```js
-CALISMA_SIFRESI: 'kitap2026@tv',   // gönüllülere söyleyeceğiniz ortak şifre
-KOORDINATOR_SIFRESI: 'k2026@tv',   // onay, katalog ve durum panosu
+CALISMA_SIFRESI: 'BURAYA_CALISMA_SIFRESI',        // gönüllülere söyleyeceğiniz ortak şifre
+KOORDINATOR_SIFRESI: 'BURAYA_KOORDINATOR_SIFRESI', // onay, katalog ve durum panosu
 MEKANLAR: [{ kod: 'G', ad: 'Giriş Kat' }, { kod: 'D', ad: 'Depo' }],
 RAF_HARFLERI: 'ABCDEFGH',          // gerçek kitaplık sayınız kadar
 SIRA_SAYISI: 6,                    // bir kitaplıkta kaç göz var
 ```
+
+> ⚠️ **Şifreleri bu belgeye yazmayın.** Bu depo herkese açıktır; buraya yazılan
+> şifre GitHub'da okunabilir hâle gelir ve silseniz bile geçmişte kalır.
+> Gerçek şifreler yalnızca Apps Script'teki çalışan kopyada bulunur.
 
 Bu üç satır **gerçek kütüphaneye göre** ayarlanmalı; menüler ve raf etiketleri
 buradan üretiliyor. Yanlış bırakırsanız gönüllü olmayan bir rafı seçer.
@@ -82,7 +86,7 @@ kablosu ve birkaç powerbank.
 > Merhaba, yarın kütüphane çalışmasındayız. Girişteki QR kodu telefon kameranızla
 > okutun (ya da şu adresi açın: **tarihvakfi.github.io/kitap-envanteri.html**).
 > Tarayıcı "Ana ekrana ekle / Kur" derse kabul edin — uygulama gibi açılır.
-> Çalışma şifresi: **kitap2026@tv**. Başka bir şey kurmanıza gerek yok.
+> Çalışma şifresi: **[çalışma şifresini buraya yazın]**. Başka bir şey kurmanıza gerek yok.
 > Powerbank getirebilirseniz iyi olur; vakıfta internet zayıf, telefonu wifi'ye
 > bağlamayıp mobil veriyle çalışmak daha rahat.
 

@@ -28,8 +28,8 @@ Kurulum ~10 dakika.
 var AYAR = {
   KURUM: 'Tarih Vakfı',
   TABLO_ID: '',                      // bağımsız projede tablonun kimliği
-  CALISMA_SIFRESI: 'kitap2026@tv',        // gönüllülere söyleyeceğiniz ortak şifre
-  KOORDINATOR_SIFRESI: 'k2026@tv',        // onay ekranı, katalog ve durum panosu bunu ister
+  CALISMA_SIFRESI: 'BURAYA_CALISMA_SIFRESI',        // gönüllülere söyleyeceğiniz ortak şifre
+  KOORDINATOR_SIFRESI: 'BURAYA_KOORDINATOR_SIFRESI', // onay ekranı, katalog ve durum panosu bunu ister
   SON_KAYIT: 8,
   FOTO_KLASOR_ID: '',                // boş bırakırsanız klasörü kendi açar
   OCR_ACIK: true,                    // fotoğraftan yazı çıkarma
@@ -41,6 +41,10 @@ var AYAR = {
   SIRA_SAYISI: 8,                    // bir kitaplıkta en fazla kaç göz var
 };
 ```
+
+> ⚠️ **Şifreleri bu belgeye yazmayın.** Bu depo herkese açıktır; buraya yazılan
+> şifre GitHub'da okunabilir hâle gelir ve silseniz bile geçmişte kalır.
+> Gerçek şifreler yalnızca Apps Script'teki çalışan kopyada bulunur.
 
 ### Yer kodu
 
