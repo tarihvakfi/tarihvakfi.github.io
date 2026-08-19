@@ -316,6 +316,10 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
      gönüllü ekrana bakıp bekler. Zaman aşımı koyup çevrimdışı kuyruğa düşürüyoruz. */
   var ZAMAN_ASIMI = 12000;              // normal istekler
   var ZAMAN_ASIMI_FOTO = 45000;         // fotoğraf yüklemesi
+  /* Ayarlar (raf harfleri, mekânlar, kurallar) ilk istektir ve Apps Script uykudan
+     kalkıyorsa 20 saniyeyi bulabilir. Bu isteğe daha uzun süre tanıyoruz; alınamazsa
+     sayfa boş menülerle devam etmemeli. */
+  var ZAMAN_ASIMI_AYAR = 30000;
 
   /* ── Fotoğraflar için küçük IndexedDB deposu ──
      Fotoğraflar localStorage'a sığmayacak kadar büyük; çevrimdışı beklerken burada durur. */
@@ -495,7 +499,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     else { b.innerHTML = b.dataset.eski || b.innerHTML; b.disabled = false; }
   }
 
-  function api(action, yuk) {
+  function api(action, yuk, sure) {
     if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
       return Promise.reject(new Error('Sistem adresi tanımlanmamış. Koordinatöre bildirin.'));
     }
@@ -503,7 +507,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     for (var k in (yuk || {})) govde[k] = yuk[k];
 
     var kes = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    var sure = (action === 'fotoEkle') ? ZAMAN_ASIMI_FOTO : ZAMAN_ASIMI;
+    if (!sure) sure = (action === 'fotoEkle') ? ZAMAN_ASIMI_FOTO : ZAMAN_ASIMI;
     var saat = setTimeout(function () { if (kes) kes.abort(); }, sure);
     var bitir = function () { clearTimeout(saat); };
 
@@ -531,6 +535,10 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       localStorage.setItem('tv_env_ad', ad);
       localStorage.setItem('tv_env_sifre', sifre);
       D.sayac = (r.benim != null) ? r.benim : (r.sayac ? r.sayac.benim : 0);
+      // Açılışta ayarlar alınamamış olabilir (uyanmayan sunucu, zayıf bağlantı):
+      // raf ekranına geçmeden önce burada bir daha denenir.
+      return ayarlariYukle();
+    }).then(function () {
       gizle($('msgGiris'));
       $('adim-giris').classList.add('gizli');
       $('adim-raf').classList.remove('gizli');
@@ -567,7 +575,13 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
 
   function rafEkraniHazirla() {
-    var cfg = D.cfg || {};
+    if (!D.cfg) {                                    // ayarlar gelmediyse boş menü gösterme
+      goster($('msgGiris'), 'hata', 'Ayarlar alınamadı. Sayfayı yenileyip tekrar deneyin.');
+      $('adim-raf').classList.add('gizli');
+      $('adim-giris').classList.remove('gizli');
+      return;
+    }
+    var cfg = D.cfg;
     var mekanlar = cfg.mekanlar || [];
     var son = siraDepoOku()['_son'] || {};
 
@@ -652,6 +666,21 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     $('adim-kayit').classList.add('gizli'); $('adim-raf').classList.remove('gizli');
     rafOzetYenile();
   });
+
+  /* ───────── ayarlar ─────────
+     Sunucudan gelen raf harfleri, mekânlar, kategoriler ve kurallar. Bunlar olmadan
+     form çalışamaz; alınamazsa boş menü göstermek yerine açıkça hata veriyoruz. */
+  function ayarlariYukle(zorla) {
+    if (D.cfg && !zorla) return Promise.resolve(D.cfg);
+    return api('config', {}, ZAMAN_ASIMI_AYAR).then(function (cfg) {
+      if (!cfg || !cfg.kurallar || !cfg.rafHarfleri) {
+        throw new Error('Sunucudan gelen ayarlar eksik. Koordinatöre bildirin.');
+      }
+      D.cfg = cfg;
+      seceneklerCiz();
+      return cfg;
+    });
+  }
 
   /* ───────── seçenekleri çiz ───────── */
   function seceneklerCiz() {
@@ -974,15 +1003,19 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   })();
 
   /* ───────── açılış ───────── */
-  api('config').then(function (cfg) {
-    D.cfg = cfg;
-    seceneklerCiz();
-    fotoGoster();
-    kuyrukGoster();
-    var ad = localStorage.getItem('tv_env_ad'), sifre = localStorage.getItem('tv_env_sifre');
-    if (ad && sifre) { $('ad').value = ad; $('sifre').value = sifre; }
-  })['catch'](function (e) {
-    goster($('msgGiris'), 'hata', e.message === 'AĞ' ? 'Sunucuya ulaşılamadı.' : e.message);
+  fotoGoster();
+  kuyrukGoster();
+  var ad = localStorage.getItem('tv_env_ad'), sifre = localStorage.getItem('tv_env_sifre');
+  if (ad && sifre) { $('ad').value = ad; $('sifre').value = sifre; }
+
+  ayarlariYukle()['catch'](function () {
+    // Sunucu uykudaysa ilk istek düşebilir; bir kez daha dene, sonra da kullanıcıya söyle.
+    return new Promise(function (t) { setTimeout(t, 2000); })
+      .then(function () { return ayarlariYukle(); })
+      ['catch'](function (e) {
+        goster($('msgGiris'), 'uyari', (e.message === 'AĞ'
+          ? 'Sunucuya ulaşılamadı.' : e.message) + ' “Başla” dediğinizde tekrar denenecek.');
+      });
   });
 })();
 </script>
