@@ -203,22 +203,20 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     else { b.innerHTML = b.dataset.eski || b.innerHTML; b.disabled = false; }
   }
 
-  function api(action, yuk) {
-    if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
-      return Promise.reject(new Error('Sistem adresi tanımlanmamış (TV_ENVANTER_URL).'));
-    }
+  /* Apps Script uykudan kalkarken ilk istek 20–30 saniye sürebiliyor; zayıf bağlantıda
+     istek büsbütün düşebiliyor. Okuma istekleri otomatik tekrar denenir, yazma istekleri
+     (onayla) denenmez — aynı kayıt iki kez işlenmesin. */
+  var TEKRARLANABILIR = ['config', 'onayBekleyen', 'katalog', 'durum'];
+
+  function tekIstek(action, yuk, sure) {
     var govde = { action: action, sifre: D.sifre };
     for (var k in (yuk || {})) govde[k] = yuk[k];
-
-    // Vakıfta bağlantı zayıf; ölü wifi'de istek asılı kalmasın.
     var kes = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    var saat = setTimeout(function () { if (kes) kes.abort(); }, 20000);
+    var saat = setTimeout(function () { if (kes) kes.abort(); }, sure);
     var bitir = function () { clearTimeout(saat); };
-
     return fetch(ENVANTER_URL, {
       method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(govde), redirect: 'follow',
-      signal: kes ? kes.signal : undefined
+      body: JSON.stringify(govde), redirect: 'follow', signal: kes ? kes.signal : undefined
     }).catch(function () { bitir(); throw new Error('AĞ'); })
       .then(function (r) { bitir(); return r.text(); })
       .then(function (m) {
@@ -227,6 +225,22 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         return d;
       });
   }
+
+  function api(action, yuk) {
+    if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
+      return Promise.reject(new Error('Sistem adresi tanımlanmamış (TV_ENVANTER_URL).'));
+    }
+    var kalan = TEKRARLANABILIR.indexOf(action) >= 0 ? 2 : 0;
+    function dene(kalanDeneme, bekle) {
+      return tekIstek(action, yuk, 30000)['catch'](function (e) {
+        if (e.message !== 'AĞ' || kalanDeneme <= 0) throw e;
+        return new Promise(function (t) { setTimeout(t, bekle); })
+          .then(function () { return dene(kalanDeneme - 1, bekle * 2); });
+      });
+    }
+    return dene(kalan, 1200);
+  }
+
   function ağHata(e) { return e.message === 'AĞ' ? 'Sunucuya ulaşılamadı.' : e.message; }
 
   /* ───────── giriş ───────── */
