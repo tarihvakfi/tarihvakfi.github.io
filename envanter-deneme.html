@@ -341,7 +341,7 @@
     ['M3','belirsiz','Yabancı dilde, içeriği anlamadım'],
     ['M4','belirsiz','Kurallar çelişiyor']
   ];
-  var MEKANLAR = [{ kod:'K1', ad:'1. kat' }, { kod:'K2', ad:'2. kat' }, { kod:'D', ad:'Depo' }];
+  var MEKANLAR = [{ kod:'G', ad:'Giriş Kat' }, { kod:'U', ad:'Üst Kat' }, { kod:'D', ad:'Depo' }];
   var RAF_HARFLERI = 'ABCDEFGH'.split('');
   var SIRA_SAYISI = 8;
 
@@ -617,12 +617,17 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
   /* Vakıfta bağlantı zayıf. Ölü bir wifi'de fetch dakikalarca asılı kalabilir;
      gönüllü ekrana bakıp bekler. Zaman aşımı koyup çevrimdışı kuyruğa düşürüyoruz. */
-  var ZAMAN_ASIMI = 12000;              // normal istekler
-  var ZAMAN_ASIMI_FOTO = 45000;         // fotoğraf yüklemesi
-  /* Ayarlar (raf harfleri, mekânlar, kurallar) ilk istektir ve Apps Script uykudan
-     kalkıyorsa 20 saniyeyi bulabilir. Bu isteğe daha uzun süre tanıyoruz; alınamazsa
-     sayfa boş menülerle devam etmemeli. */
-  var ZAMAN_ASIMI_AYAR = 30000;
+  /* Apps Script uykudan kalkarken ilk istek 20–30 saniye sürebiliyor. Kısa zaman aşımı
+     koyarsak gönüllü "sunucuya ulaşılamadı" görüp sayfayı yeniliyor. Bu yüzden:
+     okuma isteklerine bol süre + otomatik tekrar, yazma isteklerine tekrar YOK
+     (aynı kitap iki kez kaydedilmesin). */
+  var ZAMAN_ASIMI = 25000;              // normal istekler
+  var ZAMAN_ASIMI_FOTO = 60000;         // fotoğraf yüklemesi
+  var ZAMAN_ASIMI_AYAR = 30000;         // ayarlar (ilk istek, en yavaşı)
+
+  // Yalnızca okuyan istekler; tekrar denemek güvenli
+  var TEKRARLANABILIR = ['config', 'sayac', 'rafDurum', 'sonKayitlar'];
+  var AYAR_DEPO = 'tv_env_ayarlar';     // son başarılı ayarlar telefonda saklanır
 
   /* ── Fotoğraflar için küçük IndexedDB deposu ──
      Fotoğraflar localStorage'a sığmayacak kadar büyük; çevrimdışı beklerken burada durur. */
@@ -802,15 +807,11 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     else { b.innerHTML = b.dataset.eski || b.innerHTML; b.disabled = false; }
   }
 
-  function api(action, yuk, sure) {
-    if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
-      return Promise.reject(new Error('Sistem adresi tanımlanmamış. Koordinatöre bildirin.'));
-    }
+  function tekIstek(action, yuk, sure) {
     var govde = { action: action, sifre: D.sifre };
     for (var k in (yuk || {})) govde[k] = yuk[k];
 
     var kes = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    if (!sure) sure = (action === 'fotoEkle') ? ZAMAN_ASIMI_FOTO : ZAMAN_ASIMI;
     var saat = setTimeout(function () { if (kes) kes.abort(); }, sure);
     var bitir = function () { clearTimeout(saat); };
 
@@ -821,10 +822,44 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     }).catch(function () { bitir(); agDurumu(false); throw new Error('AĞ'); })
       .then(function (r) { bitir(); agDurumu(true); return r.text(); })
       .then(function (m) {
-        var d; try { d = JSON.parse(m); } catch (h) { throw new Error('Sunucudan beklenmeyen yanıt.'); }
+        var d;
+        try { d = JSON.parse(m); } catch (h) {
+          /* JSON yerine HTML geldiyse istek sunucuya ulaşıyor ama Apps Script yanıt
+             vermiyor demektir. En sık sebebi dağıtımın erişim ayarıdır: yeni
+             dağıtımlarda varsayılan "Yalnızca kendim"dir ve Google giriş sayfası döner. */
+          throw new Error(/^\s*</.test(m)
+            ? 'Sunucu JSON yerine web sayfası döndürdü. Apps Script dağıtımında ' +
+              '“Erişimi olan: Herkes” seçili mi? (Yeni dağıtımlarda varsayılan “Yalnızca kendim”dir.)'
+            : 'Sunucudan beklenmeyen yanıt.');
+        }
         if (!d.ok) { var e = new Error(d.error || 'Hata'); e.sifreHatasi = d.sifreHatasi; throw e; }
         return d;
       });
+  }
+
+  /**
+   * secenek: { sure, deneme }
+   * Yalnızca ağ hatasında tekrar denenir — sunucunun verdiği hatada (şifre yanlış vb.)
+   * tekrar denemek anlamsız. Yazma istekleri hiç tekrarlanmaz.
+   */
+  function api(action, yuk, secenek) {
+    if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
+      return Promise.reject(new Error('Sistem adresi tanımlanmamış. Koordinatöre bildirin.'));
+    }
+    secenek = secenek || {};
+    var sure = secenek.sure ||
+      (action === 'fotoEkle' ? ZAMAN_ASIMI_FOTO : (action === 'config' ? ZAMAN_ASIMI_AYAR : ZAMAN_ASIMI));
+    var kalan = (secenek.deneme != null) ? secenek.deneme
+      : (TEKRARLANABILIR.indexOf(action) >= 0 ? 2 : 0);
+
+    function dene(kalanDeneme, bekle) {
+      return tekIstek(action, yuk, sure)['catch'](function (e) {
+        if (e.message !== 'AĞ' || kalanDeneme <= 0) throw e;
+        return new Promise(function (t) { setTimeout(t, bekle); })
+          .then(function () { return dene(kalanDeneme - 1, bekle * 2); });
+      });
+    }
+    return dene(kalan, 1200);
   }
 
   /* ───────── kurulum ───────── */
@@ -834,26 +869,46 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     if (!sifre) return goster($('msgGiris'), 'hata', 'Çalışma şifresini yazın.');
     D.ad = ad; D.sifre = sifre;
     mesgul($('btnGiris'), true, 'Kontrol ediliyor…');
-    api('sayac', { kaydeden: ad }).then(function (r) {
-      localStorage.setItem('tv_env_ad', ad);
-      localStorage.setItem('tv_env_sifre', sifre);
-      D.sayac = (r.benim != null) ? r.benim : (r.sayac ? r.sayac.benim : 0);
-      // Açılışta ayarlar alınamamış olabilir (uyanmayan sunucu, zayıf bağlantı):
-      // raf ekranına geçmeden önce burada bir daha denenir.
-      return ayarlariYukle();
-    }).then(function () {
+    // Uykudaki sunucu 20 saniyeyi bulabiliyor; kullanıcı takıldığını sanmasın.
+    var uyari = setTimeout(function () {
+      $('btnGiris').innerHTML = '<span class="donen"></span>Sunucu uyanıyor, bekleyin…';
+    }, 4000);
+
+    function iceriGir(cevrimdisi) {
+      clearTimeout(uyari);
       gizle($('msgGiris'));
       $('adim-giris').classList.add('gizli');
       $('adim-raf').classList.remove('gizli');
       rafEkraniHazirla();
-    })['catch'](function (e) {
-      goster($('msgGiris'), 'hata', e.message === 'AĞ'
-        ? 'Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edin.' : e.message);
-    }).then(function () { mesgul($('btnGiris'), false); });
+      if (cevrimdisi) {
+        agDurumu(false);
+        goster($('msgKayit'), 'uyari', 'Sunucuya ulaşılamadı — <b>çevrimdışı başladınız</b>. ' +
+          'Çalışmaya devam edin; kayıtlar telefonda saklanır, bağlantı gelince gönderilir.');
+      }
+    }
+
+    api('sayac', { kaydeden: ad }).then(function (r) {
+      localStorage.setItem('tv_env_ad', ad);
+      localStorage.setItem('tv_env_sifre', sifre);
+      D.sayac = (r.benim != null) ? r.benim : (r.sayac ? r.sayac.benim : 0);
+      // Açılışta ayarlar alınamamış olabilir: raf ekranına geçmeden bir daha denenir.
+      return ayarlariYukle();
+    }).then(function () { iceriGir(false); })
+      ['catch'](function (e) {
+        /* Ağ yoksa ama bu şifreyle daha önce girilmişse ve ayarlar telefonda saklıysa
+           gönüllüyü bekletmenin anlamı yok: çevrimdışı başlasın, kayıtlar kuyruğa gitsin. */
+        var oncedenCalisti = localStorage.getItem('tv_env_sifre') === sifre;
+        if (e.message === 'AĞ' && oncedenCalisti && D.cfg) return iceriGir(true);
+
+        clearTimeout(uyari);
+        goster($('msgGiris'), 'hata', e.message === 'AĞ'
+          ? 'Sunucuya ulaşılamadı. Bağlantınızı kontrol edip “Başla”ya tekrar basın.'
+          : e.message);
+      }).then(function () { clearTimeout(uyari); mesgul($('btnGiris'), false); });
   });
 
   /* ───────── yer kodu ─────────
-     Kod:  K1-A01-007  →  mekân · raf · sıra · o sıradaki kaçıncı kitap.
+     Kod:  G-A01-007  →  mekân · raf · sıra · o sıradaki kaçıncı kitap.
      Numarayı telefon verir (bağlantı yokken de çalışsın diye), sunucu senkronda
      doğrular; çakışma olursa düzeltip yeni numarayı geri bildirir. */
 
@@ -973,13 +1028,21 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   /* ───────── ayarlar ─────────
      Sunucudan gelen raf harfleri, mekânlar, kategoriler ve kurallar. Bunlar olmadan
      form çalışamaz; alınamazsa boş menü göstermek yerine açıkça hata veriyoruz. */
+  function ayarlariOku() {                 // telefonda saklanan son ayarlar
+    try {
+      var v = JSON.parse(localStorage.getItem(AYAR_DEPO) || 'null');
+      return (v && v.kurallar && v.rafHarfleri) ? v : null;
+    } catch (h) { return null; }
+  }
+
   function ayarlariYukle(zorla) {
     if (D.cfg && !zorla) return Promise.resolve(D.cfg);
-    return api('config', {}, ZAMAN_ASIMI_AYAR).then(function (cfg) {
+    return api('config').then(function (cfg) {
       if (!cfg || !cfg.kurallar || !cfg.rafHarfleri) {
         throw new Error('Sunucudan gelen ayarlar eksik. Koordinatöre bildirin.');
       }
       D.cfg = cfg;
+      try { localStorage.setItem(AYAR_DEPO, JSON.stringify(cfg)); } catch (h) {}
       seceneklerCiz();
       return cfg;
     });
@@ -1311,14 +1374,16 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   var ad = localStorage.getItem('tv_env_ad'), sifre = localStorage.getItem('tv_env_sifre');
   if (ad && sifre) { $('ad').value = ad; $('sifre').value = sifre; }
 
-  ayarlariYukle()['catch'](function () {
-    // Sunucu uykudaysa ilk istek düşebilir; bir kez daha dene, sonra da kullanıcıya söyle.
-    return new Promise(function (t) { setTimeout(t, 2000); })
-      .then(function () { return ayarlariYukle(); })
-      ['catch'](function (e) {
-        goster($('msgGiris'), 'uyari', (e.message === 'AĞ'
-          ? 'Sunucuya ulaşılamadı.' : e.message) + ' “Başla” dediğinizde tekrar denenecek.');
-      });
+  /* Ayarlar telefonda saklıysa hemen kullanılır: form beklemeden açılır, bağlantı
+     kötüyken de çalışır. Arka planda yine tazelenir. */
+  var saklanan = ayarlariOku();
+  if (saklanan) { D.cfg = saklanan; seceneklerCiz(); }
+
+  ayarlariYukle(true)['catch'](function (e) {
+    if (D.cfg) return;                     // saklanan ayarlarla devam, kullanıcıyı meşgul etme
+    goster($('msgGiris'), 'uyari', (e.message === 'AĞ'
+      ? 'Sunucu yanıt vermiyor (uykuda olabilir).' : e.message) +
+      ' “Başla” dediğinizde tekrar denenecek.');
   });
 })();
 </script>

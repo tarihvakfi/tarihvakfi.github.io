@@ -57,7 +57,7 @@
   @media (max-width:560px){ .kahraman{grid-column:span 1} }
 
   /* yığılmış çubuk */
-  .yigin{display:flex;height:34px;border-radius:6px;overflow:hidden;background:var(--cizgi);
+  .yigin{display:flex;height:34px;border-radius:6px;overflow:hidden;background:var(--kagit);
     margin:6px 0 10px}
   .yigin span{position:relative;transition:filter .15s}
   .yigin span + span{margin-left:2px}          /* zemin boşluğu: bitişik parçaları ayırır */
@@ -71,8 +71,7 @@
   .sutunlar{display:flex;align-items:flex-end;gap:4px;height:130px;margin:10px 0 4px}
   .sutunlar .gun{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;
     position:relative}
-  .sutunlar .cubuk{background:var(--bordo);border-radius:4px 4px 0 0;min-height:2px;
-    transition:filter .15s}
+  .sutunlar .cubuk{background:var(--bordo);border-radius:4px 4px 0 0;transition:filter .15s}
   .sutunlar .gun:hover .cubuk{filter:brightness(1.25)}
   .sutunlar .deger{font-size:11px;color:var(--soluk);text-align:center;margin-bottom:3px;
     font-variant-numeric:tabular-nums}
@@ -223,7 +222,7 @@
     ['M3','belirsiz','Yabancı dilde, içeriği anlamadım'],
     ['M4','belirsiz','Kurallar çelişiyor']
   ];
-  var MEKANLAR = [{ kod:'K1', ad:'1. kat' }, { kod:'K2', ad:'2. kat' }, { kod:'D', ad:'Depo' }];
+  var MEKANLAR = [{ kod:'G', ad:'Giriş Kat' }, { kod:'U', ad:'Üst Kat' }, { kod:'D', ad:'Depo' }];
   var RAF_HARFLERI = 'ABCDEFGH'.split('');
   var SIRA_SAYISI = 8;
 
@@ -504,14 +503,16 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     else { b.innerHTML = b.dataset.eski || b.innerHTML; b.disabled = false; }
   }
 
-  function api(action, yuk) {
-    if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
-      return Promise.reject(new Error('Sistem adresi tanımlanmamış (TV_ENVANTER_URL).'));
-    }
+  /* Apps Script uykudan kalkarken ilk istek 20–30 saniye sürebiliyor; zayıf bağlantıda
+     istek büsbütün düşebiliyor. Okuma istekleri otomatik tekrar denenir, yazma istekleri
+     (onayla) denenmez — aynı kayıt iki kez işlenmesin. */
+  var TEKRARLANABILIR = ['config', 'onayBekleyen', 'katalog', 'durum'];
+
+  function tekIstek(action, yuk, sure) {
     var govde = { action: action, sifre: D.sifre };
     for (var k in (yuk || {})) govde[k] = yuk[k];
     var kes = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    var saat = setTimeout(function () { if (kes) kes.abort(); }, 25000);
+    var saat = setTimeout(function () { if (kes) kes.abort(); }, sure);
     var bitir = function () { clearTimeout(saat); };
     return fetch(ENVANTER_URL, {
       method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -519,11 +520,36 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     }).catch(function () { bitir(); throw new Error('AĞ'); })
       .then(function (r) { bitir(); return r.text(); })
       .then(function (m) {
-        var d; try { d = JSON.parse(m); } catch (h) { throw new Error('Sunucudan beklenmeyen yanıt.'); }
+        var d;
+        try { d = JSON.parse(m); } catch (h) {
+          /* JSON yerine HTML geldiyse istek sunucuya ulaşıyor ama Apps Script yanıt
+             vermiyor demektir. En sık sebebi dağıtımın erişim ayarıdır: yeni
+             dağıtımlarda varsayılan "Yalnızca kendim"dir ve Google giriş sayfası döner. */
+          throw new Error(/^\s*</.test(m)
+            ? 'Sunucu JSON yerine web sayfası döndürdü. Apps Script dağıtımında ' +
+              '“Erişimi olan: Herkes” seçili mi? (Yeni dağıtımlarda varsayılan “Yalnızca kendim”dir.)'
+            : 'Sunucudan beklenmeyen yanıt.');
+        }
         if (!d.ok) throw new Error(d.error || 'Hata');
         return d;
       });
   }
+
+  function api(action, yuk) {
+    if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
+      return Promise.reject(new Error('Sistem adresi tanımlanmamış (TV_ENVANTER_URL).'));
+    }
+    var kalan = TEKRARLANABILIR.indexOf(action) >= 0 ? 2 : 0;
+    function dene(kalanDeneme, bekle) {
+      return tekIstek(action, yuk, 30000)['catch'](function (e) {
+        if (e.message !== 'AĞ' || kalanDeneme <= 0) throw e;
+        return new Promise(function (t) { setTimeout(t, bekle); })
+          .then(function () { return dene(kalanDeneme - 1, bekle * 2); });
+      });
+    }
+    return dene(kalan, 1200);
+  }
+
   function agHata(e) { return e.message === 'AĞ' ? 'Sunucuya ulaşılamadı.' : e.message; }
 
   /* ───────── giriş ───────── */
@@ -606,11 +632,15 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
     /* günlük ilerleme */
     var enCok = Math.max.apply(null, v.gunluk.map(function (g) { return g.sayi; }).concat([1]));
-    $('gunlukSutun').innerHTML = v.gunluk.map(function (g) {
+    var sonGun = v.gunluk[v.gunluk.length - 1] || { sayi: 0 };
+    $('gunlukSutun').innerHTML = v.gunluk.map(function (g, i) {
       var y = Math.round(g.sayi / enCok * 100);
+      // Her sütuna sayı yazmak okunmuyor: yalnızca en yüksek gün ve bugün etiketlenir.
+      var etiketle = g.sayi && (g.sayi === enCok || (i === v.gunluk.length - 1 && sonGun.sayi));
       return '<div class="gun" title="' + esc(gunAdi(g.gun)) + ': ' + sayi(g.sayi) + ' kitap">' +
-        (g.sayi ? '<div class="deger">' + g.sayi + '</div>' : '') +
-        '<div class="cubuk" style="height:' + Math.max(y, g.sayi ? 3 : 0) + '%"></div></div>';
+        (etiketle ? '<div class="deger">' + g.sayi + '</div>' : '') +
+        (g.sayi ? '<div class="cubuk" style="height:' + Math.max(y, 3) + '%"></div>' : '') +
+        '</div>';
     }).join('');
     $('gunlukEksen').innerHTML = v.gunluk.map(function (g, i) {
       return '<div>' + (i % 2 === 0 ? esc(g.gun.slice(8) + '.' + g.gun.slice(5, 7)) : '') + '</div>';

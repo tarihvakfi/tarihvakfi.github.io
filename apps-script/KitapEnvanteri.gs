@@ -37,16 +37,16 @@ var AYAR = {
   HEDEF_KITAP: 0,
 
   // ── Yer kodu ────────────────────────────────────────────────────
-  // Kitabın nereden geldiğini gösteren kod:  K1-A01-007
-  //   K1  → mekân (oda/kat)      A → raf (kitaplık)
+  // Kitabın nereden geldiğini gösteren kod:  G-A01-007
+  //   G   → mekân (kat/oda)      A → raf (kitaplık)
   //   01  → sıra (rafın gözü)  007 → o sıradaki kaçıncı kitap
   //
   // Kütüphane tek mekândaysa listeyi tek satır bırakın, kod A01-007 olur.
   // Kodları kısa tutun; gönüllü menüden seçecek, yazmayacak.
   MEKANLAR: [
-    { kod: 'K1', ad: '1. kat' },
-    { kod: 'K2', ad: '2. kat' },
-    { kod: 'D',  ad: 'Depo' },
+    { kod: 'G', ad: 'Giriş Kat' },
+    { kod: 'U', ad: 'Üst Kat' },
+    { kod: 'D', ad: 'Depo' },
   ],
 
   // Her mekânda kullanılan raf (kitaplık) harfleri
@@ -131,14 +131,14 @@ function pad_(sayi, hane) {
   return m;
 }
 
-/** 'K1-A01' — bir sıranın (rafın gözünün) anahtarı. Mekân tek ise 'A01'. */
+/** 'G-A01' — bir sıranın (rafın gözünün) anahtarı. Mekân tek ise 'A01'. */
 function rafAnahtari_(mekan, raf, sira) {
   var m = String(mekan || '').trim().toUpperCase();
   var kod = String(raf || '').trim().toUpperCase() + pad_(Number(sira) || 0, 2);
   return m ? m + '-' + kod : kod;
 }
 
-/** 'K1-A01-007' — tek bir kitabın yer kodu. */
+/** 'G-A01-007' — tek bir kitabın yer kodu. */
 function yerKodu_(mekan, raf, sira, siraNo) {
   return rafAnahtari_(mekan, raf, sira) + '-' + pad_(Number(siraNo) || 0, 3);
 }
@@ -481,7 +481,7 @@ function sayfaAl_(ad) {
     sayfa.getRange(1, 1, 1, 3).setFontWeight('bold').setBackground('#601040').setFontColor('#ffffff');
     sayfa.setColumnWidth(1, 60); sayfa.setColumnWidth(2, 120); sayfa.setColumnWidth(3, 460);
   } else if (ad === 'Kutular') {
-    sayfa.appendRow(['Kutu no', 'Kaynak sıra (K1-A01)', 'Yer kodu aralığı', 'Hedef bölüm',
+    sayfa.appendRow(['Kutu no', 'Kaynak sıra (G-A01)', 'Yer kodu aralığı', 'Hedef bölüm',
                      'Paketleyen', 'Tarih', 'İçindeki kitap']);
     sayfa.setFrozenRows(1);
     sayfa.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#601040').setFontColor('#ffffff');

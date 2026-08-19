@@ -519,7 +519,16 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     }).catch(function () { bitir(); agDurumu(false); throw new Error('AĞ'); })
       .then(function (r) { bitir(); agDurumu(true); return r.text(); })
       .then(function (m) {
-        var d; try { d = JSON.parse(m); } catch (h) { throw new Error('Sunucudan beklenmeyen yanıt.'); }
+        var d;
+        try { d = JSON.parse(m); } catch (h) {
+          /* JSON yerine HTML geldiyse istek sunucuya ulaşıyor ama Apps Script yanıt
+             vermiyor demektir. En sık sebebi dağıtımın erişim ayarıdır: yeni
+             dağıtımlarda varsayılan "Yalnızca kendim"dir ve Google giriş sayfası döner. */
+          throw new Error(/^\s*</.test(m)
+            ? 'Sunucu JSON yerine web sayfası döndürdü. Apps Script dağıtımında ' +
+              '“Erişimi olan: Herkes” seçili mi? (Yeni dağıtımlarda varsayılan “Yalnızca kendim”dir.)'
+            : 'Sunucudan beklenmeyen yanıt.');
+        }
         if (!d.ok) { var e = new Error(d.error || 'Hata'); e.sifreHatasi = d.sifreHatasi; throw e; }
         return d;
       });
@@ -596,7 +605,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   });
 
   /* ───────── yer kodu ─────────
-     Kod:  K1-A01-007  →  mekân · raf · sıra · o sıradaki kaçıncı kitap.
+     Kod:  G-A01-007  →  mekân · raf · sıra · o sıradaki kaçıncı kitap.
      Numarayı telefon verir (bağlantı yokken de çalışsın diye), sunucu senkronda
      doğrular; çakışma olursa düzeltip yeni numarayı geri bildirir. */
 

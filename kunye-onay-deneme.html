@@ -226,7 +226,7 @@
     ['M3','belirsiz','Yabancı dilde, içeriği anlamadım'],
     ['M4','belirsiz','Kurallar çelişiyor']
   ];
-  var MEKANLAR = [{ kod:'K1', ad:'1. kat' }, { kod:'K2', ad:'2. kat' }, { kod:'D', ad:'Depo' }];
+  var MEKANLAR = [{ kod:'G', ad:'Giriş Kat' }, { kod:'U', ad:'Üst Kat' }, { kod:'D', ad:'Depo' }];
   var RAF_HARFLERI = 'ABCDEFGH'.split('');
   var SIRA_SAYISI = 8;
 
@@ -506,30 +506,53 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     else { b.innerHTML = b.dataset.eski || b.innerHTML; b.disabled = false; }
   }
 
-  function api(action, yuk) {
-    if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
-      return Promise.reject(new Error('Sistem adresi tanımlanmamış (TV_ENVANTER_URL).'));
-    }
+  /* Apps Script uykudan kalkarken ilk istek 20–30 saniye sürebiliyor; zayıf bağlantıda
+     istek büsbütün düşebiliyor. Okuma istekleri otomatik tekrar denenir, yazma istekleri
+     (onayla) denenmez — aynı kayıt iki kez işlenmesin. */
+  var TEKRARLANABILIR = ['config', 'onayBekleyen', 'katalog', 'durum'];
+
+  function tekIstek(action, yuk, sure) {
     var govde = { action: action, sifre: D.sifre };
     for (var k in (yuk || {})) govde[k] = yuk[k];
-
-    // Vakıfta bağlantı zayıf; ölü wifi'de istek asılı kalmasın.
     var kes = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    var saat = setTimeout(function () { if (kes) kes.abort(); }, 20000);
+    var saat = setTimeout(function () { if (kes) kes.abort(); }, sure);
     var bitir = function () { clearTimeout(saat); };
-
     return fetch(ENVANTER_URL, {
       method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(govde), redirect: 'follow',
-      signal: kes ? kes.signal : undefined
+      body: JSON.stringify(govde), redirect: 'follow', signal: kes ? kes.signal : undefined
     }).catch(function () { bitir(); throw new Error('AĞ'); })
       .then(function (r) { bitir(); return r.text(); })
       .then(function (m) {
-        var d; try { d = JSON.parse(m); } catch (h) { throw new Error('Sunucudan beklenmeyen yanıt.'); }
+        var d;
+        try { d = JSON.parse(m); } catch (h) {
+          /* JSON yerine HTML geldiyse istek sunucuya ulaşıyor ama Apps Script yanıt
+             vermiyor demektir. En sık sebebi dağıtımın erişim ayarıdır: yeni
+             dağıtımlarda varsayılan "Yalnızca kendim"dir ve Google giriş sayfası döner. */
+          throw new Error(/^\s*</.test(m)
+            ? 'Sunucu JSON yerine web sayfası döndürdü. Apps Script dağıtımında ' +
+              '“Erişimi olan: Herkes” seçili mi? (Yeni dağıtımlarda varsayılan “Yalnızca kendim”dir.)'
+            : 'Sunucudan beklenmeyen yanıt.');
+        }
         if (!d.ok) throw new Error(d.error || 'Hata');
         return d;
       });
   }
+
+  function api(action, yuk) {
+    if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
+      return Promise.reject(new Error('Sistem adresi tanımlanmamış (TV_ENVANTER_URL).'));
+    }
+    var kalan = TEKRARLANABILIR.indexOf(action) >= 0 ? 2 : 0;
+    function dene(kalanDeneme, bekle) {
+      return tekIstek(action, yuk, 30000)['catch'](function (e) {
+        if (e.message !== 'AĞ' || kalanDeneme <= 0) throw e;
+        return new Promise(function (t) { setTimeout(t, bekle); })
+          .then(function () { return dene(kalanDeneme - 1, bekle * 2); });
+      });
+    }
+    return dene(kalan, 1200);
+  }
+
   function ağHata(e) { return e.message === 'AĞ' ? 'Sunucuya ulaşılamadı.' : e.message; }
 
   /* ───────── giriş ───────── */
