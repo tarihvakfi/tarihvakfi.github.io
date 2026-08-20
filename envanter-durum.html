@@ -106,6 +106,19 @@
   .donen{display:inline-block;width:14px;height:14px;border:2px solid #ffffff59;border-top-color:#fff;
     border-radius:50%;animation:don .7s linear infinite;vertical-align:-2px;margin-right:7px}
   @keyframes don{to{transform:rotate(360deg)}}
+  /* sıra haritası */
+  .sira-ozet{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .sira-ozet span{border-radius:8px;padding:6px 12px;font-size:13.5px;font-weight:700}
+  .sira-ozet .bitti{background:#e4f0e7;color:#22502f}
+  .sira-ozet .devam{background:#fdf3e0;color:#7a5210}
+  .sira-ozet .bos{background:#eef2f6;color:#3c5064}
+  .sira-ozet .tutulu{background:#f0e8f4;color:#5a2a63}
+  .sira-ozet .uyusmaz{background:#fbe6e9;color:#8a1c2c}
+  #haritaTablo .dur{font-weight:700}
+  #haritaTablo .d-bitti{color:#22502f}
+  #haritaTablo .d-devam{color:#7a5210}
+  #haritaTablo .d-bos{color:#7d8a95}
+  #haritaTablo tr.kotu td{background:#fdf2f4}
 </style>
 </head>
 <body>
@@ -165,7 +178,16 @@
     </div>
 
     <div class="kart">
-      <h3>Sıralar</h3>
+      <h3>Sıra haritası</h3>
+      <p class="altbaslik">Hangi sıra bitti, hangisi yarım, hangisi kimin üzerinde —
+        sayımı tutmayanlar en üstte</p>
+      <div id="siraOzet" class="sira-ozet"></div>
+      <div class="kaydir"><table id="haritaTablo"></table></div>
+      <p class="altbaslik" id="haritaNot" style="margin-top:10px"></p>
+    </div>
+
+    <div class="kart">
+      <h3>Sıralar — kayıt yoğunluğu</h3>
       <p class="altbaslik">Hangi sırada kaç kitap kaydedildi</p>
       <div class="kaydir"><table id="siraTablo"></table></div>
     </div>
@@ -274,6 +296,62 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     yukle()['catch'](function (e) { goster($('msg'), 'hata', agHata(e)); })
       .then(function () { mesgul($('btnYenile'), false); });
   });
+
+  /* Sıra haritası: sistemin yakaladığı sayım tutarsızlıkları burada görünür.
+     Bunun bir ekranı yoksa uyarılar kimsenin bakmadığı bir hücrede kalıyor. */
+  function haritayiYukle() {
+    return api('siraHaritasi').then(function (h) {
+      $('siraOzet').innerHTML =
+        '<span class="bitti">' + h.bitti + ' bitti</span>' +
+        '<span class="devam">' + h.devam + ' yarım</span>' +
+        '<span class="bos">' + h.bos + ' hiç başlanmadı</span>' +
+        '<span class="tutulu">' + (h.tutulu || 0) + ' şu an birinin üzerinde</span>' +
+        (h.uyusmayan ? '<span class="uyusmaz">' + h.uyusmayan + ' sayım tutmuyor</span>' : '');
+
+      // Önce sorunlular, sonra devam edenler ve tutulanlar; boşlar en sonda.
+      var oncelik = function (x) {
+        if (x.durum === 'bitti' && Number(x.fark) !== 0) return 0;
+        if (x.tutulu) return 1;
+        if (x.durum === 'devam') return 2;
+        if (x.durum === 'bitti') return 3;
+        return 4;
+      };
+      var liste = h.siralar.slice().sort(function (a, b) {
+        var f = oncelik(a) - oncelik(b);
+        return f !== 0 ? f : String(a.sira).localeCompare(String(b.sira));
+      });
+      var gosterilen = liste.filter(function (x) { return x.durum !== 'bos' || x.tutulu; });
+      var bosSayisi = liste.length - gosterilen.length;
+
+      $('haritaTablo').innerHTML =
+        '<tr><th>Sıra</th><th>Durum</th><th>Rafta</th><th>Sistemde</th>' +
+        '<th>Fark</th><th>Kim</th></tr>' +
+        (gosterilen.length ? gosterilen.map(function (x) {
+          var kotu = x.durum === 'bitti' && Number(x.fark) !== 0;
+          var kim = x.tutulu ? x.tutan + ' (üzerinde)' : (x.bitiren || '');
+          return '<tr' + (kotu ? ' class="kotu"' : '') + '>' +
+            '<td class="ad">' + esc(x.sira) + '</td>' +
+            '<td class="dur d-' + x.durum + '">' +
+              (x.durum === 'bitti' ? 'bitti' : x.durum === 'devam' ? 'yarım' : 'boş') + '</td>' +
+            '<td>' + (x.raftaki === '' ? '—' : sayi(x.raftaki)) + '</td>' +
+            '<td>' + sayi(x.kayitli) +
+              (x.kayitSayisi && x.kayitSayisi !== x.kayitli
+                ? ' <span style="color:var(--soluk)">(' + x.kayitSayisi + ' kayıt)</span>' : '') +
+            '</td>' +
+            '<td>' + (x.fark === '' ? '—' :
+              (Number(x.fark) === 0 ? 'tutuyor'
+                : (Number(x.fark) > 0 ? x.fark + ' eksik' : (-x.fark) + ' fazla'))) + '</td>' +
+            '<td>' + esc(kim) + '</td></tr>';
+        }).join('') : '<tr><td colspan="6">Henüz hiçbir sıraya dokunulmamış.</td></tr>');
+
+      $('haritaNot').textContent = bosSayisi
+        ? bosSayisi + ' sıra hiç başlanmadı — listeye sığmasın diye gösterilmiyor. ' +
+          'Sıra tutma süresi: ' + (h.tutmaSaat || 8) + ' saat.'
+        : 'Sıra tutma süresi: ' + (h.tutmaSaat || 8) + ' saat.';
+    })['catch'](function () {
+      $('haritaNot').textContent = 'Sıra haritası alınamadı.';
+    });
+  }
 
   function yukle() {
     return api('durum').then(function (r) { D.veri = r; ciz(); });
@@ -388,6 +466,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         return '<tr><td class="ad">' + esc(s.sira) + '</td><td>' + sayi(s.sayi) + '</td><td>' +
           sayi(s.sonNo) + '</td><td>' + esc(gunAdi(s.son)) + '</td></tr>';
       }).join('') : '<tr><td colspan="4">Henüz kayıt yok.</td></tr>');
+
+    /* sıra haritası ayrı istekte gelir (koordinatör eylemi) */
+    haritayiYukle();
 
     /* kaydedenler */
     $('kisiTablo').innerHTML = '<tr><th>Kaydeden</th><th>Bugün</th><th>Toplam</th></tr>' +

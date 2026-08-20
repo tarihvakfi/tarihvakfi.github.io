@@ -421,3 +421,94 @@ sisteme bağlandı.
 
 Kategorisi zaten dolu olan eski kayıtlar olduğu gibi kalır; onay ekranı o kararı
 seçili getirir, koordinatör isterse değiştirir.
+
+---
+
+## Ek: 20 Ağustos 2026 (2) — hız ve uyarlanma
+
+Kurulum sırası aynı: `.gs`'i yapıştır → **`kurulum`** → **yeni sürüm** dağıt →
+`kitap-envanteri.html` + `kunye-onay.html`'i depoya gönder.
+
+### Gönüllü ekranı sadeleşti
+
+Varsayılan ekranda **iki fotoğraf kutusu ve Kaydet** var; kitap başına üç dokunuş.
+Yazar/başlık/yıl/nüsha/durum/not **"Ayrıntı ekle"** altında katlı duruyor ve her
+kayıttan sonra yeniden kapanıyor. Küf ve hasar güvenlik meselesi olduğu için
+**"⚠ Sorunlu kitap"** düğmesi her zaman ekranda.
+
+### Sistem karar öneriyor
+
+Sunucu her bekleyen kayda bir kural öneriyor. Kaynaklar: nüsha sayısı, basım yılı,
+başlık/yazar/yayınevi ve OCR metni.
+
+| Sinyal | Öneri | Güven |
+|---|---|---|
+| 3'ten fazla nüsha | K3 | yüksek |
+| 2–3 nüsha | S1 | yüksek |
+| 1950 öncesi baskı | Y4 | yüksek |
+| "Tarih Vakfı" | Y1 | yüksek |
+| rapor / tez / bülten / bildiriler | Y5 | yüksek |
+| ders kitabı, soru bankası, YKS/KPSS… | K1 | yüksek |
+| broşür / promosyon / fiyat listesi | K6 | yüksek |
+| mevzuat / yıllık / almanak | K2 | orta |
+| osmanlı, cumhuriyet, kent tarihi, bellek, arşiv… | Y2 | orta |
+| ansiklopedi / sözlük / rehber | S2 | orta |
+| küflü-böcekli işaretli | K4 | **zayıf** |
+
+Öneri onay ekranında **ön-seçili** gelir ve sebebi yazar. Koordinatör katılırsa
+`Enter`'a basar, katılmazsa değiştirir. **Hiçbir kayıt kendiliğinden onaylanmaz.**
+
+Anahtar kelimeleri değiştirmek için `.gs` içindeki `ONERI_KURALLARI` listesini
+düzenleyin — kütüphanenizi tanıdıkça buraya kelime eklemek en verimli iyileştirme.
+
+### Gruplu onay
+
+`Gruplu onay` sekmesi aynı öneriyi taşıyan kayıtları tek karta toplar:
+*"23 kayıt · K1 · Alan dışı: ders/sınav kitabı — hepsini onayla"*. Kartta altı örnek
+künye görünür. En kalabalık grup üstte; **zayıf öneriler en altta** (onları tek tek
+geçin). Künyesi hâlâ eksik olan kayıtlar toplu onaydan **otomatik atlanır**.
+
+### Kendini ayarlama
+
+| Bekleyen kayıt | Ne olur |
+|---|---|
+| < 40 | Onay ekranı **tek tek** modunda açılır |
+| ≥ 40 | Onay ekranı **gruplu onayla** açılır, sebebini yazar |
+| ≥ 120 | Raftaki gönüllülerin ekranında da uyarı çıkar: "biri masaya geçsin" |
+
+Eşikleri değiştirmek isterseniz: `kunye-onay.html` içinde `GRUP_ESIGI`,
+`kitap-envanteri.html` içinde `ONAY_ESIGI`.
+
+---
+
+## Ek: 20 Ağustos 2026 (3) — sıra rezervasyonu ve sıra haritası
+
+Kurulum sırası aynı, ama **`kurulum` bu sefer şart**: `Sıralar` sayfasına
+`Alan` ve `Alma saati` sütunları ekleniyor.
+
+### Sıra rezervasyonu
+
+"Bana boş bir sıra ver" artık sırayı **gönüllünün adına ayırıyor**. Öncesinde bir
+sıra ancak ilk kaydı sunucuya ulaştığında "başlanmış" sayılıyordu; bu da dakikalar
+sonra olduğu için sabah aynı anda giriş yapan herkes aynı sırayı alıyordu.
+
+- Rezervasyon süresi: `AYAR.SIRA_TUTMA_SAAT` (varsayılan **8 saat**). Süre dolunca
+  sıra havuza döner.
+- Sıra bitirilince rezervasyon **hemen** kalkar.
+- Bir kişinin aynı anda **bir** sırası olur; bitirmeden yeni sıra verilmez.
+- Gönüllü menüden **elle** seçerse de sıra onun adına ayrılır.
+- Başkasının üzerindeki sıra önerilmez; elle seçilirse kırmızı uyarı ve onay sorusu
+  çıkar (devralmak mümkün, ama bilerek).
+- **Yığılma önleme:** aynı anda dağıtılan sıralar mümkün olduğunca farklı
+  kitaplıklardan seçilir. Tek başına çalışan gönüllü için bir şey değişmez.
+
+### Sıra haritası
+
+`envanter-durum.html` sayfasına **Sıra haritası** kartı eklendi:
+
+- Üstte şerit: bitti · yarım · hiç başlanmadı · şu an birinin üzerinde · **sayımı tutmuyor**
+- Tabloda sıralama: **sayımı tutmayanlar en üstte** (kırmızı zemin), sonra üzerinde
+  biri olanlar, sonra yarım kalanlar, sonra bitenler
+- Sütunlar: rafta kaç kitap sayıldı · sistemde kaç cilt (kaç kayıt) · fark · kim
+
+Hiç başlanmamış sıralar tabloya alınmaz (yüzlerce satır olurdu); sayıları altta yazar.

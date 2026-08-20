@@ -59,6 +59,19 @@
   .durumlar button.sec{border-color:var(--bordo);background:var(--vurgu-bg);color:var(--bordo);font-weight:700}
   .durumlar button.kotu.sec{border-color:var(--kirmizi);background:#fbeaec;color:var(--kirmizi)}
 
+  /* ── ayrıntı katlama ── */
+  .ayrinti-satir{display:flex;gap:10px;margin-top:16px;align-items:stretch;flex-wrap:wrap}
+  .ayrinti-ac{flex:1 1 190px;border:1.5px dashed var(--cizgi);background:#fff;
+    border-radius:11px;padding:12px 14px;font:inherit;font-size:15px;text-align:left;
+    color:var(--bordo);cursor:pointer;line-height:1.3}
+  .ayrinti-ac small{display:block;font-size:12px;color:var(--soluk);font-weight:400;
+    margin-top:2px}
+  .ayrinti-ac span{font-weight:800;margin-right:4px}
+  .sorunlu-btn{flex:0 0 auto;border:1.5px solid #d9a23f;background:#fffbeb;
+    border-radius:11px;padding:12px 14px;font:inherit;font-size:15px;font-weight:700;
+    color:#8a5a06;cursor:pointer}
+  .sorunlu-btn.sec{background:#9c2233;border-color:#9c2233;color:#fff}
+
   /* ── kategori düğmeleri ── */
   .kat-baslik{font-weight:700;font-size:14px;margin:20px 0 8px;color:var(--murekkep)}
   .katlar{display:grid;grid-template-columns:1fr 1fr;gap:9px}
@@ -208,6 +221,7 @@
     </div>
     <div class="msg hata gizli" id="sorunlu" style="margin:0 0 14px"></div>
     <div class="msg uyari gizli" id="duzeltilen" style="margin:0 0 14px"></div>
+    <div class="msg uyari gizli" id="onayUyari" style="margin:0 0 14px"></div>
     <div class="msg" id="msgKayit"></div>
 
     <div class="kart">
@@ -260,7 +274,15 @@
       <p class="foto-aciklama">İkisi de isteğe bağlı. <b>Künye sayfasını çekerseniz başlık boş
         kalabilir</b> — künye masa başında fotoğraftan tamamlanır.</p>
 
-      <div class="kat-baslik" style="margin-top:18px">Ya da künyeyi elle yazın</div>
+      <div class="ayrinti-satir">
+        <button type="button" id="btnAyrinti" class="ayrinti-ac">
+          <span id="ayrintiOk">▸</span> Ayrıntı ekle
+          <small>yazar · başlık · yıl · nüsha · durum · not</small></button>
+        <button type="button" id="btnSorunlu" class="sorunlu-btn">⚠ Sorunlu kitap</button>
+      </div>
+
+      <div id="ayrintiBloku" class="gizli">
+      <div class="kat-baslik" style="margin-top:6px">Künyeyi elle yazın</div>
 
       <label for="yazar">Yazar</label>
       <input type="text" id="yazar" placeholder="Soyadı, Adı" autocomplete="off">
@@ -284,6 +306,7 @@
 
       <label for="not">Not <span style="font-weight:400">(isteğe bağlı)</span></label>
       <textarea id="not" placeholder="İçinden mektup çıktı, cildi dağılmış…"></textarea>
+      </div>
 
       <button class="btn" id="btnKaydet" style="margin-top:18px">Kitabı kaydet</button>
       <p class="foto-aciklama" style="margin-top:8px">Gidecek mi gitmeyecek mi kararını
@@ -298,10 +321,13 @@
     <div class="kart" style="margin-top:18px">
       <div class="kat-baslik" style="margin-top:0">Bu sırayı bitirdiniz mi?</div>
       <p class="foto-aciklama" style="margin:0 0 12px">Sıradaki bütün kitapları kaydettiyseniz
-        buraya basın. <b>Rafta fiziksel olarak kaç kitap olduğunu sayın</b> — sistem kendi
-        sayısıyla karşılaştırıp atlanan kitap olup olmadığını söyleyecek.</p>
-      <label for="raftaki">Bu sırada rafta kaç kitap vardı?</label>
+        buraya basın. Önce <b>şu anda rafta duran kitapları sayın</b> — aynı kitaptan üç tane
+        varsa üç sayın. Sistemin sayısını size <b>sonra</b> göstereceğiz; şimdi görmeniz
+        sayımı bozar.</p>
+      <label for="raftaki">Şu anda bu sırada rafta kaç kitap duruyor?</label>
       <input type="text" id="raftaki" inputmode="numeric" maxlength="4" placeholder="örn. 42">
+      <label for="siraNot">Sıra hakkında not <span style="font-weight:400">(isteğe bağlı)</span></label>
+      <input type="text" id="siraNot" placeholder="Rafın arkasında ikinci sıra kitap vardı…">
       <button class="btn ikincil" id="btnSiraBitir" style="margin-top:12px">
         Bu sırayı bitirdim</button>
       <div class="msg gizli" id="msgBitir" style="margin-top:12px"></div>
@@ -320,7 +346,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
-  var D = { ad: '', sifre: '', cfg: null, durum: 'Sağlam', siraDurumu: '',
+  var D = { ad: '', sifre: '', cfg: null, durum: 'Sağlam', siraDurumu: '', siraTutan: '',
+            ayrintiAcik: false,
             duzenleNo: null, sayac: 0, foto: null, kapak: null,
             mekan: '', raf: '', sira: 0, anahtar: '', sonraki: 1 };
   var KUYRUK = 'tv_env_kuyruk';
@@ -604,6 +631,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       localStorage.setItem('tv_env_ad', ad);
       localStorage.setItem('tv_env_sifre', sifre);
       D.sayac = (r.benim != null) ? r.benim : (r.sayac ? r.sayac.benim : 0);
+      kuyrukUyarisi(r.bekleyen);
       // Açılışta ayarlar alınamamış olabilir: raf ekranına geçmeden bir daha denenir.
       return ayarlariYukle();
     }).then(function () { iceriGir(false); })
@@ -713,6 +741,15 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         hikaye = '<b style="display:inline;font-size:14px">boş sıra</b> — ' +
           'hiç başlanmamış. İlk kitap: ' + esc(yerKodu(anahtar, sonraki));
       }
+      D.siraTutan = (d.tutulu && String(d.tutan || '').toLowerCase() !== D.ad.toLowerCase())
+        ? String(d.tutan) : '';
+      if (D.siraTutan) {
+        hikaye = '<b style="display:inline;font-size:14px;color:var(--kirmizi)">' +
+          'BU SIRA ' + esc(D.siraTutan.toLocaleUpperCase('tr')) + ' ÜZERİNDE</b> — ' +
+          'bugün ona verildi. Aynı sırada iki kişi çalışmayın; ' +
+          '<b>Bana boş bir sıra ver</b> deyin.' +
+          '<br><span style="opacity:.8">' + hikaye + '</span>';
+      }
       $('rafOzet').innerHTML = '<b>' + esc(anahtar) + '</b><span class="ek">' + hikaye + '</span>';
     })['catch'](function () {
       $('rafOzet').innerHTML = '<b>' + esc(anahtar) + '</b>' +
@@ -729,9 +766,13 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   $('btnSiraOner').addEventListener('click', function () {
     mesgul($('btnSiraOner'), true, 'Bakılıyor…');
     gizle($('msgOner'));
-    api('siraOner').then(function (d) {
+    api('siraOner', { kaydeden: D.ad }).then(function (d) {
       if (!d.anahtar) {
-        goster($('msgOner'), 'iyi', 'Bütün sıralar bitmiş görünüyor. Koordinatöre sorun.');
+        goster($('msgOner'), d.tur === 'hepsiTutulu' ? 'uyari' : 'iyi',
+          d.tur === 'hepsiTutulu'
+            ? 'Boş sıra kalmadı — açık sıraların hepsi şu an başkalarının üzerinde. ' +
+              'Koordinatöre sorun.'
+            : 'Bütün sıralar bitmiş görünüyor. Koordinatöre sorun.');
         return;
       }
       var p = d.anahtar.split('-');                     // G-A03  ya da  A03
@@ -741,12 +782,20 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       $('rafHarf').value = kod.charAt(0);
       $('siraSec').value = String(Number(kod.slice(1)));
       rafOzetYenile();
-      goster($('msgOner'), d.tur === 'bos' ? 'iyi' : 'uyari',
-        d.tur === 'bos'
-          ? '<b>' + esc(d.anahtar) + '</b> size verildi — hiç başlanmamış bir sıra. ' +
-            'Geriye ' + d.kalanBos + ' boş sıra kalıyor.'
-          : '<b>' + esc(d.anahtar) + '</b> — boş sıra kalmamış, yarım kalmış bir sıra verildi. ' +
-            'Kaldığı yerden devam edin.');
+      var m;
+      if (d.zatenSizde) {
+        m = ['uyari', '<b>' + esc(d.anahtar) + '</b> zaten sizin üzerinizde. ' +
+             'Bitirmeden yeni sıra verilmiyor — bitirdiyseniz aşağıdan ' +
+             '<b>Bu sırayı bitirdim</b> deyin.'];
+      } else if (d.tur === 'bos') {
+        m = ['iyi', '<b>' + esc(d.anahtar) + '</b> <b>sizin adınıza ayrıldı</b> — hiç ' +
+             'başlanmamış bir sıra. Geriye ' + d.kalanBos + ' boş sıra kalıyor.' +
+             (d.tutulan ? ' (' + d.tutulan + ' sıra başkalarının üzerinde.)' : '')];
+      } else {
+        m = ['uyari', '<b>' + esc(d.anahtar) + '</b> sizin adınıza ayrıldı — boş sıra ' +
+             'kalmamış, yarım kalmış bir sıra verildi. Kaldığı yerden devam edin.'];
+      }
+      goster($('msgOner'), m[0], m[1]);
     })['catch'](function (e) {
       goster($('msgOner'), 'hata', e.message === 'AĞ'
         ? 'Sunucuya ulaşılamadı. Koordinatörden sıra isteyin.' : e.message);
@@ -761,6 +810,23 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   $('btnRaf').addEventListener('click', function () {
     var r = seciliRaf();
     if (!r.raf) return;
+    // Bitmiş sıraya yanlışlıkla girilmesin: kırmızı uyarıyı okumayan olur.
+    if (D.siraDurumu === 'bitti' &&
+        !window.confirm('Bu sıra BİTMİŞ olarak işaretlenmiş.\n\n' +
+                        'Yine de bu sırada çalışacak mısınız? ' +
+                        '(Atlanmış kitap bulduysanız evet deyin.)')) {
+      return;
+    }
+    // Başkasının üzerindeki sıraya girmek: engellemiyoruz ama bilerek olsun.
+    if (D.siraTutan &&
+        !window.confirm('Bu sıra bugün ' + D.siraTutan + ' adına ayrıldı.\n\n' +
+                        'Aynı sırada iki kişi çalışmak karışıklık yaratır. ' +
+                        'Yine de devam edecek misiniz?')) {
+      return;
+    }
+    // Sırayı kendi adınıza ayır: başkasına önerilmesin. Ağ yoksa sorun değil.
+    api('siraSec', { mekan: r.mekan, raf: r.raf, sira: r.sira,
+                     kaydeden: D.ad, yinede: true })['catch'](function () {});
     D.mekan = r.mekan; D.raf = r.raf; D.sira = r.sira;
     D.anahtar = anahtarKur(r.mekan, r.raf, r.sira);
     D.sonraki = siraDepoOku()[D.anahtar] || 1;
@@ -835,6 +901,42 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
   $('btnKaydet').addEventListener('click', function () { kaydet($('btnKaydet')); });
 
+  /* Onay masası geride kalırsa rafta çalışanlar bilsin — kimin masaya geçmesi
+     gerektiğine karar verecek olan onlar. Eşik aşılınca çıkar, düşünce kaybolur. */
+  var ONAY_ESIGI = 120;
+  function kuyrukUyarisi(bekleyen) {
+    var n = Number(bekleyen);
+    var kutu = $('onayUyari');
+    if (!kutu) return;
+    if (!n || n < ONAY_ESIGI) { kutu.classList.add('gizli'); kutu.classList.remove('gor'); return; }
+    kutu.classList.remove('gizli'); kutu.classList.add('gor');
+    kutu.innerHTML = '<b>Onay masası geride kaldı:</b> ' + n + ' kayıt karar bekliyor. ' +
+      'Kaydetmeye devam edin — ama mümkünse biri masaya geçsin. ' +
+      'Onay ekranında <b>gruplu onay</b> hızlı ilerletir.';
+  }
+
+  /* ───────── çek-geç: ayrıntılar katlı ─────────
+     Varsayılan iş: iki fotoğraf + Kaydet. Yazmak isteyen açar. Kitap başına
+     dokunuş sayısını düşürmek, gün boyu yapılan tek şey bu olduğu için önemli. */
+  function ayrintiAc(ac) {
+    D.ayrintiAcik = ac;
+    $('ayrintiBloku').classList.toggle('gizli', !ac);
+    $('ayrintiOk').textContent = ac ? '▾' : '▸';
+  }
+  $('btnAyrinti').addEventListener('click', function () {
+    ayrintiAc(!D.ayrintiAcik);
+    if (D.ayrintiAcik) $('yazar').focus();
+  });
+
+  /* Küf ve hasar güvenlik meselesi: ayrıntıların içine gömülmemeli.
+     Her zaman görünen bu düğme ayrıntıyı açıp durumu işaretliyor. */
+  $('btnSorunlu').addEventListener('click', function () {
+    ayrintiAc(true);
+    durumSec(D.durum === 'Küflü/böcekli' ? 'Sağlam' : 'Küflü/böcekli');
+    $('btnSorunlu').classList.toggle('sec', D.durum === 'Küflü/böcekli');
+    if (D.durum === 'Küflü/böcekli') $('durumlar').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+
   /* ───────── kaydet ───────── */
   function kaydet(dugme) {
     var baslik = $('baslik').value.trim();
@@ -850,7 +952,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       yil: $('yil').value.trim(), nusha: $('nusha').value.trim() || 1,
       durum: D.durum,        // sınıflandırma koordinatörde; gönüllü karar vermiyor
       not: $('not').value.trim(), kaydeden: D.ad,
-      fotoVar: !!D.foto
+      // Kapak da künye yerine geçer: OCR kapaktan da okuyor, kartta da öyle yazıyor.
+      // Yalnız künyeye bakmak, sadece kapak çekilen kaydı sunucuda reddettiriyordu.
+      fotoVar: !!(D.foto || D.kapak)
     };
 
     var foto = D.foto, kapak = D.kapak;
@@ -877,6 +981,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         ustuYenile();
         D.sayac++;
         $('ustSayac').textContent = D.sayac;
+        if (r.sayac) kuyrukUyarisi(r.sayac.bekleyen);
         var kacFoto = (foto ? 1 : 0) + (kapak ? 1 : 0);
         goster($('msgKayit'), 'iyi', '<b>' + esc(kod) + '</b> kaydedildi — ' + esc(etiket) +
           (r.duzeltildi ? ' <span style="opacity:.8">(numara sunucuda düzeltildi)</span>' : '') +
@@ -925,14 +1030,26 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     fotoGoster();
     $('duzenleUyari').classList.add('gizli');
     durumSec('Sağlam');
+    $('btnSorunlu').classList.remove('sec');
+    ayrintiAc(false);                 // her kitap sade ekranla başlasın
     gizle($('msgKayit'));
-    $('yazar').focus();
+    // Klavye açılmasın: çek-geç akışında yazılacak bir şey yok.
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   }
 
   /* ───────── sırayı bitirme ─────────
      Tamlığın tek güvencesi bu: sistem kaç kitap kaydettiğini biliyor, ama rafta
      kaç kitap durduğunu bilmiyor. Gönüllü sayar, sistem karşılaştırır. */
+  /* Sayarken ekranda sistemin sayısı durursa gönüllü o sayıya kadar sayar.
+     Bu yüzden sayı kutusuna dokunulduğu anda üstteki sayaçları saklıyoruz. */
+  $('raftaki').addEventListener('focus', function () {
+    $('ustSira').style.visibility = 'hidden';
+    $('ustSayac').style.visibility = 'hidden';
+  });
+
   $('btnSiraBitir').addEventListener('click', function () {
+    $('ustSira').style.visibility = '';
+    $('ustSayac').style.visibility = '';
     var raftaki = $('raftaki').value.trim();
     if (!/^\d{1,4}$/.test(raftaki)) {
       goster($('msgBitir'), 'hata', 'Rafta kaç kitap olduğunu sayıp yazın.');
@@ -948,22 +1065,23 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     mesgul($('btnSiraBitir'), true, 'İşleniyor…');
     api('siraBitir', { mekan: D.mekan, raf: D.raf, sira: D.sira,
                        raftaki: Number(raftaki), kaydeden: D.ad,
-                       not: $('not').value.trim() }).then(function (d) {
-      $('raftaki').value = '';
+                       not: $('siraNot').value.trim() }).then(function (d) {
+      $('raftaki').value = ''; $('siraNot').value = '';
+      var sayilar = 'rafta ' + d.raftaki + ' · sistemde ' + d.kayitli +
+        (d.kayitSayisi !== d.kayitli ? ' cilt (' + d.kayitSayisi + ' kayıt)' : ' kitap');
       if (d.fark === 0) {
         goster($('msgBitir'), 'iyi', '<b>' + esc(d.anahtar) + '</b> bitti. ' +
-          'Rafta ' + d.raftaki + ', sistemde ' + d.kayitli + ' kitap — <b>tutuyor.</b> ' +
-          'Yukarıdan yeni bir sıra alabilirsiniz.');
+          sayilar + ' — <b>tutuyor.</b> Yukarıdan yeni bir sıra alabilirsiniz.');
       } else if (d.fark > 0) {
-        goster($('msgBitir'), 'uyari', '<b>' + esc(d.anahtar) + '</b> bitti olarak işaretlendi, ' +
-          'ama <b>' + d.fark + ' kitap eksik</b>: rafta ' + d.raftaki +
-          ', sistemde ' + d.kayitli + '. Rafı bir daha gözden geçirin — ' +
-          'kaydedilmemiş kitap kalmış olabilir.');
+        goster($('msgBitir'), 'uyari', '<b>' + esc(d.anahtar) + '</b> kapatıldı ama ' +
+          '<b>' + d.fark + ' kitap eksik</b> görünüyor (' + sayilar + '). ' +
+          'Rafı bir daha gözden geçirin — kaydedilmemiş kitap kalmış olabilir. ' +
+          'Bulamazsanız koordinatöre söyleyin; sıra kontrol listesine girdi.');
       } else {
-        goster($('msgBitir'), 'uyari', '<b>' + esc(d.anahtar) + '</b> bitti olarak işaretlendi, ' +
-          'ama sistemde <b>' + (-d.fark) + ' kitap fazla</b> görünüyor (rafta ' + d.raftaki +
-          ', sistemde ' + d.kayitli + '). Aynı kitap iki kez kaydedilmiş olabilir; ' +
-          'koordinatöre söyleyin.');
+        goster($('msgBitir'), 'uyari', '<b>' + esc(d.anahtar) + '</b> kapatıldı ama sistemde ' +
+          '<b>' + (-d.fark) + ' kitap fazla</b> görünüyor (' + sayilar + '). ' +
+          'Raftan kitap aldıysanız (küflü kitap gibi) bu normaldir. Almadıysanız aynı ' +
+          'kitap iki kez kaydedilmiş olabilir; koordinatöre söyleyin.');
       }
       D.siraDurumu = 'bitti';
     })['catch'](function (e) {
@@ -1010,6 +1128,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       $('nusha').value = k.nusha || 1;
       $('not').value = k.not || '';
       durumSec(k.durum || 'Sağlam');
+      $('btnSorunlu').classList.toggle('sec', (k.durum || '') === 'Küflü/böcekli');
+      ayrintiAc(true);                // düzeltmede alanlar görünmeli
       D.foto = null; D.kapak = null; fotoGoster();
       D.duzenleNo = no;
       $('duzenleNo').textContent = no;

@@ -55,6 +55,11 @@ var AYAR = {
   // Bir rafta en fazla kaç sıra (göz) var
   SIRA_SAYISI: 8,
 
+  // Bir gönüllüye verilen sıra kaç saat onun adına ayrılı kalsın?
+  // Süre dolunca sıra başkasına önerilebilir hâle gelir (yarım kalmışsa
+  // "yarım" olarak). Yarım günlük vardiyalar için 8 saat uygundur.
+  SIRA_TUTMA_SAAT: 8,
+
   // ── Fotoğraf ve OCR ──────────────────────────────────────────────
   // Künye sayfası fotoğraflarının kaydedileceği Drive klasörü.
   // Boş bırakırsanız betik "Kitap Künye Fotoğrafları" adlı klasörü kendisi açar.
@@ -128,9 +133,104 @@ var S = {
   istemci: 27, silindi: 28
 };
 
+/* 'Sıralar' sayfası: her sıranın tek satırlık hikâyesi — kime verildi, kim
+   bitirdi, sayım tuttu mu. */
+var SIRA_SUTUNLARI = ['Sıra', 'Raftaki kitap', 'Kayıtlı cilt', 'Bitiren', 'Bitiş tarihi',
+                      'Not', 'Sonuç', 'Kayıt sayısı', 'Alan', 'Alma saati'];
+var SR = { sira: 1, raftaki: 2, cilt: 3, bitiren: 4, tarih: 5, not: 6,
+           sonuc: 7, kayitSayisi: 8, alan: 9, almaSaati: 10 };
+
 /* Silinen kayıt satırdan atılmaz, işaretlenir: kayıt no ve sıra no yeniden
    kullanılmasın, geç gelen fotoğraf yanlış kitaba yapışmasın diye. */
 function silinmis_(satir) { return !!satir[S.silindi - 1]; }
+
+/**
+ * Türkçe büyük harf tuzağı: /kitap/i kalıbı "KİTAP" ile eşleşmez (noktalı İ).
+ * Karşılaştırmadan önce metin bununla sadeleştirilir.
+ */
+function sade_(b) {
+  return String(b == null ? '' : b)
+    .replace(/[İIıi]/g, 'i').replace(/[Ğğ]/g, 'g').replace(/[Şş]/g, 's')
+    .replace(/[Öö]/g, 'o').replace(/[Üü]/g, 'u').replace(/[Çç]/g, 'c')
+    .toLowerCase();
+}
+
+/* ═══════════════ KARAR ÖNERİSİ ═══════════════
+   Koordinatör kararı yine kendi veriyor; sistem yalnızca hazır getiriyor.
+   Amaç 3000 kararı 3000 düşünmeye değil, 3000 dokunuşa indirmek — ve
+   aynı öneriyi taşıyan kayıtları tek dokunuşta onaylatabilmek. */
+
+/* Anahtar kelimeler. Sırası önemli: yukarıdaki eşleşirse aşağıya bakılmaz. */
+var ONERI_KURALLARI = [
+  { kural: 'Y4', guven: 'yuksek', sebep: 'Eski harfli / Osmanlıca ibare',
+    kalip: /(osmanlica|eski harf|matbaa-i|matbaai|dersaadet|hicri|rumi|mekteb-i|nezaret)/ },
+  { kural: 'Y1', guven: 'yuksek', sebep: 'Tarih Vakfı yayını',
+    kalip: /(tarih vakfi|tarih vakif|history foundation)/ },
+  { kural: 'Y5', guven: 'yuksek', sebep: 'Rapor / tez / bülten / katalog',
+    kalip: /(rapor|raporu|tez|tezi|doktora tezi|yuksek lisans|bulten|bulteni|sempozyum|kongre bildiri|bildiriler)/ },
+  { kural: 'K6', guven: 'yuksek', sebep: 'Tanıtım / promosyon malzemesi',
+    kalip: /(tanitim brosur|brosur|prospektus|reklam|promosyon|fiyat listesi|urun katalogu)/ },
+  { kural: 'K1', guven: 'yuksek', sebep: 'Ders / sınav kitabı',
+    kalip: /(ders kitabi|ders notlari|calisma kitabi|soru bankasi|konu anlatimli|cozumlu test|oss|ygs|lgs|yks|tyt|ayt|kpss|deneme sinavi|sinava hazirlik|ogrenci kilavuzu)/ },
+  { kural: 'K2', guven: 'orta', sebep: 'Mevzuat / yıllık / katalog fazlası',
+    kalip: /(mevzuat|kanun metni|resmi gazete|yillik|yilligi|almanak|istatistik yilligi|telefon rehberi)/ },
+  { kural: 'Y2', guven: 'orta', sebep: 'Alan içi: toplumsal / kent tarihi, bellek',
+    kalip: /(osmanli|cumhuriyet|toplumsal tarih|kent tarihi|sehir tarihi|sozlu tarih|bellek|arsiv|belgeler|iktisat tarihi|ekonomik tarih|sosyal tarih|istanbul tarihi|anadolu|tanzimat|mesrutiyet|milli mucadele)/ },
+  { kural: 'S2', guven: 'orta', sebep: 'Genel başvuru kaynağı',
+    kalip: /(ansiklopedi|sozluk|sozlugu|dictionary|encyclopedia|el kitabi|kilavuz|rehber|bibliyografya)/ },
+];
+
+/**
+ * Bir kayda kategori + kural önerir.
+ * Öneri yoksa boş döner; koordinatör kendisi seçer.
+ */
+function kararOner_(k) {
+  var yil = Number(k.yil) || 0;
+  var nusha = Number(k.nusha) || 1;
+  var durum = String(k.durum || '');
+
+  // 1) Sayıdan gelen kesin kurallar — metne bakmaya gerek yok.
+  if (nusha > 3) {
+    return { kural: 'K3', kategori: 'gitmeyecek', guven: 'yuksek',
+             sebep: nusha + ' nüsha — üçten fazlasının fazlası' };
+  }
+  if (nusha === 2 || nusha === 3) {
+    return { kural: 'S1', kategori: 'belki', guven: 'yuksek',
+             sebep: nusha + ' nüsha — ikinci/üçüncü kopya' };
+  }
+  if (yil && yil < 1950) {
+    return { kural: 'Y4', kategori: 'gidecek', guven: 'yuksek',
+             sebep: yil + ' baskısı — 1950 öncesi' };
+  }
+
+  // 2) Metinden gelen kurallar.
+  var havuz = sade_([k.baslik, k.yazar, k.oneriBaslik, k.oneriYazar,
+                     k.oneriYayinevi, String(k.ocrMetin || '').slice(0, 600),
+                     k.not].filter(Boolean).join(' | '));
+
+  for (var i = 0; i < ONERI_KURALLARI.length; i++) {
+    var o = ONERI_KURALLARI[i];
+    if (o.kalip.test(havuz)) {
+      var kat = kuralinKategorisi_(o.kural);
+      if (kat) return { kural: o.kural, kategori: kat, guven: o.guven, sebep: o.sebep };
+    }
+  }
+
+  // 3) Ağır hasarlı — "kolay bulunabilir" bilinemez, o yüzden yalnızca düşük güven.
+  if (durum === 'Küflü/böcekli') {
+    return { kural: 'K4', kategori: 'gitmeyecek', guven: 'dusuk',
+             sebep: 'Küflü/böcekli işaretlenmiş — kolay bulunabilir mi, siz karar verin' };
+  }
+
+  return { kural: '', kategori: '', guven: '', sebep: '' };
+}
+
+function kuralinKategorisi_(kod) {
+  for (var i = 0; i < KURALLAR.length; i++) {
+    if (KURALLAR[i][0] === kod) return KURALLAR[i][1];
+  }
+  return '';
+}
 
 /* ═══════════════ YER KODU ═══════════════ */
 
@@ -158,12 +258,13 @@ function yerKodu_(mekan, raf, sira, siraNo) {
  */
 function siraKullanimi_(sayfa, anahtar) {
   var son = sayfa.getLastRow();
-  var sonuc = { sonNo: 0, adet: 0, kullanilan: {}, sonCalisan: '', sonTarih: '' };
+  var sonuc = { sonNo: 0, adet: 0, cilt: 0, kullanilan: {}, sonCalisan: '', sonTarih: '' };
   if (son < 2) return sonuc;
 
   var veri = sayfa.getRange(2, S.mekan, son - 1, 4).getValues();   // Mekân, Raf, Sıra, Sıra no
   var silinenler = sayfa.getRange(2, S.silindi, son - 1, 1).getValues();
   var kimler = sayfa.getRange(2, S.kaydeden, son - 1, 3).getValues();  // Kaydeden, Kutu, Tarih
+  var nushalar = sayfa.getRange(2, S.nusha, son - 1, 1).getValues();
   veri.forEach(function (r, i) {
     if (rafAnahtari_(r[0], r[1], r[2]) !== anahtar) return;
     if (!silinenler[i][0]) {
@@ -177,7 +278,12 @@ function siraKullanimi_(sayfa, anahtar) {
     // kitabın üstüne ya da kutuya yazılmış olabilir.
     sonuc.kullanilan[n] = true;
     if (n > sonuc.sonNo) sonuc.sonNo = n;
-    if (!silinenler[i][0]) sonuc.adet++;
+    if (!silinenler[i][0]) {
+      sonuc.adet++;
+      // Rafta duran FİZİKSEL kitap sayısı: 3 nüsha tek kayıttır ama rafta üç cilttir.
+      // Sıra sayımı bununla karşılaştırılır, kayıt sayısıyla değil.
+      sonuc.cilt += Math.max(1, Number(nushalar[i][0]) || 1);
+    }
   });
   return sonuc;
 }
@@ -194,12 +300,15 @@ function siraNoAyarla_(sayfa, anahtar, onerilen) {
 function rafDurum_(mekan, raf, sira) {
   var anahtar = rafAnahtari_(mekan, raf, sira);
   var k = siraKullanimi_(sayfaAl_('Envanter'), anahtar);
-  var b = siraBitisi_(anahtar);
+  var r = siraKayitlari_()[anahtar];
+  var b = (r && r.bitti) ? r : null;
+  var tutulu = tutmaGecerli_(r, new Date());
   return {
-    ok: true, anahtar: anahtar, sonNo: k.sonNo, adet: k.adet,
+    ok: true, anahtar: anahtar, sonNo: k.sonNo, adet: k.adet, cilt: k.cilt,
     durum: b ? 'bitti' : (k.adet ? 'devam' : 'bos'),
     bitiren: b ? b.bitiren : '', bitisTarihi: b ? b.tarih : '',
-    raftaki: b ? b.raftaki : '', sonCalisan: k.sonCalisan, sonTarih: k.sonTarih
+    raftaki: b ? b.raftaki : '', sonCalisan: k.sonCalisan, sonTarih: k.sonTarih,
+    tutulu: tutulu, tutan: tutulu ? r.alan : ''
   };
 }
 
@@ -222,60 +331,175 @@ function tumSiralar_() {
   return liste;
 }
 
-/** 'Sıralar' sayfasındaki bitmiş sıraları anahtar → kayıt olarak döner. */
-function bitmisSiralar_() {
+/**
+ * 'Sıralar' sayfasını anahtar → kayıt olarak döner.
+ * Her satırda hem rezervasyon (kime verildi) hem bitiş (kim kapattı) olabilir.
+ */
+function siraKayitlari_() {
   var sayfa = sayfaAl_('Sıralar');
   var son = sayfa.getLastRow();
   var harita = {};
   if (son < 2) return harita;
-  sayfa.getRange(2, 1, son - 1, 6).getValues().forEach(function (r) {
+  var genislik = Math.max(sayfa.getLastColumn(), SIRA_SUTUNLARI.length);
+  sayfa.getRange(2, 1, son - 1, genislik).getValues().forEach(function (r, i) {
     if (!r[0]) return;
+    var bitiren = String(r[SR.bitiren - 1] || '').trim();
+    var tarih = r[SR.tarih - 1];
     harita[String(r[0]).trim().toUpperCase()] = {
-      raftaki: r[1], kayitli: r[2], bitiren: r[3],
-      tarih: r[4] instanceof Date
-        ? Utilities.formatDate(r[4], Session.getScriptTimeZone(), 'd.MM.yyyy')
-        : String(r[4] || ''),
-      not: r[5]
+      satir: i + 2,
+      raftaki: r[SR.raftaki - 1], kayitli: r[SR.cilt - 1],
+      kayitSayisi: r[SR.kayitSayisi - 1],
+      bitiren: bitiren,
+      bitti: !!(bitiren || tarih),
+      tarih: tarih instanceof Date
+        ? Utilities.formatDate(tarih, Session.getScriptTimeZone(), 'd.MM.yyyy')
+        : String(tarih || ''),
+      not: r[SR.not - 1], sonuc: r[SR.sonuc - 1],
+      alan: String(r[SR.alan - 1] || '').trim(),
+      almaSaati: r[SR.almaSaati - 1] instanceof Date ? r[SR.almaSaati - 1] : null
     };
   });
   return harita;
+}
+
+/** Yalnızca bitmiş sıralar (eski çağrılar için). */
+function bitmisSiralar_() {
+  var hepsi = siraKayitlari_(), sonuc = {};
+  for (var a in hepsi) if (hepsi[a].bitti) sonuc[a] = hepsi[a];
+  return sonuc;
 }
 
 function siraBitisi_(anahtar) {
   return bitmisSiralar_()[String(anahtar).trim().toUpperCase()] || null;
 }
 
-/** Gönüllüye boş bir sıra önerir: hiç başlanmamış ilk sıra. */
-function siraOner_() {
-  var sayfa = sayfaAl_('Envanter');
+/** Rezervasyon hâlâ geçerli mi? Süresi dolan sıra başkasına açılır. */
+function tutmaGecerli_(kayit, simdi) {
+  if (!kayit || kayit.bitti || !kayit.alan || !kayit.almaSaati) return false;
+  var saat = Number(AYAR.SIRA_TUTMA_SAAT || 8);
+  return (simdi.getTime() - kayit.almaSaati.getTime()) < saat * 3600 * 1000;
+}
+
+/** Sıra satırını açar ya da bulur; 'Sıralar' sayfasında tek satır garanti eder. */
+function siraSatiri_(sayfa, anahtar) {
   var son = sayfa.getLastRow();
-  var baslanan = {};
   if (son >= 2) {
-    var veri = sayfa.getRange(2, S.mekan, son - 1, 3).getValues();
-    var silinen = sayfa.getRange(2, S.silindi, son - 1, 1).getValues();
-    veri.forEach(function (r, i) {
-      if (silinen[i][0]) return;
-      baslanan[rafAnahtari_(r[0], r[1], r[2])] = true;
+    var anahtarlar = sayfa.getRange(2, 1, son - 1, 1).getValues();
+    for (var i = 0; i < anahtarlar.length; i++) {
+      if (String(anahtarlar[i][0]).trim().toUpperCase() === anahtar) return i + 2;
+    }
+  }
+  sayfa.appendRow([anahtar]);
+  return sayfa.getLastRow();
+}
+
+/** Sırayı bir gönüllünün adına ayırır. */
+function siraTut_(anahtar, kim) {
+  if (!anahtar || !kim) return;
+  var sayfa = sayfaAl_('Sıralar');
+  var satir = siraSatiri_(sayfa, anahtar);
+  sayfa.getRange(satir, SR.alan, 1, 2).setValues([[kim, new Date()]]);
+}
+
+/**
+ * Gönüllüye bir sıra verir ve o sırayı adına ayırır.
+ *
+ * Rezervasyon olmadan sabah aynı anda giriş yapan herkes aynı sırayı alıyordu:
+ * bir sıra ancak ilk kaydı sunucuya ulaştığında "başlanmış" sayılıyordu, o da
+ * dakikalar sonra oluyordu. Artık dağıtımın kendisi yazılıyor.
+ */
+function siraOner_(g) {
+  var kim = String((g && g.kaydeden) || '').trim();
+  var simdi = new Date();
+
+  var kilit = LockService.getScriptLock();
+  kilit.waitLock(20000);
+  try {
+    var sayfa = sayfaAl_('Envanter');
+    var son = sayfa.getLastRow();
+    var baslanan = {};
+    if (son >= 2) {
+      var veri = sayfa.getRange(2, S.mekan, son - 1, 3).getValues();
+      var silinen = sayfa.getRange(2, S.silindi, son - 1, 1).getValues();
+      veri.forEach(function (r, i) {
+        if (silinen[i][0]) return;
+        baslanan[rafAnahtari_(r[0], r[1], r[2])] = true;
+      });
+    }
+
+    var kayitlar = siraKayitlari_();
+
+    // Gönüllünün elinde zaten bitmemiş bir sıra varsa yenisini vermeyelim.
+    if (kim) {
+      for (var a in kayitlar) {
+        var k = kayitlar[a];
+        if (tutmaGecerli_(k, simdi) && k.alan.toLowerCase() === kim.toLowerCase()) {
+          return { ok: true, anahtar: a, tur: baslanan[a] ? 'devam' : 'sizin',
+                   kalanBos: 0, yarimKalan: 0, zatenSizde: true };
+        }
+      }
+    }
+
+    /* Hangi kitaplıkta kaç kişi çalışıyor? Aynı anda gelen sekiz kişiye aynı
+       kitaplığın sekiz gözünü vermek fiziksel yığılma demek. Bu yüzden sıra
+       seçerken en az kalabalık kitaplık tercih edilir. Tek başına çalışan
+       gönüllü için bir şey değişmez — kalabalık yoksa sıra bozulmaz. */
+    var kalabalik = {};
+    for (var t in kayitlar) {
+      if (tutmaGecerli_(kayitlar[t], simdi)) {
+        var kt = t.replace(/\d+$/, '');                 // 'G-A03' → 'G-A'
+        kalabalik[kt] = (kalabalik[kt] || 0) + 1;
+      }
+    }
+
+    var bos = [], yarim = [], tutulan = 0;
+    tumSiralar_().forEach(function (a, sira) {
+      var k = kayitlar[a];
+      if (k && k.bitti) return;
+      if (tutmaGecerli_(k, simdi)) { tutulan++; return; }   // başkasının elinde
+      var kayit = { anahtar: a, sira: sira,
+                    yogunluk: kalabalik[a.replace(/\d+$/, '')] || 0 };
+      if (baslanan[a]) yarim.push(kayit); else bos.push(kayit);
     });
-  }
-  var bitmis = bitmisSiralar_();
-  var hepsi = tumSiralar_();
 
-  var bos = [], yarim = [];
-  hepsi.forEach(function (a) {
-    if (bitmis[a]) return;
-    if (baslanan[a]) yarim.push(a); else bos.push(a);
-  });
+    var enUygun = function (liste) {
+      if (!liste.length) return '';
+      return liste.slice().sort(function (x, y) {
+        return x.yogunluk !== y.yogunluk ? x.yogunluk - y.yogunluk : x.sira - y.sira;
+      })[0].anahtar;
+    };
 
-  if (bos.length) {
-    return { ok: true, anahtar: bos[0], tur: 'bos', kalanBos: bos.length,
-             yarimKalan: yarim.length };
+    var secilen = bos.length ? enUygun(bos) : enUygun(yarim);
+    if (!secilen) {
+      return { ok: true, anahtar: '', tur: tutulan ? 'hepsiTutulu' : 'bitti',
+               kalanBos: 0, yarimKalan: 0, tutulan: tutulan };
+    }
+
+    if (kim) siraTut_(secilen, kim);
+    return { ok: true, anahtar: secilen, tur: bos.length ? 'bos' : 'yarim',
+             kalanBos: bos.length, yarimKalan: yarim.length, tutulan: tutulan };
+  } finally {
+    kilit.releaseLock();
   }
-  if (yarim.length) {
-    return { ok: true, anahtar: yarim[0], tur: 'yarim', kalanBos: 0,
-             yarimKalan: yarim.length };
+}
+
+/** Gönüllü menüden kendi seçtiğinde de sırayı adına ayırır. */
+function siraSec_(g) {
+  var anahtar = rafAnahtari_(g.mekan, g.raf, g.sira);
+  if (!anahtar) return { ok: false, error: 'Sıra belirsiz.' };
+  var kim = String(g.kaydeden || '').trim();
+  var simdi = new Date();
+  var k = siraKayitlari_()[anahtar];
+
+  if (tutmaGecerli_(k, simdi) && kim && k.alan.toLowerCase() !== kim.toLowerCase()) {
+    // Engellemiyoruz — belki gerçekten devralıyordur — ama üstüne yazdığını bilsin.
+    if (!g.yinede) {
+      return { ok: false, tutulu: true, alan: k.alan,
+               error: 'Bu sırayı bugün ' + k.alan + ' aldı.' };
+    }
   }
-  return { ok: true, anahtar: '', tur: 'bitti', kalanBos: 0, yarimKalan: 0 };
+  if (kim) siraTut_(anahtar, kim);
+  return { ok: true, anahtar: anahtar };
 }
 
 /** Gönüllü "bu sırayı bitirdim" der; raftaki fiziksel sayıyı da yazar. */
@@ -290,22 +514,27 @@ function siraBitir_(g) {
     var raftaki = parseInt(g.raftaki, 10);
     if (isNaN(raftaki) || raftaki < 0) return { ok: false, error: 'Raftaki kitap sayısını yazın.' };
 
-    var sayfa = sayfaAl_('Sıralar');
-    var son = sayfa.getLastRow();
-    var satir = 0;
-    if (son >= 2) {
-      var anahtarlar = sayfa.getRange(2, 1, son - 1, 1).getValues();
-      for (var i = 0; i < anahtarlar.length; i++) {
-        if (String(anahtarlar[i][0]).trim().toUpperCase() === anahtar) { satir = i + 2; break; }
-      }
+    // Hiç kayıt yokken sıra kapatılmasın — yanlış sıra seçilmiş olabilir.
+    // Gerçekten boş/olmayan raf içinse raftaki=0 yazılarak kapatılabilir.
+    if (k.adet === 0 && raftaki > 0) {
+      return { ok: false,
+               error: 'Bu sırada hiç kayıt yok. Yanlış sıra seçmiş olabilirsiniz. ' +
+                      'Raf gerçekten boşsa "0" yazın.' };
     }
-    var deger = [anahtar, raftaki, k.adet, String(g.kaydeden || '').trim(), new Date(),
-                 String(g.not || '').trim().slice(0, 300)];
-    if (satir) sayfa.getRange(satir, 1, 1, 6).setValues([deger]);
-    else sayfa.appendRow(deger);
 
-    var fark = raftaki - k.adet;
-    return { ok: true, anahtar: anahtar, kayitli: k.adet, raftaki: raftaki, fark: fark };
+    var sayfa = sayfaAl_('Sıralar');
+    var satir = siraSatiri_(sayfa, anahtar);
+    var fark = raftaki - k.cilt;
+    // Sıra kapanınca rezervasyon da kalkar: satırdaki "Alan" boşaltılır.
+    sayfa.getRange(satir, 1, 1, SIRA_SUTUNLARI.length).setValues([[
+      anahtar, raftaki, k.cilt, String(g.kaydeden || '').trim(), new Date(),
+      String(g.not || '').trim().slice(0, 300),
+      fark === 0 ? 'tutuyor' : (fark > 0 ? 'eksik ' + fark : 'fazla ' + (-fark)),
+      k.adet, '', ''
+    ]]);
+
+    return { ok: true, anahtar: anahtar, kayitli: k.cilt, kayitSayisi: k.adet,
+             raftaki: raftaki, fark: fark };
   } finally {
     kilit.releaseLock();
   }
@@ -315,32 +544,42 @@ function siraBitir_(g) {
 function siraHaritasi_() {
   var sayfa = sayfaAl_('Envanter');
   var son = sayfa.getLastRow();
-  var sayilar = {};
+  var sayilar = {}, ciltler = {};
   if (son >= 2) {
     var veri = sayfa.getRange(2, S.mekan, son - 1, 3).getValues();
     var silinen = sayfa.getRange(2, S.silindi, son - 1, 1).getValues();
+    var nusha = sayfa.getRange(2, S.nusha, son - 1, 1).getValues();
     veri.forEach(function (r, i) {
       if (silinen[i][0]) return;
       var a = rafAnahtari_(r[0], r[1], r[2]);
       sayilar[a] = (sayilar[a] || 0) + 1;
+      ciltler[a] = (ciltler[a] || 0) + Math.max(1, Number(nusha[i][0]) || 1);
     });
   }
-  var bitmis = bitmisSiralar_();
+  var kayitlar = siraKayitlari_();
+  var simdi = new Date();
   var liste = tumSiralar_().map(function (a) {
-    var b = bitmis[a];
+    var r = kayitlar[a];
+    var b = (r && r.bitti) ? r : null;
+    var tutulu = tutmaGecerli_(r, simdi);
     return {
       sira: a,
       durum: b ? 'bitti' : (sayilar[a] ? 'devam' : 'bos'),
-      kayitli: sayilar[a] || 0,
+      kayitli: ciltler[a] || 0,
+      kayitSayisi: sayilar[a] || 0,
       raftaki: b ? b.raftaki : '',
-      fark: b ? (Number(b.raftaki) - (sayilar[a] || 0)) : '',
+      fark: b ? (Number(b.raftaki) - (ciltler[a] || 0)) : '',
       bitiren: b ? b.bitiren : '',
-      tarih: b ? b.tarih : ''
+      tarih: b ? b.tarih : '',
+      not: r ? r.not : '',
+      tutulu: tutulu, tutan: tutulu ? r.alan : ''
     };
   });
   var say = function (d) { return liste.filter(function (x) { return x.durum === d; }).length; };
   return { ok: true, siralar: liste, toplam: liste.length,
            bitti: say('bitti'), devam: say('devam'), bos: say('bos'),
+           tutulu: liste.filter(function (x) { return x.tutulu; }).length,
+           tutmaSaat: Number(AYAR.SIRA_TUTMA_SAAT || 8),
            uyusmayan: liste.filter(function (x) {
              return x.durum === 'bitti' && Number(x.fark) !== 0;
            }).length };
@@ -350,7 +589,8 @@ function siraHaritasi_() {
 
 // Bağlantıya (GET) tıklanarak çalıştırılamayacak işlemler: bir bağlantı
 // önizlemesi ya da yanlışlıkla paylaşılan adres kayıt silmemeli.
-var YAZAN_EYLEMLER = ['ekle', 'guncelle', 'sil', 'fotoEkle', 'onayla'];
+var YAZAN_EYLEMLER = ['ekle', 'guncelle', 'sil', 'fotoEkle', 'onayla', 'topluOnayla',
+                      'siraBitir', 'siraOner', 'siraSec'];
 
 function doGet(e) {
   if (e && e.parameter && e.parameter.action) {
@@ -370,7 +610,8 @@ function doPost(e) {
 }
 
 // Yalnızca koordinatörün açabileceği işlemler
-var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayla', 'katalog', 'durum', 'siraHaritasi'];
+var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayGruplari', 'onayla', 'topluOnayla',
+                             'katalog', 'durum', 'siraHaritasi'];
 
 function islet_(istek) {
   try {
@@ -396,11 +637,14 @@ function islet_(istek) {
       case 'sil':         return cikti_(sil_(istek.no));
       case 'sayac':       return cikti_(sayac_(istek.kaydeden));
       case 'rafDurum':    return cikti_(rafDurum_(istek.mekan, istek.raf, istek.sira));
-      case 'siraOner':    return cikti_(siraOner_());
+      case 'siraOner':    return cikti_(siraOner_(istek));
+      case 'siraSec':     return cikti_(siraSec_(istek));
       case 'siraBitir':   return cikti_(siraBitir_(istek));
       case 'siraHaritasi':return cikti_(siraHaritasi_());
       case 'fotoEkle':    return cikti_(fotoEkle_(istek.no, istek.veri, istek.tur, istek.hangi));
       case 'onayBekleyen':return cikti_(onayBekleyen_(istek.adet));
+      case 'onayGruplari':return cikti_(onayGruplari_(istek.adet));
+      case 'topluOnayla': return cikti_(topluOnayla_(istek));
       case 'onayla':      return cikti_(onayla_(istek.no, istek.kayit || {}));
       case 'katalog':     return cikti_(katalog_(istek));
       case 'durum':       return cikti_(durum_());
@@ -540,7 +784,9 @@ function kategoriKodu_(ad) {
   for (var kod in KATEGORILER) {
     if (KATEGORILER[kod].ad === metin) return kod;
   }
-  return metin;
+  // Tanınmayan değer (özellikle 'Sınıflandırılmadı') boş sayılır; yoksa gönüllünün
+  // "Düzelt"i "Kategori seçilmeli" hatasıyla çöker — o ekranda kategori seçici yok.
+  return '';
 }
 
 function sil_(no) {
@@ -585,22 +831,23 @@ function sonKayitlar_(kaydeden) {
 function sayac_(kaydeden) {
   var sayfa = sayfaAl_('Envanter');
   var son = sayfa.getLastRow();
-  if (son < 2) return { ok: true, toplam: 0, bugun: 0, benim: 0 };
+  if (son < 2) return { ok: true, toplam: 0, bugun: 0, benim: 0, bekleyen: 0 };
 
   var satirlar = sayfa.getRange(2, 1, son - 1, SUTUNLAR.length).getValues();
   var bugunKey = gunAnahtari_(new Date());
   var ad = String(kaydeden || '').trim().toLowerCase();
-  var toplam = 0, bugun = 0, benim = 0;
+  var toplam = 0, bugun = 0, benim = 0, bekleyen = 0;
 
   satirlar.forEach(function (s) {
     if (!s[S.no - 1] || silinmis_(s)) return;
     toplam++;
+    if (!s[S.onay - 1]) bekleyen++;      // onay masasının kuyruğu
     var t = s[S.tarih - 1];
     var ayniGun = t instanceof Date && gunAnahtari_(t) === bugunKey;
     if (ayniGun) bugun++;
     if (ayniGun && ad && String(s[S.kaydeden - 1]).trim().toLowerCase() === ad) benim++;
   });
-  return { ok: true, toplam: toplam, bugun: bugun, benim: benim };
+  return { ok: true, toplam: toplam, bugun: bugun, benim: benim, bekleyen: bekleyen };
 }
 
 /* ═══════════════ YARDIMCILAR ═══════════════ */
@@ -737,9 +984,10 @@ function sayfaAl_(ad) {
     sayfa.getRange(1, 1, 1, 3).setFontWeight('bold').setBackground('#601040').setFontColor('#ffffff');
     sayfa.setColumnWidth(1, 60); sayfa.setColumnWidth(2, 120); sayfa.setColumnWidth(3, 460);
   } else if (ad === 'Sıralar') {
-    sayfa.appendRow(['Sıra', 'Raftaki kitap', 'Kayıtlı kitap', 'Bitiren', 'Tarih', 'Not']);
+    sayfa.appendRow(SIRA_SUTUNLARI);
     sayfa.setFrozenRows(1);
-    sayfa.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground('#601040').setFontColor('#ffffff');
+    sayfa.getRange(1, 1, 1, SIRA_SUTUNLARI.length)
+      .setFontWeight('bold').setBackground('#601040').setFontColor('#ffffff');
     sayfa.setColumnWidth(1, 90); sayfa.setColumnWidth(4, 140); sayfa.setColumnWidth(6, 300);
   } else if (ad === 'Kutular') {
     sayfa.appendRow(['Kutu no', 'Kaynak sıra (G-A01)', 'Yer kodu aralığı', 'Hedef bölüm',
@@ -1033,19 +1281,145 @@ function onayBekleyen_(adet) {
   });
 
   var liste = bekleyen.slice(0, adet).map(function (s) {
-    return {
+    return kayitCikar_(s);
+  });
+  return { ok: true, kayitlar: liste, kalan: bekleyen.length };
+}
+
+/** Onay ekranının kullandığı satır → nesne dönüşümü (öneri dâhil). */
+function kayitCikar_(s) {
+  var k = {
       no: s[S.no - 1], yer: s[S.yer - 1],
       yazar: s[S.yazar - 1], baslik: s[S.baslik - 1], yil: s[S.yil - 1],
       kategori: s[S.kategori - 1], kural: s[S.kural - 1], durum: s[S.durum - 1],
       not: s[S.not - 1], kaydeden: s[S.kaydeden - 1],
+      nusha: s[S.nusha - 1],          // K3/S1 kuralları buna bakıyor
       foto: s[S.foto - 1], fotoId: (String(s[S.foto - 1]).match(/[-\w]{25,}/) || [''])[0],
       kapak: s[S.kapak - 1], kapakId: (String(s[S.kapak - 1]).match(/[-\w]{25,}/) || [''])[0],
       ocrDurum: s[S.ocrDurum - 1], ocrMetin: s[S.ocrMetin - 1],
       oneriBaslik: s[S.oneriBaslik - 1], oneriYazar: s[S.oneriYazar - 1],
-      oneriYil: s[S.oneriYil - 1], oneriYayinevi: s[S.oneriYayinevi - 1]
-    };
+      oneriYil: s[S.oneriYil - 1], oneriYayinevi: s[S.oneriYayinevi - 1],
+      ocrMetin: s[S.ocrMetin - 1]
+  };
+  // Karar önerisi: koordinatör onaylayacak, ama hazır gelsin.
+  var o = kararOner_(k);
+  k.oneriKural = o.kural; k.oneriKategori = o.kategori;
+  k.oneriGuven = o.guven; k.oneriSebep = o.sebep;
+  return k;
+}
+
+/**
+ * Kuyruk şişince tek tek onay yetişmez. Aynı öneriyi taşıyan kayıtları
+ * gruplar; koordinatör grubu tek dokunuşla onaylar ya da açıp tek tek bakar.
+ */
+function onayGruplari_(adet) {
+  adet = Math.min(Number(adet) || 400, 800);
+  var sayfa = sayfaAl_('Envanter');
+  var son = sayfa.getLastRow();
+  if (son < 2) return { ok: true, gruplar: [], kalan: 0, onerisiz: 0 };
+
+  var satirlar = sayfa.getRange(2, 1, son - 1, SUTUNLAR.length).getValues();
+  var bekleyen = satirlar.filter(function (s) {
+    return !silinmis_(s) && !s[S.onay - 1];
   });
-  return { ok: true, kayitlar: liste, kalan: bekleyen.length };
+
+  var harita = {}, onerisiz = 0;
+  bekleyen.slice(0, adet).forEach(function (s) {
+    var k = kayitCikar_(s);
+    if (!k.oneriKural) { onerisiz++; return; }
+    var anahtar = k.oneriKural;
+    if (!harita[anahtar]) {
+      harita[anahtar] = { kural: k.oneriKural, kategori: k.oneriKategori,
+                          guven: k.oneriGuven, sebep: k.oneriSebep,
+                          aciklama: kuralAciklamasi_(k.oneriKural),
+                          adet: 0, numaralar: [], ornekler: [] };
+    }
+    var gr = harita[anahtar];
+    gr.adet++;
+    gr.numaralar.push(k.no);
+    if (gr.ornekler.length < 6) {
+      gr.ornekler.push({ no: k.no, yer: k.yer,
+                         baslik: k.baslik || k.oneriBaslik || '(künye yok)',
+                         yazar: k.yazar || k.oneriYazar || '' });
+    }
+  });
+
+  /* Sıralama darboğazı hedefliyor: en çok kaydı olan grup önce gelsin ki
+     koordinatörün ilk dokunuşu en çok işi bitirsin. Yalnız "zayıf öneri"ler
+     sona atılır — onlarda toplu onay riskli, tek tek bakılmalı. */
+  var gruplar = Object.keys(harita).map(function (a) { return harita[a]; })
+    .sort(function (a, b) {
+      var zayifA = a.guven === 'dusuk' ? 1 : 0, zayifB = b.guven === 'dusuk' ? 1 : 0;
+      return zayifA !== zayifB ? zayifA - zayifB : b.adet - a.adet;
+    });
+
+  return { ok: true, gruplar: gruplar, kalan: bekleyen.length, onerisiz: onerisiz };
+}
+
+function kuralAciklamasi_(kod) {
+  for (var i = 0; i < KURALLAR.length; i++) {
+    if (KURALLAR[i][0] === kod) return KURALLAR[i][2];
+  }
+  return '';
+}
+
+/**
+ * Bir grubu tek seferde onaylar. Tek kilit, tek geçiş — 40 kaydı 40 istekle
+ * onaylamak zayıf bağlantıda dakikalar sürüyordu.
+ */
+function topluOnayla_(g) {
+  var numaralar = (g.numaralar || []).map(Number).filter(Boolean);
+  if (!numaralar.length) return { ok: false, error: 'Kayıt seçilmedi.' };
+  if (numaralar.length > 300) return { ok: false, error: 'Tek seferde en fazla 300 kayıt.' };
+
+  var kategori = String(g.kategori || '');
+  var kural = String(g.kural || '').trim().toUpperCase();
+  if (!KATEGORILER[kategori]) return { ok: false, error: 'Karar seçilmeli.' };
+  if (!KURALLAR.some(function (r) { return r[0] === kural && r[1] === kategori; })) {
+    return { ok: false, error: 'Kural kodu bu karara uymuyor.' };
+  }
+
+  var kilit = LockService.getScriptLock();
+  kilit.waitLock(30000);
+  try {
+    var sayfa = sayfaAl_('Envanter');
+    var son = sayfa.getLastRow();
+    if (son < 2) return { ok: false, error: 'Kayıt yok.' };
+
+    var damga = 'Onaylandı — ' + String(g.onaylayan || '').trim() + ' · toplu · ' +
+      Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'd.MM.yyyy HH:mm');
+
+    var no = sayfa.getRange(2, S.no, son - 1, 1).getValues();
+    var onay = sayfa.getRange(2, S.onay, son - 1, 1).getValues();
+    var silindi = sayfa.getRange(2, S.silindi, son - 1, 1).getValues();
+    var kat = sayfa.getRange(2, S.kategori, son - 1, 2).getValues();   // Kategori, Kural
+    var baslik = sayfa.getRange(2, S.baslik, son - 1, 1).getValues();
+
+    var istenen = {};
+    numaralar.forEach(function (x) { istenen[x] = true; });
+
+    var yazildi = 0, atlanan = 0, basliksiz = 0;
+    for (var i = 0; i < no.length; i++) {
+      if (!istenen[Number(no[i][0])]) continue;
+      if (silindi[i][0]) { atlanan++; continue; }
+      if (onay[i][0]) { atlanan++; continue; }        // başkası onaylamış
+      // Başlıksız kayıt toplu onaydan geçmesin: künyesi hiç yoksa insan baksın.
+      if (!String(baslik[i][0] || '').trim() ||
+          /künye fotoğraftan/i.test(String(baslik[i][0]))) { basliksiz++; continue; }
+      kat[i][0] = KATEGORILER[kategori].ad;
+      kat[i][1] = kural;
+      onay[i][0] = damga;
+      yazildi++;
+    }
+
+    if (yazildi) {
+      sayfa.getRange(2, S.kategori, son - 1, 2).setValues(kat);
+      sayfa.getRange(2, S.onay, son - 1, 1).setValues(onay);
+    }
+    return { ok: true, onaylanan: yazildi, atlanan: atlanan, basliksiz: basliksiz };
+  } finally {
+    kilit.releaseLock();
+  }
 }
 
 /**
@@ -1206,6 +1580,15 @@ function onayla_(no, k) {
     if (!bulunan) return { ok: false, error: 'Kayıt bulunamadı.' };
     if (bulunan.silindi) return { ok: false, error: 'Bu kayıt silinmiş.' };
     var sayfa = sayfaAl_('Envanter');
+
+    // İki koordinatör aynı anda çalışıyorsa ikisi de aynı 25'liği görür.
+    // İkincisi birincinin kararını sessizce ezmesin.
+    var oncekiOnay = String(sayfa.getRange(bulunan.satir, S.onay).getValue() || '');
+    if (oncekiOnay && !k.uzerineYaz) {
+      return { ok: false, zatenOnayli: true,
+               error: 'Bu kaydı başkası onaylamış: ' + oncekiOnay };
+    }
+
     sayfa.getRange(bulunan.satir, S.yazar).setValue(String(k.yazar || '').trim());
     sayfa.getRange(bulunan.satir, S.baslik).setValue(baslik);
     var yil = String(k.yil || '').trim();
@@ -1225,6 +1608,22 @@ function onayla_(no, k) {
   } finally {
     kilit.releaseLock();
   }
+}
+
+/** 'Sıralar' sayfasına sonradan eklenen sütunları açar. */
+function siraBasliklariOnar_() {
+  var sayfa = sayfaAl_('Sıralar');
+  if (sayfa.getMaxColumns() < SIRA_SUTUNLARI.length) {
+    sayfa.insertColumnsAfter(sayfa.getMaxColumns(),
+                             SIRA_SUTUNLARI.length - sayfa.getMaxColumns());
+  }
+  var mevcut = sayfa.getRange(1, 1, 1, sayfa.getLastColumn() || 1).getValues()[0];
+  var ayni = mevcut.length === SIRA_SUTUNLARI.length &&
+    SIRA_SUTUNLARI.every(function (b, i) { return String(mevcut[i]) === b; });
+  if (ayni) return;
+  sayfa.getRange(1, 1, 1, SIRA_SUTUNLARI.length).setValues([SIRA_SUTUNLARI])
+    .setFontWeight('bold').setBackground('#601040').setFontColor('#ffffff');
+  Logger.log('Sıralar başlıkları güncellendi.');
 }
 
 /**
@@ -1374,6 +1773,7 @@ function kurulum() {
   basliklariOnar_();
   sayfaAl_('Kurallar');
   sayfaAl_('Sıralar');
+  siraBasliklariOnar_();
   sayfaAl_('Kutular');
   ozetiGuncelle();
   if (AYAR.OCR_ACIK) {

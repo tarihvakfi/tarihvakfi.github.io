@@ -149,8 +149,63 @@
   var DEPO = 'tv_demo_veri';
   var SIFRE = 'deneme';
   var KOORD_SIFRE = 'koordinator';
-  var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayla', 'katalog', 'durum', 'siraHaritasi'];
+  var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayGruplari', 'onayla', 'topluOnayla',
+                               'katalog', 'durum', 'siraHaritasi'];
   var SINIFLANDIRILMADI = 'Sınıflandırılmadı';
+
+  /* Karar önerisi — canlı sunucudakinin sadeleştirilmiş kopyası. */
+  var sadeMetin = function (b) {
+    return String(b == null ? '' : b)
+      .replace(/[İIıi]/g, 'i').replace(/[Ğğ]/g, 'g').replace(/[Şş]/g, 's')
+      .replace(/[Öö]/g, 'o').replace(/[Üü]/g, 'u').replace(/[Çç]/g, 'c').toLowerCase();
+  };
+  var ONERILER = [
+    { kural:'Y1', guven:'yuksek', sebep:'Tarih Vakfı yayını', kalip:/(tarih vakfi)/ },
+    { kural:'Y5', guven:'yuksek', sebep:'Rapor / tez / bülten',
+      kalip:/(\brapor\b|raporu\b|\btez\b|tezi\b|bulten)/ },
+    { kural:'K1', guven:'yuksek', sebep:'Ders / sınav kitabı',
+      kalip:/(ders kitabi|soru bankasi|konu anlatimli|\boss\b|\byks\b|\bkpss\b)/ },
+    { kural:'K2', guven:'orta', sebep:'Mevzuat / yıllık',
+      kalip:/(mevzuat|yillik\b|yilligi\b|almanak)/ },
+    { kural:'Y2', guven:'orta', sebep:'Alan içi: toplumsal / kent tarihi',
+      kalip:/(osmanli|cumhuriyet|kent tarihi|sozlu tarih|bellek|arsiv)/ },
+    { kural:'S2', guven:'orta', sebep:'Genel başvuru kaynağı',
+      kalip:/(ansiklopedi|sozluk|sozlugu|el kitabi|rehber\b)/ },
+  ];
+  var kuralKategorisi = function (kod) {
+    for (var i = 0; i < KURALLAR.length; i++) if (KURALLAR[i][0] === kod) return KURALLAR[i][1];
+    return '';
+  };
+  var kuralAciklamasi = function (kod) {
+    for (var i = 0; i < KURALLAR.length; i++) if (KURALLAR[i][0] === kod) return KURALLAR[i][2];
+    return '';
+  };
+  var kararOner = function (k) {
+    var yil = Number(k.yil) || 0, nusha = Number(k.nusha) || 1;
+    if (nusha > 3) return { kural:'K3', kategori:'gitmeyecek', guven:'yuksek',
+      sebep: nusha + ' nüsha — üçten fazlasının fazlası' };
+    if (nusha === 2 || nusha === 3) return { kural:'S1', kategori:'belki', guven:'yuksek',
+      sebep: nusha + ' nüsha — ikinci/üçüncü kopya' };
+    if (yil && yil < 1950) return { kural:'Y4', kategori:'gidecek', guven:'yuksek',
+      sebep: yil + ' baskısı — 1950 öncesi' };
+    var havuz = sadeMetin([k.baslik, k.yazar, k.oneriBaslik, k.not].join(' | '));
+    for (var i = 0; i < ONERILER.length; i++) {
+      if (ONERILER[i].kalip.test(havuz)) {
+        return { kural:ONERILER[i].kural, kategori:kuralKategorisi(ONERILER[i].kural),
+                 guven:ONERILER[i].guven, sebep:ONERILER[i].sebep };
+      }
+    }
+    if (k.durum === 'Küflü/böcekli') return { kural:'K4', kategori:'gitmeyecek',
+      guven:'dusuk', sebep:'Küflü/böcekli işaretlenmiş' };
+    return { kural:'', kategori:'', guven:'', sebep:'' };
+  };
+  var oneriEkle = function (k) {
+    var o = kararOner(k);
+    var y = {}; for (var a in k) y[a] = k[a];
+    y.oneriKural = o.kural; y.oneriKategori = o.kategori;
+    y.oneriGuven = o.guven; y.oneriSebep = o.sebep;
+    return y;
+  };
   var agKapali = false;
 
   var KATEGORILER = {
@@ -352,7 +407,45 @@
     }
     if (g.action === 'onayBekleyen') {
       var bek = v.kayitlar.filter(function (k) { return !k.onay; });
-      return { ok:true, kayitlar: bek.slice(0, Number(g.adet) || 25), kalan: bek.length };
+      return { ok:true, kayitlar: bek.slice(0, Number(g.adet) || 25).map(oneriEkle),
+               kalan: bek.length };
+    }
+    if (g.action === 'onayGruplari') {
+      var bk = v.kayitlar.filter(function (k) { return !k.onay; }).map(oneriEkle);
+      var hrt = {}, onerisiz = 0;
+      bk.forEach(function (k) {
+        if (!k.oneriKural) { onerisiz++; return; }
+        if (!hrt[k.oneriKural]) hrt[k.oneriKural] = { kural:k.oneriKural,
+          kategori:k.oneriKategori, guven:k.oneriGuven, sebep:k.oneriSebep,
+          aciklama: kuralAciklamasi(k.oneriKural), adet:0, numaralar:[], ornekler:[] };
+        var gr = hrt[k.oneriKural];
+        gr.adet++; gr.numaralar.push(k.no);
+        if (gr.ornekler.length < 6) gr.ornekler.push({ no:k.no, yer:k.yer,
+          baslik: k.baslik || '(künye yok)', yazar: k.yazar || '' });
+      });
+      var gruplar = Object.keys(hrt).map(function (a) { return hrt[a]; })
+        .sort(function (a, b) {
+          var za = a.guven === 'dusuk' ? 1 : 0, zb = b.guven === 'dusuk' ? 1 : 0;
+          return za !== zb ? za - zb : b.adet - a.adet;
+        });
+      return { ok:true, gruplar:gruplar, kalan:bk.length, onerisiz:onerisiz };
+    }
+    if (g.action === 'topluOnayla') {
+      var nolar = (g.numaralar || []).map(Number);
+      if (!KATEGORILER[g.kategori]) return { ok:false, error:'Karar seçilmeli.' };
+      var onaylanan = 0, atlanan = 0, basliksiz = 0;
+      v.kayitlar.forEach(function (k) {
+        if (nolar.indexOf(k.no) < 0) return;
+        if (k.onay) { atlanan++; return; }
+        if (!String(k.baslik || '').trim() || /künye fotoğraftan/i.test(k.baslik)) {
+          basliksiz++; return;
+        }
+        k.kategori = KATEGORILER[g.kategori].ad; k.kural = g.kural;
+        k.onay = 'Onaylandı — ' + (g.onaylayan || '') + ' · toplu';
+        onaylanan++;
+      });
+      yaz(v);
+      return { ok:true, onaylanan:onaylanan, atlanan:atlanan, basliksiz:basliksiz };
     }
     if (g.action === 'durum') {
       var bugun = new Date().toISOString().slice(0, 10);

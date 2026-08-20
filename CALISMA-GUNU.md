@@ -103,18 +103,30 @@ on saniyede verilen karar masa başında fotoğrafa bakarak verilen karardan kö
 
 | Rol | Kaç kişi | Ne yapar |
 |---|---|---|
-| **Raf ekibi** | tek ya da ikişerli, 2–5 ekip | Kitabı alır, künye ve kapak fotoğrafını çeker (ya da yazar/başlık/yılı yazar), fiziksel durumu işaretler, kaydeder. **Karar vermez, etiket yapıştırmaz.** |
-| **Masa (onay + karar)** | 1–2 kişi | `kunye-onay.html`: künyeyi tamamlar **ve** gidecek/gitmeyecek kararını kural koduyla verir. Oturarak çalışır. **Koordinatör şifresi ister.** |
+| **Raf ekibi** | tek ya da ikişerli, 2–5 ekip | **Çek — çek — kaydet.** Künye ve kapak fotoğrafı, sonra Kaydet. Yazmak zorunda değil. Sorunlu kitabı işaretler. **Karar vermez, etiket yapıştırmaz.** |
+| **Masa (onay + karar)** | 1 kişi | `kunye-onay.html`: künyeyi tamamlar ve kararı verir. **Sistem kararı önerip hazır getiriyor**, masa onaylıyor ya da değiştiriyor. Kuyruk şişerse **gruplu onay** açılır. **Koordinatör şifresi ister.** |
 | **Paketleme** | 1–2 kişi | Onaylanmış kayıtların listesine (katalog) bakarak yeşil ve sarıları kutular. Karar vermez. |
 | **Koordinatör** | 1 kişi | Sıra dağıtır, sayıları izler, tıkanan yeri açar, gün sonu turunu yapar. |
 
 **Dört kişilik küçük bir gün:** iki kişi raf, bir kişi masa, koordinatör paketlemeye
 de bakar. **On kişilik bir gün:** altı kişi raf, iki kişi masa, bir paketleme.
 
-**Masa rolü artık darboğaz.** Her kitap oradan geçmek zorunda: raf ekibi saatte
-60–80 kitap kaydediyorsa, masa da o hızda karar verebilmeli. Bir masa kişisi saatte
-~150 kayıt onaylar. Üçten fazla raf ekibi çalışıyorsa **ikinci masa kişisi koyun**,
-yoksa kuyruk büyür ve envanterin yarısı "Sınıflandırılmadı" olarak kalır.
+**Masa darboğaz olmasın diye sistem üç şey yapıyor:**
+
+1. **Kararı öneriyor.** Künye, yayınevi, yıl, nüsha ve OCR metnine bakıp bir kural
+   öneriyor (ör. "YKS Soru Bankası" → K1, "1934 baskısı" → Y4, "5 nüsha" → K3).
+   Öneri ekranda **ön-seçili** gelir; masa katılıyorsa tek dokunuş, katılmıyorsa
+   değiştirir. Karar yine insanda — değişen tek şey kaç kez düşünüldüğü.
+2. **Aynı öneriyi taşıyanları grupluyor.** "23 kayıt · K1 · ders/sınav kitabı —
+   hepsini onayla". En kalabalık grup en üstte; zayıf öneriler en altta, onlar
+   tek tek bakılmalı.
+3. **Kuyruğa göre kendini ayarlıyor.** Bekleyen 40'ı aşarsa onay ekranı
+   **gruplu onayla** açılır ve sebebini yazar. Kuyruk küçülünce tek tek moda döner.
+   120'yi aşarsa raftaki gönüllülerin ekranında da uyarı çıkar — birinin masaya
+   geçmesi gerektiğini onlar da görsün diye.
+
+Yine de masa boş kalırsa kuyruk büyür. **Bir kişiyi masaya sabitleyin**; gruplu
+onayla bir kişi saatte binlerce kayıt geçebilir, ama sıfır kişi sıfır geçer.
 
 ---
 
@@ -125,9 +137,17 @@ kalır, kimi tam gün. Rafın hangi kısmının bittiğini kimse hatırlamak zor
 diye **sırayı sistem dağıtıyor.** Kurallar şunlar:
 
 **Kural 1 — Sıra sistemden alınır, seçilmez.**
-Gönüllü giriş yapınca **"Bana boş bir sıra ver"** düğmesine basar. Sistem hiç
-başlanmamış ilk sırayı verir ve menüyü kendisi ayarlar. Kimse "hangi rafa gideyim"
-diye sormaz, iki kişi aynı sırayı ayıklamaz, hiçbir sıra unutulmaz.
+Gönüllü giriş yapınca **"Bana boş bir sıra ver"** düğmesine basar. Sistem sırayı
+**o kişinin adına ayırır** (rezerve eder) ve menüyü kendisi ayarlar. Aynı dakikada
+sekiz kişi bassa sekizi de farklı sıra alır — üstelik **farklı kitaplıklardan**,
+tek rafın önünde yığılmasınlar diye.
+
+Rezervasyon **8 saat** sürer. Süre dolunca sıra havuza döner (yarım kalmışsa
+"yarım" olarak). Gönüllü sırayı bitirince rezervasyon hemen kalkar.
+
+> **Bir kişinin aynı anda bir sırası olur.** Bitirmeden yeni sıra istenirse sistem
+> "bu sıra zaten sizin üzerinizde" der. Bu kasıtlı: yarım bırakılıp unutulan sıra
+> sayısını sıfıra yakın tutuyor.
 
 **Kural 2 — Kendi seçen, ekrandaki uyarıyı okur.**
 Gönüllü fiziksel olarak bir rafın önündeyse elle de seçebilir. O zaman ekran üç
@@ -138,10 +158,12 @@ Gönüllü fiziksel olarak bir rafın önündeyse elle de seçebilir. O zaman ek
 | **boş sıra — hiç başlanmamış** | Kimse dokunmamış | Soldan başlayın |
 | **yarım kalmış**, son çalışan ve tarih yazar | Biri başlamış, bitirmemiş | Kaldığı yerden devam edin — numara sistemden gelir |
 | **BU SIRA BİTMİŞ** (kırmızı), kim bitirmiş ve kaç kitap saymış yazar | Kapatılmış | Başka sıra seçin. Atlanmış kitap bulduysanız yine de ekleyin ve koordinatöre söyleyin |
+| **BU SIRA … ÜZERİNDE** (kırmızı), kimin aldığı yazar | Bugün başkasına verilmiş | Başka sıra seçin. Devralıyorsanız ekrandaki soruya "evet" deyin |
 
-**Kural 3 — Bir sıra bir kişinindir.** Aynı sırada iki kişi çalışmayın. Sistem
-numara çakışmasını çözer (ekranda "yer kodu değişti" uyarısı çıkar), ama rafın
-önündeki fiziksel karışıklığı çözemez.
+**Kural 3 — Bir sıra bir kişinindir.** Sistem bunu artık kendisi uyguluyor:
+başkasının üzerindeki sıra size önerilmez, elle seçerseniz kırmızı uyarı ve onay
+sorusu çıkar. Yine de devralabilirsiniz (biri erken gitmişse gerekir), ama bilerek
+yapmış olursunuz.
 
 **Kural 4 — Sıra bitirilmeden bırakılmaz.**
 Gönüllü sırayı bitirince **rafta kaç kitap olduğunu fiziksel olarak sayar** ve
@@ -161,9 +183,13 @@ kalmış" diye işaretler, ertesi gün gelen kaldığı yerden devam eder. Ancak
 kaydettikleri telefonunda kalır.
 
 **Kural 6 — Koordinatör günde bir kez sıra haritasına bakar.**
-Kaç sıra bitti, kaç sıra yarım, kaç sıra hiç başlanmadı; ve **sayımı tutmayan
-sıralar** hangileri. Yarım kalan sıralar birikiyorsa gönüllüler sırayı kapatmadan
-bırakıyor demektir — hatırlatın.
+`envanter-durum.html` → **Sıra haritası**. Üstte şerit: kaç sıra bitti, kaç yarım,
+kaç tanesi şu an birinin üzerinde, **kaç tanesinin sayımı tutmuyor**. Tabloda
+sayımı tutmayanlar en üstte, kırmızı zeminde. Sonra üzerinde biri olanlar, sonra
+yarım kalanlar. Hiç başlanmamış sıralar listeye alınmaz, sayıları altta yazar.
+
+Bakılacak iki şey: **sayımı tutmayan sıralar** (o rafa tekrar bakılmalı) ve
+**gün sonunda hâlâ birinin üzerinde görünen sıralar** (kapatılmadan bırakılmış).
 
 ### Yarım günlük bir gönüllünün akışı, baştan sona
 
@@ -183,7 +209,7 @@ Bu akışta gönüllünün karar vermesi gereken tek şey yok — bu kasıtlı.
 ## 2. Gün başı — ilk 20 dakika
 
 1. **Gönüllü kartlarını masalara koyun** (`gonullu-karti.pdf`, tek sayfa). Yeni
-   gelene tek cümle yeter: *"Siz kitabı kaydediyorsunuz, kararı biz veriyoruz."*
+   gelene tek cümle yeter: *"Çek, çek, kaydet — kararı biz veriyoruz."*
    Kural kartı (`kural-karti.pdf`) yalnızca **onay masasında** durur.
 2. **Herkes formu açsın**, adını ve çalışma şifresini girsin.
 3. **Herkes "Bana boş bir sıra ver"e bassın.** Sıra dağıtımını siz yapmayın; sistem
@@ -203,9 +229,9 @@ Bu akışta gönüllünün karar vermesi gereken tek şey yok — bu kasıtlı.
 
 Her mola arasında koordinatör üç şeye bakar:
 
-- **Onay kuyruğu** — panodaki "onay bekleyen" sayısı sürekli büyüyorsa masa yetişmiyor
-  demektir. İkinci bir masa kişisi koyun ya da bir raf ekibini masaya alın. Kuyruk
-  büyümesi bir günde telafi edilebilir, üç günde edilemez.
+- **Onay kuyruğu** — sayı sürekli büyüyorsa masa yetişmiyor demektir. Önce
+  **gruplu onaya** geçin (ekran zaten öneriyor); yetmezse bir raf ekibini masaya alın.
+  Kuyruk büyümesi bir günde telafi edilebilir, üç günde edilemez.
 - **Bekleyen kayıt uyarısı** — bir telefonda sayı büyüyorsa o kişiyi bağlantının iyi
   olduğu yere gönderin, kuyruğu boşaltsın, geri dönsün.
 - **Hız** — ekip başına saatte 60–80 kitap normaldir. Sınıflandırma kalktığı için bu
