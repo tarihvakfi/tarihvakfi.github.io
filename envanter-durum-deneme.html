@@ -30,6 +30,26 @@
     padding:7px 12px;font:inherit;font-size:13px;cursor:pointer}
 
   .sayfa{max-width:1080px;margin:0 auto;padding:18px}
+  /* Tek uyarı kartı: iyiyken susar, bozukken bağırır. Koordinatörün
+     güne başlarken bakacağı tek yer burası. */
+  .dikkat{border-radius:12px;padding:16px 20px;margin-bottom:16px;border:2px solid}
+  .dikkat.iyi{border-color:#2e6440;background:#e9f3ec}
+  .dikkat.sari{border-color:#a06a12;background:#fdf4e3}
+  .dikkat.kirmizi{border-color:#9c2233;background:#fbe9ec}
+  .dikkat h3{margin:0 0 2px;font-size:15px}
+  .dikkat.iyi h3{color:#22502f}
+  .dikkat.sari h3{color:#7d5210}
+  .dikkat.kirmizi h3{color:#8a1c2c}
+  .dikkat .altbaslik{margin:0}
+  .dikkat ul{margin:12px 0 0;padding:0;list-style:none}
+  .dikkat li{border-top:1px solid rgba(0,0,0,.10);padding:10px 0 10px 26px;position:relative}
+  .dikkat li::before{position:absolute;left:0;top:9px;font-size:14px;line-height:1}
+  .dikkat li.k::before{content:'●';color:#9c2233}
+  .dikkat li.s::before{content:'●';color:#a06a12}
+  .dikkat li b{display:block;font-size:14px}
+  .dikkat li span{display:block;color:var(--soluk);font-size:13px;margin-top:2px}
+  .dikkat li em{display:block;font-style:normal;font-size:13px;margin-top:4px;font-weight:600}
+
   .kart{background:var(--kagit);border:1px solid var(--cizgi);border-radius:12px;padding:20px;
     margin-bottom:16px}
   .giris{max-width:420px;margin:60px auto}
@@ -146,6 +166,12 @@
   <section id="adim-pano" class="gizli">
     <div class="msg" id="msg"></div>
 
+    <div class="dikkat iyi" id="dikkatKart">
+      <h3 id="dikkatBaslik">Her şey yolunda</h3>
+      <p class="altbaslik" id="dikkatAlt">Bugün müdahale gerektiren bir şey yok.</p>
+      <ul id="dikkatListe"></ul>
+    </div>
+
     <div class="kunye-satir" id="kunyeler"></div>
 
     <div class="kart" style="margin-top:16px">
@@ -213,7 +239,7 @@
   var SIFRE = 'deneme';
   var KOORD_SIFRE = 'koordinator';
   var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayGruplari', 'onayla', 'topluOnayla',
-                               'katalog', 'durum', 'siraHaritasi'];
+                               'katalog', 'durum', 'siraHaritasi', 'kutula', 'kutular'];
   var SINIFLANDIRILMADI = 'Sınıflandırılmadı';
 
   /* Karar önerisi — canlı sunucudakinin sadeleştirilmiş kopyası. */
@@ -350,15 +376,37 @@
         bitiren: bit ? bit.bitiren : '', bitisTarihi: bit ? bit.tarih : '',
         raftaki: bit ? bit.raftaki : '',
         sonCalisan: sonK ? sonK.kaydeden : '',
-        sonTarih: sonK ? String(sonK.tarih || '').slice(0, 10) : '' };
+        sonTarih: sonK ? String(sonK.tarih || '').slice(0, 10) : '',
+        devir: devirBilgisi(ayni) };
     }
+    /* Devir teslim: yarım kalan sırayı devralana "nereden devam edeceğim" cevabı. */
+    function devirBilgisi(ayni) {
+      if (!ayni.length) return null;
+      var son = ayni.reduce(function (e, k) {
+        return (Number(k.siraNo) || 0) >= (Number(e.siraNo) || 0) ? k : e; });
+      var baslik = String(son.baslik || '').trim();
+      if (!baslik || /künye fotoğraftan/i.test(baslik)) baslik = String(son.oneriBaslik || '').trim();
+      return { yer: son.yer || '', baslik: baslik,
+        yazar: String(son.yazar || '').trim(),
+        kapak: son.kapak || son.foto || '',
+        kaydeden: son.kaydeden || '',
+        tarih: String(son.tarih || '').slice(0, 16).replace('T', ' '),
+        raftakiSira: ciltSay(ayni) - cikarilanSay(ayni) };
+    }
+    function ciltSay(liste) {
+      return liste.reduce(function (t, k) { return t + Math.max(1, Number(k.nusha) || 1); }, 0);
+    }
+    function cikarilanSay(liste) {
+      return liste.filter(function (k) { return k.durum === 'Küflü/böcekli' || k.istenen; }).length;
+    }
+
     if (g.action === 'siraOner') {
       var baslanan = {};
       v.kayitlar.forEach(function (k) { baslanan[k.anahtar] = true; });
       var bitmis = v.siralar || {};
       var bos = [], yarim = [];
       MEKANLAR.forEach(function (m) {
-        RAF_HARFLERI.split('').forEach(function (h) {
+        RAF_HARFLERI.forEach(function (h) {
           for (var i = 1; i <= SIRA_SAYISI; i++) {
             var key = anahtar(m.kod, h, i);
             if (bitmis[key]) continue;
@@ -377,12 +425,16 @@
       if (!ab) return { ok:false, error:'Sıra belirsiz.' };
       var raftaki = parseInt(g.raftaki, 10);
       if (isNaN(raftaki) || raftaki < 0) return { ok:false, error:'Raftaki kitap sayısını yazın.' };
-      var kayitli = v.kayitlar.filter(function (k) { return k.anahtar === ab; }).length;
+      var ayniB = v.kayitlar.filter(function (k) { return k.anahtar === ab; });
+      // Rafta duran cilt sayısı: 3 nüsha tek kayıttır ama rafta üç cilttir.
+      // Sayım bununla karşılaştırılır, kayıt sayısıyla değil.
+      var cilt = ciltSay(ayniB) - cikarilanSay(ayniB);
       v.siralar = v.siralar || {};
-      v.siralar[ab] = { raftaki:raftaki, kayitli:kayitli, bitiren:(g.kaydeden || ''),
+      v.siralar[ab] = { raftaki:raftaki, kayitli:cilt, bitiren:(g.kaydeden || ''),
         tarih: new Date().toISOString().slice(0, 10) };
       yaz(v);
-      return { ok:true, anahtar:ab, kayitli:kayitli, raftaki:raftaki, fark:raftaki - kayitli };
+      return { ok:true, anahtar:ab, kayitli:cilt, kayitSayisi:ayniB.length,
+        raftaki:raftaki, fark:raftaki - cilt };
     }
     if (g.action === 'ekle' || g.action === 'guncelle') {
       var k = g.kayit || {};
@@ -554,6 +606,8 @@
       var liste = v.kayitlar.filter(function (k) {
         if (yalniz && !k.onay) return false;
         if (g.kategori && k.kategori !== g.kategori) return false;
+        if (g.sira && String(k.yer || '').replace(/-\d+$/, '') !== g.sira) return false;
+        if (g.kutu && String(k.kutu || '') !== g.kutu) return false;
         if (ara) {
           var havuz = [k.baslik, k.yazar, k.yer, k.not, k.kutu].join(' ').toLowerCase();
           if (havuz.indexOf(ara) < 0) return false;
@@ -567,6 +621,42 @@
       var bas = Math.max(0, Number(g.bas) || 0);
       var adet = Math.min(Math.max(Number(g.adet) || 60, 1), 300);
       return { ok: true, toplam: liste.length, bas: bas, kayitlar: liste.slice(bas, bas + adet) };
+    }
+
+    if (g.action === 'kutular') {
+      var sr = {}, kt = {};
+      v.kayitlar.forEach(function (k) {
+        if (k.yer) sr[String(k.yer).replace(/-\d+$/, '')] = 1;
+        if (k.kutu) kt[k.kutu] = 1;
+      });
+      return { ok: true, siralar: Object.keys(sr).sort(), kutular: Object.keys(kt).sort() };
+    }
+
+    if (g.action === 'kutula') {
+      var istenen = (g.numaralar || []).map(Number).filter(Boolean);
+      if (!istenen.length) return { ok:false, error:'Kutulanacak kayıt seçilmedi.' };
+      var depoMu = String(g.hedef || '') === 'depo';
+      var ham = String(g.kutu || '').trim().replace(/^[YyDd]-/, '');
+      if (!/^\d{1,4}$/.test(ham)) return { ok:false, error:'Kutu numarası 1–4 haneli olmalı.' };
+      var etiket = (depoMu ? 'D-' : 'Y-') +
+                   ('00' + Number(ham)).slice(-Math.max(3, String(Number(ham)).length));
+      var yazilan = 0, cilt = 0, yerler = [];
+      v.kayitlar.forEach(function (k) {
+        if (istenen.indexOf(Number(k.no)) < 0) return;
+        var eski = String(k.kutu || '').trim();
+        if (eski && eski !== etiket) return;
+        k.kutu = etiket; yazilan++;
+        cilt += Math.max(1, Number(k.nusha) || 1);
+        if (k.yer) yerler.push(String(k.yer));
+      });
+      if (!yazilan) return { ok:false, error:'Bu kayıtlar zaten başka kutuda.' };
+      yerler.sort();
+      var aralik = yerler.length
+        ? (yerler[0] === yerler[yerler.length - 1]
+            ? yerler[0] : yerler[0] + ' → ' + yerler[yerler.length - 1]) : '';
+      yaz(v);
+      return { ok:true, kutu: etiket, hedef: depoMu ? 'DEPO' : 'YENİ BİNA',
+               yazilan: yazilan, cilt: cilt, atlanan: 0, aralik: aralik };
     }
 
     if (g.action === 'onayla') {
@@ -812,10 +902,41 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     { ad: 'Belirsiz', renk: 'var(--belirsiz)' }
   ];
 
+  /* Uyarı kuralları sunucuda; burası yalnızca yazdırır. Böylece ekran ile
+     sunucu iki ayrı şey söyleyemez. */
+  function dikkatCiz(liste) {
+    var kart = $('dikkatKart');
+    var kirmizi = liste.filter(function (x) { return x.seviye === 'kirmizi'; }).length;
+
+    kart.className = 'dikkat ' + (kirmizi ? 'kirmizi' : (liste.length ? 'sari' : 'iyi'));
+
+    if (!liste.length) {
+      $('dikkatBaslik').textContent = 'Her şey yolunda';
+      $('dikkatAlt').textContent = 'Bugün müdahale gerektiren bir şey yok.';
+      $('dikkatListe').innerHTML = '';
+      return;
+    }
+
+    $('dikkatBaslik').textContent = kirmizi
+      ? 'Bugün ' + kirmizi + ' şeye bakmanız gerekiyor'
+      : 'Bugün ' + liste.length + ' şeye göz atın';
+    $('dikkatAlt').textContent = kirmizi
+      ? 'Kırmızı olanlar bekletilirse iş durur.'
+      : 'Acil değil, ama biriktirmeyin.';
+
+    $('dikkatListe').innerHTML = liste.map(function (x) {
+      return '<li class="' + (x.seviye === 'kirmizi' ? 'k' : 's') + '">' +
+        '<b>' + esc(x.baslik) + '</b>' +
+        (x.detay ? '<span>' + esc(x.detay) + '</span>' : '') +
+        (x.ne ? '<em>→ ' + esc(x.ne) + '</em>' : '') + '</li>';
+    }).join('');
+  }
+
   function ciz() {
     var v = D.veri;
     $('ustZaman').textContent = v.hesaplandi ? 'son hesaplama ' + v.hesaplandi : '';
     gizle($('msg'));
+    dikkatCiz(v.uyarilar || []);
 
     /* künye kutuları */
     var belirsiz = v.kategori['Belirsiz'] || 0;

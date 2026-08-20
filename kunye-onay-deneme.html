@@ -239,6 +239,7 @@
 
           <div class="islemler">
             <button class="btn" id="btnOnayla">Onayla ve sıradaki</button>
+            <button class="btn ikincil" id="btnGetirt">Kitabı getirt</button>
             <button class="btn ikincil" id="btnAtla">Atla</button>
             <span class="kisayol">Enter ile onayla · Ctrl+Enter her yerde çalışır</span>
           </div>
@@ -268,7 +269,7 @@
   var SIFRE = 'deneme';
   var KOORD_SIFRE = 'koordinator';
   var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayGruplari', 'onayla', 'topluOnayla',
-                               'katalog', 'durum', 'siraHaritasi'];
+                               'katalog', 'durum', 'siraHaritasi', 'kutula', 'kutular'];
   var SINIFLANDIRILMADI = 'Sınıflandırılmadı';
 
   /* Karar önerisi — canlı sunucudakinin sadeleştirilmiş kopyası. */
@@ -405,15 +406,37 @@
         bitiren: bit ? bit.bitiren : '', bitisTarihi: bit ? bit.tarih : '',
         raftaki: bit ? bit.raftaki : '',
         sonCalisan: sonK ? sonK.kaydeden : '',
-        sonTarih: sonK ? String(sonK.tarih || '').slice(0, 10) : '' };
+        sonTarih: sonK ? String(sonK.tarih || '').slice(0, 10) : '',
+        devir: devirBilgisi(ayni) };
     }
+    /* Devir teslim: yarım kalan sırayı devralana "nereden devam edeceğim" cevabı. */
+    function devirBilgisi(ayni) {
+      if (!ayni.length) return null;
+      var son = ayni.reduce(function (e, k) {
+        return (Number(k.siraNo) || 0) >= (Number(e.siraNo) || 0) ? k : e; });
+      var baslik = String(son.baslik || '').trim();
+      if (!baslik || /künye fotoğraftan/i.test(baslik)) baslik = String(son.oneriBaslik || '').trim();
+      return { yer: son.yer || '', baslik: baslik,
+        yazar: String(son.yazar || '').trim(),
+        kapak: son.kapak || son.foto || '',
+        kaydeden: son.kaydeden || '',
+        tarih: String(son.tarih || '').slice(0, 16).replace('T', ' '),
+        raftakiSira: ciltSay(ayni) - cikarilanSay(ayni) };
+    }
+    function ciltSay(liste) {
+      return liste.reduce(function (t, k) { return t + Math.max(1, Number(k.nusha) || 1); }, 0);
+    }
+    function cikarilanSay(liste) {
+      return liste.filter(function (k) { return k.durum === 'Küflü/böcekli' || k.istenen; }).length;
+    }
+
     if (g.action === 'siraOner') {
       var baslanan = {};
       v.kayitlar.forEach(function (k) { baslanan[k.anahtar] = true; });
       var bitmis = v.siralar || {};
       var bos = [], yarim = [];
       MEKANLAR.forEach(function (m) {
-        RAF_HARFLERI.split('').forEach(function (h) {
+        RAF_HARFLERI.forEach(function (h) {
           for (var i = 1; i <= SIRA_SAYISI; i++) {
             var key = anahtar(m.kod, h, i);
             if (bitmis[key]) continue;
@@ -432,12 +455,16 @@
       if (!ab) return { ok:false, error:'Sıra belirsiz.' };
       var raftaki = parseInt(g.raftaki, 10);
       if (isNaN(raftaki) || raftaki < 0) return { ok:false, error:'Raftaki kitap sayısını yazın.' };
-      var kayitli = v.kayitlar.filter(function (k) { return k.anahtar === ab; }).length;
+      var ayniB = v.kayitlar.filter(function (k) { return k.anahtar === ab; });
+      // Rafta duran cilt sayısı: 3 nüsha tek kayıttır ama rafta üç cilttir.
+      // Sayım bununla karşılaştırılır, kayıt sayısıyla değil.
+      var cilt = ciltSay(ayniB) - cikarilanSay(ayniB);
       v.siralar = v.siralar || {};
-      v.siralar[ab] = { raftaki:raftaki, kayitli:kayitli, bitiren:(g.kaydeden || ''),
+      v.siralar[ab] = { raftaki:raftaki, kayitli:cilt, bitiren:(g.kaydeden || ''),
         tarih: new Date().toISOString().slice(0, 10) };
       yaz(v);
-      return { ok:true, anahtar:ab, kayitli:kayitli, raftaki:raftaki, fark:raftaki - kayitli };
+      return { ok:true, anahtar:ab, kayitli:cilt, kayitSayisi:ayniB.length,
+        raftaki:raftaki, fark:raftaki - cilt };
     }
     if (g.action === 'ekle' || g.action === 'guncelle') {
       var k = g.kayit || {};
@@ -609,6 +636,8 @@
       var liste = v.kayitlar.filter(function (k) {
         if (yalniz && !k.onay) return false;
         if (g.kategori && k.kategori !== g.kategori) return false;
+        if (g.sira && String(k.yer || '').replace(/-\d+$/, '') !== g.sira) return false;
+        if (g.kutu && String(k.kutu || '') !== g.kutu) return false;
         if (ara) {
           var havuz = [k.baslik, k.yazar, k.yer, k.not, k.kutu].join(' ').toLowerCase();
           if (havuz.indexOf(ara) < 0) return false;
@@ -622,6 +651,42 @@
       var bas = Math.max(0, Number(g.bas) || 0);
       var adet = Math.min(Math.max(Number(g.adet) || 60, 1), 300);
       return { ok: true, toplam: liste.length, bas: bas, kayitlar: liste.slice(bas, bas + adet) };
+    }
+
+    if (g.action === 'kutular') {
+      var sr = {}, kt = {};
+      v.kayitlar.forEach(function (k) {
+        if (k.yer) sr[String(k.yer).replace(/-\d+$/, '')] = 1;
+        if (k.kutu) kt[k.kutu] = 1;
+      });
+      return { ok: true, siralar: Object.keys(sr).sort(), kutular: Object.keys(kt).sort() };
+    }
+
+    if (g.action === 'kutula') {
+      var istenen = (g.numaralar || []).map(Number).filter(Boolean);
+      if (!istenen.length) return { ok:false, error:'Kutulanacak kayıt seçilmedi.' };
+      var depoMu = String(g.hedef || '') === 'depo';
+      var ham = String(g.kutu || '').trim().replace(/^[YyDd]-/, '');
+      if (!/^\d{1,4}$/.test(ham)) return { ok:false, error:'Kutu numarası 1–4 haneli olmalı.' };
+      var etiket = (depoMu ? 'D-' : 'Y-') +
+                   ('00' + Number(ham)).slice(-Math.max(3, String(Number(ham)).length));
+      var yazilan = 0, cilt = 0, yerler = [];
+      v.kayitlar.forEach(function (k) {
+        if (istenen.indexOf(Number(k.no)) < 0) return;
+        var eski = String(k.kutu || '').trim();
+        if (eski && eski !== etiket) return;
+        k.kutu = etiket; yazilan++;
+        cilt += Math.max(1, Number(k.nusha) || 1);
+        if (k.yer) yerler.push(String(k.yer));
+      });
+      if (!yazilan) return { ok:false, error:'Bu kayıtlar zaten başka kutuda.' };
+      yerler.sort();
+      var aralik = yerler.length
+        ? (yerler[0] === yerler[yerler.length - 1]
+            ? yerler[0] : yerler[0] + ' → ' + yerler[yerler.length - 1]) : '';
+      yaz(v);
+      return { ok:true, kutu: etiket, hedef: depoMu ? 'DEPO' : 'YENİ BİNA',
+               yazilan: yazilan, cilt: cilt, atlanan: 0, aralik: aralik };
     }
 
     if (g.action === 'onayla') {
@@ -837,6 +902,24 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   $('btnTekrar').addEventListener('click', function () { $('btnYenile').click(); });
 
   /* ───────── çizim ───────── */
+  /* Fotoğrafı okunmayan ya da karar verilemeyen kayıt için rafa haber:
+     "bu kitabı bana getirin". Rafta çalışanın ekranında yer koduyla çıkar. */
+  $('btnGetirt').addEventListener('click', function () {
+    var k = D.liste[D.i]; if (!k) return;
+    var sebep = window.prompt('Bu kitabı neden görmek istiyorsunuz?\n' +
+      '(Rafta çalışanlar bu notu görecek.)', 'Fotoğraftan karar veremedim');
+    if (sebep === null) return;
+    mesgul($('btnGetirt'), true, 'İşleniyor…');
+    api('kitapIste', { no: k.no, sebep: sebep, isteyen: D.ad }).then(function () {
+      goster($('msg'), 'iyi', '<b>' + esc(k.yer || ('#' + k.no)) + '</b> istendi — ' +
+        'rafta çalışanların ekranında görünecek. Kitap gelince elinizde tutarak karar verin.');
+      D.i++;
+      ciz();
+    })['catch'](function (e) {
+      goster($('msg'), 'hata', ağHata(e));
+    }).then(function () { mesgul($('btnGetirt'), false); });
+  });
+
   /* ───────── gruplu onay ─────────
      Tek tek onay, kuyruk büyüdüğünde yetişmiyor. Aynı öneriyi taşıyan kayıtlar
      tek karta toplanır; koordinatör kararı bir kez verir, sistem hepsine yazar.
@@ -933,8 +1016,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   function kategorileriCiz() {
     if (!D.cfg) return;
     var sinif = { gidecek: 'g', belki: 's', gitmeyecek: 'k', belirsiz: 'm' };
-    var altYazi = { gidecek: 'yeşil etiket', belki: 'sarı etiket',
-                    gitmeyecek: 'kırmızı etiket', belirsiz: 'mavi etiket' };
+    var altYazi = { gidecek: 'yeşil · yeni binaya', belki: 'sarı · yer kalırsa',
+                    gitmeyecek: 'kırmızı · yerinde kalır', belirsiz: 'mavi · uzmana' };
     $('katlar').innerHTML = Object.keys(D.cfg.kategoriler).map(function (a) {
       return '<button type="button" class="kat ' + sinif[a] + '" data-kat="' + a + '">' +
         esc(D.cfg.kategoriler[a].ad) + '<small>' + altYazi[a] + '</small></button>';
@@ -997,6 +1080,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     if (k.durum && k.durum !== 'Sağlam') rafBilgi.push('<b>' + esc(k.durum) + '</b>');
     if (Number(k.nusha) > 1) rafBilgi.push('<b>' + esc(k.nusha) + ' nüsha</b>');
     if (k.not) rafBilgi.push('Not: ' + esc(k.not));
+    if (k.istenen) rafBilgi.push('<b style="color:#1a3f63">Bu kitap istendi</b> — ' +
+      esc(String(k.istenen).split(' · ')[0]));
     $('rafBilgi').innerHTML = rafBilgi.length
       ? '<span class="etiket">rafta girilen</span>' + rafBilgi.join(' &nbsp;·&nbsp; ')
       : '';
@@ -1101,7 +1186,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var yil = $('yil').value.trim();
     if (yil && !/^\d{3,4}$/.test(yil)) { goster($('msg'), 'hata', 'Yıl 3–4 haneli olmalı.'); return; }
     if (!D.kategori) {
-      goster($('msg'), 'hata', 'Karar verin: gidecek mi, gitmeyecek mi?');
+      goster($('msg'), 'hata', 'Karar verin: yeni binaya mı gidecek, yerinde mi kalacak?');
       $('katlar').scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
