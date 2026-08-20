@@ -239,6 +239,7 @@
 
           <div class="islemler">
             <button class="btn" id="btnOnayla">Onayla ve sıradaki</button>
+            <button class="btn ikincil" id="btnGetirt">Kitabı getirt</button>
             <button class="btn ikincil" id="btnAtla">Atla</button>
             <span class="kisayol">Enter ile onayla · Ctrl+Enter her yerde çalışır</span>
           </div>
@@ -390,6 +391,24 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   $('btnTekrar').addEventListener('click', function () { $('btnYenile').click(); });
 
   /* ───────── çizim ───────── */
+  /* Fotoğrafı okunmayan ya da karar verilemeyen kayıt için rafa haber:
+     "bu kitabı bana getirin". Rafta çalışanın ekranında yer koduyla çıkar. */
+  $('btnGetirt').addEventListener('click', function () {
+    var k = D.liste[D.i]; if (!k) return;
+    var sebep = window.prompt('Bu kitabı neden görmek istiyorsunuz?\n' +
+      '(Rafta çalışanlar bu notu görecek.)', 'Fotoğraftan karar veremedim');
+    if (sebep === null) return;
+    mesgul($('btnGetirt'), true, 'İşleniyor…');
+    api('kitapIste', { no: k.no, sebep: sebep, isteyen: D.ad }).then(function () {
+      goster($('msg'), 'iyi', '<b>' + esc(k.yer || ('#' + k.no)) + '</b> istendi — ' +
+        'rafta çalışanların ekranında görünecek. Kitap gelince elinizde tutarak karar verin.');
+      D.i++;
+      ciz();
+    })['catch'](function (e) {
+      goster($('msg'), 'hata', ağHata(e));
+    }).then(function () { mesgul($('btnGetirt'), false); });
+  });
+
   /* ───────── gruplu onay ─────────
      Tek tek onay, kuyruk büyüdüğünde yetişmiyor. Aynı öneriyi taşıyan kayıtlar
      tek karta toplanır; koordinatör kararı bir kez verir, sistem hepsine yazar.
@@ -486,8 +505,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   function kategorileriCiz() {
     if (!D.cfg) return;
     var sinif = { gidecek: 'g', belki: 's', gitmeyecek: 'k', belirsiz: 'm' };
-    var altYazi = { gidecek: 'yeşil etiket', belki: 'sarı etiket',
-                    gitmeyecek: 'kırmızı etiket', belirsiz: 'mavi etiket' };
+    var altYazi = { gidecek: 'yeşil · yeni binaya', belki: 'sarı · yer kalırsa',
+                    gitmeyecek: 'kırmızı · yerinde kalır', belirsiz: 'mavi · uzmana' };
     $('katlar').innerHTML = Object.keys(D.cfg.kategoriler).map(function (a) {
       return '<button type="button" class="kat ' + sinif[a] + '" data-kat="' + a + '">' +
         esc(D.cfg.kategoriler[a].ad) + '<small>' + altYazi[a] + '</small></button>';
@@ -550,6 +569,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     if (k.durum && k.durum !== 'Sağlam') rafBilgi.push('<b>' + esc(k.durum) + '</b>');
     if (Number(k.nusha) > 1) rafBilgi.push('<b>' + esc(k.nusha) + ' nüsha</b>');
     if (k.not) rafBilgi.push('Not: ' + esc(k.not));
+    if (k.istenen) rafBilgi.push('<b style="color:#1a3f63">Bu kitap istendi</b> — ' +
+      esc(String(k.istenen).split(' · ')[0]));
     $('rafBilgi').innerHTML = rafBilgi.length
       ? '<span class="etiket">rafta girilen</span>' + rafBilgi.join(' &nbsp;·&nbsp; ')
       : '';
@@ -654,7 +675,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var yil = $('yil').value.trim();
     if (yil && !/^\d{3,4}$/.test(yil)) { goster($('msg'), 'hata', 'Yıl 3–4 haneli olmalı.'); return; }
     if (!D.kategori) {
-      goster($('msg'), 'hata', 'Karar verin: gidecek mi, gitmeyecek mi?');
+      goster($('msg'), 'hata', 'Karar verin: yeni binaya mı gidecek, yerinde mi kalacak?');
       $('katlar').scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }

@@ -59,6 +59,10 @@
   .durumlar button.sec{border-color:var(--bordo);background:var(--vurgu-bg);color:var(--bordo);font-weight:700}
   .durumlar button.kotu.sec{border-color:var(--kirmizi);background:#fbeaec;color:var(--kirmizi)}
 
+  .baglanti-btn{display:block;width:100%;margin-top:14px;background:none;border:0;
+    color:var(--bordo);text-decoration:underline;font:inherit;font-size:15px;
+    cursor:pointer;padding:10px}
+
   /* ── ayrıntı katlama ── */
   .ayrinti-satir{display:flex;gap:10px;margin-top:16px;align-items:stretch;flex-wrap:wrap}
   .ayrinti-ac{flex:1 1 190px;border:1.5px dashed var(--cizgi);background:#fff;
@@ -96,6 +100,29 @@
   .msg.iyi{background:#f1f7f2;color:#2e6440;border-color:#cfe4d5}
   .msg.hata{background:#fdf2f4;color:#8a1230;border-color:#f0cdd6}
   .msg.uyari{background:#fffbeb;color:#92400e;border-color:#fde68a}
+
+  /* Devir teslim: yarım kalan sırayı devralan kişi nereden devam edeceğini
+     buradan görür. Rafa bir şey konmuyor, cevap sistemden geliyor.
+     Bağlantı yokken son bilinen hâli telefondan gösterilir. */
+  .devir{margin-top:20px;padding:14px 15px;border-radius:10px;
+         background:#eef4fa;border:1.5px solid #2a5b86}
+  .devir .bas{font-size:14.5px;font-weight:700;color:#1f4260}
+  .devir .sayi{display:flex;align-items:baseline;gap:8px;margin-top:9px}
+  .devir .sayi b{font-size:30px;line-height:1;color:#1f4260;
+                 font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .devir .sayi span{font-size:14px}
+  .devir .kitap{display:flex;gap:11px;margin-top:11px;padding-top:11px;
+                border-top:1px solid #cddcea}
+  .devir .kitap img{width:52px;height:70px;object-fit:cover;border-radius:5px;
+                    background:#dbe6f0;flex:0 0 auto}
+  .devir .kitap div{min-width:0}
+  .devir .kitap .ad{font-weight:700;font-size:14px;word-break:break-word}
+  .devir .kitap .alt{font-size:12.5px;color:#4a6076;margin-top:3px}
+  .devir .kod{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+              text-decoration:none;font-weight:700;background:#2a5b86;color:#fff;
+              border-radius:5px;padding:2px 7px;font-size:12.5px}
+  .devir .eski{margin-top:9px;font-size:12.5px;color:#8a5a1c;background:#fdf4e3;
+               border-radius:6px;padding:7px 9px}
 
   .kuyruk{margin:12px;padding:11px 14px;border-radius:9px;background:#fffbeb;border:1px solid #fde68a;
     color:#92400e;font-size:13.5px;display:none;align-items:center;gap:10px}
@@ -175,42 +202,78 @@
 
   <!-- ══ 2. RAF ══ -->
   <section id="adim-raf" class="kart gizli">
-    <h1>Neredesiniz?</h1>
-    <p class="ipucu">Bir kez seçin; her kitapta tekrar sormayacağız. Kitap numarasını
-      sistem kendisi veriyor.</p>
+    <h1>Hangi sırada çalışacaksınız?</h1>
 
-    <button class="btn ikincil" id="btnSiraOner" style="margin-bottom:16px">
-      Bana boş bir sıra ver</button>
-    <div class="msg gizli" id="msgOner" style="margin:-8px 0 16px"></div>
+    <button class="btn" id="btnSiraOner">Bana sıra ver</button>
+    <div class="msg gizli" id="msgOner" style="margin:14px 0 0"></div>
 
-    <div id="mekanSatir">
-      <label for="mekan">Mekân</label>
-      <select id="mekan"></select>
+    <button type="button" id="btnKendimSec" class="baglanti-btn">Kendim seçeceğim</button>
+
+    <div id="secici" class="gizli">
+      <div id="mekanSatir">
+        <label for="mekan">Mekân</label>
+        <select id="mekan"></select>
+      </div>
+
+      <div class="ikili">
+        <div>
+          <label for="rafHarf">Raf</label>
+          <select id="rafHarf"></select>
+        </div>
+        <div>
+          <label for="siraSec">Sıra</label>
+          <select id="siraSec"></select>
+        </div>
+      </div>
+
+      <div class="raf-ozet" id="rafOzet"></div>
+
+      <div id="kutuSatir" class="gizli">
+        <label for="kutuNo">Kutu numarası</label>
+        <input type="text" id="kutuNo" inputmode="numeric" maxlength="20" placeholder="örn. 17">
+      </div>
+
+      <button class="btn" id="btnRaf">Bu sırada çalışmaya başla</button>
     </div>
 
-    <div class="ikili">
-      <div>
-        <label for="rafHarf">Raf</label>
-        <select id="rafHarf"></select>
+    <div id="devirKart" class="devir gizli">
+      <div class="bas">Bu sıra yarım kalmış — nereden devam edeceksiniz</div>
+      <div class="sayi">
+        <b id="devirSayi">—</b>
+        <span>kitap kaydedilmiş. Rafta <b id="devirSayi2" style="font-size:14px">—</b>.
+          kitaba kadar sayın, <b style="font-size:14px">sonrakinden</b> devam edin.</span>
       </div>
-      <div>
-        <label for="siraSec">Sıra</label>
-        <select id="siraSec"></select>
+      <div class="kitap" id="devirKitap">
+        <img id="devirKapak" alt="" onerror="this.style.visibility='hidden'">
+        <div>
+          <div class="ad" id="devirAd">—</div>
+          <div class="alt" id="devirAlt"></div>
+        </div>
       </div>
+      <div class="eski gizli" id="devirEski"></div>
     </div>
 
-    <div class="raf-ozet" id="rafOzet"></div>
+    <div id="bitirKart" class="gizli" style="margin-top:22px;border-top:1.5px solid var(--cizgi);
+         padding-top:18px">
+      <div class="kat-baslik" style="margin-top:0">Çalıştığınız sırayı bitirdiniz mi?</div>
+      <p class="ipucu" style="margin:0 0 12px">Kitapları sayın, sayıyı yazın. Poşetlediğiniz
+        küflü kitapları saymayın.</p>
+      <label for="raftaki">Kaç kitap saydınız?</label>
+      <input type="text" id="raftaki" inputmode="numeric" maxlength="4" placeholder="örn. 42">
+      <button class="btn ikincil" id="btnSiraBitir">Bu sırayı bitirdim</button>
+      <div class="msg gizli" id="msgBitir" style="margin-top:12px"></div>
+    </div>
 
-    <button class="btn" id="btnRaf">Bu sırada çalışmaya başla</button>
-    <button class="btn ikincil" id="btnRafGeri">Geri</button>
+    <button class="btn ikincil" id="btnRafGeri" style="margin-top:18px">Geri</button>
   </section>
 
   <!-- ══ 3. KAYIT ══ -->
   <section id="adim-kayit" class="gizli">
     <div class="ust">
       <div class="raf"><small>Sıra</small><span id="ustRaf">—</span>
-        <span class="sira" id="ustSira"></span></div>
-      <button id="btnRafDegis">Sıra değiştir</button>
+        <span class="sira" id="ustSira"></span>
+        <span class="sira" id="ustKutu"></span></div>
+      <button id="btnRafDegis">Sırayı bitir / değiştir</button>
       <div class="sag"><b id="ustSayac">0</b>bugün siz
         <span class="ag-rozet gizli" id="ustAg">çevrimdışı</span></div>
     </div>
@@ -221,7 +284,8 @@
     </div>
     <div class="msg hata gizli" id="sorunlu" style="margin:0 0 14px"></div>
     <div class="msg uyari gizli" id="duzeltilen" style="margin:0 0 14px"></div>
-    <div class="msg uyari gizli" id="onayUyari" style="margin:0 0 14px"></div>
+    <div class="msg gizli" id="istenenler" style="margin:0 0 14px;background:#eef4fb;
+         color:#1a3f63;border-color:#bcd6ee"></div>
     <div class="msg" id="msgKayit"></div>
 
     <div class="kart">
@@ -235,7 +299,7 @@
           <div class="baslik">Künye sayfası</div>
           <div id="fotoBos">
             <button type="button" class="foto-btn" id="btnFoto">📷 Çek</button>
-            <p class="foto-ipucu">Kitabın başındaki sol sayfa — yıl ve yayınevi orada.</p>
+            <p class="foto-ipucu">kitabın başındaki sol sayfa</p>
           </div>
           <div id="fotoVar" class="foto-onizleme gizli">
             <img id="fotoOnizleme" alt="Künye fotoğrafı">
@@ -255,7 +319,7 @@
           <div class="baslik">Kapak</div>
           <div id="kapakBos">
             <button type="button" class="foto-btn" id="btnKapak">📷 Çek</button>
-            <p class="foto-ipucu">Kitabı tanımak için — sonradan aramayı kolaylaştırır.</p>
+            <p class="foto-ipucu">kitabı tanımak için</p>
           </div>
           <div id="kapakVar" class="foto-onizleme gizli">
             <img id="kapakOnizleme" alt="Kapak fotoğrafı">
@@ -271,8 +335,6 @@
           <input type="file" id="kapakGirdi" accept="image/*" capture="environment" style="display:none">
         </div>
       </div>
-      <p class="foto-aciklama">İkisi de isteğe bağlı. <b>Künye sayfasını çekerseniz başlık boş
-        kalabilir</b> — künye masa başında fotoğraftan tamamlanır.</p>
 
       <div class="ayrinti-satir">
         <button type="button" id="btnAyrinti" class="ayrinti-ac">
@@ -309,8 +371,6 @@
       </div>
 
       <button class="btn" id="btnKaydet" style="margin-top:18px">Kitabı kaydet</button>
-      <p class="foto-aciklama" style="margin-top:8px">Gidecek mi gitmeyecek mi kararını
-        koordinatör verecek — siz yalnızca kitabı kaydedin.</p>
     </div>
 
     <div class="son">
@@ -318,22 +378,7 @@
       <div id="sonListe"></div>
     </div>
 
-    <div class="kart" style="margin-top:18px">
-      <div class="kat-baslik" style="margin-top:0">Bu sırayı bitirdiniz mi?</div>
-      <p class="foto-aciklama" style="margin:0 0 12px">Sıradaki bütün kitapları kaydettiyseniz
-        buraya basın. Önce <b>şu anda rafta duran kitapları sayın</b> — aynı kitaptan üç tane
-        varsa üç sayın. Sistemin sayısını size <b>sonra</b> göstereceğiz; şimdi görmeniz
-        sayımı bozar.</p>
-      <label for="raftaki">Şu anda bu sırada rafta kaç kitap duruyor?</label>
-      <input type="text" id="raftaki" inputmode="numeric" maxlength="4" placeholder="örn. 42">
-      <label for="siraNot">Sıra hakkında not <span style="font-weight:400">(isteğe bağlı)</span></label>
-      <input type="text" id="siraNot" placeholder="Rafın arkasında ikinci sıra kitap vardı…">
-      <button class="btn ikincil" id="btnSiraBitir" style="margin-top:12px">
-        Bu sırayı bitirdim</button>
-      <div class="msg gizli" id="msgBitir" style="margin-top:12px"></div>
-    </div>
 
-    <p class="dip">Emin olamadığınız bir şey varsa <b>Not</b> alanına yazın; koordinatör okuyacak.</p>
   </section>
 </div>
 
@@ -347,11 +392,12 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
   var D = { ad: '', sifre: '', cfg: null, durum: 'Sağlam', siraDurumu: '', siraTutan: '',
-            ayrintiAcik: false,
+            kutu: '', ayrintiAcik: false,
             duzenleNo: null, sayac: 0, foto: null, kapak: null,
             mekan: '', raf: '', sira: 0, anahtar: '', sonraki: 1 };
   var KUYRUK = 'tv_env_kuyruk';
   var SIRA_DEPO = 'tv_env_sira';        // her sıranın sıradaki numarası (çevrimdışı için)
+  var DEVIR_DEPO = 'tv_env_devir';      // her sıranın son bilinen devir bilgisi
 
   /* Vakıfta bağlantı zayıf. Ölü bir wifi'de fetch dakikalarca asılı kalabilir;
      gönüllü ekrana bakıp bekler. Zaman aşımı koyup çevrimdışı kuyruğa düşürüyoruz. */
@@ -631,7 +677,6 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       localStorage.setItem('tv_env_ad', ad);
       localStorage.setItem('tv_env_sifre', sifre);
       D.sayac = (r.benim != null) ? r.benim : (r.sayac ? r.sayac.benim : 0);
-      kuyrukUyarisi(r.bekleyen);
       // Açılışta ayarlar alınamamış olabilir: raf ekranına geçmeden bir daha denenir.
       return ayarlariYukle();
     }).then(function () { iceriGir(false); })
@@ -673,6 +718,59 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     localStorage.setItem(SIRA_DEPO, JSON.stringify(d));
   }
 
+  /* Devir bilgisi telefonda da saklanır: internet gittiğinde sırayı devralan
+     kişi en azından son bilinen hâli görsün. Kaç gün önceki bilgi olduğunu
+     da söyleriz — kullanıcı taze mi bayat mı kendisi karar versin. */
+  function devirDepoOku() {
+    try { return JSON.parse(localStorage.getItem(DEVIR_DEPO) || '{}'); } catch (h) { return {}; }
+  }
+  function devirDepoYaz(anahtar, bilgi) {
+    var d = devirDepoOku();
+    if (bilgi) d[anahtar] = { b: bilgi, z: Date.now() };
+    else delete d[anahtar];
+    try { localStorage.setItem(DEVIR_DEPO, JSON.stringify(d)); } catch (h) { /* dolu */ }
+  }
+
+  /* Devir kartını çizer. taze=false ise "bu bilgi eski olabilir" uyarısı ekler. */
+  function devirCiz(bilgi, taze, yasDk) {
+    if (!bilgi) { $('devirKart').classList.add('gizli'); return; }
+    $('devirKart').classList.remove('gizli');
+
+    var sira = Number(bilgi.raftakiSira) || 0;
+    $('devirSayi').textContent = sira;
+    $('devirSayi2').textContent = sira;
+
+    $('devirAd').textContent = bilgi.baslik || '(başlık girilmemiş)';
+    var alt = [];
+    if (bilgi.yazar) alt.push(bilgi.yazar);
+    if (bilgi.yer) alt.push(bilgi.yer);
+    if (bilgi.kaydeden) alt.push(bilgi.kaydeden);
+    if (bilgi.tarih) alt.push(bilgi.tarih);
+    $('devirAlt').innerHTML = alt.map(function (x, i) {
+      return i === 1 ? '<span class="kod">' + esc(x) + '</span>' : esc(x);
+    }).join(' · ');
+
+    var img = $('devirKapak');
+    if (taze && bilgi.kapak) {
+      img.style.visibility = ''; img.src = bilgi.kapak;
+    } else {
+      img.removeAttribute('src'); img.style.visibility = 'hidden';
+    }
+
+    var eski = $('devirEski');
+    if (taze) { eski.classList.add('gizli'); }
+    else {
+      eski.classList.remove('gizli');
+      var ne = yasDk == null ? 'bilinmiyor'
+        : (yasDk < 60 ? yasDk + ' dakika önce'
+          : (yasDk < 1440 ? Math.round(yasDk / 60) + ' saat önce'
+            : Math.round(yasDk / 1440) + ' gün önce'));
+      eski.innerHTML = '<b>Bağlantı yok</b> — bu bilgi telefonunuzda saklanan, ' +
+        esc(ne) + ' alınmış hâli. Bu arada başkası çalışmış olabilir; ' +
+        'saydığınız kitapla adı tutmuyorsa bağlantı gelene kadar bu sırayı almayın.';
+    }
+  }
+
   function rafEkraniHazirla() {
     if (!D.cfg) {                                    // ayarlar gelmediyse boş menü gösterme
       goster($('msgGiris'), 'hata', 'Ayarlar alınamadı. Sayfayı yenileyip tekrar deneyin.');
@@ -694,6 +792,10 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       return '<option value="' + esc(h) + '">' + esc(h) + ' rafı</option>';
     }).join('');
     if (son.raf) $('rafHarf').value = son.raf;
+
+    // Kutu numarası yalnızca "kutuya doğrudan" yöntemiyle çalışan kütüphanelerde
+    // görünsün; blok usulüyle çalışanların ekranında boş bir alan durmasın.
+    $('kutuSatir').classList.toggle('gizli', !cfg.kutuKullan);
 
     var adet = Number(cfg.siraSayisi || 8), sec = '';
     for (var i = 1; i <= adet; i++) sec += '<option value="' + i + '">' + i + '. sıra</option>';
@@ -751,7 +853,16 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
           '<br><span style="opacity:.8">' + hikaye + '</span>';
       }
       $('rafOzet').innerHTML = '<b>' + esc(anahtar) + '</b><span class="ek">' + hikaye + '</span>';
+
+      // Yarım kalmış sıra: devralan kişiye nereden devam edeceğini göster
+      var yarim = d.durum === 'devam' && d.devir && !D.siraTutan;
+      devirDepoYaz(anahtar, yarim ? d.devir : null);
+      devirCiz(yarim ? d.devir : null, true);
     })['catch'](function () {
+      // Bağlantı yok: telefonda saklanan son bilinen devir bilgisini göster
+      var saklanan = devirDepoOku()[anahtar];
+      devirCiz(saklanan ? saklanan.b : null, false,
+               saklanan ? Math.round((Date.now() - saklanan.z) / 60000) : null);
       $('rafOzet').innerHTML = '<b>' + esc(anahtar) + '</b>' +
         '<span class="ek">bağlantı yok — telefondaki sayaçtan devam: ' +
         esc(yerKodu(anahtar, yerel)) + '</span>';
@@ -760,6 +871,20 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   ['mekan', 'rafHarf', 'siraSec'].forEach(function (id) {
     $(id).addEventListener('change', rafOzetYenile);
   });
+
+  /* Asıl yol "Bana sıra ver". Elle seçim istisna olduğu için katlı duruyor —
+     ekranda üç açılır liste görmek gönüllüyü seçim yapması gerektiğine inandırıyordu. */
+  $('btnKendimSec').addEventListener('click', function () {
+    var acik = !$('secici').classList.contains('gizli');
+    $('secici').classList.toggle('gizli', acik);
+    $('btnKendimSec').textContent = acik ? 'Kendim seçeceğim' : 'Seçimden vazgeç';
+    if (!acik) rafOzetYenile();
+  });
+
+  function seciciAc() {
+    $('secici').classList.remove('gizli');
+    $('btnKendimSec').textContent = 'Seçimden vazgeç';
+  }
 
   /* Rastgele gelen gönüllü hangi sırayı alacağını bilemez; sistem söylesin.
      Böylece iki kişi aynı sırayı ayıklamaz ve hiçbir sıra unutulmaz. */
@@ -781,6 +906,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       if (mekan && $('mekan').querySelector('option[value="' + mekan + '"]')) $('mekan').value = mekan;
       $('rafHarf').value = kod.charAt(0);
       $('siraSec').value = String(Number(kod.slice(1)));
+      seciciAc();
       rafOzetYenile();
       var m;
       if (d.zatenSizde) {
@@ -805,6 +931,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   function ustuYenile() {
     $('ustRaf').textContent = D.anahtar;
     $('ustSira').textContent = 'sıradaki ' + doldurSayi(D.sonraki, 3);
+    $('ustKutu').textContent = D.kutu ? '· kutu ' + D.kutu : '';
   }
 
   $('btnRaf').addEventListener('click', function () {
@@ -828,6 +955,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     api('siraSec', { mekan: r.mekan, raf: r.raf, sira: r.sira,
                      kaydeden: D.ad, yinede: true })['catch'](function () {});
     D.mekan = r.mekan; D.raf = r.raf; D.sira = r.sira;
+    D.kutu = $('kutuNo').value.trim();
     D.anahtar = anahtarKur(r.mekan, r.raf, r.sira);
     D.sonraki = siraDepoOku()[D.anahtar] || 1;
 
@@ -841,6 +969,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     $('ustSayac').textContent = D.sayac;
     formTemizle();
     sonKayitlariYukle();
+    istenenleriYukle();
     $('yazar').focus();
   });
   $('btnRafGeri').addEventListener('click', function () {
@@ -848,7 +977,11 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   });
   $('btnRafDegis').addEventListener('click', function () {
     $('adim-kayit').classList.add('gizli'); $('adim-raf').classList.remove('gizli');
-    rafOzetYenile();
+    $('kutuNo').value = D.kutu || '';
+    // Bitirme kartı yalnızca bir sırada çalışılıyorken anlamlı.
+    $('bitirKart').classList.toggle('gizli', !D.anahtar);
+    gizle($('msgBitir'));
+    if (!$('secici').classList.contains('gizli')) rafOzetYenile();
   });
 
   /* ───────── ayarlar ─────────
@@ -901,18 +1034,23 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
   $('btnKaydet').addEventListener('click', function () { kaydet($('btnKaydet')); });
 
-  /* Onay masası geride kalırsa rafta çalışanlar bilsin — kimin masaya geçmesi
-     gerektiğine karar verecek olan onlar. Eşik aşılınca çıkar, düşünce kaybolur. */
-  var ONAY_ESIGI = 120;
-  function kuyrukUyarisi(bekleyen) {
-    var n = Number(bekleyen);
-    var kutu = $('onayUyari');
-    if (!kutu) return;
-    if (!n || n < ONAY_ESIGI) { kutu.classList.add('gizli'); kutu.classList.remove('gor'); return; }
-    kutu.classList.remove('gizli'); kutu.classList.add('gor');
-    kutu.innerHTML = '<b>Onay masası geride kaldı:</b> ' + n + ' kayıt karar bekliyor. ' +
-      'Kaydetmeye devam edin — ama mümkünse biri masaya geçsin. ' +
-      'Onay ekranında <b>gruplu onay</b> hızlı ilerletir.';
+  /* Koordinatör masadan "bu kitabı bana getirin" diyebiliyor. Rafta çalışanın
+     göreceği tek yer burası; yer koduyla listeleniyor ki bulunabilsin. */
+  function istenenleriYukle() {
+    return api('istenenler').then(function (r) {
+      var liste = r.kayitlar || [];
+      var kutu = $('istenenler');
+      kutu.classList.toggle('gizli', !liste.length);
+      kutu.classList.toggle('gor', !!liste.length);
+      if (!liste.length) return;
+      kutu.innerHTML = '<b>Koordinatör ' + liste.length +
+        ' kitabı görmek istiyor.</b> Sıranızdaysa masaya götürün:<br>' +
+        liste.map(function (k) {
+          return '<b>' + esc(k.yer || ('#' + k.no)) + '</b> — ' +
+                 esc(k.baslik || '(künye yok)') +
+                 (k.yazar ? ' · ' + esc(k.yazar) : '');
+        }).join('<br>');
+    })['catch'](function () { /* liste kritik değil */ });
   }
 
   /* ───────── çek-geç: ayrıntılar katlı ─────────
@@ -950,6 +1088,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       mekan: D.mekan, raf: D.raf, sira: D.sira,
       yazar: $('yazar').value.trim(), baslik: baslik,
       yil: $('yil').value.trim(), nusha: $('nusha').value.trim() || 1,
+      kutu: D.kutu,
       durum: D.durum,        // sınıflandırma koordinatörde; gönüllü karar vermiyor
       not: $('not').value.trim(), kaydeden: D.ad,
       // Kapak da künye yerine geçer: OCR kapaktan da okuyor, kartta da öyle yazıyor.
@@ -981,7 +1120,6 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         ustuYenile();
         D.sayac++;
         $('ustSayac').textContent = D.sayac;
-        if (r.sayac) kuyrukUyarisi(r.sayac.bekleyen);
         var kacFoto = (foto ? 1 : 0) + (kapak ? 1 : 0);
         goster($('msgKayit'), 'iyi', '<b>' + esc(kod) + '</b> kaydedildi — ' + esc(etiket) +
           (r.duzeltildi ? ' <span style="opacity:.8">(numara sunucuda düzeltildi)</span>' : '') +
@@ -1065,9 +1203,11 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     mesgul($('btnSiraBitir'), true, 'İşleniyor…');
     api('siraBitir', { mekan: D.mekan, raf: D.raf, sira: D.sira,
                        raftaki: Number(raftaki), kaydeden: D.ad,
-                       not: $('siraNot').value.trim() }).then(function (d) {
-      $('raftaki').value = ''; $('siraNot').value = '';
-      var sayilar = 'rafta ' + d.raftaki + ' · sistemde ' + d.kayitli +
+                       not: '' }).then(function (d) {
+      $('raftaki').value = '';
+      var sayilar = 'saydığınız ' + d.raftaki +
+        (d.cikarilan ? ' + raftan alınan ' + d.cikarilan : '') +
+        ' · sistemde ' + d.kayitli +
         (d.kayitSayisi !== d.kayitli ? ' cilt (' + d.kayitSayisi + ' kayıt)' : ' kitap');
       if (d.fark === 0) {
         goster($('msgBitir'), 'iyi', '<b>' + esc(d.anahtar) + '</b> bitti. ' +
@@ -1080,8 +1220,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       } else {
         goster($('msgBitir'), 'uyari', '<b>' + esc(d.anahtar) + '</b> kapatıldı ama sistemde ' +
           '<b>' + (-d.fark) + ' kitap fazla</b> görünüyor (' + sayilar + '). ' +
-          'Raftan kitap aldıysanız (küflü kitap gibi) bu normaldir. Almadıysanız aynı ' +
-          'kitap iki kez kaydedilmiş olabilir; koordinatöre söyleyin.');
+          'Aynı kitap iki kez kaydedilmiş olabilir; koordinatöre söyleyin. ' +
+          '(Poşetlenen küflü kitaplar sayıma zaten katıldı.)');
       }
       D.siraDurumu = 'bitti';
     })['catch'](function (e) {

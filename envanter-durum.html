@@ -30,6 +30,26 @@
     padding:7px 12px;font:inherit;font-size:13px;cursor:pointer}
 
   .sayfa{max-width:1080px;margin:0 auto;padding:18px}
+  /* Tek uyarı kartı: iyiyken susar, bozukken bağırır. Koordinatörün
+     güne başlarken bakacağı tek yer burası. */
+  .dikkat{border-radius:12px;padding:16px 20px;margin-bottom:16px;border:2px solid}
+  .dikkat.iyi{border-color:#2e6440;background:#e9f3ec}
+  .dikkat.sari{border-color:#a06a12;background:#fdf4e3}
+  .dikkat.kirmizi{border-color:#9c2233;background:#fbe9ec}
+  .dikkat h3{margin:0 0 2px;font-size:15px}
+  .dikkat.iyi h3{color:#22502f}
+  .dikkat.sari h3{color:#7d5210}
+  .dikkat.kirmizi h3{color:#8a1c2c}
+  .dikkat .altbaslik{margin:0}
+  .dikkat ul{margin:12px 0 0;padding:0;list-style:none}
+  .dikkat li{border-top:1px solid rgba(0,0,0,.10);padding:10px 0 10px 26px;position:relative}
+  .dikkat li::before{position:absolute;left:0;top:9px;font-size:14px;line-height:1}
+  .dikkat li.k::before{content:'●';color:#9c2233}
+  .dikkat li.s::before{content:'●';color:#a06a12}
+  .dikkat li b{display:block;font-size:14px}
+  .dikkat li span{display:block;color:var(--soluk);font-size:13px;margin-top:2px}
+  .dikkat li em{display:block;font-style:normal;font-size:13px;margin-top:4px;font-weight:600}
+
   .kart{background:var(--kagit);border:1px solid var(--cizgi);border-radius:12px;padding:20px;
     margin-bottom:16px}
   .giris{max-width:420px;margin:60px auto}
@@ -145,6 +165,12 @@
 
   <section id="adim-pano" class="gizli">
     <div class="msg" id="msg"></div>
+
+    <div class="dikkat iyi" id="dikkatKart">
+      <h3 id="dikkatBaslik">Her şey yolunda</h3>
+      <p class="altbaslik" id="dikkatAlt">Bugün müdahale gerektiren bir şey yok.</p>
+      <ul id="dikkatListe"></ul>
+    </div>
 
     <div class="kunye-satir" id="kunyeler"></div>
 
@@ -365,10 +391,41 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     { ad: 'Belirsiz', renk: 'var(--belirsiz)' }
   ];
 
+  /* Uyarı kuralları sunucuda; burası yalnızca yazdırır. Böylece ekran ile
+     sunucu iki ayrı şey söyleyemez. */
+  function dikkatCiz(liste) {
+    var kart = $('dikkatKart');
+    var kirmizi = liste.filter(function (x) { return x.seviye === 'kirmizi'; }).length;
+
+    kart.className = 'dikkat ' + (kirmizi ? 'kirmizi' : (liste.length ? 'sari' : 'iyi'));
+
+    if (!liste.length) {
+      $('dikkatBaslik').textContent = 'Her şey yolunda';
+      $('dikkatAlt').textContent = 'Bugün müdahale gerektiren bir şey yok.';
+      $('dikkatListe').innerHTML = '';
+      return;
+    }
+
+    $('dikkatBaslik').textContent = kirmizi
+      ? 'Bugün ' + kirmizi + ' şeye bakmanız gerekiyor'
+      : 'Bugün ' + liste.length + ' şeye göz atın';
+    $('dikkatAlt').textContent = kirmizi
+      ? 'Kırmızı olanlar bekletilirse iş durur.'
+      : 'Acil değil, ama biriktirmeyin.';
+
+    $('dikkatListe').innerHTML = liste.map(function (x) {
+      return '<li class="' + (x.seviye === 'kirmizi' ? 'k' : 's') + '">' +
+        '<b>' + esc(x.baslik) + '</b>' +
+        (x.detay ? '<span>' + esc(x.detay) + '</span>' : '') +
+        (x.ne ? '<em>→ ' + esc(x.ne) + '</em>' : '') + '</li>';
+    }).join('');
+  }
+
   function ciz() {
     var v = D.veri;
     $('ustZaman').textContent = v.hesaplandi ? 'son hesaplama ' + v.hesaplandi : '';
     gizle($('msg'));
+    dikkatCiz(v.uyarilar || []);
 
     /* künye kutuları */
     var belirsiz = v.kategori['Belirsiz'] || 0;
