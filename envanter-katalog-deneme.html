@@ -149,7 +149,8 @@
   var DEPO = 'tv_demo_veri';
   var SIFRE = 'deneme';
   var KOORD_SIFRE = 'koordinator';
-  var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayla', 'katalog', 'durum'];
+  var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayla', 'katalog', 'durum', 'siraHaritasi'];
+  var SINIFLANDIRILMADI = 'Sınıflandırılmadı';
   var agKapali = false;
 
   var KATEGORILER = {
@@ -203,6 +204,7 @@
     var v = veri(), i;
     if (g.action === 'config') {
       return { ok:true, org:'Tarih Vakfı (DENEME)', kategoriler:KATEGORILER, durumlar:DURUMLAR,
+        siniflandirilmadi: SINIFLANDIRILMADI,
         kurallar: KURALLAR.map(function (k) { return { kod:k[0], kategori:k[1], aciklama:k[2] }; }),
         mekanlar: MEKANLAR, rafHarfleri: RAF_HARFLERI, siraSayisi: SIRA_SAYISI };
     }
@@ -223,7 +225,46 @@
       var a = anahtar(g.mekan, g.raf, g.sira);
       var ayni = v.kayitlar.filter(function (k) { return k.anahtar === a; });
       var son = ayni.reduce(function (e, k) { return Math.max(e, Number(k.siraNo) || 0); }, 0);
-      return { ok:true, anahtar:a, sonNo:son, adet:ayni.length };
+      var bit = (v.siralar || {})[a];
+      var sonK = ayni[ayni.length - 1];
+      return { ok:true, anahtar:a, sonNo:son, adet:ayni.length,
+        durum: bit ? 'bitti' : (ayni.length ? 'devam' : 'bos'),
+        bitiren: bit ? bit.bitiren : '', bitisTarihi: bit ? bit.tarih : '',
+        raftaki: bit ? bit.raftaki : '',
+        sonCalisan: sonK ? sonK.kaydeden : '',
+        sonTarih: sonK ? String(sonK.tarih || '').slice(0, 10) : '' };
+    }
+    if (g.action === 'siraOner') {
+      var baslanan = {};
+      v.kayitlar.forEach(function (k) { baslanan[k.anahtar] = true; });
+      var bitmis = v.siralar || {};
+      var bos = [], yarim = [];
+      MEKANLAR.forEach(function (m) {
+        RAF_HARFLERI.split('').forEach(function (h) {
+          for (var i = 1; i <= SIRA_SAYISI; i++) {
+            var key = anahtar(m.kod, h, i);
+            if (bitmis[key]) continue;
+            if (baslanan[key]) yarim.push(key); else bos.push(key);
+          }
+        });
+      });
+      if (bos.length) return { ok:true, anahtar:bos[0], tur:'bos',
+        kalanBos:bos.length, yarimKalan:yarim.length };
+      if (yarim.length) return { ok:true, anahtar:yarim[0], tur:'yarim',
+        kalanBos:0, yarimKalan:yarim.length };
+      return { ok:true, anahtar:'', tur:'bitti', kalanBos:0, yarimKalan:0 };
+    }
+    if (g.action === 'siraBitir') {
+      var ab = anahtar(g.mekan, g.raf, g.sira);
+      if (!ab) return { ok:false, error:'Sıra belirsiz.' };
+      var raftaki = parseInt(g.raftaki, 10);
+      if (isNaN(raftaki) || raftaki < 0) return { ok:false, error:'Raftaki kitap sayısını yazın.' };
+      var kayitli = v.kayitlar.filter(function (k) { return k.anahtar === ab; }).length;
+      v.siralar = v.siralar || {};
+      v.siralar[ab] = { raftaki:raftaki, kayitli:kayitli, bitiren:(g.kaydeden || ''),
+        tarih: new Date().toISOString().slice(0, 10) };
+      yaz(v);
+      return { ok:true, anahtar:ab, kayitli:kayitli, raftaki:raftaki, fark:raftaki - kayitli };
     }
     if (g.action === 'ekle' || g.action === 'guncelle') {
       var k = g.kayit || {};
@@ -231,15 +272,19 @@
       if (!baslik && !k.fotoVar) return { ok:false, error:'Başlık boş olamaz (ya da künye fotoğrafı çekin).' };
       if (!baslik) baslik = '(künye fotoğraftan gelecek)';
       if (!k.raf) return { ok:false, error:'Raf seçilmeli.' };
-      if (!KATEGORILER[k.kategori]) return { ok:false, error:'Kategori seçilmeli.' };
-      var uygun = KURALLAR.some(function (r) { return r[0] === k.kural && r[1] === k.kategori; });
-      if (!uygun) return { ok:false, error:'Kural kodu bu kategoriye uymuyor.' };
+      // Sınıflandırma koordinatörde; gönüllüden boş gelebilir.
+      if (k.kategori || k.kural) {
+        if (!KATEGORILER[k.kategori]) return { ok:false, error:'Kategori seçilmeli.' };
+        var uygun = KURALLAR.some(function (r) { return r[0] === k.kural && r[1] === k.kategori; });
+        if (!uygun) return { ok:false, error:'Kural kodu bu kategoriye uymuyor.' };
+      }
 
       if (g.action === 'guncelle') {
         for (i = 0; i < v.kayitlar.length; i++) if (v.kayitlar[i].no === Number(g.no)) {
           v.kayitlar[i].yazar = k.yazar || ''; v.kayitlar[i].baslik = baslik;
           v.kayitlar[i].yil = k.yil || ''; v.kayitlar[i].not = k.not || '';
-          v.kayitlar[i].kategori = KATEGORILER[k.kategori].ad; v.kayitlar[i].kural = k.kural;
+          if (k.kategori) { v.kayitlar[i].kategori = KATEGORILER[k.kategori].ad;
+                            v.kayitlar[i].kural = k.kural; }
           v.kayitlar[i].durum = k.durum || 'Sağlam';
           yaz(v); return { ok:true, no:Number(g.no) };
         }
@@ -258,7 +303,8 @@
         yer: a2 + '-' + pad(siraNo, 3),
         mekan: k.mekan || '', raf: k.raf, sira: pad(Number(k.sira) || 0, 2),
         yazar: k.yazar || '', baslik: baslik, yil: k.yil || '', nusha: k.nusha || 1,
-        kategori: KATEGORILER[k.kategori].ad, kural: k.kural,
+        kategori: k.kategori ? KATEGORILER[k.kategori].ad : SINIFLANDIRILMADI,
+        kural: k.kural || '',
         durum: DURUMLAR.indexOf(k.durum) >= 0 ? k.durum : 'Sağlam',
         not: k.not || '', kaydeden: k.kaydeden || '', tarih: new Date().toISOString()
       };
@@ -305,7 +351,7 @@
       return { ok:false, error:'Kayıt bulunamadı.' };
     }
     if (g.action === 'onayBekleyen') {
-      var bek = v.kayitlar.filter(function (k) { return (k.foto || k.kapak) && !k.onay; });
+      var bek = v.kayitlar.filter(function (k) { return !k.onay; });
       return { ok:true, kayitlar: bek.slice(0, Number(g.adet) || 25), kalan: bek.length };
     }
     if (g.action === 'durum') {
@@ -371,8 +417,13 @@
       for (i = 0; i < v.kayitlar.length; i++) if (v.kayitlar[i].no === Number(g.no)) {
         var y = g.kayit || {};
         if (!String(y.baslik || '').trim()) return { ok:false, error:'Başlık boş olamaz.' };
+        if (!KATEGORILER[y.kategori]) return { ok:false, error:'Karar seçilmeli.' };
+        if (!KURALLAR.some(function (r) { return r[0] === y.kural && r[1] === y.kategori; })) {
+          return { ok:false, error:'Kural kodu bu karara uymuyor.' };
+        }
         v.kayitlar[i].baslik = y.baslik; v.kayitlar[i].yazar = y.yazar || '';
         v.kayitlar[i].yil = y.yil || ''; v.kayitlar[i].not = y.not || '';
+        v.kayitlar[i].kategori = KATEGORILER[y.kategori].ad; v.kayitlar[i].kural = y.kural;
         v.kayitlar[i].onay = 'Onaylandı — ' + (y.onaylayan || '');
         yaz(v); return { ok:true, no:Number(g.no) };
       }

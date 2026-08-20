@@ -71,6 +71,9 @@ var AYAR = {
 
 /* ═══════════════ SÖZLÜKLER ═══════════════ */
 
+/* Sınıflandırması henüz yapılmamış kaydın kategori sütununda görünen değer. */
+var SINIFLANDIRILMADI = 'Sınıflandırılmadı';
+
 var KATEGORILER = {
   gidecek:   { ad: 'Gidecek',       renk: '#2e6440' },
   belki:     { ad: 'Gitse de olur', renk: '#a06a12' },
@@ -155,13 +158,20 @@ function yerKodu_(mekan, raf, sira, siraNo) {
  */
 function siraKullanimi_(sayfa, anahtar) {
   var son = sayfa.getLastRow();
-  var sonuc = { sonNo: 0, adet: 0, kullanilan: {} };
+  var sonuc = { sonNo: 0, adet: 0, kullanilan: {}, sonCalisan: '', sonTarih: '' };
   if (son < 2) return sonuc;
 
   var veri = sayfa.getRange(2, S.mekan, son - 1, 4).getValues();   // Mekân, Raf, Sıra, Sıra no
   var silinenler = sayfa.getRange(2, S.silindi, son - 1, 1).getValues();
+  var kimler = sayfa.getRange(2, S.kaydeden, son - 1, 3).getValues();  // Kaydeden, Kutu, Tarih
   veri.forEach(function (r, i) {
     if (rafAnahtari_(r[0], r[1], r[2]) !== anahtar) return;
+    if (!silinenler[i][0]) {
+      sonuc.sonCalisan = String(kimler[i][0] || '');
+      var t = kimler[i][2];
+      sonuc.sonTarih = t instanceof Date
+        ? Utilities.formatDate(t, Session.getScriptTimeZone(), 'd.MM.yyyy') : '';
+    }
     var n = Number(r[3]) || 0;
     // Silinen kayıt sayılmaz, ama numarası yeniden dağıtılmaz: o numara
     // kitabın üstüne ya da kutuya yazılmış olabilir.
@@ -184,7 +194,156 @@ function siraNoAyarla_(sayfa, anahtar, onerilen) {
 function rafDurum_(mekan, raf, sira) {
   var anahtar = rafAnahtari_(mekan, raf, sira);
   var k = siraKullanimi_(sayfaAl_('Envanter'), anahtar);
-  return { ok: true, anahtar: anahtar, sonNo: k.sonNo, adet: k.adet };
+  var b = siraBitisi_(anahtar);
+  return {
+    ok: true, anahtar: anahtar, sonNo: k.sonNo, adet: k.adet,
+    durum: b ? 'bitti' : (k.adet ? 'devam' : 'bos'),
+    bitiren: b ? b.bitiren : '', bitisTarihi: b ? b.tarih : '',
+    raftaki: b ? b.raftaki : '', sonCalisan: k.sonCalisan, sonTarih: k.sonTarih
+  };
+}
+
+/* ═══════════════ SIRA YAŞAM DÖNGÜSÜ ═══════════════
+   Rastgele gelen gönüllünün "hangi sırayı alayım" sorusunu sistem cevaplar,
+   ve bir sıranın bittiğini kimse tahmin etmek zorunda kalmaz. */
+
+/** Tanımlı bütün sıra anahtarlarını sırayla üretir: G-A01, G-A02, … */
+function tumSiralar_() {
+  var mekanlar = (AYAR.MEKANLAR || []).map(function (m) { return String(m.kod).toUpperCase(); });
+  if (!mekanlar.length) mekanlar = [''];
+  var harfler = String(AYAR.RAF_HARFLERI || 'ABCDEFGH').toUpperCase().split('');
+  var kac = Number(AYAR.SIRA_SAYISI || 8);
+  var liste = [];
+  mekanlar.forEach(function (m) {
+    harfler.forEach(function (h) {
+      for (var i = 1; i <= kac; i++) liste.push(rafAnahtari_(m, h, i));
+    });
+  });
+  return liste;
+}
+
+/** 'Sıralar' sayfasındaki bitmiş sıraları anahtar → kayıt olarak döner. */
+function bitmisSiralar_() {
+  var sayfa = sayfaAl_('Sıralar');
+  var son = sayfa.getLastRow();
+  var harita = {};
+  if (son < 2) return harita;
+  sayfa.getRange(2, 1, son - 1, 6).getValues().forEach(function (r) {
+    if (!r[0]) return;
+    harita[String(r[0]).trim().toUpperCase()] = {
+      raftaki: r[1], kayitli: r[2], bitiren: r[3],
+      tarih: r[4] instanceof Date
+        ? Utilities.formatDate(r[4], Session.getScriptTimeZone(), 'd.MM.yyyy')
+        : String(r[4] || ''),
+      not: r[5]
+    };
+  });
+  return harita;
+}
+
+function siraBitisi_(anahtar) {
+  return bitmisSiralar_()[String(anahtar).trim().toUpperCase()] || null;
+}
+
+/** Gönüllüye boş bir sıra önerir: hiç başlanmamış ilk sıra. */
+function siraOner_() {
+  var sayfa = sayfaAl_('Envanter');
+  var son = sayfa.getLastRow();
+  var baslanan = {};
+  if (son >= 2) {
+    var veri = sayfa.getRange(2, S.mekan, son - 1, 3).getValues();
+    var silinen = sayfa.getRange(2, S.silindi, son - 1, 1).getValues();
+    veri.forEach(function (r, i) {
+      if (silinen[i][0]) return;
+      baslanan[rafAnahtari_(r[0], r[1], r[2])] = true;
+    });
+  }
+  var bitmis = bitmisSiralar_();
+  var hepsi = tumSiralar_();
+
+  var bos = [], yarim = [];
+  hepsi.forEach(function (a) {
+    if (bitmis[a]) return;
+    if (baslanan[a]) yarim.push(a); else bos.push(a);
+  });
+
+  if (bos.length) {
+    return { ok: true, anahtar: bos[0], tur: 'bos', kalanBos: bos.length,
+             yarimKalan: yarim.length };
+  }
+  if (yarim.length) {
+    return { ok: true, anahtar: yarim[0], tur: 'yarim', kalanBos: 0,
+             yarimKalan: yarim.length };
+  }
+  return { ok: true, anahtar: '', tur: 'bitti', kalanBos: 0, yarimKalan: 0 };
+}
+
+/** Gönüllü "bu sırayı bitirdim" der; raftaki fiziksel sayıyı da yazar. */
+function siraBitir_(g) {
+  var anahtar = rafAnahtari_(g.mekan, g.raf, g.sira);
+  if (!anahtar) return { ok: false, error: 'Sıra belirsiz.' };
+
+  var kilit = LockService.getScriptLock();
+  kilit.waitLock(20000);
+  try {
+    var k = siraKullanimi_(sayfaAl_('Envanter'), anahtar);
+    var raftaki = parseInt(g.raftaki, 10);
+    if (isNaN(raftaki) || raftaki < 0) return { ok: false, error: 'Raftaki kitap sayısını yazın.' };
+
+    var sayfa = sayfaAl_('Sıralar');
+    var son = sayfa.getLastRow();
+    var satir = 0;
+    if (son >= 2) {
+      var anahtarlar = sayfa.getRange(2, 1, son - 1, 1).getValues();
+      for (var i = 0; i < anahtarlar.length; i++) {
+        if (String(anahtarlar[i][0]).trim().toUpperCase() === anahtar) { satir = i + 2; break; }
+      }
+    }
+    var deger = [anahtar, raftaki, k.adet, String(g.kaydeden || '').trim(), new Date(),
+                 String(g.not || '').trim().slice(0, 300)];
+    if (satir) sayfa.getRange(satir, 1, 1, 6).setValues([deger]);
+    else sayfa.appendRow(deger);
+
+    var fark = raftaki - k.adet;
+    return { ok: true, anahtar: anahtar, kayitli: k.adet, raftaki: raftaki, fark: fark };
+  } finally {
+    kilit.releaseLock();
+  }
+}
+
+/** Koordinatör için sıra haritası: hangi sıra bitti, hangisi yarım, hangisi boş. */
+function siraHaritasi_() {
+  var sayfa = sayfaAl_('Envanter');
+  var son = sayfa.getLastRow();
+  var sayilar = {};
+  if (son >= 2) {
+    var veri = sayfa.getRange(2, S.mekan, son - 1, 3).getValues();
+    var silinen = sayfa.getRange(2, S.silindi, son - 1, 1).getValues();
+    veri.forEach(function (r, i) {
+      if (silinen[i][0]) return;
+      var a = rafAnahtari_(r[0], r[1], r[2]);
+      sayilar[a] = (sayilar[a] || 0) + 1;
+    });
+  }
+  var bitmis = bitmisSiralar_();
+  var liste = tumSiralar_().map(function (a) {
+    var b = bitmis[a];
+    return {
+      sira: a,
+      durum: b ? 'bitti' : (sayilar[a] ? 'devam' : 'bos'),
+      kayitli: sayilar[a] || 0,
+      raftaki: b ? b.raftaki : '',
+      fark: b ? (Number(b.raftaki) - (sayilar[a] || 0)) : '',
+      bitiren: b ? b.bitiren : '',
+      tarih: b ? b.tarih : ''
+    };
+  });
+  var say = function (d) { return liste.filter(function (x) { return x.durum === d; }).length; };
+  return { ok: true, siralar: liste, toplam: liste.length,
+           bitti: say('bitti'), devam: say('devam'), bos: say('bos'),
+           uyusmayan: liste.filter(function (x) {
+             return x.durum === 'bitti' && Number(x.fark) !== 0;
+           }).length };
 }
 
 /* ═══════════════ GİRİŞ NOKTALARI ═══════════════ */
@@ -211,7 +370,7 @@ function doPost(e) {
 }
 
 // Yalnızca koordinatörün açabileceği işlemler
-var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayla', 'katalog', 'durum'];
+var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayla', 'katalog', 'durum', 'siraHaritasi'];
 
 function islet_(istek) {
   try {
@@ -237,6 +396,9 @@ function islet_(istek) {
       case 'sil':         return cikti_(sil_(istek.no));
       case 'sayac':       return cikti_(sayac_(istek.kaydeden));
       case 'rafDurum':    return cikti_(rafDurum_(istek.mekan, istek.raf, istek.sira));
+      case 'siraOner':    return cikti_(siraOner_());
+      case 'siraBitir':   return cikti_(siraBitir_(istek));
+      case 'siraHaritasi':return cikti_(siraHaritasi_());
       case 'fotoEkle':    return cikti_(fotoEkle_(istek.no, istek.veri, istek.tur, istek.hangi));
       case 'onayBekleyen':return cikti_(onayBekleyen_(istek.adet));
       case 'onayla':      return cikti_(onayla_(istek.no, istek.kayit || {}));
@@ -266,6 +428,7 @@ function ayarlar_() {
     durumlar: DURUMLAR,
     kurallar: KURALLAR.map(function (k) { return { kod: k[0], kategori: k[1], aciklama: k[2] }; }),
     mekanlar: AYAR.MEKANLAR || [],
+    siniflandirilmadi: SINIFLANDIRILMADI,
     rafHarfleri: String(AYAR.RAF_HARFLERI || 'ABCDEFGH').toUpperCase().split(''),
     siraSayisi: Number(AYAR.SIRA_SAYISI || 8),
   };
@@ -466,12 +629,17 @@ function dogrula_(g) {
     return { hata: 'Sıra 1 ile ' + (AYAR.SIRA_SAYISI || 8) + ' arasında olmalı.' };
   }
 
+  /* Sınıflandırma (gidecek/gitmeyecek + kural kodu) koordinatörün işidir;
+     gönüllü yalnızca künye girer. Boş gelirse kayıt "sınıflandırılmadı" açılır.
+     Dolu gelirse (koordinatör onay ekranından) tutarlılığı burada denetlenir. */
   var kategori = String(g.kategori || '');
-  if (!KATEGORILER[kategori]) return { hata: 'Kategori seçilmeli.' };
-
   var kural = String(g.kural || '').trim().toUpperCase();
-  var gecerli = KURALLAR.filter(function (k) { return k[0] === kural && k[1] === kategori; });
-  if (!gecerli.length) return { hata: 'Kural kodu bu kategoriye uymuyor.' };
+
+  if (kategori || kural) {
+    if (!KATEGORILER[kategori]) return { hata: 'Kategori seçilmeli.' };
+    var gecerli = KURALLAR.filter(function (k) { return k[0] === kural && k[1] === kategori; });
+    if (!gecerli.length) return { hata: 'Kural kodu bu kategoriye uymuyor.' };
+  }
 
   var durum = String(g.durum || 'Sağlam');
   if (DURUMLAR.indexOf(durum) < 0) durum = 'Sağlam';
@@ -491,7 +659,7 @@ function dogrula_(g) {
       baslik: baslik,
       yil: yil ? Number(yil) : '',
       nusha: nusha,
-      kategori: KATEGORILER[kategori].ad,
+      kategori: kategori ? KATEGORILER[kategori].ad : SINIFLANDIRILMADI,
       kural: kural,
       durum: durum,
       not: String(g.not || '').trim().slice(0, 500),
@@ -568,6 +736,11 @@ function sayfaAl_(ad) {
     sayfa.setFrozenRows(1);
     sayfa.getRange(1, 1, 1, 3).setFontWeight('bold').setBackground('#601040').setFontColor('#ffffff');
     sayfa.setColumnWidth(1, 60); sayfa.setColumnWidth(2, 120); sayfa.setColumnWidth(3, 460);
+  } else if (ad === 'Sıralar') {
+    sayfa.appendRow(['Sıra', 'Raftaki kitap', 'Kayıtlı kitap', 'Bitiren', 'Tarih', 'Not']);
+    sayfa.setFrozenRows(1);
+    sayfa.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground('#601040').setFontColor('#ffffff');
+    sayfa.setColumnWidth(1, 90); sayfa.setColumnWidth(4, 140); sayfa.setColumnWidth(6, 300);
   } else if (ad === 'Kutular') {
     sayfa.appendRow(['Kutu no', 'Kaynak sıra (G-A01)', 'Yer kodu aralığı', 'Hedef bölüm',
                      'Paketleyen', 'Tarih', 'İçindeki kitap']);
@@ -852,8 +1025,11 @@ function onayBekleyen_(adet) {
   if (son < 2) return { ok: true, kayitlar: [], kalan: 0 };
 
   var satirlar = sayfa.getRange(2, 1, son - 1, SUTUNLAR.length).getValues();
+  /* Koordinatörün eli değmesi gereken her kayıt: onaylanmamış olan hepsi.
+     Eskiden yalnızca fotoğraflılar gelirdi; artık sınıflandırma da burada
+     yapıldığı için fotoğrafsız kayıtların da bu kuyruktan geçmesi gerekiyor. */
   var bekleyen = satirlar.filter(function (s) {
-    return !silinmis_(s) && (s[S.foto - 1] || s[S.kapak - 1]) && !s[S.onay - 1];
+    return !silinmis_(s) && !s[S.onay - 1];
   });
 
   var liste = bekleyen.slice(0, adet).map(function (s) {
@@ -1015,6 +1191,13 @@ function onayla_(no, k) {
   var baslik = String(k.baslik || '').trim();
   if (!baslik) return { ok: false, error: 'Başlık boş olamaz.' };
 
+  var kategori = String(k.kategori || '');
+  var kural = String(k.kural || '').trim().toUpperCase();
+  if (!KATEGORILER[kategori]) return { ok: false, error: 'Karar seçilmeli (gidecek/gitmeyecek…).' };
+  if (!KURALLAR.some(function (r) { return r[0] === kural && r[1] === kategori; })) {
+    return { ok: false, error: 'Kural kodu bu karara uymuyor.' };
+  }
+
   var kilit = LockService.getScriptLock();
   kilit.waitLock(20000);
   try {
@@ -1028,6 +1211,13 @@ function onayla_(no, k) {
     var yil = String(k.yil || '').trim();
     sayfa.getRange(bulunan.satir, S.yil).setValue(/^\d{3,4}$/.test(yil) ? Number(yil) : '');
     if (k.not != null) sayfa.getRange(bulunan.satir, S.not).setValue(String(k.not).trim());
+    if (k.nusha != null) {
+      var nusha = parseInt(k.nusha, 10);
+      sayfa.getRange(bulunan.satir, S.nusha).setValue(nusha > 0 ? nusha : 1);
+    }
+    // Sınıflandırma bu ekranda yapılır; onaylanan her kayıt kararlı olmalı.
+    sayfa.getRange(bulunan.satir, S.kategori).setValue(KATEGORILER[kategori].ad);
+    sayfa.getRange(bulunan.satir, S.kural).setValue(kural);
     sayfa.getRange(bulunan.satir, S.onay).setValue(
       'Onaylandı — ' + String(k.onaylayan || '').trim() + ' · ' +
       Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'd.MM.yyyy HH:mm'));
@@ -1183,6 +1373,7 @@ function kurulum() {
   sayfaAl_('Envanter');
   basliklariOnar_();
   sayfaAl_('Kurallar');
+  sayfaAl_('Sıralar');
   sayfaAl_('Kutular');
   ozetiGuncelle();
   if (AYAR.OCR_ACIK) {

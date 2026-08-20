@@ -166,6 +166,10 @@
     <p class="ipucu">Bir kez seçin; her kitapta tekrar sormayacağız. Kitap numarasını
       sistem kendisi veriyor.</p>
 
+    <button class="btn ikincil" id="btnSiraOner" style="margin-bottom:16px">
+      Bana boş bir sıra ver</button>
+    <div class="msg gizli" id="msgOner" style="margin:-8px 0 16px"></div>
+
     <div id="mekanSatir">
       <label for="mekan">Mekân</label>
       <select id="mekan"></select>
@@ -281,13 +285,9 @@
       <label for="not">Not <span style="font-weight:400">(isteğe bağlı)</span></label>
       <textarea id="not" placeholder="İçinden mektup çıktı, cildi dağılmış…"></textarea>
 
-      <div class="kat-baslik">Kararınız — dokununca kural listesi açılır</div>
-      <div class="katlar" id="katlar"></div>
-      <div class="kurallar gizli" id="kurallar">
-        <p id="kurallarBaslik"></p>
-        <div id="kurallarListe"></div>
-        <button class="btn ikincil" id="btnKuralVazgec" style="margin-top:4px">Kategoriyi değiştir</button>
-      </div>
+      <button class="btn" id="btnKaydet" style="margin-top:18px">Kitabı kaydet</button>
+      <p class="foto-aciklama" style="margin-top:8px">Gidecek mi gitmeyecek mi kararını
+        koordinatör verecek — siz yalnızca kitabı kaydedin.</p>
     </div>
 
     <div class="son">
@@ -295,7 +295,19 @@
       <div id="sonListe"></div>
     </div>
 
-    <p class="dip">On saniyede karar veremiyorsanız <b>Belirsiz</b> işaretleyip devam edin.</p>
+    <div class="kart" style="margin-top:18px">
+      <div class="kat-baslik" style="margin-top:0">Bu sırayı bitirdiniz mi?</div>
+      <p class="foto-aciklama" style="margin:0 0 12px">Sıradaki bütün kitapları kaydettiyseniz
+        buraya basın. <b>Rafta fiziksel olarak kaç kitap olduğunu sayın</b> — sistem kendi
+        sayısıyla karşılaştırıp atlanan kitap olup olmadığını söyleyecek.</p>
+      <label for="raftaki">Bu sırada rafta kaç kitap vardı?</label>
+      <input type="text" id="raftaki" inputmode="numeric" maxlength="4" placeholder="örn. 42">
+      <button class="btn ikincil" id="btnSiraBitir" style="margin-top:12px">
+        Bu sırayı bitirdim</button>
+      <div class="msg gizli" id="msgBitir" style="margin-top:12px"></div>
+    </div>
+
+    <p class="dip">Emin olamadığınız bir şey varsa <b>Not</b> alanına yazın; koordinatör okuyacak.</p>
   </section>
 </div>
 
@@ -308,7 +320,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
-  var D = { ad: '', sifre: '', cfg: null, kategori: '', durum: 'Sağlam',
+  var D = { ad: '', sifre: '', cfg: null, durum: 'Sağlam', siraDurumu: '',
             duzenleNo: null, sayac: 0, foto: null, kapak: null,
             mekan: '', raf: '', sira: 0, anahtar: '', sonraki: 1 };
   var KUYRUK = 'tv_env_kuyruk';
@@ -681,9 +693,27 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     api('rafDurum', { mekan: r.mekan, raf: r.raf, sira: r.sira }).then(function (d) {
       var sonraki = Math.max(Number(d.sonNo || 0) + 1, yerel);
       siraDepoYaz(anahtar, sonraki);
-      $('rafOzet').innerHTML = '<b>' + esc(anahtar) + '</b>' +
-        '<span class="ek">bu sırada <b style="display:inline;font-size:14px">' + d.adet +
-        '</b> kitap kayıtlı · sıradaki: ' + esc(yerKodu(anahtar, sonraki)) + '</span>';
+      D.siraDurumu = d.durum || '';
+
+      // Rastgele gelen gönüllü bu sıranın hikâyesini bilmiyor; anlatalım.
+      var hikaye;
+      if (d.durum === 'bitti') {
+        hikaye = '<b style="display:inline;font-size:14px;color:var(--kirmizi)">' +
+          'BU SIRA BİTMİŞ</b> — ' + esc(String(d.bitiren || 'biri')) +
+          (d.bitisTarihi ? ' · ' + esc(String(d.bitisTarihi)) : '') +
+          ' · rafta ' + esc(String(d.raftaki)) + ' kitap saymış. ' +
+          'Başka bir sıra seçin; atlanmış kitap bulduysanız yine de ekleyebilirsiniz.';
+      } else if (d.adet) {
+        hikaye = 'bu sırada <b style="display:inline;font-size:14px">' + d.adet +
+          '</b> kitap kayıtlı — <b style="display:inline">yarım kalmış</b>' +
+          (d.sonCalisan ? ', son çalışan: ' + esc(String(d.sonCalisan)) : '') +
+          (d.sonTarih ? ' (' + esc(String(d.sonTarih)) + ')' : '') +
+          '. Kaldığı yerden devam edin: ' + esc(yerKodu(anahtar, sonraki));
+      } else {
+        hikaye = '<b style="display:inline;font-size:14px">boş sıra</b> — ' +
+          'hiç başlanmamış. İlk kitap: ' + esc(yerKodu(anahtar, sonraki));
+      }
+      $('rafOzet').innerHTML = '<b>' + esc(anahtar) + '</b><span class="ek">' + hikaye + '</span>';
     })['catch'](function () {
       $('rafOzet').innerHTML = '<b>' + esc(anahtar) + '</b>' +
         '<span class="ek">bağlantı yok — telefondaki sayaçtan devam: ' +
@@ -692,6 +722,35 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
   ['mekan', 'rafHarf', 'siraSec'].forEach(function (id) {
     $(id).addEventListener('change', rafOzetYenile);
+  });
+
+  /* Rastgele gelen gönüllü hangi sırayı alacağını bilemez; sistem söylesin.
+     Böylece iki kişi aynı sırayı ayıklamaz ve hiçbir sıra unutulmaz. */
+  $('btnSiraOner').addEventListener('click', function () {
+    mesgul($('btnSiraOner'), true, 'Bakılıyor…');
+    gizle($('msgOner'));
+    api('siraOner').then(function (d) {
+      if (!d.anahtar) {
+        goster($('msgOner'), 'iyi', 'Bütün sıralar bitmiş görünüyor. Koordinatöre sorun.');
+        return;
+      }
+      var p = d.anahtar.split('-');                     // G-A03  ya da  A03
+      var mekan = p.length > 1 ? p[0] : '';
+      var kod = p.length > 1 ? p[1] : p[0];
+      if (mekan && $('mekan').querySelector('option[value="' + mekan + '"]')) $('mekan').value = mekan;
+      $('rafHarf').value = kod.charAt(0);
+      $('siraSec').value = String(Number(kod.slice(1)));
+      rafOzetYenile();
+      goster($('msgOner'), d.tur === 'bos' ? 'iyi' : 'uyari',
+        d.tur === 'bos'
+          ? '<b>' + esc(d.anahtar) + '</b> size verildi — hiç başlanmamış bir sıra. ' +
+            'Geriye ' + d.kalanBos + ' boş sıra kalıyor.'
+          : '<b>' + esc(d.anahtar) + '</b> — boş sıra kalmamış, yarım kalmış bir sıra verildi. ' +
+            'Kaldığı yerden devam edin.');
+    })['catch'](function (e) {
+      goster($('msgOner'), 'hata', e.message === 'AĞ'
+        ? 'Sunucuya ulaşılamadı. Koordinatörden sıra isteyin.' : e.message);
+    }).then(function () { mesgul($('btnSiraOner'), false); });
   });
 
   function ustuYenile() {
@@ -751,17 +810,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
   /* ───────── seçenekleri çiz ───────── */
   function seceneklerCiz() {
-    var sinif = { gidecek: 'g', belki: 's', gitmeyecek: 'k', belirsiz: 'm' };
-    var altYazi = { gidecek: 'yeşil etiket', belki: 'sarı etiket',
-                    gitmeyecek: 'kırmızı etiket', belirsiz: 'mavi etiket' };
-    $('katlar').innerHTML = Object.keys(D.cfg.kategoriler).map(function (a) {
-      return '<button type="button" class="kat ' + sinif[a] + '" data-kat="' + a + '">' +
-        esc(D.cfg.kategoriler[a].ad) + '<small>' + altYazi[a] + '</small></button>';
-    }).join('');
-    Array.prototype.forEach.call($('katlar').querySelectorAll('.kat'), function (b) {
-      b.addEventListener('click', function () { kategoriSec(b.dataset.kat); });
-    });
-
+    // Sınıflandırma (kategori + kural) artık koordinatörün onay ekranında.
+    // Gönüllü ekranında yalnızca fiziksel durum seçimi kaldı.
     $('durumlar').innerHTML = D.cfg.durumlar.map(function (d, i) {
       return '<button type="button" data-durum="' + esc(d) + '"' +
         (i === 2 ? ' class="kotu"' : '') + '>' + esc(d) + '</button>';
@@ -783,41 +833,10 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     }
   }
 
-  /** Sunucu kategoriyi okunur adla döner ('Gidecek'); düğmeler kodla çalışır. */
-  function kategoriKodu(ad) {
-    var kler = (D.cfg && D.cfg.kategoriler) || {};
-    for (var kod in kler) if (kler[kod].ad === ad) return kod;
-    return '';
-  }
-
-  function kategoriSec(kat) {
-    D.kategori = kat;
-    Array.prototype.forEach.call($('katlar').querySelectorAll('.kat'), function (b) {
-      b.classList.toggle('pasif', b.dataset.kat !== kat);
-    });
-    var liste = D.cfg.kurallar.filter(function (k) { return k.kategori === kat; });
-    $('kurallarBaslik').textContent = D.cfg.kategoriler[kat].ad + ' — hangi kurala göre?';
-    $('kurallarListe').innerHTML = liste.map(function (k) {
-      return '<button type="button" class="cip" data-kod="' + k.kod + '">' +
-        '<b>' + k.kod + '</b>' + esc(k.aciklama) + '</button>';
-    }).join('');
-    Array.prototype.forEach.call($('kurallarListe').querySelectorAll('.cip'), function (b) {
-      b.addEventListener('click', function () { kaydet(b.dataset.kod, b); });
-    });
-    $('kurallar').classList.remove('gizli');
-    $('kurallar').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
-
-  $('btnKuralVazgec').addEventListener('click', function () {
-    D.kategori = '';
-    $('kurallar').classList.add('gizli');
-    Array.prototype.forEach.call($('katlar').querySelectorAll('.kat'), function (b) {
-      b.classList.remove('pasif');
-    });
-  });
+  $('btnKaydet').addEventListener('click', function () { kaydet($('btnKaydet')); });
 
   /* ───────── kaydet ───────── */
-  function kaydet(kural, dugme) {
+  function kaydet(dugme) {
     var baslik = $('baslik').value.trim();
     if (!baslik && !D.foto && !D.kapak) {
       goster($('msgKayit'), 'hata', 'Başlığı yazın <b>ya da</b> künye sayfasının fotoğrafını çekin.');
@@ -829,7 +848,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       mekan: D.mekan, raf: D.raf, sira: D.sira,
       yazar: $('yazar').value.trim(), baslik: baslik,
       yil: $('yil').value.trim(), nusha: $('nusha').value.trim() || 1,
-      kategori: D.kategori, kural: kural, durum: D.durum,
+      durum: D.durum,        // sınıflandırma koordinatörde; gönüllü karar vermiyor
       not: $('not').value.trim(), kaydeden: D.ad,
       fotoVar: !!D.foto
     };
@@ -839,7 +858,6 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var benimNo = D.sonraki;                      // telefonun verdiği sıra numarası
     var benimKod = yerKodu(D.anahtar, benimNo);
     mesgul(dugme, true, 'Kaydediliyor…');
-    cipleriKilitle(true);            // yan taraftaki kurala da basılıp iki kayıt açılmasın
 
     var istek = duzenleme
       ? api('guncelle', { no: duzenleme, kayit: kayit })
@@ -890,15 +908,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       } else {
         goster($('msgKayit'), 'hata', e.message === 'AĞ' ? 'Sunucuya ulaşılamadı.' : e.message);
       }
-    }).then(function () { mesgul(dugme, false); cipleriKilitle(false); });
-  }
-
-  /** Kaydederken bütün kural düğmelerini kapat: ikinci dokunuş ikinci kayıt açıyordu. */
-  function cipleriKilitle(kapali) {
-    Array.prototype.forEach.call($('kurallarListe').querySelectorAll('.cip'), function (b) {
-      b.disabled = kapali;
-      b.style.opacity = kapali ? '.5' : '';
-    });
+    }).then(function () { mesgul(dugme, false); });
   }
 
   /** Kayda özel kimlik: aynı kayıt ikinci kez giderse sunucu tekrarı tanır. */
@@ -911,17 +921,57 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   function formTemizle() {
     $('yazar').value = ''; $('baslik').value = ''; $('yil').value = '';
     $('nusha').value = '1'; $('not').value = '';
-    D.kategori = ''; D.duzenleNo = null; D.foto = null; D.kapak = null;
+    D.duzenleNo = null; D.foto = null; D.kapak = null;
     fotoGoster();
-    $('kurallar').classList.add('gizli');
     $('duzenleUyari').classList.add('gizli');
-    Array.prototype.forEach.call($('katlar').querySelectorAll('.kat'), function (b) {
-      b.classList.remove('pasif');
-    });
     durumSec('Sağlam');
     gizle($('msgKayit'));
     $('yazar').focus();
   }
+
+  /* ───────── sırayı bitirme ─────────
+     Tamlığın tek güvencesi bu: sistem kaç kitap kaydettiğini biliyor, ama rafta
+     kaç kitap durduğunu bilmiyor. Gönüllü sayar, sistem karşılaştırır. */
+  $('btnSiraBitir').addEventListener('click', function () {
+    var raftaki = $('raftaki').value.trim();
+    if (!/^\d{1,4}$/.test(raftaki)) {
+      goster($('msgBitir'), 'hata', 'Rafta kaç kitap olduğunu sayıp yazın.');
+      $('raftaki').focus();
+      return;
+    }
+    if (kuyrukOku().length) {
+      goster($('msgBitir'), 'hata',
+        'Önce bekleyen kayıtlar gönderilsin — yoksa sayım eksik çıkar. ' +
+        'Bağlantı gelince tekrar deneyin.');
+      return;
+    }
+    mesgul($('btnSiraBitir'), true, 'İşleniyor…');
+    api('siraBitir', { mekan: D.mekan, raf: D.raf, sira: D.sira,
+                       raftaki: Number(raftaki), kaydeden: D.ad,
+                       not: $('not').value.trim() }).then(function (d) {
+      $('raftaki').value = '';
+      if (d.fark === 0) {
+        goster($('msgBitir'), 'iyi', '<b>' + esc(d.anahtar) + '</b> bitti. ' +
+          'Rafta ' + d.raftaki + ', sistemde ' + d.kayitli + ' kitap — <b>tutuyor.</b> ' +
+          'Yukarıdan yeni bir sıra alabilirsiniz.');
+      } else if (d.fark > 0) {
+        goster($('msgBitir'), 'uyari', '<b>' + esc(d.anahtar) + '</b> bitti olarak işaretlendi, ' +
+          'ama <b>' + d.fark + ' kitap eksik</b>: rafta ' + d.raftaki +
+          ', sistemde ' + d.kayitli + '. Rafı bir daha gözden geçirin — ' +
+          'kaydedilmemiş kitap kalmış olabilir.');
+      } else {
+        goster($('msgBitir'), 'uyari', '<b>' + esc(d.anahtar) + '</b> bitti olarak işaretlendi, ' +
+          'ama sistemde <b>' + (-d.fark) + ' kitap fazla</b> görünüyor (rafta ' + d.raftaki +
+          ', sistemde ' + d.kayitli + '). Aynı kitap iki kez kaydedilmiş olabilir; ' +
+          'koordinatöre söyleyin.');
+      }
+      D.siraDurumu = 'bitti';
+    })['catch'](function (e) {
+      goster($('msgBitir'), 'hata', e.message === 'AĞ'
+        ? 'Sunucuya ulaşılamadı. Bağlantı gelince tekrar deneyin — sıra bitmiş sayılmadı.'
+        : e.message);
+    }).then(function () { mesgul($('btnSiraBitir'), false); });
+  });
 
   /* ───────── son kayıtlar ───────── */
   function sonKayitlariYukle() {
@@ -931,10 +981,13 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       D.sonKayitlar = {};
       r.kayitlar.forEach(function (k) { D.sonKayitlar[k.no] = k; });
       $('sonListe').innerHTML = r.kayitlar.length ? r.kayitlar.map(function (k) {
-        return '<div class="kayit ' + (sinif[k.kategori] || '') + '" data-no="' + k.no + '">' +
+        var bekliyor = !k.kural;               // koordinatör henüz karar vermemiş
+        return '<div class="kayit ' + (bekliyor ? '' : (sinif[k.kategori] || '')) +
+          '" data-no="' + k.no + '">' +
           '<div class="bas">' + esc(k.baslik) + '</div>' +
           '<div class="alt">' + esc(k.yer || ('#' + k.no)) + (k.yazar ? ' · ' + esc(k.yazar) : '') +
-            ' · ' + esc(k.kategori) + ' (' + esc(k.kural) + ')' +
+            (bekliyor ? ' · <i>karar koordinatörde</i>'
+                      : ' · ' + esc(k.kategori) + ' (' + esc(k.kural) + ')') +
             (k.durum && k.durum !== 'Sağlam' ? ' · ' + esc(k.durum) : '') + '</div>' +
           '<div class="islem"><button class="duzelt">Düzelt</button>' +
           '<button class="sil">Sil</button></div></div>';
@@ -958,12 +1011,10 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       $('not').value = k.not || '';
       durumSec(k.durum || 'Sağlam');
       D.foto = null; D.kapak = null; fotoGoster();
-      var kod = kategoriKodu(k.kategori);
-      if (kod) kategoriSec(kod); else D.kategori = '';
       D.duzenleNo = no;
       $('duzenleNo').textContent = no;
       $('duzenleUyari').classList.remove('gizli');
-      goster($('msgKayit'), 'uyari', 'Alanları düzeltip yeniden kural seçin — kayıt güncellenecek. ' +
+      goster($('msgKayit'), 'uyari', 'Alanları düzeltip <b>Kitabı kaydet</b>e basın — kayıt güncellenecek. ' +
         '<button type="button" id="btnDuzenleVazgec" style="margin-left:6px;font-size:13px">Vazgeç</button>');
       var vz = $('btnDuzenleVazgec');
       if (vz) vz.addEventListener('click', formTemizle);

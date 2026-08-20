@@ -385,3 +385,39 @@ Beş veri kaybı yolu kapatıldı. Güncellemeyi uygularken **sırayla** şunlar
 ### Bir kaydı geri almak
 
 `Silindi` sütunundaki hücreyi boşaltın. Kayıt listelere, katalog ve panoya geri döner.
+
+---
+
+## Ek: 20 Ağustos 2026 — iş bölümü değişti
+
+Gönüllü artık **sınıflandırma yapmıyor**; yalnızca künye girer. Gidecek/gitmeyecek
+kararını koordinatör onay ekranında veriyor. Ayrıca sıra dağıtımı ve sıra bitirme
+sisteme bağlandı.
+
+### Kurulum sırası
+
+1. `apps-script/KitapEnvanteri.gs` içeriğini Apps Script'e yapıştırın.
+2. **`kurulum` fonksiyonunu çalıştırın** — tabloya **Sıralar** adlı yeni bir sayfa
+   eklenir. Çalıştırmazsanız "sırayı bitirdim" kaydedilemez.
+3. **Yeni sürüm** olarak dağıtın.
+4. `kitap-envanteri.html` ve `kunye-onay.html` dosyalarını depoya gönderin.
+5. `gonullu-karti.pdf`'i yazdırıp masalara koyun; `kural-karti.pdf` artık yalnızca
+   onay masasına ait.
+
+### Ne değişti
+
+| | Eskiden | Şimdi |
+|---|---|---|
+| **Gönüllü ekranı** | Künye + kategori + kural kodu; kural çipi aynı zamanda kaydet düğmesiydi | Künye + fiziksel durum + not; tek bir **Kitabı kaydet** düğmesi |
+| **Karar** | Rafta, on saniyede, gönüllü verirdi | Masada, fotoğrafa bakarak, koordinatör veriyor |
+| **Onay kuyruğu** | Yalnızca fotoğraflı kayıtlar | Onaylanmamış **her** kayıt (karar hepsi için gerekli) |
+| **Onay ekranı** | Künyeyi tamamlar | Künyeyi tamamlar **ve** kategori + kural seçer; karar olmadan onaylanamaz |
+| **Sınıflandırılmamış kayıt** | Olamazdı | Kategori sütununda `Sınıflandırılmadı` yazar, kuyrukta bekler |
+| **Sıra seçimi** | Gönüllü menüden seçerdi, sıranın durumunu bilmezdi | **"Bana boş bir sıra ver"** düğmesi; seçilen sıra için "boş / yarım kalmış / BİTMİŞ" uyarısı |
+| **Sıra bitişi** | Diye bir şey yoktu | **"Bu sırayı bitirdim"** — gönüllü rafı sayar, sistem karşılaştırır, eksik varsa söyler |
+| **Tamlık denetimi** | Yoktu | `Sıralar` sayfası + koordinatör için `siraHaritasi`: kaç sıra bitti, kaç yarım, kaç sayım tutmuyor |
+
+### Eski kayıtlar
+
+Kategorisi zaten dolu olan eski kayıtlar olduğu gibi kalır; onay ekranı o kararı
+seçili getirir, koordinatör isterse değiştirir.

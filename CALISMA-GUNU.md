@@ -96,32 +96,102 @@ kablosu ve birkaç powerbank.
 
 Bir çalışma gününde en verimli düzen budur:
 
+**Gönüllü kitabın akıbetine karar vermez.** Gönüllü künyeyi girer ve fotoğrafı
+çeker; gidecek/gitmeyecek kararını koordinatör onay ekranında verir. Bu ayrım
+bilerek yapıldı: karar tutarlılığı bir günde eğitilecek bir beceri değil, ve rafta
+on saniyede verilen karar masa başında fotoğrafa bakarak verilen karardan kötüdür.
+
 | Rol | Kaç kişi | Ne yapar |
 |---|---|---|
-| **Raf ekibi** | ikişerli, 2–5 ekip | Okuyucu kitabı alır, künyeyi söyler, kategoriyi verir, renkli etiketi yapıştırır. Kayıtçı telefondan girer. |
-| **Masa (künye onayı)** | 1 kişi | `kunye-onay.html` ekranında fotoğraflı kayıtların künyesini tamamlar. Rafta değil, oturarak çalışır. **Koordinatör şifresi ister.** |
-| **Paketleme** | 1–2 kişi | Yalnızca renge bakar; yeşil ve sarıları kutular, kutu numarasını yazar. Karar vermez. |
-| **Belirsiz masası** | uzman/kütüphaneci | Mavi etiketlileri toplu inceler. Gün sonunda ya da ertesi gün. |
-| **Koordinatör** | 1 kişi | Sayıları izler, tıkanan yeri açar, gün sonu turunu yapar. |
+| **Raf ekibi** | tek ya da ikişerli, 2–5 ekip | Kitabı alır, künye ve kapak fotoğrafını çeker (ya da yazar/başlık/yılı yazar), fiziksel durumu işaretler, kaydeder. **Karar vermez, etiket yapıştırmaz.** |
+| **Masa (onay + karar)** | 1–2 kişi | `kunye-onay.html`: künyeyi tamamlar **ve** gidecek/gitmeyecek kararını kural koduyla verir. Oturarak çalışır. **Koordinatör şifresi ister.** |
+| **Paketleme** | 1–2 kişi | Onaylanmış kayıtların listesine (katalog) bakarak yeşil ve sarıları kutular. Karar vermez. |
+| **Koordinatör** | 1 kişi | Sıra dağıtır, sayıları izler, tıkanan yeri açar, gün sonu turunu yapar. |
 
-**Dört kişilik küçük bir gün:** iki kişi raf ekibi, bir kişi masa, koordinatör
-paketlemeye de bakar. **On kişilik bir gün:** dört raf ekibi, bir masa, bir paketleme.
+**Dört kişilik küçük bir gün:** iki kişi raf, bir kişi masa, koordinatör paketlemeye
+de bakar. **On kişilik bir gün:** altı kişi raf, iki kişi masa, bir paketleme.
 
-Masa rolünü boş bırakmayın. Fotoğraflı kayıtlar birikirse envanterin yarısı
-"künye fotoğraftan gelecek" satırı olarak kalır.
+**Masa rolü artık darboğaz.** Her kitap oradan geçmek zorunda: raf ekibi saatte
+60–80 kitap kaydediyorsa, masa da o hızda karar verebilmeli. Bir masa kişisi saatte
+~150 kayıt onaylar. Üçten fazla raf ekibi çalışıyorsa **ikinci masa kişisi koyun**,
+yoksa kuyruk büyür ve envanterin yarısı "Sınıflandırılmadı" olarak kalır.
+
+---
+
+## 1b. Rastgele gelen gönüllü — sıra dağıtımı kuralları
+
+Gönüllüler her gün aynı kişiler değil. Biri salı gelir, biri perşembe; kimi iki saat
+kalır, kimi tam gün. Rafın hangi kısmının bittiğini kimse hatırlamak zorunda kalmasın
+diye **sırayı sistem dağıtıyor.** Kurallar şunlar:
+
+**Kural 1 — Sıra sistemden alınır, seçilmez.**
+Gönüllü giriş yapınca **"Bana boş bir sıra ver"** düğmesine basar. Sistem hiç
+başlanmamış ilk sırayı verir ve menüyü kendisi ayarlar. Kimse "hangi rafa gideyim"
+diye sormaz, iki kişi aynı sırayı ayıklamaz, hiçbir sıra unutulmaz.
+
+**Kural 2 — Kendi seçen, ekrandaki uyarıyı okur.**
+Gönüllü fiziksel olarak bir rafın önündeyse elle de seçebilir. O zaman ekran üç
+şeyden birini söyler:
+
+| Ekranda | Anlamı | Ne yapılır |
+|---|---|---|
+| **boş sıra — hiç başlanmamış** | Kimse dokunmamış | Soldan başlayın |
+| **yarım kalmış**, son çalışan ve tarih yazar | Biri başlamış, bitirmemiş | Kaldığı yerden devam edin — numara sistemden gelir |
+| **BU SIRA BİTMİŞ** (kırmızı), kim bitirmiş ve kaç kitap saymış yazar | Kapatılmış | Başka sıra seçin. Atlanmış kitap bulduysanız yine de ekleyin ve koordinatöre söyleyin |
+
+**Kural 3 — Bir sıra bir kişinindir.** Aynı sırada iki kişi çalışmayın. Sistem
+numara çakışmasını çözer (ekranda "yer kodu değişti" uyarısı çıkar), ama rafın
+önündeki fiziksel karışıklığı çözemez.
+
+**Kural 4 — Sıra bitirilmeden bırakılmaz.**
+Gönüllü sırayı bitirince **rafta kaç kitap olduğunu fiziksel olarak sayar** ve
+"Bu sırayı bitirdim" ekranına yazar. Sistem kendi sayısıyla karşılaştırır:
+
+- **tutuyorsa** sıra kapanır, yeni sıra alınır
+- **eksikse** ("rafta 42, sistemde 39") gönüllü rafı bir daha gözden geçirir
+- **fazlaysa** aynı kitap iki kez kaydedilmiş olabilir — koordinatöre söylenir
+
+Bu adım, hiçbir kitabın geride kalmadığının **tek** güvencesi. Sistem kaç kitap
+kaydettiğini bilir ama rafta kaç kitap durduğunu bilemez.
+
+**Kural 5 — Yarım sıra bırakmak serbesttir, ama haber verilir.**
+Gönüllü gitmek zorunda kalırsa sırayı bitirmez, öylece bırakır — sistem "yarım
+kalmış" diye işaretler, ertesi gün gelen kaldığı yerden devam eder. Ancak
+**gitmeden önce bekleyen kayıt uyarısının söndüğünden emin olmalı**, yoksa
+kaydettikleri telefonunda kalır.
+
+**Kural 6 — Koordinatör günde bir kez sıra haritasına bakar.**
+Kaç sıra bitti, kaç sıra yarım, kaç sıra hiç başlanmadı; ve **sayımı tutmayan
+sıralar** hangileri. Yarım kalan sıralar birikiyorsa gönüllüler sırayı kapatmadan
+bırakıyor demektir — hatırlatın.
+
+### Yarım günlük bir gönüllünün akışı, baştan sona
+
+1. Gelir, QR kodu okutur, adını ve çalışma şifresini yazar.
+2. **"Bana boş bir sıra ver"** — sistem `G-C04` verir.
+3. Gönüllü kartını okur (bir sayfa, masada duruyor).
+4. Rafın soluna gider, kitapları tek tek kaydeder: künye + kapak fotoğrafı,
+   ya da yazar/başlık/yıl.
+5. Sıra biter, rafı sayar, "Bu sırayı bitirdim — rafta 38 kitap vardı" der.
+6. Sistem "sistemde de 38, tutuyor" der. Sıra kapanır.
+7. Yeni sıra alır, ya da gider. Giderken sarı uyarının söndüğüne bakar.
+
+Bu akışta gönüllünün karar vermesi gereken tek şey yok — bu kasıtlı.
 
 ---
 
 ## 2. Gün başı — ilk 20 dakika
 
-1. **Kural kartlarını masalara koyun**, yeni gelenlere on saniye kuralını söyleyin:
-   *on saniyede karar veremiyorsan mavi işaretle, devam et.*
-2. **Herkes formu açsın**, adını ve şifreyi girsin.
-3. **Her ekibe bir sıra verin** — "siz G-A03'ten başlıyorsunuz". İki ekip aynı sırada
-   çalışmasın; sistem çakışmayı çözer ama fiziksel karışıklık çözmez.
-4. Ekipler sırayı seçince ekranda **"bu sırada kaç kitap kayıtlı, sıradaki numara ne"**
-   yazar. Dünden devam eden sırada bu sayı sıfır olmaz — doğru yerdesiniz demektir.
-5. **Kutu ve etiketleri dağıtın.** Her paketleme noktasında dört renk de bulunsun.
+1. **Gönüllü kartlarını masalara koyun** (`gonullu-karti.pdf`, tek sayfa). Yeni
+   gelene tek cümle yeter: *"Siz kitabı kaydediyorsunuz, kararı biz veriyoruz."*
+   Kural kartı (`kural-karti.pdf`) yalnızca **onay masasında** durur.
+2. **Herkes formu açsın**, adını ve çalışma şifresini girsin.
+3. **Herkes "Bana boş bir sıra ver"e bassın.** Sıra dağıtımını siz yapmayın; sistem
+   çakışmasız dağıtıyor. Yalnızca kimin nerede olduğunu bir kâğıda not edin.
+4. **Onay masasını kurun.** O kişi `kunye-onay.html`'i koordinatör şifresiyle açar.
+   Bu masa boş kalırsa gün sonunda envanterin hepsi "Sınıflandırılmadı" olur.
+5. **Kutuları dağıtın.** Etiket paketlemede kullanılır, rafta değil — renk kararı
+   artık masada veriliyor.
 6. Koordinatör tabloyu açsın, **Özeti yenilesin** — günün başlangıç sayısını not edin.
 
 ---
@@ -133,19 +203,27 @@ Masa rolünü boş bırakmayın. Fotoğraflı kayıtlar birikirse envanterin yar
 
 Her mola arasında koordinatör üç şeye bakar:
 
-- **Belirsiz oranı** — %15'i geçiyorsa durun. Kural yetersiz demektir; beş dakika konuşup
-  kuralı netleştirmek, iki saat sonra iki yüz mavi kitapla uğraşmaktan iyidir.
+- **Onay kuyruğu** — panodaki "onay bekleyen" sayısı sürekli büyüyorsa masa yetişmiyor
+  demektir. İkinci bir masa kişisi koyun ya da bir raf ekibini masaya alın. Kuyruk
+  büyümesi bir günde telafi edilebilir, üç günde edilemez.
 - **Bekleyen kayıt uyarısı** — bir telefonda sayı büyüyorsa o kişiyi bağlantının iyi
   olduğu yere gönderin, kuyruğu boşaltsın, geri dönsün.
-- **Hız** — ekip başına saatte 60–80 kitap normaldir. Belirgin düşük ekip varsa
-  sebebini sorun; genellikle raf çok karışıktır ya da kural tartışması vardır.
+- **Hız** — ekip başına saatte 60–80 kitap normaldir. Sınıflandırma kalktığı için bu
+  sayı artmalı. Belirgin düşük ekip varsa sebebini sorun; genellikle raf çok karışıktır.
+- **Belirsiz oranı** — bu artık masanın metriği. Masa %15'ten fazla "Belirsiz"
+  veriyorsa kural yetersiz demektir; beş dakika konuşup kuralı netleştirin.
 
 **Küflü/böcekli kitap çıkarsa** iş durur: kitap poşetlenir, ayrı alana konur,
 koordinatöre haber verilir. Bu bir ayıklama kararı değil, koruma tedbiridir.
 
-**Yeşil ve sarı biriktikçe paketlenir**, kutu numarası kutunun üstüne kalın kalemle
-yazılır ve **Kutular** sayfasına işlenir: kutu no, kaynak sıra, yer kodu aralığı
+**Paketleme onaydan sonra gelir.** Bir sıra ayıklandıktan sonra masa o sıranın
+kayıtlarını onaylar; paketleme ekibi katalogdan (`envanter-katalog.html`) o sıranın
+yeşil ve sarılarını görüp kutular. Kutu numarası kutunun üstüne kalın kalemle yazılır
+ve **Kutular** sayfasına işlenir: kutu no, kaynak sıra, yer kodu aralığı
 (*G-A03-001 → G-A03-042*), hedef bölüm.
+
+> Paketleme aynı gün yetişmeyebilir; sorun değil. Kitaplar rafında durur, kayıtları
+> hazırdır. Paketlemeyi taşınma haftasına toplamak da geçerli bir plan.
 
 ---
 
@@ -205,6 +283,11 @@ Bu yarım saat pazarlığa açık değil. Erken bırakılan gün, ertesi gün ik
 | Telefonda **"çevrimdışı"** rozeti | Normal. Çalışmaya devam; kayıtlar telefonda birikiyor. Gün sonunda kuyruğun boşaldığından emin olun. |
 | Kuyruk bir türlü boşalmıyor | Wifi'yi tamamen kapatıp mobil veriyle deneyin. Yarım çalışan wifi, hiç bağlantı olmamasından kötüdür. |
 | **Yanlış sıra** seçilmiş, on kitap oraya girmiş | Kayıtları formdaki **Sil** ile silip doğru sırada yeniden girmek en temizi. Az sayıda kayıt için tabloda Mekân/Raf/Sıra hücrelerini elle düzeltebilirsiniz — ama Yer kodu sütununu da elle düzeltin. |
+| Gönüllü "gidecek mi" diye soruyor | Sizin işiniz değil, deyin. Kaydedip geçsin; şüphesi varsa **Not** alanına yazsın. |
+| Onay kuyruğu şişti | Masaya ikinci kişi koyun. Bir raf ekibini masaya alın — kayıt bir gün bekleyebilir, karar bekleyemez. |
+| Sıra sayımı tutmuyor (eksik) | Gönüllü rafı bir daha geçsin. Yine tutmuyorsa **Sıralar** sayfasındaki Not alanına sebebini yazın; taşınmadan önce o sıra tekrar bakılacaklar listesine girer. |
+| Sıra sayımı tutmuyor (fazla) | Aynı kitap iki kez kaydedilmiş olabilir. Katalogdan o sıranın kayıtlarına bakıp mükerrer olanı silin. |
+| Herkes aynı rafa üşüştü | "Bana boş bir sıra ver" düğmesini kullanmalarını söyleyin; sistem çakışmasız dağıtıyor. |
 | Bir kayıt yanlış girildi | Formun altındaki **son kayıtlar** listesinden **Düzelt**. Kaydın bütün alanları forma gelir; değiştirmek istemediğinizi ellemeyin. Yer kodu değişmez. Vazgeçmek isterseniz uyarıdaki **Vazgeç**e basın. |
 | Numaralarda **boşluk** var (007 yok) | Silinen kayıttan kalmıştır, zararsızdır. Numaraları yeniden dizmeye çalışmayın. |
 | Kırmızı kutuda **"N kayıt sunucuya girmedi"** yazıyor | O kayıtlar sunucunun kabul etmediği kayıtlardır (ör. eksik bilgi). Listedeki kitapları elle yeniden kaydedin, sonra **Listeyi temizle**. Arkadaki kayıtlar zaten gitmiştir. |
