@@ -55,6 +55,12 @@ var AYAR = {
   // Bir rafta en fazla kaç sıra (göz) var
   SIRA_SAYISI: 8,
 
+  /* Çalışma yöntemi.
+     false → BLOK USULÜ: kitaplar işlendikten sonra rafa geri konur.
+     true  → KUTUYA DOĞRUDAN: kitap rafa dönmez, kutuya girer. Telefonda
+             "Kutu numarası" alanı yalnızca bu seçenekle görünür. */
+  KUTU_KULLAN: false,
+
   // Bir gönüllüye verilen sıra kaç saat onun adına ayrılı kalsın?
   // Süre dolunca sıra başkasına önerilebilir hâle gelir (yarım kalmışsa
   // "yarım" olarak). Yarım günlük vardiyalar için 8 saat uygundur.
@@ -71,7 +77,20 @@ var AYAR = {
 
   // Zamanlayıcı her çalıştığında en fazla kaç fotoğraf işlensin
   // (Apps Script'in 6 dakikalık çalışma sınırına takılmamak için)
-  OCR_TOPLU: 12,
+  OCR_TOPLU: 25,
+
+  // Tek çalışmada OCR'a ayrılacak en fazla süre (saniye). Ücretsiz Google
+  // hesabında zamanlayıcıların GÜNLÜK toplam çalışma süresi sınırlıdır; OCR
+  // bunu tek başına tüketirse günlük yedek de çalışamaz. Bu fren onu korur.
+  OCR_SURE_SN: 200,
+
+  // ── Erken uyarı ──────────────────────────────────────────────────
+  // Sıra üzerinde görünen ama bu kadar dakikadır kayıt göndermeyen gönüllü
+  // panoda "sessiz" olarak listelenir. Ya çevrimdışı kaldı, ya gitti.
+  SESSIZ_DAKIKA: 45,
+
+  // Otomatik yedek kaç gün saklansın (eskiler çöp kutusuna gider)
+  YEDEK_GUN: 14,
 };
 
 /* ═══════════════ SÖZLÜKLER ═══════════════ */
@@ -121,7 +140,7 @@ var SUTUNLAR = ['Kayıt no', 'Yer kodu', 'Mekân', 'Raf', 'Sıra', 'Sıra no',
                 'Kategori', 'Kural', 'Durum', 'Not', 'Kaydeden', 'Kutu no', 'Tarih',
                 'Fotoğraf', 'OCR durumu', 'Öneri başlık', 'Öneri yazar', 'Öneri yıl',
                 'Öneri yayınevi', 'OCR metni', 'Onay', 'Kapak',
-                'İstemci no', 'Silindi'];
+                'İstemci no', 'Silindi', 'İstenen'];
 
 // Sık kullanılan sütun numaraları (1'den başlar)
 var S = {
@@ -130,8 +149,14 @@ var S = {
   durum: 13, not: 14, kaydeden: 15, kutu: 16, tarih: 17,
   foto: 18, ocrDurum: 19, oneriBaslik: 20, oneriYazar: 21, oneriYil: 22,
   oneriYayinevi: 23, ocrMetin: 24, onay: 25, kapak: 26,
-  istemci: 27, silindi: 28
+  istemci: 27, silindi: 28, istenen: 29
 };
+
+/* 'Kutular' sayfası: hangi kutuda ne var, nereye gitti.
+   Kitaplar iki hedefe ayrılıyor — YENİ BİNA ve DEPO — ve ikisi de aynı
+   titizlikte kayda geçmeli: depoya kalkan kitap da sonradan bulunabilmeli. */
+var KUTU_SUTUNLARI = ['Kutu', 'Hedef', 'Kaynak sıra', 'Yer kodu aralığı',
+                      'Kitap sayısı', 'Paketleyen', 'Tarih', 'Not'];
 
 /* 'Sıralar' sayfası: her sıranın tek satırlık hikâyesi — kime verildi, kim
    bitirdi, sayım tuttu mu. */
@@ -258,13 +283,17 @@ function yerKodu_(mekan, raf, sira, siraNo) {
  */
 function siraKullanimi_(sayfa, anahtar) {
   var son = sayfa.getLastRow();
-  var sonuc = { sonNo: 0, adet: 0, cilt: 0, kullanilan: {}, sonCalisan: '', sonTarih: '' };
+  var sonuc = { sonNo: 0, adet: 0, cilt: 0, cikarilan: 0,
+                kullanilan: {}, sonCalisan: '', sonTarih: '',
+                sonKayitSatir: 0, sonKayitNo: 0 };
   if (son < 2) return sonuc;
 
   var veri = sayfa.getRange(2, S.mekan, son - 1, 4).getValues();   // Mekân, Raf, Sıra, Sıra no
   var silinenler = sayfa.getRange(2, S.silindi, son - 1, 1).getValues();
   var kimler = sayfa.getRange(2, S.kaydeden, son - 1, 3).getValues();  // Kaydeden, Kutu, Tarih
   var nushalar = sayfa.getRange(2, S.nusha, son - 1, 1).getValues();
+  var durumlar = sayfa.getRange(2, S.durum, son - 1, 1).getValues();
+  var istenenler = sayfa.getRange(2, S.istenen, son - 1, 1).getValues();
   veri.forEach(function (r, i) {
     if (rafAnahtari_(r[0], r[1], r[2]) !== anahtar) return;
     if (!silinenler[i][0]) {
@@ -274,6 +303,12 @@ function siraKullanimi_(sayfa, anahtar) {
         ? Utilities.formatDate(t, Session.getScriptTimeZone(), 'd.MM.yyyy') : '';
     }
     var n = Number(r[3]) || 0;
+    // Devir teslim için: bu sıranın en son kaydedilen (silinmemiş) kitabı hangisi?
+    // Ertesi gün gelen kişi rafta o kitabı bulup sonrasından devam edecek.
+    if (!silinenler[i][0] && n >= sonuc.sonKayitNo) {
+      sonuc.sonKayitNo = n;
+      sonuc.sonKayitSatir = i + 2;
+    }
     // Silinen kayıt sayılmaz, ama numarası yeniden dağıtılmaz: o numara
     // kitabın üstüne ya da kutuya yazılmış olabilir.
     sonuc.kullanilan[n] = true;
@@ -282,7 +317,14 @@ function siraKullanimi_(sayfa, anahtar) {
       sonuc.adet++;
       // Rafta duran FİZİKSEL kitap sayısı: 3 nüsha tek kayıttır ama rafta üç cilttir.
       // Sıra sayımı bununla karşılaştırılır, kayıt sayısıyla değil.
-      sonuc.cilt += Math.max(1, Number(nushalar[i][0]) || 1);
+      var cilt = Math.max(1, Number(nushalar[i][0]) || 1);
+      sonuc.cilt += cilt;
+      /* Küflü kitap poşetlenip raftan alınıyor (kural), istenen kitap masaya
+         götürülüyor. İkisi de artık rafta/kutuda değil; sayım karşılaştırması
+         bunları düşmezse gönüllüye "fazla kayıt var" diye yanlış alarm veriyor. */
+      if (String(durumlar[i][0]) === 'Küflü/böcekli' || istenenler[i][0]) {
+        sonuc.cikarilan += cilt;
+      }
     }
   });
   return sonuc;
@@ -298,8 +340,9 @@ function siraNoAyarla_(sayfa, anahtar, onerilen) {
 
 /** Form raf seçtiğinde çağırır: o sırada en son hangi numarada kalınmış? */
 function rafDurum_(mekan, raf, sira) {
+  var sayfa = sayfaAl_('Envanter');
   var anahtar = rafAnahtari_(mekan, raf, sira);
-  var k = siraKullanimi_(sayfaAl_('Envanter'), anahtar);
+  var k = siraKullanimi_(sayfa, anahtar);
   var r = siraKayitlari_()[anahtar];
   var b = (r && r.bitti) ? r : null;
   var tutulu = tutmaGecerli_(r, new Date());
@@ -308,7 +351,39 @@ function rafDurum_(mekan, raf, sira) {
     durum: b ? 'bitti' : (k.adet ? 'devam' : 'bos'),
     bitiren: b ? b.bitiren : '', bitisTarihi: b ? b.tarih : '',
     raftaki: b ? b.raftaki : '', sonCalisan: k.sonCalisan, sonTarih: k.sonTarih,
-    tutulu: tutulu, tutan: tutulu ? r.alan : ''
+    tutulu: tutulu, tutan: tutulu ? r.alan : '',
+    devir: devirBilgisi_(sayfa, k)
+  };
+}
+
+/* Devir teslim: yarım kalan sırayı başkası devralırken "nereden devam edeceğim"
+   sorusunun cevabı. Rafa bir şey konmuyor; cevap sistemden geliyor.
+
+   İki bağımsız işaret veriyoruz ki biri şüpheliyse diğeri doğrulasın:
+     · sayı  — rafta soldan kaç kitap sayılacağı (nüsha ve raftan alınanlar düşülmüş)
+     · kitap — o noktadaki kitabın adı ve kapak fotoğrafı
+   Sayı yanlışsa kitabın adı tutmaz; ikisi tutuyorsa yer kesindir. */
+function devirBilgisi_(sayfa, k) {
+  if (!k.sonKayitSatir) return null;
+
+  var satir = sayfa.getRange(k.sonKayitSatir, 1, 1, SUTUNLAR.length).getValues()[0];
+  var baslik = String(satir[S.baslik - 1] || '').trim();
+  // Gönüllü hiçbir şey yazmadıysa başlık yer tutucudur; OCR önerisi varsa onu kullan.
+  if (!baslik || /künye fotoğraftan/i.test(baslik)) {
+    baslik = String(satir[S.oneriBaslik - 1] || '').trim();
+  }
+
+  var t = satir[S.tarih - 1];
+  return {
+    yer: String(satir[S.yer - 1] || ''),
+    baslik: baslik,
+    yazar: String(satir[S.yazar - 1] || satir[S.oneriYazar - 1] || '').trim(),
+    kapak: String(satir[S.kapak - 1] || satir[S.foto - 1] || ''),
+    kaydeden: String(satir[S.kaydeden - 1] || ''),
+    tarih: t instanceof Date
+      ? Utilities.formatDate(t, Session.getScriptTimeZone(), 'd.MM.yyyy HH:mm') : '',
+    // Rafta soldan kaçıncı sırada duruyor: kayıtlı cilt eksi raftan alınanlar
+    raftakiSira: Math.max(0, (k.cilt || 0) - (k.cikarilan || 0))
   };
 }
 
@@ -524,7 +599,8 @@ function siraBitir_(g) {
 
     var sayfa = sayfaAl_('Sıralar');
     var satir = siraSatiri_(sayfa, anahtar);
-    var fark = raftaki - k.cilt;
+    // Sayılan + raftan çıkarılmış olanlar = sistemdeki cilt sayısı olmalı.
+    var fark = (raftaki + k.cikarilan) - k.cilt;
     // Sıra kapanınca rezervasyon da kalkar: satırdaki "Alan" boşaltılır.
     sayfa.getRange(satir, 1, 1, SIRA_SUTUNLARI.length).setValues([[
       anahtar, raftaki, k.cilt, String(g.kaydeden || '').trim(), new Date(),
@@ -534,7 +610,7 @@ function siraBitir_(g) {
     ]]);
 
     return { ok: true, anahtar: anahtar, kayitli: k.cilt, kayitSayisi: k.adet,
-             raftaki: raftaki, fark: fark };
+             raftaki: raftaki, cikarilan: k.cikarilan, fark: fark };
   } finally {
     kilit.releaseLock();
   }
@@ -590,7 +666,7 @@ function siraHaritasi_() {
 // Bağlantıya (GET) tıklanarak çalıştırılamayacak işlemler: bir bağlantı
 // önizlemesi ya da yanlışlıkla paylaşılan adres kayıt silmemeli.
 var YAZAN_EYLEMLER = ['ekle', 'guncelle', 'sil', 'fotoEkle', 'onayla', 'topluOnayla',
-                      'siraBitir', 'siraOner', 'siraSec'];
+                      'kutula', 'siraBitir', 'siraOner', 'siraSec', 'kitapIste'];
 
 function doGet(e) {
   if (e && e.parameter && e.parameter.action) {
@@ -610,8 +686,9 @@ function doPost(e) {
 }
 
 // Yalnızca koordinatörün açabileceği işlemler
-var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayGruplari', 'onayla', 'topluOnayla',
-                             'katalog', 'durum', 'siraHaritasi'];
+// istenenler_ bilerek gönüllü eylemi: rafta çalışan görecek.
+var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayGruplari', 'onayla', 'topluOnayla', 'kutula',
+                             'katalog', 'kutular', 'durum', 'siraHaritasi', 'kitapIste'];
 
 function islet_(istek) {
   try {
@@ -641,12 +718,16 @@ function islet_(istek) {
       case 'siraSec':     return cikti_(siraSec_(istek));
       case 'siraBitir':   return cikti_(siraBitir_(istek));
       case 'siraHaritasi':return cikti_(siraHaritasi_());
+      case 'kitapIste':   return cikti_(kitapIste_(istek));
+      case 'istenenler':  return cikti_(istenenler_());
       case 'fotoEkle':    return cikti_(fotoEkle_(istek.no, istek.veri, istek.tur, istek.hangi));
       case 'onayBekleyen':return cikti_(onayBekleyen_(istek.adet));
       case 'onayGruplari':return cikti_(onayGruplari_(istek.adet));
       case 'topluOnayla': return cikti_(topluOnayla_(istek));
+      case 'kutula':      return cikti_(kutula_(istek));
       case 'onayla':      return cikti_(onayla_(istek.no, istek.kayit || {}));
       case 'katalog':     return cikti_(katalog_(istek));
+      case 'kutular':     return cikti_(kutular_());
       case 'durum':       return cikti_(durum_());
       default:            return cikti_({ ok: false, error: 'Bilinmeyen istek.' });
     }
@@ -673,6 +754,7 @@ function ayarlar_() {
     kurallar: KURALLAR.map(function (k) { return { kod: k[0], kategori: k[1], aciklama: k[2] }; }),
     mekanlar: AYAR.MEKANLAR || [],
     siniflandirilmadi: SINIFLANDIRILMADI,
+    kutuKullan: !!AYAR.KUTU_KULLAN,
     rafHarfleri: String(AYAR.RAF_HARFLERI || 'ABCDEFGH').toUpperCase().split(''),
     siraSayisi: Number(AYAR.SIRA_SAYISI || 8),
   };
@@ -712,8 +794,8 @@ function ekle_(g) {
 
     sayfa.appendRow([no, yer, d.k.mekan, d.k.raf, pad_(d.k.sira, 2), s.siraNo,
                      d.k.yazar, d.k.baslik, d.k.yil, d.k.nusha,
-                     d.k.kategori, d.k.kural, d.k.durum, d.k.not, d.k.kaydeden, '', simdi,
-                     '', '', '', '', '', '', '', '', '', istemciId, '']);
+                     d.k.kategori, d.k.kural, d.k.durum, d.k.not, d.k.kaydeden, d.k.kutu, simdi,
+                     '', '', '', '', '', '', '', '', '', istemciId, '', '']);
     sonuc = { ok: true, no: no, yerKodu: yer, siraNo: s.siraNo, duzeltildi: s.duzeltildi,
               rafAdet: s.adet + 1 };
   } finally {
@@ -897,6 +979,10 @@ function dogrula_(g) {
   var nusha = parseInt(g.nusha, 10);
   if (!nusha || nusha < 1) nusha = 1;
 
+  // Kutu numarası isteğe bağlı: "kutuya doğrudan" yöntemiyle çalışan ekipler
+  // kitabı rafa geri koymuyor, kutuya koyuyor. Hangi kutuda olduğu buradan bilinir.
+  var kutu = String(g.kutu || '').trim().slice(0, 20);
+
   return {
     k: {
       mekan: mekan,
@@ -911,6 +997,7 @@ function dogrula_(g) {
       durum: durum,
       not: String(g.not || '').trim().slice(0, 500),
       kaydeden: String(g.kaydeden || '').trim(),
+      kutu: kutu,
     }
   };
 }
@@ -990,11 +1077,11 @@ function sayfaAl_(ad) {
       .setFontWeight('bold').setBackground('#601040').setFontColor('#ffffff');
     sayfa.setColumnWidth(1, 90); sayfa.setColumnWidth(4, 140); sayfa.setColumnWidth(6, 300);
   } else if (ad === 'Kutular') {
-    sayfa.appendRow(['Kutu no', 'Kaynak sıra (G-A01)', 'Yer kodu aralığı', 'Hedef bölüm',
-                     'Paketleyen', 'Tarih', 'İçindeki kitap']);
+    sayfa.appendRow(KUTU_SUTUNLARI);
     sayfa.setFrozenRows(1);
-    sayfa.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#601040').setFontColor('#ffffff');
-    sayfa.setColumnWidth(2, 130); sayfa.setColumnWidth(3, 170);
+    sayfa.getRange(1, 1, 1, KUTU_SUTUNLARI.length)
+      .setFontWeight('bold').setBackground('#601040').setFontColor('#ffffff');
+    sayfa.setColumnWidth(2, 110); sayfa.setColumnWidth(4, 170);
   }
   return sayfa;
 }
@@ -1064,8 +1151,11 @@ function ocrKuyruguIsle() {
   var durumlar = sayfa.getRange(2, S.ocrDurum, son - 1, 1).getValues();
   var silinenler = sayfa.getRange(2, S.silindi, son - 1, 1).getValues();
   var islenen = 0;
+  var basladi = Date.now();
+  var sureSiniri = Math.max(30, Number(AYAR.OCR_SURE_SN || 200)) * 1000;
 
   for (var i = 0; i < durumlar.length && islenen < AYAR.OCR_TOPLU; i++) {
+    if (Date.now() - basladi > sureSiniri) break;   // günlük kotayı koru
     if (String(durumlar[i][0]) !== 'bekliyor') continue;
     if (silinenler[i][0]) continue;
     var satir = i + 2;
@@ -1299,7 +1389,8 @@ function kayitCikar_(s) {
       ocrDurum: s[S.ocrDurum - 1], ocrMetin: s[S.ocrMetin - 1],
       oneriBaslik: s[S.oneriBaslik - 1], oneriYazar: s[S.oneriYazar - 1],
       oneriYil: s[S.oneriYil - 1], oneriYayinevi: s[S.oneriYayinevi - 1],
-      ocrMetin: s[S.ocrMetin - 1]
+      ocrMetin: s[S.ocrMetin - 1],
+      istenen: s[S.istenen - 1]
   };
   // Karar önerisi: koordinatör onaylayacak, ama hazır gelsin.
   var o = kararOner_(k);
@@ -1361,6 +1452,77 @@ function kuralAciklamasi_(kod) {
     if (KURALLAR[i][0] === kod) return KURALLAR[i][2];
   }
   return '';
+}
+
+/**
+ * Bir kutuyu kapatır: seçilen kayıtlara kutu numarasını yazar ve kutuyu
+ * 'Kutular' sayfasına işler.
+ *
+ * Blok usulünde kutulama envanterden sonra yapılıyor; kutu numarası kayıt
+ * anında bilinmiyor. Bu adım olmadan kutulanmış kitap sonradan bulunamıyordu —
+ * özellikle depoya kalkanlar.
+ *
+ * Kutu numarası hedefe göre öneklenir: DEPO → 'D-004', YENİ BİNA → 'Y-017'.
+ * İki seri birbirine karışmasın diye.
+ */
+function kutula_(g) {
+  var numaralar = (g.numaralar || []).map(Number).filter(Boolean);
+  if (!numaralar.length) return { ok: false, error: 'Kutulanacak kayıt seçilmedi.' };
+  if (numaralar.length > 400) return { ok: false, error: 'Tek kutuda en fazla 400 kayıt.' };
+
+  var depoMu = String(g.hedef || '') === 'depo';
+  var ham = String(g.kutu || '').trim().replace(/^[YyDd]-/, '');
+  if (!/^\d{1,4}$/.test(ham)) return { ok: false, error: 'Kutu numarası 1–4 haneli olmalı.' };
+  var etiket = (depoMu ? 'D-' : 'Y-') + pad_(Number(ham), 3);
+
+  var kilit = LockService.getScriptLock();
+  kilit.waitLock(30000);
+  try {
+    var sayfa = sayfaAl_('Envanter');
+    var son = sayfa.getLastRow();
+    if (son < 2) return { ok: false, error: 'Kayıt yok.' };
+
+    var no = sayfa.getRange(2, S.no, son - 1, 1).getValues();
+    var kutu = sayfa.getRange(2, S.kutu, son - 1, 1).getValues();
+    var yer = sayfa.getRange(2, S.yer, son - 1, 1).getValues();
+    var silindi = sayfa.getRange(2, S.silindi, son - 1, 1).getValues();
+    var nusha = sayfa.getRange(2, S.nusha, son - 1, 1).getValues();
+
+    var istenen = {};
+    numaralar.forEach(function (x) { istenen[x] = true; });
+
+    var yazilan = 0, cilt = 0, atlanan = 0, yerler = [], siralar = {};
+    for (var i = 0; i < no.length; i++) {
+      if (!istenen[Number(no[i][0])]) continue;
+      if (silindi[i][0]) { atlanan++; continue; }
+      var eski = String(kutu[i][0] || '').trim();
+      if (eski && eski !== etiket) { atlanan++; continue; }   // başka kutuda
+      kutu[i][0] = etiket;
+      yazilan++;
+      cilt += Math.max(1, Number(nusha[i][0]) || 1);
+      var yk = String(yer[i][0] || '');
+      if (yk) { yerler.push(yk); siralar[yk.replace(/-\d+$/, '')] = true; }
+    }
+
+    if (!yazilan) return { ok: false, error: 'Bu kayıtlar zaten başka kutuda.' };
+    sayfa.getRange(2, S.kutu, son - 1, 1).setValues(kutu);
+
+    yerler.sort();
+    var aralik = yerler.length
+      ? (yerler[0] === yerler[yerler.length - 1]
+          ? yerler[0] : yerler[0] + ' → ' + yerler[yerler.length - 1])
+      : '';
+
+    sayfaAl_('Kutular').appendRow([etiket, depoMu ? 'DEPO' : 'YENİ BİNA',
+                        Object.keys(siralar).sort().join(', '), aralik, cilt,
+                        String(g.paketleyen || '').trim(), new Date(),
+                        String(g.not || '').trim().slice(0, 300)]);
+
+    return { ok: true, kutu: etiket, hedef: depoMu ? 'DEPO' : 'YENİ BİNA',
+             yazilan: yazilan, cilt: cilt, atlanan: atlanan, aralik: aralik };
+  } finally {
+    kilit.releaseLock();
+  }
 }
 
 /**
@@ -1440,6 +1602,9 @@ function katalog_(g) {
   var ara = String(g.ara || '').trim().toLocaleLowerCase('tr');
   var kategori = String(g.kategori || '');
   var mekan = String(g.mekan || '');
+  // Ayıklama listesi için: tek bir sıranın ya da tek bir kutunun içeriği.
+  var siraSuzgec = String(g.sira || '').trim().toUpperCase();
+  var kutuSuzgec = String(g.kutu || '').trim();
 
   var liste = [];
   satirlar.forEach(function (s) {
@@ -1447,6 +1612,9 @@ function katalog_(g) {
     if (yalnizOnayli && !s[S.onay - 1]) return;
     if (kategori && String(s[S.kategori - 1]) !== kategori) return;
     if (mekan && String(s[S.mekan - 1]) !== mekan) return;
+    if (siraSuzgec &&
+        rafAnahtari_(s[S.mekan - 1], s[S.raf - 1], s[S.sira - 1]) !== siraSuzgec) return;
+    if (kutuSuzgec && String(s[S.kutu - 1]).trim() !== kutuSuzgec) return;
     if (ara) {
       var havuz = [s[S.baslik - 1], s[S.yazar - 1], s[S.yer - 1], s[S.not - 1], s[S.kutu - 1]]
         .join(' ').toLocaleLowerCase('tr');
@@ -1457,6 +1625,7 @@ function katalog_(g) {
       yazar: s[S.yazar - 1], baslik: s[S.baslik - 1], yil: s[S.yil - 1],
       nusha: s[S.nusha - 1], kategori: s[S.kategori - 1], kural: s[S.kural - 1],
       durum: s[S.durum - 1], not: s[S.not - 1], kaydeden: s[S.kaydeden - 1],
+      istenen: s[S.istenen - 1],
       kutu: s[S.kutu - 1], onay: s[S.onay - 1],
       foto: s[S.foto - 1], fotoId: (String(s[S.foto - 1]).match(/[-\w]{25,}/) || [''])[0],
       kapak: s[S.kapak - 1], kapakId: (String(s[S.kapak - 1]).match(/[-\w]{25,}/) || [''])[0]
@@ -1486,6 +1655,7 @@ function durum_() {
     ok: true, toplam: 0, onayli: 0, onayBekleyen: 0, kunyeEksik: 0, tamam: 0,
     fotoli: 0, kapakli: 0, kategori: {}, fiziksel: {}, ocr: {},
     gunluk: [], kisiler: [], siralar: [], hedef: Number(AYAR.HEDEF_KITAP || 0),
+    uyarilar: [], sessizler: [], yedekSaat: sonYedekSaat_(),
     hesaplandi: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'd MMMM yyyy HH:mm')
   };
   if (son < 2) return bos;
@@ -1535,11 +1705,14 @@ function durum_() {
 
     var sira = rafAnahtari_(s[S.mekan - 1], s[S.raf - 1], s[S.sira - 1]);
     if (sira) {
-      if (!siralar[sira]) siralar[sira] = { sira: sira, sayi: 0, sonNo: 0, son: '' };
+      if (!siralar[sira]) siralar[sira] = { sira: sira, sayi: 0, sonNo: 0, son: '', sonZaman: 0 };
       siralar[sira].sayi++;
       var n = Number(s[S.siraNo - 1]) || 0;
       if (n > siralar[sira].sonNo) siralar[sira].sonNo = n;
       if (gun > siralar[sira].son) siralar[sira].son = gun;
+      if (t instanceof Date && t.getTime() > siralar[sira].sonZaman) {
+        siralar[sira].sonZaman = t.getTime();
+      }
     }
   });
 
@@ -1556,7 +1729,128 @@ function durum_() {
   d.siralar = Object.keys(siralar).map(function (a) { return siralar[a]; })
     .sort(function (a, b) { return String(a.sira).localeCompare(String(b.sira)); });
 
+  d.sessizler = sessizSiralar_(siralar);
+  d.uyarilar = uyarilariHesapla_(d);
+
   return d;
+}
+
+/* ═══════════════ ERKEN UYARI ═══════════════ */
+
+/* Sıra üzerinde görünen ama uzun süredir kayıt göndermeyen gönüllüler.
+   İki ihtimal var, ikisi de koordinatörün bilmesi gereken şey:
+   ya telefon çevrimdışı kaldı (kayıtlar cepte bekliyor), ya kişi gitti
+   (sıra boşuna kilitli). Sistem hangisi olduğunu bilemez; söyler, insan bakar. */
+function sessizSiralar_(siralar) {
+  var kayitlar = siraKayitlari_();
+  var simdi = new Date();
+  var esik = Math.max(10, Number(AYAR.SESSIZ_DAKIKA || 45)) * 60000;
+  var liste = [];
+
+  Object.keys(kayitlar).forEach(function (a) {
+    var r = kayitlar[a];
+    if (!tutmaGecerli_(r, simdi)) return;              // bitmiş ya da süresi dolmuş
+    var sonKayit = (siralar[a] && siralar[a].sonZaman) || 0;
+    var baslangic = r.almaSaati ? r.almaSaati.getTime() : 0;
+    var sonHareket = Math.max(sonKayit, baslangic);
+    if (!sonHareket) return;
+    var gecen = simdi.getTime() - sonHareket;
+    if (gecen < esik) return;
+    liste.push({
+      sira: a, kisi: r.alan,
+      dakika: Math.round(gecen / 60000),
+      kayit: (siralar[a] && siralar[a].sayi) || 0
+    });
+  });
+
+  return liste.sort(function (x, y) { return y.dakika - x.dakika; });
+}
+
+/* Panonun tek uyarı kartını sunucu doldurur. Ekran yalnızca yazdırır —
+   kural tek yerde durur, iki taraf ayrı şey söyleyemez. */
+function uyarilariHesapla_(d) {
+  var u = [];
+  var ekle = function (seviye, baslik, detay, ne) {
+    u.push({ seviye: seviye, baslik: baslik, detay: detay || '', ne: ne || '' });
+  };
+
+  // 1. Karar masası — sürecin tek gerçek darboğazı
+  if (d.onayBekleyen >= 400) {
+    ekle('kirmizi', d.onayBekleyen + ' künye onay bekliyor',
+         'Masa envanterin gerisinde kaldı; bu sıralar ayrıştırılamaz.',
+         'Masaya ikinci kişi koyun ya da bugün gönüllü sayısını azaltın.');
+  } else if (d.onayBekleyen >= 150) {
+    ekle('sari', d.onayBekleyen + ' künye onay bekliyor',
+         'Kuyruk büyüyor. Onay ekranı 40 üstünde gruplu onaya kendiliğinden geçer.',
+         'Masanın bugün boş kalmadığından emin olun.');
+  }
+
+  // 2. Sessiz gönüllüler — kaybolan kayıtların bir numaralı sebebi
+  if (d.sessizler.length) {
+    ekle('kirmizi', d.sessizler.length + ' sıra sessiz',
+         d.sessizler.map(function (x) {
+           return x.sira + ' · ' + (x.kisi || '—') + ' · ' + x.dakika + ' dk';
+         }).join(' | '),
+         'Kişiyi bulun: telefonunda gönderilmemiş kayıt olabilir. Gittiyse sırayı serbest bırakın.');
+  }
+
+  // 3. Kapasite — "sığacak mı" sorusu taşınma günü sorulmamalı
+  /* Kapasite: yalnızca HEDEF_KITAP doldurulmuşsa konuşur. Boşsa hiç ses çıkarmaz —
+     yeni bina henüz gündemde değilse koordinatörü boşuna meşgul etmesin. */
+  var gidecek = (d.kategori['Gidecek'] || 0) + (d.kategori['Gitse de olur'] || 0);
+  if (!d.hedef) {
+    // sessiz
+  } else if (gidecek > d.hedef) {
+    ekle('kirmizi', 'Gidecek yığın kapasiteyi aştı',
+         gidecek + ' kitap işaretlendi, kapasite ' + d.hedef + '.',
+         'Ayıklama ölçütünü sıkılaştırın; "Gitse de olur" olanları gözden geçirin.');
+  } else if (d.hedef && gidecek > d.hedef * 0.9) {
+    ekle('sari', 'Kapasitenin %90\'ına gelindi',
+         gidecek + ' / ' + d.hedef + ' kitap.',
+         'Kalan sıralarda daha seçici olun.');
+  }
+
+  // 4. Sarı ve mavinin sahibi yok — karara bağlanmazsa taşınma günü patlar
+  var belki = d.kategori['Gitse de olur'] || 0;
+  var belirsiz = d.kategori['Belirsiz'] || 0;
+  if (belirsiz >= 40) {
+    ekle('sari', belirsiz + ' kitap "Belirsiz" bekliyor',
+         'Bunlar uzman masası oturumu yapılmadan ayrıştırılamaz.',
+         'Haftalık uzman oturumunu takvime alın; taşınmadan önce sıfırlanmalı.');
+  }
+  if (belki >= 200) {
+    ekle('sari', belki + ' kitap "Gitse de olur"da',
+         'Bu kategori bir karar değil, ertelemedir.',
+         'Kapasite netleştiğinde toplu olarak yeşile ya da kırmızıya çevirin.');
+  }
+
+  // 5. OCR — bozulursa süreç durmaz ama masa yavaşlar
+  var ocrBekleyen = d.ocr['bekliyor'] || 0;
+  var ocrHata = d.ocr['hata'] || 0;
+  if (ocrBekleyen >= 300) {
+    ekle('sari', ocrBekleyen + ' fotoğraf OCR kuyruğunda',
+         'Günlük Google kotası dolmuş olabilir. Öneriler gecikir, kayıt kaybolmaz.',
+         'Masa fotoğrafa bakarak çalışmaya devam etsin; kuyruk gece erir.');
+  }
+  if (ocrHata >= 25) {
+    ekle('sari', ocrHata + ' kayıtta OCR hatası',
+         'Genellikle Drive API kapalı ya da kota dolu.',
+         'Betikte ocrYenidenDene() çalıştırın.');
+  }
+
+  // 6. Yedek
+  var ys = d.yedekSaat;
+  if (ys === null) {
+    ekle('kirmizi', 'Hiç yedek alınmamış',
+         'Tablo tek nokta; bozulursa girilen her şey gider.',
+         'Betikte zamanlayiciKur() çalıştırın, sonra gunlukYedek() ile bir kez elle alın.');
+  } else if (ys > 48) {
+    ekle('kirmizi', 'Son yedek ' + Math.round(ys / 24) + ' gün önce',
+         'Günlük yedek zamanlayıcısı çalışmıyor.',
+         'Betik düzenleyicide Tetikleyiciler ekranına bakın.');
+  }
+
+  return u;
 }
 
 /** Onay ekranından gelen künyeyi ana alanlara yazar. */
@@ -1604,6 +1898,7 @@ function onayla_(no, k) {
     sayfa.getRange(bulunan.satir, S.onay).setValue(
       'Onaylandı — ' + String(k.onaylayan || '').trim() + ' · ' +
       Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'd.MM.yyyy HH:mm'));
+    sayfa.getRange(bulunan.satir, S.istenen).setValue('');   // istek kapandı
     return { ok: true, no: no };
   } finally {
     kilit.releaseLock();
@@ -1647,14 +1942,127 @@ function ocrYenidenDene() {
   return sayi;
 }
 
-/** OCR zamanlayıcısını kurar (5 dakikada bir). Kurulumda bir kez çalışır. */
-function zamanlayiciKur() {
-  var varOlan = ScriptApp.getProjectTriggers();
-  for (var i = 0; i < varOlan.length; i++) {
-    if (varOlan[i].getHandlerFunction() === 'ocrKuyruguIsle') return;
+/** Katalog süzgeci için: kullanılmış kutu numaraları ve dokunulmuş sıralar. */
+function kutular_() {
+  var sayfa = sayfaAl_('Envanter');
+  var son = sayfa.getLastRow();
+  if (son < 2) return { ok: true, kutular: [], siralar: [] };
+  var veri = sayfa.getRange(2, S.mekan, son - 1, 3).getValues();      // Mekân, Raf, Sıra
+  var kutu = sayfa.getRange(2, S.kutu, son - 1, 1).getValues();
+  var silindi = sayfa.getRange(2, S.silindi, son - 1, 1).getValues();
+  var k = {}, sr = {};
+  veri.forEach(function (r, i) {
+    if (silindi[i][0]) return;
+    var a = rafAnahtari_(r[0], r[1], r[2]);
+    if (a) sr[a] = true;
+    var kn = String(kutu[i][0] || '').trim();
+    if (kn) k[kn] = true;
+  });
+  var sirala = function (o) {
+    return Object.keys(o).sort(function (a, b) {
+      var sa = Number(a), sb = Number(b);
+      if (!isNaN(sa) && !isNaN(sb)) return sa - sb;
+      return String(a).localeCompare(String(b), 'tr');
+    });
+  };
+  return { ok: true, kutular: sirala(k), siralar: sirala(sr) };
+}
+
+/* ═══════════════ KİTAP İSTEĞİ ═══════════════
+   Fotoğrafı okunmayan ya da karar verilemeyen kayıt için koordinatörün
+   rafa haber verebileceği tek kanal. Kayıt onaylanınca istek kendiliğinden kapanır. */
+
+function kitapIste_(g) {
+  var no = Number(g.no);
+  if (!no) return { ok: false, error: 'Kayıt numarası yok.' };
+  var sebep = String(g.sebep || '').trim().slice(0, 200) || 'Koordinatör kitabı görmek istiyor';
+
+  var kilit = LockService.getScriptLock();
+  kilit.waitLock(20000);
+  try {
+    var bulunan = satirBul_(no);
+    if (!bulunan) return { ok: false, error: 'Kayıt bulunamadı.' };
+    if (bulunan.silindi) return { ok: false, error: 'Bu kayıt silinmiş.' };
+    sayfaAl_('Envanter').getRange(bulunan.satir, S.istenen).setValue(
+      sebep + ' · ' + String(g.isteyen || '').trim() + ' · ' +
+      Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'd.MM.yyyy HH:mm'));
+    return { ok: true, no: no };
+  } finally {
+    kilit.releaseLock();
   }
-  ScriptApp.newTrigger('ocrKuyruguIsle').timeBased().everyMinutes(5).create();
-  Logger.log('OCR zamanlayıcısı kuruldu (5 dakikada bir).');
+}
+
+/** Rafta çalışanların göreceği "getirilecek kitaplar" listesi. */
+function istenenler_() {
+  var sayfa = sayfaAl_('Envanter');
+  var son = sayfa.getLastRow();
+  if (son < 2) return { ok: true, kayitlar: [] };
+  var satirlar = sayfa.getRange(2, 1, son - 1, SUTUNLAR.length).getValues();
+  var liste = satirlar.filter(function (s) {
+    return s[S.no - 1] && !silinmis_(s) && s[S.istenen - 1] && !s[S.onay - 1];
+  }).slice(0, 40).map(function (s) {
+    return { no: s[S.no - 1], yer: s[S.yer - 1],
+             baslik: s[S.baslik - 1], yazar: s[S.yazar - 1],
+             sebep: s[S.istenen - 1] };
+  });
+  return { ok: true, kayitlar: liste };
+}
+
+/** Zamanlayıcıları kurar: OCR (5 dakikada bir) + günlük yedek (gece 22:00).
+    Kurulumda bir kez çalışır; ikinci çalıştırmada kopya tetikleyici üretmez. */
+function zamanlayiciKur() {
+  var kurulu = {};
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    kurulu[t.getHandlerFunction()] = true;
+  });
+
+  if (!kurulu['ocrKuyruguIsle']) {
+    ScriptApp.newTrigger('ocrKuyruguIsle').timeBased().everyMinutes(5).create();
+    Logger.log('OCR zamanlayıcısı kuruldu (5 dakikada bir).');
+  }
+  if (!kurulu['gunlukYedek']) {
+    ScriptApp.newTrigger('gunlukYedek').timeBased().atHour(22).everyDays(1).create();
+    Logger.log('Günlük yedek zamanlayıcısı kuruldu (22:00).');
+  }
+}
+
+/* ═══════════════ YEDEK ═══════════════ */
+
+/* Tablo tek nokta; bozulursa ay boyunca girilen her şey gider. Bu yüzden her
+   gece tablonun tam bir kopyası Drive'da ayrı bir klasöre alınır. Kimseye iş
+   çıkmaz, kimsenin hatırlaması gerekmez. Eski kopyalar kendiliğinden silinir. */
+function gunlukYedek() {
+  var klasor = yedekKlasoru_();
+  var bugun = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  var ad = 'Envanter yedek ' + bugun;
+
+  if (!klasor.getFilesByName(ad).hasNext()) {
+    DriveApp.getFileById(SpreadsheetApp.getActive().getId()).makeCopy(ad, klasor);
+  }
+  PropertiesService.getScriptProperties().setProperty('sonYedek', new Date().toISOString());
+
+  // Eskileri temizle — Drive dolmasın
+  var sinir = new Date().getTime() - Math.max(2, Number(AYAR.YEDEK_GUN || 14)) * 86400000;
+  var dosyalar = klasor.getFiles();
+  while (dosyalar.hasNext()) {
+    var f = dosyalar.next();
+    if (f.getDateCreated().getTime() < sinir) f.setTrashed(true);
+  }
+}
+
+function yedekKlasoru_() {
+  var ad = 'Envanter Yedekleri';
+  var bulunan = DriveApp.getFoldersByName(ad);
+  return bulunan.hasNext() ? bulunan.next() : DriveApp.createFolder(ad);
+}
+
+/** Son yedeğin üzerinden kaç saat geçti? Yedek hiç alınmadıysa null. */
+function sonYedekSaat_() {
+  var ham = PropertiesService.getScriptProperties().getProperty('sonYedek');
+  if (!ham) return null;
+  var t = new Date(ham).getTime();
+  if (!t) return null;
+  return (new Date().getTime() - t) / 3600000;
 }
 
 /* ═══════════════ ÖZET ═══════════════ */

@@ -158,15 +158,37 @@ DEMO_JS = r"""
         bitiren: bit ? bit.bitiren : '', bitisTarihi: bit ? bit.tarih : '',
         raftaki: bit ? bit.raftaki : '',
         sonCalisan: sonK ? sonK.kaydeden : '',
-        sonTarih: sonK ? String(sonK.tarih || '').slice(0, 10) : '' };
+        sonTarih: sonK ? String(sonK.tarih || '').slice(0, 10) : '',
+        devir: devirBilgisi(ayni) };
     }
+    /* Devir teslim: yarım kalan sırayı devralana "nereden devam edeceğim" cevabı. */
+    function devirBilgisi(ayni) {
+      if (!ayni.length) return null;
+      var son = ayni.reduce(function (e, k) {
+        return (Number(k.siraNo) || 0) >= (Number(e.siraNo) || 0) ? k : e; });
+      var baslik = String(son.baslik || '').trim();
+      if (!baslik || /künye fotoğraftan/i.test(baslik)) baslik = String(son.oneriBaslik || '').trim();
+      return { yer: son.yer || '', baslik: baslik,
+        yazar: String(son.yazar || '').trim(),
+        kapak: son.kapak || son.foto || '',
+        kaydeden: son.kaydeden || '',
+        tarih: String(son.tarih || '').slice(0, 16).replace('T', ' '),
+        raftakiSira: ciltSay(ayni) - cikarilanSay(ayni) };
+    }
+    function ciltSay(liste) {
+      return liste.reduce(function (t, k) { return t + Math.max(1, Number(k.nusha) || 1); }, 0);
+    }
+    function cikarilanSay(liste) {
+      return liste.filter(function (k) { return k.durum === 'Küflü/böcekli' || k.istenen; }).length;
+    }
+
     if (g.action === 'siraOner') {
       var baslanan = {};
       v.kayitlar.forEach(function (k) { baslanan[k.anahtar] = true; });
       var bitmis = v.siralar || {};
       var bos = [], yarim = [];
       MEKANLAR.forEach(function (m) {
-        RAF_HARFLERI.split('').forEach(function (h) {
+        RAF_HARFLERI.forEach(function (h) {
           for (var i = 1; i <= SIRA_SAYISI; i++) {
             var key = anahtar(m.kod, h, i);
             if (bitmis[key]) continue;
@@ -185,12 +207,16 @@ DEMO_JS = r"""
       if (!ab) return { ok:false, error:'Sıra belirsiz.' };
       var raftaki = parseInt(g.raftaki, 10);
       if (isNaN(raftaki) || raftaki < 0) return { ok:false, error:'Raftaki kitap sayısını yazın.' };
-      var kayitli = v.kayitlar.filter(function (k) { return k.anahtar === ab; }).length;
+      var ayniB = v.kayitlar.filter(function (k) { return k.anahtar === ab; });
+      // Rafta duran cilt sayısı: 3 nüsha tek kayıttır ama rafta üç cilttir.
+      // Sayım bununla karşılaştırılır, kayıt sayısıyla değil.
+      var cilt = ciltSay(ayniB) - cikarilanSay(ayniB);
       v.siralar = v.siralar || {};
-      v.siralar[ab] = { raftaki:raftaki, kayitli:kayitli, bitiren:(g.kaydeden || ''),
+      v.siralar[ab] = { raftaki:raftaki, kayitli:cilt, bitiren:(g.kaydeden || ''),
         tarih: new Date().toISOString().slice(0, 10) };
       yaz(v);
-      return { ok:true, anahtar:ab, kayitli:kayitli, raftaki:raftaki, fark:raftaki - kayitli };
+      return { ok:true, anahtar:ab, kayitli:cilt, kayitSayisi:ayniB.length,
+        raftaki:raftaki, fark:raftaki - cilt };
     }
     if (g.action === 'ekle' || g.action === 'guncelle') {
       var k = g.kayit || {};

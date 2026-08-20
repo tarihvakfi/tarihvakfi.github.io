@@ -137,13 +137,32 @@ Form adresini gönüllülere WhatsApp'tan yollayın. Telefon sayfayı ilk açtı
 **Paylaş → Ana Ekrana Ekle**. Kurulunca adres çubuğu olmadan, uygulama gibi açılır ve
 çevrimdışıyken de açılır (sayfa telefonda saklanır).
 
+## 3b. Yeni bina kapasitesi (isteğe bağlı, sonra da yapılabilir)
+
+`AYAR.HEDEF_KITAP` **sıfır kalabilir** — sistem bunu sorun etmez, uyarı üretmez,
+kapasite kartı gizli kalır. Yeni bina henüz netleşmediyse boş bırakın.
+
+Yeni bina belli olduğunda, oradaki **boş raf metresini** ölçün, **30** ile çarpın:
+
+```js
+HEDEF_KITAP: 3300,   // 110 metre × 30 kitap
+```
+
+O andan itibaren pano "gidecek yığın sığacak mı" sorusunu takip eder ve kapasite
+aşılırsa **"Bugün dikkat"** kartında kırmızı uyarı verir.
+
+---
+
 ## 4. Fotoğraf ve OCR (bir kez)
 
 1. Apps Script'te sol menüden **Hizmetler → +** → **Drive API** → **Ekle**
    (fotoğraftan yazı çıkarma bunu ister; ücretsizdir)
 2. Fonksiyon listesinden **`zamanlayiciKur`** → **Çalıştır**
-   (5 dakikada bir yeni fotoğrafları okur)
-3. Drive'da **Kitap Künye Fotoğrafları** adlı klasör kendiliğinden oluşur. Başka bir
+   Bu iki zamanlayıcıyı birden kurar: OCR (5 dakikada bir) ve **günlük yedek**
+   (her gece 22:00). İkinci kez çalıştırırsanız kopya tetikleyici oluşmaz.
+3. Aynı listeden **`gunlukYedek`** → **Çalıştır** — ilk yedeği hemen alın,
+   gece beklemeyin. Drive'da *Envanter Yedekleri* klasörü oluşur.
+4. Drive'da **Kitap Künye Fotoğrafları** adlı klasör kendiliğinden oluşur. Başka bir
    klasör kullanacaksanız kimliğini `AYAR.FOTO_KLASOR_ID` alanına yazın.
 
 > **İlk gün mutlaka kontrol edin:** bir kitabın fotoğrafını çekip 10 dakika sonra tabloda
@@ -512,3 +531,96 @@ sonra olduğu için sabah aynı anda giriş yapan herkes aynı sırayı alıyord
 - Sütunlar: rafta kaç kitap sayıldı · sistemde kaç cilt (kaç kayıt) · fark · kim
 
 Hiç başlanmamış sıralar tabloya alınmaz (yüzlerce satır olurdu); sayıları altta yazar.
+
+---
+
+## Ek: 20 Ağustos 2026 (4) — fiziksel akış
+
+`kurulum` yine şart: Envanter sayfasına **İstenen** sütunu ekleniyor.
+
+### İki çalışma yöntemi
+
+Künyeyi okumak için kitabı raftan çıkarmak gerekiyor; sıkı bir raftan çekilen kitabı
+tam yerine geri koymak pratik değil. Sistem artık iki yöntemi de destekliyor:
+
+- **A — Blok usulü:** 10–15 kitaplık blok masaya alınır, işlenir, aynı sırayla rafa
+  döner. Raf dolu kalır. Sıra ekranındaki **Kutu numarası** alanı boş bırakılır.
+- **B — Kutuya doğrudan:** kitap rafa dönmez, kutuya girer. Sıra ekranına **kutu
+  numarası** yazılır; her kayda işlenir. `Kutu no` sütunu nihayet dolar.
+
+### Sayım artık raftan alınanları biliyor
+
+Küflü/böcekli işaretlenen ve koordinatörün istediği kitaplar raftan alınmış sayılır
+ve karşılaştırmadan düşülür. Eskiden bunlar "sistemde fazla kayıt var, mükerrer
+olabilir" diye yanlış alarm veriyordu. Ekranda artık
+*"saydığınız 38 + raftan alınan 2 · sistemde 40 — tutuyor"* yazıyor.
+
+### Çekme listesi
+
+`envanter-katalog.html`'e **Sıra** ve **Kutu** süzgeçleri eklendi. Biri seçilince
+**"Çekme listesini yazdır"** şeridi çıkıyor; yazdırılabilir A4 liste üretiyor:
+ÇIKACAK / KALACAK, yer kodu + kural kodu + işaret kutucuğu.
+
+### "Kitabı getirt"
+
+Onay ekranında yeni düğme. Fotoğrafı okunmayan ya da karar verilemeyen kayıt için
+koordinatör sebep yazarak isteyebiliyor; kayıt gönüllü ekranında mavi kutuda yer
+koduyla görünüyor. Kayıt onaylanınca istek kendiliğinden kapanıyor.
+
+---
+
+## Ek: 20 Ağustos 2026 (5) — sadeleştirme
+
+Ekranlar birikmişti. Bu güncelleme **hiçbir yetenek eklemiyor, sadece çıkarıyor.**
+
+### Gönüllü ekranı
+
+| | Önce | Sonra |
+|---|---|---|
+| Kayıt ekranı yüksekliği | 1132 piksel | **518 piksel** |
+| Sıra ekranında ilk görülen | 3 açılır liste + 1 zayıf düğme | **tek büyük düğme: "Bana sıra ver"** |
+| Kayıt ekranındaki açıklama metni | 3 paragraf | yok |
+| Ekrandaki uyarı şeridi | 5 | 3 |
+
+Neler değişti:
+
+- **Sıra seçicileri katlandı.** Asıl yol "Bana sıra ver"; elle seçim "Kendim seçeceğim"
+  bağlantısının altında. Üç açılır liste görmek gönüllüyü seçim yapması gerektiğine
+  inandırıyordu.
+- **"Bu sırayı bitirdim" kartı sıra ekranına taşındı.** Kitap başına 400 kez görülen
+  ekranda, sıra başına 1 kez kullanılan bir kart duruyordu. Üstteki düğme artık
+  **"Sırayı bitir / değiştir"**.
+- **Açıklama metinleri kaldırıldı.** Hepsi gönüllü kartında yazıyor; ekranda tekrarı
+  üçüncü kitaptan sonra kimse okumuyor.
+- **"Onay masası geride kaldı" uyarısı kaldırıldı.** Bu koordinatörün metriği;
+  durum panosunda zaten var, rafta çalışanı ilgilendirmiyor.
+- **Sıra notu alanı kaldırıldı.** Kayıt notu zaten var.
+
+### Kutu numarası artık ayara bağlı
+
+`AYAR.KUTU_KULLAN` (varsayılan `false`). Blok usulüyle çalışıyorsanız kutu alanı
+telefonda **hiç görünmez**. Kutuya doğrudan çalışacaksanız `true` yapın.
+
+### Gönüllü kartı
+
+Sekiz adım → **beş adım**, on satırlık sorun tablosu → yedi satır. Tek sayfa,
+daha büyük punto.
+
+
+---
+
+## Süreç haritası
+
+Kurulum bittikten sonra okunacak ilk belge **`SUREC.md`** — envanterden yerleştirmeye
+kadar bütün zincir orada. `surec-afisi.pdf`'i yazdırıp duvara asın; herkes tek
+sayfada bütün süreci görsün.
+
+Yeni basılacaklar:
+
+| Dosya | Ne için | Kaç tane |
+|---|---|---|
+| `surec-afisi.pdf` | Duvara — sürecin tamamı tek sayfada | 2–3 |
+| `gonullu-karti.pdf` | Gönüllü masalarına | her masaya 1 |
+| `kural-karti.pdf` | Yalnızca onay masasına | 1 |
+| `raf-etiketleri.pdf` | Raflara yapıştırılır | raf sayısı kadar |
+| `kutu-etiketi.pdf` | Kutulara — `python3 kutu-etiketi.py 1 200` ile aralık verin | kutu sayısı kadar |

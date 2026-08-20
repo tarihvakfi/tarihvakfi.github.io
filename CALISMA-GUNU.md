@@ -1,4 +1,8 @@
 # Çalışma Günü Kılavuzu
+
+> **Bütün sürecin haritası için `SUREC.md`'ye bakın.** Bu belge yalnızca *bir çalışma
+> gününü* anlatıyor: envanter ve karar fazları. Çekme, paketleme, taşıma ve
+> yerleştirme orada.
 ### Tarih Vakfı Kütüphanesi — taşınma ve envanter çalışması
 
 Bu belge iki şeyi anlatır: **çalışma başlamadan önce bir kez yapılacak kurulum** ve
@@ -130,6 +134,47 @@ onayla bir kişi saatte binlerce kayıt geçebilir, ama sıfır kişi sıfır ge
 
 ---
 
+## 1a. Kitap fiziksel olarak ne yapacak?
+
+Künyeyi okumak için kitabı raftan çıkarmak zorundasınız. Sıkı dizilmiş bir raftan
+22. kitabı çekip **tam yerine** geri koymak pratik değil — yavaştır ve sıra
+kaçınılmaz olarak bozulur. Bu yüzden iki yöntemden **birini seçin ve gün boyu ona
+sadık kalın.**
+
+### A — Blok usulü (raf dolu kalır)
+
+Gönüllü **10–15 kitaplık bir bloğu** birlikte çeker, sırasını bozmadan yanındaki
+masaya/arabaya dizer, tek tek fotoğraflar, sonra bloğu olduğu gibi rafa geri koyar.
+
+- Rafta hiç delik açılmaz; "22 neredeydi" sorusu doğmaz
+- Sıra sonunda **raftaki kitapları** sayarsınız
+- Gerekli: her ekibe bir masa ya da kitap arabası
+- Kutulama taşınma haftasına kalır
+
+### B — Kutuya doğrudan (raf boşalır)
+
+Kitap raftan çıkar, fotoğraflanır ve **rafa dönmez** — sırasıyla kutuya girer.
+Sıra ekranında **kutu numarasını** yazarsınız; her kayda o numara işlenir.
+
+- Geri koyma adımı tamamen kalkar
+- **İlerleme gözle görünür:** boş raf = bitmiş sıra. Yarım kalan sıra kendini belli eder
+- Sıra sonunda **kutuya koyduklarınızı** sayarsınız
+- Gerekli: envanter boyunca koleksiyonu tutacak kutu ve alan
+- Gitmeyecek kitaplar da kutuya girer — yani "yerinde kalan = depo" düzeni
+  bozulur; ayıklama sonra **kutu başında** yapılmak zorunda kalır
+
+> Sistem ikisini de destekliyor. Fark tek yerde: sıra ekranındaki **Kutu numarası**
+> alanını B'de doldurursunuz, A'da boş bırakırsınız.
+
+### İkisinde de aynı olan
+
+**Karar verilmiş kitap yerinden alınmaz.** Koordinatör "gitmeyecek" dediğinde
+kimse o rafın önünde değildir; çekme sonradan, elde basılı listeyle yapılır
+(bkz. §5b). Tek istisna **küflü/böcekli kitap** — o bulaşıcı olduğu için hemen
+poşetlenip ayrılır, ve sistem bunu sayımda hesaba katar.
+
+---
+
 ## 1b. Rastgele gelen gönüllü — sıra dağıtımı kuralları
 
 Gönüllüler her gün aynı kişiler değil. Biri salı gelir, biri perşembe; kimi iki saat
@@ -166,8 +211,10 @@ sorusu çıkar. Yine de devralabilirsiniz (biri erken gitmişse gerekir), ama bi
 yapmış olursunuz.
 
 **Kural 4 — Sıra bitirilmeden bırakılmaz.**
-Gönüllü sırayı bitirince **rafta kaç kitap olduğunu fiziksel olarak sayar** ve
-"Bu sırayı bitirdim" ekranına yazar. Sistem kendi sayısıyla karşılaştırır:
+Gönüllü sırayı bitirince sayar — **A yönteminde raftaki kitapları, B yönteminde
+kutuya koyduklarını** — ve "Bu sırayı bitirdim" ekranına yazar. Poşetlenen küflü
+kitapları ve masaya götürülen istenen kitapları **saymaz**; sistem onları biliyor
+ve hesaba katıyor. Sistem kendi sayısıyla karşılaştırır:
 
 - **tutuyorsa** sıra kapanır, yeni sıra alınır
 - **eksikse** ("rafta 42, sistemde 39") gönüllü rafı bir daha gözden geçirir
@@ -208,6 +255,12 @@ Bu akışta gönüllünün karar vermesi gereken tek şey yok — bu kasıtlı.
 
 ## 2. Gün başı — ilk 20 dakika
 
+> **Önce panoya bakın.** `envanter-durum.html` → en üstteki **"Bugün dikkat"**
+> kartı. Yeşil ve *"Her şey yolunda"* diyorsa güne başlayın, başka bir kontrol
+> gerekmez. Sarı ya da kırmızıysa listelediği maddeleri halledin — her satır ne
+> yapılacağını da yazar. **Bu kart, eskiden akılda tutulması gereken on ayrı
+> kontrolün yerine geçiyor.**
+
 1. **Gönüllü kartlarını masalara koyun** (`gonullu-karti.pdf`, tek sayfa). Yeni
    gelene tek cümle yeter: *"Çek, çek, kaydet — kararı biz veriyoruz."*
    Kural kartı (`kural-karti.pdf`) yalnızca **onay masasında** durur.
@@ -242,7 +295,7 @@ Her mola arasında koordinatör üç şeye bakar:
 **Küflü/böcekli kitap çıkarsa** iş durur: kitap poşetlenir, ayrı alana konur,
 koordinatöre haber verilir. Bu bir ayıklama kararı değil, koruma tedbiridir.
 
-**Paketleme onaydan sonra gelir.** Bir sıra ayıklandıktan sonra masa o sıranın
+**Paketleme onaydan sonra gelir.** Bir sıranın kararları bittikten sonra masa o sıranın
 kayıtlarını onaylar; paketleme ekibi katalogdan (`envanter-katalog.html`) o sıranın
 yeşil ve sarılarını görüp kutular. Kutu numarası kutunun üstüne kalın kalemle yazılır
 ve **Kutular** sayfasına işlenir: kutu no, kaynak sıra, yer kodu aralığı
@@ -268,14 +321,24 @@ Bu yarım saat pazarlığa açık değil. Erken bırakılan gün, ertesi gün ik
 5. **Durum panosunu** açın (`envanter-durum.html`) — günün resmi orada. Sonra tabloda
    **Kitap Envanteri → Özeti yenile** deyin ve dört sayıyı deftere yazın:
    *kaç kitap kaydedildi · kaç metre raf bitti · belirsiz oranı · onay bekleyen künye*.
-6. **Yarım kalan sıraları yazın.** "G-A03 yarım kaldı, 42'de bırakıldı; G-B01 bitti."
-   Ertesi günün ilk beş dakikası bu nottan doğar.
+6. **Yarım kalan sıralar için bir şey yapmanıza gerek yok.** Sistem hangi sıranın
+   yarım kaldığını, kaç kitap kaydedildiğini ve en son hangi kitapta kalındığını
+   kendisi tutuyor. Ertesi gün o sırayı seçen kişi bunu ekranda görecek.
 7. Masa ekibi mümkünse **onay kuyruğunu sıfırlasın**; olmuyorsa kaç kaldığını not edin.
+8. **Panoya son bir kez bakın.** Kart yeşilse gün kapanmıştır.
+
+> **Yedek almanıza gerek yok.** Sistem her gece 22:00'de tablonun tam bir kopyasını
+> Drive'daki *Envanter Yedekleri* klasörüne alıyor, 14 gün saklıyor. Çalışmadığı gün
+> pano kırmızı uyarı verir.
 
 ---
 
 ## 5. Ertesi gün
 
+- **Yarım kalan sırayı sistem devrediyor.** O sırayı seçen kişi ekranda "rafta kaç
+  kitaba kadar sayacağını" ve "son kaydedilen kitabın adını + kapağını" görür.
+  Rafta ayraç aramaya, deftere bakmaya gerek yok. Bağlantı yoksa telefon son
+  bilinen hâli gösterir ve bunun eski olabileceğini söyler.
 - **Yarım kalan sıradan devam edilir.** Ekip aynı sırayı seçer; sistem numarayı kaldığı
   yerden sürdürür (43'ten). Kimse "kaçıncıydık" diye saymaz.
 - **Dünün belirsizleri** gün başında karara bağlanır. Uzman gelmediyse mavi yığını
@@ -285,6 +348,56 @@ Bu yarım saat pazarlığa açık değil. Erken bırakılan gün, ertesi gün ik
 - Koordinatör dünkü dört sayıyı bugünkülerle karşılaştırır. **Metre ilerlemesi**
   gönüllülere duyurulacak sayıdır: "dün 18 metre bitirdik, toplam 96 metre" —
   kitap sayısından çok daha motive edicidir.
+
+---
+
+## 5b. Çekme ve kutulama — tek geçiş
+
+Karar masada verildi. Şimdi sıraya gidilir ve **yalnızca taşınacak kitaplar**
+raftan alınıp kutuya konur. Kalanlara dokunulmaz.
+
+**Depo diye ayrı bir iş yok.** Eski raflar deponun kendisi; yerinde kalan kitabın
+adresi zaten yer kodu (`G-A03-007`). Katalogda **DEPODA — yerinde · G-A03-007**
+diye görünürler.
+
+| Karar | Ne yapılır | Katalogda |
+|---|---|---|
+| Gidecek | Raftan al → `Y-` kutusuna → ekrandan kutula | 🟢 YENİ BİNADA · Y-017 |
+| Gitmeyecek | **Hiçbir şey** | 🟣 DEPODA — yerinde · G-A03-007 |
+
+**Listeyi basmak:** `envanter-katalog.html` → üstteki **Sıra** süzgecinden sırayı
+seçin → çıkan şeritteki **"Çekme listesini yazdır"**.
+
+Liste iki bölümden oluşur:
+
+- **ÇIKACAK** (yeşil) — yeni binaya gidecekler; yer kodu, kural kodu, tik kutusu.
+  **İş listesi budur.**
+- **YERİNDE KALACAK** (mor) — dokunulmayacaklar. Bu bir iş listesi değil,
+  **sağlama listesi**: sonunda rafta kalanların sayısı buna uymalı.
+
+Üstte iki uyarı da var: *listede olmayan kitabı raftan almayın* (henüz
+onaylanmamıştır) ve *belirsiz işaretlenenlere dokunmayın* (uzman masası bakacak).
+
+**Kutuyu ekranda kapatmak — atlanmaması gereken adım.** Kitapları kutuya koymak
+yetmez; kutu numarasının kitapların kaydına yazılması gerekir:
+
+1. Katalog → **Sıra** süzgecinden sırayı seçin
+2. **Karar** süzgecini `Gidecek` yapın
+3. Kutu numarasını yazın → **Kutuyu kapat**
+4. Ekran *"Y-017 (YENİ BİNA) kapatıldı — 24 kayıt, 27 cilt. Yer kodu aralığı: …"*
+   der. Bu bilgiyi kutu etiketine de yazın.
+
+> **Kutulanmamış kitap raftan inmez.** Numarası kayda yazılmazsa katalog o kitabı
+> hâlâ rafında sanar — ama rafta değildir. Bu, taşınan kitabı kaybetmenin tek yolu.
+
+**Ne zaman yapılır?** O sıranın bütün kayıtları onaylandıktan sonra. Onay durumunu
+panodan görürsünüz. Çekme ile kutulamayı **aynı anda** yapın; kutu sıranın yanında
+dursun, kitap raftan çıkıp doğrudan kutuya girsin.
+
+> Çekme yapan kişi **karar vermez**, yalnızca listedekini uygular. Listede
+> olmayan bir kitap çıkarsa koordinatöre söyler.
+
+> **Rafta boşluk kalacak, sorun değil.** Kalanları sıkıştırıp öne çekmeyin.
 
 ---
 
@@ -309,6 +422,9 @@ Bu yarım saat pazarlığa açık değil. Erken bırakılan gün, ertesi gün ik
 | Telefonda **"çevrimdışı"** rozeti | Normal. Çalışmaya devam; kayıtlar telefonda birikiyor. Gün sonunda kuyruğun boşaldığından emin olun. |
 | Kuyruk bir türlü boşalmıyor | Wifi'yi tamamen kapatıp mobil veriyle deneyin. Yarım çalışan wifi, hiç bağlantı olmamasından kötüdür. |
 | **Yanlış sıra** seçilmiş, on kitap oraya girmiş | Kayıtları formdaki **Sil** ile silip doğru sırada yeniden girmek en temizi. Az sayıda kayıt için tabloda Mekân/Raf/Sıra hücrelerini elle düzeltebilirsiniz — ama Yer kodu sütununu da elle düzeltin. |
+| Koordinatör "kitabı getirt" dedi | Gönüllü ekranında mavi kutuda yer koduyla çıkar. Kitabı bulup masaya götürün; koordinatör elde tutarak karar verecek. Sayımda o kitabı saymayın. |
+| Rafa geri koyarken sıra bozuldu | Sorun değil — yer kodu "rafta soldan kaçıncı" demek değil, "bu sırada kaçıncı kaydedildi" demek. Yeter ki kitap **aynı gözde** kalsın. |
+| Kutuya koyuyoruz ama kutu doldu | Yeni kutu numarası yazın (sıra ekranında **Sıra değiştir** → kutu alanını güncelleyin). Aynı sırada iki kutu olabilir. |
 | Gönüllü "gidecek mi" diye soruyor | Sizin işiniz değil, deyin. Kaydedip geçsin; şüphesi varsa **Not** alanına yazsın. |
 | Onay kuyruğu şişti | Masaya ikinci kişi koyun. Bir raf ekibini masaya alın — kayıt bir gün bekleyebilir, karar bekleyemez. |
 | Sıra sayımı tutmuyor (eksik) | Gönüllü rafı bir daha geçsin. Yine tutmuyorsa **Sıralar** sayfasındaki Not alanına sebebini yazın; taşınmadan önce o sıra tekrar bakılacaklar listesine girer. |
