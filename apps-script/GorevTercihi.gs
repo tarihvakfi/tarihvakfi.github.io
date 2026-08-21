@@ -214,23 +214,44 @@ function ayarlar_() {
   };
 }
 
+/* Giriş kodları da oturumlar gibi PropertiesService'te tutulur.
+   (Eskiden CacheService'teydi; önbellek yer sıkışınca kaydı süresinden çok
+   önce silebiliyor — kod e-postası gelir gelmez "süresi dolmuş" hatası tam
+   bu yüzden görülüyordu. Oturumlar aynı sebeple zaten taşınmıştı.) */
+function kodKaydiOku_(anahtar) {
+  var ozellikler = PropertiesService.getScriptProperties();
+  var ham = ozellikler.getProperty(anahtar);
+  if (!ham) return null;
+  var kayit;
+  try { kayit = JSON.parse(ham); } catch (h) { return null; }
+  if (!kayit || !kayit.bitis || kayit.bitis < Date.now()) {
+    ozellikler.deleteProperty(anahtar);
+    return null;
+  }
+  return kayit;
+}
+
 function kodGonder_(eposta) {
   eposta = String(eposta || '').trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(eposta)) return { ok: false, error: 'Geçerli bir e-posta adresi girin.' };
 
-  var onbellek = CacheService.getScriptCache();
+  var ozellikler = PropertiesService.getScriptProperties();
   var anahtar = 'kod_' + ozet_(eposta);
-  var onceki = onbellek.get(anahtar);
+  var onceki = kodKaydiOku_(anahtar);
   if (onceki) {
-    var eski = JSON.parse(onceki);
-    var gecen = (Date.now() - eski.gonderim) / 1000;
+    var gecen = (Date.now() - onceki.gonderim) / 1000;
     if (gecen < AYAR.KOD_BEKLEME_SN) {
       return { ok: false, error: 'Yeni kod istemek için ' + Math.ceil(AYAR.KOD_BEKLEME_SN - gecen) + ' saniye bekleyin.' };
     }
   }
 
   var kod = String(Math.floor(Math.random() * 900000) + 100000);
-  onbellek.put(anahtar, JSON.stringify({ ozet: ozet_(kod), deneme: 0, gonderim: Date.now() }), AYAR.KOD_DAKIKA * 60);
+  ozellikler.setProperty(anahtar, JSON.stringify({
+    ozet: ozet_(kod),
+    deneme: 0,
+    gonderim: Date.now(),
+    bitis: Date.now() + AYAR.KOD_DAKIKA * 60000
+  }));
 
   MailApp.sendEmail({
     to: eposta,
@@ -248,23 +269,22 @@ function kodGonder_(eposta) {
 
 function kodDogrula_(eposta, kod) {
   eposta = String(eposta || '').trim().toLowerCase();
-  kod = String(kod || '').trim();
+  kod = String(kod || '').replace(/\D/g, '');
 
-  var onbellek = CacheService.getScriptCache();
+  var ozellikler = PropertiesService.getScriptProperties();
   var anahtar = 'kod_' + ozet_(eposta);
-  var ham = onbellek.get(anahtar);
-  if (!ham) return { ok: false, error: 'Kodun süresi dolmuş. Yeni kod isteyin.' };
+  var kayit = kodKaydiOku_(anahtar);
+  if (!kayit) return { ok: false, error: 'Kodun süresi dolmuş. Yeni kod isteyin.' };
 
-  var kayit = JSON.parse(ham);
   if (kayit.deneme >= AYAR.MAX_DENEME) return { ok: false, error: 'Çok fazla hatalı deneme. Yeni kod isteyin.' };
 
   if (ozet_(kod) !== kayit.ozet) {
     kayit.deneme++;
-    onbellek.put(anahtar, JSON.stringify(kayit), AYAR.KOD_DAKIKA * 60);
+    ozellikler.setProperty(anahtar, JSON.stringify(kayit));
     return { ok: false, error: 'Kod hatalı.' };
   }
 
-  onbellek.remove(anahtar);
+  ozellikler.deleteProperty(anahtar);
   var token = oturumAc_(eposta);
   return { ok: true, token: token, email: eposta, volunteer: satirBul_(eposta).kayit };
 }
@@ -305,17 +325,19 @@ function oturumKapat_(token) {
   return { ok: true };
 }
 
-/** Süresi dolmuş oturumları temizler; her girişte bir kez çalışır. */
+/** Süresi dolmuş oturumları ve giriş kodlarını temizler; her girişte bir kez çalışır. */
 function eskiOturumlariSil_() {
   var ozellikler = PropertiesService.getScriptProperties();
   var hepsi = ozellikler.getProperties();
   var simdi = Date.now();
   for (var anahtar in hepsi) {
-    if (anahtar.indexOf('otr_') !== 0) continue;
+    var oturum = anahtar.indexOf('otr_') === 0;
+    var kod = anahtar.indexOf('kod_') === 0;
+    if (!oturum && !kod) continue;
     var gecerli = false;
     try {
       var k = JSON.parse(hepsi[anahtar]);
-      gecerli = k && k.b && k.b >= simdi;
+      gecerli = oturum ? (k && k.b && k.b >= simdi) : (k && k.bitis && k.bitis >= simdi);
     } catch (h) { gecerli = false; }
     if (!gecerli) ozellikler.deleteProperty(anahtar);
   }
