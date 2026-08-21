@@ -235,23 +235,40 @@ function kodGonder_(eposta) {
   eposta = String(eposta || '').trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(eposta)) return { ok: false, error: 'Geçerli bir e-posta adresi girin.' };
 
-  var ozellikler = PropertiesService.getScriptProperties();
-  var anahtar = 'kod_' + ozet_(eposta);
-  var onceki = kodKaydiOku_(anahtar);
-  if (onceki) {
-    var gecen = (Date.now() - onceki.gonderim) / 1000;
-    if (gecen < AYAR.KOD_BEKLEME_SN) {
-      return { ok: false, error: 'Yeni kod istemek için ' + Math.ceil(AYAR.KOD_BEKLEME_SN - gecen) + ' saniye bekleyin.' };
-    }
+  // Kilit: çift dokunuş / sabırsız tekrar tıklama aynı anda iki istek
+  // doğurabiliyor; ikisi de bekleme kontrolünden geçip iki ayrı kod
+  // e-postası gönderiyordu ve depoda yalnız sonuncusu kalıyordu.
+  var kilit = LockService.getScriptLock();
+  try { kilit.waitLock(10000); } catch (h) {
+    return { ok: false, error: 'Sistem meşgul, birkaç saniye sonra tekrar deneyin.' };
   }
+  try {
+    var ozellikler = PropertiesService.getScriptProperties();
+    var anahtar = 'kod_' + ozet_(eposta);
+    var onceki = kodKaydiOku_(anahtar);
+    if (onceki) {
+      var gecen = (Date.now() - onceki.gonderim) / 1000;
+      if (gecen < AYAR.KOD_BEKLEME_SN) {
+        return { ok: false, error: 'Yeni kod istemek için ' + Math.ceil(AYAR.KOD_BEKLEME_SN - gecen) + ' saniye bekleyin.' };
+      }
+    }
 
-  var kod = String(Math.floor(Math.random() * 900000) + 100000);
-  ozellikler.setProperty(anahtar, JSON.stringify({
-    ozet: ozet_(kod),
-    deneme: 0,
-    gonderim: Date.now(),
-    bitis: Date.now() + AYAR.KOD_DAKIKA * 60000
-  }));
+    var kod = String(Math.floor(Math.random() * 900000) + 100000);
+    ozellikler.setProperty(anahtar, JSON.stringify({
+      ozet: ozet_(kod),
+      // Süresi geçmemiş bir önceki kod varsa o da geçerli kalsın: gönüllü
+      // "mail gelmedi" deyip yeniden kod istediğinde e-postalar sırayla ya
+      // da gecikmeli gelebiliyor; elindeki eski kodu giren gönüllü "Kod
+      // hatalı" duvarına çarpıyordu. 6 haneli kod + 5 deneme sınırı içinde
+      // iki kodun birden geçerli olması güvenlik açısından önemsizdir.
+      eskiOzet: onceki ? onceki.ozet : '',
+      deneme: 0,
+      gonderim: Date.now(),
+      bitis: Date.now() + AYAR.KOD_DAKIKA * 60000
+    }));
+  } finally {
+    kilit.releaseLock();
+  }
 
   MailApp.sendEmail({
     to: eposta,
@@ -261,6 +278,7 @@ function kodGonder_(eposta) {
       '<p style="font-size:32px;letter-spacing:8px;font-weight:700;background:#fafaf9;border:1px solid #e7e5e4;' +
       'border-radius:10px;padding:16px;text-align:center">' + kod + '</p>' +
       '<p style="color:#78716c;font-size:13px">Kod ' + AYAR.KOD_DAKIKA + ' dakika geçerlidir. ' +
+      'Birden fazla kod e-postası aldıysanız en son gelendeki kodu girin. ' +
       'Bu isteği siz yapmadıysanız bu e-postayı yok sayabilirsiniz.</p>')
   });
 
@@ -271,20 +289,30 @@ function kodDogrula_(eposta, kod) {
   eposta = String(eposta || '').trim().toLowerCase();
   kod = String(kod || '').replace(/\D/g, '');
 
-  var ozellikler = PropertiesService.getScriptProperties();
-  var anahtar = 'kod_' + ozet_(eposta);
-  var kayit = kodKaydiOku_(anahtar);
-  if (!kayit) return { ok: false, error: 'Kodun süresi dolmuş. Yeni kod isteyin.' };
-
-  if (kayit.deneme >= AYAR.MAX_DENEME) return { ok: false, error: 'Çok fazla hatalı deneme. Yeni kod isteyin.' };
-
-  if (ozet_(kod) !== kayit.ozet) {
-    kayit.deneme++;
-    ozellikler.setProperty(anahtar, JSON.stringify(kayit));
-    return { ok: false, error: 'Kod hatalı.' };
+  var kilit = LockService.getScriptLock();
+  try { kilit.waitLock(10000); } catch (h) {
+    return { ok: false, error: 'Sistem meşgul, birkaç saniye sonra tekrar deneyin.' };
   }
+  try {
+    var ozellikler = PropertiesService.getScriptProperties();
+    var anahtar = 'kod_' + ozet_(eposta);
+    var kayit = kodKaydiOku_(anahtar);
+    if (!kayit) return { ok: false, error: 'Kodun süresi dolmuş. Yeni kod isteyin.' };
 
-  ozellikler.deleteProperty(anahtar);
+    if (kayit.deneme >= AYAR.MAX_DENEME) return { ok: false, error: 'Çok fazla hatalı deneme. Yeni kod isteyin.' };
+
+    // Güncel kod ya da (yeniden kod istendiyse) süresi geçmemiş bir önceki kod.
+    var girilen = ozet_(kod);
+    if (girilen !== kayit.ozet && !(kayit.eskiOzet && girilen === kayit.eskiOzet)) {
+      kayit.deneme++;
+      ozellikler.setProperty(anahtar, JSON.stringify(kayit));
+      return { ok: false, error: 'Kod hatalı. Birden fazla kod aldıysanız en son gelen e-postadakini girin.' };
+    }
+
+    ozellikler.deleteProperty(anahtar);
+  } finally {
+    kilit.releaseLock();
+  }
   var token = oturumAc_(eposta);
   return { ok: true, token: token, email: eposta, volunteer: satirBul_(eposta).kayit };
 }
