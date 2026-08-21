@@ -30,6 +30,26 @@
     padding:7px 12px;font:inherit;font-size:13px;cursor:pointer}
 
   .sayfa{max-width:1080px;margin:0 auto;padding:18px}
+  /* Tek uyarı kartı: iyiyken susar, bozukken bağırır. Koordinatörün
+     güne başlarken bakacağı tek yer burası. */
+  .dikkat{border-radius:12px;padding:16px 20px;margin-bottom:16px;border:2px solid}
+  .dikkat.iyi{border-color:#2e6440;background:#e9f3ec}
+  .dikkat.sari{border-color:#a06a12;background:#fdf4e3}
+  .dikkat.kirmizi{border-color:#9c2233;background:#fbe9ec}
+  .dikkat h3{margin:0 0 2px;font-size:15px}
+  .dikkat.iyi h3{color:#22502f}
+  .dikkat.sari h3{color:#7d5210}
+  .dikkat.kirmizi h3{color:#8a1c2c}
+  .dikkat .altbaslik{margin:0}
+  .dikkat ul{margin:12px 0 0;padding:0;list-style:none}
+  .dikkat li{border-top:1px solid rgba(0,0,0,.10);padding:10px 0 10px 26px;position:relative}
+  .dikkat li::before{position:absolute;left:0;top:9px;font-size:14px;line-height:1}
+  .dikkat li.k::before{content:'●';color:#9c2233}
+  .dikkat li.s::before{content:'●';color:#a06a12}
+  .dikkat li b{display:block;font-size:14px}
+  .dikkat li span{display:block;color:var(--soluk);font-size:13px;margin-top:2px}
+  .dikkat li em{display:block;font-style:normal;font-size:13px;margin-top:4px;font-weight:600}
+
   .kart{background:var(--kagit);border:1px solid var(--cizgi);border-radius:12px;padding:20px;
     margin-bottom:16px}
   .giris{max-width:420px;margin:60px auto}
@@ -106,6 +126,19 @@
   .donen{display:inline-block;width:14px;height:14px;border:2px solid #ffffff59;border-top-color:#fff;
     border-radius:50%;animation:don .7s linear infinite;vertical-align:-2px;margin-right:7px}
   @keyframes don{to{transform:rotate(360deg)}}
+  /* sıra haritası */
+  .sira-ozet{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .sira-ozet span{border-radius:8px;padding:6px 12px;font-size:13.5px;font-weight:700}
+  .sira-ozet .bitti{background:#e4f0e7;color:#22502f}
+  .sira-ozet .devam{background:#fdf3e0;color:#7a5210}
+  .sira-ozet .bos{background:#eef2f6;color:#3c5064}
+  .sira-ozet .tutulu{background:#f0e8f4;color:#5a2a63}
+  .sira-ozet .uyusmaz{background:#fbe6e9;color:#8a1c2c}
+  #haritaTablo .dur{font-weight:700}
+  #haritaTablo .d-bitti{color:#22502f}
+  #haritaTablo .d-devam{color:#7a5210}
+  #haritaTablo .d-bos{color:#7d8a95}
+  #haritaTablo tr.kotu td{background:#fdf2f4}
 </style>
 </head>
 <body>
@@ -132,6 +165,12 @@
 
   <section id="adim-pano" class="gizli">
     <div class="msg" id="msg"></div>
+
+    <div class="dikkat iyi" id="dikkatKart">
+      <h3 id="dikkatBaslik">Her şey yolunda</h3>
+      <p class="altbaslik" id="dikkatAlt">Bugün müdahale gerektiren bir şey yok.</p>
+      <ul id="dikkatListe"></ul>
+    </div>
 
     <div class="kunye-satir" id="kunyeler"></div>
 
@@ -165,7 +204,16 @@
     </div>
 
     <div class="kart">
-      <h3>Sıralar</h3>
+      <h3>Sıra haritası</h3>
+      <p class="altbaslik">Hangi sıra bitti, hangisi yarım, hangisi kimin üzerinde —
+        sayımı tutmayanlar en üstte</p>
+      <div id="siraOzet" class="sira-ozet"></div>
+      <div class="kaydir"><table id="haritaTablo"></table></div>
+      <p class="altbaslik" id="haritaNot" style="margin-top:10px"></p>
+    </div>
+
+    <div class="kart">
+      <h3>Sıralar — kayıt yoğunluğu</h3>
       <p class="altbaslik">Hangi sırada kaç kitap kaydedildi</p>
       <div class="kaydir"><table id="siraTablo"></table></div>
     </div>
@@ -200,14 +248,16 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     else { b.innerHTML = b.dataset.eski || b.innerHTML; b.disabled = false; }
   }
 
-  function api(action, yuk) {
-    if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
-      return Promise.reject(new Error('Sistem adresi tanımlanmamış (TV_ENVANTER_URL).'));
-    }
+  /* Apps Script uykudan kalkarken ilk istek 20–30 saniye sürebiliyor; zayıf bağlantıda
+     istek büsbütün düşebiliyor. Okuma istekleri otomatik tekrar denenir, yazma istekleri
+     (onayla) denenmez — aynı kayıt iki kez işlenmesin. */
+  var TEKRARLANABILIR = ['config', 'onayBekleyen', 'katalog', 'durum'];
+
+  function tekIstek(action, yuk, sure) {
     var govde = { action: action, sifre: D.sifre };
     for (var k in (yuk || {})) govde[k] = yuk[k];
     var kes = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    var saat = setTimeout(function () { if (kes) kes.abort(); }, 25000);
+    var saat = setTimeout(function () { if (kes) kes.abort(); }, sure);
     var bitir = function () { clearTimeout(saat); };
     return fetch(ENVANTER_URL, {
       method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -215,11 +265,36 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     }).catch(function () { bitir(); throw new Error('AĞ'); })
       .then(function (r) { bitir(); return r.text(); })
       .then(function (m) {
-        var d; try { d = JSON.parse(m); } catch (h) { throw new Error('Sunucudan beklenmeyen yanıt.'); }
+        var d;
+        try { d = JSON.parse(m); } catch (h) {
+          /* JSON yerine HTML geldiyse istek sunucuya ulaşıyor ama Apps Script yanıt
+             vermiyor demektir. En sık sebebi dağıtımın erişim ayarıdır: yeni
+             dağıtımlarda varsayılan "Yalnızca kendim"dir ve Google giriş sayfası döner. */
+          throw new Error(/^\s*</.test(m)
+            ? 'Sunucu JSON yerine web sayfası döndürdü. Apps Script dağıtımında ' +
+              '“Erişimi olan: Herkes” seçili mi? (Yeni dağıtımlarda varsayılan “Yalnızca kendim”dir.)'
+            : 'Sunucudan beklenmeyen yanıt.');
+        }
         if (!d.ok) throw new Error(d.error || 'Hata');
         return d;
       });
   }
+
+  function api(action, yuk) {
+    if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
+      return Promise.reject(new Error('Sistem adresi tanımlanmamış (TV_ENVANTER_URL).'));
+    }
+    var kalan = TEKRARLANABILIR.indexOf(action) >= 0 ? 2 : 0;
+    function dene(kalanDeneme, bekle) {
+      return tekIstek(action, yuk, 30000)['catch'](function (e) {
+        if (e.message !== 'AĞ' || kalanDeneme <= 0) throw e;
+        return new Promise(function (t) { setTimeout(t, bekle); })
+          .then(function () { return dene(kalanDeneme - 1, bekle * 2); });
+      });
+    }
+    return dene(kalan, 1200);
+  }
+
   function agHata(e) { return e.message === 'AĞ' ? 'Sunucuya ulaşılamadı.' : e.message; }
 
   /* ───────── giriş ───────── */
@@ -248,6 +323,62 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       .then(function () { mesgul($('btnYenile'), false); });
   });
 
+  /* Sıra haritası: sistemin yakaladığı sayım tutarsızlıkları burada görünür.
+     Bunun bir ekranı yoksa uyarılar kimsenin bakmadığı bir hücrede kalıyor. */
+  function haritayiYukle() {
+    return api('siraHaritasi').then(function (h) {
+      $('siraOzet').innerHTML =
+        '<span class="bitti">' + h.bitti + ' bitti</span>' +
+        '<span class="devam">' + h.devam + ' yarım</span>' +
+        '<span class="bos">' + h.bos + ' hiç başlanmadı</span>' +
+        '<span class="tutulu">' + (h.tutulu || 0) + ' şu an birinin üzerinde</span>' +
+        (h.uyusmayan ? '<span class="uyusmaz">' + h.uyusmayan + ' sayım tutmuyor</span>' : '');
+
+      // Önce sorunlular, sonra devam edenler ve tutulanlar; boşlar en sonda.
+      var oncelik = function (x) {
+        if (x.durum === 'bitti' && Number(x.fark) !== 0) return 0;
+        if (x.tutulu) return 1;
+        if (x.durum === 'devam') return 2;
+        if (x.durum === 'bitti') return 3;
+        return 4;
+      };
+      var liste = h.siralar.slice().sort(function (a, b) {
+        var f = oncelik(a) - oncelik(b);
+        return f !== 0 ? f : String(a.sira).localeCompare(String(b.sira));
+      });
+      var gosterilen = liste.filter(function (x) { return x.durum !== 'bos' || x.tutulu; });
+      var bosSayisi = liste.length - gosterilen.length;
+
+      $('haritaTablo').innerHTML =
+        '<tr><th>Sıra</th><th>Durum</th><th>Rafta</th><th>Sistemde</th>' +
+        '<th>Fark</th><th>Kim</th></tr>' +
+        (gosterilen.length ? gosterilen.map(function (x) {
+          var kotu = x.durum === 'bitti' && Number(x.fark) !== 0;
+          var kim = x.tutulu ? x.tutan + ' (üzerinde)' : (x.bitiren || '');
+          return '<tr' + (kotu ? ' class="kotu"' : '') + '>' +
+            '<td class="ad">' + esc(x.sira) + '</td>' +
+            '<td class="dur d-' + x.durum + '">' +
+              (x.durum === 'bitti' ? 'bitti' : x.durum === 'devam' ? 'yarım' : 'boş') + '</td>' +
+            '<td>' + (x.raftaki === '' ? '—' : sayi(x.raftaki)) + '</td>' +
+            '<td>' + sayi(x.kayitli) +
+              (x.kayitSayisi && x.kayitSayisi !== x.kayitli
+                ? ' <span style="color:var(--soluk)">(' + x.kayitSayisi + ' kayıt)</span>' : '') +
+            '</td>' +
+            '<td>' + (x.fark === '' ? '—' :
+              (Number(x.fark) === 0 ? 'tutuyor'
+                : (Number(x.fark) > 0 ? x.fark + ' eksik' : (-x.fark) + ' fazla'))) + '</td>' +
+            '<td>' + esc(kim) + '</td></tr>';
+        }).join('') : '<tr><td colspan="6">Henüz hiçbir sıraya dokunulmamış.</td></tr>');
+
+      $('haritaNot').textContent = bosSayisi
+        ? bosSayisi + ' sıra hiç başlanmadı — listeye sığmasın diye gösterilmiyor. ' +
+          'Sıra tutma süresi: ' + (h.tutmaSaat || 8) + ' saat.'
+        : 'Sıra tutma süresi: ' + (h.tutmaSaat || 8) + ' saat.';
+    })['catch'](function () {
+      $('haritaNot').textContent = 'Sıra haritası alınamadı.';
+    });
+  }
+
   function yukle() {
     return api('durum').then(function (r) { D.veri = r; ciz(); });
   }
@@ -260,10 +391,41 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     { ad: 'Belirsiz', renk: 'var(--belirsiz)' }
   ];
 
+  /* Uyarı kuralları sunucuda; burası yalnızca yazdırır. Böylece ekran ile
+     sunucu iki ayrı şey söyleyemez. */
+  function dikkatCiz(liste) {
+    var kart = $('dikkatKart');
+    var kirmizi = liste.filter(function (x) { return x.seviye === 'kirmizi'; }).length;
+
+    kart.className = 'dikkat ' + (kirmizi ? 'kirmizi' : (liste.length ? 'sari' : 'iyi'));
+
+    if (!liste.length) {
+      $('dikkatBaslik').textContent = 'Her şey yolunda';
+      $('dikkatAlt').textContent = 'Bugün müdahale gerektiren bir şey yok.';
+      $('dikkatListe').innerHTML = '';
+      return;
+    }
+
+    $('dikkatBaslik').textContent = kirmizi
+      ? 'Bugün ' + kirmizi + ' şeye bakmanız gerekiyor'
+      : 'Bugün ' + liste.length + ' şeye göz atın';
+    $('dikkatAlt').textContent = kirmizi
+      ? 'Kırmızı olanlar bekletilirse iş durur.'
+      : 'Acil değil, ama biriktirmeyin.';
+
+    $('dikkatListe').innerHTML = liste.map(function (x) {
+      return '<li class="' + (x.seviye === 'kirmizi' ? 'k' : 's') + '">' +
+        '<b>' + esc(x.baslik) + '</b>' +
+        (x.detay ? '<span>' + esc(x.detay) + '</span>' : '') +
+        (x.ne ? '<em>→ ' + esc(x.ne) + '</em>' : '') + '</li>';
+    }).join('');
+  }
+
   function ciz() {
     var v = D.veri;
     $('ustZaman').textContent = v.hesaplandi ? 'son hesaplama ' + v.hesaplandi : '';
     gizle($('msg'));
+    dikkatCiz(v.uyarilar || []);
 
     /* künye kutuları */
     var belirsiz = v.kategori['Belirsiz'] || 0;
@@ -361,6 +523,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         return '<tr><td class="ad">' + esc(s.sira) + '</td><td>' + sayi(s.sayi) + '</td><td>' +
           sayi(s.sonNo) + '</td><td>' + esc(gunAdi(s.son)) + '</td></tr>';
       }).join('') : '<tr><td colspan="4">Henüz kayıt yok.</td></tr>');
+
+    /* sıra haritası ayrı istekte gelir (koordinatör eylemi) */
+    haritayiYukle();
 
     /* kaydedenler */
     $('kisiTablo').innerHTML = '<tr><th>Kaydeden</th><th>Bugün</th><th>Toplam</th></tr>' +

@@ -1,0 +1,13 @@
+# Satır sonlarını depoda daima LF tut.
+# Windows'ta düzenlenen bir kabuk/YAML dosyası CRLF olursa GitHub Actions'ta
+# "syntax error" verir — bu dosya onu engeller.
+* text=auto eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.sh    text eol=lf
+*.mjs   text eol=lf
+*.png   binary
+*.jpg   binary
+*.pdf   binary
+*.xlsx  binary
+*.zip   binary

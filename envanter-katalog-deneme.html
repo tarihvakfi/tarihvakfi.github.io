@@ -69,6 +69,27 @@
     font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--bordo)}
   .kitap .alt .kat{margin-left:auto;font-family:inherit;font-size:11px;color:var(--soluk)}
 
+  .nerede{display:inline-flex;align-items:center;gap:6px;border-radius:6px;
+    padding:2px 8px;font-size:11.5px;font-weight:800;letter-spacing:.3px;margin:6px 0 2px}
+  .nerede b{font-weight:800;font-family:'DejaVu Sans Mono',ui-monospace,monospace}
+  .nerede.depo{background:#efe6f3;color:#5a2a63}
+  .nerede.yeni{background:#e4f0e7;color:#22502f}
+  .nerede.raf{background:#f0eae6;color:#6b5c63}
+
+  .kutula{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 16px;
+    background:#fdf6f0;border:1.5px solid #e0cdbb;border-radius:10px;padding:12px 14px}
+  .kutula label{font-size:13px;font-weight:700;color:var(--bordo)}
+  .kutula input{width:90px;padding:8px 10px;border:1.5px solid var(--cizgi);
+    border-radius:8px;font:inherit;font-size:15px}
+  .kutula .hedef button{border:1.5px solid var(--cizgi);background:#fff;border-radius:8px;
+    padding:8px 14px;font:inherit;font-size:14px;cursor:pointer;margin-right:6px}
+  .kutula .hedef button.sec{border-color:var(--bordo);background:var(--bordo);color:#fff;
+    font-weight:700}
+
+  .ayikla{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:0 0 16px;
+          background:#fdf0e6;border:1.5px solid var(--bordo);border-radius:10px;
+          padding:11px 14px;font-size:14.5px}
+  .ayikla button{margin-left:auto}
   .msg{padding:12px 14px;border-radius:9px;font-size:14.5px;margin:0 0 14px;display:none;border:1px solid}
   .msg.gor{display:block}
   .msg.hata{background:#fdf2f4;color:#8a1230;border-color:#f0cdd6}
@@ -126,6 +147,29 @@
           <option value="hepsi">Tüm kayıtlar</option>
         </select>
       </div>
+      <div class="alan">
+        <label for="siraSuz">Sıra</label>
+        <select id="siraSuz"><option value="">hepsi</option></select>
+      </div>
+      <div class="alan">
+        <label for="kutuSuz">Kutu</label>
+        <select id="kutuSuz"><option value="">hepsi</option></select>
+      </div>
+    </div>
+
+    <div class="kutula gizli" id="kutulaSerit">
+      <label for="kutuNo2">Yeni binaya kutula →</label>
+      <span class="hedef" id="kutuHedef">
+        <button type="button" data-hedef="yeni" class="sec">Yeni bina</button>
+        <button type="button" data-hedef="depo" title="Yalnızca depoda kalan kitaplar başka bir yere taşınıyorsa">Depo taşınıyor</button>
+      </span>
+      <input type="text" id="kutuNo2" inputmode="numeric" maxlength="4" placeholder="kutu no">
+      <button class="btn ikincil" id="btnKutula" style="margin-left:auto">Kutuyu kapat</button>
+    </div>
+
+    <div class="ayikla gizli" id="ayiklaSerit">
+      <span id="ayiklaMetin"></span>
+      <button class="btn ikincil" id="btnAyiklaListe">Çekme listesini yazdır</button>
     </div>
 
     <div class="msg" id="msg"></div>
@@ -149,7 +193,63 @@
   var DEPO = 'tv_demo_veri';
   var SIFRE = 'deneme';
   var KOORD_SIFRE = 'koordinator';
-  var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayla', 'katalog', 'durum'];
+  var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayGruplari', 'onayla', 'topluOnayla',
+                               'katalog', 'durum', 'siraHaritasi', 'kutula', 'kutular'];
+  var SINIFLANDIRILMADI = 'Sınıflandırılmadı';
+
+  /* Karar önerisi — canlı sunucudakinin sadeleştirilmiş kopyası. */
+  var sadeMetin = function (b) {
+    return String(b == null ? '' : b)
+      .replace(/[İIıi]/g, 'i').replace(/[Ğğ]/g, 'g').replace(/[Şş]/g, 's')
+      .replace(/[Öö]/g, 'o').replace(/[Üü]/g, 'u').replace(/[Çç]/g, 'c').toLowerCase();
+  };
+  var ONERILER = [
+    { kural:'Y1', guven:'yuksek', sebep:'Tarih Vakfı yayını', kalip:/(tarih vakfi)/ },
+    { kural:'Y5', guven:'yuksek', sebep:'Rapor / tez / bülten',
+      kalip:/(\brapor\b|raporu\b|\btez\b|tezi\b|bulten)/ },
+    { kural:'K1', guven:'yuksek', sebep:'Ders / sınav kitabı',
+      kalip:/(ders kitabi|soru bankasi|konu anlatimli|\boss\b|\byks\b|\bkpss\b)/ },
+    { kural:'K2', guven:'orta', sebep:'Mevzuat / yıllık',
+      kalip:/(mevzuat|yillik\b|yilligi\b|almanak)/ },
+    { kural:'Y2', guven:'orta', sebep:'Alan içi: toplumsal / kent tarihi',
+      kalip:/(osmanli|cumhuriyet|kent tarihi|sozlu tarih|bellek|arsiv)/ },
+    { kural:'S2', guven:'orta', sebep:'Genel başvuru kaynağı',
+      kalip:/(ansiklopedi|sozluk|sozlugu|el kitabi|rehber\b)/ },
+  ];
+  var kuralKategorisi = function (kod) {
+    for (var i = 0; i < KURALLAR.length; i++) if (KURALLAR[i][0] === kod) return KURALLAR[i][1];
+    return '';
+  };
+  var kuralAciklamasi = function (kod) {
+    for (var i = 0; i < KURALLAR.length; i++) if (KURALLAR[i][0] === kod) return KURALLAR[i][2];
+    return '';
+  };
+  var kararOner = function (k) {
+    var yil = Number(k.yil) || 0, nusha = Number(k.nusha) || 1;
+    if (nusha > 3) return { kural:'K3', kategori:'gitmeyecek', guven:'yuksek',
+      sebep: nusha + ' nüsha — üçten fazlasının fazlası' };
+    if (nusha === 2 || nusha === 3) return { kural:'S1', kategori:'belki', guven:'yuksek',
+      sebep: nusha + ' nüsha — ikinci/üçüncü kopya' };
+    if (yil && yil < 1950) return { kural:'Y4', kategori:'gidecek', guven:'yuksek',
+      sebep: yil + ' baskısı — 1950 öncesi' };
+    var havuz = sadeMetin([k.baslik, k.yazar, k.oneriBaslik, k.not].join(' | '));
+    for (var i = 0; i < ONERILER.length; i++) {
+      if (ONERILER[i].kalip.test(havuz)) {
+        return { kural:ONERILER[i].kural, kategori:kuralKategorisi(ONERILER[i].kural),
+                 guven:ONERILER[i].guven, sebep:ONERILER[i].sebep };
+      }
+    }
+    if (k.durum === 'Küflü/böcekli') return { kural:'K4', kategori:'gitmeyecek',
+      guven:'dusuk', sebep:'Küflü/böcekli işaretlenmiş' };
+    return { kural:'', kategori:'', guven:'', sebep:'' };
+  };
+  var oneriEkle = function (k) {
+    var o = kararOner(k);
+    var y = {}; for (var a in k) y[a] = k[a];
+    y.oneriKural = o.kural; y.oneriKategori = o.kategori;
+    y.oneriGuven = o.guven; y.oneriSebep = o.sebep;
+    return y;
+  };
   var agKapali = false;
 
   var KATEGORILER = {
@@ -181,7 +281,7 @@
     ['M3','belirsiz','Yabancı dilde, içeriği anlamadım'],
     ['M4','belirsiz','Kurallar çelişiyor']
   ];
-  var MEKANLAR = [{ kod:'K1', ad:'1. kat' }, { kod:'K2', ad:'2. kat' }, { kod:'D', ad:'Depo' }];
+  var MEKANLAR = [{ kod:'G', ad:'Giriş Kat' }, { kod:'U', ad:'Üst Kat' }, { kod:'D', ad:'Depo' }];
   var RAF_HARFLERI = 'ABCDEFGH'.split('');
   var SIRA_SAYISI = 8;
 
@@ -203,6 +303,7 @@
     var v = veri(), i;
     if (g.action === 'config') {
       return { ok:true, org:'Tarih Vakfı (DENEME)', kategoriler:KATEGORILER, durumlar:DURUMLAR,
+        siniflandirilmadi: SINIFLANDIRILMADI,
         kurallar: KURALLAR.map(function (k) { return { kod:k[0], kategori:k[1], aciklama:k[2] }; }),
         mekanlar: MEKANLAR, rafHarfleri: RAF_HARFLERI, siraSayisi: SIRA_SAYISI };
     }
@@ -223,7 +324,72 @@
       var a = anahtar(g.mekan, g.raf, g.sira);
       var ayni = v.kayitlar.filter(function (k) { return k.anahtar === a; });
       var son = ayni.reduce(function (e, k) { return Math.max(e, Number(k.siraNo) || 0); }, 0);
-      return { ok:true, anahtar:a, sonNo:son, adet:ayni.length };
+      var bit = (v.siralar || {})[a];
+      var sonK = ayni[ayni.length - 1];
+      return { ok:true, anahtar:a, sonNo:son, adet:ayni.length,
+        durum: bit ? 'bitti' : (ayni.length ? 'devam' : 'bos'),
+        bitiren: bit ? bit.bitiren : '', bitisTarihi: bit ? bit.tarih : '',
+        raftaki: bit ? bit.raftaki : '',
+        sonCalisan: sonK ? sonK.kaydeden : '',
+        sonTarih: sonK ? String(sonK.tarih || '').slice(0, 10) : '',
+        devir: devirBilgisi(ayni) };
+    }
+    /* Devir teslim: yarım kalan sırayı devralana "nereden devam edeceğim" cevabı. */
+    function devirBilgisi(ayni) {
+      if (!ayni.length) return null;
+      var son = ayni.reduce(function (e, k) {
+        return (Number(k.siraNo) || 0) >= (Number(e.siraNo) || 0) ? k : e; });
+      var baslik = String(son.baslik || '').trim();
+      if (!baslik || /künye fotoğraftan/i.test(baslik)) baslik = String(son.oneriBaslik || '').trim();
+      return { yer: son.yer || '', baslik: baslik,
+        yazar: String(son.yazar || '').trim(),
+        kapak: son.kapak || son.foto || '',
+        kaydeden: son.kaydeden || '',
+        tarih: String(son.tarih || '').slice(0, 16).replace('T', ' '),
+        raftakiSira: ciltSay(ayni) - cikarilanSay(ayni) };
+    }
+    function ciltSay(liste) {
+      return liste.reduce(function (t, k) { return t + Math.max(1, Number(k.nusha) || 1); }, 0);
+    }
+    function cikarilanSay(liste) {
+      return liste.filter(function (k) { return k.durum === 'Küflü/böcekli' || k.istenen; }).length;
+    }
+
+    if (g.action === 'siraOner') {
+      var baslanan = {};
+      v.kayitlar.forEach(function (k) { baslanan[k.anahtar] = true; });
+      var bitmis = v.siralar || {};
+      var bos = [], yarim = [];
+      MEKANLAR.forEach(function (m) {
+        RAF_HARFLERI.forEach(function (h) {
+          for (var i = 1; i <= SIRA_SAYISI; i++) {
+            var key = anahtar(m.kod, h, i);
+            if (bitmis[key]) continue;
+            if (baslanan[key]) yarim.push(key); else bos.push(key);
+          }
+        });
+      });
+      if (bos.length) return { ok:true, anahtar:bos[0], tur:'bos',
+        kalanBos:bos.length, yarimKalan:yarim.length };
+      if (yarim.length) return { ok:true, anahtar:yarim[0], tur:'yarim',
+        kalanBos:0, yarimKalan:yarim.length };
+      return { ok:true, anahtar:'', tur:'bitti', kalanBos:0, yarimKalan:0 };
+    }
+    if (g.action === 'siraBitir') {
+      var ab = anahtar(g.mekan, g.raf, g.sira);
+      if (!ab) return { ok:false, error:'Sıra belirsiz.' };
+      var raftaki = parseInt(g.raftaki, 10);
+      if (isNaN(raftaki) || raftaki < 0) return { ok:false, error:'Raftaki kitap sayısını yazın.' };
+      var ayniB = v.kayitlar.filter(function (k) { return k.anahtar === ab; });
+      // Rafta duran cilt sayısı: 3 nüsha tek kayıttır ama rafta üç cilttir.
+      // Sayım bununla karşılaştırılır, kayıt sayısıyla değil.
+      var cilt = ciltSay(ayniB) - cikarilanSay(ayniB);
+      v.siralar = v.siralar || {};
+      v.siralar[ab] = { raftaki:raftaki, kayitli:cilt, bitiren:(g.kaydeden || ''),
+        tarih: new Date().toISOString().slice(0, 10) };
+      yaz(v);
+      return { ok:true, anahtar:ab, kayitli:cilt, kayitSayisi:ayniB.length,
+        raftaki:raftaki, fark:raftaki - cilt };
     }
     if (g.action === 'ekle' || g.action === 'guncelle') {
       var k = g.kayit || {};
@@ -231,15 +397,19 @@
       if (!baslik && !k.fotoVar) return { ok:false, error:'Başlık boş olamaz (ya da künye fotoğrafı çekin).' };
       if (!baslik) baslik = '(künye fotoğraftan gelecek)';
       if (!k.raf) return { ok:false, error:'Raf seçilmeli.' };
-      if (!KATEGORILER[k.kategori]) return { ok:false, error:'Kategori seçilmeli.' };
-      var uygun = KURALLAR.some(function (r) { return r[0] === k.kural && r[1] === k.kategori; });
-      if (!uygun) return { ok:false, error:'Kural kodu bu kategoriye uymuyor.' };
+      // Sınıflandırma koordinatörde; gönüllüden boş gelebilir.
+      if (k.kategori || k.kural) {
+        if (!KATEGORILER[k.kategori]) return { ok:false, error:'Kategori seçilmeli.' };
+        var uygun = KURALLAR.some(function (r) { return r[0] === k.kural && r[1] === k.kategori; });
+        if (!uygun) return { ok:false, error:'Kural kodu bu kategoriye uymuyor.' };
+      }
 
       if (g.action === 'guncelle') {
         for (i = 0; i < v.kayitlar.length; i++) if (v.kayitlar[i].no === Number(g.no)) {
           v.kayitlar[i].yazar = k.yazar || ''; v.kayitlar[i].baslik = baslik;
           v.kayitlar[i].yil = k.yil || ''; v.kayitlar[i].not = k.not || '';
-          v.kayitlar[i].kategori = KATEGORILER[k.kategori].ad; v.kayitlar[i].kural = k.kural;
+          if (k.kategori) { v.kayitlar[i].kategori = KATEGORILER[k.kategori].ad;
+                            v.kayitlar[i].kural = k.kural; }
           v.kayitlar[i].durum = k.durum || 'Sağlam';
           yaz(v); return { ok:true, no:Number(g.no) };
         }
@@ -258,7 +428,8 @@
         yer: a2 + '-' + pad(siraNo, 3),
         mekan: k.mekan || '', raf: k.raf, sira: pad(Number(k.sira) || 0, 2),
         yazar: k.yazar || '', baslik: baslik, yil: k.yil || '', nusha: k.nusha || 1,
-        kategori: KATEGORILER[k.kategori].ad, kural: k.kural,
+        kategori: k.kategori ? KATEGORILER[k.kategori].ad : SINIFLANDIRILMADI,
+        kural: k.kural || '',
         durum: DURUMLAR.indexOf(k.durum) >= 0 ? k.durum : 'Sağlam',
         not: k.not || '', kaydeden: k.kaydeden || '', tarih: new Date().toISOString()
       };
@@ -305,8 +476,46 @@
       return { ok:false, error:'Kayıt bulunamadı.' };
     }
     if (g.action === 'onayBekleyen') {
-      var bek = v.kayitlar.filter(function (k) { return (k.foto || k.kapak) && !k.onay; });
-      return { ok:true, kayitlar: bek.slice(0, Number(g.adet) || 25), kalan: bek.length };
+      var bek = v.kayitlar.filter(function (k) { return !k.onay; });
+      return { ok:true, kayitlar: bek.slice(0, Number(g.adet) || 25).map(oneriEkle),
+               kalan: bek.length };
+    }
+    if (g.action === 'onayGruplari') {
+      var bk = v.kayitlar.filter(function (k) { return !k.onay; }).map(oneriEkle);
+      var hrt = {}, onerisiz = 0;
+      bk.forEach(function (k) {
+        if (!k.oneriKural) { onerisiz++; return; }
+        if (!hrt[k.oneriKural]) hrt[k.oneriKural] = { kural:k.oneriKural,
+          kategori:k.oneriKategori, guven:k.oneriGuven, sebep:k.oneriSebep,
+          aciklama: kuralAciklamasi(k.oneriKural), adet:0, numaralar:[], ornekler:[] };
+        var gr = hrt[k.oneriKural];
+        gr.adet++; gr.numaralar.push(k.no);
+        if (gr.ornekler.length < 6) gr.ornekler.push({ no:k.no, yer:k.yer,
+          baslik: k.baslik || '(künye yok)', yazar: k.yazar || '' });
+      });
+      var gruplar = Object.keys(hrt).map(function (a) { return hrt[a]; })
+        .sort(function (a, b) {
+          var za = a.guven === 'dusuk' ? 1 : 0, zb = b.guven === 'dusuk' ? 1 : 0;
+          return za !== zb ? za - zb : b.adet - a.adet;
+        });
+      return { ok:true, gruplar:gruplar, kalan:bk.length, onerisiz:onerisiz };
+    }
+    if (g.action === 'topluOnayla') {
+      var nolar = (g.numaralar || []).map(Number);
+      if (!KATEGORILER[g.kategori]) return { ok:false, error:'Karar seçilmeli.' };
+      var onaylanan = 0, atlanan = 0, basliksiz = 0;
+      v.kayitlar.forEach(function (k) {
+        if (nolar.indexOf(k.no) < 0) return;
+        if (k.onay) { atlanan++; return; }
+        if (!String(k.baslik || '').trim() || /künye fotoğraftan/i.test(k.baslik)) {
+          basliksiz++; return;
+        }
+        k.kategori = KATEGORILER[g.kategori].ad; k.kural = g.kural;
+        k.onay = 'Onaylandı — ' + (g.onaylayan || '') + ' · toplu';
+        onaylanan++;
+      });
+      yaz(v);
+      return { ok:true, onaylanan:onaylanan, atlanan:atlanan, basliksiz:basliksiz };
     }
     if (g.action === 'durum') {
       var bugun = new Date().toISOString().slice(0, 10);
@@ -352,6 +561,8 @@
       var liste = v.kayitlar.filter(function (k) {
         if (yalniz && !k.onay) return false;
         if (g.kategori && k.kategori !== g.kategori) return false;
+        if (g.sira && String(k.yer || '').replace(/-\d+$/, '') !== g.sira) return false;
+        if (g.kutu && String(k.kutu || '') !== g.kutu) return false;
         if (ara) {
           var havuz = [k.baslik, k.yazar, k.yer, k.not, k.kutu].join(' ').toLowerCase();
           if (havuz.indexOf(ara) < 0) return false;
@@ -367,12 +578,53 @@
       return { ok: true, toplam: liste.length, bas: bas, kayitlar: liste.slice(bas, bas + adet) };
     }
 
+    if (g.action === 'kutular') {
+      var sr = {}, kt = {};
+      v.kayitlar.forEach(function (k) {
+        if (k.yer) sr[String(k.yer).replace(/-\d+$/, '')] = 1;
+        if (k.kutu) kt[k.kutu] = 1;
+      });
+      return { ok: true, siralar: Object.keys(sr).sort(), kutular: Object.keys(kt).sort() };
+    }
+
+    if (g.action === 'kutula') {
+      var istenen = (g.numaralar || []).map(Number).filter(Boolean);
+      if (!istenen.length) return { ok:false, error:'Kutulanacak kayıt seçilmedi.' };
+      var depoMu = String(g.hedef || '') === 'depo';
+      var ham = String(g.kutu || '').trim().replace(/^[YyDd]-/, '');
+      if (!/^\d{1,4}$/.test(ham)) return { ok:false, error:'Kutu numarası 1–4 haneli olmalı.' };
+      var etiket = (depoMu ? 'D-' : 'Y-') +
+                   ('00' + Number(ham)).slice(-Math.max(3, String(Number(ham)).length));
+      var yazilan = 0, cilt = 0, yerler = [];
+      v.kayitlar.forEach(function (k) {
+        if (istenen.indexOf(Number(k.no)) < 0) return;
+        var eski = String(k.kutu || '').trim();
+        if (eski && eski !== etiket) return;
+        k.kutu = etiket; yazilan++;
+        cilt += Math.max(1, Number(k.nusha) || 1);
+        if (k.yer) yerler.push(String(k.yer));
+      });
+      if (!yazilan) return { ok:false, error:'Bu kayıtlar zaten başka kutuda.' };
+      yerler.sort();
+      var aralik = yerler.length
+        ? (yerler[0] === yerler[yerler.length - 1]
+            ? yerler[0] : yerler[0] + ' → ' + yerler[yerler.length - 1]) : '';
+      yaz(v);
+      return { ok:true, kutu: etiket, hedef: depoMu ? 'DEPO' : 'YENİ BİNA',
+               yazilan: yazilan, cilt: cilt, atlanan: 0, aralik: aralik };
+    }
+
     if (g.action === 'onayla') {
       for (i = 0; i < v.kayitlar.length; i++) if (v.kayitlar[i].no === Number(g.no)) {
         var y = g.kayit || {};
         if (!String(y.baslik || '').trim()) return { ok:false, error:'Başlık boş olamaz.' };
+        if (!KATEGORILER[y.kategori]) return { ok:false, error:'Karar seçilmeli.' };
+        if (!KURALLAR.some(function (r) { return r[0] === y.kural && r[1] === y.kategori; })) {
+          return { ok:false, error:'Kural kodu bu karara uymuyor.' };
+        }
         v.kayitlar[i].baslik = y.baslik; v.kayitlar[i].yazar = y.yazar || '';
         v.kayitlar[i].yil = y.yil || ''; v.kayitlar[i].not = y.not || '';
+        v.kayitlar[i].kategori = KATEGORILER[y.kategori].ad; v.kayitlar[i].kural = y.kural;
         v.kayitlar[i].onay = 'Onaylandı — ' + (y.onaylayan || '');
         yaz(v); return { ok:true, no:Number(g.no) };
       }
@@ -462,14 +714,16 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     else { b.innerHTML = b.dataset.eski || b.innerHTML; b.disabled = false; }
   }
 
-  function api(action, yuk) {
-    if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
-      return Promise.reject(new Error('Sistem adresi tanımlanmamış (TV_ENVANTER_URL).'));
-    }
+  /* Apps Script uykudan kalkarken ilk istek 20–30 saniye sürebiliyor; zayıf bağlantıda
+     istek büsbütün düşebiliyor. Okuma istekleri otomatik tekrar denenir, yazma istekleri
+     (onayla) denenmez — aynı kayıt iki kez işlenmesin. */
+  var TEKRARLANABILIR = ['config', 'onayBekleyen', 'katalog', 'durum'];
+
+  function tekIstek(action, yuk, sure) {
     var govde = { action: action, sifre: D.sifre };
     for (var k in (yuk || {})) govde[k] = yuk[k];
     var kes = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    var saat = setTimeout(function () { if (kes) kes.abort(); }, 25000);
+    var saat = setTimeout(function () { if (kes) kes.abort(); }, sure);
     var bitir = function () { clearTimeout(saat); };
     return fetch(ENVANTER_URL, {
       method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -477,11 +731,36 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     }).catch(function () { bitir(); throw new Error('AĞ'); })
       .then(function (r) { bitir(); return r.text(); })
       .then(function (m) {
-        var d; try { d = JSON.parse(m); } catch (h) { throw new Error('Sunucudan beklenmeyen yanıt.'); }
+        var d;
+        try { d = JSON.parse(m); } catch (h) {
+          /* JSON yerine HTML geldiyse istek sunucuya ulaşıyor ama Apps Script yanıt
+             vermiyor demektir. En sık sebebi dağıtımın erişim ayarıdır: yeni
+             dağıtımlarda varsayılan "Yalnızca kendim"dir ve Google giriş sayfası döner. */
+          throw new Error(/^\s*</.test(m)
+            ? 'Sunucu JSON yerine web sayfası döndürdü. Apps Script dağıtımında ' +
+              '“Erişimi olan: Herkes” seçili mi? (Yeni dağıtımlarda varsayılan “Yalnızca kendim”dir.)'
+            : 'Sunucudan beklenmeyen yanıt.');
+        }
         if (!d.ok) throw new Error(d.error || 'Hata');
         return d;
       });
   }
+
+  function api(action, yuk) {
+    if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
+      return Promise.reject(new Error('Sistem adresi tanımlanmamış (TV_ENVANTER_URL).'));
+    }
+    var kalan = TEKRARLANABILIR.indexOf(action) >= 0 ? 2 : 0;
+    function dene(kalanDeneme, bekle) {
+      return tekIstek(action, yuk, 30000)['catch'](function (e) {
+        if (e.message !== 'AĞ' || kalanDeneme <= 0) throw e;
+        return new Promise(function (t) { setTimeout(t, bekle); })
+          .then(function () { return dene(kalanDeneme - 1, bekle * 2); });
+      });
+    }
+    return dene(kalan, 1200);
+  }
+
   function agHata(e) { return e.message === 'AĞ' ? 'Sunucuya ulaşılamadı.' : e.message; }
 
   /* ───────── giriş ───────── */
@@ -496,6 +775,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         Object.keys(cfg.kategoriler).map(function (a) {
           return '<option value="' + esc(cfg.kategoriler[a].ad) + '">' + esc(cfg.kategoriler[a].ad) + '</option>';
         }).join('');
+      return suzgecleriDoldur();
+    }).then(function () {
       return yukle(true);
     }).then(function () {
       localStorage.setItem('tv_env_ad', ad);
@@ -521,6 +802,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       yalnizOnayli: $('kapsam').value === 'onayli',
       ara: $('ara').value.trim(),
       kategori: $('kategori').value,
+      sira: $('siraSuz').value,
+      kutu: $('kutuSuz').value,
       sirala: $('sirala').value
     };
   }
@@ -584,14 +867,33 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     }
 
     $('izgara').innerHTML = D.kayitlar.map(function (k) {
-      var altSatir = [k.yil, k.durum && k.durum !== 'Sağlam' ? k.durum : '',
-                      k.kutu ? 'kutu ' + k.kutu : ''].filter(Boolean).join(' · ');
+      var altSatir = [k.yil, k.durum && k.durum !== 'Sağlam' ? k.durum : ''
+                     ].filter(Boolean).join(' · ');
+      /* Kitap şu an fiziksel olarak nerede?
+         Taşınmayan kitap yerinden kımıldamıyor — depo, eski rafların kendisi.
+         O yüzden adresi zaten yer kodu; ayrıca kutulanmasına gerek yok.
+         Kutu numarası yalnızca RAFTAN ÇIKMIŞ kitapta bulunur. */
+      var kutuKod = String(k.kutu || '').trim();
+      var yerKod = String(k.yer || '').trim();
+      var nerede;
+      if (kutuKod) {
+        nerede = '<div class="nerede ' + (/^D/i.test(kutuKod) ? 'depo' : 'yeni') + '">' +
+          (/^D/i.test(kutuKod) ? 'TAŞINDI' : 'YENİ BİNADA') +
+          '<b>' + esc(kutuKod) + '</b></div>';
+      } else if (k.kategori === 'Gitmeyecek') {
+        nerede = '<div class="nerede depo">DEPODA — yerinde' +
+          (yerKod ? '<b>' + esc(yerKod) + '</b>' : '') + '</div>';
+      } else {
+        nerede = '<div class="nerede raf">RAFTA' +
+          (yerKod ? '<b>' + esc(yerKod) + '</b>' : '') + '</div>';
+      }
       return '<article class="kitap ' + (sinif[k.kategori] || '') + '">' +
         resimKutusu(k) +
         '<div class="govde">' +
           '<div class="bas">' + esc(k.baslik || '(başlıksız)') + '</div>' +
           (k.yazar ? '<div class="yaz">' + esc(k.yazar) + '</div>' : '') +
           (altSatir ? '<div class="yaz">' + esc(altSatir) + '</div>' : '') +
+          nerede +
           '<div class="alt">' + esc(k.yer || ('#' + k.no)) +
             '<span class="kat">' + esc(k.kural || '') + '</span></div>' +
         '</div></article>';
@@ -612,9 +914,187 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     clearTimeout(zaman);
     zaman = setTimeout(function () { yukle(true)['catch'](function () {}); }, 350);
   });
-  ['kategori', 'sirala', 'kapsam'].forEach(function (id) {
-    $(id).addEventListener('change', function () { yukle(true)['catch'](function () {}); });
+  ['kategori', 'sirala', 'kapsam', 'siraSuz', 'kutuSuz'].forEach(function (id) {
+    $(id).addEventListener('change', function () {
+      seritYenile();
+      yukle(true)['catch'](function () {});
+    });
   });
+
+  /* ───────── kutulama ─────────
+     Blok usulünde kutu numarası kayıt anında bilinmiyor: kutulama envanterden
+     sonra yapılıyor. Bu adım olmadan kutulanan kitap sonradan bulunamıyor —
+     özellikle DEPOYA kalkanlar. Hedefe göre iki ayrı numara serisi: Y- ve D-. */
+  var kutuHedefi = 'yeni';
+  Array.prototype.forEach.call($('kutuHedef').querySelectorAll('button'), function (b) {
+    b.addEventListener('click', function () {
+      kutuHedefi = b.dataset.hedef;
+      Array.prototype.forEach.call($('kutuHedef').querySelectorAll('button'), function (x) {
+        x.classList.toggle('sec', x === b);
+      });
+    });
+  });
+
+  $('btnKutula').addEventListener('click', function () {
+    var kutuNo = $('kutuNo2').value.trim();
+    if (!/^\d{1,4}$/.test(kutuNo)) {
+      goster($('msg'), 'hata', 'Kutu numarasını yazın (yalnızca rakam).');
+      $('kutuNo2').focus();
+      return;
+    }
+    var sira = $('siraSuz').value;
+    var karar = $('kategori').value;
+    if (!karar) {
+      goster($('msg'), 'hata',
+        'Önce <b>Karar</b> süzgecini seçin. Kutuya yalnızca <b>raftan çıkan</b> ' +
+        'kitaplar girer; yerinde kalanlar (depo) kutulanmaz — adresleri zaten yer kodu.');
+      return;
+    }
+    if (kutuHedefi === 'yeni' && karar === 'Gitmeyecek' &&
+        !window.confirm('Süzgeç "Gitmeyecek" diyor ama kutu YENİ BİNA kutusu.\n\n' +
+          'Gitmeyecek kitaplar yerinde kalır, kutulanmaz. Yine de devam edilsin mi?')) return;
+    var onay = kutuHedefi === 'depo' ? 'DEPO' : 'YENİ BİNA';
+    if (!window.confirm('Ekrandaki süzgeçle eşleşen bütün kayıtlar\n\n' +
+        (kutuHedefi === 'depo' ? 'D-' : 'Y-') + kutuNo + ' (' + onay + ')\n\n' +
+        'kutusuna yazılacak. Emin misiniz?')) return;
+
+    mesgul($('btnKutula'), true, 'Kutulanıyor…');
+    var y = secenekler();
+    y.yalnizOnayli = true; y.bas = 0; y.adet = 300;
+    var numaralar = [];
+    var devam = function () {
+      return api('katalog', y).then(function (r) {
+        (r.kayitlar || []).forEach(function (k) { numaralar.push(k.no); });
+        if (numaralar.length < r.toplam && r.kayitlar.length) {
+          y.bas = numaralar.length; return devam();
+        }
+      });
+    };
+    devam().then(function () {
+      if (!numaralar.length) throw new Error('Bu süzgeçle onaylanmış kayıt yok.');
+      return api('kutula', { numaralar: numaralar, kutu: kutuNo, hedef: kutuHedefi,
+                             paketleyen: D.ad });
+    }).then(function (r) {
+      goster($('msg'), 'iyi', '<b>' + esc(r.kutu) + '</b> (' + esc(r.hedef) + ') kapatıldı — ' +
+        r.yazilan + ' kayıt, ' + r.cilt + ' cilt. ' +
+        (r.aralik ? 'Yer kodu aralığı: <b>' + esc(r.aralik) + '</b>. ' : '') +
+        (r.atlanan ? r.atlanan + ' kayıt zaten başka kutudaydı. ' : '') +
+        'Kutu etiketine bu numarayı yazın.');
+      $('kutuNo2').value = '';
+      return yukle(true);
+    })['catch'](function (e) {
+      goster($('msg'), 'hata', agHata(e));
+    }).then(function () { mesgul($('btnKutula'), false); });
+  });
+
+  /* ───────── ayıklama listesi ─────────
+     Karar masada verildi; kitaplar hâlâ rafta ya da kutuda. Bu liste, birinin
+     eline alıp gidip fiziksel ayıklamayı yapabileceği tek kâğıt. */
+  function seritYenile() {
+    var sira = $('siraSuz').value, kutu = $('kutuSuz').value;
+    var var_ = !!(sira || kutu);
+    $('ayiklaSerit').classList.toggle('gizli', !var_);
+    /* Kutulama yalnızca bir sıra süzülüyken anlamlı: kutuya giren şey bir sıranın
+       belli bir kararlı grubu. Kutu süzgeciyle bakarken zaten kutulanmış. */
+    $('kutulaSerit').classList.toggle('gizli', !sira);
+    if (var_) {
+      $('ayiklaMetin').innerHTML = sira
+        ? '<b>' + esc(sira) + '</b> sırasının çekme listesi'
+        : '<b>Kutu ' + esc(kutu) + '</b> içeriğinin çekme listesi';
+    }
+  }
+
+  function suzgecleriDoldur() {
+    return api('kutular').then(function (r) {
+      $('siraSuz').innerHTML = '<option value="">hepsi</option>' +
+        (r.siralar || []).map(function (x) {
+          return '<option value="' + esc(x) + '">' + esc(x) + '</option>';
+        }).join('');
+      $('kutuSuz').innerHTML = '<option value="">hepsi</option>' +
+        (r.kutular || []).map(function (x) {
+          return '<option value="' + esc(x) + '">Kutu ' + esc(x) + '</option>';
+        }).join('');
+    })['catch'](function () { /* süzgeç kritik değil */ });
+  }
+
+  $('btnAyiklaListe').addEventListener('click', function () {
+    var y = secenekler();
+    y.yalnizOnayli = true; y.bas = 0; y.adet = 300; y.kategori = '';
+    mesgul($('btnAyiklaListe'), true, 'Hazırlanıyor…');
+    var hepsi = [];
+    var devam = function () {
+      return api('katalog', y).then(function (r) {
+        hepsi = hepsi.concat(r.kayitlar || []);
+        if (hepsi.length < r.toplam && r.kayitlar.length) { y.bas = hepsi.length; return devam(); }
+      });
+    };
+    devam().then(function () {
+      if (!hepsi.length) {
+        goster($('msg'), 'bos', 'Bu seçimde onaylanmış kayıt yok — önce onay masası bitirmeli.');
+        return;
+      }
+      ayiklamaYazdir(hepsi, $('siraSuz').value, $('kutuSuz').value);
+    })['catch'](function (e) { goster($('msg'), 'hata', agHata(e)); })
+      .then(function () { mesgul($('btnAyiklaListe'), false); });
+  });
+
+  function ayiklamaYazdir(kayitlar, sira, kutu) {
+    var kalacak = kayitlar.filter(function (k) { return k.kategori === 'Gitmeyecek'; });
+    var cikacak = kayitlar.filter(function (k) { return k.kategori !== 'Gitmeyecek'; });
+    var belirsiz = kayitlar.filter(function (k) { return k.kategori === 'Belirsiz'; });
+
+    var satir = function (k) {
+      return '<tr><td class="yer">' + esc(k.yer || ('#' + k.no)) + '</td>' +
+        '<td>' + esc(k.baslik || '') + (k.yazar ? '<br><i>' + esc(k.yazar) + '</i>' : '') + '</td>' +
+        '<td class="kod">' + esc(k.kural || '') + '</td>' +
+        '<td>' + (Number(k.nusha) > 1 ? esc(k.nusha) + ' nüsha' : '') + '</td>' +
+        '<td class="kutucuk"></td></tr>';
+    };
+    var tablo = function (baslik, liste, renk) {
+      if (!liste.length) return '';
+      return '<h2 style="border-left:7px solid ' + renk + '">' + baslik +
+        ' <span>' + liste.length + ' kitap</span></h2>' +
+        '<table><tr><th>Yer kodu</th><th>Kitap</th><th>Kural</th><th></th>' +
+        '<th style="width:34px">✓</th></tr>' + liste.map(satir).join('') + '</table>';
+    };
+
+    var yer = sira ? sira + ' sırası' : (kutu ? 'Kutu ' + kutu : 'Tüm kayıtlar');
+    var w = window.open('', '_blank');
+    if (!w) { goster($('msg'), 'hata', 'Tarayıcı yeni sekmeyi engelledi. İzin verip tekrar deneyin.'); return; }
+    w.document.write('<!doctype html><html lang="tr"><head><meta charset="utf-8">' +
+      '<title>Çekme listesi — ' + esc(yer) + '</title><style>' +
+      '@page{size:A4;margin:14mm}' +
+      'body{font-family:Arial,sans-serif;color:#211a1d;font-size:10pt;margin:0}' +
+      'h1{font-size:16pt;color:#601040;margin:0 0 2px}' +
+      '.alt{color:#74686e;font-size:9pt;margin:0 0 14px}' +
+      'h2{font-size:12pt;margin:16px 0 6px;padding:4px 10px;background:#f4ece7}' +
+      'h2 span{float:right;font-weight:400;font-size:10pt;color:#74686e}' +
+      'table{width:100%;border-collapse:collapse;margin-bottom:8px}' +
+      'td,th{border:1px solid #d8ccc4;padding:4px 7px;text-align:left;font-size:9.5pt}' +
+      'th{background:#faf6f3;font-size:8.5pt}' +
+      '.yer{font-family:monospace;font-weight:700;white-space:nowrap}' +
+      '.kod{font-weight:700;color:#601040;text-align:center}' +
+      '.kutucuk{border:1px solid #211a1d}' +
+      '.uyari{background:#fffbeb;border:1px solid #fde68a;padding:8px 11px;' +
+      'border-radius:6px;font-size:9.5pt;margin-bottom:12px}' +
+      '</style></head><body>' +
+      '<h1>Çekme listesi — ' + esc(yer) + '</h1>' +
+      '<p class="alt">' + kayitlar.length + ' onaylanmış kayıt · ' +
+      new Date().toLocaleDateString('tr-TR') + '</p>' +
+      '<div class="uyari"><b>Yalnızca ÇIKACAK listesindekileri raftan alın.</b> ' +
+      'Alt listedekilere dokunmayın — onlar yerinde kalıyor, depo zaten burası. ' +
+      'Çıkardıklarınızı <b>raftaki sırayla</b> kutuya koyun ve kutu numarasını ' +
+      'ekrandan işleyin; kutusuz yığının kaydı yoktur. ' +
+      'Listede olmayan bir kitap bulursanız <b>raftan almayın</b> — henüz onaylanmamıştır, ' +
+      'koordinatöre söyleyin.' +
+      (belirsiz.length ? ' <b>' + belirsiz.length + ' kitap "belirsiz"</b> — onlara ' +
+       'dokunmayın, uzman masası bakacak.' : '') + '</div>' +
+      tablo('ÇIKACAK — yeni binaya, Y- kutusuna', cikacak, '#2e6440') +
+      tablo('YERİNDE KALACAK — depo · dokunmayın', kalacak, '#5b3a8e') +
+      '</body></html>');
+    w.document.close();
+    setTimeout(function () { w.print(); }, 400);
+  }
 
   /* ───────── CSV ───────── */
   $('btnCsv').addEventListener('click', function () {

@@ -23,7 +23,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Refresh public snapshot
-        run: node tools/refresh_public_snapshot.mjs
+        # Bu adım canlı Apps Script ucuna bağlanır. Uç geçici olarak yanıt vermezse
+        # (kota, ağ, dağıtım değişikliği) yayının tamamı çökmesin: mevcut snapshot ile
+        # devam edilir, günlüğe uyarı düşer.
+        run: |
+          if node tools/refresh_public_snapshot.mjs; then
+            echo "Snapshot yenilendi."
+          else
+            echo "::warning::Snapshot yenilenemedi — mevcut js/snapshot.js ile devam ediliyor."
+          fi
       - name: Check required files
         run: |
           test -f index.html
@@ -49,14 +57,11 @@ jobs:
             kitap-envanteri.html \
             kunye-onay.html \
             envanter-katalog.html \
-
             envanter-durum.html \
             envanter-deneme.html \
             kunye-onay-deneme.html \
             envanter-katalog-deneme.html \
             envanter-durum-deneme.html \
-
-            
             envanter-manifest.json \
             sw.js \
           ; do

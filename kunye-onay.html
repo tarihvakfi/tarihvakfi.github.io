@@ -76,8 +76,61 @@
   details pre{white-space:pre-wrap;word-break:break-word;background:#fff;border:1px solid var(--cizgi);
     border-radius:9px;padding:11px;font-size:12.5px;line-height:1.45;max-height:240px;overflow:auto;margin:8px 0 0}
 
+  .rafbilgi{margin-top:14px;background:#fdf6f0;border:1.5px solid #e0cdbb;border-radius:9px;
+            padding:9px 12px;font-size:14px;line-height:1.5}
+  .rafbilgi .etiket{display:inline-block;background:#601040;color:#fff;border-radius:4px;
+                    padding:1px 7px;font-size:11.5px;font-weight:700;margin-right:8px;
+                    vertical-align:1px}
+  .karar{margin-top:20px;border-top:2px solid var(--cizgi);padding-top:16px}
+  .karar>h3{margin:0 0 4px;font-size:15px;color:var(--bordo)}
+  .karar>p{margin:0 0 12px;font-size:13px;color:var(--soluk)}
+  .katlar{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .kat{border:0;border-radius:10px;padding:12px 10px;font:inherit;font-weight:700;
+       font-size:15px;color:#fff;cursor:pointer;line-height:1.3;text-align:center}
+  .kat small{display:block;font-weight:400;font-size:11.5px;opacity:.9;margin-top:2px}
+  .kat.g{background:#2e6440} .kat.s{background:#a06a12}
+  .kat.k{background:#9c2233} .kat.m{background:#2a5b86}
+  .kat.pasif{opacity:.42}
+  .kurallar{margin-top:12px;border:2px solid var(--bordo);border-radius:11px;
+            padding:12px;background:#fdf6f0}
+  .kurallar>p{margin:0 0 9px;font-size:13.5px;color:var(--bordo);font-weight:700}
+  .cip{display:block;width:100%;text-align:left;border:1.5px solid var(--cizgi);
+       background:#fff;border-radius:9px;padding:10px 12px;margin-bottom:7px;
+       font:inherit;font-size:14px;cursor:pointer;line-height:1.35}
+  .cip.sec{border-color:var(--bordo);background:#fdf0e6;box-shadow:0 0 0 2px rgba(96,16,64,.15)}
+  .cip b{display:inline-block;min-width:34px;color:var(--bordo)}
   .islemler{display:flex;gap:12px;margin-top:18px;align-items:center;flex-wrap:wrap}
   .kisayol{color:var(--soluk);font-size:12.5px;margin-left:auto}
+  .mod{display:flex;gap:10px;margin:0 0 16px;flex-wrap:wrap;align-items:center}
+  .mod button{border:1.5px solid var(--cizgi);background:#fff;border-radius:9px;
+              padding:8px 14px;font:inherit;font-size:14px;cursor:pointer}
+  .mod button.sec{border-color:var(--bordo);background:var(--bordo);color:#fff;font-weight:700}
+  .mod .not{color:var(--soluk);font-size:13px;margin-left:auto}
+
+  .grup{border:1.5px solid var(--cizgi);border-radius:11px;padding:14px 16px;
+        margin-bottom:12px;background:#fff}
+  .grup.yuksek{border-left:6px solid #2e6440}
+  .grup.orta{border-left:6px solid #a06a12}
+  .grup.dusuk{border-left:6px solid #9c2233}
+  .grup h3{margin:0 0 3px;font-size:16px}
+  .grup h3 .kod{display:inline-block;background:var(--bordo);color:#fff;border-radius:5px;
+                padding:1px 8px;font-size:13px;margin-right:8px;vertical-align:1px}
+  .grup .sebep{color:var(--soluk);font-size:13.5px;margin:0 0 9px}
+  .grup .ornek{font-size:13.5px;color:#4a3f44;margin:0 0 10px;line-height:1.55}
+  .grup .ornek span{display:block}
+  .grup .islem{display:flex;gap:10px;flex-wrap:wrap}
+  .grup .islem button{border:0;border-radius:9px;padding:9px 15px;font:inherit;
+                      font-size:14px;font-weight:700;cursor:pointer}
+  .grup .islem .onay{background:#2e6440;color:#fff}
+  .grup .islem .bak{background:#f4ece7;color:var(--bordo)}
+  .grup .adet{float:right;font-size:22px;font-weight:800;color:var(--bordo);line-height:1}
+
+  .oneri-rozet{display:inline-block;border-radius:5px;padding:1px 8px;font-size:12px;
+               font-weight:700;margin-left:8px;vertical-align:1px}
+  .oneri-rozet.yuksek{background:#e4f0e7;color:#22502f}
+  .oneri-rozet.orta{background:#fdf3e0;color:#7a5210}
+  .oneri-rozet.dusuk{background:#fbe6e9;color:#8a1c2c}
+
   .msg{padding:12px 14px;border-radius:9px;font-size:14.5px;margin:0 0 14px;display:none;border:1px solid}
   .msg.gor{display:block}
   .msg.iyi{background:#f1f7f2;color:#2e6440;border-color:#cfe4d5}
@@ -115,6 +168,14 @@
   <!-- onay ekranı -->
   <section id="adim-onay" class="gizli">
     <div class="msg" id="msg"></div>
+
+    <div class="mod">
+      <button type="button" id="modGrup">Gruplu onay</button>
+      <button type="button" id="modTek" class="sec">Tek tek</button>
+      <span class="not" id="modNot"></span>
+    </div>
+
+    <div id="gruplar" class="gizli"></div>
 
     <div class="kart" id="kutu">
       <div class="alan">
@@ -164,10 +225,23 @@
           <label for="not">Not</label>
           <textarea id="not" placeholder="Yayınevi, dizi, eksik sayfa…"></textarea>
 
+          <div class="rafbilgi" id="rafBilgi" style="display:none"></div>
+
+          <div class="karar">
+            <h3>Karar — bu kitap taşınacak mı?<span id="oneriRozet"></span></h3>
+            <p id="oneriSebep">Gönüllü yalnızca künyeyi girdi. Kitabın akıbetine siz karar veriyorsunuz.</p>
+            <div class="katlar" id="katlar"></div>
+            <div class="kurallar gizli" id="kurallar">
+              <p id="kurallarBaslik"></p>
+              <div id="kurallarListe"></div>
+            </div>
+          </div>
+
           <div class="islemler">
             <button class="btn" id="btnOnayla">Onayla ve sıradaki</button>
+            <button class="btn ikincil" id="btnGetirt">Kitabı getirt</button>
             <button class="btn ikincil" id="btnAtla">Atla</button>
-            <span class="kisayol">Ctrl + Enter ile onayla</span>
+            <span class="kisayol">Enter ile onayla · Ctrl+Enter her yerde çalışır</span>
           </div>
         </div>
       </div>
@@ -189,7 +263,11 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
-  var D = { ad: '', sifre: '', liste: [], i: 0, kalan: 0 };
+  var D = { ad: '', sifre: '', liste: [], i: 0, kalan: 0,
+            cfg: null, kategori: '', kural: '', mod: 'tek', gruplar: [] };
+
+  // Kuyruk bunu aşarsa ekran kendiliğinden gruplu onaya geçer.
+  var GRUP_ESIGI = 40;
 
   var esc = function (s) {
     return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
@@ -203,30 +281,53 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     else { b.innerHTML = b.dataset.eski || b.innerHTML; b.disabled = false; }
   }
 
-  function api(action, yuk) {
-    if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
-      return Promise.reject(new Error('Sistem adresi tanımlanmamış (TV_ENVANTER_URL).'));
-    }
+  /* Apps Script uykudan kalkarken ilk istek 20–30 saniye sürebiliyor; zayıf bağlantıda
+     istek büsbütün düşebiliyor. Okuma istekleri otomatik tekrar denenir, yazma istekleri
+     (onayla) denenmez — aynı kayıt iki kez işlenmesin. */
+  var TEKRARLANABILIR = ['config', 'onayBekleyen', 'katalog', 'durum'];
+
+  function tekIstek(action, yuk, sure) {
     var govde = { action: action, sifre: D.sifre };
     for (var k in (yuk || {})) govde[k] = yuk[k];
-
-    // Vakıfta bağlantı zayıf; ölü wifi'de istek asılı kalmasın.
     var kes = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    var saat = setTimeout(function () { if (kes) kes.abort(); }, 20000);
+    var saat = setTimeout(function () { if (kes) kes.abort(); }, sure);
     var bitir = function () { clearTimeout(saat); };
-
     return fetch(ENVANTER_URL, {
       method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(govde), redirect: 'follow',
-      signal: kes ? kes.signal : undefined
+      body: JSON.stringify(govde), redirect: 'follow', signal: kes ? kes.signal : undefined
     }).catch(function () { bitir(); throw new Error('AĞ'); })
       .then(function (r) { bitir(); return r.text(); })
       .then(function (m) {
-        var d; try { d = JSON.parse(m); } catch (h) { throw new Error('Sunucudan beklenmeyen yanıt.'); }
+        var d;
+        try { d = JSON.parse(m); } catch (h) {
+          /* JSON yerine HTML geldiyse istek sunucuya ulaşıyor ama Apps Script yanıt
+             vermiyor demektir. En sık sebebi dağıtımın erişim ayarıdır: yeni
+             dağıtımlarda varsayılan "Yalnızca kendim"dir ve Google giriş sayfası döner. */
+          throw new Error(/^\s*</.test(m)
+            ? 'Sunucu JSON yerine web sayfası döndürdü. Apps Script dağıtımında ' +
+              '“Erişimi olan: Herkes” seçili mi? (Yeni dağıtımlarda varsayılan “Yalnızca kendim”dir.)'
+            : 'Sunucudan beklenmeyen yanıt.');
+        }
         if (!d.ok) throw new Error(d.error || 'Hata');
         return d;
       });
   }
+
+  function api(action, yuk) {
+    if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
+      return Promise.reject(new Error('Sistem adresi tanımlanmamış (TV_ENVANTER_URL).'));
+    }
+    var kalan = TEKRARLANABILIR.indexOf(action) >= 0 ? 2 : 0;
+    function dene(kalanDeneme, bekle) {
+      return tekIstek(action, yuk, 30000)['catch'](function (e) {
+        if (e.message !== 'AĞ' || kalanDeneme <= 0) throw e;
+        return new Promise(function (t) { setTimeout(t, bekle); })
+          .then(function () { return dene(kalanDeneme - 1, bekle * 2); });
+      });
+    }
+    return dene(kalan, 1200);
+  }
+
   function ağHata(e) { return e.message === 'AĞ' ? 'Sunucuya ulaşılamadı.' : e.message; }
 
   /* ───────── giriş ───────── */
@@ -236,14 +337,28 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     if (!sifre) return goster($('msgGiris'), 'hata', 'Çalışma şifresini yazın.');
     D.ad = ad; D.sifre = sifre;
     mesgul($('btnGiris'), true, 'Kontrol ediliyor…');
-    listeGetir().then(function () {
+    // Kategoriler ve kurallar sunucudan gelir; karar bölümü onlarsız çizilemez.
+    api('config').then(function (cfg) {
+      if (!cfg || !cfg.kurallar || !cfg.kategoriler) {
+        throw new Error('Sunucudan gelen ayarlar eksik. Koordinatöre bildirin.');
+      }
+      D.cfg = cfg;
+      kategorileriCiz();
+      return listeGetir();
+    }).then(function () {
+      // Uyarlanma: kuyruk büyükse gruplu onayla başla, küçükse tek tek.
+      D.mod = D.kalan >= GRUP_ESIGI ? 'grup' : 'tek';
       localStorage.setItem('tv_env_ad', ad);
       localStorage.setItem('tv_env_koord_sifre', sifre);
       gizle($('msgGiris'));
       $('adim-giris').classList.add('gizli');
       $('adim-onay').classList.remove('gizli');
       $('ust').classList.remove('gizli');
-      ciz();
+      modSec(D.mod);
+      if (D.mod === 'grup') {
+        goster($('msg'), 'uyari', 'Kuyrukta <b>' + D.kalan + '</b> kayıt var — ' +
+          'gruplu onayla başlıyoruz. Dilerseniz <b>Tek tek</b>e geçebilirsiniz.');
+      }
     })['catch'](function (e) {
       goster($('msgGiris'), 'hata', ağHata(e));
     }).then(function () { mesgul($('btnGiris'), false); });
@@ -251,12 +366,19 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   $('sifre').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('btnGiris').click(); });
 
   /* ───────── liste ───────── */
+  function modNotuYaz() {
+    $('modNot').textContent = D.kalan >= GRUP_ESIGI
+      ? 'Kuyruk kalabalık (' + D.kalan + ') — gruplu onay daha hızlı.'
+      : (D.kalan ? D.kalan + ' kayıt bekliyor.' : 'Kuyruk boş.');
+  }
+
   function listeGetir() {
     return api('onayBekleyen', { adet: 25 }).then(function (r) {
       D.liste = r.kayitlar || [];
       D.kalan = r.kalan || 0;
       D.i = 0;
       $('ilerlemeSayi').textContent = D.kalan;
+      modNotuYaz();
       return r;
     });
   }
@@ -269,6 +391,162 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   $('btnTekrar').addEventListener('click', function () { $('btnYenile').click(); });
 
   /* ───────── çizim ───────── */
+  /* Fotoğrafı okunmayan ya da karar verilemeyen kayıt için rafa haber:
+     "bu kitabı bana getirin". Rafta çalışanın ekranında yer koduyla çıkar. */
+  $('btnGetirt').addEventListener('click', function () {
+    var k = D.liste[D.i]; if (!k) return;
+    var sebep = window.prompt('Bu kitabı neden görmek istiyorsunuz?\n' +
+      '(Rafta çalışanlar bu notu görecek.)', 'Fotoğraftan karar veremedim');
+    if (sebep === null) return;
+    mesgul($('btnGetirt'), true, 'İşleniyor…');
+    api('kitapIste', { no: k.no, sebep: sebep, isteyen: D.ad }).then(function () {
+      goster($('msg'), 'iyi', '<b>' + esc(k.yer || ('#' + k.no)) + '</b> istendi — ' +
+        'rafta çalışanların ekranında görünecek. Kitap gelince elinizde tutarak karar verin.');
+      D.i++;
+      ciz();
+    })['catch'](function (e) {
+      goster($('msg'), 'hata', ağHata(e));
+    }).then(function () { mesgul($('btnGetirt'), false); });
+  });
+
+  /* ───────── gruplu onay ─────────
+     Tek tek onay, kuyruk büyüdüğünde yetişmiyor. Aynı öneriyi taşıyan kayıtlar
+     tek karta toplanır; koordinatör kararı bir kez verir, sistem hepsine yazar.
+     Karar yine insanda — değişen tek şey kaç kez dokunulduğu. */
+  function modSec(mod) {
+    D.mod = mod;
+    $('modGrup').classList.toggle('sec', mod === 'grup');
+    $('modTek').classList.toggle('sec', mod === 'tek');
+    $('gruplar').classList.toggle('gizli', mod !== 'grup');
+    $('kutu').classList.toggle('gizli', mod === 'grup');
+    $('bitti').classList.add('gizli');
+    if (mod === 'grup') gruplariGetir(); else ciz();
+  }
+
+  $('modGrup').addEventListener('click', function () { modSec('grup'); });
+  $('modTek').addEventListener('click', function () { modSec('tek'); });
+
+  function gruplariGetir() {
+    $('gruplar').innerHTML = '<p style="color:var(--soluk)">Gruplar hazırlanıyor…</p>';
+    return api('onayGruplari', { adet: 400 }).then(function (r) {
+      D.gruplar = r.gruplar || [];
+      D.kalan = r.kalan || 0;
+      $('ilerlemeSayi').textContent = D.kalan;
+      gruplariCiz(r.onerisiz || 0);
+    })['catch'](function (e) {
+      $('gruplar').innerHTML = '';
+      goster($('msg'), 'hata', ağHata(e));
+    });
+  }
+
+  function gruplariCiz(onerisiz) {
+    if (!D.gruplar.length) {
+      $('gruplar').innerHTML =
+        '<div class="kart"><p style="margin:0">Gruplanabilir öneri yok — ' +
+        'kalan ' + D.kalan + ' kaydı <b>Tek tek</b> modunda geçin.</p></div>';
+      return;
+    }
+    var guvenAd = { yuksek: 'güvenli öneri', orta: 'orta güvenli', dusuk: 'zayıf öneri' };
+    $('gruplar').innerHTML = D.gruplar.map(function (g, i) {
+      return '<div class="grup ' + esc(g.guven) + '">' +
+        '<span class="adet">' + g.adet + '</span>' +
+        '<h3><span class="kod">' + esc(g.kural) + '</span>' +
+          esc(D.cfg.kategoriler[g.kategori] ? D.cfg.kategoriler[g.kategori].ad : g.kategori) +
+          ' — ' + esc(g.aciklama) + '</h3>' +
+        '<p class="sebep">' + esc(g.sebep) + ' · <i>' + esc(guvenAd[g.guven] || '') + '</i></p>' +
+        '<p class="ornek">' + g.ornekler.map(function (o) {
+          return '<span>' + esc(o.yer || ('#' + o.no)) + ' · ' + esc(o.baslik) +
+                 (o.yazar ? ' — ' + esc(o.yazar) : '') + '</span>';
+        }).join('') + (g.adet > g.ornekler.length
+          ? '<span style="color:var(--soluk)">… ve ' + (g.adet - g.ornekler.length) +
+            ' kayıt daha</span>' : '') + '</p>' +
+        '<div class="islem">' +
+          '<button class="onay" data-i="' + i + '">' + g.adet +
+            ' kaydın hepsini onayla</button>' +
+          '<button class="bak" data-bak="' + i + '">Tek tek bakayım</button>' +
+        '</div></div>';
+    }).join('') + (onerisiz
+      ? '<div class="kart"><p style="margin:0"><b>' + onerisiz + ' kayıt</b> için sistem ' +
+        'öneri üretemedi. Onları <b>Tek tek</b> modunda geçin.</p></div>' : '');
+
+    Array.prototype.forEach.call($('gruplar').querySelectorAll('.onay'), function (b) {
+      b.addEventListener('click', function () { grubuOnayla(Number(b.dataset.i), b); });
+    });
+    Array.prototype.forEach.call($('gruplar').querySelectorAll('.bak'), function (b) {
+      b.addEventListener('click', function () {
+        var g = D.gruplar[Number(b.dataset.bak)];
+        modSec('tek');
+        goster($('msg'), 'uyari', esc(g.kural) + ' grubundaki kayıtlar sırada — ' +
+          'tek tek geçebilirsiniz.');
+      });
+    });
+  }
+
+  function grubuOnayla(i, dugme) {
+    var g = D.gruplar[i];
+    if (!g) return;
+    if (!window.confirm(g.adet + ' kaydın hepsi "' + g.kural + ' — ' + g.aciklama +
+        '" olarak onaylanacak.\n\nEmin misiniz?')) return;
+    mesgul(dugme, true, 'Onaylanıyor…');
+    api('topluOnayla', { numaralar: g.numaralar, kategori: g.kategori, kural: g.kural,
+                         onaylayan: D.ad }).then(function (r) {
+      var ek = [];
+      if (r.basliksiz) ek.push(r.basliksiz + ' kayıt künyesi eksik olduğu için atlandı');
+      if (r.atlanan) ek.push(r.atlanan + ' kayıt zaten onaylıydı');
+      goster($('msg'), 'iyi', '<b>' + r.onaylanan + ' kayıt onaylandı.</b>' +
+        (ek.length ? ' ' + ek.join(', ') + ' — onları tek tek geçin.' : ''));
+      return gruplariGetir();
+    })['catch'](function (e) {
+      goster($('msg'), 'hata', ağHata(e));
+    }).then(function () { mesgul(dugme, false); });
+  }
+
+  /* ───────── karar (sınıflandırma) ───────── */
+  function kategorileriCiz() {
+    if (!D.cfg) return;
+    var sinif = { gidecek: 'g', belki: 's', gitmeyecek: 'k', belirsiz: 'm' };
+    var altYazi = { gidecek: 'yeşil · yeni binaya', belki: 'sarı · yer kalırsa',
+                    gitmeyecek: 'kırmızı · yerinde kalır', belirsiz: 'mavi · uzmana' };
+    $('katlar').innerHTML = Object.keys(D.cfg.kategoriler).map(function (a) {
+      return '<button type="button" class="kat ' + sinif[a] + '" data-kat="' + a + '">' +
+        esc(D.cfg.kategoriler[a].ad) + '<small>' + altYazi[a] + '</small></button>';
+    }).join('');
+    Array.prototype.forEach.call($('katlar').querySelectorAll('.kat'), function (b) {
+      b.addEventListener('click', function () { kategoriSec(b.dataset.kat); });
+    });
+  }
+
+  function kategoriKodu(ad) {
+    var kler = (D.cfg && D.cfg.kategoriler) || {};
+    for (var kod in kler) if (kler[kod].ad === ad) return kod;
+    return '';
+  }
+
+  function kategoriSec(kat, kural) {
+    D.kategori = kat; D.kural = kural || '';
+    Array.prototype.forEach.call($('katlar').querySelectorAll('.kat'), function (b) {
+      b.classList.toggle('pasif', b.dataset.kat !== kat);
+    });
+    if (!kat) { $('kurallar').classList.add('gizli'); return; }
+    var liste = D.cfg.kurallar.filter(function (x) { return x.kategori === kat; });
+    $('kurallarBaslik').textContent = D.cfg.kategoriler[kat].ad + ' — hangi kurala göre?';
+    $('kurallarListe').innerHTML = liste.map(function (x) {
+      return '<button type="button" class="cip' + (x.kod === D.kural ? ' sec' : '') +
+        '" data-kod="' + x.kod + '"><b>' + x.kod + '</b>' + esc(x.aciklama) + '</button>';
+    }).join('');
+    Array.prototype.forEach.call($('kurallarListe').querySelectorAll('.cip'), function (b) {
+      b.addEventListener('click', function () { kuralSec(b.dataset.kod); });
+    });
+    $('kurallar').classList.remove('gizli');
+  }
+
+  function kuralSec(kod) {
+    D.kural = kod;
+    Array.prototype.forEach.call($('kurallarListe').querySelectorAll('.cip'), function (b) {
+      b.classList.toggle('sec', b.dataset.kod === kod);
+    });
+  }
+
   function ciz() {
     var k = D.liste[D.i];
     if (!k) {
@@ -283,6 +561,20 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     $('kRaf').textContent = '#' + k.no;
     $('kKategori').textContent = (k.kategori || '') + (k.kural ? ' · ' + k.kural : '');
     $('kKaydeden').textContent = k.kaydeden || '';
+
+    /* Rafta girilen bilgiler kararı doğrudan etkiliyor: K4 fiziksel duruma,
+       K3/S1 nüshaya bakıyor. Bunları göstermezsek koordinatör fotoğraftan
+       tahmin etmeye çalışır. */
+    var rafBilgi = [];
+    if (k.durum && k.durum !== 'Sağlam') rafBilgi.push('<b>' + esc(k.durum) + '</b>');
+    if (Number(k.nusha) > 1) rafBilgi.push('<b>' + esc(k.nusha) + ' nüsha</b>');
+    if (k.not) rafBilgi.push('Not: ' + esc(k.not));
+    if (k.istenen) rafBilgi.push('<b style="color:#1a3f63">Bu kitap istendi</b> — ' +
+      esc(String(k.istenen).split(' · ')[0]));
+    $('rafBilgi').innerHTML = rafBilgi.length
+      ? '<span class="etiket">rafta girilen</span>' + rafBilgi.join(' &nbsp;·&nbsp; ')
+      : '';
+    $('rafBilgi').style.display = rafBilgi.length ? '' : 'none';
 
     fotoCiz('kunye');
 
@@ -312,8 +604,31 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     $('yil').value = k.yil || (yerlesik ? '' : (k.oneriYil || ''));
     $('not').value = k.not || '';
 
+    /* Karar: kayıtta zaten varsa onu, yoksa sistemin önerisini ön-seçili getir.
+       Koordinatör yine kendi onaylıyor; sadece hazır geliyor. */
+    var mevcutKod = kategoriKodu(k.kategori);
+    if (mevcutKod) {
+      kategoriSec(mevcutKod, k.kural || '');
+      $('oneriRozet').innerHTML = '';
+      $('oneriSebep').textContent = 'Bu kayıtta zaten bir karar var; değiştirebilirsiniz.';
+    } else if (k.oneriKategori && k.oneriKural) {
+      kategoriSec(k.oneriKategori, k.oneriKural);
+      $('oneriRozet').className = 'oneri-rozet ' + (k.oneriGuven || 'orta');
+      $('oneriRozet').textContent =
+        k.oneriGuven === 'yuksek' ? 'öneri hazır' :
+        k.oneriGuven === 'dusuk' ? 'zayıf öneri' : 'öneri';
+      $('oneriSebep').innerHTML = '<b>' + esc(k.oneriKural) + '</b> önerildi — ' +
+        esc(k.oneriSebep) + '. Katılıyorsanız <b>Onayla</b>, katılmıyorsanız değiştirin.';
+    } else {
+      kategoriSec('', '');
+      $('oneriRozet').innerHTML = '';
+      $('oneriSebep').textContent = 'Sistem öneri üretemedi — kararı siz vereceksiniz.';
+    }
+
     gizle($('msg'));
-    $('baslik').focus();
+    // Odak metin kutusunda kalırsa Enter kısayolu çalışmaz; öneri hazırken
+    // çoğu kayıtta hiçbir şey yazılmayacağı için odağı düğmeye veriyoruz.
+    if (k.oneriKural && !k.kural) $('btnOnayla').focus(); else $('baslik').focus();
     window.scrollTo({ top: 0 });
   }
 
@@ -359,16 +674,27 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     if (!baslik) { goster($('msg'), 'hata', 'Başlık boş olamaz.'); $('baslik').focus(); return; }
     var yil = $('yil').value.trim();
     if (yil && !/^\d{3,4}$/.test(yil)) { goster($('msg'), 'hata', 'Yıl 3–4 haneli olmalı.'); return; }
+    if (!D.kategori) {
+      goster($('msg'), 'hata', 'Karar verin: yeni binaya mı gidecek, yerinde mi kalacak?');
+      $('katlar').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    if (!D.kural) {
+      goster($('msg'), 'hata', 'Hangi kurala göre karar verdiğinizi işaretleyin.');
+      $('kurallar').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
 
     mesgul($('btnOnayla'), true, 'Kaydediliyor…');
     api('onayla', { no: k.no, kayit: {
       baslik: baslik, yazar: $('yazar').value.trim(), yil: yil,
+      kategori: D.kategori, kural: D.kural,
       not: $('not').value.trim(), onaylayan: D.ad
     } }).then(function () {
       D.kalan = Math.max(0, D.kalan - 1);
       $('ilerlemeSayi').textContent = D.kalan;
       D.i++;
-      if (D.i >= D.liste.length && D.kalan > 0) {
+      if (D.i >= D.liste.length && D.kalan > 0) {   // hâlâ bekleyen varsa yeni parti getir
         return listeGetir().then(function () {
           ciz();
           goster($('msg'), 'iyi', '#' + k.no + ' onaylandı.');
@@ -377,10 +703,17 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       ciz();
       goster($('msg'), 'iyi', '#' + k.no + ' onaylandı.');
     })['catch'](function (e) {
+      // İki masa aynı anda çalışıyorsa sunucu ikinciyi reddediyor; listeyi tazele.
+      if (/başkas\u0131 onaylam\u0131\u015f/i.test(e.message || '')) {
+        goster($('msg'), 'uyari', e.message + ' — liste yenilendi, sıradakine geçtiniz.');
+        return listeGetir().then(function () { D.i = 0; ciz(); });
+      }
       goster($('msg'), 'hata', ağHata(e));
     }).then(function () { mesgul($('btnOnayla'), false); });
   });
 
+  /* Atla yalnızca ekrandaki sırayı ilerletir; sunucuda bir iz bırakmaz. Parti
+     bitince yeniden getirmezsek "bekleyen kalmadı" ekranı yanlış çıkıyordu. */
   $('btnAtla').addEventListener('click', function () {
     D.i++;
     if (D.i >= D.liste.length && D.kalan > D.liste.length) {
@@ -391,6 +724,15 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   });
 
   document.addEventListener('keydown', function (e) {
+    // Öneri hazır geldiği için çoğu kayıtta tek yapılacak şey onaylamak:
+    // metin kutusunda değilken düz Enter de onaylasın.
+    if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && D.mod === 'tek' &&
+        !$('adim-onay').classList.contains('gizli') &&
+        !/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) {
+      e.preventDefault();
+      $('btnOnayla').click();
+      return;
+    }
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !$('adim-onay').classList.contains('gizli')) {
       e.preventDefault(); $('btnOnayla').click();
     }
