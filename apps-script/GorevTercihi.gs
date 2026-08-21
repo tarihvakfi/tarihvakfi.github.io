@@ -9,21 +9,21 @@
 
 var AYAR = {
   // ── Verilerin yazılacağı Google E-Tablo ──────────────────────────────
-  // Betiği tablonun "Uzantılar → Apps Script" menüsünden açtıysanız burayı
-  // BOŞ bırakın; betik bağlı olduğu tabloyu kendisi bulur.
+  // Gerçek değer koda DEĞİL, Apps Script'in Komut Dosyası Özellikleri'ne
+  // yazılır: Proje Ayarları (⚙) → Komut Dosyası Özellikleri → özellik ekle:
+  //   TABLO_ID = 1AbCdEf...XyZ   (adres çubuğunda /d/ ile /edit arası)
   //
-  // Ayrı (bağımsız) bir Apps Script projesi açtıysanız, tablonun kimliğini
-  // buraya yazın. Kimlik, tablonun adres çubuğundaki /d/ ile /edit arasıdır:
-  //   https://docs.google.com/spreadsheets/d/1AbCdEf...XyZ/edit#gid=0
-  //                                          └──── bu kısım ────┘
+  // Betiği tablonun "Uzantılar → Apps Script" menüsünden açtıysanız özelliğe
+  // de gerek yok; betik bağlı olduğu tabloyu kendisi bulur. Buradaki alan
+  // yalnızca eski kurulumlar için yedek olarak okunur — boş bırakın.
   TABLO_ID: '',
 
-  // Bildirimlerin gideceği adres(ler).
-  // Başkalarını da eklemek için virgülle yazmanız yeterli — başka hiçbir yeri değiştirmeyin:
-  //   ADMIN_EPOSTA: 'ad@ornek.com, koordinator@tarihvakfi.org.tr'
+  // Yönetici/bildirim adresleri de Komut Dosyası Özellikleri'nde tutulur:
+  //   ADMIN_EPOSTA = ad@ornek.com, koordinator@tarihvakfi.org.tr
   //
-  // ⚠️ Bu dosya herkese açık depoda duruyor. Gerçek adresleri buraya yazmayın;
-  //    yalnızca Apps Script'teki çalışan kopyada bulunsunlar.
+  // ⚠️ Bu dosya herkese açık depoda duruyor. Gerçek adresleri asla buraya
+  //    yazmayın — dosya depodaki haliyle yapıştırılıp yayımlanabilsin diye
+  //    değerler Özellikler'den okunur; buradaki alan yalnızca yedektir.
   ADMIN_EPOSTA: 'BURAYA_YONETICI_EPOSTALARI',
 
   KURUM: 'Tarih Vakfı',
@@ -393,11 +393,26 @@ function kaydet_(token, veri) {
 
 /* ═══════════════ YÖNETİM (web paneli) ═══════════════ */
 
+/* Gizli ayarlar Komut Dosyası Özellikleri'nden okunur; koddaki AYAR alanı
+   yalnızca yedektir (BURAYA_ ile başlayan doldurulmamış kalıp yok sayılır).
+   Böylece depodaki dosya birebir yapıştırılır, her dağıtımda yeniden
+   doldurmak gerekmez ve gerçek adresler herkese açık depoya hiç girmez. */
+function ayarDegeri_(anahtar, koddaki) {
+  var deger = '';
+  try { deger = PropertiesService.getScriptProperties().getProperty(anahtar) || ''; } catch (h) {}
+  deger = String(deger).trim();
+  if (deger) return deger;
+  var yedek = String(koddaki || '').trim();
+  return /^BURAYA/.test(yedek) ? '' : yedek;
+}
+function adminEposta_() { return ayarDegeri_('ADMIN_EPOSTA', AYAR.ADMIN_EPOSTA); }
+function tabloKimligi_() { return ayarDegeri_('TABLO_ID', AYAR.TABLO_ID); }
+
 /** ADMIN_EPOSTA listesindeki adresler yöneticidir; ayrı şifre yoktur. */
 function yoneticiMi_(eposta) {
-  var liste = String(AYAR.ADMIN_EPOSTA || '').split(',').map(function (a) {
+  var liste = adminEposta_().split(',').map(function (a) {
     return a.trim().toLowerCase();
-  });
+  }).filter(function (a) { return a; });
   return liste.indexOf(String(eposta || '').toLowerCase()) >= 0;
 }
 
@@ -570,7 +585,7 @@ var _dosya = null;
  */
 function dosya_() {
   if (_dosya) return _dosya;
-  var kimlik = String(AYAR.TABLO_ID || '').trim();
+  var kimlik = tabloKimligi_();
   if (kimlik) {
     // Yanlışlıkla tam adres yapıştırıldıysa kimliği ayıkla
     var e = kimlik.match(/\/d\/([a-zA-Z0-9-_]+)/);
@@ -908,8 +923,11 @@ function gunlukOzetGonder() {
       '<td style="padding:5px 0">' + kacir_(hucre_('days', k.days)) + '</td></tr>';
   }).join('');
 
+  var ozetAlici = adminEposta_().split(',')[0].trim();
+  if (!ozetAlici) return; // yönetici adresi tanımlı değilse özet gönderilmez
+
   MailApp.sendEmail({
-    to: String(AYAR.ADMIN_EPOSTA).split(',')[0].trim(),
+    to: ozetAlici,
     subject: AYAR.KURUM + ' — gönüllü durumu (' + aktifler.length + ' aktif)',
     htmlBody: sarmala_('Gönüllü durumu',
       '<p>Toplam <b>' + kayitlar.length + '</b> kayıt, <b>' + aktifler.length + '</b> aktif gönüllü.</p>' +
@@ -925,7 +943,7 @@ function gunlukOzetGonder() {
 /* ═══════════════ E-POSTA ═══════════════ */
 
 function bildirimGonder_(kayit, fark, ilkKez) {
-  var adminler = String(AYAR.ADMIN_EPOSTA || '').split(',').map(function (a) { return a.trim(); })
+  var adminler = adminEposta_().split(',').map(function (a) { return a.trim(); })
     .filter(function (a) { return a; }).join(',');
 
   // Gönüllüye özet
