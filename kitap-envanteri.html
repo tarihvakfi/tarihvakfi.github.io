@@ -132,6 +132,17 @@
 
   /* ── son kayıtlar ── */
   .son{margin:12px}
+  .bul{margin:2px 0 14px;padding:11px 12px;border:1.5px solid var(--cizgi);
+       border-radius:10px;background:#fbf7f1}
+  .bul label{display:block;font-size:13.5px;color:#5a4a52;margin-bottom:7px}
+  .bul label b{color:var(--bordo)}
+  .bulSatir{display:flex;align-items:stretch;gap:7px}
+  #bulOnek{display:flex;align-items:center;padding:0 9px;border-radius:8px;
+           background:#efe4dc;color:#5a4a52;font-weight:700;font-size:15px;
+           font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
+  #bulNo{flex:1;min-width:0;font-size:17px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  #btnBul{flex:0 0 auto;padding:0 18px;border:none;border-radius:8px;
+          background:var(--bordo);color:#fff;font-size:15px;font-weight:700}
   .son h2{font-size:13px;color:var(--soluk);margin:0 0 8px;text-transform:uppercase;letter-spacing:.07em}
   .kayit{background:var(--kagit);border:1px solid var(--cizgi);border-left:4px solid var(--cizgi);
     border-radius:9px;padding:10px 12px;margin-bottom:7px;font-size:14px}
@@ -375,6 +386,20 @@
 
     <div class="son">
       <h2>Son kayıtlarınız</h2>
+
+      <!-- Liste yalnızca kendi son kayıtlarınızı gösteriyor. Aradığınız kitap
+           orada yoksa (başkası girdiyse, silindiyse, eskidiyse) numarayla bulun. -->
+      <div class="bul">
+        <label for="bulNo">Aradığınız kayıt listede yok mu? <b>Numarasını yazın</b></label>
+        <div class="bulSatir">
+          <span id="bulOnek">—</span>
+          <input type="text" id="bulNo" inputmode="numeric" placeholder="29"
+                 autocomplete="off" maxlength="14">
+          <button type="button" id="btnBul">Bul</button>
+        </div>
+        <div class="msg gizli" id="msgBul"></div>
+      </div>
+
       <div id="sonListe"></div>
     </div>
 
@@ -410,7 +435,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   var ZAMAN_ASIMI_AYAR = 30000;         // ayarlar (ilk istek, en yavaşı)
 
   // Yalnızca okuyan istekler; tekrar denemek güvenli
-  var TEKRARLANABILIR = ['config', 'sayac', 'rafDurum', 'sonKayitlar'];
+  var TEKRARLANABILIR = ['config', 'sayac', 'rafDurum', 'sonKayitlar', 'kayitBul'];
   var AYAR_DEPO = 'tv_env_ayarlar';     // son başarılı ayarlar telefonda saklanır
 
   /* ── Fotoğraflar için küçük IndexedDB deposu ──
@@ -687,9 +712,23 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         if (e.message === 'AĞ' && oncedenCalisti && D.cfg) return iceriGir(true);
 
         clearTimeout(uyari);
+
+        /* Şifre reddedildiyse telefonda saklananı SİL. Yoksa alan her açılışta
+           eski şifreyle dolu geliyor, kullanıcı "yazdım ya" deyip aynı yanlışı
+           tekrar tekrar gönderiyor ve döngüden çıkamıyordu. Şifre değiştirildiği
+           gün, o günden önce bir kez girmiş herkesin başına gelen buydu. */
+        if (e.sifreHatasi) {
+          localStorage.removeItem('tv_env_sifre');
+          $('sifre').value = '';
+          $('sifre').focus();
+        }
+
         goster($('msgGiris'), 'hata', e.message === 'AĞ'
           ? 'Sunucuya ulaşılamadı. Bağlantınızı kontrol edip “Başla”ya tekrar basın.'
-          : e.message);
+          : e.message + (e.sifreHatasi
+              ? '<br><small>Telefonda saklanan eski şifre silindi — karttaki şifreyi ' +
+                'yeniden yazın.</small>'
+              : ''));
       }).then(function () { clearTimeout(uyari); mesgul($('btnGiris'), false); });
   });
 
@@ -930,6 +969,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
   function ustuYenile() {
     $('ustRaf').textContent = D.anahtar;
+    $('bulOnek').textContent = D.anahtar ? D.anahtar + '-' : '—';
     $('ustSira').textContent = 'sıradaki ' + doldurSayi(D.sonraki, 3);
     $('ustKutu').textContent = D.kutu ? '· kutu ' + D.kutu : '';
   }
@@ -1232,6 +1272,74 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   });
 
   /* ───────── son kayıtlar ───────── */
+  /* Kaydın TAMAMINI forma getirir. Yalnız başlığı doldurmak, kaydetme anında
+     yazar/yıl/nüsha/durum/notu sessizce siliyordu. */
+  function duzeltmeyeAc(k, no) {
+    $('baslik').value = k.baslik || '';
+    $('yazar').value = k.yazar || '';
+    $('yil').value = k.yil ? String(k.yil) : '';
+    $('nusha').value = k.nusha || 1;
+    $('not').value = k.not || '';
+    durumSec(k.durum || 'Sağlam');
+    $('btnSorunlu').classList.toggle('sec', (k.durum || '') === 'Küflü/böcekli');
+    ayrintiAc(true);                // düzeltmede alanlar görünmeli
+    D.foto = null; D.kapak = null; fotoGoster();
+    D.duzenleNo = no;
+    $('duzenleNo').textContent = no;
+    $('duzenleUyari').classList.remove('gizli');
+    goster($('msgKayit'), 'uyari',
+      (k.yer ? '<b>' + esc(k.yer) + '</b> düzeltiliyor. ' : '') +
+      'Alanları düzeltip <b>Kitabı kaydet</b>e basın — kayıt güncellenecek. ' +
+      (k.onayli ? '<br><b>Dikkat:</b> bu kayıt koordinatör tarafından onaylanmış; ' +
+                  'değiştirirseniz kararı yeniden görecek. ' : '') +
+      '<button type="button" id="btnDuzenleVazgec" style="margin-left:6px;font-size:13px">Vazgeç</button>');
+    var vz = $('btnDuzenleVazgec');
+    if (vz) vz.addEventListener('click', formTemizle);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /* Yer kodundan arama: "29'da sorun oldu, geri dönemiyorum" durumunun çözümü.
+     Yalnızca çalışılan sıra içinde arar — kimse yanlışlıkla başka rafın
+     kaydını açmasın. */
+  function kayitAra() {
+    var ham = $('bulNo').value.trim();
+    if (!ham) return goster($('msgBul'), 'hata', 'Kayıt numarasını yazın (örnek: 29).');
+    if (!D.anahtar) return goster($('msgBul'), 'hata', 'Önce bir sıra seçin.');
+
+    /* Hem "29" hem "G-E01-029" kabul edilir; insanlar ikisini de yazıyor.
+       Tam kod yazıldıysa yalnızca SON parça numaradır — baştaki raf/sıra
+       rakamlarını da toplarsak 1002 gibi olmayan bir numara çıkıyordu. */
+    var parca = ham.indexOf('-') >= 0 ? ham.split('-').pop() : ham;
+    var sadeceSayi = parca.replace(/\D/g, '');
+    if (!sadeceSayi) return goster($('msgBul'), 'hata', 'Yalnızca numara yazın (örnek: 29).');
+    var yer = yerKodu(D.anahtar, Number(sadeceSayi));
+
+    mesgul($('btnBul'), true, 'Aranıyor…');
+    gizle($('msgBul'));
+    api('kayitBul', { yer: yer }).then(function (r) {
+      if (r.bulundu) {
+        gizle($('msgBul'));
+        $('bulNo').value = '';
+        duzeltmeyeAc(r.kayit, r.kayit.no);
+        return;
+      }
+      goster($('msgBul'), 'uyari', r.silinmis
+        ? '<b>' + esc(yer) + '</b> silinmiş — bu numara boş. Kitabı yeniden ' +
+          'kaydedin; sistem yeni bir numara verecek.'
+        : '<b>' + esc(yer) + '</b> numarasında kayıt yok. Bu kitap hiç girilmemiş ' +
+          'olabilir; normal şekilde kaydedin.');
+    })['catch'](function (e) {
+      goster($('msgBul'), 'hata', e.message === 'AĞ'
+        ? 'Bağlantı yokken arama yapılamıyor. Bağlantı gelince tekrar deneyin.'
+        : e.message);
+    }).then(function () { mesgul($('btnBul'), false); });
+  }
+
+  $('btnBul').addEventListener('click', kayitAra);
+  $('bulNo').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); kayitAra(); }
+  });
+
   function sonKayitlariYukle() {
     api('sonKayitlar', { kaydeden: D.ad }).then(function (r) {
       var sinif = { 'Gidecek': 'gidecek', 'Gitse de olur': 'belki',
@@ -1259,26 +1367,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var no = Number(kart.dataset.no);
 
     if (e.target.classList.contains('duzelt')) {
-      // Kaydın TAMAMINI forma getir. Yalnız başlığı doldurmak, kaydetme anında
-      // yazar/yıl/nüsha/durum/notu sessizce siliyordu.
       var k = D.sonKayitlar[no] || {};
-      $('baslik').value = k.baslik || kart.querySelector('.bas').textContent;
-      $('yazar').value = k.yazar || '';
-      $('yil').value = k.yil ? String(k.yil) : '';
-      $('nusha').value = k.nusha || 1;
-      $('not').value = k.not || '';
-      durumSec(k.durum || 'Sağlam');
-      $('btnSorunlu').classList.toggle('sec', (k.durum || '') === 'Küflü/böcekli');
-      ayrintiAc(true);                // düzeltmede alanlar görünmeli
-      D.foto = null; D.kapak = null; fotoGoster();
-      D.duzenleNo = no;
-      $('duzenleNo').textContent = no;
-      $('duzenleUyari').classList.remove('gizli');
-      goster($('msgKayit'), 'uyari', 'Alanları düzeltip <b>Kitabı kaydet</b>e basın — kayıt güncellenecek. ' +
-        '<button type="button" id="btnDuzenleVazgec" style="margin-left:6px;font-size:13px">Vazgeç</button>');
-      var vz = $('btnDuzenleVazgec');
-      if (vz) vz.addEventListener('click', formTemizle);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (!k.baslik) k.baslik = kart.querySelector('.bas').textContent;
+      duzeltmeyeAc(k, no);
       return;
     }
     if (e.target.classList.contains('sil')) {
