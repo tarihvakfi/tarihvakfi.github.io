@@ -110,6 +110,9 @@
              padding:13px 14px}
   .sayimKutu b{color:#1f4260}
   .sayimKutu p{margin:6px 0 10px;font-size:13.5px;color:#3c5064}
+  .sayimSec{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:7px;margin-bottom:9px}
+  .sayimSec select{width:100%;font-size:15px;padding:9px 8px;border:1.5px solid #b9cadb;
+                   border-radius:8px;background:#fff}
   .sayimSatir{display:flex;gap:8px;align-items:stretch}
   #sayimSira{display:flex;align-items:center;padding:0 10px;border-radius:8px;
              background:#dbe6f0;color:#1f4260;font-weight:700;
@@ -278,8 +281,13 @@
     <div id="sayimPanel" class="gizli">
       <div class="sayimKutu">
         <b>Raf sayımı</b>
-        <p>Yukarıdan sırayı seçin, o gözdeki kitapları <b>elle sayın</b>, sayıyı
-          yazın. Kitaplara başka bir şey yapmayın — bu görev yalnızca saymak.</p>
+        <p>Sırayı seçin, o gözdeki kitapları <b>elle sayın</b>, sayıyı yazıp
+          kaydedin. Kitaplara başka bir şey yapmayın — bu görev yalnızca saymak.</p>
+        <div class="sayimSec">
+          <select id="sayimMekan"></select>
+          <select id="sayimRaf"></select>
+          <select id="sayimSiraSec"></select>
+        </div>
         <div class="sayimSatir">
           <span id="sayimSira">—</span>
           <input type="number" id="sayimAdet" inputmode="numeric" min="0"
@@ -365,6 +373,7 @@
   <section id="adim-kayit" class="gizli">
     <div class="ust">
       <div class="raf"><small>Sıra</small><span id="ustRaf">—</span>
+        <span id="ustSoz" style="display:block;font-size:10.5px;opacity:.85;margin-top:1px"></span>
         <span class="sira" id="ustSira"></span>
         <span class="sira" id="ustKutu"></span></div>
       <button id="btnRafDegis">Sırayı bitir / değiştir</button>
@@ -831,6 +840,23 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
   function yerKodu(anahtar, no) { return anahtar + '-' + doldurSayi(no, 3); }
 
+  /* Kodun insan dili: "G-A02" → "Giriş Kat · A rafı · 2. sıra".
+     Kod kısa ve kesin, ama herkes sökemiyor; ikisi yan yana gösterilir. */
+  function yerSozu(anahtar) {
+    var e = /^(?:([^-]+)-)?([A-ZÇĞİÖŞÜ]+)(\d+)$/.exec(String(anahtar || '').trim().toUpperCase());
+    if (!e) return '';
+    var mekanAd = e[1] || '';
+    (((D.cfg || {}).mekanlar) || []).forEach(function (m) {
+      if (String(m.kod).toUpperCase() === (e[1] || '')) mekanAd = m.ad;
+    });
+    return (mekanAd ? mekanAd + ' · ' : '') + e[2] + ' rafı · ' + Number(e[3]) + '. sıra';
+  }
+  /* Kod + insan dili birlikte: mesajların içinde kullanılır. */
+  function yerEtiket(anahtar) {
+    var soz = yerSozu(anahtar);
+    return '<b>' + esc(anahtar) + '</b>' + (soz ? ' <span style="opacity:.85">(' + esc(soz) + ')</span>' : '');
+  }
+
   function siraDepoOku() {
     try { return JSON.parse(localStorage.getItem(SIRA_DEPO) || '{}'); } catch (h) { return {}; }
   }
@@ -939,7 +965,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var anahtar = anahtarKur(r.mekan, r.raf, r.sira);
     var yerel = siraDepoOku()[anahtar] || 1;
 
-    $('rafOzet').innerHTML = '<b>' + esc(anahtar) + '</b>' +
+    $('rafOzet').innerHTML = '<b>' + esc(anahtar) + '</b> <i style="font-style:normal;font-size:13px;color:#5a4a52">' +
+      esc(yerSozu(anahtar)) + '</i>' +
       '<span class="ek">sıradaki kitap: ' + esc(yerKodu(anahtar, yerel)) + ' · kontrol ediliyor…</span>';
 
     api('rafDurum', { mekan: r.mekan, raf: r.raf, sira: r.sira }).then(function (d) {
@@ -978,7 +1005,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         hikaye += '<br><span style="color:#1f4260">📋 Ön sayım: <b style="display:inline">' +
           d.onSayim + '</b> kitap sayılmış.</span>';
       }
-      $('rafOzet').innerHTML = '<b>' + esc(anahtar) + '</b><span class="ek">' + hikaye + '</span>';
+      $('rafOzet').innerHTML = '<b>' + esc(anahtar) + '</b> <i style="font-style:normal;font-size:13px;color:#5a4a52">' +
+        esc(yerSozu(anahtar)) + '</i><span class="ek">' + hikaye + '</span>';
 
       // Yarım kalmış sıra: devralan kişiye nereden devam edeceğini göster
       var yarim = d.durum === 'devam' && d.devir && !D.siraTutan;
@@ -1011,39 +1039,65 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
      Bağımsız görev: telefonla arası iyi olmayan gönüllü de yapabilir.
      Sayı sıranın kaydına yazılır; kapanışta üçlü karşılaştırma yapılır:
      ön sayım · kapanış sayımı · sistemdeki cilt. */
+  /* Sayım panelinin KENDİ seçicileri var: üstteki sıra seçimiyle bağı yok.
+     (Eskiden üstteki seçiciyi kullanıyordu; kişinin üzerindeki sıra G-A02
+     iken panel G-A01 gösteriyor, kimin neyi seçtiği karışıyordu.) */
+  function sayimSecicileriKur() {
+    if (!D.cfg || $('sayimMekan').options.length) return;
+    var mekanlar = D.cfg.mekanlar || [];
+    $('sayimMekan').innerHTML = mekanlar.map(function (m) {
+      return '<option value="' + esc(m.kod) + '">' + esc(m.ad) + '</option>';
+    }).join('') || '<option value="">—</option>';
+    $('sayimRaf').innerHTML = (D.cfg.rafHarfleri || []).map(function (h) {
+      return '<option value="' + esc(h) + '">' + esc(h) + ' rafı</option>';
+    }).join('');
+    var kac = Number(D.cfg.siraSayisi || 6), sec = '';
+    for (var i = 1; i <= kac; i++) sec += '<option value="' + i + '">' + i + '. sıra</option>';
+    $('sayimSiraSec').innerHTML = sec;
+  }
+  function sayimSirasiniGoster() {
+    var a = anahtarKur($('sayimMekan').value, $('sayimRaf').value,
+                       Number($('sayimSiraSec').value) || 1);
+    $('sayimSira').textContent = a || '—';
+  }
+  ['sayimMekan', 'sayimRaf', 'sayimSiraSec'].forEach(function (id) {
+    $(id).addEventListener('change', function () {
+      sayimSirasiniGoster();
+      gizle($('msgSayim'));               // yeni sıra seçilince eski mesaj kalmasın
+    });
+  });
+  $('sayimAdet').addEventListener('input', function () { gizle($('msgSayim')); });
+
+  /* Yardımcı paneller birbirini kapatır: ekranda aynı anda tek panel olsun. */
+  function panelleriKapat(haric) {
+    if (haric !== 'sayim') $('sayimPanel').classList.add('gizli');
+    if (haric !== 'harita') $('haritaPanel').classList.add('gizli');
+  }
+
   $('btnSayim').addEventListener('click', function () {
     var acik = !$('sayimPanel').classList.contains('gizli');
+    panelleriKapat('sayim');
     $('sayimPanel').classList.toggle('gizli', acik);
-    if (!acik) {
-      if ($('secici').classList.contains('gizli')) $('btnKendimSec').click();
-      sayimSirasiniGoster();
-    }
-  });
-  function sayimSirasiniGoster() {
-    var r = seciliRaf();
-    $('sayimSira').textContent = anahtarKur(r.mekan, r.raf, r.sira) || '—';
-  }
-  ['mekan', 'rafHarf', 'siraSec'].forEach(function (id) {
-    $(id).addEventListener('change', sayimSirasiniGoster);
+    if (!acik) { sayimSecicileriKur(); sayimSirasiniGoster(); gizle($('msgSayim')); }
   });
 
   $('btnSayimKaydet').addEventListener('click', function () {
-    var r = seciliRaf();
+    var mekan = $('sayimMekan').value, raf = $('sayimRaf').value;
+    var sira = Number($('sayimSiraSec').value) || 1;
     var adet = $('sayimAdet').value.trim();
     if (adet === '') {
       return goster($('msgSayim'), 'hata', 'Saydığınız kitap sayısını yazın (boş rafa 0).');
     }
     mesgul($('btnSayimKaydet'), true, '…');
-    api('sayimKaydet', { mekan: r.mekan, raf: r.raf, sira: r.sira,
+    api('sayimKaydet', { mekan: mekan, raf: raf, sira: sira,
                          adet: adet, sayan: D.ad }).then(function (c) {
       $('sayimAdet').value = '';
-      goster($('msgSayim'), 'iyi', '<b>' + esc(c.anahtar) + '</b> sayımı kaydedildi: ' +
-        c.adet + ' kitap.' +
+      goster($('msgSayim'), 'iyi', yerEtiket(c.anahtar) + ' sayımı kaydedildi: <b>' +
+        c.adet + ' kitap</b>.' +
         (c.oncekiSayim != null && c.oncekiSayim !== c.adet
           ? ' <span style="color:#8a5a1c">Önceki sayım ' + c.oncekiSayim +
             ' idi — üzerine yazıldı.</span>' : '') +
         ' Sıradaki gözü seçip devam edin.');
-      rafOzetYenile();          // alttaki özet de yeni sayımı göstersin
     })['catch'](function (e) {
       goster($('msgSayim'), 'hata', e.message === 'AĞ'
         ? 'Bağlantı yok — sayım kaydedilemedi. Bağlantı gelince tekrar deneyin.'
@@ -1060,6 +1114,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
   $('btnHarita').addEventListener('click', function () {
     var acik = !$('haritaPanel').classList.contains('gizli');
+    panelleriKapat('harita');
     if (acik) { $('haritaPanel').classList.add('gizli'); return; }
     $('btnHarita').textContent = 'Yükleniyor…';
     api('siraOzeti', {}).then(function (r) {
@@ -1106,7 +1161,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var durumYazi = x.durum === 'bitti'
       ? 'bitmiş' + (x.bitiren ? ' — ' + esc(x.bitiren) + ' kapattı' : '')
       : (x.durum === 'devam' ? 'yarım — ' + x.kayitli + ' kitap kayıtlı' : 'hiç başlanmamış');
-    var html = '<span class="kod">' + esc(x.sira) + '</span> · ' + durumYazi;
+    var html = '<span class="kod">' + esc(x.sira) + '</span> ' +
+      '<span style="color:#5a4a52">' + esc(yerSozu(x.sira)) + '</span><br>' + durumYazi;
     if (x.tutulu) html += ' · <b>şu an ' + esc(x.tutan) + ' üzerinde</b>';
     if (x.onSayim != null) {
       var sFark = x.onSayim - x.kayitli;
@@ -1184,21 +1240,22 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       var mekan = p.length > 1 ? p[0] : '';
       var kod = p.length > 1 ? p[1] : p[0];
       if (mekan && $('mekan').querySelector('option[value="' + mekan + '"]')) $('mekan').value = mekan;
-      $('rafHarf').value = kod.charAt(0);
-      $('siraSec').value = String(Number(kod.slice(1)));
+      // Raf çift harfli olabilir (AA, BH…): baştaki TÜM harfler raf, kalan sayı sıra.
+      $('rafHarf').value = kod.replace(/\d+$/, '');
+      $('siraSec').value = String(Number(kod.replace(/^\D+/, '')));
       seciciAc();
       rafOzetYenile();
       var m;
       if (d.zatenSizde) {
-        m = ['uyari', '<b>' + esc(d.anahtar) + '</b> zaten sizin üzerinizde. ' +
+        m = ['uyari', yerEtiket(d.anahtar) + ' zaten sizin üzerinizde. ' +
              'Bitirmeden yeni sıra verilmiyor — bitirdiyseniz aşağıdan ' +
              '<b>Bu sırayı bitirdim</b> deyin.'];
       } else if (d.tur === 'bos') {
-        m = ['iyi', '<b>' + esc(d.anahtar) + '</b> <b>sizin adınıza ayrıldı</b> — hiç ' +
+        m = ['iyi', yerEtiket(d.anahtar) + ' <b>sizin adınıza ayrıldı</b> — hiç ' +
              'başlanmamış bir sıra. Geriye ' + d.kalanBos + ' boş sıra kalıyor.' +
              (d.tutulan ? ' (' + d.tutulan + ' sıra başkalarının üzerinde.)' : '')];
       } else {
-        m = ['uyari', '<b>' + esc(d.anahtar) + '</b> sizin adınıza ayrıldı — boş sıra ' +
+        m = ['uyari', yerEtiket(d.anahtar) + ' sizin adınıza ayrıldı — boş sıra ' +
              'kalmamış, yarım kalmış bir sıra verildi. Kaldığı yerden devam edin.'];
       }
       goster($('msgOner'), m[0], m[1]);
@@ -1210,6 +1267,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
   function ustuYenile() {
     $('ustRaf').textContent = D.anahtar;
+    $('ustSoz').textContent = yerSozu(D.anahtar);
     $('bulOnek').textContent = D.anahtar ? D.anahtar + '-' : '—';
     $('ustSira').textContent = 'sıradaki ' + doldurSayi(D.sonraki, 3);
     $('ustKutu').textContent = D.kutu ? '· kutu ' + D.kutu : '';
@@ -1514,16 +1572,16 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         }
       }
       if (d.fark === 0) {
-        goster($('msgBitir'), 'iyi', '<b>' + esc(d.anahtar) + '</b> bitti. ' +
+        goster($('msgBitir'), 'iyi', yerEtiket(d.anahtar) + ' bitti. ' +
           sayilar + ' — <b>tutuyor.</b>' + onSayimNotu +
           ' Yukarıdan yeni bir sıra alabilirsiniz.');
       } else if (d.fark > 0) {
-        goster($('msgBitir'), 'uyari', '<b>' + esc(d.anahtar) + '</b> kapatıldı ama ' +
+        goster($('msgBitir'), 'uyari', yerEtiket(d.anahtar) + ' kapatıldı ama ' +
           '<b>' + d.fark + ' kitap eksik</b> görünüyor (' + sayilar + '). ' +
           'Rafı bir daha gözden geçirin — kaydedilmemiş kitap kalmış olabilir. ' +
           'Bulamazsanız koordinatöre söyleyin; sıra kontrol listesine girdi.');
       } else {
-        goster($('msgBitir'), 'uyari', '<b>' + esc(d.anahtar) + '</b> kapatıldı ama sistemde ' +
+        goster($('msgBitir'), 'uyari', yerEtiket(d.anahtar) + ' kapatıldı ama sistemde ' +
           '<b>' + (-d.fark) + ' kitap fazla</b> görünüyor (' + sayilar + '). ' +
           'Aynı kitap iki kez kaydedilmiş olabilir; koordinatöre söyleyin. ' +
           '(Poşetlenen küflü kitaplar sayıma zaten katıldı.)');
