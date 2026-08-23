@@ -591,15 +591,23 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     }).then(function () { mesgul($('btnOnayla'), false); });
   });
 
-  /* Atla yalnızca ekrandaki sırayı ilerletir; sunucuda bir iz bırakmaz. Parti
-     bitince yeniden getirmezsek "bekleyen kalmadı" ekranı yanlış çıkıyordu. */
+  /* Atla artık sunucuya da işlenir: kitap kuyruğun SONUNA ertelenir (6 saat).
+     Böylece her liste yenilemesinde aynı kitaplar başa dönmez; erteleme
+     kendiliğinden düşer, kitap kaybolmaz. */
   $('btnAtla').addEventListener('click', function () {
-    D.i++;
-    if (D.i >= D.liste.length && D.kalan > D.liste.length) {
-      listeGetir().then(ciz)['catch'](function () { ciz(); });
+    var k = D.liste[D.i];
+    if (!k) return;
+    api('kunyeErtele', { no: k.no })['catch'](function () {});     // sessizce
+    D.liste.splice(D.i, 1);                                        // bu partiden çıkar
+    var bilgi = function () {
+      goster($('msg'), 'uyari', '<b>' + esc(k.yer || ('#' + k.no)) +
+        '</b> kuyruğun sonuna atıldı — kaybolmaz, sıra yine ona gelir.');
+    };
+    if (D.i >= D.liste.length && D.kalan > 0) {
+      listeGetir().then(function () { ciz(); bilgi(); })['catch'](function () { ciz(); bilgi(); });
       return;
     }
-    ciz();
+    ciz(); bilgi();
   });
 
   document.addEventListener('keydown', function (e) {

@@ -251,7 +251,7 @@
   var SIFRE = 'deneme';
   var KOORD_SIFRE = 'koordinator';
   var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayGruplari', 'onayla', 'topluOnayla',
-                               'kararBekleyen', 'kararVer',
+                               'kararBekleyen', 'kararVer', 'kunyeErtele',
                                'katalog', 'durum', 'siraHaritasi', 'kutula', 'kutular'];
   var SINIFLANDIRILMADI = 'Sınıflandırılmadı';
 
@@ -631,8 +631,17 @@
       }
       return { ok:false, error:'Kayıt bulunamadı.' };
     }
+    if (g.action === 'kunyeErtele') {
+      v.ertelenen = v.ertelenen || {};
+      v.ertelenen[Number(g.no)] = 1;
+      yaz(v);
+      return { ok:true, no:Number(g.no) };
+    }
     if (g.action === 'onayBekleyen') {
       var bek = v.kayitlar.filter(function (k) { return !k.onay; });
+      var ert = v.ertelenen || {};
+      bek = bek.filter(function (k) { return !ert[k.no]; })
+        .concat(bek.filter(function (k) { return ert[k.no]; }));
       return { ok:true, kayitlar: bek.slice(0, Number(g.adet) || 25).map(oneriEkle),
                kalan: bek.length };
     }
@@ -1251,15 +1260,23 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     }).then(function () { mesgul($('btnOnayla'), false); });
   });
 
-  /* Atla yalnızca ekrandaki sırayı ilerletir; sunucuda bir iz bırakmaz. Parti
-     bitince yeniden getirmezsek "bekleyen kalmadı" ekranı yanlış çıkıyordu. */
+  /* Atla artık sunucuya da işlenir: kitap kuyruğun SONUNA ertelenir (6 saat).
+     Böylece her liste yenilemesinde aynı kitaplar başa dönmez; erteleme
+     kendiliğinden düşer, kitap kaybolmaz. */
   $('btnAtla').addEventListener('click', function () {
-    D.i++;
-    if (D.i >= D.liste.length && D.kalan > D.liste.length) {
-      listeGetir().then(ciz)['catch'](function () { ciz(); });
+    var k = D.liste[D.i];
+    if (!k) return;
+    api('kunyeErtele', { no: k.no })['catch'](function () {});     // sessizce
+    D.liste.splice(D.i, 1);                                        // bu partiden çıkar
+    var bilgi = function () {
+      goster($('msg'), 'uyari', '<b>' + esc(k.yer || ('#' + k.no)) +
+        '</b> kuyruğun sonuna atıldı — kaybolmaz, sıra yine ona gelir.');
+    };
+    if (D.i >= D.liste.length && D.kalan > 0) {
+      listeGetir().then(function () { ciz(); bilgi(); })['catch'](function () { ciz(); bilgi(); });
       return;
     }
-    ciz();
+    ciz(); bilgi();
   });
 
   document.addEventListener('keydown', function (e) {
