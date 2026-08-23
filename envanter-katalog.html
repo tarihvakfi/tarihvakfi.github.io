@@ -271,14 +271,14 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
   /* "G-C01-002" fareyle üzerine gelene kendini anlatsın. */
   function yerAciklama(kod) {
-    var e = /^([^-]+)-([A-ZÇĞİÖŞÜ])(\d+)-(\d+)$/.exec(String(kod || '').trim());
+    var e = /^([^-]+)-([A-ZÇĞİÖŞÜ]+)(\d+)-(\d+)$/.exec(String(kod || '').trim());
     if (!e) return kod || '';
     var mekanAd = e[1];
     ((D.cfg && D.cfg.mekanlar) || []).forEach(function (m) {
       if (String(m.kod).toUpperCase() === e[1].toUpperCase()) mekanAd = m.ad;
     });
     return kod + ' = ' + mekanAd + ' · ' + e[2] + ' rafı · ' +
-           Number(e[3]) + '. göz · ' + Number(e[4]) + '. kitap';
+           Number(e[3]) + '. sıra · ' + Number(e[4]) + '. kitap';
   }
 
   function agHata(e) { return e.message === 'AĞ' ? 'Sunucuya ulaşılamadı.' : e.message; }

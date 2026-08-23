@@ -165,6 +165,26 @@
   .oneri-rozet.orta{background:#fdf3e0;color:#7a5210}
   .oneri-rozet.dusuk{background:#fbe6e9;color:#8a1c2c}
 
+  .kunye-soz{margin:-6px 0 12px;font-size:14px;color:#5a4a52}
+  .bolumBasi{margin:20px 0 10px;padding-top:14px;border-top:1.5px solid #efe7e2;
+             font-size:12px;font-weight:800;letter-spacing:.08em;color:#9a8b92;
+             text-transform:uppercase}
+  .foto-ipucu{margin:6px 0 0;font-size:12px;color:#9a8b92}
+  .foto img{cursor:zoom-in}
+
+  /* Fotoğraf büyüteci */
+  #buyutec{position:fixed;inset:0;background:rgba(20,10,16,.9);z-index:80;
+           overflow:hidden;touch-action:none}
+  #buyutec.gizli{display:none}
+  #buyutecResim{position:absolute;left:50%;top:50%;max-width:88vw;max-height:86vh;
+                transform-origin:center center;user-select:none;cursor:grab;
+                border-radius:6px;box-shadow:0 12px 60px rgba(0,0,0,.55)}
+  .bAraclar{position:fixed;top:14px;right:14px;z-index:81;display:flex;gap:8px}
+  .bAraclar button{width:44px;height:44px;border:none;border-radius:10px;font-size:19px;
+    font-weight:800;background:#ffffff22;color:#fff;cursor:pointer;backdrop-filter:blur(4px)}
+  .bAraclar button:hover{background:#ffffff3b}
+  .bAraclar button[data-b="sifirla"]{font-size:13px}
+
   .msg{padding:12px 14px;border-radius:9px;font-size:14.5px;margin:0 0 14px;display:none;border:1px solid}
   .msg.gor{display:block}
   .msg.iyi{background:#f1f7f2;color:#2e6440;border-color:#cfe4d5}
@@ -213,13 +233,26 @@
     <div id="gruplar" class="gizli"></div>
     <div id="buyukKapak" class="gizli"><img alt="Kapak büyük görünüm"></div>
 
+    <!-- Fotoğraf büyüteci: dokun → tam ekran; +/− büyüt, ⟳ döndür, sürükleyerek gezdir. -->
+    <div id="buyutec" class="gizli">
+      <div class="bAraclar">
+        <button type="button" data-b="eksi" title="Küçült">−</button>
+        <button type="button" data-b="arti" title="Büyüt">+</button>
+        <button type="button" data-b="dondur" title="Döndür">⟳</button>
+        <button type="button" data-b="sifirla" title="Sıfırla">1:1</button>
+        <button type="button" data-b="kapat" title="Kapat">✕</button>
+      </div>
+      <img id="buyutecResim" alt="Fotoğraf büyük görünüm" draggable="false">
+    </div>
+
     <div class="kart" id="kutu">
       <div class="alan">
         <div>
           <div class="foto-sekme">
-            <button type="button" id="sekmeKunye" class="sec">Künye sayfası</button>
-            <button type="button" id="sekmeKapak">Kapak</button>
+            <button type="button" id="sekmeKapak" class="sec">Kapak</button>
+            <button type="button" id="sekmeKunye">Künye sayfası</button>
           </div>
+          <p class="foto-ipucu">Fotoğrafa dokunun: büyütme ve döndürme açılır.</p>
           <div class="foto" id="fotoKutu"></div>
           <div class="foto-alt">
             <span id="ocrDurum"></span>
@@ -232,6 +265,31 @@
             <span class="no" id="kNo"></span>
             <span id="kRaf"></span><span id="kKategori"></span><span id="kKaydeden"></span>
           </p>
+          <!-- "G-A04-009" herkes sökemiyor; hemen altında açık yazısı durur. -->
+          <p class="kunye-soz" id="kSoz"></p>
+
+          <!-- KARAR EN ÜSTTE: koordinatörün asıl işi bu; kaydırmadan görünmeli. -->
+          <div class="karar">
+            <h3>Karar — bu kitap taşınacak mı?<span id="oneriRozet"></span></h3>
+            <p id="oneriSebep">Gönüllü yalnızca künyeyi girdi. Kitabın akıbetine siz karar veriyorsunuz.</p>
+            <div class="katlar" id="katlar"></div>
+            <div class="kurallar gizli" id="kurallar">
+              <p id="kurallarBaslik"></p>
+              <div id="kurallarListe"></div>
+            </div>
+          </div>
+
+          <div class="islemler">
+            <button class="btn" id="btnOnayla">Onayla ve sıradaki</button>
+            <button class="btn ikincil" id="btnKunyeKaydet"
+                    title="Künye alanlarını kaydeder; kayıt kuyrukta kalır, kararı sonra siz ya da başkası verir">
+              Künyeyi kaydet, karar sonra</button>
+            <button class="btn ikincil" id="btnGetirt">Kitabı getirt</button>
+            <button class="btn ikincil" id="btnAtla">Atla</button>
+            <span class="kisayol">Enter ile onayla · Ctrl+Enter her yerde çalışır</span>
+          </div>
+
+          <div class="bolumBasi">Künye</div>
 
           <div class="oneri" id="oneri">
             <h3>Fotoğraftan gelen öneri</h3>
@@ -262,26 +320,6 @@
           <textarea id="not" placeholder="Yayınevi, dizi, eksik sayfa…"></textarea>
 
           <div class="rafbilgi" id="rafBilgi" style="display:none"></div>
-
-          <div class="karar">
-            <h3>Karar — bu kitap taşınacak mı?<span id="oneriRozet"></span></h3>
-            <p id="oneriSebep">Gönüllü yalnızca künyeyi girdi. Kitabın akıbetine siz karar veriyorsunuz.</p>
-            <div class="katlar" id="katlar"></div>
-            <div class="kurallar gizli" id="kurallar">
-              <p id="kurallarBaslik"></p>
-              <div id="kurallarListe"></div>
-            </div>
-          </div>
-
-          <div class="islemler">
-            <button class="btn" id="btnOnayla">Onayla ve sıradaki</button>
-            <button class="btn ikincil" id="btnKunyeKaydet"
-                    title="Künye alanlarını kaydeder; kayıt kuyrukta kalır, kararı sonra siz ya da başkası verir">
-              Künyeyi kaydet, karar sonra</button>
-            <button class="btn ikincil" id="btnGetirt">Kitabı getirt</button>
-            <button class="btn ikincil" id="btnAtla">Atla</button>
-            <span class="kisayol">Enter ile onayla · Ctrl+Enter her yerde çalışır</span>
-          </div>
         </div>
       </div>
     </div>
@@ -891,7 +929,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       if (String(m.kod).toUpperCase() === e[1].toUpperCase()) mekanAd = m.ad;
     });
     return kod + ' = ' + mekanAd + ' · ' + e[2] + ' rafı · ' +
-           Number(e[3]) + '. göz · ' + Number(e[4]) + '. kitap';
+           Number(e[3]) + '. sıra · ' + Number(e[4]) + '. kitap';
   }
   function kucukKapak(id) {
     return id ? 'https://drive.google.com/thumbnail?id=' + id + '&sz=w200' : '';
@@ -1157,11 +1195,15 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   /* ───────── karar (sınıflandırma) ───────── */
   function kategorileriCiz() {
     if (!D.cfg) return;
-    var sinif = { gidecek: 'g', belki: 's', gitmeyecek: 'k', belirsiz: 'm', diger: 'd' };
+    var sinif = { gidecek: 'g', belki: 's', gitmeyecek: 'k', belirsiz: 'm' };
     var altYazi = { gidecek: 'yeşil · yeni binaya', belki: 'sarı · yer kalırsa',
-                    gitmeyecek: 'kırmızı · yerinde kalır', belirsiz: 'mavi · uzmana',
-                    diger: 'kurallara uymuyor · açıklayın' };
-    $('katlar').innerHTML = Object.keys(D.cfg.kategoriler).map(function (a) {
+                    gitmeyecek: 'kırmızı · yerinde kalır', belirsiz: 'mavi · uzmana' };
+    /* "Diğer" bir karar değil; karar verildikten sonra "hangi kurala göre?"
+       sorusunun cevaplarından biri. O yüzden burada düğmesi yok — kural
+       listesinin sonunda duruyor. */
+    $('katlar').innerHTML = Object.keys(D.cfg.kategoriler).filter(function (a) {
+      return !D.cfg.kategoriler[a].serbest;
+    }).map(function (a) {
       return '<button type="button" class="kat ' + sinif[a] + '" data-kat="' + a + '">' +
         esc(D.cfg.kategoriler[a].ad) + '<small>' + altYazi[a] + '</small></button>';
     }).join('');
@@ -1199,12 +1241,29 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       return;
     }
 
-    var liste = D.cfg.kurallar.filter(function (x) { return x.kategori === kat; });
+    /* 0 kodları (Y0/K0…) gruplu ekranın tek tık kararlarına ait iç kodlardır;
+       elle seçilecek kural değiller — listede gösterilmezler. */
+    var liste = D.cfg.kurallar.filter(function (x) {
+      return x.kategori === kat && !/0$/.test(x.kod);
+    });
     $('kurallarBaslik').textContent = D.cfg.kategoriler[kat].ad + ' — hangi kurala göre?';
+    var digerSecili = /^Diğer:/i.test(kural || '');
     $('kurallarListe').innerHTML = liste.map(function (x) {
       return '<button type="button" class="cip' + (x.kod === D.kural ? ' sec' : '') +
         '" data-kod="' + x.kod + '"><b>' + x.kod + '</b>' + esc(x.aciklama) + '</button>';
-    }).join('');
+    }).join('') +
+      '<button type="button" class="cip' + (digerSecili ? ' sec' : '') +
+        '" data-kod="__diger"><b>Diğer</b> hiçbir kurala uymuyor — açıklayın</button>' +
+      '<div id="digerSatir" style="display:' + (digerSecili ? 'block' : 'none') + ';margin-top:8px">' +
+        '<input type="text" id="digerAciklama" maxlength="110" ' +
+        'placeholder="Kısa açıklama — örn: harita, plak, arşiv malzemesi" ' +
+        'value="' + esc(digerSecili ? (kural || '').replace(/^[^:]*:\s*/, '') : '') + '" ' +
+        'style="width:100%;font-size:15px;padding:10px 12px;border:1.5px solid #d8ccc4;border-radius:8px">' +
+      '</div>';
+    var dg = $('digerAciklama');
+    if (dg) dg.addEventListener('input', function () {
+      D.kural = dg.value.trim() ? 'Diğer: ' + dg.value.trim() : '__diger';
+    });
     Array.prototype.forEach.call($('kurallarListe').querySelectorAll('.cip'), function (b) {
       b.addEventListener('click', function () { kuralSec(b.dataset.kod); });
     });
@@ -1212,10 +1271,20 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
 
   function kuralSec(kod) {
-    D.kural = kod;
     Array.prototype.forEach.call($('kurallarListe').querySelectorAll('.cip'), function (b) {
       b.classList.toggle('sec', b.dataset.kod === kod);
     });
+    var satir = $('digerSatir');
+    if (kod === '__diger') {
+      // "Diğer" seçildi: açıklama kutusu açılır; kural metni "Diğer: …" olur.
+      if (satir) satir.style.display = 'block';
+      var dg = $('digerAciklama');
+      D.kural = (dg && dg.value.trim()) ? 'Diğer: ' + dg.value.trim() : '__diger';
+      if (dg) dg.focus();
+      return;
+    }
+    if (satir) satir.style.display = 'none';
+    D.kural = kod;
   }
 
   function ciz() {
@@ -1230,6 +1299,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
     $('kNo').textContent = k.yer || ('#' + k.no);
     $('kNo').title = yerAciklama(k.yer);          // fareyle gelen kodu okuyabilsin
+    // Kod + açık yazı yan yana: "Giriş Kat · A rafı · 4. sıra · 9. kitap"
+    var soz = yerAciklama(k.yer);
+    $('kSoz').textContent = soz.indexOf(' = ') > 0 ? soz.split(' = ')[1] : '';
     $('kRaf').textContent = '#' + k.no;
     $('kKategori').textContent = (k.kategori || '') + (k.kural ? ' · ' + k.kural : '');
     $('kKaydeden').textContent = k.kaydeden || '';
@@ -1248,7 +1320,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       : '';
     $('rafBilgi').style.display = rafBilgi.length ? '' : 'none';
 
-    fotoCiz('kunye');
+    // Önce kapak: kitabı tanımanın en hızlı yolu. Kapak yoksa künyeye düş.
+    fotoCiz((k.kapakId || k.kapakGoruntu) ? 'kapak' : 'kunye');
 
     var durum = String(k.ocrDurum || '');
     $('ocrDurum').textContent =
@@ -1317,6 +1390,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
     $('fotoKutu').innerHTML = adres
       ? '<img src="' + esc(adres) + '" alt="' + (kapakMi ? 'Kapak' : 'Künye') + ' fotoğrafı" ' +
+        'data-buyuk="' + esc(adres) + '" ' +
         'onerror="this.parentNode.innerHTML=&quot;<div class=\'yok\'>Fotoğraf açılamadı — Drive bağlantısını kullanın</div>&quot;">'
       : '<div class="yok">' + (kapakMi ? 'Kapak fotoğrafı yok' : 'Künye fotoğrafı yok') + '</div>';
 
@@ -1329,6 +1403,73 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
   $('sekmeKunye').addEventListener('click', function () { fotoCiz('kunye'); });
   $('sekmeKapak').addEventListener('click', function () { fotoCiz('kapak'); });
+
+  /* ── Fotoğraf büyüteci ─────────────────────────────────────────────
+     Künye fotoğrafları çoğu zaman yan çekilmiş ya da küçük geliyor;
+     koordinatör döndürüp yakınlaşamadan okuyamıyordu. */
+  var B = { olcek: 1, aci: 0, x: 0, y: 0 };
+  function buyutecUygula() {
+    $('buyutecResim').style.transform =
+      'translate(calc(-50% + ' + B.x + 'px), calc(-50% + ' + B.y + 'px)) ' +
+      'scale(' + B.olcek + ') rotate(' + B.aci + 'deg)';
+  }
+  function buyutecAc(adres) {
+    B = { olcek: 1, aci: 0, x: 0, y: 0 };
+    $('buyutecResim').src = adres;
+    buyutecUygula();
+    $('buyutec').classList.remove('gizli');
+  }
+  $('fotoKutu').addEventListener('click', function (e) {
+    var img = e.target.closest('img[data-buyuk]');
+    if (img) buyutecAc(img.dataset.buyuk);
+  });
+  $('buyutec').addEventListener('click', function (e) {
+    var d = e.target.closest('[data-b]');
+    if (d) {
+      if (d.dataset.b === 'arti') B.olcek = Math.min(6, B.olcek * 1.4);
+      if (d.dataset.b === 'eksi') B.olcek = Math.max(0.4, B.olcek / 1.4);
+      if (d.dataset.b === 'dondur') B.aci = (B.aci + 90) % 360;
+      if (d.dataset.b === 'sifirla') B = { olcek: 1, aci: 0, x: 0, y: 0 };
+      if (d.dataset.b === 'kapat') {
+        $('buyutec').classList.add('gizli');
+        $('buyutecResim').removeAttribute('src');
+        return;
+      }
+      buyutecUygula();
+      return;
+    }
+    if (e.target === $('buyutec')) {          // boş alana dokunmak kapatır
+      $('buyutec').classList.add('gizli');
+      $('buyutecResim').removeAttribute('src');
+    }
+  });
+  // Tekerlekle yakınlaştır, sürükleyerek gezdir (dokunmatikte tek parmak).
+  $('buyutec').addEventListener('wheel', function (e) {
+    e.preventDefault();
+    B.olcek = Math.min(6, Math.max(0.4, B.olcek * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
+    buyutecUygula();
+  }, { passive: false });
+  (function () {
+    var surukle = null;
+    var r = $('buyutecResim');
+    r.addEventListener('pointerdown', function (e) {
+      surukle = { x: e.clientX - B.x, y: e.clientY - B.y };
+      r.setPointerCapture(e.pointerId);
+      r.style.cursor = 'grabbing';
+    });
+    r.addEventListener('pointermove', function (e) {
+      if (!surukle) return;
+      B.x = e.clientX - surukle.x; B.y = e.clientY - surukle.y;
+      buyutecUygula();
+    });
+    r.addEventListener('pointerup', function () { surukle = null; r.style.cursor = 'grab'; });
+  })();
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !$('buyutec').classList.contains('gizli')) {
+      $('buyutec').classList.add('gizli');
+      $('buyutecResim').removeAttribute('src');
+    }
+  });
 
   $('btnOneri').addEventListener('click', function () {
     var k = D.liste[D.i]; if (!k) return;
@@ -1351,10 +1492,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       $('katlar').scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
-    if (!D.kural) {
-      var serbest = D.cfg.kategoriler[D.kategori] && D.cfg.kategoriler[D.kategori].serbest;
-      goster($('msg'), 'hata', serbest
-        ? '"Diğer" için kısa bir açıklama yazın.'
+    if (!D.kural || D.kural === '__diger') {
+      goster($('msg'), 'hata', D.kural === '__diger'
+        ? '"Diğer" seçtiniz — kısa bir açıklama yazın.'
         : 'Hangi kurala göre karar verdiğinizi işaretleyin.');
       $('kurallar').scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
