@@ -54,6 +54,25 @@
   .izgara{display:grid;grid-template-columns:repeat(auto-fill,minmax(196px,1fr));gap:14px}
   .kitap{background:var(--kagit);border:1px solid var(--cizgi);border-radius:11px;overflow:hidden;
     display:flex;flex-direction:column;border-top:4px solid var(--cizgi)}
+  .ykIpucu{cursor:help;border-bottom:1px dotted #c9a7b8}
+  .kartIslem{display:flex;gap:8px;margin-top:8px;padding-top:8px;
+             border-top:1px solid #efe7e2}
+  .kartIslem button{flex:1;padding:7px 0;border-radius:7px;font-size:12.5px;
+      font-weight:700;cursor:pointer;background:#fff;border:1.5px solid}
+  .kDuzelt{border-color:var(--bordo);color:var(--bordo)}
+  .kSil{border-color:#9c2233;color:#9c2233}
+  .kartDuzenle{padding:10px 12px 12px;border-top:1.5px dashed var(--cizgi);
+               background:#fbf7f1;display:grid;gap:7px}
+  .kartDuzenle input,.kartDuzenle textarea{width:100%;font-size:13.5px;
+      padding:7px 9px;border:1.5px solid var(--cizgi);border-radius:7px;font-family:inherit}
+  .kartDuzenle label{font-size:11px;font-weight:700;color:#74686e;
+      text-transform:uppercase;letter-spacing:.4px;margin-bottom:-4px}
+  .kartDuzenle .dSatir{display:flex;gap:8px}
+  .kartDuzenle .dSatir button{flex:1;padding:9px 0;border:none;border-radius:8px;
+      font-weight:700;cursor:pointer;font-size:13.5px}
+  .kartDuzenle .dKaydet{background:var(--bordo);color:#fff}
+  .kartDuzenle .dVazgec{background:#e8dcd4;color:#5a4a52}
+
   .kitap.gidecek{border-top-color:var(--yesil)} .kitap.belki{border-top-color:var(--sari)}
   .kitap.gitmeyecek{border-top-color:var(--kirmizi)} .kitap.belirsiz{border-top-color:var(--mavi)}
   .kitap .resim{display:block;height:190px;background:#2a2226;position:relative}
@@ -675,6 +694,7 @@
       localStorage.removeItem('tv_env_kuyruk');
       localStorage.removeItem('tv_env_foto_kuyruk');
       localStorage.removeItem('tv_env_sira');
+      localStorage.removeItem('tv_env_devir');
       location.reload();
     });
   });
@@ -761,6 +781,18 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     return dene(kalan, 1200);
   }
 
+  /* "G-C01-002" fareyle üzerine gelene kendini anlatsın. */
+  function yerAciklama(kod) {
+    var e = /^([^-]+)-([A-ZÇĞİÖŞÜ]+)(\d+)-(\d+)$/.exec(String(kod || '').trim());
+    if (!e) return kod || '';
+    var mekanAd = e[1];
+    ((D.cfg && D.cfg.mekanlar) || []).forEach(function (m) {
+      if (String(m.kod).toUpperCase() === e[1].toUpperCase()) mekanAd = m.ad;
+    });
+    return kod + ' = ' + mekanAd + ' · ' + e[2] + ' rafı · ' +
+           Number(e[3]) + '. göz · ' + Number(e[4]) + '. kitap';
+  }
+
   function agHata(e) { return e.message === 'AĞ' ? 'Sunucuya ulaşılamadı.' : e.message; }
 
   /* ───────── giriş ───────── */
@@ -771,6 +803,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     D.ad = ad; D.sifre = sifre;
     mesgul($('btnGiris'), true, 'Açılıyor…');
     api('config').then(function (cfg) {
+      D.cfg = cfg;
       $('kategori').innerHTML = '<option value="">Hepsi</option>' +
         Object.keys(cfg.kategoriler).map(function (a) {
           return '<option value="' + esc(cfg.kategoriler[a].ad) + '">' + esc(cfg.kategoriler[a].ad) + '</option>';
@@ -887,15 +920,20 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         nerede = '<div class="nerede raf">RAFTA' +
           (yerKod ? '<b>' + esc(yerKod) + '</b>' : '') + '</div>';
       }
-      return '<article class="kitap ' + (sinif[k.kategori] || '') + '">' +
+      return '<article class="kitap ' + (sinif[k.kategori] || '') + '" data-no="' + k.no + '">' +
         resimKutusu(k) +
         '<div class="govde">' +
           '<div class="bas">' + esc(k.baslik || '(başlıksız)') + '</div>' +
           (k.yazar ? '<div class="yaz">' + esc(k.yazar) + '</div>' : '') +
           (altSatir ? '<div class="yaz">' + esc(altSatir) + '</div>' : '') +
           nerede +
-          '<div class="alt">' + esc(k.yer || ('#' + k.no)) +
+          '<div class="alt"><span title="' + esc(yerAciklama(k.yer)) + '" class="ykIpucu">' +
+            esc(k.yer || ('#' + k.no)) + '</span>' +
             '<span class="kat">' + esc(k.kural || '') + '</span></div>' +
+          '<div class="kartIslem">' +
+            '<button type="button" class="kDuzelt" data-no="' + k.no + '">Düzenle</button>' +
+            '<button type="button" class="kSil" data-no="' + k.no + '">Sil</button>' +
+          '</div>' +
         '</div></article>';
     }).join('');
 
@@ -903,6 +941,84 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     $('ustSayi').textContent = D.toplam + ' kayıt';
     $('btnDaha').classList.toggle('gizli', D.kayitlar.length >= D.toplam);
   }
+
+  /* ── Koordinatör herhangi bir kaydı siler ya da künyesini düzeltir.
+     Silme yumuşaktır (Silindi işareti); yanlışlıkla silinen kayıt tablodan
+     geri açılabilir. Düzenleme kartın içinde küçük bir formla yapılır —
+     ayrı ekrana gitmeye gerek yok. ── */
+  $('izgara').addEventListener('click', function (e) {
+    var sil = e.target.closest('.kSil');
+    if (sil) {
+      var no = Number(sil.dataset.no);
+      var k = D.kayitlar.filter(function (x) { return x.no === no; })[0] || {};
+      if (!window.confirm('#' + no + ' — "' + (k.baslik || 'başlıksız') +
+          '" silinsin mi?\n\nKayıt çöpe gitmez, "silindi" olarak işaretlenir.')) return;
+      sil.disabled = true; sil.textContent = 'Siliniyor…';
+      api('sil', { no: no }).then(function () {
+        var kart = sil.closest('.kitap');
+        kart.style.opacity = '.35';
+        kart.querySelector('.kartIslem').innerHTML =
+          '<span style="font-size:12px;color:#9c2233;font-weight:700;padding:6px 0">Silindi</span>';
+      })['catch'](function (h) {
+        sil.disabled = false; sil.textContent = 'Sil';
+        goster($('msg'), 'hata', agHata(h));
+      });
+      return;
+    }
+
+    var duzelt = e.target.closest('.kDuzelt');
+    if (duzelt) {
+      var kart2 = duzelt.closest('.kitap');
+      if (kart2.querySelector('.kartDuzenle')) {           // zaten açık → kapat
+        kart2.querySelector('.kartDuzenle').remove(); return;
+      }
+      var no2 = Number(duzelt.dataset.no);
+      var k2 = D.kayitlar.filter(function (x) { return x.no === no2; })[0];
+      if (!k2) return;
+      var f = document.createElement('div');
+      f.className = 'kartDuzenle';
+      f.innerHTML =
+        '<label>Başlık</label><input class="dBaslik" value="' + esc(k2.baslik || '') + '">' +
+        '<label>Yazar</label><input class="dYazar" value="' + esc(k2.yazar || '') + '">' +
+        '<div class="dSatir">' +
+          '<div style="flex:1"><label>Yıl</label>' +
+            '<input class="dYil" inputmode="numeric" maxlength="4" value="' + esc(k2.yil || '') + '"></div>' +
+          '<div style="flex:1"><label>Nüsha</label>' +
+            '<input class="dNusha" inputmode="numeric" value="' + esc(k2.nusha || 1) + '"></div>' +
+        '</div>' +
+        '<label>Not</label><textarea class="dNot" rows="2">' + esc(k2.not || '') + '</textarea>' +
+        '<div class="dSatir">' +
+          '<button type="button" class="dKaydet">Kaydet</button>' +
+          '<button type="button" class="dVazgec">Vazgeç</button>' +
+        '</div>';
+      kart2.appendChild(f);
+
+      f.querySelector('.dVazgec').addEventListener('click', function () { f.remove(); });
+      f.querySelector('.dKaydet').addEventListener('click', function () {
+        var b = f.querySelector('.dKaydet');
+        b.disabled = true; b.textContent = 'Kaydediliyor…';
+        api('guncelle', { no: no2, kayit: {
+          baslik: f.querySelector('.dBaslik').value.trim(),
+          yazar: f.querySelector('.dYazar').value.trim(),
+          yil: f.querySelector('.dYil').value.trim(),
+          nusha: f.querySelector('.dNusha').value.trim(),
+          not: f.querySelector('.dNot').value.trim(),
+          kaydeden: D.ad
+        } }).then(function () {
+          k2.baslik = f.querySelector('.dBaslik').value.trim();
+          k2.yazar = f.querySelector('.dYazar').value.trim();
+          k2.yil = f.querySelector('.dYil').value.trim();
+          k2.not = f.querySelector('.dNot').value.trim();
+          kart2.querySelector('.bas').textContent = k2.baslik || '(başlıksız)';
+          f.remove();
+          goster($('msg'), 'iyi', '#' + no2 + ' güncellendi.');
+        })['catch'](function (h) {
+          b.disabled = false; b.textContent = 'Kaydet';
+          goster($('msg'), 'hata', agHata(h));
+        });
+      });
+    }
+  });
 
   $('btnDaha').addEventListener('click', function () {
     mesgul($('btnDaha'), true, 'Yükleniyor…');
@@ -1132,6 +1248,11 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   var ad = localStorage.getItem('tv_env_ad'), sifre = localStorage.getItem('tv_env_koord_sifre');
   if (ad) $('ad').value = ad;
   if (sifre) $('sifre').value = sifre;
+  /* Koordinatör panelinin sekmesinde açıldıysak (?oto=1) girişi bekletme:
+     panel şifreyi zaten doğruladı, ikinci kez sordurma. */
+  if (ad && sifre && /[?&]oto=1/.test(location.search)) {
+    setTimeout(function () { $('btnGiris').click(); }, 60);
+  }
 })();
 </script>
 </body>

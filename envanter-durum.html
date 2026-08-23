@@ -346,19 +346,29 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         var f = oncelik(a) - oncelik(b);
         return f !== 0 ? f : String(a.sira).localeCompare(String(b.sira));
       });
-      var gosterilen = liste.filter(function (x) { return x.durum !== 'bos' || x.tutulu; });
+      // Ön sayımı yapılmış boş sıralar da görünsün: sayım işi takip edilebilsin.
+      var gosterilen = liste.filter(function (x) {
+        return x.durum !== 'bos' || x.tutulu || x.onSayim != null;
+      });
       var bosSayisi = liste.length - gosterilen.length;
 
       $('haritaTablo').innerHTML =
-        '<tr><th>Sıra</th><th>Durum</th><th>Rafta</th><th>Sistemde</th>' +
+        '<tr><th>Sıra</th><th>Durum</th><th>Ön sayım</th><th>Rafta</th><th>Sistemde</th>' +
         '<th>Fark</th><th>Kim</th></tr>' +
         (gosterilen.length ? gosterilen.map(function (x) {
-          var kotu = x.durum === 'bitti' && Number(x.fark) !== 0;
+          /* İki kötü hâl var: sistem sayımı tutmuyor, YA DA ön sayımla kapanış
+             sayımı tutmuyor (iki insandan biri yanlış saymış — raf şüpheli). */
+          var onSayimTutmadi = x.onSayim != null && x.raftaki !== '' &&
+                               Number(x.raftaki) !== Number(x.onSayim);
+          var kotu = x.durum === 'bitti' && (Number(x.fark) !== 0 || onSayimTutmadi);
           var kim = x.tutulu ? x.tutan + ' (üzerinde)' : (x.bitiren || '');
           return '<tr' + (kotu ? ' class="kotu"' : '') + '>' +
             '<td class="ad">' + esc(x.sira) + '</td>' +
             '<td class="dur d-' + x.durum + '">' +
               (x.durum === 'bitti' ? 'bitti' : x.durum === 'devam' ? 'yarım' : 'boş') + '</td>' +
+            '<td>' + (x.onSayim == null ? '—'
+              : (onSayimTutmadi ? '<b style="color:#8a1c2c">' + sayi(x.onSayim) + ' ⚠</b>'
+                                : sayi(x.onSayim))) + '</td>' +
             '<td>' + (x.raftaki === '' ? '—' : sayi(x.raftaki)) + '</td>' +
             '<td>' + sayi(x.kayitli) +
               (x.kayitSayisi && x.kayitSayisi !== x.kayitli
@@ -368,7 +378,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
               (Number(x.fark) === 0 ? 'tutuyor'
                 : (Number(x.fark) > 0 ? x.fark + ' eksik' : (-x.fark) + ' fazla'))) + '</td>' +
             '<td>' + esc(kim) + '</td></tr>';
-        }).join('') : '<tr><td colspan="6">Henüz hiçbir sıraya dokunulmamış.</td></tr>');
+        }).join('') : '<tr><td colspan="7">Henüz hiçbir sıraya dokunulmamış.</td></tr>');
 
       $('haritaNot').textContent = bosSayisi
         ? bosSayisi + ' sıra hiç başlanmadı — listeye sığmasın diye gösterilmiyor. ' +
@@ -557,6 +567,11 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   var ad = localStorage.getItem('tv_env_ad'), sifre = localStorage.getItem('tv_env_koord_sifre');
   if (ad) $('ad').value = ad;
   if (sifre) $('sifre').value = sifre;
+  /* Koordinatör panelinin sekmesinde açıldıysak (?oto=1) girişi bekletme:
+     panel şifreyi zaten doğruladı, ikinci kez sordurma. */
+  if (ad && sifre && /[?&]oto=1/.test(location.search)) {
+    setTimeout(function () { $('btnGiris').click(); }, 60);
+  }
 })();
 </script>
 </body>
