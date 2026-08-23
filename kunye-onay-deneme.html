@@ -1271,6 +1271,14 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     }
   });
 
+  /* Koordinatör panelinde bu sekmeye dönüldüğünde kuyruk tazelenir. */
+  window.addEventListener('message', function (e) {
+    if (!(e.data && e.data.tv === 'sekme')) return;
+    if ($('adim-onay').classList.contains('gizli')) return;    // henüz giriş yok
+    if ($('btnYenile').disabled) return;
+    $('btnYenile').click();
+  });
+
   /* ───────── açılış ───────── */
   var ad = localStorage.getItem('tv_env_ad'), sifre = localStorage.getItem('tv_env_koord_sifre');
   if (ad) $('ad').value = ad;

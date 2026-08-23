@@ -112,6 +112,9 @@
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
   var API = (window.TV_ENVANTER_URL || '').trim();
+  /* Sürüm damgası: çerçeveler bu ekle yüklenir ki tarayıcı sayfaların ESKİ
+     önbellek kopyasını gösteremesin. Sayfalar her güncellendiğinde artırın. */
+  var SURUM = '20260823a';
 
   /* ── sekmeler: çerçeve İLK açılışta yüklenir, sonra olduğu gibi kalır.
      Sekme değiştirmek sayfayı yeniden başlatmaz — onay ekranındaki yarım
@@ -124,7 +127,13 @@
     Array.prototype.forEach.call(document.querySelectorAll('main iframe'), function (f) {
       var bu = f.dataset.ad === ad;
       f.classList.toggle('sec', bu);
-      if (bu && !f.src) f.src = f.dataset.src;      // tembel yükleme
+      if (bu && !f.src) f.src = f.dataset.src + '&s=' + SURUM;   // tembel + önbellek kırıcı
+      else if (bu && f.contentWindow) {
+        /* Sekmeye dönüldü: sayfaya haber ver ki listesini tazelesin.
+           (Künye Onayı'nda onaylanan kitap, Karar'a geçince elle "yenile"
+           beklemeden görünsün.) */
+        try { f.contentWindow.postMessage({ tv: 'sekme' }, '*'); } catch (h) {}
+      }
     });
   }
   $('sekmeler').addEventListener('click', function (e) {

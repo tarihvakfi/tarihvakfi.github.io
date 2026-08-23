@@ -1203,6 +1203,20 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     }
   });
 
+  /* Koordinatör panelinde sekmeye her dönüşte liste kendiliğinden tazelenir;
+     ayrıca sayfa yeniden görünür olduğunda da (başka pencereden dönüş). */
+  function kendiliğindenYenile() {
+    if ($('adim-karar').classList.contains('gizli')) return;   // henüz giriş yok
+    if ($('btnYenile').disabled) return;                       // zaten yenileniyor
+    $('btnYenile').click();
+  }
+  window.addEventListener('message', function (e) {
+    if (e.data && e.data.tv === 'sekme') kendiliğindenYenile();
+  });
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) kendiliğindenYenile();
+  });
+
   /* ───────── açılış ───────── */
   var ad = localStorage.getItem('tv_env_ad'), sifre = localStorage.getItem('tv_env_koord_sifre');
   if (ad) $('ad').value = ad;
