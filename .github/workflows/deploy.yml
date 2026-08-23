@@ -55,12 +55,14 @@ jobs:
             yonetim.html \
             katilim.html \
             kitap-envanteri.html \
-            koordinator.html \
             kunye-onay.html \
+            karar.html \
+            koordinator.html \
             envanter-katalog.html \
             envanter-durum.html \
             envanter-deneme.html \
             kunye-onay-deneme.html \
+            karar-deneme.html \
             envanter-katalog-deneme.html \
             envanter-durum-deneme.html \
             envanter-manifest.json \
