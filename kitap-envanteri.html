@@ -528,6 +528,26 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
   // Yalnızca okuyan istekler; tekrar denemek güvenli
   var TEKRARLANABILIR = ['config', 'sayac', 'rafDurum', 'sonKayitlar', 'kayitBul'];
+
+  /* Sıra bırakma: rezervasyon kalkar, kayıtlara dokunulmaz. Deneme yapan ya da
+     eve giden kişi kilidi kendisi açar; koordinatörü beklemek gerekmez. */
+  document.addEventListener('click', function (e) {
+    if (e.target.id !== 'btnSiraBirak') return;
+    var b = e.target;
+    b.disabled = true; b.textContent = 'Bırakılıyor…';
+    api('siraBirak', { kaydeden: D.ad }).then(function (r) {
+      var adlar = (r.birakilan || []).join(', ');
+      goster($('msgOner'), 'iyi', (r.birakilan && r.birakilan.length
+        ? '<b>' + esc(adlar) + '</b> bırakıldı. Kayıtlarınız duruyor; ' +
+          'artık <b>Bana sıra ver</b> ile yeni sıra alabilirsiniz.'
+        : 'Üzerinizde sıra görünmüyor.'));
+      rafOzetYenile();
+    })['catch'](function (h) {
+      b.disabled = false; b.textContent = 'Üzerimdeki sıraları bırak';
+      goster($('msgOner'), 'hata', h.message === 'AĞ'
+        ? 'Bağlantı yok — bırakma işlemi sunucuya ulaşamadı.' : h.message);
+    });
+  });
   var AYAR_DEPO = 'tv_env_ayarlar';     // son başarılı ayarlar telefonda saklanır
 
   /* ── Fotoğraflar için küçük IndexedDB deposu ──
@@ -1248,8 +1268,13 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       var m;
       if (d.zatenSizde) {
         m = ['uyari', yerEtiket(d.anahtar) + ' zaten sizin üzerinizde. ' +
-             'Bitirmeden yeni sıra verilmiyor — bitirdiyseniz aşağıdan ' +
-             '<b>Bu sırayı bitirdim</b> deyin.'];
+             'Bitirdiyseniz aşağıdan <b>Bu sırayı bitirdim</b> deyin; ' +
+             'çalışmayacaksanız bırakın:' +
+             '<br><button type="button" id="btnSiraBirak" ' +
+             'style="margin-top:9px;padding:9px 14px;border:1.5px solid #92400e;' +
+             'border-radius:8px;background:#fff;color:#92400e;font:inherit;' +
+             'font-size:14px;font-weight:700;cursor:pointer">' +
+             'Üzerimdeki sıraları bırak</button>'];
       } else if (d.tur === 'bos') {
         m = ['iyi', yerEtiket(d.anahtar) + ' <b>sizin adınıza ayrıldı</b> — hiç ' +
              'başlanmamış bir sıra. Geriye ' + d.kalanBos + ' boş sıra kalıyor.' +
