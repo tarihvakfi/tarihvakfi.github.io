@@ -326,9 +326,22 @@
     ['M3','belirsiz','Yabancı dilde, içeriği anlamadım'],
     ['M4','belirsiz','Kurallar çelişiyor']
   ];
-  var MEKANLAR = [{ kod:'G', ad:'Giriş Kat' }, { kod:'U', ad:'Üst Kat' }, { kod:'D', ad:'Depo' }];
-  var RAF_HARFLERI = 'ABCDEFGH'.split('');
-  var SIRA_SAYISI = 8;
+  var MEKANLAR = [{ kod:'G', ad:'Giriş Kat' }, { kod:'U', ad:'Üst Kat' },
+                  { kod:'X', ad:'Diğer', rafSayisi:6 }];
+  var RAF_HARFLERI = (function () {           // A..Z, AA.. — 60 raf
+    var d = [], i, j;
+    for (i = 0; i < 60; i++) {
+      var ad = '', n = i;
+      do { ad = String.fromCharCode(65 + (n % 26)) + ad; n = Math.floor(n / 26) - 1; }
+      while (n >= 0);
+      d.push(ad);
+    }
+    return d;
+  })();
+  var SIRA_SAYISI = 6;
+  function mekanRaflari(m) {
+    return (m && Number(m.rafSayisi)) ? RAF_HARFLERI.slice(0, Number(m.rafSayisi)) : RAF_HARFLERI;
+  }
 
   function oku() {
     try { return JSON.parse(localStorage.getItem(DEPO) || '{}'); } catch (h) { return {}; }
@@ -371,10 +384,14 @@
       var son = ayni.reduce(function (e, k) { return Math.max(e, Number(k.siraNo) || 0); }, 0);
       var bit = (v.siralar || {})[a];
       var sonK = ayni[ayni.length - 1];
+      var tutanD = (v.tutulan || {})[a] || '';
+      var onSayD = (v.onSayimlar || {})[a];
       return { ok:true, anahtar:a, sonNo:son, adet:ayni.length,
         durum: bit ? 'bitti' : (ayni.length ? 'devam' : 'bos'),
         bitiren: bit ? bit.bitiren : '', bitisTarihi: bit ? bit.tarih : '',
         raftaki: bit ? bit.raftaki : '',
+        tutulu: !!tutanD, tutan: tutanD,
+        onSayim: onSayD ? onSayD.adet : null,
         sonCalisan: sonK ? sonK.kaydeden : '',
         sonTarih: sonK ? String(sonK.tarih || '').slice(0, 10) : '',
         devir: devirBilgisi(ayni) };
@@ -406,7 +423,7 @@
       var bitmis = v.siralar || {};
       var bos = [], yarim = [];
       MEKANLAR.forEach(function (m) {
-        RAF_HARFLERI.forEach(function (h) {
+        mekanRaflari(m).forEach(function (h) {
           for (var i = 1; i <= SIRA_SAYISI; i++) {
             var key = anahtar(m.kod, h, i);
             if (bitmis[key]) continue;
@@ -414,9 +431,15 @@
           }
         });
       });
-      if (bos.length) return { ok:true, anahtar:bos[0], tur:'bos',
+      var verilecek = bos.length ? bos[0] : (yarim.length ? yarim[0] : '');
+      if (verilecek && g.kaydeden) {          // demoda da sıra kişinin üstüne yazılır
+        v.tutulan = v.tutulan || {};
+        v.tutulan[verilecek] = String(g.kaydeden || '');
+        yaz(v);
+      }
+      if (bos.length) return { ok:true, anahtar:verilecek, tur:'bos',
         kalanBos:bos.length, yarimKalan:yarim.length };
-      if (yarim.length) return { ok:true, anahtar:yarim[0], tur:'yarim',
+      if (yarim.length) return { ok:true, anahtar:verilecek, tur:'yarim',
         kalanBos:0, yarimKalan:yarim.length };
       return { ok:true, anahtar:'', tur:'bitti', kalanBos:0, yarimKalan:0 };
     }
@@ -432,9 +455,80 @@
       v.siralar = v.siralar || {};
       v.siralar[ab] = { raftaki:raftaki, kayitli:cilt, bitiren:(g.kaydeden || ''),
         tarih: new Date().toISOString().slice(0, 10) };
+      if (v.tutulan) delete v.tutulan[ab];     // kapanan sıra kimsenin üstünde kalmaz
       yaz(v);
+      var onSayB = (v.onSayimlar || {})[ab];
       return { ok:true, anahtar:ab, kayitli:cilt, kayitSayisi:ayniB.length,
-        raftaki:raftaki, fark:raftaki - cilt };
+        raftaki:raftaki, fark:raftaki - cilt,
+        onSayim: onSayB ? onSayB.adet : null,
+        onSayimFark: onSayB ? raftaki - onSayB.adet : null };
+    }
+    if (g.action === 'siraBirak') {
+      var kimB = String(g.kaydeden || '').trim().toLowerCase();
+      var tut = v.tutulan || {}; var birakilan = [];
+      Object.keys(tut).forEach(function (key) {
+        if (String(tut[key] || '').toLowerCase() === kimB) {
+          delete tut[key]; birakilan.push(key);
+        }
+      });
+      v.tutulan = tut; yaz(v);
+      return { ok:true, birakilan: birakilan };
+    }
+    if (g.action === 'sayimKaydet') {
+      var aS = anahtar(g.mekan, g.raf, g.sira);
+      var adetS = parseInt(g.adet, 10);
+      if (isNaN(adetS) || adetS < 0) return { ok:false, error:'Sayılan kitap sayısını yazın (boş rafa 0).' };
+      v.onSayimlar = v.onSayimlar || {};
+      var eskiS = v.onSayimlar[aS];
+      v.onSayimlar[aS] = { adet: adetS, sayan: String(g.sayan || '') };
+      yaz(v);
+      return { ok:true, anahtar:aS, adet:adetS,
+        oncekiSayim: eskiS ? eskiS.adet : null };
+    }
+    if (g.action === 'siraOzeti') {
+      var canli = {}, sonNolar = {}, ciltO = {};
+      v.kayitlar.forEach(function (k) {
+        var nO = Number(k.siraNo) || 0;
+        if (nO > (sonNolar[k.anahtar] || 0)) sonNolar[k.anahtar] = nO;
+        (canli[k.anahtar] = canli[k.anahtar] || {})[nO] = true;
+        ciltO[k.anahtar] = (ciltO[k.anahtar] || 0) + Math.max(1, Number(k.nusha) || 1);
+      });
+      var bitmisO = v.siralar || {}, tutO = v.tutulan || {}, sayO = v.onSayimlar || {};
+      var listeO = [];
+      MEKANLAR.forEach(function (m) {
+        mekanRaflari(m).forEach(function (h) {
+          for (var iO = 1; iO <= SIRA_SAYISI; iO++) {
+            var keyO = anahtar(m.kod, h, iO);
+            var bO = bitmisO[keyO];
+            var sonNoO = sonNolar[keyO] || 0;
+            var eksikO = [];
+            for (var nn = 1; nn <= sonNoO && eksikO.length < 40; nn++) {
+              if (!(canli[keyO] && canli[keyO][nn])) eksikO.push(nn);
+            }
+            listeO.push({ sira:keyO,
+              durum: bO ? 'bitti' : (sonNoO ? 'devam' : 'bos'),
+              kayitli: ciltO[keyO] || 0, sonNo: sonNoO, eksik: eksikO,
+              tutulu: !!tutO[keyO], tutan: tutO[keyO] || '',
+              bitiren: bO ? bO.bitiren : '',
+              onSayim: sayO[keyO] ? sayO[keyO].adet : null });
+          }
+        });
+      });
+      return { ok:true, siralar: listeO };
+    }
+    if (g.action === 'kayitBul') {
+      var yerB = String(g.yer || '').trim().toUpperCase();
+      if (!yerB) return { ok:false, error:'Yer kodu yazın.' };
+      for (i = v.kayitlar.length - 1; i >= 0; i--) {
+        var kB = v.kayitlar[i];
+        if (String(kB.yer || '').toUpperCase() !== yerB) continue;
+        return { ok:true, bulundu:true, silinmis:false, yer:yerB,
+          kayit: { no:kB.no, yer:kB.yer, baslik:kB.baslik, yazar:kB.yazar,
+            yil:kB.yil, nusha:kB.nusha, durum:kB.durum, not:kB.not,
+            kaydeden:kB.kaydeden, onayli: !!kB.kural,
+            fotoVar: !!(kB.foto || kB.kapak) } };
+      }
+      return { ok:true, bulundu:false, silinmis:false, yer:yerB };
     }
     if (g.action === 'ekle' || g.action === 'guncelle') {
       var k = g.kayit || {};

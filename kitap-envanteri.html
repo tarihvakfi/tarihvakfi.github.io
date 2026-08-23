@@ -134,13 +134,23 @@
   .hEksikNokta{background:#fff;border:1px solid #d8ccc4;position:relative}
   .hLejant .hEksikNokta::after{content:'';position:absolute;top:-3px;right:-3px;
     width:8px;height:8px;border-radius:50%;background:#c22030;border:1.5px solid #fff}
-  #haritaIzgara{display:flex;flex-direction:column;gap:7px}
-  .hRaf{display:flex;align-items:center;gap:6px}
-  .hRaf b{flex:0 0 34px;font-size:13px;color:#5a4a52;
-          font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-  .hGoz{position:relative;flex:1;height:34px;border-radius:7px;border:1.5px solid #d8ccc4;
-        background:#efe7e0;font-size:11px;color:#5a4a52;
-        display:flex;align-items:center;justify-content:center;padding:0}
+  /* Harita, rafların karşısında durur gibi: sütunlar raflar (A, B, C… soldan
+     sağa), satırlar sıralar (1 en üstte). Mekânlar sekmeyle ayrılır. */
+  .hMekanlar{display:flex;gap:7px;margin-bottom:10px}
+  .hMekanlar button{flex:1;padding:9px 6px;border:1.5px solid #d8ccc4;border-radius:9px;
+      background:#fff;font:inherit;font-size:14px;font-weight:700;color:#5a4a52}
+  .hMekanlar button.sec{background:var(--bordo);border-color:var(--bordo);color:#fff}
+  #haritaKaydir{overflow-x:auto;-webkit-overflow-scrolling:touch;
+      border:1.5px solid #e6dcd6;border-radius:10px;padding:8px}
+  #haritaIzgara{display:grid;gap:4px;width:max-content}
+  .hBas{font-size:11px;font-weight:700;color:#5a4a52;text-align:center;
+        font-family:ui-monospace,SFMono-Regular,Menlo,monospace;padding:2px 0;
+        position:sticky;top:0}
+  .hSiraEtiket{font-size:11px;font-weight:700;color:#8a7d84;display:flex;
+        align-items:center;justify-content:center;
+        position:sticky;left:0;background:#fbf7f1;padding:0 4px;z-index:2}
+  .hGoz{position:relative;width:30px;height:30px;border-radius:6px;
+        border:1.5px solid #d8ccc4;background:#efe7e0;font-size:0;padding:0}
   .hGoz.devam{background:#f6c453;border-color:#d9a12e;color:#4a3608}
   .hGoz.bitti{background:#2e6440;border-color:#2e6440;color:#fff}
   .hGoz.tutulu{outline:2px dashed #2a5b86;outline-offset:-2px}
@@ -307,7 +317,8 @@
         <span><i class="hBitti"></i> bitti</span>
         <span><i class="hEksikNokta"></i> atlanmış kitap var</span>
       </div>
-      <div id="haritaIzgara"></div>
+      <div class="hMekanlar" id="hMekanlar"></div>
+      <div id="haritaKaydir"><div id="haritaIzgara"></div></div>
       <div id="haritaDetay" class="gizli"></div>
     </div>
 
@@ -956,9 +967,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     }).join('');
     if (son.mekan) $('mekan').value = son.mekan;
 
-    $('rafHarf').innerHTML = (cfg.rafHarfleri || []).map(function (h) {
-      return '<option value="' + esc(h) + '">' + esc(h) + ' rafı</option>';
-    }).join('');
+    rafSecenekleriKur($('mekan').value);
     if (son.raf) $('rafHarf').value = son.raf;
 
     // Kutu numarası yalnızca "kutuya doğrudan" yöntemiyle çalışan kütüphanelerde
@@ -1068,18 +1077,25 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     $('sayimMekan').innerHTML = mekanlar.map(function (m) {
       return '<option value="' + esc(m.kod) + '">' + esc(m.ad) + '</option>';
     }).join('') || '<option value="">—</option>';
-    $('sayimRaf').innerHTML = (D.cfg.rafHarfleri || []).map(function (h) {
-      return '<option value="' + esc(h) + '">' + esc(h) + ' rafı</option>';
-    }).join('');
+    sayimRafKur();
     var kac = Number(D.cfg.siraSayisi || 6), sec = '';
     for (var i = 1; i <= kac; i++) sec += '<option value="' + i + '">' + i + '. sıra</option>';
     $('sayimSiraSec').innerHTML = sec;
+  }
+  function sayimRafKur() {
+    var eski = $('sayimRaf').value;
+    var raflar = mekanRaflari($('sayimMekan').value);
+    $('sayimRaf').innerHTML = raflar.map(function (h) {
+      return '<option value="' + esc(h) + '">' + esc(h) + ' rafı</option>';
+    }).join('');
+    if (raflar.indexOf(eski) >= 0) $('sayimRaf').value = eski;
   }
   function sayimSirasiniGoster() {
     var a = anahtarKur($('sayimMekan').value, $('sayimRaf').value,
                        Number($('sayimSiraSec').value) || 1);
     $('sayimSira').textContent = a || '—';
   }
+  $('sayimMekan').addEventListener('change', sayimRafKur);
   ['sayimMekan', 'sayimRaf', 'sayimSiraSec'].forEach(function (id) {
     $(id).addEventListener('change', function () {
       sayimSirasiniGoster();
@@ -1149,25 +1165,51 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     }).then(function () { $('btnHarita').textContent = 'Rafların durumunu gör'; });
   });
 
+  var haritaMekan = '';                         // seçili mekân sekmesi
+
   function haritaCiz() {
-    var raflar = {};                                  // "G-A" → [sıra kayıtları]
-    Object.keys(haritaVerisi).forEach(function (a) {
-      var raf = a.replace(/\d+$/, '');
-      (raflar[raf] = raflar[raf] || []).push(haritaVerisi[a]);
-    });
-    $('haritaIzgara').innerHTML = Object.keys(raflar).sort().map(function (raf) {
-      var hucreler = raflar[raf].sort(function (x, y) {
-        return x.sira.localeCompare(y.sira);
-      }).map(function (x) {
-        var no = x.sira.replace(/^.*?(\d+)$/, '$1');
+    var mekanlar = (D.cfg && D.cfg.mekanlar) || [];
+    if (!haritaMekan && mekanlar.length) haritaMekan = mekanlar[0].kod;
+
+    // Mekân sekmeleri (tek mekân varsa gizli)
+    $('hMekanlar').style.display = mekanlar.length > 1 ? '' : 'none';
+    $('hMekanlar').innerHTML = mekanlar.map(function (m) {
+      return '<button type="button" data-hm="' + esc(m.kod) + '"' +
+        (m.kod === haritaMekan ? ' class="sec"' : '') + '>' + esc(m.ad) + '</button>';
+    }).join('');
+
+    /* Izgara raf düzeninin aynası: sütunlar raflar (A, B, C… soldan sağa),
+       satırlar sıralar (1 en üstte, fiziksel dizilişle aynı). */
+    var raflar = mekanRaflari(haritaMekan);
+    var kac = Number((D.cfg && D.cfg.siraSayisi) || 6);
+    var hucreler = '<div></div>' + raflar.map(function (h) {
+      return '<div class="hBas">' + esc(h) + '</div>';
+    }).join('');
+    for (var i = 1; i <= kac; i++) {
+      hucreler += '<div class="hSiraEtiket">' + i + '</div>';
+      /* eslint-disable no-loop-func */
+      hucreler += raflar.map(function (h) {
+        var anahtar = anahtarKur(haritaMekan, h, i);
+        var x = haritaVerisi[anahtar];
+        if (!x) return '<div class="hGoz" style="visibility:hidden"></div>';
         return '<button type="button" class="hGoz ' + x.durum +
           (x.tutulu ? ' tutulu' : '') + '" data-sira="' + esc(x.sira) + '" ' +
-          'title="' + esc(x.sira) + '">' + Number(no) +
+          'title="' + esc(x.sira) + ' — ' + esc(yerSozu(x.sira)) + '">' +
           (x.eksik.length ? '<span class="nokta"></span>' : '') + '</button>';
       }).join('');
-      return '<div class="hRaf"><b>' + esc(raf.replace(/-$/, '')) + '</b>' + hucreler + '</div>';
-    }).join('');
+    }
+    $('haritaIzgara').style.gridTemplateColumns =
+      '26px repeat(' + raflar.length + ', 30px)';
+    $('haritaIzgara').innerHTML = hucreler;
   }
+
+  $('hMekanlar').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-hm]');
+    if (!b) return;
+    haritaMekan = b.dataset.hm;
+    $('haritaDetay').classList.add('gizli');
+    haritaCiz();
+  });
 
   $('haritaIzgara').addEventListener('click', function (e) {
     var g = e.target.closest('.hGoz');
@@ -1382,6 +1424,25 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
 
   /* ───────── seçenekleri çiz ───────── */
+  /* Mekâna göre raf listesi: "Diğer" gibi küçük alanlarda 60 raf yoktur;
+     mekân tanımındaki rafSayisi kadarı gösterilir. */
+  function mekanRaflari(mekanKod) {
+    var hepsi = (D.cfg && D.cfg.rafHarfleri) || [];
+    var m = ((D.cfg && D.cfg.mekanlar) || []).filter(function (x) {
+      return String(x.kod).toUpperCase() === String(mekanKod || '').toUpperCase();
+    })[0];
+    return (m && Number(m.rafSayisi)) ? hepsi.slice(0, Number(m.rafSayisi)) : hepsi;
+  }
+  function rafSecenekleriKur(mekanKod) {
+    var eski = $('rafHarf').value;
+    var raflar = mekanRaflari(mekanKod);
+    $('rafHarf').innerHTML = raflar.map(function (h) {
+      return '<option value="' + esc(h) + '">' + esc(h) + ' rafı</option>';
+    }).join('');
+    if (raflar.indexOf(eski) >= 0) $('rafHarf').value = eski;
+  }
+  $('mekan').addEventListener('change', function () { rafSecenekleriKur($('mekan').value); });
+
   function seceneklerCiz() {
     // Sınıflandırma (kategori + kural) artık koordinatörün onay ekranında.
     // Gönüllü ekranında yalnızca fiziksel durum seçimi kaldı.
