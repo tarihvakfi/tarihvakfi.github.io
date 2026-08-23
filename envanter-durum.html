@@ -179,7 +179,6 @@
       <p class="altbaslik" id="kararAlt"></p>
       <div class="yigin" id="kararYigin"></div>
       <div class="aciklama" id="kararAciklama"></div>
-      <table id="kararTablo" style="margin-top:14px"></table>
     </div>
 
     <div class="kart">
@@ -190,19 +189,6 @@
       <p class="not" id="gunlukNot"></p>
     </div>
 
-    <div class="kart" id="hedefKart">
-      <h3>Yeni binaya sığacak mı?</h3>
-      <p class="altbaslik" id="hedefAlt"></p>
-      <div class="olcek" id="hedefOlcek"></div>
-      <div class="aciklama" id="hedefAciklama"></div>
-    </div>
-
-    <div class="kart">
-      <h3>İşleyiş</h3>
-      <p class="altbaslik">Fotoğraf, okuma ve fiziksel durum</p>
-      <div id="isleyis"></div>
-    </div>
-
     <div class="kart">
       <h3>Sıra haritası</h3>
       <p class="altbaslik">Hangi sıra bitti, hangisi yarım, hangisi kimin üzerinde —
@@ -210,12 +196,6 @@
       <div id="siraOzet" class="sira-ozet"></div>
       <div class="kaydir"><table id="haritaTablo"></table></div>
       <p class="altbaslik" id="haritaNot" style="margin-top:10px"></p>
-    </div>
-
-    <div class="kart">
-      <h3>Sıralar — kayıt yoğunluğu</h3>
-      <p class="altbaslik">Hangi sırada kaç kitap kaydedildi</p>
-      <div class="kaydir"><table id="siraTablo"></table></div>
     </div>
 
     <div class="kart">
@@ -435,20 +415,28 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var v = D.veri;
     $('ustZaman').textContent = v.hesaplandi ? 'son hesaplama ' + v.hesaplandi : '';
     gizle($('msg'));
-    dikkatCiz(v.uyarilar || []);
+    /* Ayrı "İşleyiş" kartı kaldırıldı: önemli sinyaller dikkat kartına eklenir,
+       gerisi gürültüydü. */
+    var uyarilar = (v.uyarilar || []).slice();
+    var kuflu = v.fiziksel['Küflü/böcekli'] || 0;
+    var ocrHata = v.ocr['hata'] || 0;
+    if (kuflu) uyarilar.push({ seviye: 'kirmizi', baslik: kuflu + ' küflü/böcekli kitap',
+      detay: 'Diğer kitaplara bulaşmasın.', ne: 'Poşetleyip ayrı alanda tutun.' });
+    if (ocrHata) uyarilar.push({ seviye: 'sari', baslik: ocrHata + ' fotoğraf okunamadı',
+      detay: 'Bu künyeler kendiliğinden dolmayacak.', ne: 'Künye Onayı ekranında elle yazın.' });
+    dikkatCiz(uyarilar);
 
-    /* künye kutuları */
-    var belirsiz = v.kategori['Belirsiz'] || 0;
-    var oran = v.toplam ? Math.round(belirsiz / v.toplam * 100) : 0;
+    /* özet kutuları: iki kuyruk en önde — koordinatörün işi bu ikisi */
+    var bugunSayi = (v.gunluk && v.gunluk.length) ? v.gunluk[v.gunluk.length - 1].sayi : 0;
     $('kunyeler').innerHTML =
-      kutu('Kaydedilen kitap', sayi(v.toplam), 'envanterdeki toplam satır', 'kahraman') +
-      kutu('Künyesi onaylı', sayi(v.onayli),
-        v.toplam ? '%' + Math.round(v.onayli / v.toplam * 100) + ' tamamlandı' : '') +
-      kutu('Onay bekleyen', sayi(v.onayBekleyen), 'fotoğrafı var, künyesi tamamlanmadı') +
-      kutu('Künyesi eksik', sayi(v.kunyeEksik), 'ne künye ne fotoğraf — elden geçmeli') +
-      kutu('Belirsiz oranı', '%' + oran, oran > 15 ? 'kurallar yetersiz olabilir' : 'normal aralıkta');
+      kutu('Kaydedilen kitap', sayi(v.toplam),
+        v.toplam ? '%' + Math.round(v.onayli / v.toplam * 100) + ' künyesi onaylı' : '', 'kahraman') +
+      kutu('1 · Künye bekleyen', sayi(v.onayBekleyen), 'Künye Onayı sekmesinin kuyruğu') +
+      kutu('2 · Karar bekleyen', sayi(v.kararBekleyen || 0), 'Karar sekmesinin kuyruğu') +
+      kutu('Bugün kaydedilen', sayi(bugunSayi), 'gün içindeki yeni kayıt') +
+      kutu('Künyesi eksik', sayi(v.kunyeEksik), 'ne künye ne fotoğraf — elden geçmeli');
 
-    /* karar dağılımı — yığılmış çubuk + tablo */
+    /* karar dağılımı — yığılmış çubuk */
     var toplam = KARAR.reduce(function (t, k) { return t + (v.kategori[k.ad] || 0); }, 0);
     $('kararAlt').textContent = toplam
       ? sayi(toplam) + ' kitap · yüzdeler toplam kayda göre'
@@ -465,13 +453,6 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       return '<span><i style="background:' + k.renk + '"></i>' + esc(k.ad) +
         ' <b>' + sayi(n) + '</b>' + (toplam ? ' (%' + Math.round(n / toplam * 100) + ')' : '') + '</span>';
     }).join('');
-    $('kararTablo').innerHTML = '<tr><th>Karar</th><th>Kitap</th><th>Oran</th></tr>' +
-      KARAR.map(function (k) {
-        var n = v.kategori[k.ad] || 0;
-        return '<tr><td>' + esc(k.ad) + '</td><td>' + sayi(n) + '</td><td>' +
-          (toplam ? '%' + Math.round(n / toplam * 100) : '—') + '</td></tr>';
-      }).join('');
-
     /* günlük ilerleme */
     var enCok = Math.max.apply(null, v.gunluk.map(function (g) { return g.sayi; }).concat([1]));
     var sonGun = v.gunluk[v.gunluk.length - 1] || { sayi: 0 };
@@ -492,47 +473,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       ? 'Son yedi günde ' + sayi(sonYedi) + ' kitap · günlük ortalama ' + Math.round(sonYedi / 7)
       : 'Son yedi günde kayıt girilmemiş.';
 
-    /* hedef çubuğu */
-    if (v.hedef > 0) {
-      $('hedefKart').classList.remove('gizli');
-      var gidecek = v.kategori['Gidecek'] || 0, belki = v.kategori['Gitse de olur'] || 0;
-      var en = Math.max(v.hedef, gidecek + belki);
-      $('hedefAlt').textContent = 'Hedef kapasite: ' + sayi(v.hedef) + ' kitap';
-      $('hedefOlcek').innerHTML =
-        '<span style="width:' + (gidecek / en * 100).toFixed(2) + '%;background:var(--gidecek)"></span>' +
-        '<span style="width:2px;background:var(--kagit)"></span>' +
-        '<span style="width:' + (belki / en * 100).toFixed(2) + '%;background:var(--belki)"></span>';
-      var asim = gidecek + belki - v.hedef;
-      $('hedefAciklama').innerHTML =
-        '<span><i style="background:var(--gidecek)"></i>Gidecek <b>' + sayi(gidecek) + '</b></span>' +
-        '<span><i style="background:var(--belki)"></i>Gitse de olur <b>' + sayi(belki) + '</b></span>' +
-        '<span>' + (asim > 0
-          ? 'Kapasiteyi <b>' + sayi(asim) + '</b> kitap aşıyor — sarıların bir kısmı elenmeli'
-          : 'Kapasiteye <b>' + sayi(-asim) + '</b> kitap yer var') + '</span>';
-    } else {
-      $('hedefKart').classList.add('gizli');
-    }
-
-    /* işleyiş */
-    var kuflu = v.fiziksel['Küflü/böcekli'] || 0;
-    var ocrHata = v.ocr['hata'] || 0;
-    var ocrBekleyen = v.ocr['bekliyor'] || 0;
-    $('isleyis').innerHTML =
-      durumSatiri(kuflu ? 'ciddi' : 'iyi', 'Küflü/böcekli kitap',
-        kuflu ? 'poşetlenip ayrı alanda mı?' : 'yok', kuflu) +
-      durumSatiri('iyi', 'Fotoğrafı olan kayıt', v.fotoli + ' künye · ' + v.kapakli + ' kapak', v.fotoli) +
-      durumSatiri(ocrBekleyen ? 'uyari' : 'iyi', 'Okunmayı bekleyen fotoğraf',
-        ocrBekleyen ? 'zamanlayıcı 5 dakikada bir çalışır' : 'kuyruk boş', ocrBekleyen) +
-      durumSatiri(ocrHata ? 'uyari' : 'iyi', 'Okunamayan fotoğraf',
-        ocrHata ? 'künye elle yazılacak' : 'yok', ocrHata) +
-      durumSatiri('iyi', 'Yıpranmış kitap', 'ciltleme listesine girebilir', v.fiziksel['Yıpranmış'] || 0);
-
-    /* sıralar */
-    $('siraTablo').innerHTML = '<tr><th>Sıra</th><th>Kitap</th><th>Son numara</th><th>Son kayıt</th></tr>' +
-      (v.siralar.length ? v.siralar.map(function (s) {
-        return '<tr><td class="ad">' + esc(s.sira) + '</td><td>' + sayi(s.sayi) + '</td><td>' +
-          sayi(s.sonNo) + '</td><td>' + esc(gunAdi(s.son)) + '</td></tr>';
-      }).join('') : '<tr><td colspan="4">Henüz kayıt yok.</td></tr>');
+    /* sıralar tablosu kaldırıldı — sıra haritası aynı bilgiyi veriyor */
 
     /* sıra haritası ayrı istekte gelir (koordinatör eylemi) */
     haritayiYukle();
@@ -550,13 +491,6 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       '<div class="etiket">' + esc(etiket) + '</div>' +
       '<div class="sayi">' + esc(sayiMetni) + '</div>' +
       (alt ? '<div class="alt">' + esc(alt) + '</div>' : '') + '</div>';
-  }
-  function durumSatiri(tur, ad, aciklama, adet) {
-    var im = { iyi: '✓', uyari: '!', ciddi: '!' }[tur];
-    return '<div class="durum-satir"><span class="im ' + tur + '-r">' + im + '</span>' +
-      '<span><b style="font-weight:600">' + esc(ad) + '</b> · ' +
-      '<span style="color:var(--soluk);font-size:13px">' + esc(aciklama) + '</span></span>' +
-      '<span class="sayi">' + sayi(adet) + '</span></div>';
   }
   function gunAdi(g) {
     if (!g) return '—';

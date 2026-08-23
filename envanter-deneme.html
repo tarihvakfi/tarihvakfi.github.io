@@ -523,6 +523,7 @@
   var SIFRE = 'deneme';
   var KOORD_SIFRE = 'koordinator';
   var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayGruplari', 'onayla', 'topluOnayla',
+                               'kararBekleyen', 'kararVer',
                                'katalog', 'durum', 'siraHaritasi', 'kutula', 'kutular'];
   var SINIFLANDIRILMADI = 'Sınıflandırılmadı';
 
@@ -605,6 +606,10 @@
     ['K4','gitmeyecek','Ağır hasarlı ve kolay bulunabilir'],
     ['K5','gitmeyecek','Süreli yayının dağınık tek sayısı'],
     ['K6','gitmeyecek','Tanıtım/promosyon malzemesi'],
+    ['Y0','gidecek','Elle karar: gitsin (tek tık)'],
+    ['S0','belki','Elle karar: gitse de olur (tek tık)'],
+    ['K0','gitmeyecek','Elle karar: kalsın (tek tık)'],
+    ['M0','belirsiz','Elle karar: belirsiz (tek tık)'],
     ['M1','belirsiz','On saniyede karar veremedim'],
     ['M2','belirsiz','Değerli olabilir şüphesi'],
     ['M3','belirsiz','Yabancı dilde, içeriği anlamadım'],
@@ -1037,10 +1042,59 @@
                yazilan: yazilan, cilt: cilt, atlanan: 0, aralik: aralik };
     }
 
+    if (g.action === 'kararBekleyen') {
+      var kararsiz = function (k) {
+        var kat = String(k.kategori || '').trim();
+        return !kat || kat === SINIFLANDIRILMADI;
+      };
+      var kBek = v.kayitlar.filter(function (k) { return k.onay && kararsiz(k); })
+        .map(function (k) { return oneriEkle(k); });
+      return { ok:true, kayitlar: kBek.slice(0, Math.min(Number(g.adet) || 100, 300)),
+               kalan: kBek.length };
+    }
+    if (g.action === 'kararVer') {
+      var nlar = (g.numaralar || (g.no ? [g.no] : [])).map(Number).filter(Boolean);
+      if (!nlar.length) return { ok:false, error:'Karar verilecek kayıt seçilmedi.' };
+      if (!KATEGORILER[g.kategori]) return { ok:false, error:'Karar seçilmeli.' };
+      var kuralV = String(g.kural || '').trim();
+      if (/^Diğer:/i.test(kuralV)) {
+        var acV = kuralV.replace(/^[^:]*:\s*/, '');
+        if (!acV) return { ok:false, error:'"Diğer" için kısa bir açıklama yazın.' };
+        kuralV = 'Diğer: ' + acV.slice(0, 110);
+      } else {
+        kuralV = kuralV.toUpperCase();
+        if (!KURALLAR.some(function (r) { return r[0] === kuralV && r[1] === g.kategori; })) {
+          return { ok:false, error:'Kural kodu bu karara uymuyor.' };
+        }
+      }
+      var yazilanV = [], atlananV = [];
+      nlar.forEach(function (no) {
+        var kk = null;
+        for (i = 0; i < v.kayitlar.length; i++) if (v.kayitlar[i].no === no) kk = v.kayitlar[i];
+        if (!kk) { atlananV.push({ no:no, neden:'bulunamadı' }); return; }
+        if (!kk.onay) { atlananV.push({ no:no, neden:'künyesi onaylanmamış' }); return; }
+        var katK = String(kk.kategori || '').trim();
+        if (katK && katK !== SINIFLANDIRILMADI && !g.uzerineYaz) {
+          atlananV.push({ no:no, neden:'kararı verilmiş: ' + katK }); return;
+        }
+        kk.kategori = KATEGORILER[g.kategori].ad; kk.kural = kuralV;
+        yazilanV.push(no);
+      });
+      yaz(v);
+      return { ok:true, yazilan:yazilanV, atlanan:atlananV,
+               kategori:KATEGORILER[g.kategori].ad, kural:kuralV };
+    }
     if (g.action === 'onayla') {
       for (i = 0; i < v.kayitlar.length; i++) if (v.kayitlar[i].no === Number(g.no)) {
         var y = g.kayit || {};
         if (!String(y.baslik || '').trim()) return { ok:false, error:'Başlık boş olamaz.' };
+        if (y.yalnizKunye) {
+          // İki aşamalı akışın 1. adımı: künye damgalanır, karar sonraya kalır.
+          v.kayitlar[i].baslik = y.baslik; v.kayitlar[i].yazar = y.yazar || '';
+          v.kayitlar[i].yil = y.yil || ''; v.kayitlar[i].not = y.not || '';
+          v.kayitlar[i].onay = 'Künye onaylı — ' + (y.onaylayan || '');
+          yaz(v); return { ok:true, no:Number(g.no), yalnizKunye:true };
+        }
         if (!KATEGORILER[y.kategori]) return { ok:false, error:'Karar seçilmeli.' };
         if (!KURALLAR.some(function (r) { return r[0] === y.kural && r[1] === y.kategori; })) {
           return { ok:false, error:'Kural kodu bu karara uymuyor.' };

@@ -75,14 +75,15 @@
 <div id="giris">
   <div class="kutu">
     <h1>Koordinatör Paneli</h1>
-    <p class="alt">Künye onayı · Katalog · Durum panosu — tek girişle</p>
+    <p class="alt">1 · Künye onayı → 2 · Karar · Durum · Katalog — tek girişle</p>
     <label for="ad">Adınız</label>
     <input type="text" id="ad" autocomplete="name" placeholder="Ad Soyad">
     <label for="sifre">Koordinatör şifresi</label>
     <input type="password" id="sifre" autocapitalize="none" autocorrect="off">
     <button id="btnGiris">Panele gir</button>
     <div class="msg" id="msgGiris"></div>
-    <p class="not">Bu panel üç koordinatör ekranını tek pencerede toplar.
+    <p class="not">İş sırası: <b>1 · Künye Onayı</b>'nda fotoğraftaki künye doğrulanır;
+      künyesi onaylanan kitap <b>2 · Karar</b>'a düşer, orada gidecek/kalacak seçilir.
       Gönüllü kayıt ekranı burada değildir — o telefonda, QR karttan açılır.</p>
   </div>
 </div>
@@ -90,17 +91,19 @@
 <header>
   <div class="marka"><b>Koordinatör</b><span>Tarih Vakfı · envanter</span></div>
   <nav class="sekmeler" id="sekmeler">
-    <button class="sekme sec" data-hedef="onay">Künye Onayı</button>
+    <button class="sekme sec" data-hedef="onay">1 · Künye Onayı</button>
+    <button class="sekme" data-hedef="karar">2 · Karar</button>
+    <button class="sekme" data-hedef="durum">Durum</button>
     <button class="sekme" data-hedef="katalog">Katalog</button>
-    <button class="sekme" data-hedef="durum">Durum Panosu</button>
   </nav>
   <div class="kim"><span id="kimAd"></span><button id="btnCikis">Çıkış</button></div>
 </header>
 
 <main id="govde">
   <iframe class="sec" data-ad="onay"    data-src="./kunye-onay.html?oto=1"       title="Künye Onayı"></iframe>
+  <iframe            data-ad="karar"   data-src="./karar.html?oto=1"            title="Karar"></iframe>
+  <iframe            data-ad="durum"   data-src="./envanter-durum.html?oto=1"   title="Durum"></iframe>
   <iframe            data-ad="katalog" data-src="./envanter-katalog.html?oto=1" title="Katalog"></iframe>
-  <iframe            data-ad="durum"   data-src="./envanter-durum.html?oto=1"   title="Durum Panosu"></iframe>
 </main>
 
 <script src="./js/gonullu-config.js?v=20260822"></script>
