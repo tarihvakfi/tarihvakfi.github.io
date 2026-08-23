@@ -65,52 +65,53 @@
                   font-weight:700;cursor:pointer;background:var(--yesil);color:#fff}
   .grupBas .hepsi:disabled{opacity:.5;cursor:default}
 
-  /* Kitap satırı */
-  .uye{border-bottom:1px solid #f2ebe6;padding:8px 14px}
+  /* Kitap kartı: iki büyük fotoğraf + künye + AÇIK karar düğmeleri */
+  .uye{border-bottom:1px solid #f2ebe6;padding:16px}
   .uye:last-child{border-bottom:none}
-  .uye.bitti .satir{opacity:.4}
-  .satir{display:flex;align-items:center;gap:11px}
-  .kapakMini{flex:0 0 38px;width:38px;height:52px;border-radius:4px;
-      background:#efe7e0 center/cover no-repeat;border:1px solid #d8ccc4;
-      cursor:zoom-in;display:flex;align-items:center;justify-content:center;
-      font-size:15px;color:#b9a9b1}
-  .kunye{flex:1;min-width:0;font-size:13.5px;line-height:1.35}
-  .kunye .yk{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;
-      color:var(--bordo);font-size:12px;cursor:help;border-bottom:1px dotted #c9a7b8}
-  .kunye .ad{font-weight:700;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .kunye .alt{color:var(--soluk);font-size:12px;display:block;white-space:nowrap;
-      overflow:hidden;text-overflow:ellipsis}
-  .kunye .dikkat{color:#8a5a1c;font-weight:700}
-  .tikler{flex:0 0 auto;display:flex;gap:6px}
-  .tikler button{height:38px;border-radius:9px;border:1.5px solid;background:#fff;
-      font-weight:800;font-size:13.5px;cursor:pointer;padding:0 11px;font-family:inherit}
-  .tikler .tOner{border-color:var(--bordo);color:var(--bordo)}
-  .tikler .tG{border-color:var(--yesil);color:var(--yesil)}
-  .tikler .tK{border-color:var(--kirmizi);color:var(--kirmizi)}
-  .tikler .tAc{border-color:#c9bcc3;color:var(--soluk);font-weight:600}
-  .tikler button:disabled{opacity:.35;cursor:default}
-  .sonuc{flex:0 0 auto;font-size:12.5px;font-weight:700;max-width:130px;text-align:right}
+  .uye.bitti{opacity:.45}
+  .kitap{display:flex;gap:18px;flex-wrap:wrap}
+  .fotolar{display:flex;gap:10px;flex:0 0 auto}
+  .fotolar figure{margin:0;width:170px;cursor:zoom-in}
+  .fotolar .cerceve{height:225px;background:#2a2226;border-radius:9px;overflow:hidden;
+      display:flex;align-items:center;justify-content:center}
+  .fotolar img{max-width:100%;max-height:100%;display:block}
+  .fotolar .yokF{color:#b9a9b1;font-size:12.5px}
+  .fotolar figcaption{text-align:center;font-size:11.5px;color:var(--soluk);margin-top:4px}
+  @media (max-width:700px){
+    .fotolar figure{width:132px}
+    .fotolar .cerceve{height:176px}
+  }
+  .bilgi{flex:1;min-width:280px}
+  .bilgi .yk{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;
+      color:var(--bordo);font-size:13px;cursor:help;border-bottom:1px dotted #c9a7b8}
+  .bilgi .ad{font-size:19px;font-weight:800;line-height:1.3;margin:4px 0 2px}
+  .bilgi .alt{color:var(--soluk);font-size:14.5px}
+  .bilgi .dikkat{color:#8a5a1c;font-weight:700}
 
-  /* Satır altı: tüm kararlar açık hâlde */
-  .secim{margin:10px 0 4px 49px;border:1.5px solid var(--cizgi);border-radius:10px;
-         padding:11px 13px;background:#fdfbf7}
-  .secim .katlar{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:9px}
-  .secim .kat{border:0;border-radius:8px;padding:8px 12px;font:inherit;font-size:13px;
+  /* Karar alanı: her kitapta AÇIK durur — gizli panel yok */
+  .kararAlan{margin-top:14px;border-top:1px dashed #e5d9d1;padding-top:12px}
+  .tOner{display:block;width:100%;text-align:left;border:2px solid var(--yesil);
+      background:#f1f7f2;color:#22502f;border-radius:10px;padding:11px 14px;
+      font:inherit;font-size:15px;font-weight:800;cursor:pointer;margin-bottom:10px}
+  .tOner:hover{background:#e4f0e7}
+  .katlar{display:flex;gap:8px;flex-wrap:wrap}
+  .kat{border:0;border-radius:9px;padding:10px 14px;font:inherit;font-size:14px;
       font-weight:700;color:#fff;cursor:pointer}
   .kat.g{background:var(--yesil)} .kat.s{background:var(--sari)}
   .kat.k{background:var(--kirmizi)} .kat.m{background:var(--mavi)}
-  .kat.pasif{opacity:.38}
-  .secim .cip{display:block;width:100%;text-align:left;border:1.5px solid var(--cizgi);
+  .kat.pasif{opacity:.35}
+  .kurallarIc{margin-top:9px}
+  .kurallarIc .cip{display:block;width:100%;text-align:left;border:1.5px solid var(--cizgi);
       background:#fff;border-radius:8px;padding:9px 11px;margin-bottom:6px;
       font:inherit;font-size:13.5px;cursor:pointer;line-height:1.3}
-  .secim .cip b{display:inline-block;min-width:32px;color:var(--bordo)}
-  .secim .cip:hover{border-color:var(--bordo)}
-  .secim .diger{display:flex;gap:8px;margin-top:2px}
-  .secim .diger input{font-size:14px;padding:9px 11px}
-  .secim .diger button{border:0;border-radius:8px;background:var(--bordo);color:#fff;
+  .kurallarIc .cip b{display:inline-block;min-width:32px;color:var(--bordo)}
+  .kurallarIc .cip:hover{border-color:var(--bordo)}
+  .kurallarIc .diger{display:flex;gap:8px;margin-top:2px}
+  .kurallarIc .diger input{font-size:14px;padding:9px 11px}
+  .kurallarIc .diger button{border:0;border-radius:8px;background:var(--bordo);color:#fff;
       font:inherit;font-size:13.5px;font-weight:700;padding:0 14px;cursor:pointer;white-space:nowrap}
-  .secim .kapat{background:none;border:none;color:var(--soluk);font:inherit;font-size:12.5px;
-      cursor:pointer;text-decoration:underline;padding:4px 0 0}
+  .uye button:disabled{opacity:.45;cursor:default}
+  .sonucB{margin-top:10px;font-size:15px;font-weight:800}
 
   /* Kapak büyütme */
   #buyukKapak{position:fixed;inset:0;background:rgba(20,10,16,.85);z-index:60;
@@ -316,7 +317,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
           '</div>'
         : '<div class="grupBas">' +
             '<div class="ne"><b>Öneri yok — kararı siz vereceksiniz</b>' +
-              '<span>Satırdaki düğmelerle: Gitsin, Kalsın ya da ⋯ ile ayrıntılı seçim.</span></div>' +
+              '<span>Alttaki karar düğmelerinden seçin; kural listesi hemen altında açılır.</span></div>' +
             '<span class="adet" data-adet="' + gi + '">' + g.uyeler.length + '</span>' +
           '</div>';
 
@@ -327,38 +328,58 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     }).join('');
   }
 
+  function ortaKapak(id) { return id ? 'https://drive.google.com/thumbnail?id=' + id + '&sz=w400' : ''; }
+
+  function fotoTaraf(ad, goruntu, id) {
+    var kucuk = goruntu || ortaKapak(id);
+    var buyuk = goruntu || buyukKapak(id);
+    if (!kucuk) {
+      return '<figure><div class="cerceve"><span class="yokF">' + ad + ' yok</span></div>' +
+        '<figcaption>' + ad + '</figcaption></figure>';
+    }
+    return '<figure data-buyuk="' + esc(buyuk) + '"><div class="cerceve">' +
+      '<img loading="lazy" src="' + esc(kucuk) + '" alt="' + ad + ' fotoğrafı"></div>' +
+      '<figcaption>' + ad + ' · dokun, büyüt</figcaption></figure>';
+  }
+
   function uyeSatiri(k, gi) {
-    var kapak = k.kapakId || k.fotoId || '';
+    var g = D.gruplar[gi];
     var altlar = [k.yazar, k.yil, (Number(k.nusha) > 1 ? k.nusha + ' nüsha' : '')]
       .filter(Boolean).join(' · ');
     var dikkat = [];
     if (k.durum && k.durum !== 'Sağlam') dikkat.push(k.durum);
     if (k.not) dikkat.push('Not: ' + k.not);
-    return '<div class="uye" data-no="' + k.no + '">' +
-      '<div class="satir">' +
-        '<div class="kapakMini"' + (kapak ? ' data-kapak="' + esc(kapak) +
-          '" style="background-image:url(' + kucukKapak(kapak) + ')"' : '') + '>' +
-          (kapak ? '' : '—') + '</div>' +
-        '<div class="kunye">' +
-          '<span class="yk" title="' + esc(yerAciklama(k.yer)) + '">' + esc(k.yer || ('#' + k.no)) + '</span>' +
-          '<span class="ad">' + esc(k.baslik || '(başlık yok)') + '</span>' +
-          '<span class="alt">' + esc(altlar || '—') +
-            (dikkat.length ? ' · <span class="dikkat">' + esc(dikkat.join(' · ')) + '</span>' : '') +
-          '</span></div>' +
-        '<div class="tikler">' +
-          (D.gruplarOneri(gi) ? '<button class="tOner" data-k="oner" data-g="' + gi + '" data-no="' + k.no +
-            '" title="Öneriyle kapat">✓ Öneri</button>' : '') +
-          '<button class="tG" data-k="gidecek" data-no="' + k.no + '" title="Yeni binaya gitsin">G</button>' +
-          '<button class="tK" data-k="gitmeyecek" data-no="' + k.no + '" title="Yerinde kalsın">K</button>' +
-          '<button class="tAc" data-ac="' + k.no + '" title="Bütün seçenekler">⋯</button>' +
-        '</div><span class="sonuc"></span>' +
+    var sinif = { gidecek: 'g', belki: 's', gitmeyecek: 'k', belirsiz: 'm' };
+    var katlar = Object.keys(D.cfg.kategoriler).filter(function (a) {
+      return !D.cfg.kategoriler[a].serbest;
+    }).map(function (a) {
+      return '<button type="button" class="kat ' + sinif[a] + '" data-pk="' + a +
+        '" data-no="' + k.no + '">' + esc(D.cfg.kategoriler[a].ad) + '</button>';
+    }).join('');
+
+    return '<div class="uye" data-no="' + k.no + '"><div class="kitap">' +
+      '<div class="fotolar">' +
+        fotoTaraf('Kapak', k.kapakGoruntu, k.kapakId) +
+        fotoTaraf('Künye', k.fotoGoruntu, k.fotoId) +
       '</div>' +
-      '<div class="secim gizli" data-secim="' + k.no + '"></div>' +
-    '</div>';
+      '<div class="bilgi">' +
+        '<span class="yk" title="' + esc(yerAciklama(k.yer)) + '">' + esc(k.yer || ('#' + k.no)) + '</span>' +
+        '<div class="ad">' + esc(k.baslik || '(başlık yok)') + '</div>' +
+        '<div class="alt">' + esc(altlar || '—') +
+          (dikkat.length ? ' · <span class="dikkat">' + esc(dikkat.join(' · ')) + '</span>' : '') +
+        '</div>' +
+        '<div class="kararAlan">' +
+          (g && g.kural ? '<button type="button" class="tOner" data-k="oner" data-g="' + gi +
+            '" data-no="' + k.no + '">✓ Öneriyle kapat — ' + esc(g.kural) +
+            (g.sebep ? ' <span style="font-weight:400;color:#4a6b53">(' + esc(g.sebep) + ')</span>' : '') +
+            '</button>' : '') +
+          '<div class="katlar">' + katlar + '</div>' +
+          '<div class="kurallarIc"></div>' +
+        '</div>' +
+        '<div class="sonucB"></div>' +
+      '</div>' +
+    '</div></div>';
   }
-  D.gruplarOneri = function (gi) {
-    return D.gruplar && D.gruplar[gi] && D.gruplar[gi].kural;
-  };
 
   /* ───────── kararlar ───────── */
   function kayitBul(no) {
@@ -368,9 +389,11 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
   function satirKapat(uye, yazi, renk) {
     uye.classList.add('bitti');
-    uye.querySelector('.sonuc').innerHTML = '<span style="color:' + renk + '">' + yazi + ' ✓</span>';
+    var alan = uye.querySelector('.kararAlan');
+    if (alan) alan.style.display = 'none';
+    uye.querySelector('.sonucB').innerHTML =
+      '<span style="color:' + renk + '">' + yazi + ' ✓ karar verildi</span>';
     Array.prototype.forEach.call(uye.querySelectorAll('button'), function (b) { b.disabled = true; });
-    var s = uye.querySelector('.secim'); if (s) s.classList.add('gizli');
     D.kalan = Math.max(0, D.kalan - 1);
     $('ilerlemeSayi').textContent = D.kalan;
   }
@@ -381,9 +404,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
 
   $('liste').addEventListener('click', function (e) {
-    var mini = e.target.closest('.kapakMini');
-    if (mini && mini.dataset.kapak) {
-      $('buyukKapak').querySelector('img').src = buyukKapak(mini.dataset.kapak);
+    var foto = e.target.closest('figure[data-buyuk]');
+    if (foto) {
+      $('buyukKapak').querySelector('img').src = foto.dataset.buyuk;
       $('buyukKapak').classList.remove('gizli');
       return;
     }
@@ -391,38 +414,75 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var hepsi = e.target.closest('[data-hepsi]');
     if (hepsi) { grubaUygula(Number(hepsi.dataset.hepsi), hepsi); return; }
 
-    var ac = e.target.closest('[data-ac]');
-    if (ac) { secimAc(Number(ac.dataset.ac)); return; }
+    // ✓ Öneriyle kapat
+    var oner = e.target.closest('.tOner');
+    if (oner && !oner.disabled) {
+      var gO = D.gruplar[Number(oner.dataset.g)];
+      kararUygula(oner.closest('.uye'), gO.kategori, gO.kural, esc(gO.kural), 'var(--yesil)');
+      return;
+    }
 
-    var d = e.target.closest('[data-k]');
-    if (d && !d.disabled) {
-      var no = Number(d.dataset.no);
-      var uye = d.closest('.uye');
-      var kategori, kural, yazi, renk;
-      if (d.dataset.k === 'oner') {
-        var g = D.gruplar[Number(d.dataset.g)];
-        kategori = g.kategori; kural = g.kural;
-        yazi = esc(g.kural); renk = 'var(--yesil)';
-      } else if (d.dataset.k === 'gidecek') {
-        kategori = 'gidecek'; kural = 'Y0'; yazi = 'gitsin'; renk = 'var(--yesil)';
-      } else {
-        kategori = 'gitmeyecek'; kural = 'K0'; yazi = 'kalsın'; renk = 'var(--kirmizi)';
+    // Karar düğmesi: o kararın kural listesi hemen altında açılır
+    var pk = e.target.closest('[data-pk]');
+    if (pk && !pk.disabled) { kurallariCiz(pk.closest('.uye'), pk.dataset.pk); return; }
+
+    // Kural çipi ya da "Diğer → Uygula": kararı hemen yazar
+    var cip = e.target.closest('[data-pkural]');
+    var digerOk = e.target.closest('[data-pdigerok]');
+    if ((cip && !cip.disabled) || (digerOk && !digerOk.disabled)) {
+      var uyeC = (cip || digerOk).closest('.uye');
+      var kategori = (cip || digerOk).dataset.pkat;
+      var kural;
+      if (cip) kural = cip.dataset.pkural;
+      else {
+        var metin = uyeC.querySelector('[data-pdiger]').value.trim();
+        if (!metin) { uyeC.querySelector('[data-pdiger]').focus(); return; }
+        kural = 'Diğer: ' + metin;
       }
-      Array.prototype.forEach.call(uye.querySelectorAll('button'), function (b) { b.disabled = true; });
-      kararGonder([no], kategori, kural, function (r) {
-        if (r.yazilan && r.yazilan.length) { satirKapat(uye, yazi, renk); grupSayaci(uye); }
-        else atlandiGoster(uye, r);
-      }, function (h) {
-        uye.querySelector('.sonuc').innerHTML = '<span style="color:#8a1c2c">' + esc(ağHata(h)) + '</span>';
-        Array.prototype.forEach.call(uye.querySelectorAll('button'), function (b) { b.disabled = false; });
-      });
+      kararUygula(uyeC, kategori, kural,
+        esc(kural.length > 16 ? kural.slice(0, 16) + '…' : kural),
+        kategori === 'gitmeyecek' ? 'var(--kirmizi)' : 'var(--yesil)');
     }
   });
 
+  /* Seçilen kararın kuralları satırın içinde, hemen altında çizilir. */
+  function kurallariCiz(uye, kat) {
+    Array.prototype.forEach.call(uye.querySelectorAll('.kat'), function (b) {
+      b.classList.toggle('pasif', b.dataset.pk !== kat);
+    });
+    var liste = (D.cfg.kurallar || []).filter(function (x) {
+      return x.kategori === kat && !/0$/.test(x.kod);
+    });
+    uye.querySelector('.kurallarIc').innerHTML =
+      liste.map(function (x) {
+        return '<button type="button" class="cip" data-pkural="' + esc(x.kod) +
+          '" data-pkat="' + esc(kat) + '"><b>' + esc(x.kod) + '</b>' + esc(x.aciklama) + '</button>';
+      }).join('') +
+      '<div class="diger">' +
+        '<input type="text" maxlength="110" placeholder="Diğer — kısa açıklama (örn: harita, plak)" data-pdiger>' +
+        '<button type="button" data-pdigerok data-pkat="' + esc(kat) + '">Uygula</button>' +
+      '</div>';
+  }
+
+  function kararUygula(uye, kategori, kural, yazi, renk) {
+    var no = Number(uye.dataset.no);
+    Array.prototype.forEach.call(uye.querySelectorAll('button'), function (b) { b.disabled = true; });
+    kararGonder([no], kategori, kural, function (r) {
+      if (r.yazilan && r.yazilan.length) { satirKapat(uye, yazi, renk); grupSayaci(uye); }
+      else {
+        atlandiGoster(uye, r);
+        Array.prototype.forEach.call(uye.querySelectorAll('button'), function (b) { b.disabled = false; });
+      }
+    }, function (h) {
+      uye.querySelector('.sonucB').innerHTML =
+        '<span style="color:#8a1c2c">' + esc(ağHata(h)) + '</span>';
+      Array.prototype.forEach.call(uye.querySelectorAll('button'), function (b) { b.disabled = false; });
+    });
+  }
+
   function atlandiGoster(uye, r) {
     var neden = (r.atlanan && r.atlanan[0] && r.atlanan[0].neden) || 'işlenemedi';
-    uye.querySelector('.sonuc').innerHTML = '<span style="color:#8a5a1c">' + esc(neden) + '</span>';
-    Array.prototype.forEach.call(uye.querySelectorAll('button'), function (b) { b.disabled = false; });
+    uye.querySelector('.sonucB').innerHTML = '<span style="color:#8a5a1c">' + esc(neden) + '</span>';
   }
 
   function grupSayaci(uye) {
@@ -463,73 +523,6 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       mesgul(dugme, false);
       goster($('msg'), 'hata', ağHata(h));
     });
-  }
-
-  /* ⋯ paneli: dört karar + kural listesi + Diğer. Kural çipine dokunmak kararı
-     hemen uygular — ikinci bir "kaydet" düğmesi yok. */
-  function secimAc(no) {
-    var uye = $('liste').querySelector('.uye[data-no="' + no + '"]');
-    var panel = uye.querySelector('.secim');
-    if (!panel.classList.contains('gizli')) { panel.classList.add('gizli'); return; }
-    panel.classList.remove('gizli');
-    panelCiz(panel, no, '');
-  }
-
-  function panelCiz(panel, no, kat) {
-    var sinif = { gidecek: 'g', belki: 's', gitmeyecek: 'k', belirsiz: 'm' };
-    var katlar = Object.keys(D.cfg.kategoriler).filter(function (a) {
-      return !D.cfg.kategoriler[a].serbest;
-    }).map(function (a) {
-      return '<button type="button" class="kat ' + sinif[a] + (kat && kat !== a ? ' pasif' : '') +
-        '" data-pk="' + a + '">' + esc(D.cfg.kategoriler[a].ad) + '</button>';
-    }).join('');
-
-    var govde = '';
-    if (kat) {
-      var liste = (D.cfg.kurallar || []).filter(function (x) {
-        return x.kategori === kat && !/0$/.test(x.kod);
-      });
-      govde = liste.map(function (x) {
-        return '<button type="button" class="cip" data-pkural="' + esc(x.kod) +
-          '" data-pkat="' + esc(kat) + '"><b>' + esc(x.kod) + '</b>' + esc(x.aciklama) + '</button>';
-      }).join('') +
-        '<div class="diger">' +
-          '<input type="text" maxlength="110" placeholder="Diğer — kısa açıklama (örn: harita, plak)" data-pdiger>' +
-          '<button type="button" data-pdigerok data-pkat="' + esc(kat) + '">Uygula</button>' +
-        '</div>';
-    }
-    panel.innerHTML = '<div class="katlar">' + katlar + '</div>' + govde +
-      '<button type="button" class="kapat" data-pkapat>vazgeç</button>';
-
-    panel.onclick = function (e) {
-      var pk = e.target.closest('[data-pk]');
-      if (pk) { panelCiz(panel, no, pk.dataset.pk); return; }
-      if (e.target.closest('[data-pkapat]')) { panel.classList.add('gizli'); return; }
-      var cip = e.target.closest('[data-pkural]');
-      var digerOk = e.target.closest('[data-pdigerok]');
-      if (!cip && !digerOk) return;
-
-      var kategori = (cip || digerOk).dataset.pkat;
-      var kural;
-      if (cip) kural = cip.dataset.pkural;
-      else {
-        var metin = panel.querySelector('[data-pdiger]').value.trim();
-        if (!metin) { panel.querySelector('[data-pdiger]').focus(); return; }
-        kural = 'Diğer: ' + metin;
-      }
-      var uye = panel.closest('.uye');
-      Array.prototype.forEach.call(uye.querySelectorAll('button'), function (b) { b.disabled = true; });
-      kararGonder([no], kategori, kural, function (r) {
-        if (r.yazilan && r.yazilan.length) {
-          satirKapat(uye, esc(kural.length > 14 ? kural.slice(0, 14) + '…' : kural),
-            kategori === 'gitmeyecek' ? 'var(--kirmizi)' : 'var(--yesil)');
-          grupSayaci(uye);
-        } else atlandiGoster(uye, r);
-      }, function (h) {
-        uye.querySelector('.sonuc').innerHTML = '<span style="color:#8a1c2c">' + esc(ağHata(h)) + '</span>';
-        Array.prototype.forEach.call(uye.querySelectorAll('button'), function (b) { b.disabled = false; });
-      });
-    };
   }
 
   $('buyukKapak').addEventListener('click', function () {
