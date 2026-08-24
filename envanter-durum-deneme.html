@@ -219,7 +219,7 @@
   var SIFRE = 'deneme';
   var KOORD_SIFRE = 'koordinator';
   var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayGruplari', 'onayla', 'topluOnayla',
-                               'kararBekleyen', 'kararVer',
+                               'kararBekleyen', 'kararVer', 'kunyeErtele',
                                'katalog', 'durum', 'siraHaritasi', 'kutula', 'kutular'];
   var SINIFLANDIRILMADI = 'Sınıflandırılmadı';
 
@@ -465,10 +465,19 @@
       if (isNaN(adetS) || adetS < 0) return { ok:false, error:'Sayılan kitap sayısını yazın (boş rafa 0).' };
       v.onSayimlar = v.onSayimlar || {};
       var eskiS = v.onSayimlar[aS];
-      v.onSayimlar[aS] = { adet: adetS, sayan: String(g.sayan || '') };
+      var fotoS = g.foto ? String(g.foto) : (eskiS ? eskiS.foto : '');
+      if (g.foto) {
+        // Depo şişmesin: en fazla 3 sayım fotoğrafı tutulur.
+        var fAnahtarlar = Object.keys(v.onSayimlar).filter(function (x) {
+          return v.onSayimlar[x].foto; });
+        while (fAnahtarlar.length > 2) {
+          v.onSayimlar[fAnahtarlar.shift()].foto = '';
+        }
+      }
+      v.onSayimlar[aS] = { adet: adetS, sayan: String(g.sayan || ''), foto: fotoS || '' };
       yaz(v);
-      return { ok:true, anahtar:aS, adet:adetS,
-        oncekiSayim: eskiS ? eskiS.adet : null };
+      return { ok:true, anahtar:aS, adet:adetS, fotoUrl: g.foto ? fotoS : '',
+        fotoAlinamadi: false, oncekiSayim: eskiS ? eskiS.adet : null };
     }
     if (g.action === 'siraOzeti') {
       var canli = {}, sonNolar = {}, ciltO = {};
@@ -599,8 +608,17 @@
       }
       return { ok:false, error:'Kayıt bulunamadı.' };
     }
+    if (g.action === 'kunyeErtele') {
+      v.ertelenen = v.ertelenen || {};
+      v.ertelenen[Number(g.no)] = 1;
+      yaz(v);
+      return { ok:true, no:Number(g.no) };
+    }
     if (g.action === 'onayBekleyen') {
       var bek = v.kayitlar.filter(function (k) { return !k.onay; });
+      var ert = v.ertelenen || {};
+      bek = bek.filter(function (k) { return !ert[k.no]; })
+        .concat(bek.filter(function (k) { return ert[k.no]; }));
       return { ok:true, kayitlar: bek.slice(0, Number(g.adet) || 25).map(oneriEkle),
                kalan: bek.length };
     }
@@ -1008,7 +1026,10 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
               (x.durum === 'bitti' ? 'bitti' : x.durum === 'devam' ? 'yarım' : 'boş') + '</td>' +
             '<td>' + (x.onSayim == null ? '—'
               : (onSayimTutmadi ? '<b style="color:#8a1c2c">' + sayi(x.onSayim) + ' ⚠</b>'
-                                : sayi(x.onSayim))) + '</td>' +
+                                : sayi(x.onSayim))) +
+              (x.sayimFoto ? ' <a href="' + esc(x.sayimFoto) + '" target="_blank" ' +
+                'rel="noopener" title="Sayım sırasında çekilen raf fotoğrafı">📷</a>' : '') +
+            '</td>' +
             '<td>' + (x.raftaki === '' ? '—' : sayi(x.raftaki)) + '</td>' +
             '<td>' + sayi(x.kayitli) +
               (x.kayitSayisi && x.kayitSayisi !== x.kayitli

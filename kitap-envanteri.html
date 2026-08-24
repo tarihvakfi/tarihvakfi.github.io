@@ -118,6 +118,14 @@
              background:#dbe6f0;color:#1f4260;font-weight:700;
              font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
   #sayimAdet{flex:1;min-width:0;font-size:17px}
+  .sayimFotoSatir{display:flex;align-items:center;gap:10px;margin-top:9px}
+  #btnSayimFoto{border:1.5px dashed #b98da7;background:#fff;color:#601040;
+    border-radius:8px;padding:9px 13px;font:inherit;font-size:13.5px;cursor:pointer}
+  #sayimFotoOn{display:flex;align-items:center;gap:6px}
+  #sayimFotoOn img{width:44px;height:58px;object-fit:cover;border-radius:5px;
+    border:1px solid #d8ccc4}
+  #sayimFotoOn button{border:1.5px solid #c9a7b8;background:#fff;color:#9c2233;
+    border-radius:6px;width:26px;height:26px;font:inherit;font-size:13px;cursor:pointer;padding:0}
   #btnSayimKaydet{flex:0 0 auto;padding:0 18px;border:none;border-radius:8px;
                   background:#2a5b86;color:#fff;font-size:15px;font-weight:700}
 
@@ -303,6 +311,14 @@
           <input type="number" id="sayimAdet" inputmode="numeric" min="0"
                  placeholder="kaç kitap?">
           <button type="button" id="btnSayimKaydet">Kaydet</button>
+        </div>
+        <!-- Rafın fotoğrafı (isteğe bağlı): koordinatör sayıyı fotoğrafla
+             karşılaştırabilsin. -->
+        <div class="sayimFotoSatir">
+          <input type="file" id="sayimFotoGirdi" accept="image/*" capture="environment" hidden>
+          <button type="button" id="btnSayimFoto">📷 Rafın fotoğrafını çek</button>
+          <span id="sayimFotoOn" class="gizli"><img alt="Raf fotoğrafı önizleme">
+            <button type="button" id="btnSayimFotoSil" title="Fotoğrafı kaldır">✕</button></span>
         </div>
         <div class="msg gizli" id="msgSayim"></div>
       </div>
@@ -1117,6 +1133,30 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     if (!acik) { sayimSecicileriKur(); sayimSirasiniGoster(); gizle($('msgSayim')); }
   });
 
+  /* Sayıma isteğe bağlı raf fotoğrafı: gönüllü rafı çeker, koordinatör
+     sayıyı fotoğrafla karşılaştırır. Fotoğraf da kayıt fotoğrafları gibi
+     küçültülerek gönderilir. */
+  var sayimFotoVeri = '';
+  $('btnSayimFoto').addEventListener('click', function () { $('sayimFotoGirdi').click(); });
+  $('sayimFotoGirdi').addEventListener('change', function () {
+    var dosya = this.files && this.files[0];
+    this.value = '';
+    if (!dosya) return;
+    kucult(dosya).then(function (s) {
+      sayimFotoVeri = s.veri;
+      $('sayimFotoOn').querySelector('img').src = s.veri;
+      $('sayimFotoOn').classList.remove('gizli');
+      $('btnSayimFoto').textContent = '📷 Fotoğrafı değiştir';
+    })['catch'](function (e) { goster($('msgSayim'), 'hata', e.message); });
+  });
+  function sayimFotoSifirla() {
+    sayimFotoVeri = '';
+    $('sayimFotoOn').classList.add('gizli');
+    $('sayimFotoOn').querySelector('img').removeAttribute('src');
+    $('btnSayimFoto').textContent = '📷 Rafın fotoğrafını çek';
+  }
+  $('btnSayimFotoSil').addEventListener('click', sayimFotoSifirla);
+
   $('btnSayimKaydet').addEventListener('click', function () {
     var mekan = $('sayimMekan').value, raf = $('sayimRaf').value;
     var sira = Number($('sayimSiraSec').value) || 1;
@@ -1125,11 +1165,15 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       return goster($('msgSayim'), 'hata', 'Saydığınız kitap sayısını yazın (boş rafa 0).');
     }
     mesgul($('btnSayimKaydet'), true, '…');
-    api('sayimKaydet', { mekan: mekan, raf: raf, sira: sira,
-                         adet: adet, sayan: D.ad }).then(function (c) {
+    var yuk = { mekan: mekan, raf: raf, sira: sira, adet: adet, sayan: D.ad };
+    if (sayimFotoVeri) yuk.foto = sayimFotoVeri;
+    api('sayimKaydet', yuk).then(function (c) {
       $('sayimAdet').value = '';
+      sayimFotoSifirla();
       goster($('msgSayim'), 'iyi', yerEtiket(c.anahtar) + ' sayımı kaydedildi: <b>' +
         c.adet + ' kitap</b>.' +
+        (c.fotoUrl ? ' 📷 Raf fotoğrafı da kaydedildi.' : '') +
+        (c.fotoAlinamadi ? ' <span style="color:#8a5a1c">Fotoğraf yüklenemedi — sayı kaydedildi.</span>' : '') +
         (c.oncekiSayim != null && c.oncekiSayim !== c.adet
           ? ' <span style="color:#8a5a1c">Önceki sayım ' + c.oncekiSayim +
             ' idi — üzerine yazıldı.</span>' : '') +

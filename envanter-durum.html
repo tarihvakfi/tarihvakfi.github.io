@@ -348,7 +348,10 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
               (x.durum === 'bitti' ? 'bitti' : x.durum === 'devam' ? 'yarım' : 'boş') + '</td>' +
             '<td>' + (x.onSayim == null ? '—'
               : (onSayimTutmadi ? '<b style="color:#8a1c2c">' + sayi(x.onSayim) + ' ⚠</b>'
-                                : sayi(x.onSayim))) + '</td>' +
+                                : sayi(x.onSayim))) +
+              (x.sayimFoto ? ' <a href="' + esc(x.sayimFoto) + '" target="_blank" ' +
+                'rel="noopener" title="Sayım sırasında çekilen raf fotoğrafı">📷</a>' : '') +
+            '</td>' +
             '<td>' + (x.raftaki === '' ? '—' : sayi(x.raftaki)) + '</td>' +
             '<td>' + sayi(x.kayitli) +
               (x.kayitSayisi && x.kayitSayisi !== x.kayitli
