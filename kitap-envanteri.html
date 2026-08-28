@@ -1111,6 +1111,58 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
                        Number($('sayimSiraSec').value) || 1);
     $('sayimSira').textContent = a || '—';
   }
+
+  /* Seçicileri verilen göze getirir (mekân değişirse raf listesi tazelenir). */
+  function sayimGozSec(mekan, raf, sira) {
+    if ($('sayimMekan').value !== mekan) {
+      $('sayimMekan').value = mekan;
+      sayimRafKur();
+    }
+    $('sayimRaf').value = raf;
+    $('sayimSiraSec').value = String(sira);
+    sayimSirasiniGoster();
+  }
+
+  /* Sıradaki göz: aynı rafta bir alt sıra; raf bitince sonraki rafın 1'i.
+     Mekân bitince null döner. */
+  function sonrakiGoz(mekan, raf, sira) {
+    var kac = Number((D.cfg && D.cfg.siraSayisi) || 6);
+    if (sira < kac) return { mekan: mekan, raf: raf, sira: sira + 1 };
+    var raflar = mekanRaflari(mekan);
+    var i = raflar.indexOf(raf);
+    if (i >= 0 && i < raflar.length - 1) return { mekan: mekan, raf: raflar[i + 1], sira: 1 };
+    return null;
+  }
+
+  /* Panel açılınca ekip nerede kaldıysa oradan devam: sunucudan sayımlar
+     çekilir, sırayla ilk SAYILMAMIŞ göz seçili gelir. */
+  function sayimKaldigiYer() {
+    api('siraOzeti', {}).then(function (r) {
+      var sayilan = {};
+      (r.siralar || []).forEach(function (x) {
+        if (x.onSayim != null) sayilan[x.sira] = true;
+      });
+      var mekanlar = (D.cfg && D.cfg.mekanlar) || [];
+      for (var m = 0; m < mekanlar.length; m++) {
+        var raflar = mekanRaflari(mekanlar[m].kod);
+        var kac = Number((D.cfg && D.cfg.siraSayisi) || 6);
+        for (var ri = 0; ri < raflar.length; ri++) {
+          for (var si = 1; si <= kac; si++) {
+            var a = anahtarKur(mekanlar[m].kod, raflar[ri], si);
+            if (!sayilan[a]) {
+              sayimGozSec(mekanlar[m].kod, raflar[ri], si);
+              if (Object.keys(sayilan).length) {
+                goster($('msgSayim'), 'iyi', 'Kaldığınız yerden devam: <b>' +
+                  esc(a) + '</b> (' + esc(yerSozu(a)) + ') seçildi.');
+              }
+              return;
+            }
+          }
+        }
+      }
+      goster($('msgSayim'), 'iyi', 'Tanımlı tüm gözler sayılmış görünüyor. 🎉');
+    })['catch'](function () { /* bağlantı yoksa seçiciler elle kullanılır */ });
+  }
   $('sayimMekan').addEventListener('change', sayimRafKur);
   ['sayimMekan', 'sayimRaf', 'sayimSiraSec'].forEach(function (id) {
     $(id).addEventListener('change', function () {
@@ -1130,7 +1182,10 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var acik = !$('sayimPanel').classList.contains('gizli');
     panelleriKapat('sayim');
     $('sayimPanel').classList.toggle('gizli', acik);
-    if (!acik) { sayimSecicileriKur(); sayimSirasiniGoster(); gizle($('msgSayim')); }
+    if (!acik) {
+      sayimSecicileriKur(); sayimSirasiniGoster(); gizle($('msgSayim'));
+      sayimKaldigiYer();               // ekip nerede kaldıysa oradan başla
+    }
   });
 
   /* Sayıma isteğe bağlı raf fotoğrafı: gönüllü rafı çeker, koordinatör
@@ -1170,6 +1225,11 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     api('sayimKaydet', yuk).then(function (c) {
       $('sayimAdet').value = '';
       sayimFotoSifirla();
+      /* Kaydedilen gözden sonra seçiciler kendiliğinden bir sonrakine geçer:
+         N rafı 3. sıra kaydedildiyse sıradaki N-4'tür; raf bitince sonraki
+         rafın 1'i. Gönüllü sadece sayıp yazar, seçicilerle uğraşmaz. */
+      var sonraki = sonrakiGoz(mekan, raf, sira);
+      if (sonraki) sayimGozSec(sonraki.mekan, sonraki.raf, sonraki.sira);
       goster($('msgSayim'), 'iyi', yerEtiket(c.anahtar) + ' sayımı kaydedildi: <b>' +
         c.adet + ' kitap</b>.' +
         (c.fotoUrl ? ' 📷 Raf fotoğrafı da kaydedildi.' : '') +
@@ -1177,7 +1237,11 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         (c.oncekiSayim != null && c.oncekiSayim !== c.adet
           ? ' <span style="color:#8a5a1c">Önceki sayım ' + c.oncekiSayim +
             ' idi — üzerine yazıldı.</span>' : '') +
-        ' Sıradaki gözü seçip devam edin.');
+        (sonraki
+          ? ' Sıradaki göz seçildi: <b>' +
+            esc(anahtarKur(sonraki.mekan, sonraki.raf, sonraki.sira)) + '</b>.'
+          : ' <b>Bu mekânın son gözüydü</b> — mekân değiştirebilirsiniz.'));
+      $('sayimAdet').focus();
     })['catch'](function (e) {
       goster($('msgSayim'), 'hata', e.message === 'AĞ'
         ? 'Bağlantı yok — sayım kaydedilemedi. Bağlantı gelince tekrar deneyin.'
