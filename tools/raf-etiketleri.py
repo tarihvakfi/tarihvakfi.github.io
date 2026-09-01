@@ -4,22 +4,42 @@
 Etiketler fiziksel raflara yapıştırılır; gönüllü telefondan aynı kodu seçer.
 Kod ile etiket birebir aynı olmalı — yoksa yer bilgisi güvenilmez olur.
 
-Kendi kütüphanenize göre aşağıdaki üç satırı düzenleyip çalıştırın:
+Kendi kütüphanenize göre aşağıdaki ayarları düzenleyip çalıştırın:
     python3 raf-etiketleri.py
-Apps Script'teki AYAR.MEKANLAR / RAF_HARFLERI / SIRA_SAYISI ile aynı olmalı.
+Apps Script'teki AYAR.MEKANLAR / RAF_SAYISI / SIRA_SAYISI ile aynı olmalı —
+etiket ile sistemdeki kod ayrışırsa yer bilgisi güvenilmez olur.
+
+Sözlük: kod G-A01-007 → G kat, A KİTAPLIK, 01 RAF, 007 o raftaki kitabın SIRAsı.
+Etiket kitaplık+raf seviyesine yapıştırılır (G-A01), tek tek kitaplara değil.
 """
 
-MEKANLAR = [("G", "Giriş Kat"), ("U", "Üst Kat"), ("D", "Depo")]
-RAF_HARFLERI = "ABCDEFGH"
-SIRA_SAYISI = 8
+# (kod, ad, harf dizisindeki başlangıç, kaç kitaplık)
+# Harfler bina boyunca kesintisiz: giriş kat A…BA, üst kat BB…BH.
+# "Diğer" bilerek A'dan başlar; harf dizisinin parçası değildir.
+MEKANLAR = [
+    ("G", "Giriş Kat", 0, 53),
+    ("U", "Üst Kat", 53, 7),
+    ("X", "Diğer", 0, 6),
+]
+RAF_SAYISI = 60      # bina genelindeki toplam kitaplık
+SIRA_SAYISI = 6      # her kitaplıkta kaç raf
+
+
+def kitaplik_harfleri(sayi):
+    """A…Z, sonra AA, AB… (Excel sütunları gibi). Apps Script ile aynı üretim."""
+    A = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    return [A[i] if i < 26 else A[i // 26 - 1] + A[i % 26] for i in range(sayi)]
+
+
+HEPSI = kitaplik_harfleri(RAF_SAYISI)
 
 etiketler = []
-for kod, ad in MEKANLAR:
-    for harf in RAF_HARFLERI:
-        for sira in range(1, SIRA_SAYISI + 1):
+for kod, ad, bas, adet in MEKANLAR:
+    for harf in HEPSI[bas:bas + adet]:
+        for raf in range(1, SIRA_SAYISI + 1):
             etiketler.append({
-                "kod": f"{kod}-{harf}{sira:02d}",
-                "alt": f"{ad} · {harf} rafı · {sira}. sıra",
+                "kod": f"{kod}-{harf}{raf:02d}",
+                "alt": f"{ad} · {harf} kitaplığı · {raf}. raf",
             })
 
 kutular = "\n".join(

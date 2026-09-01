@@ -631,7 +631,8 @@
     ['M3','belirsiz','Yabancı dilde, içeriği anlamadım'],
     ['M4','belirsiz','Kurallar çelişiyor']
   ];
-  var MEKANLAR = [{ kod:'G', ad:'Giriş Kat' }, { kod:'U', ad:'Üst Kat' },
+  var MEKANLAR = [{ kod:'G', ad:'Giriş Kat', rafSayisi:53 },
+                  { kod:'U', ad:'Üst Kat', rafBaslangic:53, rafSayisi:7 },
                   { kod:'X', ad:'Diğer', rafSayisi:6 }];
   var RAF_HARFLERI = (function () {           // A..Z, AA.. — 60 raf
     var d = [], i, j;
@@ -645,7 +646,12 @@
   })();
   var SIRA_SAYISI = 6;
   function mekanRaflari(m) {
-    return (m && Number(m.rafSayisi)) ? RAF_HARFLERI.slice(0, Number(m.rafSayisi)) : RAF_HARFLERI;
+    if (!m) return RAF_HARFLERI;
+    /* Raf harfleri bina boyunca kesintisiz: her mekân kendi dilimini alır
+       (giriş kat A…BA, üst kat BB…). Sunucudaki rafListesiMekan_ ile aynı. */
+    var bas = Math.max(0, Number(m.rafBaslangic) || 0);
+    var adet = Number(m.rafSayisi) || 0;
+    return adet ? RAF_HARFLERI.slice(bas, bas + adet) : RAF_HARFLERI.slice(bas);
   }
 
   function oku() {
@@ -2217,7 +2223,12 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var m = ((D.cfg && D.cfg.mekanlar) || []).filter(function (x) {
       return String(x.kod).toUpperCase() === String(mekanKod || '').toUpperCase();
     })[0];
-    return (m && Number(m.rafSayisi)) ? hepsi.slice(0, Number(m.rafSayisi)) : hepsi;
+    if (!m) return hepsi;
+    /* Raf harfleri bina boyunca kesintisiz: her mekân kendi dilimini alır
+       (giriş kat A…BA, üst kat BB…). Sunucudaki rafListesiMekan_ ile aynı. */
+    var bas = Math.max(0, Number(m.rafBaslangic) || 0);
+    var adet = Number(m.rafSayisi) || 0;
+    return adet ? hepsi.slice(bas, bas + adet) : hepsi.slice(bas);
   }
   function rafSecenekleriKur(mekanKod) {
     var eski = $('rafHarf').value;

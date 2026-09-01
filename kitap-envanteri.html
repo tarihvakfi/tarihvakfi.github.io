@@ -1539,7 +1539,14 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var m = ((D.cfg && D.cfg.mekanlar) || []).filter(function (x) {
       return String(x.kod).toUpperCase() === String(mekanKod || '').toUpperCase();
     })[0];
-    return (m && Number(m.rafSayisi)) ? hepsi.slice(0, Number(m.rafSayisi)) : hepsi;
+    if (!m) return hepsi;
+    /* Sunucudaki rafListesiMekan_ ile AYNI mantık olmalı: raf harfleri bina
+       boyunca kesintisiz gider, her mekân listeden kendi dilimini alır
+       (giriş kat A…BA, üst kat BB…). Buradaki dilim sunucudakinden farklı
+       olursa gönüllü listede olmayan bir rafı seçebilir. */
+    var bas = Math.max(0, Number(m.rafBaslangic) || 0);
+    var adet = Number(m.rafSayisi) || 0;
+    return adet ? hepsi.slice(bas, bas + adet) : hepsi.slice(bas);
   }
   function rafSecenekleriKur(mekanKod) {
     var eski = $('rafHarf').value;
