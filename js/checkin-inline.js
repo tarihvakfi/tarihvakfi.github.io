@@ -1,3 +1,18 @@
+// DORMANT — not loaded by any page since 20dc113 (2026-08-08,
+// "Remove weekly station plan + inline check-in section"). That commit dropped
+// the 35 lines of markup from index.html, including the <script> tag for this
+// file, per a coordinator decision to remove the homepage station plan. The
+// code was kept deliberately for a possible revival: the Apps Script
+// 'checkin' endpoint and the server-side weeklyPlan payload still exist, and
+// TVFRenderDashboard.hydrateWeeklyPlan() is still there as a guarded no-op.
+//
+// Nothing here runs today. The element IDs it queries (lpCheckinToggle,
+// lpCheckinInline, ciGate, ciDayToggles, …) exist in no page, so the early
+// `if (!toggleBtn || !panel) return;` would bail out even if it were loaded.
+// The matching styles are also still in css/site.css (.tv-checkin-inline,
+// .ci-day-toggle, .ci-hidden). To revive: restore the markup from 20dc113^
+// and re-add the <script> tag.
+
 // Inline self check-in — embedded directly in the main dashboard page.
 // Reuses window.TVF_LAST_CONTENT (already fetched by data-loader.js) instead
 // of fetching its own copy, and after a successful write it patches that
