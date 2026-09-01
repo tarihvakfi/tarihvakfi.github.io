@@ -839,16 +839,21 @@ function siraBitir_(g) {
 function siraHaritasi_() {
   var sayfa = sayfaAl_('Envanter');
   var son = sayfa.getLastRow();
-  var sayilar = {}, ciltler = {};
+  var sayilar = {}, ciltler = {}, kararlilar = {};
   if (son >= 2) {
     var veri = sayfa.getRange(2, S.mekan, son - 1, 3).getValues();
     var silinen = sayfa.getRange(2, S.silindi, son - 1, 1).getValues();
     var nusha = sayfa.getRange(2, S.nusha, son - 1, 1).getValues();
+    var kategori = sayfa.getRange(2, S.kategori, son - 1, 1).getValues();
     veri.forEach(function (r, i) {
       if (silinen[i][0]) return;
       var a = rafAnahtari_(r[0], r[1], r[2]);
       sayilar[a] = (sayilar[a] || 0) + 1;
       ciltler[a] = (ciltler[a] || 0) + Math.max(1, Number(nusha[i][0]) || 1);
+      /* Karar KAYIT başınadır (nüsha değil): üç nüshalık tek kayda tek karar
+         verilir. Bu yüzden kararVerilen ile kayitSayisi karşılaştırılabilir,
+         kayitli (cilt) ile değil. */
+      if (kararVerilmis_(kategori[i][0])) kararlilar[a] = (kararlilar[a] || 0) + 1;
     });
   }
   var kayitlar = siraKayitlari_();
@@ -862,6 +867,7 @@ function siraHaritasi_() {
       durum: b ? 'bitti' : (sayilar[a] ? 'devam' : 'bos'),
       kayitli: ciltler[a] || 0,
       kayitSayisi: sayilar[a] || 0,
+      kararVerilen: kararlilar[a] || 0,
       raftaki: b ? b.raftaki : '',
       fark: b ? (Number(b.raftaki) - (ciltler[a] || 0)) : '',
       bitiren: b ? b.bitiren : '',
@@ -880,6 +886,9 @@ function siraHaritasi_() {
            tutmaSaat: Number(AYAR.SIRA_TUTMA_SAAT || 8),
            uyusmayan: liste.filter(function (x) {
              return x.durum === 'bitti' && Number(x.fark) !== 0;
+           }).length,
+           kararBekleyenRaf: liste.filter(function (x) {
+             return x.kayitSayisi > 0 && x.kararVerilen < x.kayitSayisi;
            }).length };
 }
 
@@ -1801,11 +1810,18 @@ function kuralAciklamasi_(kod) {
    Künyesi onaylanan kitap buradaki kuyruğa düşer; karar.html bu kuyruğu
    listeler ve kararVer ile kapatır. */
 
-/** Kategorisi hâlâ boş mu? (Gönüllü kaydı 'Sınıflandırılmadı' ile açılır.) */
-function kararsiz_(s) {
-  var kat = String(s[S.kategori - 1] || '').trim();
-  return !kat || kat === SINIFLANDIRILMADI;
+/**
+ * Kategori hücresi karar taşıyor mu? (Gönüllü kaydı 'Sınıflandırılmadı' ile açılır.)
+ * Karar ölçütünün TEK tanımı burasıdır — hem karar kuyruğu (kararsiz_) hem
+ * raf panosu (siraHaritasi_) bunu kullanır. İki yerde ayrı ayrı yazılsaydı
+ * biri değişip diğeri kalınca pano "karar bitti" derken kuyruk dolu kalırdı.
+ */
+function kararVerilmis_(kategoriDegeri) {
+  var kat = String(kategoriDegeri || '').trim();
+  return !!kat && kat !== SINIFLANDIRILMADI;
 }
+
+function kararsiz_(s) { return !kararVerilmis_(s[S.kategori - 1]); }
 
 /** Künyesi onaylı, kararı verilmemiş kitaplar — karar ekranının kuyruğu. */
 function kararBekleyen_(adet) {

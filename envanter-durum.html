@@ -134,13 +134,15 @@
   .sira-ozet .bos{background:#eef2f6;color:#3c5064}
   .sira-ozet .tutulu{background:#f0e8f4;color:#5a2a63}
   .sira-ozet .uyusmaz{background:#fbe6e9;color:#8a1c2c}
+  .sira-ozet .karar{background:#fdf3e0;color:#7a5210}
 
   /* ═══ RAF DURUMU PANOSU ═══
-     Renk mantığı: KOYULUK ilerlemeyi gösterir (tek renk ailesi, beş basamak).
+     Renk mantığı: KOYULUK ilerlemeyi gösterir (tek renk ailesi, altı basamak).
      Farklı bir RENK yalnızca sorun varsa girer. Böylece pano uzaktan da okunur:
      soluk alan iş bekliyor, kırmızı çerçeve müdahale bekliyor. */
   :root{
-    --a0:#e9e2e5; --a1:#e6c8d9; --a2:#c890af; --a3:#9c5583; --a4:#601040;
+    --a0:#e9e2e5; --a1:#eccfdf; --a2:#d3a0bd; --a3:#b2749b; --a4:#8a4670;
+    --a5:#601040;
   }
   .pano-bas{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:12px}
   .pano-bas .altbaslik{margin:0}
@@ -178,6 +180,7 @@
   .hucre[data-a="2"]{background:var(--a2)}
   .hucre[data-a="3"]{background:var(--a3)}
   .hucre[data-a="4"]{background:var(--a4)}
+  .hucre[data-a="5"]{background:var(--a5)}
   .hucre[data-sorun="sayim"]{box-shadow:inset 0 0 0 2px #b81d33}
   .hucre[data-sorun="uzerinde"]{box-shadow:inset 0 0 0 2px #c08400}
   .hucre.sonuk{opacity:.15}
@@ -200,6 +203,7 @@
   .tahta[data-a="2"] .dolu{background:var(--a2)}
   .tahta[data-a="3"] .dolu{background:var(--a3)}
   .tahta[data-a="4"] .dolu{background:var(--a4)}
+  .tahta[data-a="5"] .dolu{background:var(--a5)}
   .tahta .im{width:12px;flex:0 0 auto;text-align:center;font-size:11px;font-weight:700}
   .tahta .im.hata{color:#b81d33} .tahta .im.tamam{color:#0d6b3e}
   .tahta .im.uyari{color:#c08400}
@@ -429,20 +433,24 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
      Aşama sunucunun bildiği alanlardan türetilir:
        0 dokunulmadı · 1 sayıldı · 2 fotoğraflandı · 3 kataloglanıyor · 4 kapandı
+       · 5 kararı verildi
 
-     "Karar verildi" bilerek YOK: karar kitap kitap veriliyor, siraHaritasi ise
-     raf başına özet döndürüyor. Raf seviyesinde karar oranı istenirse sunucuda
-     siraHaritasi_ içine kategori sayacı eklemek gerekir. */
+     Karar en sonda: gönüllü rafı bitirir, koordinatör künyeleri onaylar, sonra
+     kitap kitap karar verir. Sunucu raf başına kaç kaydın kararının verildiğini
+     (kararVerilen) döndürür; oran kayıt üzerindendir, cilt üzerinden değil —
+     üç nüshalık tek kayda tek karar verilir. */
   var ASAMALAR = [
     { ad: 'Dokunulmadı',    renk: 'var(--a0)' },
     { ad: 'Sayıldı',        renk: 'var(--a1)' },
     { ad: 'Fotoğraflandı',  renk: 'var(--a2)' },
     { ad: 'Kataloglanıyor', renk: 'var(--a3)' },
-    { ad: 'Kapandı',        renk: 'var(--a4)' }
+    { ad: 'Kapandı',        renk: 'var(--a4)' },
+    { ad: 'Kararı verildi', renk: 'var(--a5)' }
   ];
   var SUZGECLER = [
     ['hepsi', 'Hepsi'], ['dokunulmadi', 'Dokunulmadı'],
     ['katalog-bekleyen', 'Katalog bekliyor'], ['acik', 'Yarım kalan'],
+    ['karar-bekleyen', 'Karar bekliyor'],
     ['sorunlu', 'Sayım tutmuyor'], ['uzerinde', 'Birinin üzerinde']
   ];
   var P = { satirlar: [], gorunum: 'isi', mekan: '', suzgec: 'hepsi',
@@ -455,6 +463,11 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
 
   function asamaBul(x) {
+    /* Karar kapanıştan SONRA gelir: gönüllü rafı bitirir, koordinatör
+       künyeleri onaylar, sonra kitap kitap karar verir. Bu yüzden 5. basamak
+       hem kapanmayı hem son kaydın kararının verilmiş olmasını ister. */
+    if (x.durum === 'bitti' && x.kayitSayisi > 0 &&
+        Number(x.kararVerilen || 0) >= Number(x.kayitSayisi)) return 5;
     if (x.durum === 'bitti') return 4;
     if (Number(x.kayitSayisi) > 0) return 3;
     if (x.sayimFoto) return 2;
@@ -477,6 +490,10 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     if (s === 'dokunulmadi') return r.asama === 0;
     if (s === 'katalog-bekleyen') return r.asama === 1 || r.asama === 2;
     if (s === 'acik') return r.asama === 3;
+    if (s === 'karar-bekleyen') {
+      return r.ham.kayitSayisi > 0 &&
+             Number(r.ham.kararVerilen || 0) < Number(r.ham.kayitSayisi);
+    }
     if (s === 'sorunlu') return r.sorun === 'sayim';
     if (s === 'uzerinde') return r.sorun === 'uzerinde';
     return true;
@@ -501,6 +518,12 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     return { sira: sira, harita: harita };
   }
 
+  function kararNotu(r) {
+    var n = Number(r.ham.kayitSayisi || 0);
+    if (!n) return '';
+    return ' · karar ' + Number(r.ham.kararVerilen || 0) + '/' + n;
+  }
+
   function rafBul(kod) {
     for (var i = 0; i < P.satirlar.length; i++) {
       if (P.satirlar[i].kod === kod) return P.satirlar[i];
@@ -517,12 +540,17 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var l = gorunur();
     var say = function (f) { return l.filter(f).length; };
     var uyusmaz = say(function (r) { return r.sorun === 'sayim'; });
+    var kararBekleyen = say(function (r) {
+      return r.ham.kayitSayisi > 0 &&
+             Number(r.ham.kararVerilen || 0) < Number(r.ham.kayitSayisi);
+    });
     $('siraOzet').innerHTML =
       '<span class="bitti">' + say(function (r) { return r.asama === 4; }) + ' kapandı</span>' +
       '<span class="devam">' + say(function (r) { return r.asama > 0 && r.asama < 4; }) + ' yarım</span>' +
       '<span class="bos">' + say(function (r) { return r.asama === 0; }) + ' hiç başlanmadı</span>' +
       '<span class="tutulu">' + say(function (r) { return r.sorun === 'uzerinde'; }) +
         ' şu an birinin üzerinde</span>' +
+      (kararBekleyen ? '<span class="karar">' + kararBekleyen + ' raf karar bekliyor</span>' : '') +
       (uyusmaz ? '<span class="uyusmaz">' + uyusmaz + ' sayım tutmuyor</span>' : '');
   }
 
@@ -566,7 +594,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
           (r.kod === P.secili ? ' secili' : '') +
           '" type="button" data-kod="' + esc(r.kod) + '" data-a="' + r.asama + '"' +
           (r.sorun ? ' data-sorun="' + r.sorun + '"' : '') +
-          ' title="' + esc(r.kod + ' — ' + ASAMALAR[r.asama].ad) + '"' +
+          ' title="' + esc(r.kod + ' — ' + ASAMALAR[r.asama].ad + kararNotu(r)) + '"' +
           ' aria-label="' + esc(r.kod + ', ' + ASAMALAR[r.asama].ad) + '"></button>';
       }).join('');
       return '<div class="isi-satir"><span class="ad">' + esc(k) + '</span>' +
@@ -589,11 +617,13 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         var genislik = r.asama === 0 ? 0 : Math.max(oran, 9);
         var im = r.sorun === 'sayim' ? '<span class="im hata" title="Sayım tutmuyor">!</span>'
           : r.sorun === 'uzerinde' ? '<span class="im uyari" title="Şu an birinin üzerinde">•</span>'
-          : r.asama === 4 ? '<span class="im tamam" title="Kapandı">✓</span>'
+          : r.asama >= 4 ? '<span class="im tamam" title="' +
+              (r.asama === 5 ? 'Kararı verildi' : 'Kapandı') + '">✓</span>'
           : '<span class="im"></span>';
         return '<div class="tahta" data-kod="' + esc(r.kod) + '" data-a="' + r.asama + '"' +
           ' title="' + esc(r.kod + ' — ' + ASAMALAR[r.asama].ad) +
-          (x.onSayim ? ' · ' + x.kayitli + '/' + x.onSayim + ' kitap' : '') + '">' +
+          (x.onSayim ? ' · ' + x.kayitli + '/' + x.onSayim + ' kitap' : '') +
+          esc(kararNotu(r)) + '">' +
           '<span class="no">' + r.raf + '</span>' +
           '<span class="oluk"><span class="dolu" style="width:' + genislik + '%"></span></span>' +
           im + '</div>';
@@ -648,6 +678,14 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     satirlar.push('<div><span>Sisteme girilen</span> <b>' + sayi(x.kayitli) + '</b>' +
       (x.kayitSayisi && x.kayitSayisi !== x.kayitli
         ? ' <span>(' + x.kayitSayisi + ' kayıt)</span>' : '') + '</div>');
+    /* Karar oranı kayıt üzerinden: üç nüshalık tek kayda tek karar verilir,
+       o yüzden payda cilt sayısı değil kayıt sayısıdır. */
+    if (x.kayitSayisi > 0) {
+      var kv = Number(x.kararVerilen || 0);
+      satirlar.push('<div><span>Kararı verilen</span> <b style="color:' +
+        (kv >= x.kayitSayisi ? '#0d6b3e' : '#c08400') + '">' + kv + ' / ' +
+        x.kayitSayisi + '</b></div>');
+    }
     if (x.raftaki !== '' && x.raftaki != null) {
       satirlar.push('<div><span>Kapanışta sayılan</span> <b>' + sayi(x.raftaki) + '</b></div>');
     }
