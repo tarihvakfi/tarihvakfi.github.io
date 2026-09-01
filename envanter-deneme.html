@@ -1571,7 +1571,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
   function yerKodu(anahtar, no) { return anahtar + '-' + doldurSayi(no, 3); }
 
-  /* Kodun insan dili: "G-A02" → "Giriş Kat · A rafı · 2. sıra".
+  /* Kodun insan dili: "G-A02" → "Giriş Kat · A kitaplığı · 2. raf".
      Kod kısa ve kesin, ama herkes sökemiyor; ikisi yan yana gösterilir. */
   function yerSozu(anahtar) {
     var e = /^(?:([^-]+)-)?([A-ZÇĞİÖŞÜ]+)(\d+)$/.exec(String(anahtar || '').trim().toUpperCase());
@@ -1580,7 +1580,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     (((D.cfg || {}).mekanlar) || []).forEach(function (m) {
       if (String(m.kod).toUpperCase() === (e[1] || '')) mekanAd = m.ad;
     });
-    return (mekanAd ? mekanAd + ' · ' : '') + e[2] + ' rafı · ' + Number(e[3]) + '. sıra';
+    return (mekanAd ? mekanAd + ' · ' : '') + e[2] + ' kitaplığı · ' + Number(e[3]) + '. raf';
   }
   /* Kod + insan dili birlikte: mesajların içinde kullanılır. */
   function yerEtiket(anahtar) {
@@ -1786,7 +1786,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var eski = $('sayimRaf').value;
     var raflar = mekanRaflari($('sayimMekan').value);
     $('sayimRaf').innerHTML = raflar.map(function (h) {
-      return '<option value="' + esc(h) + '">' + esc(h) + ' rafı</option>';
+      return '<option value="' + esc(h) + '">' + esc(h) + ' kitaplığı</option>';
     }).join('');
     if (raflar.indexOf(eski) >= 0) $('sayimRaf').value = eski;
   }
@@ -2234,7 +2234,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var eski = $('rafHarf').value;
     var raflar = mekanRaflari(mekanKod);
     $('rafHarf').innerHTML = raflar.map(function (h) {
-      return '<option value="' + esc(h) + '">' + esc(h) + ' rafı</option>';
+      return '<option value="' + esc(h) + '">' + esc(h) + ' kitaplığı</option>';
     }).join('');
     if (raflar.indexOf(eski) >= 0) $('rafHarf').value = eski;
   }

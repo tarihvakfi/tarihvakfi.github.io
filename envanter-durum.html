@@ -134,11 +134,115 @@
   .sira-ozet .bos{background:#eef2f6;color:#3c5064}
   .sira-ozet .tutulu{background:#f0e8f4;color:#5a2a63}
   .sira-ozet .uyusmaz{background:#fbe6e9;color:#8a1c2c}
-  #haritaTablo .dur{font-weight:700}
-  #haritaTablo .d-bitti{color:#22502f}
-  #haritaTablo .d-devam{color:#7a5210}
-  #haritaTablo .d-bos{color:#7d8a95}
-  #haritaTablo tr.kotu td{background:#fdf2f4}
+
+  /* ═══ RAF DURUMU PANOSU ═══
+     Renk mantığı: KOYULUK ilerlemeyi gösterir (tek renk ailesi, beş basamak).
+     Farklı bir RENK yalnızca sorun varsa girer. Böylece pano uzaktan da okunur:
+     soluk alan iş bekliyor, kırmızı çerçeve müdahale bekliyor. */
+  :root{
+    --a0:#e9e2e5; --a1:#e6c8d9; --a2:#c890af; --a3:#9c5583; --a4:#601040;
+  }
+  .pano-bas{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+  .pano-bas .altbaslik{margin:0}
+  .gorunumler{margin-left:auto;display:flex;gap:4px;background:#f2eaee;
+    border-radius:9px;padding:3px}
+  .gbtn{appearance:none;border:none;background:transparent;color:var(--soluk);
+    font:inherit;font-size:13px;font-weight:600;padding:7px 13px;border-radius:7px;cursor:pointer}
+  .gbtn:hover{color:var(--bordo)}
+  .gbtn.sec{background:#fff;color:var(--bordo);box-shadow:0 1px 2px rgba(60,20,40,.12)}
+  .gbtn:focus-visible{outline:2px solid var(--bordo);outline-offset:1px}
+
+  .cipler{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .cip{appearance:none;font:inherit;font-size:13px;font-weight:500;cursor:pointer;
+    border:1px solid var(--cizgi);background:#fff;color:var(--murekkep);
+    border-radius:99px;padding:5px 12px;line-height:1.3}
+  .cip:hover{border-color:var(--bordo)}
+  .cip.sec{background:var(--bordo);border-color:var(--bordo);color:#fff}
+  .cip:focus-visible{outline:2px solid var(--bordo);outline-offset:2px}
+
+  /* efsane */
+  .efsane{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;
+    color:var(--soluk)}
+  .efsane i{display:inline-block;width:13px;height:13px;border-radius:3px;
+    vertical-align:-2px;margin-right:5px;border:1px solid rgba(33,26,29,.12)}
+
+  /* görünüm 1 — ısı haritası */
+  .isi{display:grid;grid-template-columns:repeat(auto-fill,minmax(188px,1fr));gap:6px 22px}
+  .isi-satir{display:flex;align-items:center;gap:8px}
+  .isi-satir .ad{font-size:12.5px;font-weight:700;width:28px;text-align:right;
+    color:var(--soluk);flex:0 0 auto;font-variant-numeric:tabular-nums}
+  .isi-satir .kutular{display:flex;gap:3px;flex:1}
+  .hucre{appearance:none;border:none;padding:0;cursor:pointer;flex:1;height:21px;
+    border-radius:3px;background:var(--a0)}
+  .hucre[data-a="1"]{background:var(--a1)}
+  .hucre[data-a="2"]{background:var(--a2)}
+  .hucre[data-a="3"]{background:var(--a3)}
+  .hucre[data-a="4"]{background:var(--a4)}
+  .hucre[data-sorun="sayim"]{box-shadow:inset 0 0 0 2px #b81d33}
+  .hucre[data-sorun="uzerinde"]{box-shadow:inset 0 0 0 2px #c08400}
+  .hucre.sonuk{opacity:.15}
+  .hucre.secili{outline:2px solid var(--murekkep);outline-offset:1px}
+  .hucre:focus-visible{outline:2px solid var(--bordo);outline-offset:2px}
+
+  /* görünüm 2 — raf kartları */
+  .kartlar{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:11px}
+  .rafkart{background:#fff;border:1px solid var(--cizgi);border-radius:10px;padding:11px 12px}
+  .rafkart .bas{display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+    margin-bottom:9px}
+  .rafkart .harf{font-size:22px;font-weight:700;line-height:1;color:var(--bordo)}
+  .rafkart .oran{font-size:11.5px;color:var(--soluk);font-variant-numeric:tabular-nums}
+  .tahtalar{display:flex;flex-direction:column;gap:4px}
+  .tahta{display:flex;align-items:center;gap:7px;cursor:pointer}
+  .tahta .no{font-size:10.5px;color:var(--soluk);width:9px;flex:0 0 auto}
+  .tahta .oluk{flex:1;height:13px;border-radius:3px;background:var(--a0);
+    position:relative;overflow:hidden}
+  .tahta .dolu{position:absolute;inset:0 auto 0 0;border-radius:3px;background:var(--a1)}
+  .tahta[data-a="2"] .dolu{background:var(--a2)}
+  .tahta[data-a="3"] .dolu{background:var(--a3)}
+  .tahta[data-a="4"] .dolu{background:var(--a4)}
+  .tahta .im{width:12px;flex:0 0 auto;text-align:center;font-size:11px;font-weight:700}
+  .tahta .im.hata{color:#b81d33} .tahta .im.tamam{color:#0d6b3e}
+  .tahta .im.uyari{color:#c08400}
+
+  /* görünüm 3 — aşama hattı */
+  .hat{display:grid;grid-template-columns:repeat(5,minmax(140px,1fr));gap:9px;
+    overflow-x:auto;padding-bottom:6px}
+  .sutun{background:#fff;border:1px solid var(--cizgi);border-radius:10px;padding:10px 9px 11px;
+    min-width:0}
+  .sutun-bas{display:flex;align-items:center;gap:6px;margin-bottom:9px}
+  .sutun-bas .nokta{width:11px;height:11px;border-radius:3px;flex:0 0 auto}
+  .sutun-bas .ad{font-size:12.5px;font-weight:700;line-height:1.2}
+  .sutun-bas .sayi{margin-left:auto;font-size:12px;color:var(--soluk);
+    font-variant-numeric:tabular-nums}
+  .pul-yigin{display:flex;flex-wrap:wrap;gap:3px}
+  .pul{appearance:none;font:inherit;font-size:10.5px;font-weight:500;cursor:pointer;
+    background:var(--krem);border:1px solid var(--cizgi);border-radius:4px;padding:2px 5px;
+    color:var(--soluk);line-height:1.4}
+  .pul:hover{border-color:var(--bordo);color:var(--bordo)}
+  .pul.isaretli{border-color:#b81d33;color:#b81d33;font-weight:700}
+  .sutun .devam{font-size:11.5px;color:var(--soluk);margin:8px 0 0}
+
+  /* ayrıntı */
+  .rafdetay{margin-top:14px;background:#fff;border:1px solid var(--cizgi);
+    border-radius:10px;padding:13px 15px;min-height:78px}
+  .rafdetay .kodu{font-size:19px;font-weight:700;color:var(--bordo);
+    font-variant-numeric:tabular-nums}
+  .rafdetay .nerede{font-size:12.5px;color:var(--soluk);margin-top:1px}
+  .rafdetay .satir{display:flex;flex-wrap:wrap;gap:5px 20px;margin-top:9px;font-size:13.5px}
+  .rafdetay .satir span{color:var(--soluk)}
+  .rafdetay .satir b{font-weight:700;font-variant-numeric:tabular-nums}
+  .rafdetay .bos{color:var(--soluk);font-size:14px}
+  .merdiven{display:flex;gap:4px;margin-top:11px;flex-wrap:wrap}
+  .basamak{font-size:11px;font-weight:600;padding:4px 9px;border-radius:99px;
+    border:1px solid var(--cizgi);color:var(--soluk);background:var(--krem)}
+  .basamak.oldu{background:var(--bordo);border-color:var(--bordo);color:#fff}
+  .rafdetay .uyari-yazi{font-size:13px;margin:10px 0 0;font-weight:600}
+
+  @media (max-width:620px){
+    .isi{grid-template-columns:1fr}
+    .gorunumler{margin-left:0;width:100%}
+    .gbtn{flex:1;padding:8px 6px;font-size:12.5px}
+  }
 </style>
 </head>
 <body>
@@ -190,11 +294,25 @@
     </div>
 
     <div class="kart">
-      <h3>Sıra haritası</h3>
-      <p class="altbaslik">Hangi sıra bitti, hangisi yarım, hangisi kimin üzerinde —
-        sayımı tutmayanlar en üstte</p>
+      <div class="pano-bas">
+        <div>
+          <h3>Raf durumu</h3>
+          <p class="altbaslik">Her kutu bir raf. Koyuluk ilerlemeyi, çerçeve sorunu gösterir.</p>
+        </div>
+        <div class="gorunumler" id="gorunumler">
+          <button class="gbtn sec" type="button" data-g="isi">Isı haritası</button>
+          <button class="gbtn" type="button" data-g="kart">Raf kartları</button>
+          <button class="gbtn" type="button" data-g="hat">Aşama hattı</button>
+        </div>
+      </div>
+
       <div id="siraOzet" class="sira-ozet"></div>
-      <div class="kaydir"><table id="haritaTablo"></table></div>
+      <div class="cipler" id="mekanCip"></div>
+      <div class="cipler" id="asamaCip"></div>
+      <div class="efsane" id="efsane"></div>
+
+      <div id="panoGovde"></div>
+      <div class="rafdetay" id="rafDetay"><p class="bos">Ayrıntı için bir rafa tıklayın.</p></div>
       <p class="altbaslik" id="haritaNot" style="margin-top:10px"></p>
     </div>
 
@@ -231,7 +349,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   /* Apps Script uykudan kalkarken ilk istek 20–30 saniye sürebiliyor; zayıf bağlantıda
      istek büsbütün düşebiliyor. Okuma istekleri otomatik tekrar denenir, yazma istekleri
      (onayla) denenmez — aynı kayıt iki kez işlenmesin. */
-  var TEKRARLANABILIR = ['config', 'onayBekleyen', 'katalog', 'durum'];
+  var TEKRARLANABILIR = ['config', 'onayBekleyen', 'katalog', 'durum', 'siraHaritasi'];
 
   function tekIstek(action, yuk, sure) {
     var govde = { action: action, sifre: D.sifre };
@@ -305,70 +423,327 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
   /* Sıra haritası: sistemin yakaladığı sayım tutarsızlıkları burada görünür.
      Bunun bir ekranı yoksa uyarılar kimsenin bakmadığı bir hücrede kalıyor. */
+  /* ═══════════ RAF DURUMU PANOSU ═══════════
+     Tek veri kaynağı (siraHaritasi), üç görünüm. Üçü de aynı diziyi okur;
+     görünüm değiştirmek sunucuya gitmez, sadece yeniden çizer.
+
+     Aşama sunucunun bildiği alanlardan türetilir:
+       0 dokunulmadı · 1 sayıldı · 2 fotoğraflandı · 3 kataloglanıyor · 4 kapandı
+
+     "Karar verildi" bilerek YOK: karar kitap kitap veriliyor, siraHaritasi ise
+     raf başına özet döndürüyor. Raf seviyesinde karar oranı istenirse sunucuda
+     siraHaritasi_ içine kategori sayacı eklemek gerekir. */
+  var ASAMALAR = [
+    { ad: 'Dokunulmadı',    renk: 'var(--a0)' },
+    { ad: 'Sayıldı',        renk: 'var(--a1)' },
+    { ad: 'Fotoğraflandı',  renk: 'var(--a2)' },
+    { ad: 'Kataloglanıyor', renk: 'var(--a3)' },
+    { ad: 'Kapandı',        renk: 'var(--a4)' }
+  ];
+  var SUZGECLER = [
+    ['hepsi', 'Hepsi'], ['dokunulmadi', 'Dokunulmadı'],
+    ['katalog-bekleyen', 'Katalog bekliyor'], ['acik', 'Yarım kalan'],
+    ['sorunlu', 'Sayım tutmuyor'], ['uzerinde', 'Birinin üzerinde']
+  ];
+  var P = { satirlar: [], gorunum: 'isi', mekan: '', suzgec: 'hepsi',
+            secili: '', mekanAdlari: {}, adlarGeldi: false };
+
+  /* "G-A01" → mekân G, kitaplık A, raf 1. Kitaplık iki harfli olabilir (AA, BH). */
+  function anahtarCoz(k) {
+    var e = /^(?:([^-]+)-)?([A-ZÇĞİÖŞÜ]+)(\d+)$/.exec(String(k || '').trim().toUpperCase());
+    return e ? { mekan: e[1] || '', kitaplik: e[2], raf: Number(e[3]) } : null;
+  }
+
+  function asamaBul(x) {
+    if (x.durum === 'bitti') return 4;
+    if (Number(x.kayitSayisi) > 0) return 3;
+    if (x.sayimFoto) return 2;
+    if (x.onSayim != null) return 1;
+    return 0;
+  }
+
+  /* İki ayrı tutarsızlık aynı rengi hak ediyor: ya sistem sayımı tutmuyor,
+     ya da ön sayımla kapanış sayımı tutmuyor. İkisi de "bu raf yeniden
+     sayılmalı" demek. */
+  function sorunBul(x) {
+    if (x.durum === 'bitti' && Number(x.fark) !== 0) return 'sayim';
+    if (x.onSayim != null && x.raftaki !== '' && x.raftaki != null &&
+        Number(x.raftaki) !== Number(x.onSayim)) return 'sayim';
+    if (x.tutulu) return 'uzerinde';
+    return '';
+  }
+
+  function suzgecGecer(r, s) {
+    if (s === 'dokunulmadi') return r.asama === 0;
+    if (s === 'katalog-bekleyen') return r.asama === 1 || r.asama === 2;
+    if (s === 'acik') return r.asama === 3;
+    if (s === 'sorunlu') return r.sorun === 'sayim';
+    if (s === 'uzerinde') return r.sorun === 'uzerinde';
+    return true;
+  }
+
+  function gorunur() {
+    return P.satirlar.filter(function (r) { return !P.mekan || r.mekan === P.mekan; });
+  }
+
+  /* Kitaplığa göre grupla. Sunucu anahtarları zaten doğru sırada üretiyor
+     (A, B… Z, AA…), o yüzden sıralama değil sadece gruplama yapılıyor —
+     yerel sıralama "AA"yı "B"den önceye atardı. */
+  function kitapliklar(liste) {
+    var harita = {}, sira = [];
+    liste.forEach(function (r) {
+      if (!harita[r.kitaplik]) { harita[r.kitaplik] = []; sira.push(r.kitaplik); }
+      harita[r.kitaplik].push(r);
+    });
+    sira.forEach(function (k) {
+      harita[k].sort(function (a, b) { return a.raf - b.raf; });
+    });
+    return { sira: sira, harita: harita };
+  }
+
+  function rafBul(kod) {
+    for (var i = 0; i < P.satirlar.length; i++) {
+      if (P.satirlar[i].kod === kod) return P.satirlar[i];
+    }
+    return null;
+  }
+
+  /* ── çizim ── */
+  /* Özet, sunucunun genel toplamını değil SEÇİLİ MEKÂNI sayar. Sunucu toplamı
+     bütün katları kapsıyor; hemen altındaki süzgeç sayıları ise tek katı.
+     İkisi yan yana durunca "314 hiç başlanmadı / Dokunulmadı 232" gibi
+     birbirini yalanlayan iki sayı çıkıyordu. */
+  function ozetCiz() {
+    var l = gorunur();
+    var say = function (f) { return l.filter(f).length; };
+    var uyusmaz = say(function (r) { return r.sorun === 'sayim'; });
+    $('siraOzet').innerHTML =
+      '<span class="bitti">' + say(function (r) { return r.asama === 4; }) + ' kapandı</span>' +
+      '<span class="devam">' + say(function (r) { return r.asama > 0 && r.asama < 4; }) + ' yarım</span>' +
+      '<span class="bos">' + say(function (r) { return r.asama === 0; }) + ' hiç başlanmadı</span>' +
+      '<span class="tutulu">' + say(function (r) { return r.sorun === 'uzerinde'; }) +
+        ' şu an birinin üzerinde</span>' +
+      (uyusmaz ? '<span class="uyusmaz">' + uyusmaz + ' sayım tutmuyor</span>' : '');
+  }
+
+  function mekanCipCiz() {
+    var kodlar = [], gorulen = {};
+    P.satirlar.forEach(function (r) {
+      if (!gorulen[r.mekan]) { gorulen[r.mekan] = 1; kodlar.push(r.mekan); }
+    });
+    if (kodlar.indexOf(P.mekan) < 0) P.mekan = kodlar[0] || '';
+    var el = $('mekanCip');
+    el.classList.toggle('gizli', kodlar.length < 2);
+    el.innerHTML = kodlar.map(function (k) {
+      var n = P.satirlar.filter(function (r) { return r.mekan === k; }).length;
+      return '<button class="cip' + (k === P.mekan ? ' sec' : '') + '" type="button" data-m="' +
+        esc(k) + '">' + esc(P.mekanAdlari[k] || k || 'Tümü') +
+        ' <span style="opacity:.65">' + n + '</span></button>';
+    }).join('');
+  }
+
+  function suzgecCipCiz() {
+    $('asamaCip').innerHTML = SUZGECLER.map(function (s) {
+      var n = gorunur().filter(function (r) { return suzgecGecer(r, s[0]); }).length;
+      return '<button class="cip' + (s[0] === P.suzgec ? ' sec' : '') + '" type="button" data-s="' +
+        s[0] + '">' + esc(s[1]) + ' <span style="opacity:.65">' + n + '</span></button>';
+    }).join('');
+  }
+
+  function efsaneCiz() {
+    $('efsane').innerHTML = ASAMALAR.map(function (a) {
+      return '<span><i style="background:' + a.renk + '"></i>' + esc(a.ad) + '</span>';
+    }).join('') +
+      '<span><i style="background:#fff;box-shadow:inset 0 0 0 2px #b81d33"></i>Sayım tutmuyor</span>' +
+      '<span><i style="background:#fff;box-shadow:inset 0 0 0 2px #c08400"></i>Birinin üzerinde</span>';
+  }
+
+  function isiCiz() {
+    var g = kitapliklar(gorunur());
+    return '<div class="isi">' + g.sira.map(function (k) {
+      var hucreler = g.harita[k].map(function (r) {
+        return '<button class="hucre' + (suzgecGecer(r, P.suzgec) ? '' : ' sonuk') +
+          (r.kod === P.secili ? ' secili' : '') +
+          '" type="button" data-kod="' + esc(r.kod) + '" data-a="' + r.asama + '"' +
+          (r.sorun ? ' data-sorun="' + r.sorun + '"' : '') +
+          ' title="' + esc(r.kod + ' — ' + ASAMALAR[r.asama].ad) + '"' +
+          ' aria-label="' + esc(r.kod + ', ' + ASAMALAR[r.asama].ad) + '"></button>';
+      }).join('');
+      return '<div class="isi-satir"><span class="ad">' + esc(k) + '</span>' +
+        '<span class="kutular">' + hucreler + '</span></div>';
+    }).join('') + '</div>';
+  }
+
+  function kartCiz() {
+    var g = kitapliklar(gorunur());
+    return '<div class="kartlar">' + g.sira.map(function (k) {
+      var raflar = g.harita[k];
+      var ilerleyen = raflar.filter(function (r) { return r.asama >= 3; }).length;
+      var tahtalar = raflar.map(function (r) {
+        var x = r.ham;
+        /* Dolgu = o rafta sayılan kitabın ne kadarı sisteme girilmiş.
+           Ön sayım yoksa oran hesaplanamaz; aşama 3+ ise dolu kabul edilir. */
+        var oran = (x.onSayim && Number(x.onSayim) > 0)
+          ? Math.min(100, Math.round((Number(x.kayitli) / Number(x.onSayim)) * 100))
+          : (r.asama >= 3 ? 100 : 0);
+        var genislik = r.asama === 0 ? 0 : Math.max(oran, 9);
+        var im = r.sorun === 'sayim' ? '<span class="im hata" title="Sayım tutmuyor">!</span>'
+          : r.sorun === 'uzerinde' ? '<span class="im uyari" title="Şu an birinin üzerinde">•</span>'
+          : r.asama === 4 ? '<span class="im tamam" title="Kapandı">✓</span>'
+          : '<span class="im"></span>';
+        return '<div class="tahta" data-kod="' + esc(r.kod) + '" data-a="' + r.asama + '"' +
+          ' title="' + esc(r.kod + ' — ' + ASAMALAR[r.asama].ad) +
+          (x.onSayim ? ' · ' + x.kayitli + '/' + x.onSayim + ' kitap' : '') + '">' +
+          '<span class="no">' + r.raf + '</span>' +
+          '<span class="oluk"><span class="dolu" style="width:' + genislik + '%"></span></span>' +
+          im + '</div>';
+      }).join('');
+      return '<div class="rafkart"><div class="bas"><span class="harf">' + esc(k) +
+        '</span><span class="oran">' + ilerleyen + '/' + raflar.length + ' raf</span></div>' +
+        '<div class="tahtalar">' + tahtalar + '</div></div>';
+    }).join('') + '</div>';
+  }
+
+  function hatCiz() {
+    var liste = gorunur();
+    return '<div class="hat">' + ASAMALAR.map(function (a, ix) {
+      var oradakiler = liste.filter(function (r) { return r.asama === ix; });
+      var gosterilen = oradakiler.slice(0, 60);        // uzun sütun sayfayı boğmasın
+      var puller = gosterilen.map(function (r) {
+        return '<button class="pul' + (r.sorun === 'sayim' ? ' isaretli' : '') +
+          '" type="button" data-kod="' + esc(r.kod) + '">' +
+          esc(r.kitaplik + (r.raf < 10 ? '0' + r.raf : String(r.raf))) + '</button>';
+      }).join('');
+      var kalan = oradakiler.length - gosterilen.length;
+      return '<div class="sutun"><div class="sutun-bas">' +
+        '<span class="nokta" style="background:' + a.renk + '"></span>' +
+        '<span class="ad">' + esc(a.ad) + '</span>' +
+        '<span class="sayi">' + oradakiler.length + '</span></div>' +
+        '<div class="pul-yigin">' + puller + '</div>' +
+        (kalan > 0 ? '<p class="devam">+ ' + kalan + ' raf daha</p>' : '') + '</div>';
+    }).join('') + '</div>';
+  }
+
+  function panoCiz() {
+    ozetCiz();
+    $('panoGovde').innerHTML =
+      P.gorunum === 'kart' ? kartCiz() : P.gorunum === 'hat' ? hatCiz() : isiCiz();
+    suzgecCipCiz();
+  }
+
+  function detayCiz(kod) {
+    var r = rafBul(kod);
+    var el = $('rafDetay');
+    if (!r) { el.innerHTML = '<p class="bos">Ayrıntı için bir rafa tıklayın.</p>'; return; }
+    var x = r.ham;
+    var yer = (P.mekanAdlari[r.mekan] || r.mekan || '') +
+      (r.mekan ? ' · ' : '') + r.kitaplik + ' kitaplığı · ' + r.raf + '. raf';
+
+    var satirlar = [];
+    if (x.onSayim != null) {
+      satirlar.push('<div><span>Rafta sayılan</span> <b>' + sayi(x.onSayim) + '</b>' +
+        (x.sayimFoto ? ' <a href="' + esc(x.sayimFoto) + '" target="_blank" rel="noopener"' +
+          ' title="Sayım sırasında çekilen raf fotoğrafı">📷</a>' : '') + '</div>');
+    }
+    satirlar.push('<div><span>Sisteme girilen</span> <b>' + sayi(x.kayitli) + '</b>' +
+      (x.kayitSayisi && x.kayitSayisi !== x.kayitli
+        ? ' <span>(' + x.kayitSayisi + ' kayıt)</span>' : '') + '</div>');
+    if (x.raftaki !== '' && x.raftaki != null) {
+      satirlar.push('<div><span>Kapanışta sayılan</span> <b>' + sayi(x.raftaki) + '</b></div>');
+    }
+    if (x.fark !== '' && x.fark != null) {
+      satirlar.push('<div><span>Fark</span> <b style="color:' +
+        (Number(x.fark) === 0 ? '#0d6b3e' : '#b81d33') + '">' +
+        (Number(x.fark) === 0 ? 'tutuyor'
+          : Number(x.fark) > 0 ? x.fark + ' eksik' : (-x.fark) + ' fazla') + '</b></div>');
+    }
+    if (x.sayan) satirlar.push('<div><span>Sayan</span> <b>' + esc(x.sayan) + '</b></div>');
+    if (x.bitiren) satirlar.push('<div><span>Bitiren</span> <b>' + esc(x.bitiren) +
+      (x.tarih ? ', ' + esc(x.tarih) : '') + '</b></div>');
+    if (x.tutulu) satirlar.push('<div><span>Üzerinde</span> <b>' + esc(x.tutan) + '</b></div>');
+
+    var merdiven = ASAMALAR.map(function (a, ix) {
+      return '<span class="basamak' + (r.asama > 0 && ix <= r.asama ? ' oldu' : '') + '">' +
+        esc(a.ad) + '</span>';
+    }).join('');
+
+    el.innerHTML =
+      '<div class="kodu">' + esc(r.kod) + '</div>' +
+      '<div class="nerede">' + esc(yer) + '</div>' +
+      '<div class="satir">' + satirlar.join('') + '</div>' +
+      '<div class="merdiven">' + merdiven + '</div>' +
+      (r.sorun === 'sayim'
+        ? '<p class="uyari-yazi" style="color:#b81d33">Sayılar tutmuyor — bu raf yeniden sayılmalı.</p>'
+        : r.sorun === 'uzerinde'
+          ? '<p class="uyari-yazi" style="color:#c08400">Bu raf şu an ' + esc(x.tutan) + ' adına ayrılı.</p>'
+          : '') +
+      (x.not ? '<p class="uyari-yazi" style="font-weight:400;color:var(--soluk)">' +
+        esc(x.not) + '</p>' : '');
+  }
+
+  /* ── etkileşim ── */
+  $('gorunumler').addEventListener('click', function (e) {
+    var b = e.target.closest('.gbtn');
+    if (!b) return;
+    P.gorunum = b.dataset.g;
+    Array.prototype.forEach.call(this.querySelectorAll('.gbtn'), function (x) {
+      x.classList.toggle('sec', x === b);
+    });
+    panoCiz();
+  });
+  $('mekanCip').addEventListener('click', function (e) {
+    var b = e.target.closest('.cip');
+    if (!b) return;
+    P.mekan = b.dataset.m;
+    mekanCipCiz();
+    panoCiz();
+  });
+  $('asamaCip').addEventListener('click', function (e) {
+    var b = e.target.closest('.cip');
+    if (!b) return;
+    P.suzgec = b.dataset.s;
+    panoCiz();
+  });
+  $('panoGovde').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-kod]');
+    if (!b) return;
+    P.secili = b.dataset.kod;
+    Array.prototype.forEach.call(this.querySelectorAll('.hucre.secili'), function (x) {
+      x.classList.remove('secili');
+    });
+    if (b.classList.contains('hucre')) b.classList.add('secili');
+    detayCiz(P.secili);
+    $('rafDetay').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+
   function haritayiYukle() {
-    return api('siraHaritasi').then(function (h) {
-      $('siraOzet').innerHTML =
-        '<span class="bitti">' + h.bitti + ' bitti</span>' +
-        '<span class="devam">' + h.devam + ' yarım</span>' +
-        '<span class="bos">' + h.bos + ' hiç başlanmadı</span>' +
-        '<span class="tutulu">' + (h.tutulu || 0) + ' şu an birinin üzerinde</span>' +
-        (h.uyusmayan ? '<span class="uyusmaz">' + h.uyusmayan + ' sayım tutmuyor</span>' : '');
+    /* Mekân adları config'den gelir ama pano onsuz da çalışır: config
+       alınamazsa kodlar (G, U) gösterilir, veri yine ekrana basılır. */
+    var adlar = P.adlarGeldi
+      ? Promise.resolve(null)
+      : api('config')['catch'](function () { return null; });
 
-      // Önce sorunlular, sonra devam edenler ve tutulanlar; boşlar en sonda.
-      var oncelik = function (x) {
-        if (x.durum === 'bitti' && Number(x.fark) !== 0) return 0;
-        if (x.tutulu) return 1;
-        if (x.durum === 'devam') return 2;
-        if (x.durum === 'bitti') return 3;
-        return 4;
-      };
-      var liste = h.siralar.slice().sort(function (a, b) {
-        var f = oncelik(a) - oncelik(b);
-        return f !== 0 ? f : String(a.sira).localeCompare(String(b.sira));
+    return Promise.all([api('siraHaritasi'), adlar]).then(function (c) {
+      var h = c[0], cfg = c[1];
+      if (cfg && cfg.mekanlar) {
+        cfg.mekanlar.forEach(function (m) {
+          P.mekanAdlari[String(m.kod).toUpperCase()] = m.ad;
+        });
+        P.adlarGeldi = true;
+      }
+      P.satirlar = (h.siralar || []).map(function (x) {
+        var a = anahtarCoz(x.sira) || { mekan: '', kitaplik: '?', raf: 0 };
+        return { ham: x, kod: x.sira, mekan: a.mekan, kitaplik: a.kitaplik, raf: a.raf,
+                 asama: asamaBul(x), sorun: sorunBul(x) };
       });
-      // Ön sayımı yapılmış boş sıralar da görünsün: sayım işi takip edilebilsin.
-      var gosterilen = liste.filter(function (x) {
-        return x.durum !== 'bos' || x.tutulu || x.onSayim != null;
-      });
-      var bosSayisi = liste.length - gosterilen.length;
-
-      $('haritaTablo').innerHTML =
-        '<tr><th>Sıra</th><th>Durum</th><th>Ön sayım</th><th>Rafta</th><th>Sistemde</th>' +
-        '<th>Fark</th><th>Kim</th></tr>' +
-        (gosterilen.length ? gosterilen.map(function (x) {
-          /* İki kötü hâl var: sistem sayımı tutmuyor, YA DA ön sayımla kapanış
-             sayımı tutmuyor (iki insandan biri yanlış saymış — raf şüpheli). */
-          var onSayimTutmadi = x.onSayim != null && x.raftaki !== '' &&
-                               Number(x.raftaki) !== Number(x.onSayim);
-          var kotu = x.durum === 'bitti' && (Number(x.fark) !== 0 || onSayimTutmadi);
-          var kim = x.tutulu ? x.tutan + ' (üzerinde)' : (x.bitiren || '');
-          return '<tr' + (kotu ? ' class="kotu"' : '') + '>' +
-            '<td class="ad">' + esc(x.sira) + '</td>' +
-            '<td class="dur d-' + x.durum + '">' +
-              (x.durum === 'bitti' ? 'bitti' : x.durum === 'devam' ? 'yarım' : 'boş') + '</td>' +
-            '<td>' + (x.onSayim == null ? '—'
-              : (onSayimTutmadi ? '<b style="color:#8a1c2c">' + sayi(x.onSayim) + ' ⚠</b>'
-                                : sayi(x.onSayim))) +
-              (x.sayimFoto ? ' <a href="' + esc(x.sayimFoto) + '" target="_blank" ' +
-                'rel="noopener" title="Sayım sırasında çekilen raf fotoğrafı">📷</a>' : '') +
-            '</td>' +
-            '<td>' + (x.raftaki === '' ? '—' : sayi(x.raftaki)) + '</td>' +
-            '<td>' + sayi(x.kayitli) +
-              (x.kayitSayisi && x.kayitSayisi !== x.kayitli
-                ? ' <span style="color:var(--soluk)">(' + x.kayitSayisi + ' kayıt)</span>' : '') +
-            '</td>' +
-            '<td>' + (x.fark === '' ? '—' :
-              (Number(x.fark) === 0 ? 'tutuyor'
-                : (Number(x.fark) > 0 ? x.fark + ' eksik' : (-x.fark) + ' fazla'))) + '</td>' +
-            '<td>' + esc(kim) + '</td></tr>';
-        }).join('') : '<tr><td colspan="7">Henüz hiçbir sıraya dokunulmamış.</td></tr>');
-
-      $('haritaNot').textContent = bosSayisi
-        ? bosSayisi + ' sıra hiç başlanmadı — listeye sığmasın diye gösterilmiyor. ' +
-          'Sıra tutma süresi: ' + (h.tutmaSaat || 8) + ' saat.'
-        : 'Sıra tutma süresi: ' + (h.tutmaSaat || 8) + ' saat.';
-    })['catch'](function () {
-      $('haritaNot').textContent = 'Sıra haritası alınamadı.';
+      mekanCipCiz();
+      efsaneCiz();
+      panoCiz();
+      if (P.secili) detayCiz(P.secili);
+      $('haritaNot').textContent = 'Bir rafa tıklayınca ayrıntısı altta açılır. ' +
+        'Sıra tutma süresi: ' + (h.tutmaSaat || 8) + ' saat.';
+    })['catch'](function (e) {
+      $('haritaNot').textContent = 'Raf durumu alınamadı: ' + agHata(e);
     });
   }
 

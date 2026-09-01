@@ -277,8 +277,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     ((D.cfg && D.cfg.mekanlar) || []).forEach(function (m) {
       if (String(m.kod).toUpperCase() === e[1].toUpperCase()) mekanAd = m.ad;
     });
-    return kod + ' = ' + mekanAd + ' · ' + e[2] + ' rafı · ' +
-           Number(e[3]) + '. sıra · ' + Number(e[4]) + '. kitap';
+    return kod + ' = ' + mekanAd + ' · ' + e[2] + ' kitaplığı · ' +
+           Number(e[3]) + '. raf · ' + Number(e[4]) + '. sıra';
   }
 
   function agHata(e) { return e.message === 'AĞ' ? 'Sunucuya ulaşılamadı.' : e.message; }

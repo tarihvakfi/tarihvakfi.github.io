@@ -142,29 +142,39 @@
   .hEksikNokta{background:#fff;border:1px solid #d8ccc4;position:relative}
   .hLejant .hEksikNokta::after{content:'';position:absolute;top:-3px;right:-3px;
     width:8px;height:8px;border-radius:50%;background:#c22030;border:1.5px solid #fff}
-  /* Harita, rafların karşısında durur gibi: sütunlar raflar (A, B, C… soldan
-     sağa), satırlar sıralar (1 en üstte). Mekânlar sekmeyle ayrılır. */
+  /* Harita iki adım: önce KİTAPLIK harfleri, sonra o kitaplığın 6 rafı.
+     Eskiden 53 kitaplık tek ızgarada yan yanaydı; telefonda 1600 piksel
+     genişliğinde, yana kaydırarak aranan bir tabloydu. Parmakla çalışan
+     gönüllü için iki adım tek adımdan hızlı. */
   .hMekanlar{display:flex;gap:7px;margin-bottom:10px}
   .hMekanlar button{flex:1;padding:9px 6px;border:1.5px solid #d8ccc4;border-radius:9px;
       background:#fff;font:inherit;font-size:14px;font-weight:700;color:#5a4a52}
   .hMekanlar button.sec{background:var(--bordo);border-color:var(--bordo);color:#fff}
-  #haritaKaydir{overflow-x:auto;-webkit-overflow-scrolling:touch;
-      border:1.5px solid #e6dcd6;border-radius:10px;padding:8px}
-  #haritaIzgara{display:grid;gap:4px;width:max-content}
-  .hBas{font-size:11px;font-weight:700;color:#5a4a52;text-align:center;
-        font-family:ui-monospace,SFMono-Regular,Menlo,monospace;padding:2px 0;
-        position:sticky;top:0}
-  .hSiraEtiket{font-size:11px;font-weight:700;color:#8a7d84;display:flex;
-        align-items:center;justify-content:center;
-        position:sticky;left:0;background:#fbf7f1;padding:0 4px;z-index:2}
-  .hGoz{position:relative;width:30px;height:30px;border-radius:6px;
-        border:1.5px solid #d8ccc4;background:#efe7e0;font-size:0;padding:0}
-  .hGoz.devam{background:#f6c453;border-color:#d9a12e;color:#4a3608}
-  .hGoz.bitti{background:#2e6440;border-color:#2e6440;color:#fff}
-  .hGoz.tutulu{outline:2px dashed #2a5b86;outline-offset:-2px}
-  .hGoz.secili{box-shadow:0 0 0 3px var(--bordo)}
-  .hGoz .nokta{position:absolute;top:-5px;right:-5px;width:13px;height:13px;
-               border-radius:50%;background:#c22030;border:2px solid #fbf7f1}
+
+  #hHarfler{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:6px}
+  .hHarf{display:flex;flex-direction:column;align-items:center;gap:5px;
+    padding:8px 2px 7px;border:1.5px solid #d8ccc4;border-radius:9px;background:#fff;
+    font:inherit;font-size:14px;font-weight:700;color:var(--murekkep);
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .hHarf.sec{background:var(--bordo);border-color:var(--bordo);color:#fff}
+  .hHarf .mini{display:flex;gap:2px}
+  .hHarf .mini i{width:5px;height:5px;border-radius:1px;background:#e5dcdf}
+  .hHarf .mini i.devam{background:#f6c453}
+  .hHarf .mini i.bitti{background:#2e6440}
+  .hHarf .rozet{position:absolute}
+
+  #hRaflar{display:flex;flex-direction:column;gap:7px;margin-top:12px}
+  .hRaf{display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+    padding:12px 13px;border:1.5px solid #d8ccc4;border-radius:11px;background:#fff;
+    font:inherit;color:var(--murekkep)}
+  .hRaf.secili{border-color:var(--bordo);box-shadow:0 0 0 2px var(--bordo)}
+  .hRaf .bar{width:34px;height:11px;border-radius:3px;background:#e5dcdf;flex:0 0 auto}
+  .hRaf .bar.devam{background:#f6c453}
+  .hRaf .bar.bitti{background:#2e6440}
+  .hRaf .kd{font-size:15px;font-weight:700}
+  .hRaf .dm{margin-left:auto;text-align:right;font-size:12px;color:#74686e;line-height:1.35}
+  .hRaf .nokta{display:inline-block;width:9px;height:9px;border-radius:50%;
+    background:#c22030;margin-left:5px;vertical-align:0}
   #haritaDetay{margin-top:12px;padding:12px 13px;border:1.5px solid #d8ccc4;
                border-radius:10px;background:#fbf7f1;font-size:14px}
   #haritaDetay .kod{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -175,6 +185,37 @@
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
   #haritaDetay .btnMini{margin-top:6px;padding:9px 14px;border:none;border-radius:8px;
     background:var(--bordo);color:#fff;font-size:14.5px;font-weight:700}
+
+  /* ── Sıradaki iş kartı ──
+     "Bana sıra ver" eskiden bir cümlelik mesaj bırakıyordu; gönüllü sonra
+     seçicilerle uğraşıyordu. Artık verilen raf bir kart olarak duruyor ve
+     yapılacak iki iş düğme hâlinde: rafı say, kitapları kaydet. */
+  .gorev{margin-top:14px;border:1.5px solid var(--bordo);border-radius:13px;
+    background:#fff;overflow:hidden}
+  .gorev .bas{background:var(--bordo);color:#fff;padding:11px 14px}
+  .gorev .bas .ustyazi{font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+    opacity:.8;font-weight:700}
+  .gorev .bas .kod{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:27px;font-weight:700;line-height:1.15}
+  .gorev .bas .yer{font-size:13px;opacity:.85}
+  .gorev .govde{padding:13px 14px 15px;display:flex;flex-direction:column;gap:9px}
+  .gorev .ilerleme{display:flex;align-items:center;gap:11px}
+  .gorev .oluk{flex:1;height:10px;border-radius:4px;background:#efe7e0;overflow:hidden}
+  .gorev .oluk span{display:block;height:100%;background:var(--bordo);border-radius:4px}
+  .gorev .oran{font-size:12.5px;color:#74686e;white-space:nowrap}
+  .gtus{display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+    padding:12px 13px;border:1.5px solid #d8ccc4;border-radius:11px;background:#fff;
+    font:inherit;color:var(--murekkep)}
+  .gtus .im{width:32px;height:32px;border-radius:9px;flex:0 0 auto;display:flex;
+    align-items:center;justify-content:center;font-size:16px;background:#fbf2f7;
+    color:var(--bordo);font-weight:700}
+  .gtus b{display:block;font-size:15px;font-weight:700;line-height:1.25}
+  .gtus span{font-size:12.5px;color:#74686e;line-height:1.3}
+  .gtus.tamam{border-color:#2e6440;background:#f1f7f2}
+  .gtus.tamam .im{background:#2e6440;color:#fff}
+  .gtus.ana{border-color:var(--bordo);background:var(--bordo);color:#fff}
+  .gtus.ana .im{background:rgba(255,255,255,.2);color:#fff}
+  .gtus.ana span{color:rgba(255,255,255,.8)}
 
   .devir{margin-top:20px;padding:14px 15px;border-radius:10px;
          background:#eef4fa;border:1.5px solid #2a5b86}
@@ -289,6 +330,7 @@
 
     <button class="btn" id="btnSiraOner">Bana sıra ver</button>
     <div class="msg gizli" id="msgOner" style="margin:14px 0 0"></div>
+    <div id="gorevKart" class="gorev gizli"></div>
 
     <button type="button" id="btnKendimSec" class="baglanti-btn">Kendim seçeceğim</button>
     <button type="button" id="btnHarita" class="baglanti-btn">Rafların durumunu gör</button>
@@ -334,7 +376,8 @@
         <span><i class="hEksikNokta"></i> atlanmış kitap var</span>
       </div>
       <div class="hMekanlar" id="hMekanlar"></div>
-      <div id="haritaKaydir"><div id="haritaIzgara"></div></div>
+      <div id="hHarfler"></div>
+      <div id="hRaflar"></div>
       <div id="haritaDetay" class="gizli"></div>
     </div>
 
@@ -887,7 +930,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
   function yerKodu(anahtar, no) { return anahtar + '-' + doldurSayi(no, 3); }
 
-  /* Kodun insan dili: "G-A02" → "Giriş Kat · A rafı · 2. sıra".
+  /* Kodun insan dili: "G-A02" → "Giriş Kat · A kitaplığı · 2. raf".
      Kod kısa ve kesin, ama herkes sökemiyor; ikisi yan yana gösterilir. */
   function yerSozu(anahtar) {
     var e = /^(?:([^-]+)-)?([A-ZÇĞİÖŞÜ]+)(\d+)$/.exec(String(anahtar || '').trim().toUpperCase());
@@ -896,7 +939,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     (((D.cfg || {}).mekanlar) || []).forEach(function (m) {
       if (String(m.kod).toUpperCase() === (e[1] || '')) mekanAd = m.ad;
     });
-    return (mekanAd ? mekanAd + ' · ' : '') + e[2] + ' rafı · ' + Number(e[3]) + '. sıra';
+    return (mekanAd ? mekanAd + ' · ' : '') + e[2] + ' kitaplığı · ' + Number(e[3]) + '. raf';
   }
   /* Kod + insan dili birlikte: mesajların içinde kullanılır. */
   function yerEtiket(anahtar) {
@@ -1102,7 +1145,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var eski = $('sayimRaf').value;
     var raflar = mekanRaflari($('sayimMekan').value);
     $('sayimRaf').innerHTML = raflar.map(function (h) {
-      return '<option value="' + esc(h) + '">' + esc(h) + ' rafı</option>';
+      return '<option value="' + esc(h) + '">' + esc(h) + ' kitaplığı</option>';
     }).join('');
     if (raflar.indexOf(eski) >= 0) $('sayimRaf').value = eski;
   }
@@ -1176,6 +1219,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   function panelleriKapat(haric) {
     if (haric !== 'sayim') $('sayimPanel').classList.add('gizli');
     if (haric !== 'harita') $('haritaPanel').classList.add('gizli');
+    /* Haritadan raf seçilecekse sistemin verdiği kart bayatlar. Sayım paneli
+       kartın kendi düğmesinden açıldığı için orada kart kalır. */
+    if (haric === 'harita') $('gorevKart').classList.add('gizli');
   }
 
   $('btnSayim').addEventListener('click', function () {
@@ -1275,59 +1321,92 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
   var haritaMekan = '';                         // seçili mekân sekmesi
 
+  var haritaHarf = '';                          // seçili kitaplık (A, B… BA)
+
+  /* Kitaplık rozetleri: her harfin altındaki altı nokta o kitaplığın altı rafı.
+     Gönüllü boş bir raf aramak için kitaplık kitaplık dolaşmak zorunda kalmasın —
+     hangi kitaplıkta iş kaldığı harflerin altından görünür. */
   function haritaCiz() {
     var mekanlar = (D.cfg && D.cfg.mekanlar) || [];
     if (!haritaMekan && mekanlar.length) haritaMekan = mekanlar[0].kod;
 
-    // Mekân sekmeleri (tek mekân varsa gizli)
     $('hMekanlar').style.display = mekanlar.length > 1 ? '' : 'none';
     $('hMekanlar').innerHTML = mekanlar.map(function (m) {
       return '<button type="button" data-hm="' + esc(m.kod) + '"' +
         (m.kod === haritaMekan ? ' class="sec"' : '') + '>' + esc(m.ad) + '</button>';
     }).join('');
 
-    /* Izgara raf düzeninin aynası: sütunlar raflar (A, B, C… soldan sağa),
-       satırlar sıralar (1 en üstte, fiziksel dizilişle aynı). */
     var raflar = mekanRaflari(haritaMekan);
     var kac = Number((D.cfg && D.cfg.siraSayisi) || 6);
-    var hucreler = '<div></div>' + raflar.map(function (h) {
-      return '<div class="hBas">' + esc(h) + '</div>';
+    if (raflar.indexOf(haritaHarf) < 0) haritaHarf = raflar[0] || '';
+
+    $('hHarfler').innerHTML = raflar.map(function (h) {
+      var noktalar = '';
+      for (var i = 1; i <= kac; i++) {
+        var x = haritaVerisi[anahtarKur(haritaMekan, h, i)];
+        noktalar += '<i class="' + (x ? esc(x.durum) : 'bos') + '"></i>';
+      }
+      return '<button type="button" class="hHarf' + (h === haritaHarf ? ' sec' : '') +
+        '" data-hh="' + esc(h) + '">' + esc(h) +
+        '<span class="mini">' + noktalar + '</span></button>';
     }).join('');
+
+    haritaRaflariCiz();
+  }
+
+  /* Seçili kitaplığın rafları: parmakla dokunulacak kadar büyük satırlar.
+     Sağdaki küçük yazı "ne durumda" sorusunu sayıyla cevaplar. */
+  function haritaRaflariCiz() {
+    var kac = Number((D.cfg && D.cfg.siraSayisi) || 6);
+    var satirlar = '';
     for (var i = 1; i <= kac; i++) {
-      hucreler += '<div class="hSiraEtiket">' + i + '</div>';
-      /* eslint-disable no-loop-func */
-      hucreler += raflar.map(function (h) {
-        var anahtar = anahtarKur(haritaMekan, h, i);
-        var x = haritaVerisi[anahtar];
-        if (!x) return '<div class="hGoz" style="visibility:hidden"></div>';
-        return '<button type="button" class="hGoz ' + x.durum +
-          (x.tutulu ? ' tutulu' : '') + '" data-sira="' + esc(x.sira) + '" ' +
-          'title="' + esc(x.sira) + ' — ' + esc(yerSozu(x.sira)) + '">' +
-          (x.eksik.length ? '<span class="nokta"></span>' : '') + '</button>';
-      }).join('');
+      var anahtar = anahtarKur(haritaMekan, haritaHarf, i);
+      var x = haritaVerisi[anahtar];
+      if (!x) continue;
+      var durum = x.durum === 'bitti' ? 'bitti'
+        : x.durum === 'devam' ? x.kayitli + ' kitap kayıtlı' : 'boş · alınabilir';
+      var alt = x.onSayim != null ? 'ön sayım ' + x.onSayim : 'sayılmadı';
+      satirlar += '<button type="button" class="hRaf" data-sira="' + esc(anahtar) + '">' +
+        '<span class="bar ' + esc(x.durum) + '"></span>' +
+        '<span class="kd">' + i + '. raf' +
+        (x.eksik && x.eksik.length ? '<span class="nokta" title="atlanmış kayıt var"></span>' : '') +
+        '</span>' +
+        '<span class="dm">' + esc(durum) +
+        (x.tutulu ? '<br>' + esc(x.tutan) + ' üzerinde' : '<br>' + esc(alt)) +
+        '</span></button>';
     }
-    $('haritaIzgara').style.gridTemplateColumns =
-      '26px repeat(' + raflar.length + ', 30px)';
-    $('haritaIzgara').innerHTML = hucreler;
+    $('hRaflar').innerHTML = satirlar;
+    $('haritaDetay').classList.add('gizli');
   }
 
   $('hMekanlar').addEventListener('click', function (e) {
     var b = e.target.closest('[data-hm]');
     if (!b) return;
     haritaMekan = b.dataset.hm;
-    $('haritaDetay').classList.add('gizli');
+    haritaHarf = '';
     haritaCiz();
   });
 
-  $('haritaIzgara').addEventListener('click', function (e) {
-    var g = e.target.closest('.hGoz');
-    if (!g) return;
-    var x = haritaVerisi[g.dataset.sira];
-    if (!x) return;
-    var eski = $('haritaIzgara').querySelector('.hGoz.secili');
-    if (eski) eski.classList.remove('secili');
-    g.classList.add('secili');
+  $('hHarfler').addEventListener('click', function (e) {
+    var b = e.target.closest('.hHarf');
+    if (!b) return;
+    haritaHarf = b.dataset.hh;
+    haritaCiz();
+    $('hRaflar').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
 
+  $('hRaflar').addEventListener('click', function (e) {
+    var b = e.target.closest('.hRaf');
+    if (!b) return;
+    var eski = $('hRaflar').querySelector('.hRaf.secili');
+    if (eski) eski.classList.remove('secili');
+    b.classList.add('secili');
+    haritaDetayCiz(b.dataset.sira);
+  });
+
+  function haritaDetayCiz(anahtar) {
+    var x = haritaVerisi[anahtar];
+    if (!x) return;
     var durumYazi = x.durum === 'bitti'
       ? 'bitmiş' + (x.bitiren ? ' — ' + esc(x.bitiren) + ' kapattı' : '')
       : (x.durum === 'devam' ? 'yarım — ' + x.kayitli + ' kitap kayıtlı' : 'hiç başlanmamış');
@@ -1343,7 +1422,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         '</div>';
     }
 
-    if (x.eksik.length) {
+    if (x.eksik && x.eksik.length) {
       html += '<div style="margin-top:7px"><b style="color:#8a1c2c">' + x.eksik.length +
         ' kayıt atlanmış</b> — silinmiş ya da hiç girilmemiş. Kitabı rafta bulup ' +
         'numarasına dokunun, kaydına gidin:</div><div class="eksikler">' +
@@ -1352,10 +1431,73 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         }).join('') + '</div>';
     }
     html += '<button type="button" class="btnMini" data-sec="' + esc(x.sira) + '">' +
-      'Bu sırada çalış</button>';
+      'Bu rafta çalış</button>';
     $('haritaDetay').innerHTML = html;
     $('haritaDetay').classList.remove('gizli');
-  });
+  }
+
+  /* ── Sıradaki iş kartı ──
+     Sistem rafı verdikten sonra gönüllünün önünde iki iş var: rafı saymak ve
+     kitapları kaydetmek. Eskiden ikisi de ayrı panellerde, seçicilerin
+     arkasındaydı; gönüllü "şimdi ne yapacağım" diye bakınıyordu. Kart ikisini
+     yan yana koyar ve hangisinin bittiğini söyler.
+
+     Sayımın fotoğrafı ayrı bir iş değil — sayarken aynı ekranda çekiliyor,
+     o yüzden kartta ayrı bir adım olarak görünmüyor. */
+  function gorevKartiCiz(anahtar) {
+    var k = $('gorevKart');
+    var p = anahtar.split('-');
+    var mekan = p.length > 1 ? p[0] : '';
+    var rafSira = p[p.length - 1];
+    var raf = rafSira.replace(/\d+$/, '');
+    var sira = Number(rafSira.replace(/^\D+/, '')) || 1;
+
+    function ciz(d) {
+      var onSayim = d && d.onSayim != null ? Number(d.onSayim) : null;
+      var girilen = d ? Number(d.cilt || d.adet || 0) : 0;
+      var sonraki = d ? (Number(d.sonNo || 0) + 1) : 1;
+      var oran = (onSayim && onSayim > 0)
+        ? Math.min(100, Math.round((girilen / onSayim) * 100)) : 0;
+
+      var ilerleme = onSayim
+        ? '<div class="ilerleme"><span class="oluk"><span style="width:' + oran + '%"></span></span>' +
+          '<span class="oran">' + girilen + ' / ' + onSayim + ' kitap</span></div>'
+        : '<div class="ilerleme"><span class="oran">' + girilen + ' kitap kaydedildi</span></div>';
+
+      var sayimTus = onSayim != null
+        ? '<button type="button" class="gtus tamam" id="gtSay"><span class="im">✓</span>' +
+          '<span><b>Raf sayıldı</b><span>' + onSayim + ' kitap' +
+          (d.sayan ? ' · ' + esc(d.sayan) : '') + ' — değiştirmek için dokunun</span></span></button>'
+        : '<button type="button" class="gtus" id="gtSay"><span class="im">1</span>' +
+          '<span><b>Rafı say</b><span>Raftaki kitapları sayın, sayıyı yazın</span></span></button>';
+
+      var kayitTus = '<button type="button" class="gtus ana" id="gtKayit">' +
+        '<span class="im">' + (onSayim != null ? '2' : '→') + '</span>' +
+        '<span><b>Kitapları kaydet</b><span>' +
+        (girilen > 0 ? doldurSayi(sonraki, 3) + ' numaradan devam edin'
+                     : 'İlk kitaptan başlayın') + '</span></span></button>';
+
+      k.innerHTML =
+        '<div class="bas"><div class="ustyazi">Sıradaki raf</div>' +
+        '<div class="kod">' + esc(anahtar) + '</div>' +
+        '<div class="yer">' + esc(yerSozu(anahtar)) + '</div></div>' +
+        '<div class="govde">' + ilerleme + sayimTus + kayitTus + '</div>';
+      k.classList.remove('gizli');
+
+      $('gtSay').addEventListener('click', function () {
+        panelleriKapat('sayim');
+        $('sayimPanel').classList.remove('gizli');
+        sayimGozSec(mekan, raf, sira);
+        $('sayimPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+      $('gtKayit').addEventListener('click', function () { $('btnRaf').click(); });
+    }
+
+    /* Sayılar rafDurum'dan gelir. Ağ yoksa kart yine çıksın — gönüllü işe
+       başlayabilsin; sayılar olmadan da "kaydet" düğmesi çalışır. */
+    api('rafDurum', { mekan: mekan, raf: raf, sira: sira })
+      .then(ciz)['catch'](function () { ciz(null); });
+  }
 
   /* Detaydan seçim: sırayı seçicilere yazar ve normal akışa bağlar.
      Eksik numaraya dokunulduysa numara arama kutusuna da taşınır. */
@@ -1390,6 +1532,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   function seciciAc() {
     $('secici').classList.remove('gizli');
     $('btnKendimSec').textContent = 'Seçimden vazgeç';
+    /* Elle seçime geçildi: sistemin verdiği raf artık geçerli değil, kart
+       başka bir rafı gösterip gönüllüyü yanıltmasın. */
+    $('gorevKart').classList.add('gizli');
   }
 
   /* Rastgele gelen gönüllü hangi sırayı alacağını bilemez; sistem söylesin.
@@ -1413,8 +1558,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       // Raf çift harfli olabilir (AA, BH…): baştaki TÜM harfler raf, kalan sayı sıra.
       $('rafHarf').value = kod.replace(/\d+$/, '');
       $('siraSec').value = String(Number(kod.replace(/^\D+/, '')));
-      seciciAc();
       rafOzetYenile();
+      gorevKartiCiz(d.anahtar);
       var m;
       if (d.zatenSizde) {
         m = ['uyari', yerEtiket(d.anahtar) + ' zaten sizin üzerinizde. ' +
@@ -1552,7 +1697,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var eski = $('rafHarf').value;
     var raflar = mekanRaflari(mekanKod);
     $('rafHarf').innerHTML = raflar.map(function (h) {
-      return '<option value="' + esc(h) + '">' + esc(h) + ' rafı</option>';
+      return '<option value="' + esc(h) + '">' + esc(h) + ' kitaplığı</option>';
     }).join('');
     if (raflar.indexOf(eski) >= 0) $('rafHarf').value = eski;
   }
