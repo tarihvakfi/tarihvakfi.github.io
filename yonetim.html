@@ -23,14 +23,17 @@
 
     .yp-card input[type=email], .yp-card input[type=text],
     .yp-ust select, .yp-card button, .yp-msg, table.yp, .yp-sayi, .yp-bilgi,
-    .yp-sayilar, .yp-gunluk, summary.yp-sum {
+    .yp-sayilar, .yp-gunluk, summary.yp-sum, .yp-sekmeler, .yp-plan-kontrol,
+    .yp-ay-grid, table.yp-hafta, .yp-plan-not, .yp-print-title {
       font-family: 'Inter', system-ui, sans-serif;
     }
     .yp-card input[type=email], .yp-card input[type=text] {
       width: 100%; padding: 12px 13px; border: 1px solid var(--rule);
       background: var(--paper); color: var(--ink); font-size: 15.5px;
     }
-    .yp-card input:focus, .yp-ust select:focus { outline: 2px solid var(--accent-soft); outline-offset: 1px; border-color: var(--accent); }
+    .yp-card input:focus, .yp-ust select:focus, .yp-toggle:focus-within {
+      outline: 2px solid var(--accent-soft); outline-offset: 1px; border-color: var(--accent);
+    }
     .yp-kod { font-size: 26px; letter-spacing: 12px; text-align: center; font-weight: 600; font-family: 'DM Mono', monospace !important; }
 
     button.yp { font-size: 14.5px; font-weight: 600; padding: 11px 20px; cursor: pointer;
@@ -57,12 +60,45 @@
     .yp-bilgi b { color: var(--ink); }
 
     /* --- kontrol satırı --- */
+    .yp-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; }
+    .yp-sekmeler {
+      display: inline-flex; align-items: center; gap: 4px; padding: 4px;
+      border: 1px solid var(--rule); background: var(--paper-soft);
+    }
+    .yp-sekme {
+      border: 1px solid transparent; background: transparent; color: var(--ink-mute);
+      cursor: pointer; font-size: 13.5px; font-weight: 600; padding: 8px 12px;
+    }
+    .yp-sekme:hover { color: var(--accent); border-color: var(--accent-soft); background: var(--paper); }
+    .yp-sekme.aktif { background: var(--accent); border-color: var(--accent); color: var(--paper); }
     .yp-ust { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
     .yp-ust select {
       padding: 11px 13px; border: 1px solid var(--rule); background: var(--paper); color: var(--ink);
       font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600; min-width: 280px; max-width: 100%;
     }
+    .yp-ust select.yp-kisa { min-width: 150px; }
+    .yp-toggle {
+      display: inline-flex; align-items: center; gap: 8px; padding: 10px 12px;
+      border: 1px solid var(--rule); background: var(--paper); color: var(--ink-soft);
+      font-family: 'Inter', sans-serif; font-size: 13.5px; font-weight: 600; cursor: pointer;
+    }
+    .yp-toggle input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
     .yp-sayi { color: var(--ink-mute); font-size: 13.5px; margin-left: auto; }
+    .yp-liste-eylem { display: flex; gap: 10px; flex-wrap: wrap; margin: -2px 0 14px; }
+
+    .yp-plan-kontrol {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+      margin: 2px 0 14px; padding: 12px 14px; border: 1px solid var(--rule); background: var(--paper-soft);
+    }
+    .yp-donem { font-size: 18px; font-weight: 700; color: var(--ink); }
+    .yp-yon-dugme {
+      width: 38px; height: 38px; display: inline-grid; place-items: center; cursor: pointer;
+      border: 1px solid var(--rule); background: var(--paper); color: var(--ink); font-size: 21px; line-height: 1;
+    }
+    .yp-yon-dugme:hover { color: var(--accent); border-color: var(--accent-soft); }
+    .yp-print-title { display: none; }
+    .yp-plan-not { margin: 11px 0 0; color: var(--ink-mute); font-size: 12.5px; line-height: 1.45; }
+    .yp-plan-not b { color: var(--ink); }
 
     /* --- tablo --- */
     .yp-tablo { overflow-x: auto; border: 1px solid var(--rule); background: var(--paper); }
@@ -81,6 +117,56 @@
     .yp-hemen { color: var(--accent); font-weight: 600; }
     .yp-duraklat { color: var(--accent-deep); font-size: 12px; font-weight: 600; }
     .yp-bos { padding: 32px 16px; text-align: center; color: var(--ink-mute); }
+
+    /* --- takvim --- */
+    .yp-ay-kapsayici { overflow-x: auto; border: 1px solid var(--rule); background: var(--paper); }
+    .yp-ay-grid {
+      display: grid; min-width: 760px; background: var(--rule); gap: 1px;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+    .yp-ay-grid.yedi { grid-template-columns: repeat(7, minmax(0, 1fr)); min-width: 980px; }
+    .yp-ay-baslik, .yp-ay-hucre { background: var(--paper); min-width: 0; }
+    .yp-ay-baslik {
+      padding: 9px 10px; font-family: 'DM Mono', monospace; font-size: 10px;
+      letter-spacing: .09em; text-transform: uppercase; color: var(--ink-mute);
+    }
+    .yp-ay-hucre { min-height: 154px; padding: 9px 8px 8px; }
+    .yp-ay-hucre.bos { background: var(--paper-soft); }
+    .yp-gun-no { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; margin-bottom: 7px; }
+    .yp-gun-no b { font-family: 'DM Mono', monospace; font-size: 15px; font-weight: 500; color: var(--ink); }
+    .yp-gun-no small { color: var(--ink-mute); font-size: 11px; }
+    .yp-kisiler { display: grid; gap: 5px; overflow: visible; padding-right: 2px; }
+    .yp-kisi {
+      box-sizing: border-box; min-width: 0; padding: 5px 6px; border: 1px solid #e5ded7; background: #fffdf9;
+      border-left: 3px solid var(--accent-soft);
+    }
+    .yp-ay-grid.yedi .yp-kisi { padding: 4px 5px; }
+    .yp-ay-grid.yedi .yp-kisi-ad { font-size: 11.5px; }
+    .yp-kisi-ust { display: flex; align-items: flex-start; gap: 5px; min-width: 0; }
+    .yp-kisi-ad { flex: 1 1 auto; min-width: 0; color: var(--ink); font-size: 12px; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; }
+    .yp-saat { margin-top: 2px; color: var(--ink-mute); font-size: 11.5px; line-height: 1.25; }
+    .yp-rozet {
+      flex: none; display: inline-block; border: 1px solid var(--rule); background: var(--paper-soft);
+      color: var(--accent-deep); font-family: 'DM Mono', monospace; font-size: 10px; line-height: 1;
+      padding: 3px 4px; font-weight: 500; white-space: nowrap;
+    }
+    .yp-rozet.a { color: #5b4a7f; }
+    .yp-rozet.ka { color: #2e6440; }
+    .yp-durum-mini { color: var(--accent-deep); font-weight: 600; }
+
+    table.yp-hafta {
+      width: 100%; border-collapse: collapse; border: 1px solid var(--rule);
+      background: var(--paper); table-layout: fixed; font-size: 13.5px;
+    }
+    table.yp-hafta th, table.yp-hafta td { border: 1px solid var(--rule); padding: 11px 12px; vertical-align: top; }
+    table.yp-hafta th {
+      font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .09em;
+      text-transform: uppercase; color: var(--ink-mute); font-weight: 400; background: var(--paper-soft);
+    }
+    table.yp-hafta .gun { width: 118px; color: var(--ink); font-weight: 700; }
+    table.yp-hafta .gun small { display: block; margin-top: 3px; color: var(--ink-mute); font-weight: 500; }
+    .yp-hafta-liste { display: grid; gap: 6px; }
+    .yp-hafta-bos { color: var(--ink-faint); }
 
     /* --- satır işlemleri --- */
     td.yp-islem { white-space: nowrap; }
@@ -144,7 +230,45 @@
     @media (max-width: 560px) {
       .yp-card { padding: 20px 18px; }
       .yp-ust select { min-width: 100%; }
+      .yp-ust select.yp-kisa { min-width: 100%; }
       .yp-sayi { margin-left: 0; }
+      .yp-toolbar { align-items: stretch; }
+      .yp-sekmeler { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; }
+      .yp-sekme { padding-left: 8px; padding-right: 8px; }
+      .yp-toggle { width: 100%; }
+      table.yp-hafta { min-width: 720px; }
+      .yp-hafta-kapsayici { overflow-x: auto; }
+    }
+
+    @media print {
+      @page { size: A4 landscape; margin: 10mm; }
+      html, body { background: #fff !important; color: #111 !important; }
+      body.journal { padding: 0 !important; }
+      .page { width: 100% !important; max-width: none !important; margin: 0 !important; }
+      .yp-print-hide, #giris, .yp-bas, .yp-bilgi, details.yp-alt, .colophon { display: none !important; }
+      #panel { display: block !important; padding-top: 0 !important; }
+      .yp-print-title { display: grid; gap: 2px; margin: 0 0 8px; font-family: 'Inter', system-ui, sans-serif; }
+      .yp-print-title b { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+      .yp-print-title span { font-size: 18px; font-weight: 700; }
+      .yp-print-title small { color: #555; font-size: 10px; }
+      .yp-ay-kapsayici, .yp-hafta-kapsayici, .yp-tablo { overflow: visible !important; border-color: #999 !important; }
+      .yp-ay-grid { min-width: 0 !important; gap: 1px; background: #999 !important; break-inside: avoid; }
+      .yp-ay-baslik { padding: 5px 6px; font-size: 8px; background: #f3f3f3 !important; color: #333 !important; }
+      .yp-ay-hucre { min-height: 82px; padding: 5px; background: #fff !important; }
+      .yp-gun-no { margin-bottom: 4px; }
+      .yp-gun-no b { font-size: 11px; }
+      .yp-gun-no small { font-size: 8px; color: #555 !important; }
+      .yp-kisiler { max-height: none !important; overflow: visible !important; gap: 3px; }
+      .yp-kisi { padding: 3px 4px; border-color: #bbb !important; background: #fff !important; break-inside: avoid; }
+      .yp-kisi-ad { font-size: 8.5px; color: #111 !important; }
+      .yp-saat { font-size: 8px; color: #555 !important; }
+      .yp-rozet { border-color: #777 !important; color: #111 !important; background: #fff !important; font-size: 7px; padding: 2px 3px; }
+      table.yp, table.yp-hafta { min-width: 0 !important; font-size: 10px; border-color: #999 !important; }
+      table.yp th, table.yp td, table.yp-hafta th, table.yp-hafta td { border-color: #999 !important; padding: 5px 6px; }
+      table.yp-hafta th { font-size: 8px; background: #f3f3f3 !important; color: #333 !important; }
+      table.yp-hafta .gun { width: 70px; }
+      .yp-hafta-liste { gap: 3px; }
+      .yp-plan-not { font-size: 8.5px; color: #444 !important; margin-top: 6px; }
     }
   </style>
   <script src="./js/gonullu-config.js?v=20260817"></script>
@@ -197,15 +321,66 @@
       </div>
       <p class="yp-bilgi" id="ozetSatir"></p>
 
-      <div class="yp-ust">
-        <select id="liste"></select>
-        <button class="yp ikincil" id="btnPosta">E-posta yaz</button>
-        <button class="yp ikincil" id="btnKopyala">Adresleri kopyala</button>
-        <button class="yp ikincil" id="btnCsv">CSV</button>
+      <div class="yp-toolbar yp-print-hide">
+        <nav class="yp-sekmeler" aria-label="Görünüm">
+          <button type="button" class="yp-sekme aktif" data-gorunum="liste" id="sekmeListe">Liste</button>
+          <button type="button" class="yp-sekme" data-gorunum="ay" id="sekmeAy">Aylık Takvim</button>
+          <button type="button" class="yp-sekme" data-gorunum="hafta" id="sekmeHafta">Haftalık</button>
+        </nav>
+        <button type="button" class="yp ikincil" id="btnYazdir">Yazdır</button>
+      </div>
+
+      <div class="yp-print-title" id="yazdirBaslik"></div>
+
+      <div class="yp-ust yp-print-hide">
+        <select id="liste" aria-label="Hazır liste"></select>
+        <select id="filtreAlan" class="yp-kisa" aria-label="Alan filtresi">
+          <option value="tum">Tüm alanlar</option>
+          <option value="kutuphane">Kütüphane</option>
+          <option value="arsiv">Arşiv</option>
+          <option value="ikisi">K + A</option>
+        </select>
+        <select id="filtreDurum" class="yp-kisa" aria-label="Durum filtresi">
+          <option value="aktif" selected>Aktif</option>
+          <option value="tum">Tüm durumlar</option>
+          <option value="beklemede">Beklemede</option>
+          <option value="ayrildi">Ayrıldı</option>
+        </select>
+        <label class="yp-toggle">
+          <input type="checkbox" id="haftaSonu" />
+          <span>Hafta sonunu göster</span>
+        </label>
         <span class="yp-sayi" id="sayi"></span>
       </div>
 
-      <div class="yp-tablo"><table class="yp" id="tablo"></table></div>
+      <div class="yp-plan-kontrol yp-print-hide yp-gizli" id="planKontrol">
+        <button type="button" class="yp-yon-dugme" id="btnOnce" aria-label="Önceki dönem">‹</button>
+        <div class="yp-donem" id="donemBaslik"></div>
+        <button type="button" class="yp-yon-dugme" id="btnSonra" aria-label="Sonraki dönem">›</button>
+      </div>
+
+      <div class="yp-liste-eylem yp-print-hide" id="listeEylem">
+        <button class="yp ikincil" id="btnPosta">E-posta yaz</button>
+        <button class="yp ikincil" id="btnKopyala">Adresleri kopyala</button>
+        <button class="yp ikincil" id="btnCsv">CSV</button>
+      </div>
+
+      <section class="yp-gorunum" id="gorunumListe">
+        <div class="yp-tablo"><table class="yp" id="tablo"></table></div>
+      </section>
+
+      <section class="yp-gorunum yp-gizli" id="gorunumAy">
+        <div class="yp-ay-kapsayici"><div class="yp-ay-grid" id="ayTakvim"></div></div>
+      </section>
+
+      <section class="yp-gorunum yp-gizli" id="gorunumHafta">
+        <div class="yp-hafta-kapsayici" id="haftaTakvim"></div>
+      </section>
+
+      <p class="yp-plan-not yp-gizli" id="planNot">
+        <b>K</b> = Kütüphane · <b>A</b> = Arşiv · <b>K+A</b> = Her ikisi.
+        Takvim, formdaki uygunluk tercihlerini günlere otomatik ve deterministik dağıtır.
+      </p>
 
       <details class="yp-alt" id="dOzet">
         <summary class="yp-sum">Bütün sayılar</summary>
@@ -241,7 +416,17 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
-  var D = { token: null, email: null, veri: null };
+  var bugun = new Date();
+  var D = {
+    token: null,
+    email: null,
+    veri: null,
+    gorunum: 'liste',
+    ay: new Date(bugun.getFullYear(), bugun.getMonth(), 1),
+    hafta: haftaBasi(bugun),
+    haftaSonu: false,
+    planCache: {}
+  };
 
   /* Oturum tarayıcıda localStorage'da tutulur: sekme ya da tarayıcı kapansa da
      giriş açık kalır. Özel/gizli pencerede localStorage yoksa sessionStorage'a düşer. */
@@ -300,6 +485,55 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   function kisaTarih(s) { var d = new Date(s); return isNaN(d) ? String(s || '')
     : d.toLocaleString('tr-TR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }); }
 
+  var AY_ADI = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+  var GUNLER = [
+    { key: 'pazartesi', kisa: 'Pzt', uzun: 'Pazartesi' },
+    { key: 'sali', kisa: 'Sal', uzun: 'Salı' },
+    { key: 'carsamba', kisa: 'Çar', uzun: 'Çarşamba' },
+    { key: 'persembe', kisa: 'Per', uzun: 'Perşembe' },
+    { key: 'cuma', kisa: 'Cum', uzun: 'Cuma' },
+    { key: 'cumartesi', kisa: 'Cmt', uzun: 'Cumartesi' },
+    { key: 'pazar', kisa: 'Paz', uzun: 'Pazar' }
+  ];
+  var JS_GUN = ['pazar','pazartesi','sali','carsamba','persembe','cuma','cumartesi'];
+  var SAAT_KISA = { sabah: '09–13', ogleden_sonra: '13–18', tam_gun: 'Tam gün' };
+  var SURE_GUN = { '1-2': 2, '3-4': 4, '5-8': 8, '8+': 12 };
+
+  function tarihYalniz(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+  function gunEkle(d, adet) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + adet); }
+  function haftaBasi(d) {
+    var t = tarihYalniz(d);
+    var fark = (t.getDay() + 6) % 7;
+    return gunEkle(t, -fark);
+  }
+  function iso(d) {
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+  }
+  function ayAnahtari(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2); }
+  function ayMetni(d) { return AY_ADI[d.getMonth()] + ' ' + d.getFullYear(); }
+  function tarihCoz(s) {
+    var m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return null;
+    var d = new Date(+m[1], +m[2] - 1, +m[3]);
+    return isNaN(d) ? null : d;
+  }
+  function haftaMetni(bas) {
+    var son = gunEkle(bas, D.haftaSonu ? 6 : 4);
+    var ayniAy = bas.getMonth() === son.getMonth() && bas.getFullYear() === son.getFullYear();
+    return bas.getDate() + (ayniAy ? '–' + son.getDate() + ' ' + ayMetni(son)
+      : ' ' + AY_ADI[bas.getMonth()] + ' ' + bas.getFullYear() + ' – ' +
+        son.getDate() + ' ' + AY_ADI[son.getMonth()] + ' ' + son.getFullYear());
+  }
+  function hash(metin) {
+    var h = 2166136261;
+    metin = String(metin || '');
+    for (var i = 0; i < metin.length; i++) {
+      h ^= metin.charCodeAt(i);
+      h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24);
+    }
+    return h >>> 0;
+  }
+
   /* ---------- giriş ---------- */
   $('btnKod').addEventListener('click', kodIste);
   $('email').addEventListener('keydown', function (e) { if (e.key === 'Enter') kodIste(); });
@@ -346,6 +580,7 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   function yukle() {
     return api('adminData', { token: D.token }).then(function (r) {
       D.veri = r;
+      D.planCache = {};
       $('giris').classList.add('yp-gizli');
       $('panel').classList.remove('yp-gizli');
       $('pEposta').textContent = r.email;
@@ -364,17 +599,227 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         return '<option value="' + i + '">' + esc(l.ad) + '  (' + l.uyeler.length + ')</option>';
       }).join('') + '<option value="tum">Tüm gönüllüler  (' + r.kayitlar.length + ')</option>';
       $('liste').value = secili || '0';
-      ciz(); sayilarCiz(); gunlukCiz();
+      gorunumCiz(); sayilarCiz(); gunlukCiz();
     });
   }
 
   function secilenler() {
     var v = $('liste').value;
-    return v === 'tum' ? D.veri.kayitlar : D.veri.listeler[+v].uyeler;
+    var temel = v === 'tum' ? D.veri.kayitlar : D.veri.listeler[+v].uyeler;
+    return kayitFiltrele(temel);
   }
   function secilenAd() {
     var v = $('liste').value;
     return v === 'tum' ? 'Tüm gönüllüler' : D.veri.listeler[+v].ad;
+  }
+
+  function kayitFiltrele(kayitlar) {
+    var alan = $('filtreAlan').value;
+    var durum = $('filtreDurum').value;
+    return (kayitlar || []).filter(function (k) {
+      if (alan === 'kutuphane' && !(k.area === 'kutuphane' || k.area === 'ikisi')) return false;
+      if (alan === 'arsiv' && !(k.area === 'arsiv' || k.area === 'ikisi')) return false;
+      if (alan === 'ikisi' && k.area !== 'ikisi') return false;
+      if (durum !== 'tum' && k.status !== durum) return false;
+      return true;
+    });
+  }
+
+  function planKayitlari() { return kayitFiltrele(D.veri ? D.veri.kayitlar : []); }
+
+  function alanRozeti(v) {
+    if (v.area === 'kutuphane') return { kod: 'K', sinif: 'k', baslik: 'Kütüphane' };
+    if (v.area === 'arsiv') return { kod: 'A', sinif: 'a', baslik: 'Arşiv' };
+    if (v.area === 'ikisi') return { kod: 'K+A', sinif: 'ka', baslik: 'Kütüphane ve Arşiv' };
+    return { kod: '—', sinif: '', baslik: 'Alan belirtilmedi' };
+  }
+
+  function alanRozetiHtml(v) {
+    var r = alanRozeti(v);
+    return '<span class="yp-rozet ' + esc(r.sinif) + '" title="' + esc(r.baslik) + '">' + esc(r.kod) + '</span>';
+  }
+
+  function saatAnahtarlari(v) {
+    var t = v.times || [];
+    if (t.indexOf('tam_gun') >= 0) return ['tam_gun'];
+    var sonuc = [];
+    if (t.indexOf('sabah') >= 0) sonuc.push('sabah');
+    if (t.indexOf('ogleden_sonra') >= 0) sonuc.push('ogleden_sonra');
+    return sonuc;
+  }
+
+  function saatMetni(v) {
+    var t = saatAnahtarlari(v);
+    return t.length ? t.map(function (x) { return SAAT_KISA[x]; }).join(', ') : 'Saat belirtilmedi';
+  }
+
+  function haftaSonuGunu(key) { return key === 'cumartesi' || key === 'pazar'; }
+
+  function gunUygunMu(v, key) {
+    var d = v.days || [];
+    if (haftaSonuGunu(key)) {
+      return d.indexOf('hafta_sonu_olursa') >= 0 || d.indexOf('hafta_sonu') >= 0 || d.indexOf('farketmez') >= 0;
+    }
+    if (d.indexOf(key) >= 0) return true;
+    return d.indexOf('hafta_ici') >= 0 || d.indexOf('farketmez') >= 0;
+  }
+
+  function ayUygunMu(v, key) {
+    return !(v.months || []).length || (v.months || []).indexOf(key) >= 0;
+  }
+
+  function baslangicUygunMu(v, d) {
+    if (v.start_pref !== 'tarihten_sonra' || !v.start_date) return true;
+    var b = tarihCoz(v.start_date);
+    return !b || tarihYalniz(b).getTime() <= tarihYalniz(d).getTime();
+  }
+
+  function ayGunleri(d) {
+    var bas = new Date(d.getFullYear(), d.getMonth(), 1);
+    var son = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    var sonuc = [];
+    for (var gun = bas.getDate(); gun <= son.getDate(); gun++) {
+      sonuc.push(new Date(d.getFullYear(), d.getMonth(), gun));
+    }
+    return sonuc;
+  }
+
+  function gonulluIcinAyPlani(v, ay) {
+    var key = ayAnahtari(ay);
+    if (!ayUygunMu(v, key)) return [];
+    var uygun = ayGunleri(ay).filter(function (d) {
+      var gunKey = JS_GUN[d.getDay()];
+      if (!D.haftaSonu && haftaSonuGunu(gunKey)) return false;
+      return gunUygunMu(v, gunKey) && baslangicUygunMu(v, d);
+    });
+    var hedef = Math.min(SURE_GUN[v.frequency] || uygun.length, uygun.length);
+    return uygun.sort(function (a, b) {
+      var sa = hash((v.email || v.full_name) + '|' + key + '|' + iso(a));
+      var sb = hash((v.email || v.full_name) + '|' + key + '|' + iso(b));
+      return sa - sb || a - b;
+    }).slice(0, hedef).sort(function (a, b) { return a - b; });
+  }
+
+  function ayPlani(ay) {
+    var key = ayAnahtari(ay) + '|' + (D.haftaSonu ? '7' : '5');
+    if (D.planCache[key]) return D.planCache[key];
+    var plan = {};
+    (D.veri && D.veri.kayitlar || []).forEach(function (v) {
+      if (!v.full_name) return;
+      gonulluIcinAyPlani(v, ay).forEach(function (d) {
+        var i = iso(d);
+        if (!plan[i]) plan[i] = [];
+        plan[i].push({ tarih: d, gonullu: v, saatler: saatAnahtarlari(v), saat: saatMetni(v) });
+      });
+    });
+    Object.keys(plan).forEach(function (i) {
+      plan[i].sort(function (a, b) {
+        var oa = a.saatler[0] === 'ogleden_sonra' ? 2 : a.saatler[0] === 'tam_gun' ? 3 : 1;
+        var ob = b.saatler[0] === 'ogleden_sonra' ? 2 : b.saatler[0] === 'tam_gun' ? 3 : 1;
+        return oa - ob || String(a.gonullu.full_name).localeCompare(String(b.gonullu.full_name), 'tr');
+      });
+    });
+    D.planCache[key] = plan;
+    return plan;
+  }
+
+  function planliKisiler(d) {
+    var plan = ayPlani(new Date(d.getFullYear(), d.getMonth(), 1))[iso(d)] || [];
+    var izinli = planKayitlari().map(function (k) { return k.email || k.full_name; });
+    return plan.filter(function (p) { return izinli.indexOf(p.gonullu.email || p.gonullu.full_name) >= 0; });
+  }
+
+  function kisiHtml(p) {
+    var durum = p.gonullu.status && p.gonullu.status !== 'aktif'
+      ? ' · <span class="yp-durum-mini">' + esc(E('status', p.gonullu.status)) + '</span>' : '';
+    return '<div class="yp-kisi"><div class="yp-kisi-ust"><span class="yp-kisi-ad">' +
+      esc(p.gonullu.full_name) + '</span>' + alanRozetiHtml(p.gonullu) + '</div>' +
+      '<div class="yp-saat">' + esc(p.saat) + durum + '</div></div>';
+  }
+
+  function gorunumCiz() {
+    if (!D.veri) return;
+    var listeMi = D.gorunum === 'liste';
+    $('gorunumListe').classList.toggle('yp-gizli', !listeMi);
+    $('gorunumAy').classList.toggle('yp-gizli', D.gorunum !== 'ay');
+    $('gorunumHafta').classList.toggle('yp-gizli', D.gorunum !== 'hafta');
+    $('liste').classList.toggle('yp-gizli', !listeMi);
+    $('listeEylem').classList.toggle('yp-gizli', !listeMi);
+    $('planKontrol').classList.toggle('yp-gizli', listeMi);
+    $('planNot').classList.toggle('yp-gizli', listeMi);
+    $('haftaSonu').parentNode.classList.toggle('yp-gizli', listeMi);
+    Array.prototype.forEach.call(document.querySelectorAll('.yp-sekme'), function (b) {
+      b.classList.toggle('aktif', b.dataset.gorunum === D.gorunum);
+    });
+    if (listeMi) ciz();
+    else if (D.gorunum === 'ay') ayCiz();
+    else haftaCiz();
+    yazdirBaslikCiz();
+  }
+
+  function ayCiz() {
+    var gunler = D.haftaSonu ? GUNLER : GUNLER.slice(0, 5);
+    $('donemBaslik').textContent = ayMetni(D.ay);
+    $('ayTakvim').className = 'yp-ay-grid' + (D.haftaSonu ? ' yedi' : '');
+    var gorunurGunler = ayGunleri(D.ay).filter(function (d) {
+      return D.haftaSonu || !haftaSonuGunu(JS_GUN[d.getDay()]);
+    });
+    var ilkKolon = gorunurGunler.length ? gunler.map(function (g) { return g.key; }).indexOf(JS_GUN[gorunurGunler[0].getDay()]) : 0;
+    var hucreler = gunler.map(function (g) {
+      return '<div class="yp-ay-baslik">' + esc(g.uzun) + '</div>';
+    });
+    for (var b = 0; b < ilkKolon; b++) hucreler.push('<div class="yp-ay-hucre bos"></div>');
+    gorunurGunler.forEach(function (d) {
+      var kisiler = planliKisiler(d);
+      hucreler.push('<div class="yp-ay-hucre"><div class="yp-gun-no"><b>' + d.getDate() +
+        '</b><small>' + esc(GUNLER.filter(function (g) { return g.key === JS_GUN[d.getDay()]; })[0].kisa) +
+        '</small></div><div class="yp-kisiler">' +
+        (kisiler.length ? kisiler.map(kisiHtml).join('') : '<span class="yp-hafta-bos">—</span>') +
+        '</div></div>');
+    });
+    while ((hucreler.length - gunler.length) % gunler.length !== 0) hucreler.push('<div class="yp-ay-hucre bos"></div>');
+    $('ayTakvim').innerHTML = hucreler.join('');
+    var kisiSayisi = planKayitlari().length;
+    var toplam = gorunurGunler.reduce(function (n, d) { return n + planliKisiler(d).length; }, 0);
+    $('sayi').textContent = kisiSayisi + ' kişi · ' + toplam + ' takvim satırı';
+  }
+
+  function haftaCiz() {
+    $('donemBaslik').textContent = haftaMetni(D.hafta);
+    var gunler = [];
+    for (var i = 0; i < (D.haftaSonu ? 7 : 5); i++) gunler.push(gunEkle(D.hafta, i));
+    var kolonlar = [
+      { key: 'sabah', baslik: '09–13' },
+      { key: 'ogleden_sonra', baslik: '13–18' },
+      { key: 'tam_gun', baslik: 'Tam gün' }
+    ];
+    var satirlar = gunler.map(function (d) {
+      var kisiler = planliKisiler(d);
+      return '<tr><td class="gun">' + esc(GUNLER.filter(function (g) { return g.key === JS_GUN[d.getDay()]; })[0].kisa) +
+        ' ' + d.getDate() + '<small>' + esc(AY_ADI[d.getMonth()]) + '</small></td>' +
+        kolonlar.map(function (kolon) {
+          var liste = kisiler.filter(function (p) {
+            return p.saatler.indexOf(kolon.key) >= 0 || (kolon.key === 'tam_gun' && !p.saatler.length);
+          });
+          return '<td><div class="yp-hafta-liste">' +
+            (liste.length ? liste.map(kisiHtml).join('') : '<span class="yp-hafta-bos">—</span>') +
+            '</div></td>';
+        }).join('') + '</tr>';
+    }).join('');
+    $('haftaTakvim').innerHTML = '<table class="yp-hafta"><thead><tr><th>Gün</th>' +
+      kolonlar.map(function (k) { return '<th>' + esc(k.baslik) + '</th>'; }).join('') +
+      '</tr></thead><tbody>' + satirlar + '</tbody></table>';
+    var toplam = gunler.reduce(function (n, d) { return n + planliKisiler(d).length; }, 0);
+    $('sayi').textContent = planKayitlari().length + ' kişi · ' + toplam + ' takvim satırı';
+  }
+
+  function yazdirBaslikCiz() {
+    var konu = D.gorunum === 'liste' ? 'Gönüllü Listesi — ' + secilenAd()
+      : D.gorunum === 'ay' ? 'Gönüllü Çalışma Takvimi — ' + ayMetni(D.ay)
+      : 'Gönüllü Haftalık Planı — ' + haftaMetni(D.hafta);
+    $('yazdirBaslik').innerHTML = '<b>Tarih Vakfı</b><span>' + esc(konu) + '</span><small>Oluşturulma: ' +
+      esc(new Date().toLocaleString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })) +
+      '</small>';
   }
 
   function ciz() {
@@ -388,13 +833,13 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       k.map(function (v) {
         var baslangic = v.start_pref === 'hemen' ? '<span class="yp-hemen">Hemen</span>'
           : v.start_pref === 'tarihten_sonra' ? esc(gunTarih(v.start_date)) : 'Karar vermedi';
-        var saat = (v.times || []).map(function (t) { return E('times', t).replace(/\s*\(.*\)/, ''); }).join(', ');
+        var saat = saatMetni(v);
         var durumlar = Object.keys(D.veri.etiketler.status).map(function (s) {
           return '<option value="' + s + '"' + (s === v.status ? ' selected' : '') + '>' +
             esc(D.veri.etiketler.status[s]) + '</option>';
         }).join('');
         return '<tr data-eposta="' + esc(v.email) + '">' +
-          '<td><div class="ad">' + esc(v.full_name) + '</div>' +
+          '<td><div class="ad">' + esc(v.full_name) + ' ' + alanRozetiHtml(v) + '</div>' +
             (v.status !== 'aktif' ? '<div class="yp-duraklat">' + esc(E('status', v.status)) + '</div>' : '') +
             (v.notes ? '<div class="alt">' + esc(v.notes) + '</div>' : '') + '</td>' +
           '<td class="nw"><a href="mailto:' + esc(v.email) + '">' + esc(v.email) + '</a>' +
@@ -458,7 +903,31 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     el.textContent = mesaj;
     setTimeout(function () { if (el.textContent === mesaj) el.textContent = eski; }, 2500);
   }
-  $('liste').addEventListener('change', ciz);
+  $('liste').addEventListener('change', gorunumCiz);
+  $('filtreAlan').addEventListener('change', gorunumCiz);
+  $('filtreDurum').addEventListener('change', gorunumCiz);
+  $('haftaSonu').addEventListener('change', function () {
+    D.haftaSonu = $('haftaSonu').checked;
+    D.planCache = {};
+    gorunumCiz();
+  });
+  $('btnYazdir').addEventListener('click', function () { yazdirBaslikCiz(); window.print(); });
+  $('btnOnce').addEventListener('click', function () {
+    if (D.gorunum === 'ay') D.ay = new Date(D.ay.getFullYear(), D.ay.getMonth() - 1, 1);
+    if (D.gorunum === 'hafta') D.hafta = gunEkle(D.hafta, -7);
+    gorunumCiz();
+  });
+  $('btnSonra').addEventListener('click', function () {
+    if (D.gorunum === 'ay') D.ay = new Date(D.ay.getFullYear(), D.ay.getMonth() + 1, 1);
+    if (D.gorunum === 'hafta') D.hafta = gunEkle(D.hafta, 7);
+    gorunumCiz();
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.yp-sekme'), function (b) {
+    b.addEventListener('click', function () {
+      D.gorunum = b.dataset.gorunum;
+      gorunumCiz();
+    });
+  });
 
   /* ---------- eylemler ---------- */
   function adresler() { return secilenler().map(function (k) { return k.email; }); }
