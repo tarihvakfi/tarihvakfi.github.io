@@ -278,9 +278,8 @@
       .yp-ay-kapsayici, .yp-hafta-kapsayici, .yp-tablo { overflow: visible !important; border-color: #999 !important; }
       .yp-ay-grid { min-width: 0 !important; gap: 1px; background: #999 !important; break-inside: auto; page-break-inside: auto; }
       .yp-ay-baslik { padding: 5px 6px; font-size: 8px; background: #f3f3f3 !important; color: #333 !important; }
-      .yp-ay-hucre { min-height: 82px; padding: 5px; background: #fff !important; }
-      .yp-ay-hucre.yogun { min-height: 104px; padding: 4px; }
-      .yp-ay-hucre.cok-yogun { min-height: 118px; }
+      .yp-ay-hucre { min-height: 0; padding: 5px 5px 18px; background: #fff !important; }
+      .yp-ay-hucre.yogun, .yp-ay-hucre.cok-yogun { min-height: 0; padding: 4px 4px 18px; }
       .yp-gun-no { margin-bottom: 4px; }
       .yp-gun-no b { font-size: 11px; }
       .yp-gun-no small { font-size: 8px; color: #555 !important; }
@@ -892,11 +891,10 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
   function yazdirKisiHtml(p) {
     var durum = p.gonullu.status && p.gonullu.status !== 'aktif' ? ' · ' + E('status', p.gonullu.status) : '';
-    return '<div style="break-inside:avoid;page-break-inside:avoid;margin-top:.65mm;padding:.45mm .55mm .45mm .75mm;border-left:1.25pt solid #817970;background:#fff;line-height:1.08">' +
-      '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.9mm;align-items:start">' +
-      '<strong style="display:block;min-width:0;color:#171412;font-size:5.45pt;line-height:1.08;font-weight:800;overflow-wrap:anywhere">' +
-      esc(p.gonullu.full_name) + '</strong>' + yazdirAlanRozetiHtml(p.gonullu) + '</div>' +
-      '<div style="margin-top:.2mm;color:#5f5850;font-size:5.05pt;line-height:1.08">' + esc(p.saat + durum) + '</div></div>';
+    return '<div style="break-inside:avoid;page-break-inside:avoid;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.7mm;align-items:center;margin-top:.35mm;padding:.28mm .5mm .28mm .65mm;border-left:1pt solid #817970;background:#fff;line-height:1.04">' +
+      '<div style="min-width:0;color:#171412;font-size:5.15pt;line-height:1.04;overflow-wrap:anywhere">' +
+      '<strong style="font-weight:800">' + esc(p.gonullu.full_name) + '</strong> <span style="color:#5f5850;font-size:4.75pt;white-space:nowrap">' + esc(p.saat + durum) + '</span></div>' +
+      yazdirAlanRozetiKisaHtml(p.gonullu) + '</div>';
   }
 
   function yazdirKisiAyHtml(p) {
@@ -908,7 +906,7 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
 
   function yazdirBosHucreHtml() {
-    return '<td style="border:.22mm solid #aca59e;background:#f7f6f3"></td>';
+    return '<td style="vertical-align:top;border:.22mm solid #aca59e;padding:.42mm .5mm 2.35mm;background:#f7f6f3"></td>';
   }
 
   function yazdirAyHtml() {
@@ -926,7 +924,7 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     gorunurGunler.forEach(function (d) {
       var kisiler = planliKisiler(d);
       var gun = GUNLER.filter(function (g) { return g.key === JS_GUN[d.getDay()]; })[0];
-      hucreler.push('<td style="height:30mm;vertical-align:top;border:.22mm solid #aca59e;padding:.42mm .5mm;background:#fff">' +
+      hucreler.push('<td style="vertical-align:top;border:.22mm solid #aca59e;padding:.42mm .5mm 2.35mm;background:#fff">' +
         '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:.8mm;margin-bottom:.12mm;color:#171412">' +
         '<strong style="font-size:7.1pt;line-height:1">' + d.getDate() + '</strong><span style="font-size:4.55pt;color:#665f57">' + esc(gun.kisa + (kisiler.length ? ' · ' + kisiler.length : '')) + '</span></div>' +
         (kisiler.length ? kisiler.map(yazdirKisiAyHtml).join('') : '<span style="color:#8a837b;font-size:5.4pt">—</span>') +
@@ -961,7 +959,7 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
           var liste = kisiler.filter(function (p) {
             return p.saatler.indexOf(kolon.key) >= 0 || (kolon.key === 'tam_gun' && !p.saatler.length);
           });
-          return '<td style="height:25mm;vertical-align:top;border:.22mm solid #aca59e;padding:.8mm;background:#fff">' +
+          return '<td style="vertical-align:top;border:.22mm solid #aca59e;padding:.8mm .8mm 3mm;background:#fff">' +
             (liste.length ? liste.map(yazdirKisiHtml).join('') : '<span style="color:#8a837b;font-size:6pt">—</span>') + '</td>';
         }).join('') + '</tr>';
     }).join('');
