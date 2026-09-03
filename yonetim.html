@@ -333,21 +333,21 @@
       <div class="yp-print-title" id="yazdirBaslik"></div>
 
       <div class="yp-ust yp-print-hide">
-        <select id="liste" aria-label="Hazır liste"></select>
-        <select id="filtreAlan" class="yp-kisa" aria-label="Alan filtresi">
+        <select id="liste" aria-label="Hazır liste" autocomplete="off"></select>
+        <select id="filtreAlan" class="yp-kisa" aria-label="Alan filtresi" autocomplete="off">
           <option value="tum">Tüm alanlar</option>
-          <option value="kutuphane">Kütüphane</option>
-          <option value="arsiv">Arşiv</option>
-          <option value="ikisi">K + A</option>
+          <option value="kutuphane">Kütüphane + K+A</option>
+          <option value="arsiv">Arşiv + K+A</option>
+          <option value="ikisi">Yalnız K+A</option>
         </select>
-        <select id="filtreDurum" class="yp-kisa" aria-label="Durum filtresi">
+        <select id="filtreDurum" class="yp-kisa" aria-label="Durum filtresi" autocomplete="off">
           <option value="aktif" selected>Aktif</option>
           <option value="tum">Tüm durumlar</option>
           <option value="beklemede">Beklemede</option>
           <option value="ayrildi">Ayrıldı</option>
         </select>
         <label class="yp-toggle">
-          <input type="checkbox" id="haftaSonu" />
+          <input type="checkbox" id="haftaSonu" autocomplete="off" />
           <span>Hafta sonunu göster</span>
         </label>
         <span class="yp-sayi" id="sayi"></span>
@@ -729,6 +729,10 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     return plan.filter(function (p) { return izinli.indexOf(p.gonullu.email || p.gonullu.full_name) >= 0; });
   }
 
+  function sayiMetni(metin) {
+    $('sayi').textContent = metin + ' · ' + filtreMetni();
+  }
+
   function kisiHtml(p) {
     var durum = p.gonullu.status && p.gonullu.status !== 'aktif'
       ? ' · <span class="yp-durum-mini">' + esc(E('status', p.gonullu.status)) + '</span>' : '';
@@ -781,7 +785,7 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     $('ayTakvim').innerHTML = hucreler.join('');
     var kisiSayisi = planKayitlari().length;
     var toplam = gorunurGunler.reduce(function (n, d) { return n + planliKisiler(d).length; }, 0);
-    $('sayi').textContent = kisiSayisi + ' kişi · ' + toplam + ' takvim satırı';
+    sayiMetni(kisiSayisi + ' kişi · ' + toplam + ' takvim satırı');
   }
 
   function haftaCiz() {
@@ -810,14 +814,14 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       kolonlar.map(function (k) { return '<th>' + esc(k.baslik) + '</th>'; }).join('') +
       '</tr></thead><tbody>' + satirlar + '</tbody></table>';
     var toplam = gunler.reduce(function (n, d) { return n + planliKisiler(d).length; }, 0);
-    $('sayi').textContent = planKayitlari().length + ' kişi · ' + toplam + ' takvim satırı';
+    sayiMetni(planKayitlari().length + ' kişi · ' + toplam + ' takvim satırı');
   }
 
   function filtreMetni() {
     var parcalar = [];
     var alan = $('filtreAlan').value;
     var durum = $('filtreDurum').value;
-    if (alan !== 'tum') parcalar.push('Alan: ' + $('filtreAlan').options[$('filtreAlan').selectedIndex].text);
+    parcalar.push('Alan: ' + $('filtreAlan').options[$('filtreAlan').selectedIndex].text);
     parcalar.push('Durum: ' + $('filtreDurum').options[$('filtreDurum').selectedIndex].text);
     if (D.gorunum !== 'liste') parcalar.push('Hafta sonu: ' + (D.haftaSonu ? 'görünüyor' : 'gizli'));
     return parcalar.join(' · ');
@@ -1021,7 +1025,7 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
   function ciz() {
     var k = secilenler();
-    $('sayi').textContent = k.length + ' kişi';
+    sayiMetni(k.length + ' kişi');
     ['btnPosta', 'btnKopyala', 'btnCsv'].forEach(function (id) { $(id).disabled = k.length === 0; });
     if (!k.length) { $('tablo').innerHTML = '<tr><td class="yp-bos">Bu koşula uyan gönüllü yok.</td></tr>'; return; }
 
@@ -1213,6 +1217,11 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
 
   /* ---------- açılış ---------- */
+  $('filtreAlan').value = 'tum';
+  $('filtreDurum').value = 'aktif';
+  $('haftaSonu').checked = false;
+  D.haftaSonu = false;
+
   var kayitli = kutu.getItem('tv_yonetim');
   if (kayitli) {
     D.token = kayitli;
