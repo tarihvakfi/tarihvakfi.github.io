@@ -146,12 +146,16 @@
     .yp-kisi-ad { flex: 1 1 auto; min-width: 0; color: var(--ink); font-size: 12px; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; }
     .yp-saat { margin-top: 2px; color: var(--ink-mute); font-size: 11.5px; line-height: 1.25; }
     .yp-rozet {
-      flex: none; display: inline-block; border: 1px solid var(--rule); background: var(--paper-soft);
-      color: var(--accent-deep); font-family: 'DM Mono', monospace; font-size: 10px; line-height: 1;
-      padding: 3px 4px; font-weight: 500; white-space: nowrap;
+      flex: none; display: inline-block; border: 1px solid var(--rule); border-radius: 4px;
+      background: var(--paper-soft); color: var(--accent-deep); font-family: 'DM Mono', monospace;
+      font-size: 10px; line-height: 1; padding: 3px 4px; font-weight: 700; white-space: nowrap;
     }
-    .yp-rozet.a { color: #5b4a7f; }
-    .yp-rozet.ka { color: #2e6440; }
+    .yp-rozet.k { border-color: #0f766e; border-style: solid; background: #e4f4f1; color: #075e56; }
+    .yp-rozet.a { border-color: #7c3aed; border-style: dashed; background: #f1ecfb; color: #5b21b6; }
+    .yp-rozet.ka {
+      border-color: #5d756d; border-style: double; color: #263f3a;
+      background: linear-gradient(135deg, #e4f4f1 0 49%, #f1ecfb 50% 100%);
+    }
     .yp-durum-mini { color: var(--accent-deep); font-weight: 600; }
 
     table.yp-hafta {
@@ -262,7 +266,10 @@
       .yp-kisi { padding: 3px 4px; border-color: #bbb !important; background: #fff !important; break-inside: avoid; }
       .yp-kisi-ad { font-size: 8.5px; color: #111 !important; }
       .yp-saat { font-size: 8px; color: #555 !important; }
-      .yp-rozet { border-color: #777 !important; color: #111 !important; background: #fff !important; font-size: 7px; padding: 2px 3px; }
+      .yp-rozet { border-color: #111 !important; color: #111 !important; background: #fff !important; font-size: 7px; padding: 2px 3px; }
+      .yp-rozet.k { border-style: solid !important; }
+      .yp-rozet.a { border-style: dashed !important; }
+      .yp-rozet.ka { border-style: double !important; }
       table.yp, table.yp-hafta { min-width: 0 !important; font-size: 10px; border-color: #999 !important; }
       table.yp th, table.yp td, table.yp-hafta th, table.yp-hafta td { border-color: #999 !important; padding: 5px 6px; }
       table.yp-hafta th { font-size: 8px; background: #f3f3f3 !important; color: #333 !important; }
@@ -334,12 +341,6 @@
 
       <div class="yp-ust yp-print-hide">
         <select id="liste" aria-label="Hazır liste" autocomplete="off"></select>
-        <select id="filtreAlan" class="yp-kisa" aria-label="Alan filtresi" autocomplete="off">
-          <option value="tum">Tüm alanlar</option>
-          <option value="kutuphane">Kütüphane + K+A</option>
-          <option value="arsiv">Arşiv + K+A</option>
-          <option value="ikisi">Yalnız K+A</option>
-        </select>
         <select id="filtreDurum" class="yp-kisa" aria-label="Durum filtresi" autocomplete="off">
           <option value="aktif" selected>Aktif</option>
           <option value="tum">Tüm durumlar</option>
@@ -614,12 +615,8 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
 
   function kayitFiltrele(kayitlar) {
-    var alan = $('filtreAlan').value;
     var durum = $('filtreDurum').value;
     return (kayitlar || []).filter(function (k) {
-      if (alan === 'kutuphane' && !(k.area === 'kutuphane' || k.area === 'ikisi')) return false;
-      if (alan === 'arsiv' && !(k.area === 'arsiv' || k.area === 'ikisi')) return false;
-      if (alan === 'ikisi' && k.area !== 'ikisi') return false;
       if (durum !== 'tum' && k.status !== durum) return false;
       return true;
     });
@@ -819,9 +816,7 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
   function filtreMetni() {
     var parcalar = [];
-    var alan = $('filtreAlan').value;
     var durum = $('filtreDurum').value;
-    parcalar.push('Alan: ' + $('filtreAlan').options[$('filtreAlan').selectedIndex].text);
     parcalar.push('Durum: ' + $('filtreDurum').options[$('filtreDurum').selectedIndex].text);
     if (D.gorunum !== 'liste') parcalar.push('Hafta sonu: ' + (D.haftaSonu ? 'görünüyor' : 'gizli'));
     return parcalar.join(' · ');
@@ -860,15 +855,35 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     $('yazdirBaslik').innerHTML = yazdirBaslikIci(false);
   }
 
+  function yazdirRozetStili(r, kisa) {
+    var min = kisa ? '4.7mm' : '5.8mm';
+    var pad = kisa ? '.18mm .38mm' : '.35mm .65mm';
+    var radius = kisa ? '.9mm' : '1.2mm';
+    var size = kisa ? '4.35pt' : '5.3pt';
+    var border = !r.sinif ? '.22mm solid #8b8176'
+      : r.sinif === 'a' ? '.22mm dashed #7c3aed'
+      : r.sinif === 'ka' ? '.28mm double #5d756d'
+      : '.22mm solid #0f766e';
+    var bg = !r.sinif ? '#fff'
+      : r.sinif === 'a' ? '#f1ecfb'
+      : r.sinif === 'ka' ? 'linear-gradient(135deg,#e4f4f1 0 49%,#f1ecfb 50% 100%)'
+      : '#e4f4f1';
+    var color = !r.sinif ? '#171412' : r.sinif === 'a' ? '#5b21b6' : r.sinif === 'ka' ? '#263f3a' : '#075e56';
+    return 'display:inline-flex;align-items:center;justify-content:center;min-width:' + min +
+      ';border:' + border + ';border-radius:' + radius + ';padding:' + pad +
+      ';background:' + bg + ';color:' + color + ';font:700 ' + size +
+      '/1 Arial,sans-serif;white-space:nowrap';
+  }
+
   function yazdirAlanRozetiHtml(v) {
     var r = alanRozeti(v);
-    return '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:5.8mm;border:.25mm solid #8b8176;border-radius:1.2mm;padding:.35mm .65mm;background:#fff;color:#171412;font:700 5.3pt/1 Arial,sans-serif;white-space:nowrap">' +
+    return '<span style="' + yazdirRozetStili(r, false) + '">' +
       esc(r.kod) + '</span>';
   }
 
   function yazdirAlanRozetiKisaHtml(v) {
     var r = alanRozeti(v);
-    return '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:4.7mm;border:.2mm solid #8b8176;border-radius:.9mm;padding:.18mm .38mm;background:#fff;color:#171412;font:700 4.35pt/1 Arial,sans-serif;white-space:nowrap">' +
+    return '<span style="' + yazdirRozetStili(r, true) + '">' +
       esc(r.kod) + '</span>';
   }
 
@@ -1105,7 +1120,6 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     setTimeout(function () { if (el.textContent === mesaj) el.textContent = eski; }, 2500);
   }
   $('liste').addEventListener('change', gorunumCiz);
-  $('filtreAlan').addEventListener('change', gorunumCiz);
   $('filtreDurum').addEventListener('change', gorunumCiz);
   $('haftaSonu').addEventListener('change', function () {
     D.haftaSonu = $('haftaSonu').checked;
@@ -1217,7 +1231,6 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
 
   /* ---------- açılış ---------- */
-  $('filtreAlan').value = 'tum';
   $('filtreDurum').value = 'aktif';
   $('haftaSonu').checked = false;
   D.haftaSonu = false;
