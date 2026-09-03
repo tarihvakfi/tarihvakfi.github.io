@@ -380,7 +380,7 @@
 
       <p class="yp-plan-not yp-gizli" id="planNot">
         <b>K</b> = Kütüphane · <b>A</b> = Arşiv · <b>K+A</b> = Her ikisi.
-        Takvim, formdaki uygunluk tercihlerini günlere otomatik ve deterministik dağıtır.
+        Takvim, gönüllüleri formda seçtikleri uygun günlerde gösterir; ayda kaç gün gelecekleri ayrıca ayarlanır.
       </p>
 
       <details class="yp-alt" id="dOzet">
@@ -498,7 +498,6 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   ];
   var JS_GUN = ['pazar','pazartesi','sali','carsamba','persembe','cuma','cumartesi'];
   var SAAT_KISA = { sabah: '09–13', ogleden_sonra: '13–18', tam_gun: 'Tam gün' };
-  var SURE_GUN = { '1-2': 2, '3-4': 4, '5-8': 8, '8+': 12 };
 
   function tarihYalniz(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
   function gunEkle(d, adet) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + adet); }
@@ -524,15 +523,6 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     return bas.getDate() + (ayniAy ? '–' + son.getDate() + ' ' + ayMetni(son)
       : ' ' + AY_ADI[bas.getMonth()] + ' ' + bas.getFullYear() + ' – ' +
         son.getDate() + ' ' + AY_ADI[son.getMonth()] + ' ' + son.getFullYear());
-  }
-  function hash(metin) {
-    var h = 2166136261;
-    metin = String(metin || '');
-    for (var i = 0; i < metin.length; i++) {
-      h ^= metin.charCodeAt(i);
-      h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24);
-    }
-    return h >>> 0;
   }
 
   /* ---------- giriş ---------- */
@@ -684,17 +674,11 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   function gonulluIcinAyPlani(v, ay) {
     var key = ayAnahtari(ay);
     if (!ayUygunMu(v, key)) return [];
-    var uygun = ayGunleri(ay).filter(function (d) {
+    return ayGunleri(ay).filter(function (d) {
       var gunKey = JS_GUN[d.getDay()];
       if (!D.haftaSonu && haftaSonuGunu(gunKey)) return false;
       return gunUygunMu(v, gunKey) && baslangicUygunMu(v, d);
     });
-    var hedef = Math.min(SURE_GUN[v.frequency] || uygun.length, uygun.length);
-    return uygun.sort(function (a, b) {
-      var sa = hash((v.email || v.full_name) + '|' + key + '|' + iso(a));
-      var sb = hash((v.email || v.full_name) + '|' + key + '|' + iso(b));
-      return sa - sb || a - b;
-    }).slice(0, hedef).sort(function (a, b) { return a - b; });
   }
 
   function ayPlani(ay) {
@@ -1023,7 +1007,7 @@ var GOREV_TERCIHI_URL = window.TV_APP_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     doc.write('<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>' + esc(yazdirKonu()) +
       '</title><style>' + yazdirStili() + '</style></head><body style="margin:0;padding:0;background:#fff;color:#171412"><main class="yp-print-doc ' + sinif + '" style="width:100%;font-family:Inter,Arial,sans-serif">' +
       yazdirBaslikHtml() + yazdirIcerikHtml() +
-      (D.gorunum === 'liste' ? '' : '<p style="margin:2.2mm 0 0;color:#4f4942;font:6.4pt/1.3 Inter,Arial,sans-serif"><b>K</b> = Kütüphane · <b>A</b> = Arşiv · <b>K+A</b> = Her ikisi. Takvim, formdaki uygunluk tercihlerini günlere otomatik ve deterministik dağıtır.</p>') +
+      (D.gorunum === 'liste' ? '' : '<p style="margin:2.2mm 0 0;color:#4f4942;font:6.4pt/1.3 Inter,Arial,sans-serif"><b>K</b> = Kütüphane · <b>A</b> = Arşiv · <b>K+A</b> = Her ikisi. Takvim, gönüllüleri formda seçtikleri uygun günlerde gösterir; ayda kaç gün gelecekleri ayrıca ayarlanır.</p>') +
       '</main></body></html>');
     doc.close();
 
