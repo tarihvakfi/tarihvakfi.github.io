@@ -204,41 +204,502 @@ function siraBirak_(g) {
  * yapabilir. Sıra kapanışında ve panoda üçlü karşılaştırma sağlar:
  * ön sayım · kapanış sayımı · sistemdeki cilt.
  */
+/* Sayım sütunları ve 'Sayım geçmişi' sayfası sisteme sonradan eklendi. Eski
+   bir kurulumda 'Sıralar' 14 sütunluk kalmış olabilir; ilk sayım işleminde
+   bir kez genişletilir ki koordinatör kurulumu yeniden çalıştırmak zorunda
+   kalmasın. Betik her uyandığında en fazla bir kez çalışır. */
+var sayimSemaHazir_ = false;
+function sayimSemasi_() {
+  if (sayimSemaHazir_) return;
+  siraBasliklariOnar_();
+  sayfaAl_('Sayım geçmişi');
+  sayimSemaHazir_ = true;
+}
+
+/** Sayı alanı: boş/yok → null, sayı → Number. */
+function sayimSayisi_(v) { return (v === '' || v == null) ? null : Number(v); }
+
+/** Tarih hücresi → insanın okuyacağı metin. */
+function sayimTarihMetni_(v) {
+  return v instanceof Date
+    ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'd.MM.yyyy HH:mm')
+    : String(v == null ? '' : v).trim();
+}
+
+/**
+ * 'Sıralar' ham satırı → sayımın tam hikâyesi.
+ *
+ * 'Ön sayım' sütunu GEÇERLİ TOPLAM olarak kalır; pano, harita ve sıra
+ * kapanışı onu okumaya devam eder. Buradaki alanlar toplamın nasıl
+ * oluştuğunu ve hangi aşamada olduğunu anlatır.
+ */
+function sayimNesnesi_(r) {
+  var m = function (v) { return String(v == null ? '' : v).trim(); };
+  var toplam = sayimSayisi_(r[SR.onSayim - 1]);
+  var ikinci = sayimSayisi_(r[SR.ikinciSayim - 1]);
+  /* Eski kayıtlarda 'Sayım durumu' sütunu yok: sayı varsa 'sayildi' say. */
+  var durum = m(r[SR.sayimDurum - 1]) || (toplam != null ? 'sayildi' : '');
+  return {
+    toplam: toplam,
+    sayan: m(r[SR.sayan - 1]),
+    sayimTarihi: sayimTarihMetni_(r[SR.sayimTarihi - 1]),
+    /* Ham Date de taşınır: değişmeyen bir sayımın üzerine yazarken tarih
+       hücresine metin düşmesin — hücre tarih olarak kalsın, sıralanabilsin. */
+    sayimTarihiHam: r[SR.sayimTarihi - 1] instanceof Date ? r[SR.sayimTarihi - 1] : '',
+    ikinciTarihHam: r[SR.ikinciTarih - 1] instanceof Date ? r[SR.ikinciTarih - 1] : '',
+    foto: m(r[SR.sayimFoto - 1]),
+    duzen: m(r[SR.duzen - 1]) || 'tek',
+    onSira: sayimSayisi_(r[SR.onSira - 1]),
+    arkaSira: sayimSayisi_(r[SR.arkaSira - 1]),
+    arkaDurum: m(r[SR.arkaDurum - 1]),
+    durum: durum,
+    not: m(r[SR.sayimNot - 1]),
+    ikinciSayim: ikinci,
+    ikinciSayan: m(r[SR.ikinciSayan - 1]),
+    ikinciTarih: sayimTarihMetni_(r[SR.ikinciTarih - 1]),
+    onaylayan: m(r[SR.onaylayan - 1]),
+    onayTarihi: sayimTarihMetni_(r[SR.onayTarihi - 1]),
+    /* İki sayım tutmuyor: raf yeniden bakılmalı. Koordinatör hangisinin
+       geçerli olduğuna karar verir. */
+    uyusmazlik: (toplam != null && ikinci != null && toplam !== ikinci),
+    /* Arka sıra sayılamadıysa toplam EKSİKTİR; tam sayım gibi okunmasın. */
+    eksik: (m(r[SR.arkaDurum - 1]) === 'sayilamadi')
+  };
+}
+
+/** Bir gözün sayım satırını okur (yoksa boş hikâye döner). */
+function sayimOku_(anahtar) {
+  var sayfa = sayfaAl_('Sıralar');
+  var son = sayfa.getLastRow();
+  if (son < 2) return null;
+  var genislik = Math.min(sayfa.getMaxColumns(),
+                    Math.max(sayfa.getLastColumn(), SIRA_SUTUNLARI.length));
+  var anahtarlar = sayfa.getRange(2, 1, son - 1, 1).getValues();
+  for (var i = 0; i < anahtarlar.length; i++) {
+    if (String(anahtarlar[i][0]).trim().toUpperCase() !== anahtar) continue;
+    var r = sayfa.getRange(i + 2, 1, 1, genislik).getValues()[0];
+    var n = sayimNesnesi_(r);
+    n.satir = i + 2;
+    return n;
+  }
+  return null;
+}
+
+/** Sayım alanlarını satıra yazar. Tarihler Date ya da '' olarak verilir. */
+function sayimYaz_(sayfa, satir, d) {
+  sayfa.getRange(satir, SR.onSayim, 1, 4).setValues([[
+    d.toplam == null ? '' : d.toplam,
+    d.sayan || '',
+    d.sayimTarihi || '',
+    d.foto || ''
+  ]]);
+  sayfa.getRange(satir, SR.duzen, 1, 11).setValues([[
+    d.duzen || 'tek',
+    d.onSira == null ? '' : d.onSira,
+    d.arkaSira == null ? '' : d.arkaSira,
+    d.arkaDurum || '',
+    d.durum || '',
+    d.not || '',
+    d.ikinciSayim == null ? '' : d.ikinciSayim,
+    d.ikinciSayan || '',
+    d.ikinciTarih || '',
+    d.onaylayan || '',
+    d.onayTarihi || ''
+  ]]);
+}
+
+/**
+ * Her sayım işlemi 'Sayım geçmişi'ne de yazılır.
+ *
+ * İki işe yarar: GERİ ALMA (son satır silinir, bir önceki durum geri
+ * yüklenir) ve "bu rafı kim, ne zaman, kaç saydı" sorusunun kalıcı cevabı.
+ * 'Sıralar' yalnızca son hâli tutar — üzerine yazılan sayı orada kaybolur,
+ * burada kaybolmaz.
+ */
+function sayimGecmisiYaz_(anahtar, islem, d, kim) {
+  var sayfa = sayfaAl_('Sayım geçmişi');
+  sayfa.appendRow([
+    anahtar, islem,
+    d.toplam == null ? '' : d.toplam,
+    d.onSira == null ? '' : d.onSira,
+    d.arkaSira == null ? '' : d.arkaSira,
+    d.duzen || 'tek',
+    d.arkaDurum || '',
+    d.durum || '',
+    d.not || '',
+    kim || '',
+    new Date(),
+    d.foto || ''
+  ]);
+}
+
+/** Bir gözün geçmiş satırları (eskiden yeniye). */
+function sayimGecmisi_(anahtar) {
+  var sayfa = sayfaAl_('Sayım geçmişi');
+  var son = sayfa.getLastRow();
+  if (son < 2) return [];
+  var veri = sayfa.getRange(2, 1, son - 1, GECMIS_SUTUNLARI.length).getValues();
+  var liste = [];
+  veri.forEach(function (r, i) {
+    if (String(r[GC.sira - 1]).trim().toUpperCase() !== anahtar) return;
+    liste.push({
+      satir: i + 2,
+      islem: String(r[GC.islem - 1] || ''),
+      toplam: sayimSayisi_(r[GC.toplam - 1]),
+      onSira: sayimSayisi_(r[GC.onSira - 1]),
+      arkaSira: sayimSayisi_(r[GC.arkaSira - 1]),
+      duzen: String(r[GC.duzen - 1] || 'tek'),
+      arkaDurum: String(r[GC.arkaDurum - 1] || ''),
+      durum: String(r[GC.durum - 1] || ''),
+      not: String(r[GC.not - 1] || ''),
+      kim: String(r[GC.kim - 1] || ''),
+      tarih: sayimTarihMetni_(r[GC.tarih - 1]),
+      tarihHam: r[GC.tarih - 1] instanceof Date ? r[GC.tarih - 1] : '',
+      foto: String(r[GC.foto - 1] || '')
+    });
+  });
+  return liste;
+}
+
+/** Sayım fotoğrafını Drive'a koyar; başarısız olursa '' döner (sayı kaybolmaz). */
+function sayimFotoYukle_(foto, anahtar) {
+  if (!foto) return '';
+  try {
+    var temiz = String(foto).replace(/^data:[^,]+,/, '');
+    var blob = Utilities.newBlob(Utilities.base64Decode(temiz),
+      'image/jpeg', 'sayim-' + anahtar + '-' +
+      Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss') + '.jpg');
+    var dosya = fotoKlasoru_().createFile(blob);
+    try { dosya.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); }
+    catch (h1) { /* paylaşım kısıtlıysa kayıt yine sürer */ }
+    return dosya.getUrl();
+  } catch (h2) { return ''; }      // fotoğraf yüklenemese de SAYI kaybolmasın
+}
+
+/**
+ * Raf sayımı: gönüllü rafı sayar, sayı sıranın satırına yazılır.
+ *
+ * Envanterden bağımsız bir görevdir — telefonla arası iyi olmayan gönüllü de
+ * yapabilir. Sıra kapanışında ve panoda üçlü karşılaştırma sağlar:
+ * ön sayım · kapanış sayımı · sistemdeki cilt.
+ *
+ * Tek işlem üç ayrı gerçeği kaydedebilir:
+ *   · raf sayıldı            — tek sıra, ya da ön + arka sıra
+ *   · arka sıra sayılamadı   — toplam EKSİK olarak işaretlenir
+ *   · raf hiç sayılamadı     — sebebiyle birlikte ('sayilamadi')
+ * İkinci kez sayımda (ikinci:true) sayı ayrı sütuna yazılır; iki sayı
+ * tutuyorsa sayım kendiliğinden onaylanır, tutmuyorsa koordinatöre düşer.
+ */
 function sayimKaydet_(g) {
+  sayimSemasi_();
   var anahtar = rafAnahtari_(g.mekan, g.raf, g.sira);
   if (!anahtar) return { ok: false, error: 'Sıra belirsiz.' };
-  var adet = parseInt(g.adet, 10);
-  if (isNaN(adet) || adet < 0 || adet > 2000) {
-    return { ok: false, error: 'Sayılan kitap sayısını yazın (boş rafa 0).' };
+
+  var kim = String(g.sayan || '').trim();
+  var not = String(g.not || '').trim();
+  var ikinciMi = !!g.ikinci;
+  var duzen = String(g.duzen || 'tek').toLowerCase() === 'iki' ? 'iki' : 'tek';
+  var arkaSayilamadi = duzen === 'iki' && !!g.arkaSayilamadi;
+
+  /* ── Sayılamayan raf ────────────────────────────────────────────────
+     Kütüphaneye ait olmayan kitaplar, kitap dışı eşya, kilitli dolap…
+     Sayı yok ama SEBEP var. Bu raf "hiç sayılmamış" rafla aynı şey
+     değildir: birine gidilmemiştir, diğerine gidilmiş ve sayılamamıştır. */
+  if (g.sayilamadi) {
+    if (!not) {
+      return { ok: false, error: 'Rafın neden sayılamadığını yazın.' };
+    }
+    var fotoUrlS = sayimFotoYukle_(g.foto, anahtar);
+    var kilitS = LockService.getScriptLock();
+    kilitS.waitLock(20000);
+    try {
+      var sayfaS = sayfaAl_('Sıralar');
+      var satirS = siraSatiri_(sayfaS, anahtar);
+      var durumS = {
+        toplam: null, sayan: kim, sayimTarihi: new Date(), foto: fotoUrlS,
+        duzen: duzen, onSira: null, arkaSira: null, arkaDurum: '',
+        durum: 'sayilamadi', not: not,
+        ikinciSayim: null, ikinciSayan: '', ikinciTarih: '',
+        onaylayan: '', onayTarihi: ''
+      };
+      sayimYaz_(sayfaS, satirS, durumS);
+      sayimGecmisiYaz_(anahtar, 'sayilamadi', durumS, kim);
+      return { ok: true, anahtar: anahtar, durum: 'sayilamadi', not: not,
+               fotoUrl: fotoUrlS, fotoAlinamadi: !!(g.foto && !fotoUrlS) };
+    } finally {
+      kilitS.releaseLock();
+    }
   }
 
-  /* İsteğe bağlı raf fotoğrafı: kilitten ÖNCE Drive'a yüklenir (yavaş iş
-     kilidin içinde durmasın), bağlantısı sayım satırına yazılır. */
-  var fotoUrl = '';
-  if (g.foto) {
-    try {
-      var temiz = String(g.foto).replace(/^data:[^,]+,/, '');
-      var blob = Utilities.newBlob(Utilities.base64Decode(temiz),
-        'image/jpeg', 'sayim-' + anahtar + '.jpg');
-      var dosya = fotoKlasoru_().createFile(blob);
-      try { dosya.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); }
-      catch (h1) { /* paylaşım kısıtlıysa kayıt yine sürer */ }
-      fotoUrl = dosya.getUrl();
-    } catch (h2) { /* fotoğraf yüklenemese de SAYI kaybolmasın */ }
+  /* ── Sayılar ────────────────────────────────────────────────────────
+     Tek sıralı rafta yalnızca 'on' vardır ve toplam odur. İki sıralıda
+     toplam ön + arkadır; arka sayılamadıysa toplam yalnızca öndür ve
+     'eksik' işaretlenir. */
+  var on = parseInt(g.on != null ? g.on : g.adet, 10);
+  if (isNaN(on) || on < 0 || on > 2000) {
+    return { ok: false, error: duzen === 'iki'
+      ? 'Ön sıradaki kitap sayısını yazın (boş sıraya 0).'
+      : 'Sayılan kitap sayısını yazın (boş rafa 0).' };
   }
+  var arka = null;
+  if (duzen === 'iki' && !arkaSayilamadi) {
+    arka = parseInt(g.arka, 10);
+    if (isNaN(arka) || arka < 0 || arka > 2000) {
+      return { ok: false, error: 'Arka sıradaki kitap sayısını yazın — ' +
+        'sayamadıysanız "arka sıra sayılamadı"yı işaretleyin.' };
+    }
+  }
+  var toplam = on + (arka || 0);
+
+  var fotoUrl = sayimFotoYukle_(g.foto, anahtar);
 
   var kilit = LockService.getScriptLock();
   kilit.waitLock(20000);
   try {
     var sayfa = sayfaAl_('Sıralar');
     var satir = siraSatiri_(sayfa, anahtar);
-    var eski = sayfa.getRange(satir, SR.onSayim).getValue();
-    sayfa.getRange(satir, SR.onSayim, 1, 3).setValues([[
-      adet, String(g.sayan || '').trim(), new Date()]]);
-    if (fotoUrl) sayfa.getRange(satir, SR.sayimFoto).setValue(fotoUrl);
-    return { ok: true, anahtar: anahtar, adet: adet, fotoUrl: fotoUrl,
-             fotoAlinamadi: !!(g.foto && !fotoUrl),
-             oncekiSayim: (eski === '' || eski == null) ? null : Number(eski) };
+    var genislik = Math.min(sayfa.getMaxColumns(),
+                    Math.max(sayfa.getLastColumn(), SIRA_SUTUNLARI.length));
+    var onceki = sayimNesnesi_(sayfa.getRange(satir, 1, 1, genislik).getValues()[0]);
+
+    var d;
+    if (ikinciMi && onceki.toplam != null) {
+      /* İKİNCİ SAYIM: ilk sayı yerinde kalır, ikinci sayı ayrı sütuna yazılır.
+         İkisi tutuyorsa raf kendiliğinden onaylanır — kimsenin ayrıca
+         onaylaması gerekmez. Tutmuyorsa raf koordinatörün önüne düşer. */
+      var uyuyor = onceki.toplam === toplam;
+      d = {
+        toplam: onceki.toplam, sayan: onceki.sayan,
+        sayimTarihi: onceki.sayimTarihiHam, foto: fotoUrl || onceki.foto,
+        duzen: onceki.duzen, onSira: onceki.onSira, arkaSira: onceki.arkaSira,
+        arkaDurum: onceki.arkaDurum,
+        durum: uyuyor ? 'onaylandi' : 'sayildi',
+        not: not || onceki.not,
+        ikinciSayim: toplam, ikinciSayan: kim, ikinciTarih: new Date(),
+        onaylayan: uyuyor ? kim : '', onayTarihi: uyuyor ? new Date() : ''
+      };
+      sayimYaz_(sayfa, satir, d);
+      sayimGecmisiYaz_(anahtar, uyuyor ? 'ikinci-uydu' : 'ikinci-uymadi',
+        { toplam: toplam, onSira: on, arkaSira: arka, duzen: duzen,
+          arkaDurum: arkaSayilamadi ? 'sayilamadi' : '',
+          durum: d.durum, not: not, foto: fotoUrl }, kim);
+      return { ok: true, anahtar: anahtar, ikinci: true, adet: toplam,
+               ilkSayim: onceki.toplam, uyustu: uyuyor, durum: d.durum,
+               fotoUrl: fotoUrl, fotoAlinamadi: !!(g.foto && !fotoUrl) };
+    }
+
+    /* İLK SAYIM (ya da düzeltme): sayı üzerine yazılır. Eski değer geçmişte
+       durur, "geri al" onu geri getirir. Düzeltme yapıldığında varsa ikinci
+       sayım ve onay temizlenir — onaylanan sayı artık başka bir sayıdır. */
+    d = {
+      toplam: toplam, sayan: kim, sayimTarihi: new Date(),
+      foto: fotoUrl || onceki.foto,
+      duzen: duzen, onSira: on, arkaSira: arka,
+      arkaDurum: arkaSayilamadi ? 'sayilamadi' : '',
+      durum: 'sayildi', not: not,
+      ikinciSayim: null, ikinciSayan: '', ikinciTarih: '',
+      onaylayan: '', onayTarihi: ''
+    };
+    sayimYaz_(sayfa, satir, d);
+    sayimGecmisiYaz_(anahtar,
+      onceki.toplam == null && onceki.durum !== 'sayilamadi' ? 'sayim' : 'duzeltme',
+      d, kim);
+    return { ok: true, anahtar: anahtar, adet: toplam, onSira: on, arkaSira: arka,
+             duzen: duzen, eksik: arkaSayilamadi, durum: 'sayildi',
+             fotoUrl: fotoUrl, fotoAlinamadi: !!(g.foto && !fotoUrl),
+             oncekiSayim: onceki.toplam,
+             onayBozuldu: !!(onceki.onaylayan && onceki.toplam !== toplam) };
+  } finally {
+    kilit.releaseLock();
+  }
+}
+
+/**
+ * Bir gözün sayım durumu — gönüllü sayıma başlamadan önce "burası sayılmış
+ * mı, kaç çıkmış" görebilsin diye. İkinci sayım bu ekrandan yapılır:
+ * gönüllü ilk sayıyı görür, doğruysa onaylar, farklı sayarsa kendi sayısını
+ * yazar ve raf koordinatöre düşer.
+ */
+function sayimBilgisi_(g) {
+  sayimSemasi_();
+  var anahtar = rafAnahtari_(g.mekan, g.raf, g.sira);
+  if (!anahtar) return { ok: false, error: 'Sıra belirsiz.' };
+  var d = sayimOku_(anahtar);
+  return {
+    ok: true, anahtar: anahtar,
+    sayim: d || { toplam: null, durum: '', duzen: 'tek' },
+    gecmis: sayimGecmisi_(anahtar).reverse().slice(0, 12)
+  };
+}
+
+/**
+ * Sayımı onaylar ya da düzelterek onaylar.
+ *
+ * İki yerden çağrılır: gönüllü ikinci sayımda "sayı doğru" derse (geçerli
+ * sayı verilmez, mevcut sayı onaylanır), ya da koordinatör iki sayım
+ * uyuşmadığında hangisinin geçerli olduğuna karar verirse ('gecerli').
+ */
+function sayimOnayla_(g) {
+  sayimSemasi_();
+  var anahtar = rafAnahtari_(g.mekan, g.raf, g.sira);
+  if (!anahtar) return { ok: false, error: 'Sıra belirsiz.' };
+  var kim = String(g.onaylayan || g.sayan || '').trim();
+
+  var kilit = LockService.getScriptLock();
+  kilit.waitLock(20000);
+  try {
+    var sayfa = sayfaAl_('Sıralar');
+    var satir = siraSatiri_(sayfa, anahtar);
+    var genislik = Math.min(sayfa.getMaxColumns(),
+                    Math.max(sayfa.getLastColumn(), SIRA_SUTUNLARI.length));
+    var d = sayimNesnesi_(sayfa.getRange(satir, 1, 1, genislik).getValues()[0]);
+    if (d.toplam == null && g.gecerli == null) {
+      return { ok: false, error: 'Bu gözde onaylanacak bir sayım yok.' };
+    }
+
+    /* Koordinatör geçerli sayıyı değiştirebilir: iki sayım uyuşmadığında
+       hangisinin doğru olduğuna o karar verir. */
+    if (g.gecerli != null && String(g.gecerli) !== '') {
+      var gecerli = parseInt(g.gecerli, 10);
+      if (isNaN(gecerli) || gecerli < 0 || gecerli > 2000) {
+        return { ok: false, error: 'Geçerli sayıyı yazın.' };
+      }
+      d.toplam = gecerli;
+      /* Toplam elle değiştiyse ön/arka ayrımı artık toplamı açıklamıyor;
+         yanlış bir ayrıntı göstermektense ayrımı bırakıyoruz. */
+      if (d.duzen === 'iki' && (d.onSira || 0) + (d.arkaSira || 0) !== gecerli) {
+        d.onSira = null; d.arkaSira = null;
+      }
+    }
+    var not = String(g.not || '').trim();
+    if (not) d.not = not;
+    d.durum = 'onaylandi';
+    d.onaylayan = kim;
+    d.onayTarihi = new Date();
+    /* Sayım tarihleri olduğu gibi korunur: onaylamak sayımı yeniden
+       yapmak değildir, o sayının ne zaman yapıldığı değişmemeli. */
+    d.sayimTarihi = d.sayimTarihiHam;
+    d.ikinciTarih = d.ikinciTarihHam;
+    sayimYaz_(sayfa, satir, d);
+    sayimGecmisiYaz_(anahtar, 'onay', d, kim);
+    return { ok: true, anahtar: anahtar, adet: d.toplam, durum: 'onaylandi',
+             onaylayan: kim };
+  } finally {
+    kilit.releaseLock();
+  }
+}
+
+/**
+ * Son sayım işlemini geri alır.
+ *
+ * "Yanlış göze yazdım", "sıfır demek istemedim" — rafta duran gönüllünün
+ * elinde başka bir çıkış yoktu, koordinatörü aramak zorunda kalıyordu.
+ * Geçmişteki son satır silinir, bir öncekinin durumu geri yüklenir; hiç
+ * öncesi yoksa göz sayılmamış hâline döner.
+ */
+function sayimGeriAl_(g) {
+  sayimSemasi_();
+  var anahtar = rafAnahtari_(g.mekan, g.raf, g.sira);
+  if (!anahtar) return { ok: false, error: 'Sıra belirsiz.' };
+  var kim = String(g.sayan || '').trim();
+
+  var kilit = LockService.getScriptLock();
+  kilit.waitLock(20000);
+  try {
+    var gecmis = sayimGecmisi_(anahtar);
+    /* Geri alma işlemleri geçmişe yazılmaz; geri alınabilir olanlar sayım
+       işlemleridir. */
+    if (!gecmis.length) {
+      return { ok: false, error: 'Bu gözde geri alınacak bir sayım yok.' };
+    }
+    var gecmisSayfa = sayfaAl_('Sayım geçmişi');
+    var son = gecmis[gecmis.length - 1];
+    gecmisSayfa.deleteRow(son.satir);
+    var kalan = gecmis.slice(0, -1);
+    var geri = kalan.length ? kalan[kalan.length - 1] : null;
+
+    var sayfa = sayfaAl_('Sıralar');
+    var satir = siraSatiri_(sayfa, anahtar);
+    var d = geri ? {
+      toplam: geri.toplam, sayan: geri.kim, sayimTarihi: geri.tarihHam,
+      foto: geri.foto, duzen: geri.duzen, onSira: geri.onSira,
+      arkaSira: geri.arkaSira, arkaDurum: geri.arkaDurum,
+      durum: geri.durum, not: geri.not,
+      ikinciSayim: null, ikinciSayan: '', ikinciTarih: '',
+      onaylayan: '', onayTarihi: ''
+    } : {
+      toplam: null, sayan: '', sayimTarihi: '', foto: '',
+      duzen: 'tek', onSira: null, arkaSira: null, arkaDurum: '',
+      durum: '', not: '',
+      ikinciSayim: null, ikinciSayan: '', ikinciTarih: '',
+      onaylayan: '', onayTarihi: ''
+    };
+    sayimYaz_(sayfa, satir, d);
+    return { ok: true, anahtar: anahtar, geriAlinan: son.islem,
+             geriAlinanSayi: son.toplam,
+             adet: d.toplam, durum: d.durum,
+             temizlendi: !geri, kim: kim };
+  } finally {
+    kilit.releaseLock();
+  }
+}
+
+/**
+ * Bir sıra için çekilmiş raf fotoğrafları.
+ *
+ * Kitabı kaydeden gönüllü künye/kapak için yeniden fotoğraf çekmek zorunda
+ * kalmasın: o gözde sayım sırasında çekilmiş raf fotoğrafı varsa onu
+ * seçebilsin. Geçmişte biriken fotoğraflar da listelenir — bir gözün
+ * birden çok fotoğrafı olabilir.
+ */
+function rafFotograflari_(g) {
+  sayimSemasi_();
+  var anahtar = rafAnahtari_(g.mekan, g.raf, g.sira);
+  if (!anahtar) return { ok: false, error: 'Sıra belirsiz.' };
+  var kimlik = function (u) { return (String(u || '').match(/[-\w]{25,}/) || [''])[0]; };
+  var gorulen = {}, liste = [];
+  var ekle = function (url, kim, tarih) {
+    var id = kimlik(url);
+    if (!url || !id || gorulen[id]) return;
+    gorulen[id] = true;
+    liste.push({ url: url, id: id, kim: kim || '', tarih: tarih || '' });
+  };
+  var simdiki = sayimOku_(anahtar);
+  if (simdiki) ekle(simdiki.foto, simdiki.sayan, simdiki.sayimTarihi);
+  sayimGecmisi_(anahtar).reverse().forEach(function (x) {
+    ekle(x.foto, x.kim, x.tarih);
+  });
+  return { ok: true, anahtar: anahtar, fotograflar: liste };
+}
+
+/**
+ * Var olan bir Drive fotoğrafını kayda bağlar (yeniden yükleme yok).
+ *
+ * Raf fotoğrafı zaten Drive'da duruyor; kaydın künye ya da kapak sütununa
+ * aynı bağlantı yazılır. Fotoğrafı ikinci kez yüklemek hem yavaş hem
+ * gereksiz — aynı dosya iki kez yer kaplamasın.
+ */
+function fotoBagla_(g) {
+  var no = g.no;
+  var url = String(g.url || '').trim();
+  var hangi = String(g.hangi || 'kunye') === 'kapak' ? 'kapak' : 'kunye';
+  if (!url || !/[-\w]{25,}/.test(url)) {
+    return { ok: false, error: 'Fotoğraf bağlantısı geçersiz.' };
+  }
+  var kilit = LockService.getScriptLock();
+  kilit.waitLock(20000);
+  try {
+    var bulunan = satirBul_(no);
+    if (!bulunan) return { ok: false, error: 'Kayıt bulunamadı.' };
+    if (bulunan.silindi) return { ok: false, error: 'Bu kayıt silinmiş.' };
+    var sayfa = sayfaAl_('Envanter');
+    sayfa.getRange(bulunan.satir, hangi === 'kapak' ? S.kapak : S.foto).setValue(url);
+    /* Raf fotoğrafı künye sayfası değildir: OCR sırasına sokmuyoruz, yoksa
+       öneri kutusu rafın sırtlarından uydurma künye üretir. */
+    if (hangi === 'kunye') {
+      sayfa.getRange(bulunan.satir, S.ocrDurum).setValue('Raf fotoğrafı — OCR yapılmadı');
+    }
+    return { ok: true, no: no, hangi: hangi, url: url };
   } finally {
     kilit.releaseLock();
   }
@@ -311,10 +772,47 @@ var SIRA_SUTUNLARI = ['Sıra', 'Raftaki kitap', 'Kayıtlı cilt', 'Bitiren', 'Bi
                       'Ön sayım', 'Sayan', 'Sayım tarihi',
                       /* Sayım sırasında çekilen raf fotoğrafı: koordinatör
                          sayıyı fotoğrafla karşılaştırabilsin. */
-                      'Sayım fotoğrafı'];
+                      'Sayım fotoğrafı',
+                      /* ── Sayımın ayrıntısı (sonradan eklendi) ────────────
+                         'Ön sayım' sütunu GEÇERLİ TOPLAM olarak kalır: eski
+                         okuyucular (pano, harita, sıra kapanışı) hiç
+                         değişmeden çalışsın diye. Aşağıdakiler o toplamın
+                         nasıl oluştuğunu anlatır.
+
+                         Düzen: rafın arkasında ikinci bir sıra olabiliyor.
+                         'tek' → tek sıra; 'iki' → ön + arka. Toplam ikisinin
+                         toplamıdır; arka sıra sayılamadıysa toplam yalnızca
+                         öndür ve bu açıkça işaretlenir — eksik sayım, tam
+                         sayım gibi görünmesin. */
+                      'Sayım düzeni', 'Ön sıra', 'Arka sıra', 'Arka sıra durumu',
+                      /* Durum: 'sayildi' · 'sayilamadi' · 'onaylandi'.
+                         Sayılamayan raf da bir bilgidir: kütüphaneye ait
+                         olmayan kitap/eşya duran raf "sayılmamış" değil,
+                         "sayılamadı, çünkü…" diye kayda geçer. */
+                      'Sayım durumu', 'Sayım notu',
+                      /* İkinci sayım: aynı göz ikinci kez sayılır. İki sayı
+                         tutuyorsa sayım kendiliğinden onaylanır. */
+                      '2. sayım', '2. sayan', '2. sayım tarihi',
+                      'Onaylayan', 'Onay tarihi'];
 var SR = { sira: 1, raftaki: 2, cilt: 3, bitiren: 4, tarih: 5, not: 6,
            sonuc: 7, kayitSayisi: 8, alan: 9, almaSaati: 10,
-           onSayim: 11, sayan: 12, sayimTarihi: 13, sayimFoto: 14 };
+           onSayim: 11, sayan: 12, sayimTarihi: 13, sayimFoto: 14,
+           duzen: 15, onSira: 16, arkaSira: 17, arkaDurum: 18,
+           sayimDurum: 19, sayimNot: 20,
+           ikinciSayim: 21, ikinciSayan: 22, ikinciTarih: 23,
+           onaylayan: 24, onayTarihi: 25 };
+
+/* 'Sayım geçmişi' sayfası: her sayım işlemi buraya da yazılır.
+   İki işi birden görür — düzeltmeyi GERİ ALMAK (son satır silinip bir
+   öncekinin durumu geri yüklenir) ve "bu rafı kim, ne zaman, kaç saydı"
+   sorusunun cevabını kalıcı tutmak. 'Sıralar' sayfası yalnızca son hâli
+   tutar; geçmiş burada durur. */
+var GECMIS_SUTUNLARI = ['Sıra', 'İşlem', 'Toplam', 'Ön sıra', 'Arka sıra',
+                        'Düzen', 'Arka sıra durumu', 'Durum', 'Not',
+                        'Kim', 'Tarih', 'Fotoğraf'];
+var GC = { sira: 1, islem: 2, toplam: 3, onSira: 4, arkaSira: 5,
+           duzen: 6, arkaDurum: 7, durum: 8, not: 9,
+           kim: 10, tarih: 11, foto: 12 };
 
 /* Silinen kayıt satırdan atılmaz, işaretlenir: kayıt no ve sıra no yeniden
    kullanılmasın, geç gelen fotoğraf yanlış kitaba yapışmasın diye. */
@@ -504,6 +1002,7 @@ function rafDurum_(mekan, raf, sira) {
     raftaki: b ? b.raftaki : '', sonCalisan: k.sonCalisan, sonTarih: k.sonTarih,
     tutulu: tutulu, tutan: tutulu ? r.alan : '',
     onSayim: r ? (r.onSayim != null ? r.onSayim : null) : null,
+    sayim: r ? r.sayim : null,
     devir: devirBilgisi_(sayfa, k)
   };
 }
@@ -589,7 +1088,10 @@ function siraOzeti_() {
       tutulu: tutulu,
       tutan: tutulu ? r.alan : '',
       bitiren: b ? b.bitiren : '',
-      onSayim: r ? (r.onSayim != null ? r.onSayim : null) : null
+      onSayim: r ? (r.onSayim != null ? r.onSayim : null) : null,
+      /* Sayımın ayrıntısı: haritada "sayılamadı" rafı boş raftan, onaylanmış
+         sayım tek sayımdan, uyuşmayan ikinci sayım da ikisinden ayrılsın. */
+      sayim: r ? r.sayim : null
     };
   });
   return { ok: true, siralar: liste };
@@ -622,7 +1124,8 @@ function siraKayitlari_() {
   var son = sayfa.getLastRow();
   var harita = {};
   if (son < 2) return harita;
-  var genislik = Math.max(sayfa.getLastColumn(), SIRA_SUTUNLARI.length);
+  var genislik = Math.min(sayfa.getMaxColumns(),
+                    Math.max(sayfa.getLastColumn(), SIRA_SUTUNLARI.length));
   sayfa.getRange(2, 1, son - 1, genislik).getValues().forEach(function (r, i) {
     if (!r[0]) return;
     var bitiren = String(r[SR.bitiren - 1] || '').trim();
@@ -642,7 +1145,11 @@ function siraKayitlari_() {
       onSayim: r[SR.onSayim - 1] === '' || r[SR.onSayim - 1] == null
         ? null : Number(r[SR.onSayim - 1]),
       sayan: String(r[SR.sayan - 1] || '').trim(),
-      sayimFoto: String(r[SR.sayimFoto - 1] || '').trim()
+      sayimFoto: String(r[SR.sayimFoto - 1] || '').trim(),
+      /* Sayımın ayrıntısı: düzen, ikinci sayım, onay, sayılamama sebebi.
+         Pano ve harita bunları gösterip "bu rafa yeniden gidilmeli mi"
+         sorusunu cevaplayabilsin. */
+      sayim: sayimNesnesi_(r)
     };
   });
   return harita;
@@ -876,14 +1383,26 @@ function siraHaritasi_() {
       tutulu: tutulu, tutan: tutulu ? r.alan : '',
       onSayim: r ? (r.onSayim != null ? r.onSayim : null) : null,
       sayan: r ? (r.sayan || '') : '',
-      sayimFoto: r ? (r.sayimFoto || '') : ''
+      sayimFoto: r ? (r.sayimFoto || '') : '',
+      sayim: r ? r.sayim : null
     };
   });
   var say = function (d) { return liste.filter(function (x) { return x.durum === d; }).length; };
+  /* Sayımın kendi sayaçları: koordinatör "kaç raf sayıldı, kaçı onaylandı,
+     kaçına yeniden gitmek gerekiyor" sorusunu tek bakışta görsün. */
+  var sayimli = liste.filter(function (x) { return x.sayim && x.sayim.durum; });
+  var sayimDurum = function (d) {
+    return sayimli.filter(function (x) { return x.sayim.durum === d; }).length;
+  };
   return { ok: true, siralar: liste, toplam: liste.length,
            bitti: say('bitti'), devam: say('devam'), bos: say('bos'),
            tutulu: liste.filter(function (x) { return x.tutulu; }).length,
            tutmaSaat: Number(AYAR.SIRA_TUTMA_SAAT || 8),
+           sayimYapilan: sayimDurum('sayildi') + sayimDurum('onaylandi'),
+           sayimOnayli: sayimDurum('onaylandi'),
+           sayilamayan: sayimDurum('sayilamadi'),
+           sayimUyusmaz: sayimli.filter(function (x) { return x.sayim.uyusmazlik; }).length,
+           sayimEksik: sayimli.filter(function (x) { return x.sayim.eksik; }).length,
            uyusmayan: liste.filter(function (x) {
              return x.durum === 'bitti' && Number(x.fark) !== 0;
            }).length,
@@ -897,7 +1416,8 @@ function siraHaritasi_() {
 // Bağlantıya (GET) tıklanarak çalıştırılamayacak işlemler: bir bağlantı
 // önizlemesi ya da yanlışlıkla paylaşılan adres kayıt silmemeli.
 var YAZAN_EYLEMLER = ['ekle', 'guncelle', 'sil', 'fotoEkle', 'onayla', 'topluOnayla', 'kararVer', 'kunyeErtele',
-                      'kutula', 'siraBitir', 'siraOner', 'siraSec', 'kitapIste', 'sayimKaydet', 'siraBirak'];
+                      'kutula', 'siraBitir', 'siraOner', 'siraSec', 'kitapIste', 'sayimKaydet', 'siraBirak',
+                      'sayimOnayla', 'sayimGeriAl', 'fotoBagla'];
 
 function doGet(e) {
   if (e && e.parameter && e.parameter.action) {
@@ -963,6 +1483,14 @@ function islet_(istek) {
       case 'rafDurum':    return cikti_(rafDurum_(istek.mekan, istek.raf, istek.sira));
       case 'siraOzeti':   return cikti_(siraOzeti_());
       case 'sayimKaydet': return cikti_(sayimKaydet_(istek));
+      /* Sayım işleri gönüllüye açıktır: rafta duran kişi kendi yanlışını
+         düzeltebilsin, ikinci sayımı yapabilsin diye. Koordinatör şifresi
+         üst küme olduğu için panelden de aynı eylemler çalışır. */
+      case 'sayimBilgisi': return cikti_(sayimBilgisi_(istek));
+      case 'sayimOnayla': return cikti_(sayimOnayla_(istek));
+      case 'sayimGeriAl': return cikti_(sayimGeriAl_(istek));
+      case 'rafFotograflari': return cikti_(rafFotograflari_(istek));
+      case 'fotoBagla':   return cikti_(fotoBagla_(istek));
       case 'siraBirak':   return cikti_(siraBirak_(istek));
       case 'siraOner':    return cikti_(siraOner_(istek));
       case 'siraSec':     return cikti_(siraSec_(istek));
@@ -1383,6 +1911,13 @@ function sayfaAl_(ad) {
     sayfa.getRange(1, 1, 1, SIRA_SUTUNLARI.length)
       .setFontWeight('bold').setBackground('#601040').setFontColor('#ffffff');
     sayfa.setColumnWidth(1, 90); sayfa.setColumnWidth(4, 140); sayfa.setColumnWidth(6, 300);
+  } else if (ad === 'Sayım geçmişi') {
+    sayfa.appendRow(GECMIS_SUTUNLARI);
+    sayfa.setFrozenRows(1);
+    sayfa.getRange(1, 1, 1, GECMIS_SUTUNLARI.length)
+      .setFontWeight('bold').setBackground('#601040').setFontColor('#ffffff');
+    sayfa.setColumnWidth(1, 90); sayfa.setColumnWidth(2, 110);
+    sayfa.setColumnWidth(9, 280); sayfa.setColumnWidth(11, 130);
   } else if (ad === 'Kutular') {
     sayfa.appendRow(KUTU_SUTUNLARI);
     sayfa.setFrozenRows(1);

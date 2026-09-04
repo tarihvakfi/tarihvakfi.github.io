@@ -129,6 +129,63 @@
   #btnSayimKaydet{flex:0 0 auto;padding:0 18px;border:none;border-radius:8px;
                   background:#2a5b86;color:#fff;font-size:15px;font-weight:700}
 
+  /* Gözün önceki sayımı: gönüllü saymaya başlamadan önce burayı görür.
+     İkinci sayım, onay, düzeltme ve geri alma hep bu kutudan yapılır. */
+  #sayimMevcut{border:1.5px solid #b9cadb;border-radius:9px;background:#fff;
+               padding:10px 12px;margin-bottom:10px;font-size:13.5px;color:#2c3f52}
+  #sayimMevcut .sayi{font-size:19px;font-weight:800;color:#1f4260}
+  #sayimMevcut .kim{color:#5a7288;font-size:12.5px}
+  #sayimMevcut .rozet{display:inline-block;border-radius:20px;padding:2px 9px;
+    font-size:11.5px;font-weight:700;vertical-align:2px;margin-left:6px}
+  .rz-onay{background:#e2f2e6;color:#1f6b39}
+  .rz-bekleyen{background:#fdf1dc;color:#8a5a1c}
+  .rz-uyusmaz{background:#fbe6e9;color:#8a1c2c}
+  .rz-eksik{background:#eee6f4;color:#5c3576}
+  .rz-yok{background:#f0eae6;color:#74686e}
+  #sayimMevcut .islemler{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+  #sayimMevcut .islemler button{border:1.5px solid #b9cadb;background:#fff;color:#1f4260;
+    border-radius:7px;padding:8px 12px;font:inherit;font-size:13.5px;cursor:pointer}
+  #sayimMevcut .islemler button.ana{border-color:#1f6b39;background:#e2f2e6;color:#1f6b39;
+    font-weight:700}
+  #sayimMevcut .islemler button.tehlike{border-color:#e0b6be;color:#9c2233}
+
+  /* Raf düzeni: tek sıra mı, arkada ikinci sıra var mı. */
+  .sayimDuzen{display:flex;gap:7px;margin-bottom:9px}
+  .sayimDuzen button{flex:1;border:1.5px solid #b9cadb;background:#fff;color:#3c5064;
+    border-radius:8px;padding:9px 6px;font:inherit;font-size:13.5px;cursor:pointer;
+    text-align:center;line-height:1.3}
+  .sayimDuzen button.sec{border-color:#2a5b86;background:#dbe6f0;color:#1f4260;font-weight:700}
+  .sayimDuzen button small{display:block;font-size:11px;opacity:.75;font-weight:400}
+  .sayimGiris{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:9px}
+  .sayimGiris.tek{grid-template-columns:1fr}
+  .sayimGiris label{display:block;font-size:12px;font-weight:700;color:#3c5064;
+    margin-bottom:4px}
+  .sayimGiris input{width:100%;font-size:17px;padding:10px;border:1.5px solid #b9cadb;
+    border-radius:8px;background:#fff}
+  .sayimGiris input:disabled{background:#f1eeea;color:#9a8f94}
+  .sayimOnay{display:flex;align-items:center;gap:7px;font-size:13px;color:#3c5064;
+    margin:-2px 0 9px}
+  .sayimOnay input{width:17px;height:17px}
+  #sayimNot{width:100%;font-size:14px;padding:9px 10px;border:1.5px solid #b9cadb;
+    border-radius:8px;background:#fff;margin-top:9px;font-family:inherit;resize:vertical}
+  /* Sayılamayan raf: kütüphaneye ait olmayan kitap/eşya, kilitli dolap… */
+  #sayimEngelAc{margin-top:9px;border:1.5px dashed #d8b6bd;background:#fff;color:#8a1c2c;
+    border-radius:8px;padding:9px 12px;font:inherit;font-size:13.5px;cursor:pointer;width:100%}
+  #sayimEngel{border:1.5px solid #e0b6be;border-radius:9px;background:#fdf3f4;
+    padding:11px 12px;margin-top:9px}
+  #sayimEngel b{color:#8a1c2c}
+  #sayimEngel .sebepler{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+  #sayimEngel .sebepler button{border:1.5px solid #e0b6be;background:#fff;color:#8a1c2c;
+    border-radius:20px;padding:6px 11px;font:inherit;font-size:12.5px;cursor:pointer}
+  #sayimEngel .sebepler button.sec{background:#8a1c2c;color:#fff;border-color:#8a1c2c}
+  #sayimEngelNot{width:100%;font-size:14px;padding:9px 10px;border:1.5px solid #e0b6be;
+    border-radius:8px;background:#fff;font-family:inherit;resize:vertical}
+  #sayimEngel .islemler{display:flex;gap:7px;margin-top:9px}
+  #btnSayimEngelKaydet{border:none;border-radius:8px;background:#8a1c2c;color:#fff;
+    padding:10px 15px;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+  #btnSayimEngelVazgec{border:1.5px solid #e0b6be;background:#fff;color:#8a1c2c;
+    border-radius:8px;padding:10px 15px;font:inherit;font-size:14px;cursor:pointer}
+
   /* Sıra haritası */
   #btnHarita{margin-top:8px}
   #haritaPanel{margin-top:14px}
@@ -254,6 +311,14 @@
            background:#efe4dc;color:#5a4a52;font-weight:700;font-size:15px;
            font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
   #bulNo{flex:1;min-width:0;font-size:17px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .bulIpucu{margin:7px 0 0;font-size:12px;color:var(--soluk);line-height:1.35}
+  /* Kayıt listesinin kapsamı: kendi kayıtlarım / herkesin kayıtları */
+  .sonBaslik{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .sonBaslik h2{flex:1;min-width:0}
+  #btnKimin{border:1.5px solid var(--cizgi);background:#fff;color:var(--bordo);
+    border-radius:20px;padding:6px 13px;font:inherit;font-size:12.5px;cursor:pointer;
+    white-space:nowrap}
+  #btnKimin[data-kapsam="herkes"]{background:var(--bordo);color:#fff;border-color:var(--bordo)}
   #btnBul{flex:0 0 auto;padding:0 18px;border:none;border-radius:8px;
           background:var(--bordo);color:#fff;font-size:15px;font-weight:700}
   .son h2{font-size:13px;color:var(--soluk);margin:0 0 8px;text-transform:uppercase;letter-spacing:.07em}
@@ -300,6 +365,26 @@
   .foto-onizleme button{background:none;border:none;color:var(--kirmizi);text-decoration:underline;
     font:inherit;font-size:13px;cursor:pointer;padding:4px 0}
   .foto-ipucu{font-size:12px;color:var(--soluk);margin:7px 0 0;line-height:1.3}
+  /* Raf fotoğrafından seçme: sayımda çekilen fotoğraf zaten Drive'da duruyor.
+     Aynı rafı ikinci kez çekmek yerine bağlantısı kayda yazılır. */
+  .raf-foto-btn{display:block;width:100%;margin-top:7px;border:1.5px dashed #c9b7c2;
+    background:#fff;color:#601040;border-radius:8px;padding:7px 6px;
+    font:inherit;font-size:12.5px;cursor:pointer;line-height:1.2}
+  .raf-foto-btn:hover{background:#faf4f7}
+  #rafFotoSecici{margin-top:10px;border:1.5px solid var(--cizgi);border-radius:10px;
+    background:#fff;padding:11px 12px}
+  .rfBaslik{display:flex;align-items:center;gap:8px}
+  .rfBaslik b{font-size:14px;color:var(--bordo);flex:1}
+  .rfBaslik button{border:1.5px solid var(--cizgi);background:#fff;color:var(--soluk);
+    border-radius:6px;width:28px;height:28px;font:inherit;cursor:pointer;padding:0}
+  .rfIpucu{margin:6px 0 9px;font-size:12.5px;color:var(--soluk);line-height:1.35}
+  .rfListe{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+  .rfListe figure{margin:0;border:1.5px solid var(--cizgi);border-radius:8px;overflow:hidden;
+    background:#faf7f4;cursor:pointer}
+  .rfListe figure:hover{border-color:var(--bordo)}
+  .rfListe img{display:block;width:100%;height:86px;object-fit:cover;background:#efe9e4}
+  .rfListe figcaption{font-size:10.5px;color:var(--soluk);padding:4px 6px;line-height:1.25}
+  .rfBos{font-size:13px;color:var(--soluk);line-height:1.45}
   .foto-aciklama{font-size:12.5px;color:var(--soluk);margin:9px 2px 0;line-height:1.4}
   .dip{text-align:center;color:var(--soluk);font-size:12px;margin:22px 12px 0}
 </style>
@@ -348,20 +433,77 @@
           <select id="sayimRaf"></select>
           <select id="sayimSiraSec"></select>
         </div>
+
+        <!-- Gözün önceki sayımı. Boş gözde gizli kalır; sayılmış gözde
+             gönüllü sayıyı GÖRÜR ve ya onaylar ya yeniden sayar. -->
+        <div id="sayimMevcut" class="gizli"></div>
+
+        <!-- Raf düzeni: bazı rafların arkasında ikinci bir sıra var. Toplam
+             ön + arkadır; arka sayılamadıysa toplam eksik işaretlenir. -->
+        <div class="sayimDuzen" id="sayimDuzen">
+          <button type="button" class="sec" data-duzen="tek">Tek sıra
+            <small>rafta tek sıra kitap</small></button>
+          <button type="button" data-duzen="iki">İki sıra
+            <small>arkada ikinci sıra var</small></button>
+        </div>
+
         <div class="sayimSatir">
           <span id="sayimSira">—</span>
-          <input type="number" id="sayimAdet" inputmode="numeric" min="0"
-                 placeholder="kaç kitap?">
-          <button type="button" id="btnSayimKaydet">Kaydet</button>
         </div>
+
+        <div class="sayimGiris tek" id="sayimGiris">
+          <div>
+            <label for="sayimAdet" id="sayimOnEtiket">Sayılan kitap</label>
+            <input type="number" id="sayimAdet" inputmode="numeric" min="0"
+                   placeholder="kaç kitap?">
+          </div>
+          <div id="sayimArkaKutu" class="gizli">
+            <label for="sayimArka">Arka sıra</label>
+            <input type="number" id="sayimArka" inputmode="numeric" min="0"
+                   placeholder="kaç kitap?">
+          </div>
+        </div>
+        <label class="sayimOnay gizli" id="sayimArkaOnay">
+          <input type="checkbox" id="sayimArkaYok">
+          Arka sıra sayılamadı — toplam eksik olarak işaretlensin
+        </label>
+
+        <div class="sayimSatir">
+          <button type="button" id="btnSayimKaydet" style="flex:1;height:44px">Kaydet</button>
+        </div>
+
         <!-- Rafın fotoğrafı (isteğe bağlı): koordinatör sayıyı fotoğrafla
-             karşılaştırabilsin. -->
+             karşılaştırabilsin; kitap kaydında da bu fotoğraf seçilebilir. -->
         <div class="sayimFotoSatir">
           <input type="file" id="sayimFotoGirdi" accept="image/*" capture="environment" hidden>
           <button type="button" id="btnSayimFoto">📷 Rafın fotoğrafını çek</button>
           <span id="sayimFotoOn" class="gizli"><img alt="Raf fotoğrafı önizleme">
             <button type="button" id="btnSayimFotoSil" title="Fotoğrafı kaldır">✕</button></span>
         </div>
+
+        <!-- Serbest not: "arka sıra çok tozlu", "üst göz merdivensiz
+             görünmüyor" gibi sayıyı açıklayan her şey. -->
+        <textarea id="sayimNot" rows="2" placeholder="Not (isteğe bağlı) — sayıyla ilgili dikkat çeken bir şey"></textarea>
+
+        <!-- Rafta kütüphaneye ait olmayan kitap/eşya olabiliyor. O raf
+             "sayılmamış" değil, "sayılamadı, çünkü…" diye kayda geçer. -->
+        <button type="button" id="sayimEngelAc">⚠ Bu raf sayılamadı</button>
+        <div id="sayimEngel" class="gizli">
+          <b>Raf neden sayılamadı?</b>
+          <div class="sebepler" id="sayimSebepler">
+            <button type="button" data-sebep="Rafta kütüphaneye ait olmayan kitaplar var">Kütüphaneye ait olmayan kitaplar</button>
+            <button type="button" data-sebep="Rafta kitap değil, başka eşya var">Kitap değil, başka eşya</button>
+            <button type="button" data-sebep="Rafa erişilemedi (kilitli/kapalı/yüksek)">Rafa erişilemedi</button>
+            <button type="button" data-sebep="Kitaplar kutulanmış, rafta durmuyor">Kitaplar kutulanmış</button>
+          </div>
+          <textarea id="sayimEngelNot" rows="2"
+            placeholder="Sebebi kendi cümlenizle yazın — koordinatör bunu okuyacak"></textarea>
+          <div class="islemler">
+            <button type="button" id="btnSayimEngelKaydet">Sayılamadı olarak kaydet</button>
+            <button type="button" id="btnSayimEngelVazgec">Vazgeç</button>
+          </div>
+        </div>
+
         <div class="msg gizli" id="msgSayim"></div>
       </div>
     </div>
@@ -472,6 +614,7 @@
           <div class="baslik">1 · Kapak</div>
           <div id="kapakBos">
             <button type="button" class="foto-btn" id="btnKapak">📷 Çek</button>
+            <button type="button" class="raf-foto-btn" data-hangi="kapak">🖼 Raf fotoğrafından</button>
             <p class="foto-ipucu">kitabı tanımak için</p>
           </div>
           <div id="kapakVar" class="foto-onizleme gizli">
@@ -492,6 +635,7 @@
           <div class="baslik">2 · Künye sayfası</div>
           <div id="fotoBos">
             <button type="button" class="foto-btn" id="btnFoto">📷 Çek</button>
+            <button type="button" class="raf-foto-btn" data-hangi="kunye">🖼 Raf fotoğrafından</button>
             <p class="foto-ipucu">kitabın başındaki sol sayfa</p>
           </div>
           <div id="fotoVar" class="foto-onizleme gizli">
@@ -507,6 +651,18 @@
           </div>
           <input type="file" id="fotoGirdi" accept="image/*" capture="environment" style="display:none">
         </div>
+      </div>
+
+      <!-- Raf fotoğrafı seçici: bu sırada sayım sırasında çekilmiş fotoğraflar.
+           Gönüllü aynı rafı ikinci kez çekmek zorunda kalmasın; fotoğraf zaten
+           Drive'da duruyor, kayda yalnızca bağlantısı yazılır. -->
+      <div id="rafFotoSecici" class="gizli">
+        <div class="rfBaslik">
+          <b>Bu sıranın raf fotoğrafları</b>
+          <button type="button" id="btnRafFotoKapat" title="Kapat">✕</button>
+        </div>
+        <p class="rfIpucu" id="rfIpucu">Kayda bağlamak istediğiniz fotoğrafı seçin.</p>
+        <div class="rfListe" id="rafFotoListe"></div>
       </div>
 
       <div class="ayrinti-satir">
@@ -547,18 +703,28 @@
     </div>
 
     <div class="son">
-      <h2>Son kayıtlarınız</h2>
+      <div class="sonBaslik">
+        <h2 id="sonBaslik">Son kayıtlarınız</h2>
+        <!-- Kayıt düzeltmek koordinatörlük değildir: yanlış künyeyi gören
+             gönüllü, kaydı kim girmiş olursa olsun düzeltebilmeli. Liste
+             öntanımlı olarak kendi kayıtlarını gösterir (kalabalık olmasın),
+             tek dokunuşla herkesin kayıtlarına açılır. -->
+        <button type="button" id="btnKimin" data-kapsam="benim">Herkesin kayıtları</button>
+      </div>
 
-      <!-- Liste yalnızca kendi son kayıtlarınızı gösteriyor. Aradığınız kitap
-           orada yoksa (başkası girdiyse, silindiyse, eskidiyse) numarayla bulun. -->
+      <!-- Aradığınız kitap listede yoksa numarayla bulun. Çalıştığınız sıradaki
+           kitap için kısa numara (29) yeter; başka bir sıradaki kitap için tam
+           yer kodunu yazın (G-E01-029). -->
       <div class="bul">
         <label for="bulNo">Aradığınız kayıt listede yok mu? <b>Numarasını yazın</b></label>
         <div class="bulSatir">
           <span id="bulOnek">—</span>
-          <input type="text" id="bulNo" inputmode="numeric" placeholder="29"
+          <input type="text" id="bulNo" inputmode="text" placeholder="29"
                  autocomplete="off" maxlength="14">
           <button type="button" id="btnBul">Bul</button>
         </div>
+        <p class="bulIpucu">Başka bir sıradaki kitabı düzeltecekseniz tam yer
+          kodunu yazın: <b>G-E01-029</b></p>
         <div class="msg gizli" id="msgBul"></div>
       </div>
 
@@ -597,7 +763,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   var ZAMAN_ASIMI_AYAR = 30000;         // ayarlar (ilk istek, en yavaşı)
 
   // Yalnızca okuyan istekler; tekrar denemek güvenli
-  var TEKRARLANABILIR = ['config', 'sayac', 'rafDurum', 'sonKayitlar', 'kayitBul'];
+  var TEKRARLANABILIR = ['config', 'sayac', 'rafDurum', 'sonKayitlar', 'kayitBul',
+                         'sayimBilgisi', 'rafFotograflari'];
 
   /* Sıra bırakma: rezervasyon kalkar, kayıtlara dokunulmaz. Deneme yapan ya da
      eve giden kişi kilidi kendisi açar; koordinatörü beklemek gerekmez. */
@@ -705,7 +872,11 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       $(f.kutu).classList.toggle('dolu', v);
       if (v) {
         $(f.resim).src = deger.veri;
-        $(f.bilgi).textContent = '~' + Math.round(deger.veri.length * 0.75 / 1024) + ' KB';
+        /* Raf fotoğrafı seçildiyse yükleme yok: dosya zaten Drive'da,
+           kayda yalnız bağlantısı yazılacak. Boyut yazmak yanıltır. */
+        $(f.bilgi).textContent = deger.rafUrl
+          ? 'raf fotoğrafı'
+          : '~' + Math.round(deger.veri.length * 0.75 / 1024) + ' KB';
       } else {
         $(f.resim).removeAttribute('src');
       }
@@ -730,9 +901,101 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     });
   });
 
+  /* ── Raf fotoğrafından seçme ──────────────────────────────────────
+     Sayım sırasında çekilen raf fotoğrafı zaten Drive'da duruyor. Kitabı
+     kaydeden gönüllü aynı rafı ikinci kez çekmek yerine o fotoğrafı
+     seçebilir; kayda yalnızca bağlantısı yazılır, dosya kopyalanmaz.
+
+     Künye kutusuna raf fotoğrafı seçilirse sunucu OCR sırasına SOKMAZ:
+     rafın sırtlarından uydurma bir künye önerisi çıkmasın. */
+  var rafFotoHangi = 'kunye';
+  /* Fotoğrafın görüntülenecek adresi. Gerçek sistemde dosya Drive'dadır ve
+     küçültülmüş kopyası istenir; deneme sayfasında fotoğraf doğrudan
+     telefonun içindedir (data:…) ve olduğu gibi gösterilir. */
+  function rafFotoGoruntu(f, en) {
+    return f.id
+      ? 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(f.id) +
+        '&sz=w' + (en || 400)
+      : f.url;
+  }
+  function rafFotoKapat() {
+    $('rafFotoSecici').classList.add('gizli');
+    $('rafFotoListe').innerHTML = '';
+  }
+  $('btnRafFotoKapat').addEventListener('click', rafFotoKapat);
+
+  function rafFotoAc() {
+    var p = anahtarParcala(D.anahtar);
+    if (!p) {
+      return goster($('msgKayit'), 'hata',
+        'Raf fotoğrafı için önce bir sıra seçmelisiniz.');
+    }
+    $('rafFotoSecici').classList.remove('gizli');
+    $('rfIpucu').textContent = rafFotoHangi === 'kapak'
+      ? 'Seçtiğiniz fotoğraf bu kaydın KAPAK fotoğrafı olarak bağlanacak.'
+      : 'Seçtiğiniz fotoğraf bu kaydın KÜNYE fotoğrafı olarak bağlanacak. ' +
+        'Raf fotoğrafından künye okunmaz — künyeyi elle yazmanız gerekir.';
+    $('rafFotoListe').innerHTML = '<p class="rfBos">Yükleniyor…</p>';
+    api('rafFotograflari', { mekan: p.mekan, raf: p.raf, sira: p.sira })
+      .then(function (r) {
+        var liste = r.fotograflar || [];
+        if (!liste.length) {
+          $('rafFotoListe').innerHTML = '<p class="rfBos">Bu sırada henüz raf ' +
+            'fotoğrafı yok. Sayım yapılırken çekilen fotoğraflar burada çıkar — ' +
+            '<b>Raf sayımı yap</b> ekranından çekebilirsiniz.</p>';
+          return;
+        }
+        $('rafFotoListe').innerHTML = liste.map(function (f) {
+          return '<figure data-url="' + esc(f.url) + '" data-id="' + esc(f.id || '') +
+            '" data-on="' + esc(rafFotoGoruntu(f, 800)) + '">' +
+            '<img src="' + esc(rafFotoGoruntu(f, 400)) + '" alt="Raf fotoğrafı" loading="lazy">' +
+            '<figcaption>' + esc(f.kim || '—') +
+            (f.tarih ? '<br>' + esc(f.tarih) : '') + '</figcaption></figure>';
+        }).join('');
+      })['catch'](function (e) {
+        $('rafFotoListe').innerHTML = '<p class="rfBos">' + esc(e.message === 'AĞ'
+          ? 'Bağlantı yok — raf fotoğrafları getirilemedi.' : e.message) + '</p>';
+      });
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('.raf-foto-btn'), function (b) {
+    b.addEventListener('click', function () {
+      rafFotoHangi = b.dataset.hangi === 'kapak' ? 'kapak' : 'kunye';
+      rafFotoAc();
+    });
+  });
+
+  $('rafFotoListe').addEventListener('click', function (e) {
+    var f = e.target.closest('figure[data-url]');
+    if (!f) return;
+    var alan = rafFotoHangi === 'kapak' ? 'kapak' : 'foto';
+    /* 'veri' yalnızca önizleme adresidir; gönderilen şey rafUrl'dir. */
+    D[alan] = { veri: f.dataset.on, rafUrl: f.dataset.url,
+                id: f.dataset.id, tur: 'image/jpeg' };
+    fotoGoster();
+    rafFotoKapat();
+    goster($('msgKayit'), 'iyi', 'Raf fotoğrafı ' +
+      (rafFotoHangi === 'kapak' ? 'kapak' : 'künye') + ' olarak seçildi. ' +
+      'Kitabı kaydedince bağlanacak.');
+  });
+
   /* Fotoğrafı kaydın numarasına bağlar. Başarısız olursa telefonda bekletir —
      kayıt zaten tabloda, fotoğraf sonra yetişir. */
   function fotoGonder(no, foto, hangi) {
+    /* Raf fotoğrafı seçilmişse yüklenecek bir şey yok: dosya Drive'da duruyor,
+       kayda yalnız bağlantısı yazılır. Kuyruğa da bağlantı düşer — telefonda
+       megabaytlarca veri beklemesin. */
+    if (foto.rafUrl) {
+      return api('fotoBagla', { no: no, url: foto.rafUrl, hangi: hangi || 'kunye' })
+        .then(function () { return true; })
+        ['catch'](function () {
+          var k = fotoKuyruguOku();
+          k.push({ no: no, url: foto.rafUrl, hangi: hangi || 'kunye', b: 0 });
+          localStorage.setItem(FOTO_KUYRUK, JSON.stringify(k));
+          kuyrukGoster();
+          return false;
+        });
+    }
     return api('fotoEkle', { no: no, veri: foto.veri, tur: foto.tur, hangi: hangi || 'kunye' })
       .then(function () { return true; })
       ['catch'](function () {
@@ -756,12 +1019,19 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var k = fotoKuyruguOku();
     if (!k.length) return Promise.resolve();
     var ilk = k[0];
-    return IDB.oku(ilk.anahtar).then(function (foto) {
-      if (!foto) throw new Error('yok');
-      return api('fotoEkle', { no: ilk.no, veri: foto.veri, tur: foto.tur,
-                               hangi: ilk.hangi || 'kunye' });
-    }).then(function () {
-      return IDB.sil(ilk.anahtar)['catch'](function () {});
+    /* Kuyrukta iki tür iş var: yüklenecek fotoğraf (IDB'de duruyor) ve
+       bağlanacak raf fotoğrafı (yalnız bağlantı). İkincide IDB'ye hiç
+       gitmiyoruz — orada bir şey yok. */
+    var gonder = ilk.url
+      ? api('fotoBagla', { no: ilk.no, url: ilk.url, hangi: ilk.hangi || 'kunye' })
+          .then(function () { return null; })
+      : IDB.oku(ilk.anahtar).then(function (foto) {
+          if (!foto) throw new Error('yok');
+          return api('fotoEkle', { no: ilk.no, veri: foto.veri, tur: foto.tur,
+                                   hangi: ilk.hangi || 'kunye' });
+        });
+    return gonder.then(function () {
+      return ilk.url ? null : IDB.sil(ilk.anahtar)['catch'](function () {});
     }).then(function () {
       var kalan = fotoKuyruguOku(); kalan.shift();
       localStorage.setItem(FOTO_KUYRUK, JSON.stringify(kalan));
@@ -945,6 +1215,14 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   function yerEtiket(anahtar) {
     var soz = yerSozu(anahtar);
     return '<b>' + esc(anahtar) + '</b>' + (soz ? ' <span style="opacity:.85">(' + esc(soz) + ')</span>' : '');
+  }
+  /* anahtarKur'un tersi: "G-A02" → {mekan:'G', raf:'A', sira:2}.
+     Üzerinde çalışılan sıranın raf fotoğraflarını istemek için gerekiyor;
+     sunucu mekân/raf/sıra ayrı ayrı bekliyor. */
+  function anahtarParcala(anahtar) {
+    var e = /^(?:([^-]+)-)?([A-ZÇĞİÖŞÜ]+)(\d+)$/.exec(String(anahtar || '').trim().toUpperCase());
+    if (!e) return null;
+    return { mekan: e[1] || '', raf: e[2], sira: Number(e[3]) };
   }
 
   function siraDepoOku() {
@@ -1178,12 +1456,15 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
 
   /* Panel açılınca ekip nerede kaldıysa oradan devam: sunucudan sayımlar
-     çekilir, sırayla ilk SAYILMAMIŞ göz seçili gelir. */
+     çekilir, sırayla ilk DOKUNULMAMIŞ göz seçili gelir. Sayılamayan raf da
+     "işi bitmiş" sayılır — oraya yeniden gidilmesi koordinatörün kararıdır,
+     gönüllü aynı kapalı dolabın önünde ikinci kez durmasın. */
   function sayimKaldigiYer() {
     api('siraOzeti', {}).then(function (r) {
-      var sayilan = {};
+      var islenmis = {};
       (r.siralar || []).forEach(function (x) {
-        if (x.onSayim != null) sayilan[x.sira] = true;
+        if (x.onSayim != null) islenmis[x.sira] = true;
+        if (x.sayim && x.sayim.durum === 'sayilamadi') islenmis[x.sira] = true;
       });
       var mekanlar = (D.cfg && D.cfg.mekanlar) || [];
       for (var m = 0; m < mekanlar.length; m++) {
@@ -1192,9 +1473,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         for (var ri = 0; ri < raflar.length; ri++) {
           for (var si = 1; si <= kac; si++) {
             var a = anahtarKur(mekanlar[m].kod, raflar[ri], si);
-            if (!sayilan[a]) {
+            if (!islenmis[a]) {
               sayimGozSec(mekanlar[m].kod, raflar[ri], si);
-              if (Object.keys(sayilan).length) {
+              if (Object.keys(islenmis).length) {
                 goster($('msgSayim'), 'iyi', 'Kaldığınız yerden devam: <b>' +
                   esc(a) + '</b> (' + esc(yerSozu(a)) + ') seçildi.');
               }
@@ -1206,14 +1487,271 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       goster($('msgSayim'), 'iyi', 'Tanımlı tüm gözler sayılmış görünüyor. 🎉');
     })['catch'](function () { /* bağlantı yoksa seçiciler elle kullanılır */ });
   }
+
+  /* ── Sayım formunun hâli ──────────────────────────────────────────
+     Bir göz üç durumda olabilir: hiç sayılmamış · sayılmış · sayılamamış.
+     Sayılmış bir gözde form KAPALI gelir: gönüllü önce ne yazdığını görür,
+     sonra bilerek "ikinci kez say" ya da "düzelt" der. Eskiden panel her
+     zaman boş bir kutu gösteriyordu ve mevcut sayının üzerine farkında
+     olmadan yazılıyordu. */
+  var sayimDurumu = null;          // seçili gözün sunucudaki hâli
+  var sayimKip = 'yeni';           // 'yeni' · 'ikinci' · 'duzelt'
+  var sayimDuzeni = 'tek';         // 'tek' · 'iki'
+
+  function sayimDuzenSec(d) {
+    sayimDuzeni = (d === 'iki') ? 'iki' : 'tek';
+    Array.prototype.forEach.call($('sayimDuzen').children, function (b) {
+      b.classList.toggle('sec', b.dataset.duzen === sayimDuzeni);
+    });
+    var iki = sayimDuzeni === 'iki';
+    $('sayimGiris').classList.toggle('tek', !iki);
+    $('sayimArkaKutu').classList.toggle('gizli', !iki);
+    $('sayimArkaOnay').classList.toggle('gizli', !iki);
+    $('sayimOnEtiket').textContent = iki ? 'Ön sıra' : 'Sayılan kitap';
+    if (!iki) { $('sayimArka').value = ''; $('sayimArkaYok').checked = false; }
+    sayimArkaKilit();
+  }
+  /* "Arka sıra sayılamadı" işaretliyse arka kutusu kilitlenir: hem sayı hem
+     "sayamadım" aynı anda söylenemesin. */
+  function sayimArkaKilit() {
+    var yok = $('sayimArkaYok').checked;
+    $('sayimArka').disabled = yok;
+    if (yok) $('sayimArka').value = '';
+  }
+  $('sayimDuzen').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-duzen]');
+    if (b) { sayimDuzenSec(b.dataset.duzen); gizle($('msgSayim')); }
+  });
+  $('sayimArkaYok').addEventListener('change', function () {
+    sayimArkaKilit(); gizle($('msgSayim'));
+  });
+
+  /* Giriş alanları görünsün mü? Sayılmamış gözde her zaman görünür. */
+  function sayimFormGoster(gorunsun) {
+    ['sayimGiris', 'sayimNot'].forEach(function (id) {
+      $(id).classList.toggle('gizli', !gorunsun);
+    });
+    /* Sunucu eskiyse iki sıralı sayım ve "sayılamadı" kapalı kalır —
+       kaydedilemeyecek bir şeyi seçtirmek gönüllüyü yanıltır. */
+    $('sayimDuzen').classList.toggle('gizli', !gorunsun || sunucuEski);
+    $('sayimEngelAc').classList.toggle('gizli', !gorunsun || sunucuEski);
+    $('sayimArkaOnay').classList.toggle('gizli', !gorunsun || sayimDuzeni !== 'iki');
+    $('sayimSira').parentNode.classList.toggle('gizli', !gorunsun);
+    $('btnSayimKaydet').parentNode.classList.toggle('gizli', !gorunsun);
+    document.querySelector('.sayimFotoSatir').classList.toggle('gizli', !gorunsun);
+  }
+
+  function sayimFormTemizle() {
+    $('sayimAdet').value = ''; $('sayimArka').value = '';
+    $('sayimArkaYok').checked = false; $('sayimNot').value = '';
+    sayimDuzenSec('tek');
+    sayimFotoSifirla();
+  }
+
+  /* Sayımın durumunu tek kelimeyle anlatan rozet. */
+  function sayimRozet(s) {
+    if (!s || !s.durum) return '';
+    if (s.durum === 'sayilamadi') return '<span class="rozet rz-yok">sayılamadı</span>';
+    if (s.uyusmazlik) return '<span class="rozet rz-uyusmaz">iki sayım tutmuyor</span>';
+    if (s.durum === 'onaylandi') return '<span class="rozet rz-onay">onaylandı</span>';
+    if (s.eksik) return '<span class="rozet rz-eksik">arka sıra eksik</span>';
+    return '<span class="rozet rz-bekleyen">tek sayım · onay bekliyor</span>';
+  }
+
+  /* Gözün mevcut sayımını ve yapılabilecekleri gösterir. */
+  function sayimMevcutGoster() {
+    var s = sayimDurumu;
+    var kutu = $('sayimMevcut');
+    if (!s || !s.durum) {                     // hiç dokunulmamış göz
+      kutu.classList.add('gizli');
+      kutu.innerHTML = '';
+      sayimKip = 'yeni';
+      sayimFormGoster(true);
+      return;
+    }
+    kutu.classList.remove('gizli');
+    var h = '';
+
+    if (s.durum === 'sayilamadi') {
+      h += '<div><b>Bu raf sayılamadı.</b>' + sayimRozet(s) + '</div>' +
+           (s.not ? '<div class="kim" style="margin-top:4px">Sebep: ' + esc(s.not) + '</div>' : '') +
+           '<div class="kim">' + esc(s.sayan || '—') +
+           (s.sayimTarihi ? ' · ' + esc(s.sayimTarihi) : '') + '</div>';
+      h += '<div class="islemler">' +
+        '<button type="button" class="ana" data-is="say">Yine de sayabiliyorum</button>' +
+        '<button type="button" class="tehlike" data-is="geri">↩ Son işlemi geri al</button>' +
+        '</div>';
+    } else {
+      var ayrinti = '';
+      if (s.duzen === 'iki') {
+        ayrinti = ' <span class="kim">(ön ' + (s.onSira == null ? '—' : s.onSira) +
+          ' + arka ' + (s.arkaDurum === 'sayilamadi' ? 'sayılamadı'
+                        : (s.arkaSira == null ? '—' : s.arkaSira)) + ')</span>';
+      }
+      h += '<div><span class="sayi">' + (s.toplam == null ? '—' : s.toplam) +
+           ' kitap</span>' + ayrinti + sayimRozet(s) + '</div>' +
+           '<div class="kim">' + esc(s.sayan || '—') +
+           (s.sayimTarihi ? ' · ' + esc(s.sayimTarihi) : '') + '</div>';
+      if (s.ikinciSayim != null) {
+        h += '<div class="kim">2. sayım: <b>' + s.ikinciSayim + '</b> · ' +
+             esc(s.ikinciSayan || '—') +
+             (s.ikinciTarih ? ' · ' + esc(s.ikinciTarih) : '') + '</div>';
+      }
+      if (s.onaylayan) {
+        h += '<div class="kim">Onaylayan: ' + esc(s.onaylayan) +
+             (s.onayTarihi ? ' · ' + esc(s.onayTarihi) : '') + '</div>';
+      }
+      if (s.not) h += '<div class="kim">Not: ' + esc(s.not) + '</div>';
+
+      h += '<div class="islemler">';
+      /* İkinci sayım açık usulle yapılır: gönüllü sayıyı görür, doğruysa
+         onaylar. Onaylanmış bir gözde bu düğme çıkmaz. */
+      if (s.durum !== 'onaylandi') {
+        h += '<button type="button" class="ana" data-is="onay">✓ Sayı doğru — onayla</button>';
+      }
+      h += '<button type="button" data-is="ikinci">2. kez say</button>' +
+           '<button type="button" data-is="duzelt">Sayımı düzelt</button>' +
+           '<button type="button" class="tehlike" data-is="geri">↩ Son işlemi geri al</button>' +
+           '</div>';
+    }
+    kutu.innerHTML = h;
+    sayimKip = 'yeni';
+    sayimFormGoster(false);         // önce gör, sonra bilerek seç
+  }
+
+  $('sayimMevcut').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-is]');
+    if (!b) return;
+    var is = b.dataset.is;
+    if (is === 'onay') return sayimOnayla();
+    if (is === 'geri') return sayimGeriAl(b);
+    /* 'ikinci' · 'duzelt' · 'say' — hepsi formu açar, farkı ne yazıldığında. */
+    sayimKip = (is === 'ikinci') ? 'ikinci' : (is === 'duzelt' ? 'duzelt' : 'yeni');
+    sayimFormTemizle();
+    if (sayimKip === 'duzelt' && sayimDurumu) {
+      /* Düzeltmede eski değerler forma gelir: gönüllü yalnız yanlış olanı
+         değiştirsin, hepsini baştan yazmak zorunda kalmasın. */
+      sayimDuzenSec(sayimDurumu.duzen === 'iki' ? 'iki' : 'tek');
+      if (sayimDurumu.duzen === 'iki') {
+        $('sayimAdet').value = sayimDurumu.onSira == null ? '' : sayimDurumu.onSira;
+        $('sayimArka').value = sayimDurumu.arkaSira == null ? '' : sayimDurumu.arkaSira;
+        $('sayimArkaYok').checked = sayimDurumu.arkaDurum === 'sayilamadi';
+        sayimArkaKilit();
+      } else {
+        $('sayimAdet').value = sayimDurumu.toplam == null ? '' : sayimDurumu.toplam;
+      }
+      $('sayimNot').value = sayimDurumu.not || '';
+    }
+    sayimFormGoster(true);
+    goster($('msgSayim'), 'uyari', sayimKip === 'ikinci'
+      ? 'İkinci sayım: rafı <b>baştan sayın</b> ve bulduğunuz sayıyı yazın. ' +
+        'İlk sayımla tutarsa göz kendiliğinden onaylanır.'
+      : (sayimKip === 'duzelt'
+        ? 'Düzeltme: yazdığınız sayı eski sayının <b>yerine geçer</b>. ' +
+          'Yanlışlıkla düzelttiyseniz "geri al" ile eski sayıya dönebilirsiniz.'
+        : 'Sayabildiğiniz kadarını yazın; sayamadığınız kısmı nota düşün.'));
+    $('sayimAdet').focus();
+  });
+
+  /* Seçili gözün sunucudaki hâlini çeker. Bağlantı yoksa panel yine
+     çalışır: sayım kaydı zaten sunucuya gidiyor, o an hata verir. */
+  /* Sayfalar GitHub'a anında çıkar, sunucu betiği ise elle yeniden
+     yayınlanır. O aradaki pencerede sunucu yeni istekleri tanımaz. Sessizce
+     eski davranışa düşmek tehlikeli olurdu: "iki sıra" seçip 20+15 yazan
+     gönüllünün yalnızca ön sırası kaydedilirdi. Onun yerine açıkça
+     söylüyoruz ve iki sıralı sayımı kapatıyoruz. */
+  var sunucuEski = false;
+  function sunucuEskiUyar() {
+    if (!sunucuEski) return;
+    sayimDuzenSec('tek');
+    $('sayimDuzen').classList.add('gizli');
+    $('sayimEngelAc').classList.add('gizli');
+    goster($('msgSayim'), 'uyari',
+      'Sunucu betiği henüz güncellenmemiş: şimdilik yalnızca <b>tek sayı</b> ' +
+      'kaydedilebiliyor. İki sıralı raf, "sayılamadı" ve onay için ' +
+      'koordinatörün betiği yeniden yayınlaması gerekiyor.');
+  }
+
+  function sayimDurumYukle() {
+    var mekan = $('sayimMekan').value, raf = $('sayimRaf').value;
+    var sira = Number($('sayimSiraSec').value) || 1;
+    sayimDurumu = null;
+    $('sayimMevcut').classList.add('gizli');
+    sayimFormGoster(true);
+    return api('sayimBilgisi', { mekan: mekan, raf: raf, sira: sira })
+      .then(function (r) {
+        /* Seçici bu arada değiştiyse geç gelen cevabı yazma. */
+        if ($('sayimMekan').value !== mekan || $('sayimRaf').value !== raf ||
+            Number($('sayimSiraSec').value) !== sira) return;
+        sunucuEski = false;
+        sayimDurumu = r.sayim || null;
+        sayimMevcutGoster();
+      })['catch'](function (e) {
+        /* Bağlantı yoksa boş form kalır — o normal. Ama sunucu isteği
+           TANIMIYORSA betik eskidir; gönüllü bunu bilmeli. */
+        if (e && e.message && /Bilinmeyen istek/i.test(e.message)) {
+          sunucuEski = true;
+          sunucuEskiUyar();
+        }
+      });
+  }
+
+  function sayimOnayla() {
+    var mekan = $('sayimMekan').value, raf = $('sayimRaf').value;
+    var sira = Number($('sayimSiraSec').value) || 1;
+    goster($('msgSayim'), 'uyari', 'Onaylanıyor…');
+    api('sayimOnayla', { mekan: mekan, raf: raf, sira: sira, onaylayan: D.ad })
+      .then(function (c) {
+        goster($('msgSayim'), 'iyi', yerEtiket(c.anahtar) + ' sayımı <b>onaylandı</b>: ' +
+          c.adet + ' kitap.');
+        return sayimDurumYukle();
+      })['catch'](function (e) {
+        goster($('msgSayim'), 'hata', e.message === 'AĞ'
+          ? 'Bağlantı yok — onay kaydedilemedi.' : e.message);
+      });
+  }
+
+  function sayimGeriAl(dugme) {
+    /* Geri alma tek dokunuşla olmasın: yanlışlıkla basılan düğme doğru
+       sayımı silmesin. */
+    if (dugme.dataset.onay !== '1') {
+      dugme.dataset.onay = '1';
+      dugme.textContent = 'Emin misiniz? Dokunun';
+      setTimeout(function () {
+        if (dugme.dataset.onay === '1') {
+          dugme.dataset.onay = ''; dugme.textContent = '↩ Son işlemi geri al';
+        }
+      }, 4000);
+      return;
+    }
+    var mekan = $('sayimMekan').value, raf = $('sayimRaf').value;
+    var sira = Number($('sayimSiraSec').value) || 1;
+    goster($('msgSayim'), 'uyari', 'Geri alınıyor…');
+    api('sayimGeriAl', { mekan: mekan, raf: raf, sira: sira, sayan: D.ad })
+      .then(function (c) {
+        goster($('msgSayim'), 'iyi', yerEtiket(c.anahtar) + ' — son işlem geri alındı' +
+          (c.geriAlinanSayi != null ? ' (' + c.geriAlinanSayi + ' kitap)' : '') + '. ' +
+          (c.temizlendi ? 'Göz yeniden <b>sayılmamış</b> durumda.'
+                        : 'Bir önceki sayım geri geldi: <b>' + c.adet + ' kitap</b>.'));
+        return sayimDurumYukle();
+      })['catch'](function (e) {
+        goster($('msgSayim'), 'hata', e.message === 'AĞ'
+          ? 'Bağlantı yok — geri alınamadı.' : e.message);
+      });
+  }
+
   $('sayimMekan').addEventListener('change', sayimRafKur);
   ['sayimMekan', 'sayimRaf', 'sayimSiraSec'].forEach(function (id) {
     $(id).addEventListener('change', function () {
       sayimSirasiniGoster();
       gizle($('msgSayim'));               // yeni sıra seçilince eski mesaj kalmasın
+      sayimFormTemizle();
+      sayimEngelKapat();
+      sayimDurumYukle();                  // yeni gözün hâlini getir
     });
   });
   $('sayimAdet').addEventListener('input', function () { gizle($('msgSayim')); });
+  $('sayimArka').addEventListener('input', function () { gizle($('msgSayim')); });
 
   /* Yardımcı paneller birbirini kapatır: ekranda aynı anda tek panel olsun. */
   function panelleriKapat(haric) {
@@ -1230,7 +1768,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     $('sayimPanel').classList.toggle('gizli', acik);
     if (!acik) {
       sayimSecicileriKur(); sayimSirasiniGoster(); gizle($('msgSayim'));
+      sayimFormTemizle(); sayimEngelKapat();
       sayimKaldigiYer();               // ekip nerede kaldıysa oradan başla
+      sayimDurumYukle();
     }
   });
 
@@ -1258,36 +1798,141 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
   $('btnSayimFotoSil').addEventListener('click', sayimFotoSifirla);
 
+  /* ── "Bu raf sayılamadı" ──────────────────────────────────────────
+     Rafta kütüphaneye ait olmayan kitaplar ya da kitap dışı eşya olabiliyor.
+     Böyle bir raf "sayılmamış" değildir: gidilmiş, bakılmış, sayılamamıştır.
+     Sebebi olmadan kaydedilmez — koordinatörün okuyacağı tek şey o cümle. */
+  function sayimEngelKapat() {
+    $('sayimEngel').classList.add('gizli');
+    $('sayimEngelNot').value = '';
+    Array.prototype.forEach.call($('sayimSebepler').children, function (b) {
+      b.classList.remove('sec');
+    });
+  }
+  $('sayimEngelAc').addEventListener('click', function () {
+    var acik = !$('sayimEngel').classList.contains('gizli');
+    if (acik) { sayimEngelKapat(); return; }
+    $('sayimEngel').classList.remove('gizli');
+    gizle($('msgSayim'));
+  });
+  $('btnSayimEngelVazgec').addEventListener('click', sayimEngelKapat);
+  /* Hazır sebepler yazmayı kısaltır; seçilen sebep not kutusuna düşer ki
+     gönüllü üstüne kendi cümlesini ekleyebilsin. */
+  $('sayimSebepler').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-sebep]');
+    if (!b) return;
+    var secili = b.classList.contains('sec');
+    Array.prototype.forEach.call($('sayimSebepler').children, function (x) {
+      x.classList.remove('sec');
+    });
+    if (secili) { $('sayimEngelNot').value = ''; return; }
+    b.classList.add('sec');
+    $('sayimEngelNot').value = b.dataset.sebep;
+    $('sayimEngelNot').focus();
+  });
+  $('btnSayimEngelKaydet').addEventListener('click', function () {
+    var not = $('sayimEngelNot').value.trim();
+    if (!not) {
+      return goster($('msgSayim'), 'hata',
+        'Rafın neden sayılamadığını yazın — bir sebep seçin ya da kendiniz yazın.');
+    }
+    var mekan = $('sayimMekan').value, raf = $('sayimRaf').value;
+    var sira = Number($('sayimSiraSec').value) || 1;
+    mesgul($('btnSayimEngelKaydet'), true, '…');
+    var yuk = { mekan: mekan, raf: raf, sira: sira, sayan: D.ad,
+                sayilamadi: true, not: not, duzen: sayimDuzeni };
+    if (sayimFotoVeri) yuk.foto = sayimFotoVeri;
+    api('sayimKaydet', yuk).then(function (c) {
+      sayimEngelKapat(); sayimFormTemizle();
+      goster($('msgSayim'), 'uyari', yerEtiket(c.anahtar) +
+        ' <b>sayılamadı</b> olarak kaydedildi. Sebep koordinatöre iletildi.' +
+        (c.fotoUrl ? ' 📷 Raf fotoğrafı da kaydedildi.' : ''));
+      return sayimDurumYukle();
+    })['catch'](function (e) {
+      goster($('msgSayim'), 'hata', e.message === 'AĞ'
+        ? 'Bağlantı yok — kaydedilemedi. Bağlantı gelince tekrar deneyin.'
+        : e.message);
+    }).then(function () { mesgul($('btnSayimEngelKaydet'), false); });
+  });
+
   $('btnSayimKaydet').addEventListener('click', function () {
     var mekan = $('sayimMekan').value, raf = $('sayimRaf').value;
     var sira = Number($('sayimSiraSec').value) || 1;
-    var adet = $('sayimAdet').value.trim();
-    if (adet === '') {
-      return goster($('msgSayim'), 'hata', 'Saydığınız kitap sayısını yazın (boş rafa 0).');
+    var on = $('sayimAdet').value.trim();
+    var iki = sayimDuzeni === 'iki';
+    var arkaYok = iki && $('sayimArkaYok').checked;
+    var arka = $('sayimArka').value.trim();
+
+    if (on === '') {
+      return goster($('msgSayim'), 'hata', iki
+        ? 'Ön sıradaki kitap sayısını yazın (boş sıraya 0).'
+        : 'Saydığınız kitap sayısını yazın (boş rafa 0).');
     }
+    if (iki && !arkaYok && arka === '') {
+      return goster($('msgSayim'), 'hata',
+        'Arka sıradaki kitap sayısını yazın — sayamadıysanız ' +
+        '"arka sıra sayılamadı"yı işaretleyin.');
+    }
+
     mesgul($('btnSayimKaydet'), true, '…');
-    var yuk = { mekan: mekan, raf: raf, sira: sira, adet: adet, sayan: D.ad };
+    var yuk = { mekan: mekan, raf: raf, sira: sira, sayan: D.ad,
+                duzen: sayimDuzeni, on: on, adet: on,
+                arka: arkaYok ? '' : arka, arkaSayilamadi: arkaYok,
+                not: $('sayimNot').value.trim() };
+    if (sayimKip === 'ikinci') yuk.ikinci = true;
     if (sayimFotoVeri) yuk.foto = sayimFotoVeri;
+
     api('sayimKaydet', yuk).then(function (c) {
-      $('sayimAdet').value = '';
-      sayimFotoSifirla();
-      /* Kaydedilen gözden sonra seçiciler kendiliğinden bir sonrakine geçer:
-         N rafı 3. sıra kaydedildiyse sıradaki N-4'tür; raf bitince sonraki
-         rafın 1'i. Gönüllü sadece sayıp yazar, seçicilerle uğraşmaz. */
-      var sonraki = sonrakiGoz(mekan, raf, sira);
-      if (sonraki) sayimGozSec(sonraki.mekan, sonraki.raf, sonraki.sira);
-      goster($('msgSayim'), 'iyi', yerEtiket(c.anahtar) + ' sayımı kaydedildi: <b>' +
-        c.adet + ' kitap</b>.' +
+      /* ── İkinci sayım: tuttu mu tutmadı mı, orada kalıyoruz.
+         Uyuşmazlık varsa gönüllü rafın önünde duruyor demektir; hemen
+         bir sonraki göze atlatmak yanlış olur. */
+      if (c.ikinci) {
+        sayimFormTemizle();
+        goster($('msgSayim'), c.uyustu ? 'iyi' : 'uyari',
+          c.uyustu
+            ? yerEtiket(c.anahtar) + ': iki sayım da <b>' + c.adet +
+              ' kitap</b> — sayım <b>onaylandı</b>. ✓'
+            : yerEtiket(c.anahtar) + ': ilk sayım <b>' + c.ilkSayim +
+              '</b>, sizin sayımınız <b>' + c.adet + '</b> — <b>tutmuyor</b>. ' +
+              'Kayda geçti; koordinatör hangisinin geçerli olduğuna karar verecek.');
+        return sayimDurumYukle();
+      }
+
+      var duzeltmeMi = sayimKip === 'duzelt';
+      sayimFormTemizle();
+
+      /* Düzeltmede aynı gözde kalınır (gönüllü o gözle uğraşıyor); normal
+         sayımda seçiciler kendiliğinden bir sonrakine geçer: N rafı 3. sıra
+         kaydedildiyse sıradaki N-4'tür, raf bitince sonraki rafın 1'i. */
+      var sonraki = duzeltmeMi ? null : sonrakiGoz(mekan, raf, sira);
+      var mesaj = yerEtiket(c.anahtar) + (duzeltmeMi ? ' sayımı düzeltildi: ' : ' sayımı kaydedildi: ') +
+        '<b>' + c.adet + ' kitap</b>' +
+        (c.duzen === 'iki'
+          ? ' (ön ' + c.onSira + (c.eksik ? ' · arka sıra sayılamadı'
+              : ' + arka ' + c.arkaSira) + ')'
+          : '') + '.' +
+        (c.eksik ? ' <span style="color:#5c3576">Toplam <b>eksik</b> işaretlendi — ' +
+                   'arka sıra sayılmadı.</span>' : '') +
         (c.fotoUrl ? ' 📷 Raf fotoğrafı da kaydedildi.' : '') +
         (c.fotoAlinamadi ? ' <span style="color:#8a5a1c">Fotoğraf yüklenemedi — sayı kaydedildi.</span>' : '') +
         (c.oncekiSayim != null && c.oncekiSayim !== c.adet
           ? ' <span style="color:#8a5a1c">Önceki sayım ' + c.oncekiSayim +
             ' idi — üzerine yazıldı.</span>' : '') +
-        (sonraki
-          ? ' Sıradaki göz seçildi: <b>' +
-            esc(anahtarKur(sonraki.mekan, sonraki.raf, sonraki.sira)) + '</b>.'
-          : ' <b>Bu mekânın son gözüydü</b> — mekân değiştirebilirsiniz.'));
-      $('sayimAdet').focus();
+        (c.onayBozuldu ? ' <span style="color:#8a5a1c">Bu göz onaylanmıştı; ' +
+          'sayı değiştiği için onay kaldırıldı.</span>' : '');
+
+      if (sonraki) {
+        sayimGozSec(sonraki.mekan, sonraki.raf, sonraki.sira);
+        mesaj += ' Sıradaki göz seçildi: <b>' +
+          esc(anahtarKur(sonraki.mekan, sonraki.raf, sonraki.sira)) + '</b>.';
+        goster($('msgSayim'), 'iyi', mesaj);
+        sayimDurumYukle();
+        $('sayimAdet').focus();
+        return;
+      }
+      goster($('msgSayim'), 'iyi', mesaj + (duzeltmeMi ? ''
+        : ' <b>Bu mekânın son gözüydü</b> — mekân değiştirebilirsiniz.'));
+      return sayimDurumYukle();
     })['catch'](function (e) {
       goster($('msgSayim'), 'hata', e.message === 'AĞ'
         ? 'Bağlantı yok — sayım kaydedilemedi. Bağlantı gelince tekrar deneyin.'
@@ -1778,6 +2423,15 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       $('baslik').focus();
       return;
     }
+    /* Raf fotoğrafından künye okunamaz: rafta duran kitapların yalnızca
+       sırtı görünür. Başlıksız kayıt "künye fotoğraftan tamamlanacak" diye
+       beklemeye alınıyor — raf fotoğrafıyla o bekleyiş hiç bitmez. */
+    if (!baslik && !(D.foto && !D.foto.rafUrl) && !(D.kapak && !D.kapak.rafUrl)) {
+      goster($('msgKayit'), 'hata', 'Raf fotoğrafından künye okunamaz — ' +
+        'kitabın <b>başlığını yazın</b> ya da künye sayfasının fotoğrafını çekin.');
+      $('baslik').focus();
+      return;
+    }
     var kayit = {
       istemciId: yeniKimlik(),
       mekan: D.mekan, raf: D.raf, sira: D.sira,
@@ -1861,6 +2515,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     $('nusha').value = '1'; $('not').value = '';
     D.duzenleNo = null; D.foto = null; D.kapak = null;
     fotoGoster();
+    rafFotoKapat();                   // açık kalan seçici sonraki kitaba sarkmasın
     $('duzenleUyari').classList.add('gizli');
     durumSec('Sağlam');
     $('btnSorunlu').classList.remove('sec');
@@ -1956,9 +2611,17 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     D.duzenleNo = no;
     $('duzenleNo').textContent = no;
     $('duzenleUyari').classList.remove('gizli');
+    /* Başkasının kaydını düzeltmek serbest ama görünür olmalı: gönüllü
+       kimin kaydına dokunduğunu bilsin, yanlış kaydı açtığını fark etsin.
+       Kaydın yeri değişmez — düzeltme yalnızca künyeyi değiştirir, kitap
+       başka bir sıraya taşınmaz. */
+    var baskasi = k.kaydeden && D.ad &&
+      String(k.kaydeden).trim().toLowerCase() !== String(D.ad).trim().toLowerCase();
     goster($('msgKayit'), 'uyari',
       (k.yer ? '<b>' + esc(k.yer) + '</b> düzeltiliyor. ' : '') +
       'Alanları düzeltip <b>Kitabı kaydet</b>e basın — kayıt güncellenecek. ' +
+      (baskasi ? '<br>Bu kaydı <b>' + esc(k.kaydeden) + '</b> girmiş; ' +
+                 'yerine dokunmuyorsunuz, yalnız künyesini düzeltiyorsunuz. ' : '') +
       (k.onayli ? '<br><b>Dikkat:</b> bu kayıt koordinatör tarafından onaylanmış; ' +
                   'değiştirirseniz kararı yeniden görecek. ' : '') +
       '<button type="button" id="btnDuzenleVazgec" style="margin-left:6px;font-size:13px">Vazgeç</button>');
@@ -1968,20 +2631,32 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
 
   /* Yer kodundan arama: "29'da sorun oldu, geri dönemiyorum" durumunun çözümü.
-     Yalnızca çalışılan sıra içinde arar — kimse yanlışlıkla başka rafın
-     kaydını açmasın. */
+     Kısa numara (29) çalışılan sıra içinde aranır. TAM yer kodu (G-E01-029)
+     yazılırsa hangi sırada olursa olsun bulunur: yanlış künyeyi gören
+     gönüllü, kaydı kim girmiş olursa olsun düzeltebilsin. Düzeltmek
+     koordinatörlük değil, gözle görülen bir yanlışı gidermektir. */
   function kayitAra() {
     var ham = $('bulNo').value.trim();
     if (!ham) return goster($('msgBul'), 'hata', 'Kayıt numarasını yazın (örnek: 29).');
-    if (!D.anahtar) return goster($('msgBul'), 'hata', 'Önce bir sıra seçin.');
 
-    /* Hem "29" hem "G-E01-029" kabul edilir; insanlar ikisini de yazıyor.
-       Tam kod yazıldıysa yalnızca SON parça numaradır — baştaki raf/sıra
-       rakamlarını da toplarsak 1002 gibi olmayan bir numara çıkıyordu. */
-    var parca = ham.indexOf('-') >= 0 ? ham.split('-').pop() : ham;
-    var sadeceSayi = parca.replace(/\D/g, '');
-    if (!sadeceSayi) return goster($('msgBul'), 'hata', 'Yalnızca numara yazın (örnek: 29).');
-    var yer = yerKodu(D.anahtar, Number(sadeceSayi));
+    /* Tam yer kodu mu? "G-E01-029" · "E01-029" — üç parçalı kod kendi
+       sırasını da söyler, seçili sıraya ihtiyaç yok. */
+    var tam = /^(?:([^-\s]+)-)?([A-Za-zÇĞİÖŞÜçğıöşü]+)(\d+)-(\d+)$/
+      .exec(ham.replace(/\s+/g, '').toUpperCase());
+    var yer;
+    if (tam) {
+      yer = anahtarKur(tam[1] || '', tam[2], Number(tam[3])) + '-' +
+            doldurSayi(Number(tam[4]), 3);
+    } else {
+      if (!D.anahtar) {
+        return goster($('msgBul'), 'hata',
+          'Önce bir sıra seçin — ya da kitabın <b>tam yer kodunu</b> yazın ' +
+          '(örnek: G-E01-029).');
+      }
+      var sadeceSayi = ham.replace(/\D/g, '');
+      if (!sadeceSayi) return goster($('msgBul'), 'hata', 'Yalnızca numara yazın (örnek: 29).');
+      yer = yerKodu(D.anahtar, Number(sadeceSayi));
+    }
 
     mesgul($('btnBul'), true, 'Aranıyor…');
     gizle($('msgBul'));
@@ -2009,26 +2684,48 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     if (e.key === 'Enter') { e.preventDefault(); kayitAra(); }
   });
 
+  /* Liste iki kapsamda çalışır: 'benim' (öntanımlı, kalabalık olmasın) ve
+     'herkes'. Sunucu 'kaydeden' boş gelirse herkesin son kayıtlarını döner —
+     yanlış künyeyi gören gönüllü, kaydı kim girmiş olursa olsun düzeltebilsin. */
+  function sonKayitKapsami() { return $('btnKimin').dataset.kapsam || 'benim'; }
+
   function sonKayitlariYukle() {
-    api('sonKayitlar', { kaydeden: D.ad }).then(function (r) {
+    var herkes = sonKayitKapsami() === 'herkes';
+    $('sonBaslik').textContent = herkes ? 'Son kayıtlar (herkes)' : 'Son kayıtlarınız';
+    $('btnKimin').textContent = herkes ? 'Yalnız benimkiler' : 'Herkesin kayıtları';
+    api('sonKayitlar', { kaydeden: herkes ? '' : D.ad }).then(function (r) {
       var sinif = { 'Gidecek': 'gidecek', 'Gitse de olur': 'belki',
                     'Gitmeyecek': 'gitmeyecek', 'Belirsiz': 'belirsiz' };
       D.sonKayitlar = {};
       r.kayitlar.forEach(function (k) { D.sonKayitlar[k.no] = k; });
       $('sonListe').innerHTML = r.kayitlar.length ? r.kayitlar.map(function (k) {
         var bekliyor = !k.kural;               // koordinatör henüz karar vermemiş
+        /* Herkes kipinde kaydı kimin girdiği yazılır: gönüllü başkasının
+           kaydına dokunduğunu bilerek dokunsun. */
+        var kimi = herkes && k.kaydeden ? ' · ' + esc(k.kaydeden) : '';
+        /* Düzeltmek herkese açık, SİLMEK değil: yanlış künye geri
+           yazılabilir, silinen kayıt numarasıyla birlikte gider. Başkasının
+           kaydını silmek koordinatörün işi (katalog ekranından yapılır). */
+        var benimki = !herkes || !k.kaydeden || !D.ad ||
+          String(k.kaydeden).trim().toLowerCase() === String(D.ad).trim().toLowerCase();
         return '<div class="kayit ' + (bekliyor ? '' : (sinif[k.kategori] || '')) +
           '" data-no="' + k.no + '">' +
           '<div class="bas">' + esc(k.baslik) + '</div>' +
           '<div class="alt">' + esc(k.yer || ('#' + k.no)) + (k.yazar ? ' · ' + esc(k.yazar) : '') +
             (bekliyor ? ' · <i>karar koordinatörde</i>'
                       : ' · ' + esc(k.kategori) + ' (' + esc(k.kural) + ')') +
-            (k.durum && k.durum !== 'Sağlam' ? ' · ' + esc(k.durum) : '') + '</div>' +
+            (k.durum && k.durum !== 'Sağlam' ? ' · ' + esc(k.durum) : '') + kimi + '</div>' +
           '<div class="islem"><button class="duzelt">Düzelt</button>' +
-          '<button class="sil">Sil</button></div></div>';
-      }).join('') : '<p style="color:var(--soluk);font-size:14px;margin:0">Henüz kayıt yok.</p>';
+          (benimki ? '<button class="sil">Sil</button>' : '') + '</div></div>';
+      }).join('') : '<p style="color:var(--soluk);font-size:14px;margin:0">' +
+        (herkes ? 'Henüz hiç kayıt yok.' : 'Henüz kayıt yok.') + '</p>';
     })['catch'](function () { /* liste kritik değil, sessiz geç */ });
   }
+
+  $('btnKimin').addEventListener('click', function () {
+    this.dataset.kapsam = sonKayitKapsami() === 'herkes' ? 'benim' : 'herkes';
+    sonKayitlariYukle();
+  });
 
   $('sonListe').addEventListener('click', function (e) {
     var kart = e.target.closest('.kayit');

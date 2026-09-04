@@ -183,6 +183,9 @@
   .hucre[data-a="5"]{background:var(--a5)}
   .hucre[data-sorun="sayim"]{box-shadow:inset 0 0 0 2px #b81d33}
   .hucre[data-sorun="uzerinde"]{box-shadow:inset 0 0 0 2px #c08400}
+  /* Sayılamayan raf boş rafa benzemesin: gidilmiş ama sayılamamıştır. */
+  .hucre[data-sorun="sayilamadi"]{box-shadow:inset 0 0 0 2px #5c3576}
+  .hucre[data-sorun="sayim-eksik"]{box-shadow:inset 0 0 0 2px #8f76a8}
   .hucre.sonuk{opacity:.15}
   .hucre.secili{outline:2px solid var(--murekkep);outline-offset:1px}
   .hucre:focus-visible{outline:2px solid var(--bordo);outline-offset:2px}
@@ -241,6 +244,27 @@
     border:1px solid var(--cizgi);color:var(--soluk);background:var(--krem)}
   .basamak.oldu{background:var(--bordo);border-color:var(--bordo);color:#fff}
   .rafdetay .uyari-yazi{font-size:13px;margin:10px 0 0;font-weight:600}
+
+  /* Sayım hakemliği: iki sayım tutmadığında ya da tek sayım onaysız
+     kaldığında koordinatörün karar verdiği kutu. */
+  .sayimKutu{margin-top:13px;padding-top:12px;border-top:1px dashed var(--cizgi)}
+  .sayimBaslik{margin:0 0 6px;font-size:13.5px;font-weight:700}
+  .sayimBos{margin:0;font-size:13px;color:var(--soluk)}
+  .sayimNot{margin:5px 0 0;font-size:12.5px;color:var(--soluk);line-height:1.45}
+  .sayimSecim{display:flex;gap:8px;margin:9px 0 4px;flex-wrap:wrap}
+  .sayimSecim button{flex:1;min-width:130px;border:1.5px solid var(--cizgi);background:#fff;
+    color:#3c3036;border-radius:8px;padding:9px 10px;font:inherit;font-size:13px;
+    cursor:pointer;text-align:left;line-height:1.3}
+  .sayimSecim button:hover{border-color:var(--bordo);background:#faf4f7}
+  .sayimSecim button b{display:inline-block;font-size:16px;color:var(--bordo)}
+  .sayimSecim button small{display:block;font-size:11px;color:var(--soluk)}
+  .sayimIslem{display:flex;gap:8px;margin-top:10px}
+  .sayimIslem input{flex:1;min-width:0;font-size:15px;padding:9px 10px;
+    border:1.5px solid var(--cizgi);border-radius:8px;background:#fff}
+  .sayimIslem button{flex:0 0 auto;border:none;border-radius:8px;background:var(--bordo);
+    color:#fff;padding:9px 16px;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+  .sayimIslem button:disabled{opacity:.55}
+  .sayimMsg{margin-top:9px;font-size:13px}
 
   @media (max-width:620px){
     .isi{grid-template-columns:1fr}
@@ -451,7 +475,14 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     ['hepsi', 'Hepsi'], ['dokunulmadi', 'Dokunulmadı'],
     ['katalog-bekleyen', 'Katalog bekliyor'], ['acik', 'Yarım kalan'],
     ['karar-bekleyen', 'Karar bekliyor'],
-    ['sorunlu', 'Sayım tutmuyor'], ['uzerinde', 'Birinin üzerinde']
+    ['sorunlu', 'Sayım tutmuyor'], ['uzerinde', 'Birinin üzerinde'],
+    /* Sayımın kendi süzgeçleri: koordinatörün karar vermesi gereken üç yığın.
+       'sayilamadi' ve 'sayim-eksik' rafa yeniden gidilmesini gerektirir;
+       'sayim-uyusmaz' iki sayımdan hangisinin geçerli olduğunu sorar. */
+    ['sayim-uyusmaz', 'İki sayım tutmuyor'],
+    ['sayim-onaysiz', 'Sayım onayı bekliyor'],
+    ['sayilamadi', 'Sayılamadı'],
+    ['sayim-eksik', 'Arka sıra eksik']
   ];
   var P = { satirlar: [], gorunum: 'isi', mekan: '', suzgec: 'hepsi',
             secili: '', mekanAdlari: {}, adlarGeldi: false };
@@ -470,6 +501,10 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         Number(x.kararVerilen || 0) >= Number(x.kayitSayisi)) return 5;
     if (x.durum === 'bitti') return 4;
     if (Number(x.kayitSayisi) > 0) return 3;
+    /* Sayılamayan rafta fotoğraf olabilir (gönüllü durumu belgelemiştir) ama
+       o raf "Fotoğraflandı" basamağında değildir: işi ilerlemedi. Mor halka
+       durumu ayrıca anlatıyor, basamak yalan söylemesin. */
+    if (x.sayim && x.sayim.durum === 'sayilamadi') return 0;
     if (x.sayimFoto) return 2;
     if (x.onSayim != null) return 1;
     return 0;
@@ -479,14 +514,23 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
      ya da ön sayımla kapanış sayımı tutmuyor. İkisi de "bu raf yeniden
      sayılmalı" demek. */
   function sorunBul(x) {
+    /* İki gönüllü aynı rafı farklı saydıysa bu, sistem-raf farkından daha
+       acil bir sorudur: hangi sayı geçerli? Onun için en önde. */
+    if (x.sayim && x.sayim.uyusmazlik) return 'sayim';
     if (x.durum === 'bitti' && Number(x.fark) !== 0) return 'sayim';
     if (x.onSayim != null && x.raftaki !== '' && x.raftaki != null &&
         Number(x.raftaki) !== Number(x.onSayim)) return 'sayim';
+    /* Sayılamayan raf haritada BOŞ rafa benziyordu: ikisi de sayısız. Oysa
+       biri gidilmemiş, diğeri gidilmiş ve sayılamamış — ikincisine gönüllü
+       değil koordinatör gitmeli. Kendi işaretini alsın. */
+    if (x.sayim && x.sayim.durum === 'sayilamadi') return 'sayilamadi';
+    if (x.sayim && x.sayim.eksik) return 'sayim-eksik';
     if (x.tutulu) return 'uzerinde';
     return '';
   }
 
   function suzgecGecer(r, s) {
+    var sy = r.ham.sayim || null;
     if (s === 'dokunulmadi') return r.asama === 0;
     if (s === 'katalog-bekleyen') return r.asama === 1 || r.asama === 2;
     if (s === 'acik') return r.asama === 3;
@@ -496,6 +540,10 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     }
     if (s === 'sorunlu') return r.sorun === 'sayim';
     if (s === 'uzerinde') return r.sorun === 'uzerinde';
+    if (s === 'sayim-uyusmaz') return !!(sy && sy.uyusmazlik);
+    if (s === 'sayim-onaysiz') return !!(sy && sy.durum === 'sayildi');
+    if (s === 'sayilamadi') return !!(sy && sy.durum === 'sayilamadi');
+    if (s === 'sayim-eksik') return !!(sy && sy.eksik);
     return true;
   }
 
@@ -551,7 +599,28 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       '<span class="tutulu">' + say(function (r) { return r.sorun === 'uzerinde'; }) +
         ' şu an birinin üzerinde</span>' +
       (kararBekleyen ? '<span class="karar">' + kararBekleyen + ' raf karar bekliyor</span>' : '') +
-      (uyusmaz ? '<span class="uyusmaz">' + uyusmaz + ' sayım tutmuyor</span>' : '');
+      (uyusmaz ? '<span class="uyusmaz">' + uyusmaz + ' sayım tutmuyor</span>' : '') +
+      /* Sayımın kendi yığınları: koordinatörün bakması gereken raflar
+         sayfayı gezmeden görünsün. Sıfır olanı hiç yazmıyoruz — boş
+         rozet dizisi gözü yorar, iş varken göze çarpsın. */
+      sayimOzeti(l);
+  }
+
+  /* Sayımla ilgili üç yığın: onay bekleyen · sayılamayan · arka sırası eksik.
+     Süzgeç adlarıyla birebir aynı sözcükler kullanılıyor ki rozeti gören
+     koordinatör hangi süzgece basacağını aramasın. */
+  function sayimOzeti(l) {
+    var say = function (f) { return l.filter(f).length; };
+    var onaysiz = say(function (r) {
+      return r.ham.sayim && r.ham.sayim.durum === 'sayildi' && !r.ham.sayim.uyusmazlik;
+    });
+    var sayilamayan = say(function (r) {
+      return r.ham.sayim && r.ham.sayim.durum === 'sayilamadi';
+    });
+    var eksik = say(function (r) { return r.ham.sayim && r.ham.sayim.eksik; });
+    return (onaysiz ? '<span class="karar">' + onaysiz + ' sayım onay bekliyor</span>' : '') +
+      (sayilamayan ? '<span class="uyusmaz">' + sayilamayan + ' raf sayılamadı</span>' : '') +
+      (eksik ? '<span class="uyusmaz">' + eksik + ' rafın arka sırası eksik</span>' : '');
   }
 
   function mekanCipCiz() {
@@ -583,6 +652,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       return '<span><i style="background:' + a.renk + '"></i>' + esc(a.ad) + '</span>';
     }).join('') +
       '<span><i style="background:#fff;box-shadow:inset 0 0 0 2px #b81d33"></i>Sayım tutmuyor</span>' +
+      '<span><i style="background:#fff;box-shadow:inset 0 0 0 2px #5c3576"></i>Sayılamadı</span>' +
+      '<span><i style="background:#fff;box-shadow:inset 0 0 0 2px #8f76a8"></i>Arka sıra eksik</span>' +
       '<span><i style="background:#fff;box-shadow:inset 0 0 0 2px #c08400"></i>Birinin üzerinde</span>';
   }
 
@@ -669,11 +740,30 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var yer = (P.mekanAdlari[r.mekan] || r.mekan || '') +
       (r.mekan ? ' · ' : '') + r.kitaplik + ' kitaplığı · ' + r.raf + '. raf';
 
+    var sy = x.sayim || null;
     var satirlar = [];
     if (x.onSayim != null) {
       satirlar.push('<div><span>Rafta sayılan</span> <b>' + sayi(x.onSayim) + '</b>' +
         (x.sayimFoto ? ' <a href="' + esc(x.sayimFoto) + '" target="_blank" rel="noopener"' +
           ' title="Sayım sırasında çekilen raf fotoğrafı">📷</a>' : '') + '</div>');
+    }
+    /* Sayımın nasıl oluştuğu: bazı rafların arkasında ikinci sıra var,
+       toplam ön + arkadır. Arka sıra sayılamadıysa toplam EKSİKTİR —
+       tam sayım gibi okunup rafın işi bitmiş sanılmasın. */
+    if (sy && sy.duzen === 'iki') {
+      satirlar.push('<div><span>Raf düzeni</span> <b>iki sıra</b> ' +
+        '<span>(ön ' + (sy.onSira == null ? '—' : sy.onSira) + ' + arka ' +
+        (sy.arkaDurum === 'sayilamadi' ? 'sayılamadı'
+          : (sy.arkaSira == null ? '—' : sy.arkaSira)) + ')</span></div>');
+    }
+    if (sy && sy.ikinciSayim != null) {
+      satirlar.push('<div><span>2. sayım</span> <b style="color:' +
+        (sy.uyusmazlik ? '#b81d33' : '#0d6b3e') + '">' + sayi(sy.ikinciSayim) + '</b>' +
+        (sy.ikinciSayan ? ' <span>' + esc(sy.ikinciSayan) + '</span>' : '') + '</div>');
+    }
+    if (sy && sy.onaylayan) {
+      satirlar.push('<div><span>Onaylayan</span> <b>' + esc(sy.onaylayan) + '</b>' +
+        (sy.onayTarihi ? ' <span>' + esc(sy.onayTarihi) + '</span>' : '') + '</div>');
     }
     satirlar.push('<div><span>Sisteme girilen</span> <b>' + sayi(x.kayitli) + '</b>' +
       (x.kayitSayisi && x.kayitSayisi !== x.kayitli
@@ -716,8 +806,100 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
           ? '<p class="uyari-yazi" style="color:#c08400">Bu raf şu an ' + esc(x.tutan) + ' adına ayrılı.</p>'
           : '') +
       (x.not ? '<p class="uyari-yazi" style="font-weight:400;color:var(--soluk)">' +
-        esc(x.not) + '</p>' : '');
+        esc(x.not) + '</p>' : '') +
+      sayimKutusu(r);
   }
+
+  /* ── Sayım hakemliği ──────────────────────────────────────────────
+     Gönüllü sayar; iki sayım tutmuyorsa ya da tek sayım onaysız kaldıysa
+     hangi sayının geçerli olduğuna koordinatör karar verir. Karar burada
+     verilir, çünkü rafların bütün resmi burada duruyor. */
+  function sayimKutusu(r) {
+    var x = r.ham, sy = x.sayim || null;
+    /* Sayfalar GitHub'a anında çıkar, Apps Script ise elle yeniden
+       yayınlanır. O aradaki pencerede sunucu 'sayim' alanını hiç
+       göndermez: sayılmış bir rafa "sayılmadı" dememek için eski alanla
+       (onSayim) idare ediyoruz. */
+    if (!sy && x.onSayim != null) {
+      return '<div class="sayimKutu">' +
+        '<p class="sayimBaslik">Rafta sayılan: ' + sayi(x.onSayim) + '</p>' +
+        '<p class="sayimNot">Sayım onayı ve ikinci sayım için sunucu betiğinin ' +
+        'yeniden yayınlanması gerekiyor (Apps Script → Dağıt → Dağıtımı yönet).</p></div>';
+    }
+    if (!sy || !sy.durum) {
+      return '<div class="sayimKutu"><p class="sayimBos">Bu göz henüz sayılmadı.</p></div>';
+    }
+    var h = '<div class="sayimKutu" data-kod="' + esc(r.kod) + '">';
+
+    if (sy.durum === 'sayilamadi') {
+      h += '<p class="sayimBaslik" style="color:#b81d33">Bu raf sayılamadı</p>' +
+        (sy.not ? '<p class="sayimNot">' + esc(sy.not) + '</p>' : '') +
+        '<p class="sayimNot">' + esc(sy.sayan || '—') +
+        (sy.sayimTarihi ? ' · ' + esc(sy.sayimTarihi) : '') + '</p>' +
+        '<p class="sayimNot">Rafa yeniden gidilmesi gerekiyor.</p>';
+      return h + '</div>';
+    }
+
+    if (sy.uyusmazlik) {
+      h += '<p class="sayimBaslik" style="color:#b81d33">İki sayım tutmuyor — ' +
+        'hangisi geçerli?</p>' +
+        '<div class="sayimSecim">' +
+        '<button type="button" data-sayim="onay" data-gecerli="' + sy.toplam + '">' +
+          '1. sayım: <b>' + sy.toplam + '</b><small>' + esc(sy.sayan || '—') + '</small></button>' +
+        '<button type="button" data-sayim="onay" data-gecerli="' + sy.ikinciSayim + '">' +
+          '2. sayım: <b>' + sy.ikinciSayim + '</b><small>' + esc(sy.ikinciSayan || '—') + '</small></button>' +
+        '</div>' +
+        '<p class="sayimNot">Ya da doğru sayıyı biliyorsanız kendiniz yazın:</p>';
+    } else if (sy.durum === 'onaylandi') {
+      h += '<p class="sayimBaslik" style="color:#0d6b3e">Sayım onaylandı</p>' +
+        '<p class="sayimNot">Geçerli sayı <b>' + sy.toplam + '</b>. ' +
+        'Gerekirse aşağıdan düzeltebilirsiniz.</p>';
+    } else {
+      h += '<p class="sayimBaslik" style="color:#c08400">Tek sayım — onay bekliyor</p>' +
+        '<p class="sayimNot">İkinci bir sayım yapılmadı. Sayıyı olduğu gibi ' +
+        'onaylayabilir ya da doğru sayıyı yazabilirsiniz.</p>';
+    }
+    if (sy.eksik) {
+      h += '<p class="sayimNot" style="color:#5c3576">Arka sıra sayılamadı — ' +
+        'bu toplam <b>eksik</b>.</p>';
+    }
+    h += '<div class="sayimIslem">' +
+      '<input type="number" min="0" class="sayimGecerli" placeholder="' +
+        (sy.toplam == null ? 'sayı' : sy.toplam) + '" inputmode="numeric">' +
+      '<button type="button" data-sayim="onay">Onayla</button>' +
+      '</div>' +
+      '<div class="msg gizli sayimMsg"></div>';
+    return h + '</div>';
+  }
+
+  $('rafDetay').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-sayim="onay"]');
+    if (!b) return;
+    var kutu = b.closest('.sayimKutu');
+    var kod = kutu && kutu.dataset.kod;
+    var p = anahtarCoz(kod);
+    if (!p) return;
+    /* Düğmenin kendi sayısı varsa (uyuşmazlıkta "1. sayım"/"2. sayım") o
+       geçerli olur; yoksa kutuya yazılan sayı, o da boşsa mevcut sayı. */
+    var gecerli = b.dataset.gecerli;
+    if (gecerli == null) {
+      var kutucuk = kutu.querySelector('.sayimGecerli');
+      gecerli = kutucuk && kutucuk.value.trim();
+    }
+    var msg = kutu.querySelector('.sayimMsg');
+    msg.className = 'msg sayimMsg'; msg.textContent = 'Onaylanıyor…';
+    b.disabled = true;
+    api('sayimOnayla', { mekan: p.mekan, raf: p.kitaplik, sira: p.raf,
+                         onaylayan: D.ad, gecerli: gecerli || '' })
+      /* Onaydan sonra harita yeniden çekilir: rozet, süzgeç ve ayrıntı
+         aynı veriyi göstersin. Ayrıntı paneli haritayla birlikte tazelenir. */
+      .then(function () { return haritayiYukle(); })
+      ['catch'](function (h) {
+        b.disabled = false;
+        msg.className = 'msg hata gor sayimMsg';
+        msg.textContent = h.message || 'Onaylanamadı.';
+      });
+  });
 
   /* ── etkileşim ── */
   $('gorunumler').addEventListener('click', function (e) {
