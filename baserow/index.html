@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/site.css?v=20260815-gorev-tercihi" />
-  <link rel="stylesheet" href="./styles.css?v=20260908-baserow-demo-3" />
+  <link rel="stylesheet" href="./styles.css?v=20260908-baserow-demo-4" />
 </head>
 <body class="journal baserow-demo">
   <main class="page baserow-page">
@@ -37,12 +37,12 @@
     <section class="workspace-head" aria-labelledby="demo-title">
       <div>
         <p class="context-eyebrow">Baserow için Türkçe çalışma modeli</p>
-        <h1 id="demo-title">Gönüllü işleri tek yerde</h1>
-        <p class="lede">Sayısallaştırma ana iş akışı olarak kalır; proje, web, kronoloji, koordinasyon ve kütüphane taşınması işleri de aynı günlük kayıt düzenine girer.</p>
+        <h1 id="demo-title">Çalışma kaydı</h1>
+        <p class="lede">Gönüllüler o gün yaptıkları işleri girer. Koordinatörler aynı veriden takip, kutu/raf ve AtoM aktarımı görünümleri çıkarır.</p>
       </div>
       <div class="demo-status" aria-label="Deneme durumu">
         <span class="status-dot"></span>
-        <span>Demo veri</span>
+        <span>Deneme</span>
       </div>
     </section>
 
@@ -53,7 +53,7 @@
           <h2 id="formBaslik">Yeni çalışma kaydı</h2>
         </div>
 
-        <div class="field-row">
+        <div class="field-row three">
           <label>
             <span>Gönüllü</span>
             <select name="gonullu" required>
@@ -69,17 +69,25 @@
             <span>Çalışma günü</span>
             <input type="date" name="tarih" required />
           </label>
+          <label>
+            <span>Çalışma alanı</span>
+            <select name="calismaAlani" id="calismaAlani" required>
+              <option>Sayısallaştırma</option>
+              <option>Kütüphane taşınması</option>
+              <option>Proje geliştirme</option>
+              <option>Web sitesi</option>
+              <option>Kronoloji</option>
+              <option>Koordinasyon</option>
+              <option>Eğitim / toplantı</option>
+              <option>Diğer</option>
+            </select>
+          </label>
         </div>
 
         <label class="conditional-field" id="yeniGonulluSatiri" hidden>
           <span>Ad soyad</span>
           <input type="text" name="yeniGonullu" autocomplete="name" placeholder="Adınızı ve soyadınızı yazın" />
         </label>
-
-        <fieldset class="choice-block">
-          <legend>Çalışma alanı</legend>
-          <div class="choice-grid area-grid" id="calismaAlaniSecenekleri"></div>
-        </fieldset>
 
         <fieldset class="choice-block">
           <legend>İş türü</legend>
@@ -149,6 +157,16 @@
       </form>
 
       <aside class="side-panel" aria-label="Kaydedilen kayıtlar">
+        <section class="saved-panel">
+          <div class="saved-head">
+            <div>
+              <p class="kicker">Gönüllü kaydı</p>
+              <h2>Kaydettiğim kayıtlar</h2>
+            </div>
+          </div>
+          <div id="kaydedilenKayitlar"></div>
+        </section>
+
         <section class="summary-panel">
           <div class="panel-title">
             <p class="kicker">Koordinatör özeti</p>
@@ -172,17 +190,6 @@
               <p class="metric-label">gönüllü</p>
             </div>
           </div>
-        </section>
-
-        <section class="saved-panel">
-          <div class="saved-head">
-            <div>
-              <p class="kicker">Gönüllü kaydı</p>
-              <h2>Kaydettiğim kayıtlar</h2>
-            </div>
-            <button type="button" class="quiet-button" id="ornekleriYenile">Örnekleri yenile</button>
-          </div>
-          <div id="kaydedilenKayitlar"></div>
         </section>
       </aside>
     </section>
@@ -239,6 +246,6 @@
     </footer>
   </main>
 
-  <script src="./app.js?v=20260908-baserow-demo-3"></script>
+  <script src="./app.js?v=20260908-baserow-demo-4"></script>
 </body>
 </html>

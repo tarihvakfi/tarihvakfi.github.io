@@ -1,5 +1,5 @@
 (function () {
-  const ROWS_KEY = 'tvf-baserow-demo-v3';
+  const ROWS_KEY = 'tvf-baserow-demo-v4';
   const VOLUNTEERS_KEY = 'tvf-baserow-volunteers-v2';
 
   const defaultVolunteers = [
@@ -8,17 +8,6 @@
     'Özden Özütemiz',
     'Sibel Dağ',
     'Arif Solmaz'
-  ];
-
-  const areas = [
-    'Sayısallaştırma',
-    'Kütüphane taşınması',
-    'Proje geliştirme',
-    'Web sitesi',
-    'Kronoloji',
-    'Koordinasyon',
-    'Eğitim / toplantı',
-    'Diğer'
   ];
 
   const workTypes = {
@@ -45,6 +34,7 @@
 
   const fonds = ['PNB', 'NSS Harita', 'Kütüphane', 'Genel arşiv', 'Diğer'];
   const statuses = ['Kaydedildi', 'Sürüyor', 'Kontrol bekliyor', 'Takip gerekiyor', 'Tamamlandı'];
+  const multipleChoiceNames = new Set(['isTuru', 'fon', 'cihaz', 'durum']);
 
   const areaNotes = {
     'Sayısallaştırma': 'Kutu, dosya, belge ve sayfa bilgisi AtoM aktarımı için korunur.',
@@ -63,15 +53,15 @@
       gonullu: 'Berfin Yazıcı',
       tarih: '2026-09-08',
       calismaAlani: 'Sayısallaştırma',
-      isTuru: 'Tarama',
+      isTuru: ['Tarama', 'Kontrol'],
       yapilanIs: '',
       fon: 'PNB',
       kutu: '34',
       dosya: '12',
       belge: '1',
       miktar: 48,
-      cihaz: 'Viisan A3',
-      durum: 'Kontrol bekliyor',
+      cihaz: ['Viisan A3', 'Bilgisayar'],
+      durum: ['Kaydedildi', 'Kontrol bekliyor'],
       not: 'Dosya sonu kontrol edilecek'
     },
     {
@@ -79,14 +69,14 @@
       gonullu: 'Anıl Olcan',
       tarih: '2026-09-08',
       calismaAlani: 'Sayısallaştırma',
-      isTuru: 'Kodlama',
+      isTuru: ['Kodlama', 'Kataloglama'],
       yapilanIs: '',
       fon: 'PNB',
       kutu: '40',
       dosya: '3',
       belge: '2',
       miktar: 36,
-      cihaz: 'Bookeye',
+      cihaz: ['Bookeye', 'Bilgisayar'],
       durum: 'Sürüyor',
       not: 'Belge tarihi netleştirilecek'
     },
@@ -172,6 +162,7 @@
   const searchInput = document.getElementById('arama');
   const viewButtons = Array.from(document.querySelectorAll('[data-view]'));
   const volunteerSelect = form.elements.gonullu;
+  const areaSelect = form.elements.calismaAlani;
   const newVolunteerRow = document.getElementById('yeniGonulluSatiri');
   const otherWorkRow = document.getElementById('digerIsSatiri');
   const archiveFields = document.getElementById('arsivAlanlari');
@@ -181,7 +172,6 @@
   const generalAmountLabel = document.getElementById('genelMiktarEtiketi');
 
   const choiceTargets = {
-    calismaAlani: document.getElementById('calismaAlaniSecenekleri'),
     isTuru: document.getElementById('isTuruSecenekleri'),
     fon: document.getElementById('fonSecenekleri'),
     cihaz: document.getElementById('cihazSecenekleri'),
@@ -191,7 +181,6 @@
   form.elements.tarih.value = new Date().toISOString().slice(0, 10);
   renderVolunteerOptions();
   renderAllChoices();
-  setChoice('calismaAlani', 'Sayısallaştırma');
   setChoice('fon', 'PNB');
   setChoice('durum', 'Kaydedildi');
   renderDependentChoices();
@@ -199,8 +188,9 @@
   renderAll();
 
   volunteerSelect.addEventListener('change', updateConditionalFields);
+  areaSelect.addEventListener('change', renderDependentChoices);
   clearButton.addEventListener('click', clearForm);
-  resetButton.addEventListener('click', resetDemo);
+  if (resetButton) resetButton.addEventListener('click', resetDemo);
 
   form.addEventListener('submit', function (event) {
     event.preventDefault();
@@ -274,25 +264,30 @@
   }
 
   function renderAllChoices() {
-    renderChoiceGroup('calismaAlani', areas, 'Sayısallaştırma');
     renderChoiceGroup('fon', fonds, 'PNB');
     renderChoiceGroup('durum', statuses, 'Kaydedildi');
   }
 
   function renderDependentChoices() {
-    const area = getChoice('calismaAlani') || 'Sayısallaştırma';
-    renderChoiceGroup('isTuru', workTypes[area] || workTypes['Diğer'], getChoice('isTuru'));
-    renderChoiceGroup('cihaz', deviceOptions[area] || deviceOptions['Diğer'], getChoice('cihaz'));
+    const area = areaSelect.value || 'Sayısallaştırma';
+    renderChoiceGroup('isTuru', workTypes[area] || workTypes['Diğer'], getChoices('isTuru'));
+    renderChoiceGroup('cihaz', deviceOptions[area] || deviceOptions['Diğer'], getChoices('cihaz'));
     updateConditionalFields();
   }
 
   function renderChoiceGroup(name, options, preferred) {
-    const selected = options.includes(preferred) ? preferred : options[0];
+    const isMultiple = multipleChoiceNames.has(name);
+    const selectedValues = toList(preferred).filter(function (value) {
+      return options.includes(value);
+    });
+    if (!selectedValues.length && options[0]) selectedValues.push(options[0]);
+
     choiceTargets[name].innerHTML = options.map(function (option, index) {
       const id = `${name}-${index}-${slug(option)}`;
+      const checked = selectedValues.includes(option);
       return `
-        <label class="choice-tile${option === selected ? ' selected' : ''}" for="${id}">
-          <input id="${id}" type="radio" name="${name}" value="${escapeHtml(option)}"${option === selected ? ' checked' : ''} />
+        <label class="choice-tile${checked ? ' selected' : ''}" for="${id}">
+          <input id="${id}" type="${isMultiple ? 'checkbox' : 'radio'}" name="${name}" value="${escapeHtml(option)}"${checked ? ' checked' : ''} />
           <span>${escapeHtml(option)}</span>
         </label>
       `;
@@ -300,23 +295,37 @@
 
     Array.from(choiceTargets[name].querySelectorAll('input')).forEach(function (input) {
       input.addEventListener('change', function () {
-        setChoice(name, input.value);
-        if (name === 'calismaAlani') renderDependentChoices();
+        refreshChoiceGroup(name);
         updateConditionalFields();
       });
     });
   }
 
   function setChoice(name, value) {
+    const values = toList(value);
+    const isMultiple = multipleChoiceNames.has(name);
     Array.from(document.querySelectorAll(`input[name="${name}"]`)).forEach(function (input) {
-      input.checked = input.value === value;
-      input.closest('.choice-tile').classList.toggle('selected', input.checked);
+      input.checked = isMultiple ? values.includes(input.value) : input.value === values[0];
+    });
+    refreshChoiceGroup(name);
+  }
+
+  function refreshChoiceGroup(name) {
+    Array.from(document.querySelectorAll(`input[name="${name}"]`)).forEach(function (input) {
+      const tile = input.closest('.choice-tile');
+      if (tile) tile.classList.toggle('selected', input.checked);
+    });
+  }
+
+  function getChoices(name) {
+    return Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(function (input) {
+      return input.value;
     });
   }
 
   function getChoice(name) {
-    const checked = document.querySelector(`input[name="${name}"]:checked`);
-    return checked ? checked.value : '';
+    const selected = getChoices(name);
+    return selected[0] || '';
   }
 
   function renderVolunteerOptions(selected) {
@@ -327,10 +336,10 @@
   }
 
   function updateConditionalFields() {
-    const area = getChoice('calismaAlani') || 'Sayısallaştırma';
-    const workType = getChoice('isTuru') || 'Tarama';
+    const area = areaSelect.value || 'Sayısallaştırma';
+    const workTypesSelected = getChoices('isTuru');
     const needsVolunteer = volunteerSelect.value === '__new__';
-    const needsWorkDescription = area === 'Diğer' || workType === 'Diğer';
+    const needsWorkDescription = area === 'Diğer' || workTypesSelected.includes('Diğer');
     const usesArchive = usesArchiveFields(area);
 
     newVolunteerRow.hidden = !needsVolunteer;
@@ -349,8 +358,11 @@
   function collectFormRow() {
     const data = Object.fromEntries(new FormData(form).entries());
     const volunteerName = data.gonullu === '__new__' ? String(data.yeniGonullu || '').trim() : String(data.gonullu || '').trim();
-    const area = getChoice('calismaAlani');
-    const workType = getChoice('isTuru');
+    const area = areaSelect.value;
+    const workType = getChoices('isTuru');
+    const fundChoices = getChoices('fon');
+    const deviceChoices = getChoices('cihaz');
+    const statusChoices = getChoices('durum');
     const workDescription = String(data.yapilanIs || '').trim();
     const usesArchive = usesArchiveFields(area);
 
@@ -360,7 +372,27 @@
       return null;
     }
 
-    if ((area === 'Diğer' || workType === 'Diğer') && !workDescription) {
+    if (!workType.length) {
+      showMessage('En az bir iş türü seçin.');
+      return null;
+    }
+
+    if (usesArchive && !fundChoices.length) {
+      showMessage('En az bir fon seçin.');
+      return null;
+    }
+
+    if (!deviceChoices.length) {
+      showMessage('En az bir tarayıcı veya araç seçin.');
+      return null;
+    }
+
+    if (!statusChoices.length) {
+      showMessage('En az bir durum seçin.');
+      return null;
+    }
+
+    if ((area === 'Diğer' || workType.includes('Diğer')) && !workDescription) {
       showMessage('Diğer seçildiğinde yapılan işi açıkça yazın.');
       form.elements.yapilanIs.focus();
       return null;
@@ -372,13 +404,13 @@
       calismaAlani: area,
       isTuru: workType,
       yapilanIs: workDescription,
-      fon: usesArchive ? getChoice('fon') : '',
+      fon: usesArchive ? fundChoices : '',
       kutu: usesArchive ? String(data.kutu || '').trim() : '',
       dosya: usesArchive ? String(data.dosya || '').trim() : '',
       belge: usesArchive ? String(data.belge || '').trim() : '',
       miktar: Number(usesArchive ? data.miktar || 0 : data.genelMiktar || 0),
-      cihaz: getChoice('cihaz'),
-      durum: getChoice('durum'),
+      cihaz: deviceChoices,
+      durum: statusChoices,
       not: String(data.not || '').trim()
     };
   }
@@ -397,7 +429,7 @@
     form.elements.miktar.value = '48';
     form.elements.genelMiktar.value = '1';
     form.elements.not.value = '';
-    setChoice('calismaAlani', 'Sayısallaştırma');
+    areaSelect.value = 'Sayısallaştırma';
     renderDependentChoices();
     setChoice('fon', 'PNB');
     setChoice('durum', 'Kaydedildi');
@@ -433,7 +465,7 @@
     form.elements.miktar.value = row.miktar || 0;
     form.elements.genelMiktar.value = row.miktar || 0;
     form.elements.not.value = row.not || '';
-    setChoice('calismaAlani', row.calismaAlani);
+    areaSelect.value = row.calismaAlani || 'Sayısallaştırma';
     renderDependentChoices();
     setChoice('isTuru', row.isTuru);
     setChoice('fon', row.fon || 'PNB');
@@ -496,7 +528,8 @@
     }, 0);
     const activeAreas = new Set(state.rows.map(function (row) { return row.calismaAlani; }));
     const waiting = state.rows.filter(function (row) {
-      return row.durum === 'Kontrol bekliyor' || row.durum === 'Takip gerekiyor';
+      const statuses = toList(row.durum);
+      return statuses.includes('Kontrol bekliyor') || statuses.includes('Takip gerekiyor');
     }).length;
     const volunteers = new Set(state.rows.map(function (row) { return row.gonullu; }));
 
@@ -574,7 +607,7 @@
           { label: 'Toplam', render: function (row) { return `${formatNumber(row.miktar)} ${escapeHtml(row.birim)}`; } },
           { label: 'Son işlem', render: function (row) { return escapeHtml(row.sonTarih); } },
           { label: 'Gönüllüler', render: function (row) { return escapeHtml(row.gonulluler); } },
-          { label: 'Durum', render: function (row) { return statusPill(row.durum); } }
+          { label: 'Durum', render: function (row) { return statusPills(row.durum); } }
         ]
       };
     }
@@ -585,7 +618,8 @@
         title: 'Takip bekleyenler',
         rows: function () {
           return state.rows.filter(function (row) {
-            return row.durum === 'Kontrol bekliyor' || row.durum === 'Takip gerekiyor' || row.not;
+            const statuses = toList(row.durum);
+            return statuses.includes('Kontrol bekliyor') || statuses.includes('Takip gerekiyor') || row.not;
           });
         },
         columns: baseColumns().concat([
@@ -605,7 +639,7 @@
           { label: 'Başlık', render: function (row) { return escapeHtml(row.baslik); } },
           { label: 'Tarih', render: function (row) { return escapeHtml(row.tarih); } },
           { label: 'Dijital nesne', render: function (row) { return escapeHtml(row.nesne); } },
-          { label: 'Durum', render: function (row) { return statusPill(row.durum); } }
+          { label: 'Durum', render: function (row) { return statusPills(row.durum); } }
         ]
       };
     }
@@ -626,7 +660,7 @@
       { label: 'İş türü', render: function (row) { return escapeHtml(displayWork(row)); } },
       { label: 'Bağlantı', render: function (row) { return escapeHtml(displayPlace(row) || 'Genel çalışma'); } },
       { label: 'Miktar', render: function (row) { return `${formatNumber(row.miktar)} ${escapeHtml(unitFor(row))}`; } },
-      { label: 'Durum', render: function (row) { return statusPill(row.durum); } }
+      { label: 'Durum', render: function (row) { return statusPills(row.durum); } }
     ];
   }
 
@@ -684,7 +718,9 @@
       group.miktar += Number(row.miktar || 0);
       group.sonTarih = row.tarih > group.sonTarih ? row.tarih : group.sonTarih;
       group.gonulluSet.add(row.gonullu);
-      group.durumSet.add(row.durum);
+      toList(row.durum).forEach(function (status) {
+        group.durumSet.add(status);
+      });
     });
 
     return Array.from(grouped.values()).map(function (group) {
@@ -711,7 +747,7 @@
         baslik: `${row.yer} sayısallaştırma grubu`,
         tarih: 'Tarih aralığı koordinatör tarafından doldurulacak',
         nesne: `${code}.pdf`,
-        durum: row.durum === 'Takip gerekiyor' ? 'Kontrol bekliyor' : 'Aktarıma hazırlanıyor'
+        durum: toList(row.durum).includes('Takip gerekiyor') ? 'Kontrol bekliyor' : 'Aktarıma hazırlanıyor'
       };
     });
   }
@@ -730,13 +766,18 @@
   }
 
   function displayWork(row) {
-    if (row.isTuru === 'Diğer' && row.yapilanIs) return row.yapilanIs;
-    return row.isTuru;
+    const labels = toList(row.isTuru).filter(function (item) {
+      return item !== 'Diğer';
+    });
+    if (toList(row.isTuru).includes('Diğer') && row.yapilanIs) labels.push(row.yapilanIs);
+    return labels.join(', ') || row.yapilanIs || '';
   }
 
   function displayPlace(row, prefix) {
     const parts = [];
-    if (row.fon) parts.push(row.fon);
+    toList(row.fon).forEach(function (fund) {
+      if (fund) parts.push(fund);
+    });
     if (row.kutu) parts.push(`Kutu ${row.kutu}`);
     if (row.dosya) parts.push(row.calismaAlani === 'Kütüphane taşınması' ? row.dosya : `Dosya ${row.dosya}`);
     if (row.belge) parts.push(row.calismaAlani === 'Kütüphane taşınması' ? row.belge : `Belge ${row.belge}`);
@@ -752,9 +793,19 @@
     return 'adet';
   }
 
+  function statusPills(status) {
+    return toList(status).map(statusPill).join(' ');
+  }
+
   function statusPill(status) {
     const cls = status === 'Tamamlandı' ? 'done' : status === 'Takip gerekiyor' || status === 'Kontrol bekliyor' ? 'warn' : '';
     return `<span class="status-pill ${cls}">${escapeHtml(status)}</span>`;
+  }
+
+  function toList(value) {
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (value == null || value === '') return [];
+    return [String(value)];
   }
 
   function slug(value) {
