@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="robots" content="noindex,nofollow" />
 
-  <title>Baserow Denemesi · Tarih Vakfı</title>
-  <meta name="description" content="Tarih Vakfı gönüllü çalışma yönetimi için Türkçe Baserow çalışma modeli denemesi." />
+  <title>Baserow Geçiş Taslağı · Tarih Vakfı</title>
+  <meta name="description" content="Tarih Vakfı gönüllü çalışma yönetimi için Baserow geçiş modeli ve GitHub veri akışı taslağı." />
 
   <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/site.css?v=20260815-gorev-tercihi" />
-  <link rel="stylesheet" href="./styles.css?v=20260908-baserow-demo-4" />
+  <link rel="stylesheet" href="./styles.css?v=20260908-baserow-demo-5" />
 </head>
 <body class="journal baserow-demo">
   <main class="page baserow-page">
@@ -29,169 +29,89 @@
         <nav class="top-tabs" aria-label="Site bölümleri">
           <a href="../index.html">Emek Günlüğü</a>
           <a href="../gonullu-planlamasi.html">Gönüllü Planlaması</a>
-          <a href="./index.html" aria-current="page">Baserow Denemesi</a>
+          <a href="./index.html" aria-current="page">Baserow Taslağı</a>
         </nav>
       </div>
     </header>
 
     <section class="workspace-head" aria-labelledby="demo-title">
       <div>
-        <p class="context-eyebrow">Baserow için Türkçe çalışma modeli</p>
-        <h1 id="demo-title">Çalışma kaydı</h1>
-        <p class="lede">Gönüllüler o gün yaptıkları işleri girer. Koordinatörler aynı veriden takip, kutu/raf ve AtoM aktarımı görünümleri çıkarır.</p>
+        <p class="context-eyebrow">Google Sheet yerine önerilen akış</p>
+        <h1 id="demo-title">Tek veri girişi Baserow’da</h1>
+        <p class="lede">Gönüllüler GitHub sayfasına ayrıca kayıt girmeyecek. Bu sayfa yalnızca Baserow’a geçildiğinde verinin nasıl düzenlenip GitHub ve AtoM tarafına aktarılacağını gösteren taslaktır.</p>
       </div>
       <div class="demo-status" aria-label="Deneme durumu">
         <span class="status-dot"></span>
-        <span>Deneme</span>
+        <span>Veri almaz</span>
       </div>
     </section>
 
-    <section class="entry-grid" aria-label="Çalışma kaydı ve kaydedilenler">
-      <form class="entry-panel" id="calismaForm">
+    <section class="flow-strip" aria-label="Önerilen veri akışı">
+      <article class="flow-card primary">
+        <p class="kicker">1 · Giriş</p>
+        <h2>Baserow formu</h2>
+        <p>Gönüllü adını seçer veya ekler, o gün yaptığı birden fazla işi işaretler ve kaydı tek yerde gönderir.</p>
+      </article>
+      <article class="flow-card">
+        <p class="kicker">2 · Takip</p>
+        <h2>Baserow tabloları</h2>
+        <p>Koordinatörler kutu, dosya, durum, gönüllü emeği ve açık işleri aynı veritabanında izler.</p>
+      </article>
+      <article class="flow-card">
+        <p class="kicker">3 · Yayın</p>
+        <h2>GitHub sitesi</h2>
+        <p>Site yalnızca seçilmiş sonuçları, emek günlüğünü ve kamuya açık özetleri Baserow’dan alır.</p>
+      </article>
+      <article class="flow-card">
+        <p class="kicker">4 · Arşiv</p>
+        <h2>AtoM aktarımı</h2>
+        <p>Temizlenen kayıtlar fon, kutu, dosya, belge ve dijital nesne ilişkisiyle AtoM CSV’sine dönüşür.</p>
+      </article>
+    </section>
+
+    <section class="setup-grid" aria-label="Baserow kurulumu ve örnek sonuçlar">
+      <section class="fields-panel">
         <div class="panel-title">
-          <p class="kicker">Gönüllü ekranı</p>
-          <h2 id="formBaslik">Yeni çalışma kaydı</h2>
+          <p class="kicker">Baserow’da kurulacak gönüllü formu</p>
+          <h2>Gönüllü yalnızca bunu görür</h2>
         </div>
-
-        <div class="field-row three">
-          <label>
-            <span>Gönüllü</span>
-            <select name="gonullu" required>
-              <option>Berfin Yazıcı</option>
-              <option>Anıl Olcan</option>
-              <option>Özden Özütemiz</option>
-              <option>Sibel Dağ</option>
-              <option>Arif Solmaz</option>
-              <option value="__new__">Listede yokum / adımı ekle</option>
-            </select>
-          </label>
-          <label>
-            <span>Çalışma günü</span>
-            <input type="date" name="tarih" required />
-          </label>
-          <label>
-            <span>Çalışma alanı</span>
-            <select name="calismaAlani" id="calismaAlani" required>
-              <option>Sayısallaştırma</option>
-              <option>Kütüphane taşınması</option>
-              <option>Proje geliştirme</option>
-              <option>Web sitesi</option>
-              <option>Kronoloji</option>
-              <option>Koordinasyon</option>
-              <option>Eğitim / toplantı</option>
-              <option>Diğer</option>
-            </select>
-          </label>
+        <div class="field-list">
+          <div><b>Gönüllü</b><span>Listeden seçilir; listede yoksa ad soyad eklenir.</span></div>
+          <div><b>Çalışma günü</b><span>Günün tarihi.</span></div>
+          <div><b>Çalışma alanı</b><span>Sayısallaştırma, kütüphane taşınması, web sitesi, proje geliştirme, koordinasyon veya diğer.</span></div>
+          <div><b>İş türü</b><span>Çoklu seçim: tarama, kodlama, kontrol, kataloglama, proje, web, taşıma ve diğer işler.</span></div>
+          <div><b>Fon</b><span>Çoklu seçim: PNB, NSS Harita, Kütüphane, Genel arşiv veya diğer.</span></div>
+          <div><b>Kutu / dosya / belge</b><span>Sayısallaştırma ve kütüphane işleri için aktarılabilir referans bilgisi.</span></div>
+          <div><b>Tarayıcı / araç</b><span>Çoklu seçim: Bookeye, Viisan, Canon, bilgisayar, raf, telefon, toplantı veya diğer.</span></div>
+          <div><b>Durum</b><span>Çoklu seçim: kaydedildi, sürüyor, kontrol bekliyor, takip gerekiyor, tamamlandı.</span></div>
+          <div><b>Not</b><span>Eksik sayfa, tekrar kontrol, gerçek iş açıklaması veya koordinatör notu.</span></div>
         </div>
+      </section>
 
-        <label class="conditional-field" id="yeniGonulluSatiri" hidden>
-          <span>Ad soyad</span>
-          <input type="text" name="yeniGonullu" autocomplete="name" placeholder="Adınızı ve soyadınızı yazın" />
-        </label>
-
-        <fieldset class="choice-block">
-          <legend>İş türü</legend>
-          <div class="choice-grid" id="isTuruSecenekleri"></div>
-        </fieldset>
-
-        <label class="conditional-field" id="digerIsSatiri" hidden>
-          <span>Yapılan iş</span>
-          <textarea name="yapilanIs" placeholder="Listede yoksa yaptığınız işi açıkça yazın"></textarea>
-        </label>
-
-        <div class="area-note" id="alanNotu"></div>
-
-        <div class="archive-fields" id="arsivAlanlari">
-          <fieldset class="choice-block">
-            <legend>Fon</legend>
-            <div class="choice-grid small-grid" id="fonSecenekleri"></div>
-          </fieldset>
-
-          <div class="field-row four">
-            <label>
-              <span>Kutu</span>
-              <input type="text" name="kutu" value="34" />
-            </label>
-            <label>
-              <span>Dosya / raf</span>
-              <input type="text" name="dosya" value="12" />
-            </label>
-            <label>
-              <span>Belge / sıra</span>
-              <input type="text" name="belge" value="1" />
-            </label>
-            <label>
-              <span id="miktarEtiketi">Sayfa / adet</span>
-              <input type="number" name="miktar" min="0" value="48" required />
-            </label>
+      <section class="summary-panel">
+        <div class="panel-title">
+          <p class="kicker">GitHub’da görünecek örnek özet</p>
+          <h2>Bu taraf veri toplamaz</h2>
+        </div>
+        <div class="metric-grid">
+          <div>
+            <p class="metric-value" id="toplamSayfa">0</p>
+            <p class="metric-label">miktar</p>
+          </div>
+          <div>
+            <p class="metric-value" id="alanSayisi">0</p>
+            <p class="metric-label">çalışma alanı</p>
+          </div>
+          <div>
+            <p class="metric-value" id="kontrolBekleyen">0</p>
+            <p class="metric-label">takip bekleyen</p>
+          </div>
+          <div>
+            <p class="metric-value" id="gonulluSayisi">0</p>
+            <p class="metric-label">gönüllü</p>
           </div>
         </div>
-
-        <div class="field-row single-amount" id="genelMiktarSatiri" hidden>
-          <label>
-            <span id="genelMiktarEtiketi">Miktar / adet</span>
-            <input type="number" name="genelMiktar" min="0" value="1" />
-          </label>
-        </div>
-
-        <fieldset class="choice-block">
-          <legend>Tarayıcı / araç</legend>
-          <div class="choice-grid small-grid" id="cihazSecenekleri"></div>
-        </fieldset>
-
-        <fieldset class="choice-block">
-          <legend>Durum</legend>
-          <div class="choice-grid status-grid" id="durumSecenekleri"></div>
-        </fieldset>
-
-        <label>
-          <span>Not</span>
-          <textarea name="not" placeholder="Eksik sayfa, tekrar tarama, web güncellemesi, proje görüşmesi, raf sayımı gibi kısa notlar"></textarea>
-        </label>
-
-        <div class="button-row">
-          <button type="submit" id="kayitButonu">Kaydı gönder</button>
-          <button type="button" class="secondary" id="formuTemizle">Formu temizle</button>
-        </div>
-        <p class="form-note" id="formMesaj" role="status" aria-live="polite"></p>
-      </form>
-
-      <aside class="side-panel" aria-label="Kaydedilen kayıtlar">
-        <section class="saved-panel">
-          <div class="saved-head">
-            <div>
-              <p class="kicker">Gönüllü kaydı</p>
-              <h2>Kaydettiğim kayıtlar</h2>
-            </div>
-          </div>
-          <div id="kaydedilenKayitlar"></div>
-        </section>
-
-        <section class="summary-panel">
-          <div class="panel-title">
-            <p class="kicker">Koordinatör özeti</p>
-            <h2>Bugünkü durum</h2>
-          </div>
-          <div class="metric-grid">
-            <div>
-              <p class="metric-value" id="toplamSayfa">0</p>
-              <p class="metric-label">miktar</p>
-            </div>
-            <div>
-              <p class="metric-value" id="alanSayisi">0</p>
-              <p class="metric-label">çalışma alanı</p>
-            </div>
-            <div>
-              <p class="metric-value" id="kontrolBekleyen">0</p>
-              <p class="metric-label">takip bekleyen</p>
-            </div>
-            <div>
-              <p class="metric-value" id="gonulluSayisi">0</p>
-              <p class="metric-label">gönüllü</p>
-            </div>
-          </div>
-        </section>
-      </aside>
+      </section>
     </section>
 
     <section class="view-toolbar" aria-label="Koordinatör görünümleri">
@@ -205,7 +125,7 @@
     <section class="data-view" aria-live="polite">
       <div class="view-head">
         <div>
-          <p class="context-eyebrow" id="viewKicker">Baserow görünümü</p>
+          <p class="context-eyebrow" id="viewKicker">Baserow’dan okunacak görünüm</p>
           <h2 id="viewTitle">Çalışma kayıtları</h2>
         </div>
         <label class="search-box">
@@ -223,9 +143,9 @@
 
     <section class="model-map" aria-labelledby="model-title">
       <div class="model-copy">
-        <p class="context-eyebrow">Önerilen veri modeli</p>
-        <h2 id="model-title">Az tablo, net ilişki</h2>
-        <p>Gönüllü yalnızca kendi yaptığı işi girer. Sistem arkada genel çalışma kaydını, gerekiyorsa kutu/dosya/belge bilgisini ve takip notlarını birbirine bağlar. Böylece hem gönüllü emeği görünür kalır, hem de sayısallaştırma verisi daha sonra AtoM için temiz CSV’ye dönüşebilir.</p>
+        <p class="context-eyebrow">Veri modeli</p>
+        <h2 id="model-title">Basit giriş, aktarılabilir veri</h2>
+        <p>Google Sheet’te büyüyen karmaşıklığın yerine, gönüllü için tek sade form; koordinatör için ilişkili tablolar; araştırmacı erişimi için AtoM’a temiz aktarım hedeflenir.</p>
       </div>
       <div class="model-list" aria-label="Tablolar">
         <div><b>Çalışma Kayıtları</b><span>Gönüllü, tarih, çalışma alanı, iş türü, miktar, durum</span></div>
@@ -240,12 +160,12 @@
     <footer class="colophon">
       <div class="footer-brand">
         <img src="../assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" />
-        <p class="signoff">Tarih Vakfı · Baserow Denemesi</p>
+        <p class="signoff">Tarih Vakfı · Baserow Geçiş Taslağı</p>
       </div>
-      <p>Bu sayfa, Baserow’a geçiş düşüncesini gönüllüler ve koordinatörler için görünür kılmak üzere hazırlanmış bir denemedir.</p>
+      <p>Bu sayfa veri toplamaz. Gerçek kurulumda gönüllüler yalnızca Baserow formunu kullanır; GitHub sitesi Baserow’dan gelen seçilmiş çıktıları gösterir.</p>
     </footer>
   </main>
 
-  <script src="./app.js?v=20260908-baserow-demo-4"></script>
+  <script src="./app.js?v=20260908-baserow-demo-5"></script>
 </body>
 </html>
