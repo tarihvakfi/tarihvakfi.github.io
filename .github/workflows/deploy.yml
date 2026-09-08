@@ -71,13 +71,14 @@ jobs:
             if [ -f "$f" ]; then cp "$f" _site/; else echo "ATLANDI (depoda yok): $f"; fi
           done
 
-          cp -R assets css js kronoloji baserow _site/
+          cp -R assets css js kronoloji baserow pilot _site/
           rm -rf _site/kronoloji/apps-script
           rm -f _site/kronoloji/data.html _site/kronoloji/methodology.html
           touch _site/.nojekyll
 
           test -f _site/index.html
           test -f _site/baserow/index.html
+          test -f _site/pilot/index.html
           test -f _site/js/config.public.js
           test ! -e _site/apps-script
           test ! -e _site/tools
