@@ -26,7 +26,7 @@
 
       /* ── Visual year river ── */
       .tl-body { max-width:1220px; margin:0 auto; padding:32px 24px 64px; }
-      .tl-filters { background:var(--paper-strong); border:1px solid var(--line); border-radius:var(--radius); padding:14px; margin-bottom:20px; display:grid; grid-template-columns:minmax(220px,1.8fr) repeat(4,minmax(100px,1fr)); gap:10px; align-items:end; }
+      .tl-filters { background:var(--paper-strong); border:1px solid var(--line); border-radius:var(--radius); padding:14px; margin-bottom:20px; display:grid; grid-template-columns:minmax(220px,1.8fr) repeat(5,minmax(100px,1fr)); gap:10px; align-items:end; }
       .tl-filters label { display:grid; grid-template-rows:auto var(--ctrl-h); gap:6px; min-width:0; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
       .tl-filters input,.tl-filters select { box-sizing:border-box; display:block; border:1px solid var(--line); border-radius:6px; padding:0 12px; background:white; color:var(--ink); height:var(--ctrl-h); min-height:var(--ctrl-h); width:100%; font:inherit; font-weight:650; line-height:normal; }
       .tl-filters select { padding-right:32px; }
@@ -85,6 +85,15 @@
     <header class="site-header">
       <nav class="nav" aria-label="Ana gezinme">
         <a class="brand" href="index.html"><span class="brand-mark">TV</span> Tarih Vakfı Dijital Kronolojisi</a>
+        <button class="nav-toggle" aria-label="Menüyü aç/kapat" aria-expanded="false"
+          onclick="this.setAttribute('aria-expanded',this.getAttribute('aria-expanded')==='true'?'false':'true');
+                   document.querySelector('.nav-links').classList.toggle('open')">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="6" x2="19" y2="6"/>
+            <line x1="3" y1="11" x2="19" y2="11"/>
+            <line x1="3" y1="16" x2="19" y2="16"/>
+          </svg>
+        </button>
         <div class="nav-links">
           <a class="home-link" href="../index.html">Emek Günlüğü</a>
           <a href="timeline.html" data-page="timeline">Kronoloji</a>
@@ -98,13 +107,13 @@
     <div class="tl-hero">
       <div class="tl-hero-inner">
         <div>
-          <p class="eyebrow" style="color:#c9a87e;font-size:11px;letter-spacing:.14em;font-weight:800;text-transform:uppercase;margin:0 0 12px;">Tam kronolojik akış · 1990–2026</p>
-          <h1>Kronoloji</h1>
-          <p>Kamuya açılan bütün kayıtlar yıllara göre akar. Filtreler yalnızca görünümü daraltır; veri setinden kayıt çıkarmaz.</p>
+          <p class="eyebrow" style="color:#c9a87e;font-size:11px;letter-spacing:.14em;font-weight:800;text-transform:uppercase;margin:0 0 12px;" data-content="timeline.hero.eyebrow">Tam kronolojik akış</p>
+          <h1 data-content="timeline.hero.title">Kronoloji</h1>
+          <p data-content="timeline.hero.lead">Bu sayfa kamuya açılan bütün kayıtları yıllara göre gösterir. Filtreler yalnızca görünümü daraltır; veri setinden kayıt çıkarmaz.</p>
         </div>
         <div class="tl-hero-count">
           <strong id="tlHeroCount">—</strong>
-          <span>gösterilen kayıt</span>
+          <span data-content="timeline.result.label">gösterilen kayıt</span>
         </div>
       </div>
     </div>
@@ -127,16 +136,17 @@
     <main class="tl-body">
       <!-- Filters -->
       <div class="tl-filters">
-        <label>Arama<input id="timelineSearch" type="search" placeholder="Başlık, kategori, yıl…"></label>
-        <label>Tür<select id="timelineKind"></select></label>
-        <label>Durum<select id="timelineStatus"></select></label>
-        <label>Başlangıç yılı<input id="timelineYearFrom" type="number" min="1990" max="2026" placeholder="1991"></label>
-        <label>Bitiş yılı<input id="timelineYearTo"   type="number" min="1990" max="2026" placeholder="2026"></label>
+        <label><span data-content="filters.search">Arama</span><input id="timelineSearch" type="search" placeholder="Başlık, açıklama, kategori, yıl..." data-content-placeholder="timeline.search.placeholder"></label>
+        <label><span data-content="filters.kind">Tür</span><select id="timelineKind"></select></label>
+        <label><span data-content="filters.status">Durum</span><select id="timelineStatus"></select></label>
+        <label><span data-content="filters.activity_code">Faaliyet kodu</span><select id="timelineCode"></select></label>
+        <label><span data-content="filters.year_from">Başlangıç yılı</span><input id="timelineYearFrom" type="number" min="1990" max="2026" placeholder="1991"></label>
+        <label><span data-content="filters.year_to">Bitiş yılı</span><input id="timelineYearTo" type="number" min="1990" max="2026" placeholder="2026"></label>
       </div>
       <div class="tl-stat-bar">
         <span class="tl-stat" id="tlStatText">Veri yükleniyor…</span>
         <span style="flex:1"></span>
-        <a class="button ghost" href="archive.html" style="padding:6px 14px;font-size:13px;">Arşiv görünümü →</a>
+        <a class="button ghost" href="archive.html" style="padding:6px 14px;font-size:13px;" data-content="timeline.footer.link">Arşiv görünümüne geç</a>
       </div>
 
       <!-- River -->
@@ -150,8 +160,8 @@
 
     <footer class="footer">
       <div class="footer-inner">
-        <span>Kaynak satırı ve doğrulama durumu tekil kayıt sayfalarında korunur.</span>
-        <a href="archive.html">Arşiv görünümüne geç</a>
+        <span data-content="timeline.footer.note">Kaynak satırı ve doğrulama durumu tekil kayıt sayfalarında korunur.</span>
+        <a href="archive.html" data-content="timeline.footer.link">Arşiv görünümüne geç</a>
         <span class="design-credit">Tasarım: Arif Solmaz</span>
       </div>
     </footer>
@@ -181,7 +191,7 @@
         });
       });
       // Filter inputs
-      ['timelineSearch','timelineKind','timelineStatus','timelineYearFrom','timelineYearTo'].forEach(id => {
+      ['timelineSearch','timelineKind','timelineStatus','timelineCode','timelineYearFrom','timelineYearTo'].forEach(id => {
         document.getElementById(id)?.addEventListener('input', () => { tlPage = 1; renderTL(); });
       });
     });
@@ -192,6 +202,7 @@
       // populate selects
       const kinds = [...new Set(allRecords.map(r=>r.item_kind).filter(Boolean))].sort();
       const statuses = [...new Set(allRecords.map(r=>r.verification_status).filter(Boolean))].sort();
+      const codes = [...new Set(allRecords.map(r=>r.activity_code_base||r.activity_code).filter(Boolean))].sort();
 
       const fillSel = (id, vals, labels, allLabel) => {
         const el = document.getElementById(id);
@@ -201,6 +212,16 @@
       };
       fillSel('timelineKind', kinds, KIND_LABELS_TL, 'Tüm türler');
       fillSel('timelineStatus', statuses, STATUS_LABELS_TL, 'Tüm durumlar');
+      fillSel('timelineCode', codes, activityCodeLabels(allRecords), 'Tüm kodlar');
+      setYearRangeDefaults('timeline', allRecords);
+
+      const requestedPeriod = new URLSearchParams(window.location.search).get('period') || '';
+      if (requestedPeriod) {
+        tlPeriodFilter = requestedPeriod;
+        document.querySelectorAll('.pt-btn').forEach(btn => {
+          btn.classList.toggle('active', (btn.dataset.period || '') === requestedPeriod);
+        });
+      }
       renderTL();
     }
 
@@ -208,6 +229,7 @@
       const search = (document.getElementById('timelineSearch')?.value||'').toLocaleLowerCase('tr-TR');
       const kind   = document.getElementById('timelineKind')?.value||'';
       const status = document.getElementById('timelineStatus')?.value||'';
+      const code   = document.getElementById('timelineCode')?.value||'';
       const yFrom  = Number(document.getElementById('timelineYearFrom')?.value)||0;
       const yTo    = Number(document.getElementById('timelineYearTo')?.value)||9999;
 
@@ -215,11 +237,12 @@
         if (tlPeriodFilter && r.period !== tlPeriodFilter) return false;
         if (kind && r.item_kind !== kind) return false;
         if (status && r.verification_status !== status) return false;
+        if (code && (r.activity_code_base||r.activity_code) !== code) return false;
         const y = r._year || Number(r.year);
         if (yFrom && (!y || y < yFrom)) return false;
         if (yTo < 9999 && (!y || y > yTo)) return false;
         if (search) {
-          const hay = [r.title,r.category,r.date_display,r.period,r.year].join(' ').toLocaleLowerCase('tr-TR');
+          const hay = [r.title,r.category,r.activity_label,r.activity_code,r.date_display,r.period,r.year].join(' ').toLocaleLowerCase('tr-TR');
           if (!hay.includes(search)) return false;
         }
         return true;
@@ -261,11 +284,12 @@
           const kindBadge = `<span class="badge kind-${r.item_kind}">${KIND_LABELS_TL[r.item_kind]||r.item_kind}</span>`;
           const statusBadge = r.verification_status==='verified' ? `<span class="badge status-verified">✓</span>` :
             `<span class="badge status-${r.verification_status}">${STATUS_LABELS_TL[r.verification_status]||r.verification_status}</span>`;
-          const catBadge = r.category ? `<span class="badge">${esc(r.category)}</span>` : '';
+          const activity = activityBadge(r);
+          const catBadge = r.category && r.category !== r.activity_label ? `<span class="badge">${esc(r.category)}</span>` : '';
           return `<a class="tl-card" href="item.html?id=${encodeURIComponent(r.id)}">
             <div class="tl-card-stripe" style="background:${stripe}"></div>
             <div class="tl-card-body">
-              <div class="tl-card-meta">${kindBadge}${statusBadge}${catBadge}</div>
+              <div class="tl-card-meta">${kindBadge}${statusBadge}${activity}${catBadge}</div>
               <p class="tl-card-title">${esc(r.title||r.id)}</p>
               <span class="tl-card-date">${esc(r.date_display||r.year||'Tarih belirsiz')} · ${esc(r.period||'')}</span>
             </div>

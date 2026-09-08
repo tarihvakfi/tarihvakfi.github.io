@@ -218,8 +218,8 @@ h3 { margin: 0 0 8px; font-size: 20px; }
 .chart-title strong { font-family: var(--serif); font-size: 18px; }
 .chart-title span { color: var(--muted); font-size: 13px; }
 .chart { width: 100%; min-height: 220px; }
-.bar-label { fill: var(--muted); font-size: 13px; font-weight: 650; }
-.bar-value { fill: var(--ink); font-size: 14px; font-weight: 850; }
+.bar-label { fill: var(--muted); font-size: 14px; font-weight: 700; }
+.bar-value { fill: var(--ink); font-size: 16px; font-weight: 900; }
 .axis-tick { fill: var(--muted); font-size: 11px; font-weight: 700; }
 
 .stacked-list {
@@ -289,7 +289,7 @@ h3 { margin: 0 0 8px; font-size: 20px; }
   background: #efe4d5; overflow: hidden;
 }
 .bar-fill { display: block; height: 100%; border-radius: 4px; }
-.bar-list-value { color: var(--ink); font-size: 15px; font-weight: 800; white-space: nowrap; }
+.bar-list-value { color: var(--ink); font-size: 17px; font-weight: 900; white-space: nowrap; }
 
 .kind-donut {
   display: grid;
@@ -484,7 +484,8 @@ h3 { margin: 0 0 8px; font-size: 20px; }
 .badge.status-uncertain_category { border-color: rgba(162,111,38,.38); color: var(--gold); }
 .badge.activity-code {
   border-color: rgba(35,31,28,.22); color: var(--ink);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  max-width: 100%;
+  font-family: var(--sans);
 }
 .badge.activity-code.kod-review { border-color: rgba(162,111,38,.45); color: var(--gold); }
 
@@ -754,7 +755,7 @@ td { font-size: 14px; }
 }
 .db-metrics-strip #dashboardMetrics {
   max-width: 1220px; margin: 0 auto;
-  display: grid; grid-template-columns: repeat(6,1fr);
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr));
 }
 .db-metrics-strip .metric {
   border-radius: 0; border: none;

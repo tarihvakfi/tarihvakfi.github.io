@@ -43,6 +43,7 @@ const ACTIVITY_GROUP_LABELS = {
   "Toplantı ve yayın dışı etkinlikler": "Etkinlikler",
   Projeler: "Projeler",
   BBM: "BBM",
+  "Bilgi-Belge Merkezi": "BBM",
 };
 
 const ACTIVITY_GROUP_COLORS = {
@@ -51,17 +52,25 @@ const ACTIVITY_GROUP_COLORS = {
   "Toplantı ve yayın dışı etkinlikler": "#a26f26",
   Projeler: "#626b45",
   BBM: "#7b7169",
+  "Bilgi-Belge Merkezi": "#7b7169",
 };
 
 const ACTIVITY_CODE_INFO = {
-  "İÇ": ["Toplantılar", "İç toplantı"],
-  "İKO": ["Toplantılar", "İç kongre ve genel kurul"],
+  "İÇ": ["Toplantılar", "Kurum içi özel buluşmalar"],
+  "İKO": ["Toplantılar", "Kongre"],
   KON: ["Toplantılar", "Konuşma / konferans / söyleşi"],
-  PAN: ["Toplantılar", "Panel / forum / açık oturum"],
-  ATA: ["Toplantılar", "Atölye / çalıştay"],
+  PAN: ["Toplantılar", "Panel"],
+  ATL: ["Toplantılar", "Atölye / çalıştay / workshop"],
+  ATL_YTT: ["Toplantılar", "Atölye / Yerel Tarih Toplantıları"],
+  ATL_STT: ["Toplantılar", "Atölye / Sözlü Tarih Toplantıları"],
+  ATA: ["Toplantılar", "Atölye / çalıştay / workshop"],
   SMN: ["Toplantılar", "Seminer / kurs"],
   SEM: ["Toplantılar", "Sempozyum"],
-  KGR: ["Toplantılar", "Kongre"],
+  SEM_STK: ["Toplantılar", "Sempozyum"],
+  FES: ["Toplantı ve yayın dışı etkinlikler", "Festival / şenlik"],
+  YTT: ["Toplantılar", "Yerel Tarih Toplantıları"],
+  STT: ["Toplantılar", "Sözlü Tarih Toplantıları"],
+  "ÖTT": ["Toplantılar", "Öteki toplantı"],
   YYA: ["Yayınlar", "Yurt Yayınları"],
   TVY: ["Yayınlar", "Tarih Vakfı yayınları"],
   ANS: ["Yayınlar", "Ansiklopediler"],
@@ -72,24 +81,38 @@ const ACTIVITY_CODE_INFO = {
   NPT: ["Yayınlar", "New Perspectives on Turkey"],
   "BÜL": ["Yayınlar", "Bültenler"],
   TVH: ["Yayınlar", "Tarih Vakfı’ndan Haberler Bülteni"],
+  TVHB: ["Yayınlar", "Tarih Vakfı’ndan Haberler Bülteni"],
+  THV: ["Yayınlar", "Tarih Vakfı’ndan Haberler Bülteni"],
   "DŞE": ["Yayınlar", "Deniz Şenliği Bülteni"],
   YTB: ["Yayınlar", "Yerel Tarih Bülteni"],
   "TÇE": ["Yayınlar", "Tarihçe Gençler Tarih Yazıyor Yarışması Bülteni"],
   BRO: ["Yayınlar", "Broşürler"],
   BEL: ["Yayınlar", "Belgeseller"],
+  "ÖTY": ["Yayınlar", "Öteki yayın"],
   SER: ["Toplantı ve yayın dışı etkinlikler", "Sergiler"],
   GEZ: ["Toplantı ve yayın dışı etkinlikler", "Kültür gezileri"],
-  FES: ["Toplantı ve yayın dışı etkinlikler", "Festival / şenlik"],
   YAR: ["Toplantı ve yayın dışı etkinlikler", "Yarışmalar"],
   ANM: ["Toplantı ve yayın dışı etkinlikler", "Anma"],
   KNS: ["Toplantı ve yayın dışı etkinlikler", "Konser"],
   "SİN": ["Toplantı ve yayın dışı etkinlikler", "Sinema gösterimi"],
+  "ÖTG": ["Toplantı ve yayın dışı etkinlikler", "Öteki gösteri"],
+  RAP: ["Toplantı ve yayın dışı etkinlikler", "Raporlar"],
+  "ÖTF": ["Toplantı ve yayın dışı etkinlikler", "Öteki faaliyetler / etkinlikler"],
   YER: ["Projeler", "Yerel tarih projesi"],
   KUT: ["Projeler", "Kurum tarihi projesi"],
-  KNT: ["Projeler", "Kent tarihi / kent müzesi projesi"],
+  KNT: ["Projeler", "Kent tarihi projesi"],
   TEP: ["Projeler", "Tarih eğitimi projesi"],
+  MZP: ["Projeler", "Müze projesi"],
+  "ÖTP": ["Projeler", "Öteki proje"],
   ARB: ["BBM", "Arşiv bağışı"],
   "KİB": ["BBM", "Kitap bağışı"],
+  "ÖTB": ["BBM", "Öteki bağış"],
+};
+
+const ACTIVITY_CODE_ALIASES = {
+  ATA: "ATL",
+  TVHB: "TVH",
+  THV: "TVH",
 };
 
 const FALLBACK_ACTIVITY_CODES = {
@@ -268,6 +291,7 @@ function refreshCurrentPage() {
   if (currentPage === "home") {
     renderMetrics("homeMetrics", allRecords);
     renderOverviewText();
+    renderPeriodStrip("homePeriodStrip", allRecords);
     renderYearChart("homeYearChart", allRecords);
     renderPeriodChart("homePeriodChart", allRecords);
     renderKindChart("homeKindChart", allRecords);
@@ -321,6 +345,12 @@ function isLegacyContentValue(key, value) {
 function normalizeRows(rows) {
   return rows.map((row) => {
     const enriched = row.activity_code ? row : { ...row, ...assignActivityCode(row.item_kind, row.category, row.raw_text, row.description) };
+    const activityCode = normalizeActivityCode(enriched.activity_code);
+    const visibleBaseCode = normalizeActivityCode(enriched.activity_code_base || activityCode.split("_")[0]);
+    const activityCodeBase = ACTIVITY_CODE_ALIASES[visibleBaseCode] || visibleBaseCode;
+    const info = ACTIVITY_CODE_INFO[activityCode] || ACTIVITY_CODE_INFO[activityCodeBase] || [];
+    const activityGroup = normalizeActivityGroup(enriched.activity_group || info[0] || "");
+    const activityLabel = cleanRecordValue(enriched.activity_label || info[1] || "");
     const sourceSheet = cleanRecordValue(enriched.source_sheet || enriched.sheet_name || enriched.period);
     const sourceRow = Number(enriched.source_row || 0);
     const period = normalizePeriodLabel(enriched.period || sourceSheet);
@@ -331,6 +361,10 @@ function normalizeRows(rows) {
       source_sheet: sourceSheet,
       source_row: sourceRow || enriched.source_row,
       item_kind: itemKind,
+      activity_code: activityCode || enriched.activity_code,
+      activity_code_base: activityCodeBase || enriched.activity_code_base,
+      activity_group: activityGroup,
+      activity_label: activityLabel,
     };
     return {
       ...normalized,
@@ -363,13 +397,27 @@ function cleanRecordValue(value) {
   return String(value || "").trim();
 }
 
+function normalizeActivityCode(value) {
+  return cleanRecordValue(value)
+    .toLocaleUpperCase("tr-TR")
+    .replace(/\s*_\s*/g, "_")
+    .replace(/\s+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function normalizeActivityGroup(value) {
+  const group = cleanRecordValue(value);
+  if (codeKey(group) === "bilgi belge merkezi") return "BBM";
+  return group;
+}
+
 function normalizePeriodLabel(value) {
   const periodNumber = periodNumberFromText(value);
   return periodNumber && PERIOD_LABELS_BY_NUMBER[periodNumber] ? PERIOD_LABELS_BY_NUMBER[periodNumber] : cleanRecordValue(value);
 }
 
 function periodNumberFromText(value) {
-  const match = cleanRecordValue(value).match(/^([1-7])\.\s*D[öoÖO]NEM/i);
+  const match = cleanRecordValue(value).match(/^([1-7])(?:\.\s*D[öoÖO]NEM|[_-])/i);
   return match ? Number(match[1]) : null;
 }
 
@@ -543,6 +591,7 @@ function compactText(value) {
 function initHome() {
   renderMetrics("homeMetrics", allRecords);
   renderOverviewText();
+  renderPeriodStrip("homePeriodStrip", allRecords);
   renderYearChart("homeYearChart", allRecords);
   renderPeriodChart("homePeriodChart", allRecords);
   renderKindChart("homeKindChart", allRecords);
@@ -790,6 +839,33 @@ function renderOverviewText() {
   );
 }
 
+function renderPeriodStrip(targetId, records) {
+  const target = document.getElementById(targetId);
+  if (!target) return;
+  const periods = unique(records.map((row) => row.period)).sort((a, b) => a.localeCompare(b, "tr"));
+  const totals = periods.map((period) => ({
+    period,
+    label: shortPeriodLabel(period),
+    years: periodRangeLabel(period),
+    total: records.filter((row) => row.period === period).length,
+  }));
+  const max = Math.max(...totals.map((item) => item.total), 1);
+  target.innerHTML = totals
+    .map((item) => {
+      const href = `timeline.html?period=${encodeURIComponent(item.period)}`;
+      const years = item.years ? ` · ${item.years}` : "";
+      return `
+        <a class="ps-item" href="${escapeAttr(href)}">
+          <div class="ps-years">${escapeHtml(item.label)}${escapeHtml(years)}</div>
+          <div class="ps-total">${item.total.toLocaleString("tr-TR")}</div>
+          <div class="ps-label">kayıt</div>
+          <div class="ps-bar"><div class="ps-bar-fill" style="width:${Math.round((item.total / max) * 100)}%"></div></div>
+        </a>
+      `;
+    })
+    .join("");
+}
+
 function renderMetrics(targetId, records) {
   const target = document.getElementById(targetId);
   if (!target) return;
@@ -802,6 +878,7 @@ function renderMetrics(targetId, records) {
     [contentText("metrics.events", "Etkinlik"), (counts.event || 0).toLocaleString("tr-TR")],
     [contentText("metrics.publications", "Yayın"), (counts.publication || 0).toLocaleString("tr-TR")],
     [contentText("metrics.organizational", "Örgütsel iş"), (counts.organizational || 0).toLocaleString("tr-TR")],
+    [contentText("metrics.projects", "Proje"), (counts.project || 0).toLocaleString("tr-TR")],
     [
       contentText("metrics.review", "Gözden geçirme"),
       ((statuses.needs_review || 0) + (statuses.uncertain_date || 0) + (statuses.uncertain_category || 0)).toLocaleString("tr-TR"),
@@ -1079,7 +1156,7 @@ function renderYearChart(targetId, records) {
   const target = document.getElementById(targetId);
   if (!target) return;
   const years = unique(records.map((row) => row.year).filter(Boolean)).sort((a, b) => Number(a) - Number(b));
-  const kinds = ["event", "publication", "organizational"];
+  const kinds = ["event", "publication", "organizational", "project"];
   const isHomeChart = targetId === "homeYearChart";
   const data = years.map((year) => {
     const rows = records.filter((row) => row.year === year);
@@ -1132,7 +1209,7 @@ function renderCategoryChart(targetId, records) {
   if (!target) return;
   const byLabel = records.reduce((acc, row) => {
     const label = activityChartLabel(row);
-    if (!acc[label]) acc[label] = { value: 0, code: row.activity_code_base || "", group: row.activity_group || "" };
+    if (!acc[label]) acc[label] = { value: 0, code: row.activity_code || row.activity_code_base || "", group: row.activity_group || "" };
     acc[label].value += 1;
     return acc;
   }, {});
@@ -1140,7 +1217,7 @@ function renderCategoryChart(targetId, records) {
     .sort((a, b) => b[1].value - a[1].value)
     .slice(0, 16)
     .map(([label, item]) => ({ label, value: item.value, color: ACTIVITY_GROUP_COLORS[item.group] || "#8a2f2f", detail: item.code }));
-  target.innerHTML = horizontalBarSvg(data, { height: Math.max(390, data.length * 42), labelWidth: 285, width: 980, rowHeight: 42, barHeight: 24 });
+  target.innerHTML = horizontalBarSvg(data, { height: Math.max(430, data.length * 48), labelWidth: 300, width: 980, rowHeight: 48, barHeight: 26 });
 }
 
 function renderQualityChart(targetId, records) {
@@ -1164,16 +1241,23 @@ function periodRangeLabel(period) {
 }
 
 function activityChartLabel(row) {
+  const fullCode = row.activity_code || "";
   const baseCode = row.activity_code_base || row.activity_code || "";
   const compactLabels = {
-    "İÇ": "İç toplantı",
-    "İKO": "Genel kurul / iç kongre",
+    "İÇ": "Kurum içi buluşma",
+    "İKO": "Kongre",
     KON: "Konferans / söyleşi",
-    PAN: "Panel / forum",
+    PAN: "Panel",
+    ATL: "Atölye / çalıştay",
+    ATL_YTT: "Yerel tarih atölyesi",
+    ATL_STT: "Sözlü tarih atölyesi",
     ATA: "Atölye / çalıştay",
     SMN: "Seminer / kurs",
     SEM: "Sempozyum",
-    KGR: "Kongre",
+    SEM_STK: "STK sempozyumu",
+    YTT: "Yerel tarih toplantısı",
+    STT: "Sözlü tarih toplantısı",
+    "ÖTT": "Diğer toplantılar",
     YYA: "Yurt Yayınları",
     TVY: "Tarih Vakfı yayınları",
     ANS: "Ansiklopediler",
@@ -1184,6 +1268,8 @@ function activityChartLabel(row) {
     NPT: "New Perspectives on Turkey",
     "BÜL": "Bültenler",
     TVH: "Haberler bülteni",
+    TVHB: "Haberler bülteni",
+    THV: "Haberler bülteni",
     "DŞE": "Deniz Şenliği bülteni",
     YTB: "Yerel Tarih bülteni",
     "TÇE": "Tarihçe bülteni",
@@ -1196,19 +1282,23 @@ function activityChartLabel(row) {
     ANM: "Anma",
     KNS: "Konser",
     "SİN": "Sinema gösterimi",
+    "ÖTG": "Diğer gösteri / etkinlik",
+    RAP: "Raporlar",
+    "ÖTF": "Diğer faaliyetler",
     YER: "Yerel tarih projesi",
     KUT: "Kurum tarihi projesi",
-    KNT: "Kent tarihi / müze",
+    KNT: "Kent tarihi projesi",
     TEP: "Tarih eğitimi projesi",
+    MZP: "Müze projesi",
     ARB: "Arşiv bağışı",
     "KİB": "Kitap bağışı",
-    "ÖTG": "Diğer etkinlikler",
+    "ÖTY": "Diğer yayınlar",
     "ÖTP": "Diğer projeler",
     "ÖTB": "Diğer BBM",
   };
   if (baseCode === "ÖTY" && row.activity_group === "Yayınlar") return "Diğer yayınlar";
   if (baseCode === "ÖTY" && row.activity_group === "Toplantılar") return "Diğer toplantılar";
-  return compactLabels[baseCode] || row.activity_label || baseCode || "Kod belirtilmemiş";
+  return compactLabels[fullCode] || row.activity_label || compactLabels[baseCode] || baseCode || "Kod belirtilmemiş";
 }
 
 function codeKey(value) {
@@ -1241,11 +1331,12 @@ function detectLocationCode(haystack) {
 }
 
 function activityChoice(baseCode, haystack, group, label, status = "mapped", note = "") {
-  const info = ACTIVITY_CODE_INFO[baseCode] || ["", ""];
+  const normalizedBase = ACTIVITY_CODE_ALIASES[normalizeActivityCode(baseCode)] || normalizeActivityCode(baseCode);
+  const info = ACTIVITY_CODE_INFO[normalizedBase] || ["", ""];
   const locationCode = detectLocationCode(haystack);
   return {
-    activity_code: locationCode ? `${baseCode} ${locationCode}` : baseCode,
-    activity_code_base: baseCode,
+    activity_code: locationCode ? `${normalizedBase}_${locationCode}` : normalizedBase,
+    activity_code_base: normalizedBase,
     activity_location_code: locationCode,
     activity_group: group || info[0],
     activity_label: label || info[1],
@@ -1294,10 +1385,10 @@ function assignActivityCode(itemKind, category, rawText, description) {
 
   if (hasAnyCodeTerm(haystack, "ic toplanti")) return activityChoice("İÇ", haystack);
   if (hasAnyCodeTerm(haystack, "genel kurul", "olagan genel kurul", "ic kongre")) return activityChoice("İKO", haystack);
-  if (hasAnyCodeTerm(haystack, "kongre")) return activityChoice("KGR", haystack);
+  if (hasAnyCodeTerm(haystack, "kongre")) return activityChoice("İKO", haystack);
   if (hasAnyCodeTerm(haystack, "konferans", "konusma", "soylesi")) return activityChoice("KON", haystack);
   if (hasAnyCodeTerm(haystack, "panel", "forum", "acik oturum")) return activityChoice("PAN", haystack);
-  if (hasAnyCodeTerm(haystack, "atolye", "calistay", "workshop")) return activityChoice("ATA", haystack);
+  if (hasAnyCodeTerm(haystack, "atolye", "calistay", "workshop")) return activityChoice("ATL", haystack);
   if (hasAnyCodeTerm(haystack, "seminer", "kurs")) return activityChoice("SMN", haystack);
   if (hasAnyCodeTerm(haystack, "sempozyum")) return activityChoice("SEM", haystack);
   if (hasAnyCodeTerm(haystack, "sergi")) return activityChoice("SER", haystack);
@@ -1522,7 +1613,9 @@ function badge(value, type) {
 function activityBadge(row) {
   if (!row.activity_code) return `<span class="badge">Kod yok</span>`;
   const review = row.activity_code_status === "needs_review" ? " kod-review" : "";
-  return `<span class="badge activity-code${review}" title="${escapeAttr(row.activity_label || "")}">${escapeHtml(row.activity_code)}</span>`;
+  const label = row.activity_label || activityChartLabel(row) || row.activity_code;
+  const detail = row.activity_code && label !== row.activity_code ? `${row.activity_code} - ${label}` : row.activity_code;
+  return `<span class="badge activity-code${review}" title="${escapeAttr(detail || "")}">${escapeHtml(label)}</span>`;
 }
 
 function activityText(row) {
@@ -1541,7 +1634,7 @@ function activityStatusText(row) {
 function activityCodeLabels(records) {
   return records.reduce((labels, row) => {
     const code = row.activity_code_base || row.activity_code;
-    if (code && !labels[code]) labels[code] = `${code} - ${activityChartLabel(row)}`;
+    if (code && !labels[code]) labels[code] = `${activityChartLabel(row)} (${code})`;
     return labels;
   }, {});
 }

@@ -79,8 +79,15 @@ The current `.xlsx` ID is the part after `/d/` in the Office-mode URL.
 Then open **Project Settings → Script Properties** and add:
 
 ```text
-CHRONOLOGY_SOURCE_SPREADSHEET_ID = MIRROR_SHEET_ID
+CHRONOLOGY_SOURCE_SPREADSHEET_ID = 1_UxaP20_KQjjhBhOKY-UBX2DdnkMMelAQh7dIPcCUFs
 CHRONOLOGY_CORRECTION_EMAILS = COORDINATION_EMAIL_ADDRESS
+```
+
+Use the new native Google Sheet mirror ID for
+`CHRONOLOGY_SOURCE_SPREADSHEET_ID`. The current mirror is:
+
+```text
+1_UxaP20_KQjjhBhOKY-UBX2DdnkMMelAQh7dIPcCUFs
 ```
 
 Use the active volunteer coordination mailbox for
@@ -152,6 +159,11 @@ Expected shape:
   "records": []
 }
 ```
+
+The endpoint prefers the reviewer tabs named like `1_çiğdem`, `2_çiğdem`,
+`3_neslihan` and so on. If those tabs are missing, it falls back to the old
+`1. DÖNEM` style tabs. This prevents duplicate records when both tab sets are
+present.
 
 ### 8. Connect `/kronoloji/`
 

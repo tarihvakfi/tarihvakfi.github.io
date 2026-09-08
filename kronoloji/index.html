@@ -6,6 +6,8 @@
   <title>Tarih Vakfı Dijital Kronolojisi — 35 Yıl, 2018 Kayıt</title>
   <meta name="description" content="Tarih Vakfı'nın 1991'den bugüne 35 yıllık kurumsal hafızası: 2018 kayıt, açık veri, tam aranabilir dijital kronoloji.">
   <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="preload" href="assets/data/chronology_public.json" as="fetch">
+  <link rel="preload" href="assets/data/site_content.json" as="fetch">
   <style>
 /* ── Home-only additions ──────────────────────────────── */
 .home-hero {
@@ -35,7 +37,7 @@
 .home-metrics-strip { background:var(--paper); border-bottom:1px solid var(--line); }
 .home-metrics-strip #homeMetrics {
   max-width:1220px; margin:0 auto;
-  display:grid; grid-template-columns:repeat(6,1fr);
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
 }
 .home-metrics-strip .metric {
   border-radius:0; border:none; border-right:1px solid var(--line); padding:18px 20px;
@@ -154,13 +156,13 @@
   <div class="home-hero">
     <div class="home-hero-inner">
       <div>
-        <span class="eyebrow">Açık kurumsal hafıza · 1991–2026</span>
-        <h1>Tarih Vakfı'nın<br><em>35 Yılı</em></h1>
-        <p>2018 kayıt, 7 dönem, yüzlerce konferans, sergi, yayın ve proje — hepsi aranabilir, filtrelenebilir ve açık veri olarak.</p>
+        <span class="eyebrow" data-content="home.hero.eyebrow">Açık kurumsal hafıza</span>
+        <h1 data-content="home.hero.title">Tarih Vakfı Dijital Kronolojisi</h1>
+        <p data-content="home.hero.lead">Kurumsal hafıza, yayınlar, etkinlikler ve projeler için açık, aranabilir ve geliştirilebilir kronoloji.</p>
         <div class="home-hero-actions">
-          <a class="button" href="timeline.html">Kronolojik akışı gör</a>
-          <a class="button ghost" href="archive.html">Arşivde ara</a>
-          <a class="button ghost" href="dashboard.html">Grafikleri incele</a>
+          <a class="button" href="timeline.html" data-content="home.action.timeline">Kronolojiyi gör</a>
+          <a class="button ghost" href="archive.html" data-content="home.action.archive">Tüm kayıtlarda ara</a>
+          <a class="button ghost" href="dashboard.html" data-content="home.action.dashboard">Grafikleri incele</a>
         </div>
       </div>
     </div>
@@ -189,9 +191,9 @@
       <div class="home-panel-head">
         <div>
           <strong>35 Yıllık Faaliyet Ritmi</strong>
-          <p>Her sütun bir yılı gösterir; renkler etkinlik · yayın · örgütsel iş oranını temsil eder.</p>
+          <p data-content="dashboard.chart.year.text">Bu grafik her yılın toplam kayıt hacmini ve tür dağılımını gösterir.</p>
         </div>
-        <a href="dashboard.html" class="button ghost" style="font-size:13px;padding:8px 16px;">Tüm grafikler →</a>
+        <a href="dashboard.html" class="button ghost" style="font-size:13px;padding:8px 16px;" data-content="home.action.dashboard">Grafikleri incele</a>
       </div>
       <div class="home-panel-body">
         <div id="homeYearChart" class="loading">Veri yükleniyor…</div>
@@ -203,8 +205,8 @@
       <div class="home-panel">
         <div class="home-panel-head">
           <div>
-            <strong>Dönem Karşılaştırması</strong>
-            <p>7 dönem · faaliyet grubu katmanları</p>
+            <strong data-content="dashboard.chart.period.title">Dönemlere göre faaliyet alanları</strong>
+            <p data-content="dashboard.chart.period.subtitle">Kod grupları</p>
           </div>
         </div>
         <div class="home-panel-body">
@@ -214,8 +216,8 @@
       <div class="home-panel">
         <div class="home-panel-head">
           <div>
-            <strong>Faaliyet Türü Dağılımı</strong>
-            <p>Seçili kayıtların tür dağılımı</p>
+            <strong data-content="home.chart.kind.title">Kayıt türleri</strong>
+            <p data-content="home.chart.kind.subtitle">Genel ağırlık</p>
           </div>
         </div>
         <div class="home-panel-body">
@@ -228,10 +230,11 @@
     <div class="section">
       <div class="section-header">
         <div>
-          <p class="eyebrow">Son eklenen kayıtlar</p>
+          <p class="eyebrow" data-content="home.first_records.title">İlk Kayıtlar</p>
           <h2>Arşivden öne çıkanlar</h2>
+          <p data-content="home.first_records.text">Arşiv ve kronoloji sayfalarında kamu verisinin tamamı listelenir. Burada yalnızca ilk kayıtlar hızlı yönelim için gösterilir.</p>
         </div>
-        <a href="archive.html" class="button secondary">Tüm arşiv →</a>
+        <a href="archive.html" class="button secondary" data-content="home.first_records.link">Tam arşive git</a>
       </div>
       <div id="homeRecords" class="loading">Veri yükleniyor…</div>
     </div>
@@ -239,28 +242,28 @@
     <!-- CTA grid -->
     <div class="cta-grid section">
       <a class="cta-card" href="timeline.html">
-        <div class="cc-icon">📜</div>
-        <h3>Kronoloji Akışı</h3>
-        <p>Bütün kayıtları yıllara göre akıtır. Dönem, tür ve anahtar kelime ile daraltılır.</p>
-        <span class="cc-arrow">Kronolojiye git →</span>
+        <div class="cc-icon" aria-hidden="true">01</div>
+        <h3 data-content="home.use.timeline.title">Kronoloji Hikayesi</h3>
+        <p data-content="home.use.timeline.text">Bütün kayıtları yıllara göre akıtır; tür, dönem ve durum filtreleriyle daraltılır.</p>
+        <span class="cc-arrow" data-content="home.action.timeline">Kronolojiyi gör</span>
       </a>
       <a class="cta-card" href="archive.html">
-        <div class="cc-icon">🔍</div>
-        <h3>Arşivde Ara</h3>
-        <p>Tam metin arama, kart ve tablo görünümü, atıf kopyalama.</p>
-        <span class="cc-arrow">Arşivi aç →</span>
+        <div class="cc-icon" aria-hidden="true">02</div>
+        <h3 data-content="home.use.archive.title">Arşivde Ara</h3>
+        <p data-content="home.use.archive.text">Her kayıt aranabilir, filtrelenebilir, tek kayıt sayfasına açılır ve atıfı kopyalanabilir.</p>
+        <span class="cc-arrow" data-content="home.action.archive">Tüm kayıtlarda ara</span>
       </a>
       <a class="cta-card" href="dashboard.html">
-        <div class="cc-icon">📊</div>
-        <h3>Görsel Özet</h3>
-        <p>Dönemsel ritim, kategori dağılımı ve filtrelenebilir grafikler.</p>
-        <span class="cc-arrow">Grafiklere git →</span>
+        <div class="cc-icon" aria-hidden="true">03</div>
+        <h3 data-content="home.use.dashboard.title">Görsel Özet</h3>
+        <p data-content="home.use.dashboard.text">Kurumun dönemsel ritmini, yayın/etkinlik ağırlığını ve temizlik gerektiren alanları gösterir.</p>
+        <span class="cc-arrow" data-content="home.action.dashboard">Grafikleri incele</span>
       </a>
       <a class="cta-card" href="contribute.html">
-        <div class="cc-icon">✏️</div>
-        <h3>Düzeltme Öner</h3>
-        <p>Tarih, kategori veya içerik hatası için düzeltme önerme formu.</p>
-        <span class="cc-arrow">Katkıda bulun →</span>
+        <div class="cc-icon" aria-hidden="true">04</div>
+        <h3 data-content="contribute.hero.title">Düzeltme Öner</h3>
+        <p data-content="contribute.note">Düzeltme süreci, belirsiz kayıtları gizlemek yerine kaynak ve kanıtla iyileştirmeyi amaçlar.</p>
+        <span class="cc-arrow" data-content="home.action.contribute">Düzeltme öner</span>
       </a>
     </div>
 
@@ -268,38 +271,14 @@
 
   <footer class="footer">
     <div class="footer-inner">
-      <span>Bu kronoloji çalışma sürümüdür. Tüm kayıtlar kaynak satırına ve doğrulama durumuna sahiptir.</span>
-      <a href="contribute.html">Düzeltme öner</a>
+      <span data-content="home.footer.note">Bu kronoloji çalışma sürümüdür; tarih, sınıflandırma ve açıklama alanları sürekli geliştirilebilir.</span>
+      <a href="contribute.html" data-content="home.footer.link">Düzeltme öner</a>
       <span class="design-credit">Tasarım: Arif Solmaz</span>
     </div>
   </footer>
 
   <script src="assets/js/config.js"></script>
   <script src="assets/js/site.js"></script>
-  <script>
-  /* ── Period strip — static summary, links to timeline ── */
-  (function () {
-    const periods = [
-      { years:"1991–1995", label:"1. Dönem", total:252 },
-      { years:"1996–2000", label:"2. Dönem", total:496 },
-      { years:"2001–2005", label:"3. Dönem", total:348 },
-      { years:"2006–2010", label:"4. Dönem", total:179 },
-      { years:"2011–2015", label:"5. Dönem", total:109 },
-      { years:"2016–2020", label:"6. Dönem", total:238 },
-      { years:"2021–2026", label:"7. Dönem", total:396 },
-    ];
-    const max = Math.max(...periods.map(p=>p.total));
-    const strip = document.getElementById('homePeriodStrip');
-    if (!strip) return;
-    strip.innerHTML = periods.map(p=>`
-      <a class="ps-item" href="timeline.html">
-        <div class="ps-years">${p.label} · ${p.years}</div>
-        <div class="ps-total">${p.total}</div>
-        <div class="ps-label">kayıt</div>
-        <div class="ps-bar"><div class="ps-bar-fill" style="width:${Math.round(p.total/max*100)}%"></div></div>
-      </a>`).join('');
-  })();
-  </script>
 
 </body>
 </html>

@@ -63,7 +63,7 @@
 .db-metrics-strip { background:var(--paper); border-bottom:1px solid var(--line); }
 .db-metrics-strip #dashboardMetrics {
   max-width:1220px; margin:0 auto;
-  display:grid; grid-template-columns:repeat(6,1fr);
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
 }
 .db-metrics-strip .metric {
   border-radius:0; border:none;
@@ -129,13 +129,13 @@
   <div class="db-hero">
     <div class="db-hero-inner">
       <div>
-        <span class="eyebrow">Görsel analiz · 1991–2026</span>
-        <h1>35 Yıllık Kurumsal<br>Faaliyet Haritası</h1>
-        <p>Konferanslar, yayınlar, sergiler, projeler ve örgütsel işlerin dönemsel dağılımı — filtrelenebilir, karşılaştırılabilir, açık veri.</p>
+        <span class="eyebrow" data-content="dashboard.hero.eyebrow">Görsel analiz</span>
+        <h1 data-content="dashboard.hero.title">Tarih Vakfı Kronolojisi: Görsel Özet</h1>
+        <p data-content="dashboard.hero.lead">Yayınlar, etkinlikler, örgütsel işler ve dönemler üzerinden kurumsal hafızanın görsel keşfi.</p>
       </div>
       <div class="db-hero-num">
         <strong id="dbHeroTotal">—</strong>
-        <span>kayıt seçili</span>
+        <span data-content="dashboard.summary.eyebrow">Seçili veri</span>
       </div>
     </div>
   </div>
@@ -153,31 +153,31 @@
     <!-- Filters — uses the shared .filters class from style.css -->
     <div class="filters" role="search" aria-label="Kayıt filtreleri">
       <label>
-        <span>Arama</span>
-        <input id="dashboardSearch" type="search" placeholder="Başlık, kategori, yıl…" autocomplete="off">
+        <span data-content="filters.search">Arama</span>
+        <input id="dashboardSearch" type="search" placeholder="Grafikleri daralt" autocomplete="off" data-content-placeholder="dashboard.search.placeholder">
       </label>
       <label>
-        <span>Tür</span>
+        <span data-content="filters.kind">Tür</span>
         <select id="dashboardKind"></select>
       </label>
       <label>
-        <span>Dönem</span>
+        <span data-content="filters.period">Dönem</span>
         <select id="dashboardPeriod"></select>
       </label>
       <label>
-        <span>Durum</span>
+        <span data-content="filters.status">Durum</span>
         <select id="dashboardStatus"></select>
       </label>
       <label>
-        <span>Faaliyet kodu</span>
+        <span data-content="filters.activity_code">Faaliyet kodu</span>
         <select id="dashboardCode"></select>
       </label>
       <label>
-        <span>Başlangıç yılı</span>
+        <span data-content="filters.year_from">Başlangıç yılı</span>
         <input id="dashboardYearFrom" type="number" min="1990" max="2026">
       </label>
       <label>
-        <span>Bitiş yılı</span>
+        <span data-content="filters.year_to">Bitiş yılı</span>
         <input id="dashboardYearTo" type="number" min="1990" max="2026">
       </label>
     </div>
@@ -188,26 +188,27 @@
       <span class="db-filter-count">
         <strong id="dbHeroCount">—</strong> kayıt · filtre uygulandı
       </span>
-      <a href="archive.html" class="button ghost" style="font-size:13px;padding:8px 18px;">Arşiv görünümü →</a>
+      <a href="archive.html" class="button ghost" style="font-size:13px;padding:8px 18px;" data-content="dashboard.footer.link">Arşivde ara</a>
     </div>
 
     <!-- ── Panel 1: Year chart ── -->
     <div class="db-panel section" style="margin-top:16px;">
       <div class="db-panel-head">
         <div>
-          <strong>Yıllık Faaliyet Ritmi — 1991–2026</strong>
-          <p>Her sütun bir yılı gösterir; renkler etkinlik · yayın · örgütsel iş oranını temsil eder.</p>
+          <strong data-content="dashboard.chart.year.title">Yıllara göre kayıt yoğunluğu</strong>
+          <p data-content="dashboard.chart.year.text">Bu grafik her yılın toplam kayıt hacmini ve tür dağılımını gösterir.</p>
         </div>
         <div class="db-legend">
           <span class="db-legend-item"><span class="db-legend-dot" style="background:#4d6475"></span>Etkinlik</span>
           <span class="db-legend-item"><span class="db-legend-dot" style="background:#8a2f2f"></span>Yayın</span>
           <span class="db-legend-item"><span class="db-legend-dot" style="background:#626b45"></span>Örgütsel</span>
+          <span class="db-legend-item"><span class="db-legend-dot" style="background:#6f5f8f"></span>Proje</span>
         </div>
       </div>
       <div class="db-panel-body">
         <div id="dashboardYearChart" class="loading">Veri yükleniyor…</div>
       </div>
-      <div class="db-panel-foot">Seçili filtrelere göre güncellenir.</div>
+      <div class="db-panel-foot" data-content="dashboard.chart.year.subtitle">Ne zaman en yoğun?</div>
     </div>
 
     <!-- ── Row 2: Period + Quality side by side ── -->
@@ -216,8 +217,8 @@
       <div class="db-panel">
         <div class="db-panel-head">
           <div>
-            <strong>Dönem Karşılaştırması</strong>
-            <p>7 dönem · faaliyet grubu katmanları</p>
+            <strong data-content="dashboard.chart.period.title">Dönemlere göre faaliyet alanları</strong>
+            <p data-content="dashboard.chart.period.text">Toplantılar, yayınlar, projeler, BBM ve diğer etkinliklerin dönemler arasında nasıl değiştiğini karşılaştırır.</p>
           </div>
           <div class="db-legend">
             <span class="db-legend-item"><span class="db-legend-dot" style="background:#4d6475"></span>Toplantılar</span>
@@ -228,14 +229,14 @@
         <div class="db-panel-body">
           <div id="dashboardPeriodChart" class="loading">Veri yükleniyor…</div>
         </div>
-        <div class="db-panel-foot">7 dönemin etkinlik / yayın / proje dağılımı.</div>
+        <div class="db-panel-foot" data-content="dashboard.chart.period.subtitle">Kod grupları</div>
       </div>
 
       <div class="db-panel">
         <div class="db-panel-head">
           <div>
-            <strong>Veri Kalitesi</strong>
-            <p>Doğrulama durumu · yayın öncesi kontrol</p>
+            <strong data-content="dashboard.chart.quality.title">Veri kalitesi</strong>
+            <p data-content="dashboard.chart.quality.text">Belirsiz tarih, kategori ve gözden geçirme gerektiren kayıtların görünür kalmasını sağlar.</p>
           </div>
           <div class="db-legend">
             <span class="db-legend-item"><span class="db-legend-dot" style="background:#4f7b5b"></span>Doğrulanmış</span>
@@ -246,7 +247,7 @@
         <div class="db-panel-body">
           <div id="dashboardQualityChart" class="loading">Veri yükleniyor…</div>
         </div>
-        <div class="db-panel-foot">Tüm durum gruplarının oransal dağılımı.</div>
+        <div class="db-panel-foot" data-content="dashboard.chart.quality.subtitle">Yayın öncesi kontrol</div>
       </div>
 
     </div>
@@ -255,8 +256,8 @@
     <div class="db-panel section">
       <div class="db-panel-head">
         <div>
-          <strong>Faaliyet Kodu Dağılımı</strong>
-          <p>En sık 16 faaliyet kodu — seçili filtrelere göre güncellenir</p>
+          <strong data-content="dashboard.chart.activity.title">En sık faaliyet türleri</strong>
+          <p data-content="dashboard.chart.activity.text">Grafik kodları değil, kodların anlamlarını gösterir: panel, seminer, sergi, yayın dizileri ve benzeri türler.</p>
         </div>
         <div class="db-legend">
           <span class="db-legend-item"><span class="db-legend-dot" style="background:#4d6475"></span>Toplantılar</span>
@@ -269,18 +270,18 @@
       <div class="db-panel-body">
         <div id="dashboardCategoryChart" class="loading">Veri yükleniyor…</div>
       </div>
-      <div class="db-panel-foot">Renk: faaliyet grubu. Uzunluk: kayıt sayısı.</div>
+      <div class="db-panel-foot" data-content="dashboard.chart.activity.subtitle">Kod anlamlarına göre</div>
     </div>
 
     <!-- ── Panel 4: Records table ── -->
     <div class="db-panel section">
       <div class="db-panel-head">
         <div>
-          <strong>Filtrelenmiş Kayıtlar</strong>
-          <p>Aktif filtrelere uyan kayıtlar — başlığa tıklayarak tekil sayfayı açın</p>
+          <strong data-content="dashboard.selected.title">Seçili Kayıtlar</strong>
+          <p data-content="dashboard.selected.text">Dashboard filtreleriyle eşleşen kayıtlar burada tablo olarak listelenir.</p>
         </div>
         <a href="archive.html" class="button secondary" style="font-size:13px;padding:8px 18px;white-space:nowrap;">
-          Arşiv görünümü →
+          <span data-content="dashboard.footer.link">Arşivde ara</span>
         </a>
       </div>
       <div class="db-panel-body" style="padding:0;">
@@ -295,8 +296,8 @@
 
   <footer class="footer">
     <div class="footer-inner">
-      <span>Tüm görseller seçili filtrelere göre anlık güncellenir. Veri: <code>chronology_public.json</code></span>
-      <a href="archive.html">Arşivde ara</a>
+      <span data-content="dashboard.footer.note">Dashboard özetler; ayrıntı ve atıf için arşiv kayıtları temel alınmalıdır.</span>
+      <a href="archive.html" data-content="dashboard.footer.link">Arşivde ara</a>
       <span class="design-credit">Tasarım: Arif Solmaz</span>
     </div>
   </footer>

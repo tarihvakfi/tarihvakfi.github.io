@@ -106,18 +106,19 @@ function replaceMirrorSheets_(sourceSpreadsheet, mirrorSpreadsheet) {
 
 function copySiteContentSheet_(sourceSheet, mirrorSpreadsheet) {
   const existing = mirrorSpreadsheet.getSheetByName(sourceSheet.getName());
+  const existingValues = existing ? existing.getDataRange().getDisplayValues() : [];
   if (existing) {
     mirrorSpreadsheet.deleteSheet(existing);
   }
 
   const target = mirrorSpreadsheet.insertSheet(sourceSheet.getName());
-  const values = normalizeSiteContentRows_(sourceSheet.getDataRange().getDisplayValues());
+  const values = normalizeSiteContentRows_(sourceSheet.getDataRange().getDisplayValues(), existingValues);
   target.getRange(1, 1, values.length, 3).setValues(values);
   target.setFrozenRows(1);
   target.autoResizeColumns(1, 3);
 }
 
-function normalizeSiteContentRows_(values) {
+function normalizeSiteContentRows_(values, existingValues) {
   if (!values || !values.length) {
     return [["key", "value", "note"]];
   }
@@ -127,6 +128,18 @@ function normalizeSiteContentRows_(values) {
   const valueIndex = header.indexOf("value");
   const noteIndex = header.indexOf("note");
   const rows = [["key", "value", "note"]];
+
+  if (keyIndex < 0 && valueIndex === 0 && existingValues && existingValues.length) {
+    const previousRows = normalizeSiteContentRows_(existingValues, []);
+    values.slice(1).forEach((row, index) => {
+      const previous = previousRows[index + 1] || ["", "", ""];
+      const value = row[valueIndex];
+      if (String(previous[0] || "").trim() || String(value || "").trim() || String(previous[2] || "").trim()) {
+        rows.push([previous[0] || "", value || "", previous[2] || ""]);
+      }
+    });
+    return rows.length > 1 ? rows : [["key", "value", "note"]];
+  }
 
   values.slice(1).forEach((row) => {
     const key = keyIndex >= 0 ? row[keyIndex] : row[0];

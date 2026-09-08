@@ -16,12 +16,30 @@
 const SOURCE_SPREADSHEET_ID_PROPERTY = "CHRONOLOGY_SOURCE_SPREADSHEET_ID";
 const CORRECTION_NOTIFICATION_EMAILS_PROPERTY = "CHRONOLOGY_CORRECTION_EMAILS";
 const SITE_CONTENT_SHEET_NAME = "Site Metinleri";
+const ACTIVITY_CODE_SHEET_NAME = "Faaliyet Kodları";
 const CORRECTION_SHEET_NAME = "Düzeltme Önerileri";
+
+const UPDATED_CHRONOLOGY_COLUMNS = {
+  day: 0,
+  month: 1,
+  year: 2,
+  text: 3,
+  code: 4,
+};
 
 const ITEM_COLUMNS = {
   organizational: { text: 1, category: 3, count: 4 },
   event: { text: 2, category: 3, count: 4 },
   publication: { text: 5, category: 6, count: 7 },
+};
+
+const KIND_ID_PREFIXES = {
+  organizational: "org",
+  event: "eve",
+  publication: "pub",
+  project: "pro",
+  chronology: "chr",
+  unknown: "unk",
 };
 
 const EXPECTED_PERIOD_YEAR_RANGES = {
@@ -58,14 +76,21 @@ const TURKISH_MONTHS = {
 const REVIEW_MARKERS = ["???", "??", "xxxx", "xxx", "say4", "npt", "belirtilmemiş", "yanlış"];
 
 const ACTIVITY_CODE_INFO = {
-  "İÇ": ["Toplantılar", "İç toplantı"],
-  "İKO": ["Toplantılar", "İç kongre ve genel kurul"],
+  "İÇ": ["Toplantılar", "Kurum içi özel buluşmalar"],
+  "İKO": ["Toplantılar", "Kongre"],
   KON: ["Toplantılar", "Konuşma / konferans / söyleşi"],
-  PAN: ["Toplantılar", "Panel / forum / açık oturum"],
-  ATA: ["Toplantılar", "Atölye / çalıştay"],
+  PAN: ["Toplantılar", "Panel"],
+  ATL: ["Toplantılar", "Atölye / çalıştay / workshop"],
+  ATL_YTT: ["Toplantılar", "Atölye / Yerel Tarih Toplantıları"],
+  ATL_STT: ["Toplantılar", "Atölye / Sözlü Tarih Toplantıları"],
+  ATA: ["Toplantılar", "Atölye / çalıştay / workshop"],
   SMN: ["Toplantılar", "Seminer / kurs"],
   SEM: ["Toplantılar", "Sempozyum"],
-  KGR: ["Toplantılar", "Kongre"],
+  SEM_STK: ["Toplantılar", "Sempozyum"],
+  FES: ["Toplantı ve yayın dışı etkinlikler", "Festival / şenlik"],
+  YTT: ["Toplantılar", "Yerel Tarih Toplantıları"],
+  STT: ["Toplantılar", "Sözlü Tarih Toplantıları"],
+  "ÖTT": ["Toplantılar", "Öteki toplantı"],
   YYA: ["Yayınlar", "Yurt Yayınları"],
   TVY: ["Yayınlar", "Tarih Vakfı yayınları"],
   ANS: ["Yayınlar", "Ansiklopediler"],
@@ -76,24 +101,38 @@ const ACTIVITY_CODE_INFO = {
   NPT: ["Yayınlar", "New Perspectives on Turkey"],
   "BÜL": ["Yayınlar", "Bültenler"],
   TVH: ["Yayınlar", "Tarih Vakfı’ndan Haberler Bülteni"],
+  TVHB: ["Yayınlar", "Tarih Vakfı’ndan Haberler Bülteni"],
+  THV: ["Yayınlar", "Tarih Vakfı’ndan Haberler Bülteni"],
   "DŞE": ["Yayınlar", "Deniz Şenliği Bülteni"],
   YTB: ["Yayınlar", "Yerel Tarih Bülteni"],
   "TÇE": ["Yayınlar", "Tarihçe Gençler Tarih Yazıyor Yarışması Bülteni"],
   BRO: ["Yayınlar", "Broşürler"],
   BEL: ["Yayınlar", "Belgeseller"],
+  "ÖTY": ["Yayınlar", "Öteki yayın"],
   SER: ["Toplantı ve yayın dışı etkinlikler", "Sergiler"],
   GEZ: ["Toplantı ve yayın dışı etkinlikler", "Kültür gezileri"],
-  FES: ["Toplantı ve yayın dışı etkinlikler", "Festival / şenlik"],
   YAR: ["Toplantı ve yayın dışı etkinlikler", "Yarışmalar"],
   ANM: ["Toplantı ve yayın dışı etkinlikler", "Anma"],
   KNS: ["Toplantı ve yayın dışı etkinlikler", "Konser"],
   "SİN": ["Toplantı ve yayın dışı etkinlikler", "Sinema gösterimi"],
+  "ÖTG": ["Toplantı ve yayın dışı etkinlikler", "Öteki gösteri"],
+  RAP: ["Toplantı ve yayın dışı etkinlikler", "Raporlar"],
+  "ÖTF": ["Toplantı ve yayın dışı etkinlikler", "Öteki faaliyetler / etkinlikler"],
   YER: ["Projeler", "Yerel tarih projesi"],
   KUT: ["Projeler", "Kurum tarihi projesi"],
-  KNT: ["Projeler", "Kent tarihi / kent müzesi projesi"],
+  KNT: ["Projeler", "Kent tarihi projesi"],
   TEP: ["Projeler", "Tarih eğitimi projesi"],
+  MZP: ["Projeler", "Müze projesi"],
+  "ÖTP": ["Projeler", "Öteki proje"],
   ARB: ["BBM", "Arşiv bağışı"],
   "KİB": ["BBM", "Kitap bağışı"],
+  "ÖTB": ["BBM", "Öteki bağış"],
+};
+
+const ACTIVITY_CODE_ALIASES = {
+  ATA: "ATL",
+  TVHB: "TVH",
+  THV: "TVH",
 };
 
 const FALLBACK_ACTIVITY_CODES = {
@@ -289,74 +328,299 @@ function notifyCorrectionSubmission(submission) {
 
 function normalizeChronology() {
   const spreadsheet = SpreadsheetApp.openById(getSourceSpreadsheetId());
+  const activityCodeMap = readActivityCodeMap(spreadsheet);
   const records = [];
-  spreadsheet.getSheets().forEach((sheet) => {
-    const match = sheet.getName().match(/^\s*([1-7])\.\s*D[ÖO]NEM\s*$/i);
-    if (!match) return;
-
-    const periodNumber = Number(match[1]);
-    const values = sheet.getDataRange().getValues();
-    const displays = sheet.getDataRange().getDisplayValues();
-    let currentDate = { display: "", start_date: "", end_date: "", year: "", note: "missing", exact: false };
-    let currentYear = "";
-
-    for (let rowIndex = 1; rowIndex < values.length; rowIndex += 1) {
-      const sourceRow = rowIndex + 1;
-      const rawDateValue = values[rowIndex][0];
-      const rawDateDisplay = cleanText(displays[rowIndex][0]);
-      const inheritedDate = !rawDateDisplay;
-      if (!inheritedDate) {
-        currentDate = parseDateValue(rawDateValue, rawDateDisplay, currentYear);
-        if (currentDate.year) currentYear = currentDate.year;
-      }
-      const effectiveDate = inheritedDate ? currentDate : parseDateValue(rawDateValue, rawDateDisplay, currentYear);
-
-      Object.keys(ITEM_COLUMNS).forEach((itemKind) => {
-        const columns = ITEM_COLUMNS[itemKind];
-        const rawText = cleanText(displays[rowIndex][columns.text]);
-        if (!rawText) return;
-
-        const category = publicText(displays[rowIndex][columns.category]);
-        const description = publicText(rawText);
-        const activity = assignActivityCode(itemKind, category, rawText, description);
-        const title = makeTitle(description);
-        const id = `tvk-${pad(periodNumber, 2)}-${pad(sourceRow, 4)}-${itemKind.slice(0, 3)}`;
-        const outsideExpectedPeriod = yearOutsideExpectedPeriod(periodNumber, effectiveDate.year);
-        let status = verificationStatus(rawText, category, effectiveDate, inheritedDate);
-        if (outsideExpectedPeriod) status = "needs_review";
-
-        const publicNotes = [];
-        if (inheritedDate) publicNotes.push("Tarih bilgisi önceki satır bağlamından taşındı.");
-        if (["month_year", "month_range", "season_or_broad_range", "broad_date"].indexOf(effectiveDate.note) >= 0) {
-          publicNotes.push("Tarih kesin gün bilgisi içermiyor.");
-        }
-        if (status === "uncertain_category") publicNotes.push("Kategori elle gözden geçirilmeli.");
-        if (hasReviewMarker(rawText, category)) publicNotes.push("Kaynak hücrede inceleme işareti var.");
-        if (outsideExpectedPeriod) publicNotes.push("Yıl, dönem için beklenen aralığın dışında görünüyor.");
-
-        records.push({
-          id,
-          period: sheet.getName(),
-          sheet_name: sheet.getName(),
-          item_kind: itemKind,
-          category,
-          ...activity,
-          title,
-          description,
-          date_display: effectiveDate.display,
-          start_date: effectiveDate.start_date,
-          end_date: effectiveDate.end_date,
-          year: effectiveDate.year,
-          source_sheet: sheet.getName(),
-          source_row: sourceRow,
-          verification_status: status,
-          public_note: publicNotes.join(" "),
-          raw_text: rawText,
-        });
-      });
-    }
+  selectChronologySheets(spreadsheet).forEach((source) => {
+    const rows = source.format === "updated"
+      ? normalizeUpdatedChronologySheet(source.sheet, source.periodNumber, activityCodeMap)
+      : normalizeLegacyChronologySheet(source.sheet, source.periodNumber, activityCodeMap);
+    rows.forEach((row) => records.push(row));
   });
   return records;
+}
+
+function selectChronologySheets(spreadsheet) {
+  const byPeriod = {};
+  spreadsheet.getSheets().forEach((sheet) => {
+    const name = sheet.getName();
+    const updatedMatch = name.match(/^\s*([1-7])[_-].+/i);
+    const legacyMatch = name.match(/^\s*([1-7])\.\s*D[ÖO]NEM\s*$/i);
+    if (updatedMatch) {
+      const periodNumber = Number(updatedMatch[1]);
+      byPeriod[periodNumber] = { sheet, periodNumber, format: "updated" };
+      return;
+    }
+    if (legacyMatch) {
+      const periodNumber = Number(legacyMatch[1]);
+      if (!byPeriod[periodNumber]) {
+        byPeriod[periodNumber] = { sheet, periodNumber, format: "legacy" };
+      }
+    }
+  });
+  return Object.keys(byPeriod)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map((periodNumber) => byPeriod[periodNumber]);
+}
+
+function normalizeUpdatedChronologySheet(sheet, periodNumber, activityCodeMap) {
+  const records = [];
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return records;
+
+  const range = sheet.getRange(1, 1, lastRow, 5);
+  const values = range.getValues();
+  const displays = range.getDisplayValues();
+  let currentDate = { display: "", start_date: "", end_date: "", year: "", note: "missing", exact: false };
+  let currentYear = "";
+
+  for (let rowIndex = 1; rowIndex < values.length; rowIndex += 1) {
+    const sourceRow = rowIndex + 1;
+    const day = cleanText(displays[rowIndex][UPDATED_CHRONOLOGY_COLUMNS.day]);
+    const month = cleanText(displays[rowIndex][UPDATED_CHRONOLOGY_COLUMNS.month]);
+    const yearDisplay = cleanText(displays[rowIndex][UPDATED_CHRONOLOGY_COLUMNS.year]);
+    const rawText = cleanText(displays[rowIndex][UPDATED_CHRONOLOGY_COLUMNS.text]);
+    const rawCode = cleanText(displays[rowIndex][UPDATED_CHRONOLOGY_COLUMNS.code]);
+    const hasDateParts = Boolean(day || month || yearDisplay);
+
+    if (hasDateParts) {
+      const parsedContextYear = firstYearInText(yearDisplay);
+      if (parsedContextYear) currentYear = parsedContextYear;
+      currentDate = parseDateValue(
+        values[rowIndex][UPDATED_CHRONOLOGY_COLUMNS.year],
+        buildUpdatedDateDisplay(day, month, yearDisplay, currentYear),
+        currentYear,
+      );
+      if (currentDate.year) currentYear = currentDate.year;
+    }
+    if (!rawText) continue;
+
+    const inheritedDate = !hasDateParts;
+    const description = publicText(rawText);
+    const explicitActivity = activityFromExplicitCode(rawCode, rawText, activityCodeMap);
+    const activity = explicitActivity || assignActivityCode("event", "", rawText, description);
+    const itemKind = itemKindFromActivity(activity);
+    const category = activity.activity_label || activity.activity_group || "";
+    const title = makeTitle(description);
+    const outsideExpectedPeriod = yearOutsideExpectedPeriod(periodNumber, currentDate.year);
+    let status = verificationStatus(rawText, category, currentDate, inheritedDate);
+    if (!rawCode || outsideExpectedPeriod || activity.activity_code_status === "needs_review") {
+      status = "needs_review";
+    }
+
+    const publicNotes = [];
+    if (inheritedDate) publicNotes.push("Tarih bilgisi önceki satır bağlamından taşındı.");
+    if (["month_year", "month_range", "season_or_broad_range", "broad_date", "year_only"].indexOf(currentDate.note) >= 0) {
+      publicNotes.push("Tarih kesin gün bilgisi içermiyor.");
+    }
+    if (!rawCode) publicNotes.push("Faaliyet kodu boş; kod otomatik önerildi.");
+    if (activity.activity_code_note) publicNotes.push(activity.activity_code_note);
+    if (hasReviewMarker(rawText, category)) publicNotes.push("Kaynak hücrede inceleme işareti var.");
+    if (outsideExpectedPeriod) publicNotes.push("Yıl, dönem için beklenen aralığın dışında görünüyor.");
+
+    records.push({
+      id: `tvk-${pad(periodNumber, 2)}-${pad(sourceRow, 4)}-${KIND_ID_PREFIXES[itemKind] || "unk"}`,
+      legacy_id: `tvk-${pad(periodNumber, 2)}-${pad(sourceRow, 4)}-${itemKind.slice(0, 3)}`,
+      period: `${periodNumber}. DÖNEM`,
+      sheet_name: sheet.getName(),
+      item_kind: itemKind,
+      category,
+      ...activity,
+      title,
+      description,
+      date_display: currentDate.display,
+      start_date: currentDate.start_date,
+      end_date: currentDate.end_date,
+      year: currentDate.year,
+      source_sheet: sheet.getName(),
+      source_row: sourceRow,
+      verification_status: status,
+      public_note: unique(publicNotes.filter(Boolean)).join(" "),
+      raw_text: rawText,
+    });
+  }
+  return records;
+}
+
+function normalizeLegacyChronologySheet(sheet, periodNumber, activityCodeMap) {
+  const records = [];
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return records;
+
+  const range = sheet.getRange(1, 1, lastRow, 8);
+  const values = range.getValues();
+  const displays = range.getDisplayValues();
+  let currentDate = { display: "", start_date: "", end_date: "", year: "", note: "missing", exact: false };
+  let currentYear = "";
+
+  for (let rowIndex = 1; rowIndex < values.length; rowIndex += 1) {
+    const sourceRow = rowIndex + 1;
+    const rawDateValue = values[rowIndex][0];
+    const rawDateDisplay = cleanText(displays[rowIndex][0]);
+    const inheritedDate = !rawDateDisplay;
+    if (!inheritedDate) {
+      currentDate = parseDateValue(rawDateValue, rawDateDisplay, currentYear);
+      if (currentDate.year) currentYear = currentDate.year;
+    }
+
+    Object.keys(ITEM_COLUMNS).forEach((itemKind) => {
+      const columns = ITEM_COLUMNS[itemKind];
+      const rawText = cleanText(displays[rowIndex][columns.text]);
+      if (!rawText) return;
+
+      const category = publicText(displays[rowIndex][columns.category]);
+      const description = publicText(rawText);
+      const activity = assignActivityCode(itemKind, category, rawText, description, activityCodeMap);
+      const title = makeTitle(description);
+      const id = `tvk-${pad(periodNumber, 2)}-${pad(sourceRow, 4)}-${KIND_ID_PREFIXES[itemKind] || itemKind.slice(0, 3)}`;
+      const outsideExpectedPeriod = yearOutsideExpectedPeriod(periodNumber, currentDate.year);
+      let status = verificationStatus(rawText, category, currentDate, inheritedDate);
+      if (outsideExpectedPeriod) status = "needs_review";
+
+      const publicNotes = [];
+      if (inheritedDate) publicNotes.push("Tarih bilgisi önceki satır bağlamından taşındı.");
+      if (["month_year", "month_range", "season_or_broad_range", "broad_date", "year_only"].indexOf(currentDate.note) >= 0) {
+        publicNotes.push("Tarih kesin gün bilgisi içermiyor.");
+      }
+      if (status === "uncertain_category") publicNotes.push("Kategori elle gözden geçirilmeli.");
+      if (hasReviewMarker(rawText, category)) publicNotes.push("Kaynak hücrede inceleme işareti var.");
+      if (outsideExpectedPeriod) publicNotes.push("Yıl, dönem için beklenen aralığın dışında görünüyor.");
+
+      records.push({
+        id,
+        period: sheet.getName(),
+        sheet_name: sheet.getName(),
+        item_kind: itemKind,
+        category,
+        ...activity,
+        title,
+        description,
+        date_display: currentDate.display,
+        start_date: currentDate.start_date,
+        end_date: currentDate.end_date,
+        year: currentDate.year,
+        source_sheet: sheet.getName(),
+        source_row: sourceRow,
+        verification_status: status,
+        public_note: publicNotes.join(" "),
+        raw_text: rawText,
+      });
+    });
+  }
+  return records;
+}
+
+function readActivityCodeMap(spreadsheet) {
+  const sheet = spreadsheet.getSheetByName(ACTIVITY_CODE_SHEET_NAME);
+  if (!sheet || sheet.getLastRow() < 2) return {};
+
+  const values = sheet.getRange(1, 1, sheet.getLastRow(), 5).getDisplayValues();
+  const map = {};
+  let currentGroup = "";
+  values.slice(1).forEach((row) => {
+    const group = normalizeActivityGroup(row[0] || currentGroup);
+    const code = normalizeActivityCodeValue(row[2]);
+    const label = publicText(row[3]);
+    const description = publicText(row[4]);
+    if (group) currentGroup = group;
+    if (!code || group === "Yer ekleri" || group === "Taslak soruları") return;
+    map[code] = { group, label, description };
+  });
+  return map;
+}
+
+function activityFromExplicitCode(rawCode, rawText, activityCodeMap) {
+  const fullCode = normalizeActivityCodeValue(rawCode);
+  if (!fullCode) return null;
+
+  const parts = fullCode.split("_").filter(Boolean);
+  const visibleBase = parts[0] || fullCode;
+  const baseCode = ACTIVITY_CODE_ALIASES[visibleBase] || visibleBase;
+  const suffixCode = parts.length > 1 ? parts.slice(1).join("_") : "";
+  const info = activityInfoForCode(fullCode, baseCode, activityCodeMap);
+  const locationCode = isLocationSuffix(suffixCode) ? suffixCode : "";
+  const suffixInfo = suffixCode ? activityCodeMap[suffixCode] : null;
+
+  if (!info) {
+    return {
+      activity_code: fullCode,
+      activity_code_base: baseCode,
+      activity_location_code: locationCode,
+      activity_suffix_code: suffixCode,
+      activity_group: "",
+      activity_label: "",
+      activity_code_status: "needs_review",
+      activity_code_note: `Faaliyet kodu "${rawCode}" kod listesinde bulunamadı.`,
+    };
+  }
+
+  const noteParts = [];
+  if (suffixInfo && suffixInfo.group === "Yer ekleri") noteParts.push(`Kod eki: ${suffixInfo.label}.`);
+  return {
+    activity_code: fullCode,
+    activity_code_base: baseCode,
+    activity_location_code: locationCode,
+    activity_suffix_code: suffixCode,
+    activity_group: normalizeActivityGroup(info.group),
+    activity_label: info.label,
+    activity_code_status: "mapped",
+    activity_code_note: noteParts.join(" "),
+  };
+}
+
+function activityInfoForCode(fullCode, baseCode, activityCodeMap) {
+  const fullInfo = activityCodeMap[fullCode] || arrayActivityInfo(ACTIVITY_CODE_INFO[fullCode]);
+  if (fullInfo) return fullInfo;
+  return activityCodeMap[baseCode] || arrayActivityInfo(ACTIVITY_CODE_INFO[baseCode]);
+}
+
+function arrayActivityInfo(info) {
+  if (!info) return null;
+  return { group: info[0], label: info[1], description: "" };
+}
+
+function normalizeActivityCodeValue(value) {
+  return cleanText(value)
+    .toLocaleUpperCase("tr-TR")
+    .replace(/\s*_\s*/g, "_")
+    .replace(/\s+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function normalizeActivityGroup(value) {
+  const group = cleanText(value);
+  if (!group) return "";
+  const key = activityKey(group);
+  if (key === "bilgi belge merkezi") return "BBM";
+  return group;
+}
+
+function isLocationSuffix(value) {
+  return ["ANK", "İZM", "ANT", "ÖTE", "O"].indexOf(value) >= 0;
+}
+
+function itemKindFromActivity(activity) {
+  const group = normalizeActivityGroup(activity && activity.activity_group);
+  const baseCode = activity && activity.activity_code_base;
+  if (group === "Yayınlar") return "publication";
+  if (group === "Projeler") return "project";
+  if (group === "BBM") return "organizational";
+  if (["İÇ", "İKO", "ÖTT"].indexOf(baseCode) >= 0) return "organizational";
+  return "event";
+}
+
+function buildUpdatedDateDisplay(day, month, yearDisplay, currentYear) {
+  const year = firstYearInText(yearDisplay) || currentYear || yearDisplay;
+  if (day && month) return cleanText(`${day} ${month} ${year}`);
+  if (month && yearDisplay) return cleanText(`${month} ${yearDisplay}`);
+  if (month && currentYear) return cleanText(`${month} ${currentYear}`);
+  if (day && yearDisplay) return cleanText(`${day} ${yearDisplay}`);
+  return yearDisplay || month || day || "";
+}
+
+function firstYearInText(value) {
+  const match = cleanText(value).match(/\b(19|20)\d{2}\b/);
+  return match ? match[0] : "";
 }
 
 function readSiteContent() {
@@ -407,11 +671,12 @@ function detectLocationCode(haystack) {
 }
 
 function activityChoice(baseCode, haystack, group, label, status, note) {
-  const info = ACTIVITY_CODE_INFO[baseCode] || ["", ""];
+  const normalizedBase = ACTIVITY_CODE_ALIASES[normalizeActivityCodeValue(baseCode)] || normalizeActivityCodeValue(baseCode);
+  const info = ACTIVITY_CODE_INFO[normalizedBase] || ["", ""];
   const locationCode = detectLocationCode(haystack);
   return {
-    activity_code: locationCode ? `${baseCode} ${locationCode}` : baseCode,
-    activity_code_base: baseCode,
+    activity_code: locationCode ? `${normalizedBase}_${locationCode}` : normalizedBase,
+    activity_code_base: normalizedBase,
     activity_location_code: locationCode,
     activity_group: group || info[0],
     activity_label: label || info[1],
@@ -460,10 +725,10 @@ function assignActivityCode(itemKind, category, rawText, description) {
 
   if (hasAnyCodeTerm(haystack, "ic toplanti")) return activityChoice("İÇ", haystack);
   if (hasAnyCodeTerm(haystack, "genel kurul", "olagan genel kurul", "ic kongre")) return activityChoice("İKO", haystack);
-  if (hasAnyCodeTerm(haystack, "kongre")) return activityChoice("KGR", haystack);
+  if (hasAnyCodeTerm(haystack, "kongre")) return activityChoice("İKO", haystack);
   if (hasAnyCodeTerm(haystack, "konferans", "konusma", "soylesi")) return activityChoice("KON", haystack);
   if (hasAnyCodeTerm(haystack, "panel", "forum", "acik oturum")) return activityChoice("PAN", haystack);
-  if (hasAnyCodeTerm(haystack, "atolye", "calistay", "workshop")) return activityChoice("ATA", haystack);
+  if (hasAnyCodeTerm(haystack, "atolye", "calistay", "workshop")) return activityChoice("ATL", haystack);
   if (hasAnyCodeTerm(haystack, "seminer", "kurs")) return activityChoice("SMN", haystack);
   if (hasAnyCodeTerm(haystack, "sempozyum")) return activityChoice("SEM", haystack);
   if (hasAnyCodeTerm(haystack, "sergi")) return activityChoice("SER", haystack);
@@ -538,7 +803,7 @@ function verificationStatus(rawText, category, parsedDate, inheritedDate) {
   if (!category) return "uncertain_category";
   if (hasReviewMarker(rawText, category)) return "needs_review";
   if (inheritedDate && !parsedDate.exact) return "uncertain_date";
-  if (["month_year", "month_range", "season_or_broad_range", "broad_date"].indexOf(parsedDate.note) >= 0) return "uncertain_date";
+  if (["month_year", "month_range", "season_or_broad_range", "broad_date", "year_only"].indexOf(parsedDate.note) >= 0) return "uncertain_date";
   return "verified";
 }
 
@@ -557,6 +822,7 @@ function hasReviewMarker() {
 
 function publicText(value) {
   let text = cleanText(value);
+  text = text.replace(/[xX]{4,}/g, "[gizli bilgi]");
   const replacements = {
     TVyayINLAR: "YAYINLAR",
     "TV YAYINLAR": "YAYINLAR",
@@ -596,6 +862,10 @@ function cleanText(value) {
 
 function pad(value, length) {
   return String(value).padStart(length, "0");
+}
+
+function unique(values) {
+  return Array.from(new Set(values));
 }
 
 function jsonResponse(payload) {
