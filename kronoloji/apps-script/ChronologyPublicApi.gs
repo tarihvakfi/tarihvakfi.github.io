@@ -15,9 +15,13 @@
 
 const SOURCE_SPREADSHEET_ID_PROPERTY = "CHRONOLOGY_SOURCE_SPREADSHEET_ID";
 const CORRECTION_NOTIFICATION_EMAILS_PROPERTY = "CHRONOLOGY_CORRECTION_EMAILS";
+const PUBLIC_DATA_FILE_ID_PROPERTY = "CHRONOLOGY_PUBLIC_DATA_FILE_ID";
+const PUBLIC_DATA_REFRESH_AT_PROPERTY = "CHRONOLOGY_PUBLIC_DATA_REFRESH_AT";
+const PUBLIC_DATA_RECORD_COUNT_PROPERTY = "CHRONOLOGY_PUBLIC_DATA_RECORD_COUNT";
 const SITE_CONTENT_SHEET_NAME = "Site Metinleri";
 const ACTIVITY_CODE_SHEET_NAME = "Faaliyet Kodları";
 const CORRECTION_SHEET_NAME = "Düzeltme Önerileri";
+const PUBLIC_DATA_FILE_NAME = "TV KRONOLOJI PUBLIC DATA.json";
 
 const UPDATED_CHRONOLOGY_COLUMNS = {
   day: 0,
@@ -150,22 +154,97 @@ function doGet(event) {
         ok: true,
         generatedAt: new Date().toISOString(),
         mirror: typeof getMirrorStatus === "function" ? getMirrorStatus() : {},
+        cache: getPublicDataCacheStatus(),
       });
     }
-    const records = normalizeChronology();
-    const content = readSiteContent();
-    return jsonResponse({
-      generatedAt: new Date().toISOString(),
-      recordCount: records.length,
-      content,
-      records,
-    });
+    const cachedJson = readPublicDataCache();
+    if (cachedJson) return rawJsonResponse(cachedJson);
+    return jsonResponse(buildChronologyPayload());
   } catch (error) {
     return jsonResponse({
       ok: false,
       error: String(error && error.message ? error.message : error),
     });
   }
+}
+
+function refreshPublicDataCache() {
+  const payload = buildChronologyPayload();
+  const json = JSON.stringify(payload);
+  const props = PropertiesService.getScriptProperties();
+  const file = getOrCreatePublicDataFile(props);
+  file.setContent(json);
+  props.setProperties({
+    [PUBLIC_DATA_FILE_ID_PROPERTY]: file.getId(),
+    [PUBLIC_DATA_REFRESH_AT_PROPERTY]: payload.generatedAt,
+    [PUBLIC_DATA_RECORD_COUNT_PROPERTY]: String(payload.recordCount),
+  });
+  return {
+    ok: true,
+    generatedAt: payload.generatedAt,
+    recordCount: payload.recordCount,
+    contentKeys: Object.keys(payload.content || {}).length,
+    fileId: file.getId(),
+    size: json.length,
+  };
+}
+
+function buildChronologyPayload() {
+  const records = normalizeChronology();
+  const content = readSiteContent();
+  return {
+    generatedAt: new Date().toISOString(),
+    recordCount: records.length,
+    content,
+    records,
+  };
+}
+
+function readPublicDataCache() {
+  const fileId = cleanText(
+    PropertiesService
+      .getScriptProperties()
+      .getProperty(PUBLIC_DATA_FILE_ID_PROPERTY),
+  );
+  if (!fileId) return "";
+
+  try {
+    const text = DriveApp.getFileById(fileId).getBlob().getDataAsString("UTF-8");
+    return text && text.trim().charAt(0) === "{" ? text : "";
+  } catch (error) {
+    console.warn("Public data cache read failed", error);
+    return "";
+  }
+}
+
+function getOrCreatePublicDataFile(props) {
+  const existingFileId = cleanText(props.getProperty(PUBLIC_DATA_FILE_ID_PROPERTY));
+  if (existingFileId) {
+    try {
+      return DriveApp.getFileById(existingFileId);
+    } catch (error) {
+      console.warn("Public data cache file was not accessible; creating a new one.", error);
+    }
+  }
+
+  const file = DriveApp.createFile(PUBLIC_DATA_FILE_NAME, "{}", MimeType.PLAIN_TEXT);
+  props.setProperty(PUBLIC_DATA_FILE_ID_PROPERTY, file.getId());
+  return file;
+}
+
+function getPublicDataCacheStatus() {
+  const props = PropertiesService.getScriptProperties();
+  const fileId = cleanText(props.getProperty(PUBLIC_DATA_FILE_ID_PROPERTY));
+  return {
+    fileId,
+    refreshedAt: cleanText(props.getProperty(PUBLIC_DATA_REFRESH_AT_PROPERTY)),
+    recordCount: cleanText(props.getProperty(PUBLIC_DATA_RECORD_COUNT_PROPERTY)),
+    exists: Boolean(fileId),
+  };
+}
+
+function rawJsonResponse(json) {
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
 }
 
 function doPost(event) {

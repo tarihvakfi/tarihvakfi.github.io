@@ -38,14 +38,28 @@ function refreshMirror() {
       LAST_MIRROR_SOURCE_FILE_ID: SOURCE_XLSX_FILE_ID,
       LAST_MIRROR_TEMP_FILE_ID: tempFile.id,
     });
+    const publicDataCache = refreshPublicDataCacheAfterMirror_();
     return {
       ok: true,
       mirrorSpreadsheetId: MIRROR_SPREADSHEET_ID,
       refreshedAt: new Date().toISOString(),
       sheetCount: mirrorSpreadsheet.getSheets().length,
+      publicDataCache,
     };
   } finally {
     DriveApp.getFileById(tempFile.id).setTrashed(true);
+  }
+}
+
+function refreshPublicDataCacheAfterMirror_() {
+  if (typeof refreshPublicDataCache !== "function") {
+    return { ok: false, skipped: true, reason: "refreshPublicDataCache is not installed." };
+  }
+  try {
+    return refreshPublicDataCache();
+  } catch (error) {
+    console.warn("Public data cache refresh failed", error);
+    return { ok: false, error: String(error && error.message ? error.message : error) };
   }
 }
 
