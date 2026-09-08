@@ -217,6 +217,29 @@ body.baserow-demo {
   margin-top: 0;
 }
 
+.conditional-field,
+.archive-fields {
+  margin-top: 14px;
+}
+
+.field-section {
+  margin: 0 0 11px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.area-note {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px dashed var(--accent-soft);
+  background: var(--accent-bg);
+  color: var(--accent-deep);
+  font: 14px/1.45 'Inter', system-ui, sans-serif;
+}
+
 .button-row {
   align-items: center;
   justify-content: flex-start;

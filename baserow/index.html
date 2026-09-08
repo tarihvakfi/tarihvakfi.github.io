@@ -6,7 +6,7 @@
   <meta name="robots" content="noindex,nofollow" />
 
   <title>Baserow Denemesi · Tarih Vakfı</title>
-  <meta name="description" content="Tarih Vakfı sayısallaştırma yönetimi için Türkçe Baserow çalışma modeli denemesi." />
+  <meta name="description" content="Tarih Vakfı gönüllü çalışma yönetimi için Türkçe Baserow çalışma modeli denemesi." />
 
   <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -22,7 +22,7 @@
         <img src="../assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" class="brand-logo" />
         <div>
           <b>Tarih Vakfı</b>
-          <span>Sayısallaştırma Yönetimi Denemesi</span>
+          <span>Gönüllü Çalışma Yönetimi Denemesi</span>
         </div>
       </div>
       <div class="mast-actions">
@@ -37,9 +37,9 @@
     <section class="baserow-workspace" aria-labelledby="demo-title">
       <div class="workspace-head">
         <div>
-          <p class="context-eyebrow">Baserow yerine kullanılacak Türkçe alan adlarıyla</p>
-          <h1 id="demo-title">Sayısallaştırma işi tek yerde</h1>
-          <p class="lede">Bu deneme gerçek kayıt yapmaz. Ama gönüllünün göreceği sadeliği ve koordinatörün ihtiyaç duyduğu düzenli veriyi aynı ekranda gösterir.</p>
+          <p class="context-eyebrow">Baserow için Türkçe çalışma modeli</p>
+          <h1 id="demo-title">Gönüllü işleri tek yerde</h1>
+          <p class="lede">Bu deneme gerçek kayıt yapmaz. Sayısallaştırma ana iş akışı olarak kalır; proje, web, kronoloji, koordinasyon ve kütüphane taşınması gibi işler de aynı sade günlük kayıt düzenine girer.</p>
         </div>
         <div class="demo-status" aria-label="Deneme durumu">
           <span class="status-dot"></span>
@@ -48,10 +48,10 @@
       </div>
 
       <section class="entry-grid" aria-label="Günlük çalışma girişi ve özet">
-        <form class="entry-panel" id="taramaForm">
+        <form class="entry-panel" id="calismaForm">
           <div class="panel-title">
             <p class="kicker">Gönüllü ekranı</p>
-            <h2>Bugünkü çalışma girişi</h2>
+            <h2>Bugünkü çalışma kaydı</h2>
           </div>
 
           <label>
@@ -62,7 +62,13 @@
               <option>Özden Özütemiz</option>
               <option>Sibel Dağ</option>
               <option>Arif Solmaz</option>
+              <option value="__new__">Listede yokum / adımı ekle</option>
             </select>
+          </label>
+
+          <label class="conditional-field" id="yeniGonulluSatiri" hidden>
+            <span>Ad soyad</span>
+            <input type="text" name="yeniGonullu" autocomplete="name" placeholder="Adınızı ve soyadınızı yazın" />
           </label>
 
           <div class="field-row">
@@ -71,51 +77,75 @@
               <input type="date" name="tarih" required />
             </label>
             <label>
-              <span>İş türü</span>
-              <select name="isTuru" required>
-                <option>Tarama</option>
-                <option>Kontrol</option>
-                <option>Kodlama</option>
-                <option>Kataloglama</option>
-                <option>PDF/JPEG çıktısı</option>
+              <span>Çalışma alanı</span>
+              <select name="calismaAlani" id="calismaAlani" required>
+                <option>Sayısallaştırma</option>
+                <option>Kütüphane taşınması</option>
+                <option>Proje geliştirme</option>
+                <option>Web sitesi</option>
+                <option>Kronoloji</option>
+                <option>Koordinasyon</option>
+                <option>Eğitim / toplantı</option>
+                <option>Diğer</option>
               </select>
             </label>
           </div>
 
-          <div class="field-row four">
-            <label>
-              <span>Fon</span>
-              <select name="fon">
-                <option>PNB</option>
-                <option>NSS Harita</option>
-              </select>
-            </label>
-            <label>
-              <span>Kutu</span>
-              <input type="number" name="kutu" min="1" value="34" required />
-            </label>
-            <label>
-              <span>Dosya</span>
-              <input type="text" name="dosya" value="12" required />
-            </label>
-            <label>
-              <span>Belge</span>
-              <input type="text" name="belge" value="1" />
-            </label>
+          <label>
+            <span>İş türü</span>
+            <select name="isTuru" id="isTuru" required></select>
+          </label>
+
+          <label class="conditional-field" id="digerIsSatiri" hidden>
+            <span>Yapılan iş</span>
+            <textarea name="yapilanIs" placeholder="Listede yoksa yaptığınız işi buraya açıkça yazın"></textarea>
+          </label>
+
+          <div class="area-note" id="alanNotu"></div>
+
+          <div class="archive-fields" id="arsivAlanlari">
+            <p class="field-section">Arşiv / kütüphane bağlantısı</p>
+            <div class="field-row four">
+              <label>
+                <span>Fon / koleksiyon</span>
+                <select name="fon">
+                  <option>PNB</option>
+                  <option>NSS Harita</option>
+                  <option>Kütüphane</option>
+                  <option>Genel arşiv</option>
+                </select>
+              </label>
+              <label>
+                <span>Kutu</span>
+                <input type="text" name="kutu" value="34" />
+              </label>
+              <label>
+                <span>Dosya / raf</span>
+                <input type="text" name="dosya" value="12" />
+              </label>
+              <label>
+                <span>Belge / sıra</span>
+                <input type="text" name="belge" value="1" />
+              </label>
+            </div>
           </div>
 
           <div class="field-row">
             <label>
-              <span>Sayfa / adet</span>
-              <input type="number" name="sayfa" min="0" value="48" required />
+              <span id="miktarEtiketi">Sayfa / adet</span>
+              <input type="number" name="miktar" min="0" value="48" required />
             </label>
             <label>
-              <span>Tarayıcı</span>
-              <select name="tarayici">
+              <span>Cihaz / araç</span>
+              <select name="cihaz">
                 <option>Bookeye</option>
                 <option>Viisan S21</option>
                 <option>Viisan A3 Flat</option>
                 <option>Canon</option>
+                <option>Bilgisayar</option>
+                <option>Web sitesi</option>
+                <option>Kütüphane rafı</option>
+                <option>Toplantı</option>
               </select>
             </label>
           </div>
@@ -123,16 +153,17 @@
           <label>
             <span>Durum</span>
             <select name="durum">
-              <option>Kontrol bekliyor</option>
+              <option>Kaydedildi</option>
               <option>Sürüyor</option>
+              <option>Kontrol bekliyor</option>
+              <option>Takip gerekiyor</option>
               <option>Tamamlandı</option>
-              <option>Sorun var</option>
             </select>
           </label>
 
           <label>
             <span>Not</span>
-            <textarea name="not" placeholder="Eksik sayfa, tekrar tarama, tarih belirsizliği gibi kısa notlar"></textarea>
+            <textarea name="not" placeholder="Eksik sayfa, tekrar tarama, web güncellemesi, proje görüşmesi, raf sayımı gibi kısa notlar"></textarea>
           </label>
 
           <div class="button-row">
@@ -153,12 +184,12 @@
               <p class="metric-label">sayfa / adet</p>
             </div>
             <div>
-              <p class="metric-value" id="aktifKutu">0</p>
-              <p class="metric-label">aktif kutu</p>
+              <p class="metric-value" id="alanSayisi">0</p>
+              <p class="metric-label">çalışma alanı</p>
             </div>
             <div>
               <p class="metric-value" id="kontrolBekleyen">0</p>
-              <p class="metric-label">kontrol bekleyen</p>
+              <p class="metric-label">takip bekleyen</p>
             </div>
             <div>
               <p class="metric-value" id="gonulluSayisi">0</p>
@@ -175,9 +206,10 @@
     </section>
 
     <section class="view-toolbar" aria-label="Koordinatör görünümleri">
-      <button type="button" data-view="taramalar" aria-pressed="true">Taramalar</button>
+      <button type="button" data-view="kayitlar" aria-pressed="true">Çalışma kayıtları</button>
+      <button type="button" data-view="alanlar">İş alanları</button>
       <button type="button" data-view="kutular">Kutular</button>
-      <button type="button" data-view="kontrol">Kontrol</button>
+      <button type="button" data-view="takip">Takip</button>
       <button type="button" data-view="atom">AtoM aktarımı</button>
     </section>
 
@@ -185,11 +217,11 @@
       <div class="view-head">
         <div>
           <p class="context-eyebrow" id="viewKicker">Baserow görünümü</p>
-          <h2 id="viewTitle">Taramalar</h2>
+          <h2 id="viewTitle">Çalışma kayıtları</h2>
         </div>
         <label class="search-box">
           <span>Arama</span>
-          <input type="search" id="arama" placeholder="Kutu, gönüllü, durum..." />
+          <input type="search" id="arama" placeholder="Alan, kutu, gönüllü, durum..." />
         </label>
       </div>
       <div class="table-wrap">
@@ -204,14 +236,14 @@
       <div class="model-copy">
         <p class="context-eyebrow">Önerilen veri modeli</p>
         <h2 id="model-title">Az tablo, net ilişki</h2>
-        <p>Gönüllü yalnızca kendi işini girer. Sistem arkada kutu, dosya, belge, tarama oturumu ve kontrol sorununu birbirine bağlar. Böylece aynı veri daha sonra AtoM için temiz CSV’ye dönüşebilir.</p>
+        <p>Gönüllü yalnızca kendi yaptığı işi girer. Sistem arkada genel çalışma kaydını, gerekiyorsa kutu/dosya/belge bilgisini ve takip notlarını birbirine bağlar. Böylece hem gönüllü emeği görünür kalır, hem de sayısallaştırma verisi daha sonra AtoM için temiz CSV’ye dönüşebilir.</p>
       </div>
       <div class="model-list" aria-label="Tablolar">
-        <div><b>Kutular</b><span>Fon, kutu no, hedef sayfa, genel durum</span></div>
-        <div><b>Dosyalar</b><span>Kutu bağlantısı, dosya no, tarih aralığı, açıklama</span></div>
-        <div><b>Belgeler</b><span>Dosya bağlantısı, belge no, başlık, erişim durumu</span></div>
-        <div><b>Tarama Oturumları</b><span>Gönüllü, tarih, cihaz, sayfa/adet, not</span></div>
-        <div><b>Kontrol Sorunları</b><span>Eksik, bulanık, tekrar tarama, kod çakışması</span></div>
+        <div><b>Çalışma Kayıtları</b><span>Gönüllü, tarih, çalışma alanı, iş türü, miktar, durum</span></div>
+        <div><b>Sayısallaştırma Ayrıntıları</b><span>Fon, kutu, dosya, belge, tarama/kodlama/kontrol durumu</span></div>
+        <div><b>Kütüphane Taşınması</b><span>Raf, sıra, sayım, kutulama, karar/onay bilgisi</span></div>
+        <div><b>Proje ve Web İşleri</b><span>Başvuru, rapor, web güncellemesi, kronoloji ve içerik işleri</span></div>
+        <div><b>Takip Sorunları</b><span>Eksik, bulanık, tekrar tarama, kod çakışması, açık karar</span></div>
         <div><b>AtoM Aktarımı</b><span>Referans kodu, üst kayıt, başlık, dijital nesne</span></div>
       </div>
     </section>
@@ -225,6 +257,6 @@
     </footer>
   </main>
 
-  <script src="./app.js?v=20260908-baserow-demo"></script>
+  <script src="./app.js?v=20260908-baserow-demo-2"></script>
 </body>
 </html>
