@@ -86,21 +86,26 @@
   }
 
   function mapBaserowRow(row) {
+    const workTypes = optionLabels(row.field_22);
+    const linkedVolunteer = linkLabels(row.field_18).join(', ');
+    const selectedFunds = mergeLabels(optionLabels(row.field_209), linkLabels(row.field_34));
+
     return {
-      gonullu: '',
+      gonullu: row.field_36 || linkedVolunteer || 'Belirtilmedi',
       tarih: row.field_20 || '',
-      calismaAlani: optionLabel(row.field_21) || 'Belirtilmedi',
-      isTuru: optionLabels(row.field_22),
-      yapilanIs: row.field_5 || '',
-      fon: linkLabels(row.field_34),
-      kutu: '',
-      dosya: '',
-      belge: '',
+      calismaAlani: optionLabel(row.field_21) || inferArea(workTypes),
+      isTuru: workTypes,
+      yapilanIs: row.field_5 || row.field_4 || '',
+      diger: row.field_31 || '',
+      fon: selectedFunds,
+      kutu: row.field_24 || '',
+      dosya: row.field_25 || '',
+      belge: row.field_26 || '',
       miktar: Number(row.field_27 || 0),
       birim: optionLabel(row.field_28) || 'adet',
-      cihaz: [],
+      cihaz: optionLabels(row.field_29),
       durum: optionLabels(row.field_30),
-      not: row.field_5 || ''
+      not: row.field_31 || row.field_5 || ''
     };
   }
 
@@ -335,8 +340,26 @@
     const labels = toList(row.isTuru).filter(function (item) {
       return item !== 'Diğer';
     });
-    if (toList(row.isTuru).includes('Diğer') && row.yapilanIs) labels.push(row.yapilanIs);
+    if (toList(row.isTuru).includes('Diğer') && (row.diger || row.yapilanIs)) {
+      labels.push(row.diger || row.yapilanIs);
+    }
     return labels.join(', ') || row.yapilanIs || '';
+  }
+
+  function inferArea(workTypes) {
+    const values = toList(workTypes);
+    if (values.some(function (item) {
+      return ['Tarama', 'Kodlama', 'Kontrol', 'Kataloglama', 'PDF/JPEG hazırlığı'].includes(item);
+    })) return 'Sayısallaştırma';
+    if (values.some(function (item) {
+      return ['Kütüphane envanteri / raf', 'Kütüphane taşıma / yerleştirme'].includes(item);
+    })) return 'Kütüphane taşınması';
+    if (values.includes('Proje geliştirme')) return 'Proje geliştirme';
+    if (values.includes('Web sitesi güncelleme')) return 'Web sitesi';
+    if (values.includes('Kronoloji / araştırma')) return 'Kronoloji';
+    if (values.includes('Toplantı / eğitim')) return 'Eğitim / toplantı';
+    if (values.includes('Koordinasyon / iletişim')) return 'Koordinasyon';
+    return 'Belirtilmedi';
   }
 
   function displayPlace(row, prefix) {
@@ -393,6 +416,15 @@
       if (item.primary_value) return item.primary_value;
       return String(item);
     }).filter(Boolean);
+  }
+
+  function mergeLabels() {
+    const seen = new Set();
+    return Array.from(arguments).flat().filter(function (label) {
+      if (!label || seen.has(label)) return false;
+      seen.add(label);
+      return true;
+    });
   }
 
   function formatNumber(value) {
