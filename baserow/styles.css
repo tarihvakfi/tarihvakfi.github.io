@@ -91,6 +91,28 @@ body.baserow-demo {
   text-transform: uppercase;
 }
 
+.demo-status[data-state="loading"] {
+  border-color: rgba(171, 107, 43, 0.35);
+  background: #fff7ea;
+  color: #7c4b14;
+}
+
+.demo-status[data-state="error"] {
+  border-color: rgba(151, 56, 48, 0.35);
+  background: #fff2f0;
+  color: #8a2f28;
+}
+
+.demo-status[data-state="loading"] .status-dot {
+  background: #ab6b2b;
+  box-shadow: 0 0 0 4px rgba(171, 107, 43, 0.16);
+}
+
+.demo-status[data-state="error"] .status-dot {
+  background: #973830;
+  box-shadow: 0 0 0 4px rgba(151, 56, 48, 0.16);
+}
+
 .status-dot {
   width: 8px;
   height: 8px;
@@ -339,6 +361,13 @@ td {
 td strong {
   color: var(--ink);
   font-weight: 700;
+}
+
+.data-note {
+  margin: 12px 0 0;
+  color: var(--ink-mute);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .status-pill {

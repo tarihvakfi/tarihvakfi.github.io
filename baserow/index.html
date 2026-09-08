@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/site.css?v=20260815-gorev-tercihi" />
-  <link rel="stylesheet" href="./styles.css?v=20260908-baserow-demo-5" />
+  <link rel="stylesheet" href="./styles.css?v=20260908-baserow-live-1" />
 </head>
 <body class="journal baserow-demo">
   <main class="page baserow-page">
@@ -38,11 +38,11 @@
       <div>
         <p class="context-eyebrow">Google Sheet yerine önerilen akış</p>
         <h1 id="demo-title">Tek veri girişi Baserow’da</h1>
-        <p class="lede">Gönüllüler GitHub sayfasına ayrıca kayıt girmeyecek. Bu sayfa yalnızca Baserow’a geçildiğinde verinin nasıl düzenlenip GitHub ve AtoM tarafına aktarılacağını gösteren taslaktır.</p>
+        <p class="lede">Gönüllüler GitHub sayfasına ayrıca kayıt girmeyecek. Bu sayfa Baserow’daki “GitHub’da göster” kayıtlarını okur; gerçek veri girişi Baserow’da kalır.</p>
       </div>
-      <div class="demo-status" aria-label="Deneme durumu">
+      <div class="demo-status" id="syncStatus" aria-label="Veri durumu">
         <span class="status-dot"></span>
-        <span>Veri almaz</span>
+        <span>Baserow’dan okur</span>
       </div>
     </section>
 
@@ -90,7 +90,7 @@
 
       <section class="summary-panel">
         <div class="panel-title">
-          <p class="kicker">GitHub’da görünecek örnek özet</p>
+          <p class="kicker">GitHub’da görünen canlı özet</p>
           <h2>Bu taraf veri toplamaz</h2>
         </div>
         <div class="metric-grid">
@@ -108,7 +108,7 @@
           </div>
           <div>
             <p class="metric-value" id="gonulluSayisi">0</p>
-            <p class="metric-label">gönüllü</p>
+            <p class="metric-label">yayın kaydı</p>
           </div>
         </div>
       </section>
@@ -139,6 +139,7 @@
           <tbody id="tabloGövde"></tbody>
         </table>
       </div>
+      <p class="data-note" id="veriDurumu">Baserow bağlantısı kontrol ediliyor.</p>
     </section>
 
     <section class="model-map" aria-labelledby="model-title">
@@ -162,10 +163,10 @@
         <img src="../assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" />
         <p class="signoff">Tarih Vakfı · Baserow Geçiş Taslağı</p>
       </div>
-      <p>Bu sayfa veri toplamaz. Gerçek kurulumda gönüllüler yalnızca Baserow formunu kullanır; GitHub sitesi Baserow’dan gelen seçilmiş çıktıları gösterir.</p>
+      <p>Bu sayfa veri toplamaz. Gönüllüler yalnızca Baserow formunu kullanır; GitHub sitesi Baserow’dan gelen seçilmiş çıktıları gösterir.</p>
     </footer>
   </main>
 
-  <script src="./app.js?v=20260908-baserow-demo-5"></script>
+  <script src="./app.js?v=20260908-baserow-live-1"></script>
 </body>
 </html>

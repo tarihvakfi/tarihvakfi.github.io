@@ -1,106 +1,22 @@
 (function () {
-  const rows = [
-    {
-      gonullu: 'Berfin Yazıcı',
-      tarih: '2026-09-08',
-      calismaAlani: 'Sayısallaştırma',
-      isTuru: ['Tarama', 'Kontrol'],
-      yapilanIs: '',
-      fon: ['PNB'],
-      kutu: '34',
-      dosya: '12',
-      belge: '1',
-      miktar: 48,
-      cihaz: ['Viisan A3', 'Bilgisayar'],
-      durum: ['Kaydedildi', 'Kontrol bekliyor'],
-      not: 'Dosya sonu kontrol edilecek'
-    },
-    {
-      gonullu: 'Anıl Olcan',
-      tarih: '2026-09-08',
-      calismaAlani: 'Sayısallaştırma',
-      isTuru: ['Kodlama', 'Kataloglama'],
-      yapilanIs: '',
-      fon: ['PNB'],
-      kutu: '40',
-      dosya: '3',
-      belge: '2',
-      miktar: 36,
-      cihaz: ['Bookeye', 'Bilgisayar'],
-      durum: ['Sürüyor'],
-      not: 'Belge tarihi netleştirilecek'
-    },
-    {
-      gonullu: 'Özden Özütemiz',
-      tarih: '2026-09-07',
-      calismaAlani: 'Kütüphane taşınması',
-      isTuru: ['Raf sayımı', 'Kutu hazırlama'],
-      yapilanIs: '',
-      fon: ['Kütüphane'],
-      kutu: '',
-      dosya: 'Raf B-12',
-      belge: 'Sıra 3',
-      miktar: 84,
-      cihaz: ['Raf'],
-      durum: ['Takip gerekiyor'],
-      not: 'Sayım onayı bekliyor'
-    },
-    {
-      gonullu: 'Sibel Dağ',
-      tarih: '2026-09-06',
-      calismaAlani: 'Sayısallaştırma',
-      isTuru: ['Kontrol'],
-      yapilanIs: '',
-      fon: ['PNB'],
-      kutu: '68',
-      dosya: '3',
-      belge: '6',
-      miktar: 64,
-      cihaz: ['Viisan S21'],
-      durum: ['Kontrol bekliyor'],
-      not: 'Kod çakışması kontrol edilecek'
-    },
-    {
-      gonullu: 'Arif Solmaz',
-      tarih: '2026-09-05',
-      calismaAlani: 'Web sitesi',
-      isTuru: ['Veri kontrolü', 'Yayın'],
-      yapilanIs: '',
-      fon: [],
-      kutu: '',
-      dosya: '',
-      belge: '',
-      miktar: 1,
-      cihaz: ['Web sitesi', 'Bilgisayar'],
-      durum: ['Tamamlandı'],
-      not: 'Kamuya açık dashboard verileri kontrol edildi'
-    },
-    {
-      gonullu: 'Berfin Yazıcı',
-      tarih: '2026-09-04',
-      calismaAlani: 'Proje geliştirme',
-      isTuru: ['Diğer'],
-      yapilanIs: 'Arşiv projesi için örnek çıktı ve ihtiyaç listesi hazırlandı',
-      fon: [],
-      kutu: '',
-      dosya: '',
-      belge: '',
-      miktar: 2,
-      cihaz: ['Bilgisayar'],
-      durum: ['Kaydedildi'],
-      not: 'Diğer seçeneğiyle gerçek iş açıklaması tutuldu'
-    }
-  ];
+  const BASEROW_PUBLIC_ROWS_URL = 'http://localhost:8081/api/database/views/grid/HQHoxHqRTd2PAPnssxeGkOVPjDyZjmA7y53qoxHSciE/public/rows/';
+  let rows = [];
 
   const state = {
     view: 'kayitlar',
-    query: ''
+    query: '',
+    loading: true,
+    loadError: '',
+    publicCount: 0
   };
 
   const searchInput = document.getElementById('arama');
   const viewButtons = Array.from(document.querySelectorAll('[data-view]'));
+  const dataStatus = document.getElementById('veriDurumu');
+  const syncStatus = document.getElementById('syncStatus');
 
   renderAll();
+  loadRows();
 
   searchInput.addEventListener('input', function () {
     state.query = searchInput.value.trim().toLocaleLowerCase('tr');
@@ -124,6 +40,70 @@
     renderTable();
   }
 
+  async function loadRows() {
+    state.loading = true;
+    state.loadError = '';
+    state.publicCount = 0;
+    updateConnectionStatus('Baserow kontrol ediliyor', 'loading');
+    renderAll();
+
+    try {
+      const response = await fetch(publicRowsUrl(), { cache: 'no-store' });
+      if (!response.ok) throw new Error(`Baserow ${response.status}`);
+      const payload = await response.json();
+      const results = Array.isArray(payload.results) ? payload.results : [];
+      rows = results.map(mapBaserowRow);
+      state.publicCount = Number(payload.count || rows.length);
+      state.loading = false;
+      updateConnectionStatus('Canlı veri', 'live');
+      renderAll();
+    } catch (error) {
+      rows = [];
+      state.loading = false;
+      state.loadError = 'Baserow verisi okunamadı. Bu bilgisayarda yerel Baserow açık olmalı; gerçek kullanımda bu adres kurumun herkese açık Baserow adresiyle değiştirilecek.';
+      updateConnectionStatus('Bağlantı yok', 'error');
+      renderAll();
+    }
+  }
+
+  function publicRowsUrl() {
+    const url = new URL(BASEROW_PUBLIC_ROWS_URL);
+    url.searchParams.set('size', '100');
+    url.searchParams.set('_', String(Date.now()));
+    return url.toString();
+  }
+
+  function updateConnectionStatus(label, mode) {
+    if (dataStatus && mode !== 'error') {
+      dataStatus.textContent = mode === 'live'
+        ? 'Baserow’daki “GitHub’da göster” kayıtları canlı olarak okunuyor.'
+        : 'Baserow bağlantısı kontrol ediliyor.';
+    }
+    if (!syncStatus) return;
+    syncStatus.dataset.state = mode;
+    const text = syncStatus.querySelector('span:last-child');
+    if (text) text.textContent = label;
+  }
+
+  function mapBaserowRow(row) {
+    return {
+      gonullu: '',
+      tarih: row.field_20 || '',
+      calismaAlani: optionLabel(row.field_21) || 'Belirtilmedi',
+      isTuru: optionLabels(row.field_22),
+      yapilanIs: row.field_5 || '',
+      fon: linkLabels(row.field_34),
+      kutu: '',
+      dosya: '',
+      belge: '',
+      miktar: Number(row.field_27 || 0),
+      birim: optionLabel(row.field_28) || 'adet',
+      cihaz: [],
+      durum: optionLabels(row.field_30),
+      not: row.field_5 || ''
+    };
+  }
+
   function renderSummary() {
     const totalAmount = rows.reduce(function (sum, row) {
       return sum + Number(row.miktar || 0);
@@ -133,12 +113,11 @@
       const statuses = toList(row.durum);
       return statuses.includes('Kontrol bekliyor') || statuses.includes('Takip gerekiyor');
     }).length;
-    const volunteers = new Set(rows.map(function (row) { return row.gonullu; }));
 
     document.getElementById('toplamSayfa').textContent = formatNumber(totalAmount);
     document.getElementById('alanSayisi').textContent = formatNumber(activeAreas.size);
     document.getElementById('kontrolBekleyen').textContent = formatNumber(waiting);
-    document.getElementById('gonulluSayisi').textContent = formatNumber(volunteers.size);
+    document.getElementById('gonulluSayisi').textContent = formatNumber(state.publicCount || rows.length);
   }
 
   function renderTable() {
@@ -149,12 +128,23 @@
       return `<th>${escapeHtml(column.label)}</th>`;
     }).join('')}</tr>`;
 
+    if (state.loading) {
+      document.getElementById('tabloGövde').innerHTML = `<tr><td colspan="${config.columns.length}">Baserow bağlantısı kontrol ediliyor.</td></tr>`;
+      return;
+    }
+
+    if (state.loadError) {
+      if (dataStatus) dataStatus.textContent = state.loadError;
+      document.getElementById('tabloGövde').innerHTML = `<tr><td colspan="${config.columns.length}">Baserow verisi okunamadı.</td></tr>`;
+      return;
+    }
+
     const filteredRows = config.rows().filter(matchesQuery);
     document.getElementById('tabloGövde').innerHTML = filteredRows.map(function (row) {
       return `<tr>${config.columns.map(function (column) {
         return `<td>${column.render(row)}</td>`;
       }).join('')}</tr>`;
-    }).join('') || `<tr><td colspan="${config.columns.length}">Bu aramayla eşleşen örnek kayıt yok.</td></tr>`;
+    }).join('') || `<tr><td colspan="${config.columns.length}">GitHub’da göster işaretli kayıt yok.</td></tr>`;
   }
 
   function tableConfig(view) {
@@ -232,7 +222,6 @@
   function baseColumns() {
     return [
       { label: 'Tarih', render: function (row) { return escapeHtml(row.tarih); } },
-      { label: 'Gönüllü', render: function (row) { return `<strong>${escapeHtml(row.gonullu)}</strong>`; } },
       { label: 'Alan', render: function (row) { return escapeHtml(row.calismaAlani); } },
       { label: 'İş türü', render: function (row) { return escapeHtml(displayWork(row)); } },
       { label: 'Bağlantı', render: function (row) { return escapeHtml(displayPlace(row) || 'Genel çalışma'); } },
@@ -363,6 +352,7 @@
   }
 
   function unitFor(row) {
+    if (row.birim) return row.birim;
     if (row.calismaAlani === 'Sayısallaştırma') return 'sayfa/adet';
     if (row.calismaAlani === 'Kütüphane taşınması') return 'kitap/raf/adet';
     if (row.calismaAlani === 'Eğitim / toplantı') return 'saat/oturum';
@@ -383,6 +373,26 @@
     if (Array.isArray(value)) return value.filter(Boolean);
     if (value == null || value === '') return [];
     return [String(value)];
+  }
+
+  function optionLabel(value) {
+    if (!value) return '';
+    if (typeof value === 'object' && value.value) return value.value;
+    return String(value);
+  }
+
+  function optionLabels(value) {
+    return toList(value).map(optionLabel).filter(Boolean);
+  }
+
+  function linkLabels(value) {
+    return toList(value).map(function (item) {
+      if (!item) return '';
+      if (item.value) return item.value;
+      if (item.name) return item.name;
+      if (item.primary_value) return item.primary_value;
+      return String(item);
+    }).filter(Boolean);
   }
 
   function formatNumber(value) {
