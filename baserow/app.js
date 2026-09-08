@@ -1,5 +1,5 @@
 (function () {
-  const BASEROW_PUBLIC_ROWS_URL = 'http://localhost:8081/api/database/views/grid/HQHoxHqRTd2PAPnssxeGkOVPjDyZjmA7y53qoxHSciE/public/rows/';
+  const BASEROW_PUBLIC_ROWS_URL = 'https://smtp-pollution-lopez-constitutional.trycloudflare.com/api/database/views/grid/HQHoxHqRTd2PAPnssxeGkOVPjDyZjmA7y53qoxHSciE/public/rows/';
   let rows = [];
 
   const state = {
@@ -68,7 +68,7 @@
 
   function publicRowsUrl() {
     const url = new URL(BASEROW_PUBLIC_ROWS_URL);
-    url.searchParams.set('size', '100');
+    url.searchParams.set('size', '200');
     url.searchParams.set('_', String(Date.now()));
     return url.toString();
   }
