@@ -71,16 +71,9 @@ function getMirrorStatus() {
 
 function replaceMirrorSheets_(sourceSpreadsheet, mirrorSpreadsheet) {
   const placeholder = mirrorSpreadsheet.insertSheet(`_refresh_${Date.now()}`);
-  const sourcePreservedSheetNames = new Set(
-    sourceSpreadsheet
-      .getSheets()
-      .filter((sheet) => PRESERVED_MIRROR_SHEET_NAMES.indexOf(sheet.getName()) !== -1)
-      .map((sheet) => sheet.getName()),
-  );
 
   mirrorSpreadsheet.getSheets().forEach((sheet) => {
-    const shouldKeepPreservedSheet =
-      PRESERVED_MIRROR_SHEET_NAMES.indexOf(sheet.getName()) !== -1 && !sourcePreservedSheetNames.has(sheet.getName());
+    const shouldKeepPreservedSheet = PRESERVED_MIRROR_SHEET_NAMES.indexOf(sheet.getName()) !== -1;
     if (sheet.getSheetId() !== placeholder.getSheetId() && !shouldKeepPreservedSheet) {
       mirrorSpreadsheet.deleteSheet(sheet);
     }
@@ -105,17 +98,28 @@ function replaceMirrorSheets_(sourceSpreadsheet, mirrorSpreadsheet) {
 }
 
 function copySiteContentSheet_(sourceSheet, mirrorSpreadsheet) {
-  const existing = mirrorSpreadsheet.getSheetByName(sourceSheet.getName());
-  const existingValues = existing ? existing.getDataRange().getDisplayValues() : [];
-  if (existing) {
-    mirrorSpreadsheet.deleteSheet(existing);
+  let target = mirrorSpreadsheet.getSheetByName(sourceSheet.getName());
+  const existingValues = target ? readFirstColumns_(target, 3) : [];
+  if (!target) {
+    target = mirrorSpreadsheet.insertSheet(sourceSheet.getName());
   }
 
-  const target = mirrorSpreadsheet.insertSheet(sourceSheet.getName());
-  const values = normalizeSiteContentRows_(sourceSheet.getDataRange().getDisplayValues(), existingValues);
+  const values = normalizeSiteContentRows_(readFirstColumns_(sourceSheet, 3), existingValues);
+  if (target.getMaxRows() < values.length) {
+    target.insertRowsAfter(target.getMaxRows(), values.length - target.getMaxRows());
+  }
+  const rowsToClear = Math.max(target.getLastRow(), values.length, 1);
+  target.getRange(1, 1, rowsToClear, 3).clearContent();
   target.getRange(1, 1, values.length, 3).setValues(values);
   target.setFrozenRows(1);
-  target.autoResizeColumns(1, 3);
+  target.setColumnWidth(1, 260);
+  target.setColumnWidth(2, 620);
+  target.setColumnWidth(3, 320);
+}
+
+function readFirstColumns_(sheet, columnCount) {
+  const lastRow = Math.max(sheet.getLastRow(), 1);
+  return sheet.getRange(1, 1, lastRow, columnCount).getDisplayValues();
 }
 
 function normalizeSiteContentRows_(values, existingValues) {
