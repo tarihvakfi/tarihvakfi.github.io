@@ -1,6 +1,11 @@
 (function () {
   const SPREADSHEET_ID = '1DiUCoI9f7xrnBil2-H7EPqb9Scj37QKSOpnwdrFZghw';
   const SOURCE_TITLE = 'Tarih Vakfı Dijitalleştirme Yönetimi - Pilot';
+  const PILOT_DAILY_SHEET = '01 Gönüllü Günlüğü';
+  const PILOT_SCAN_SHEET = '02 Tarama Satır Girişi';
+  const PILOT_CODE_SHEET = '03 Kodlama Kontrol';
+  const WEB_SUMMARY_SHEET = '04 Web Özeti';
+  const ATOM_EXPORT_SHEET = '05 AtoM Aktarım';
   const ACTIVITY_SHEET = 'Günlük Akış';
   const INVENTORY_SHEET = 'PNB Sayısallaştırma';
   const PLAN_SHEET = 'Haftalık Plan';
@@ -28,8 +33,13 @@
     loading: true,
     loadError: '',
     sourceNote: '',
-    view: 'gunluk',
+    view: 'pilot',
     query: '',
+    pilotDailyRows: [],
+    pilotScanRows: [],
+    pilotCodeRows: [],
+    webSummaryRows: [],
+    atomExportRows: [],
     activityRows: [],
     detailRows: [],
     inventoryRows: [],
@@ -85,34 +95,27 @@
 
     try {
       const core = await Promise.all([
+        fetchTable(PILOT_DAILY_SHEET, 'A1:X1000'),
+        fetchTable(PILOT_SCAN_SHEET, 'A1:Y12000'),
+        fetchTable(PILOT_CODE_SHEET, 'A1:S1500'),
+        fetchTable(WEB_SUMMARY_SHEET, 'A1:N1000'),
+        fetchTable(ATOM_EXPORT_SHEET, 'A1:O1000'),
         fetchTable(ACTIVITY_SHEET, 'A1:H1200'),
         fetchTable(INVENTORY_SHEET, 'A1:L1100'),
         fetchTable(PLAN_SHEET, 'A1:I80')
       ]);
-      state.activityRows = mapActivityRows(core[0]);
-      state.inventoryRows = mapInventoryRows(core[1]);
-      state.planRows = mapPlanRows(core[2]);
-      setStatus('loading', 'detay sekmeleri okunuyor');
-      render();
-
-      const detailResults = await Promise.allSettled(DETAIL_SHEETS.map(function (sheetName) {
-        return fetchTable(sheetName, 'A1:K2600').then(function (rows) {
-          return mapDetailRows(sheetName, rows);
-        });
-      }));
-
-      const failed = [];
-      state.detailRows = detailResults.flatMap(function (result, index) {
-        if (result.status === 'fulfilled') return result.value;
-        failed.push(DETAIL_SHEETS[index]);
-        return [];
-      });
+      state.pilotDailyRows = mapPilotDailyRows(core[0]);
+      state.pilotScanRows = mapPilotScanRows(core[1]);
+      state.pilotCodeRows = mapPilotCodeRows(core[2]);
+      state.webSummaryRows = mapWebSummaryRows(core[3]);
+      state.atomExportRows = mapAtomExportRows(core[4]);
+      state.activityRows = mapActivityRows(core[5]);
+      state.inventoryRows = mapInventoryRows(core[6]);
+      state.planRows = mapPlanRows(core[7]);
 
       state.loading = false;
       state.loadError = '';
-      state.sourceNote = failed.length
-        ? `${failed.length} detay sekmesi okunamadı; diğerleri gösteriliyor.`
-        : 'Pilot Google Sheet doğrudan okunuyor.';
+      state.sourceNote = 'Yeni pilot sekmeleri doğrudan okunuyor.';
       setStatus('live', 'pilot sheet canlı');
       render();
     } catch (error) {
@@ -156,6 +159,164 @@
       return clean(column && column.label);
     }) : [];
     return labels.some(Boolean) ? [labels].concat(body) : body;
+  }
+
+  function mapPilotDailyRows(table) {
+    const rows = rowsWithHeaders(table, ['Tarih', 'Gönüllü adı', 'Tarama', 'Diğer açıklaması']);
+    return rows.map(function (row) {
+      const workTypes = selectedLabels(row, [
+        'Tarama',
+        'Kodlama',
+        'Kontrol',
+        'Kataloglama',
+        'PDF/JPEG',
+        'Kütüphane taşıma',
+        'Kütüphane envanteri',
+        'Proje geliştirme',
+        'Web sitesi',
+        'Kronoloji / araştırma',
+        'Toplantı / eğitim',
+        'Koordinasyon',
+        'Diğer'
+      ]);
+      const other = clean(pick(row, ['Diğer açıklaması']));
+      const note = clean(pick(row, ['Yapılan iş / not']));
+      return {
+        source: PILOT_DAILY_SHEET,
+        kind: 'daily',
+        date: clean(pick(row, ['Tarih'])),
+        dateKey: dateKey(pick(row, ['Tarih'])),
+        people: splitPeople(pick(row, ['Gönüllü adı'])),
+        workTypes: workTypes.map(function (label) {
+          return label === 'Diğer' && other ? `Diğer: ${other}` : label;
+        }),
+        area: workTypes.length ? workTypes.join(', ') : inferArea(note || other),
+        work: note || other || workTypes.join(', ') || 'Genel çalışma',
+        amount: numberFrom(pick(row, ['Miktar'])),
+        unit: clean(pick(row, ['Birim'])),
+        fund: clean(pick(row, ['Fon'])),
+        box: clean(pick(row, ['Kutu / raf'])),
+        scanner: clean(pick(row, ['Tarayıcı / araç'])),
+        notes: note || other,
+        statuses: truthy(pick(row, ["Web'de göster"])) ? ['Webde göster'] : ['Pilot kayıt'],
+        webVisible: truthy(pick(row, ["Web'de göster"])),
+        recordId: clean(pick(row, ['Kayıt ID']))
+      };
+    }).filter(hasPilotContent).sort(descByDate);
+  }
+
+  function mapPilotScanRows(table) {
+    const rows = rowsWithHeaders(table, ['Tarih', 'Gönüllü adı', 'Fon', 'Dijital kod']);
+    return rows.map(function (row) {
+      const workTypes = selectedLabels(row, ['Tarama', 'Kodlama', 'Kontrol', 'Kataloglama', 'PDF/JPEG']);
+      const statuses = selectedLabels(row, ['Kaydedildi', 'Sürüyor', 'Kontrol bekliyor', 'Takip gerekiyor', 'Tamamlandı']);
+      return {
+        source: PILOT_SCAN_SHEET,
+        kind: 'detail',
+        date: clean(pick(row, ['Tarih'])),
+        dateKey: dateKey(pick(row, ['Tarih'])),
+        people: splitPeople(pick(row, ['Gönüllü adı'])),
+        fund: clean(pick(row, ['Fon'])),
+        box: clean(pick(row, ['Kutu'])),
+        file: clean(pick(row, ['Dosya'])),
+        document: clean(pick(row, ['Belge'])),
+        page: clean(pick(row, ['Sayfa'])),
+        code: clean(pick(row, ['Dijital kod'])),
+        documentDate: clean(pick(row, ['Belge tarihi'])),
+        scanner: clean(pick(row, ['Tarayıcı'])),
+        workTypes,
+        statuses: statuses.length ? statuses : ['Pilot kayıt'],
+        amount: 1,
+        unit: 'satır',
+        notes: [clean(pick(row, ['Takip notu'])), clean(pick(row, ['Not']))].filter(Boolean).join(' · '),
+        webVisible: truthy(pick(row, ["Web'de göster"])),
+        atomReady: truthy(pick(row, ["AtoM'a hazır"])),
+        recordId: clean(pick(row, ['Kayıt ID']))
+      };
+    }).filter(hasPilotContent).sort(descByDate);
+  }
+
+  function mapPilotCodeRows(table) {
+    const rows = rowsWithHeaders(table, ['Tarih', 'Gönüllü adı', 'Fon', 'Belge aralığı']);
+    return rows.map(function (row) {
+      const workTypes = selectedLabels(row, ['Tarama kontrolü', 'Kodlama', 'Kontrol']);
+      const statuses = selectedLabels(row, ['Eksik / sorun var', 'Takip gerekiyor', 'Tamamlandı']);
+      const coded = numberFrom(pick(row, ['Kodlanan belge']));
+      const checked = numberFrom(pick(row, ['Kontrol edilen belge']));
+      const fixed = numberFrom(pick(row, ['Düzeltilen kayıt']));
+      return {
+        source: PILOT_CODE_SHEET,
+        kind: 'detail',
+        date: clean(pick(row, ['Tarih'])),
+        dateKey: dateKey(pick(row, ['Tarih'])),
+        people: splitPeople(pick(row, ['Gönüllü adı'])),
+        fund: clean(pick(row, ['Fon'])),
+        box: clean(pick(row, ['Kutu'])),
+        file: clean(pick(row, ['Dosya'])),
+        document: clean(pick(row, ['Belge aralığı'])),
+        page: '',
+        code: '',
+        documentDate: '',
+        scanner: '',
+        workTypes,
+        statuses: statuses.length ? statuses : ['Pilot kayıt'],
+        amount: coded + checked + fixed,
+        unit: 'belge/kayıt',
+        notes: clean(pick(row, ['Not'])),
+        webVisible: truthy(pick(row, ["Web'de göster"])),
+        atomReady: truthy(pick(row, ["AtoM'a hazır"])),
+        recordId: clean(pick(row, ['Kayıt ID']))
+      };
+    }).filter(hasPilotContent).sort(descByDate);
+  }
+
+  function mapWebSummaryRows(table) {
+    const rows = rowsWithHeaders(table, ['kaynak', 'tarih', 'gonullu', 'is_turleri']);
+    return rows.map(function (row) {
+      return {
+        source: clean(pick(row, ['kaynak'])) || WEB_SUMMARY_SHEET,
+        kind: 'summary',
+        date: clean(pick(row, ['tarih'])),
+        dateKey: dateKey(pick(row, ['tarih'])),
+        people: splitPeople(pick(row, ['gonullu'])),
+        workTypes: splitList(pick(row, ['is_turleri'])),
+        fund: clean(pick(row, ['fon'])),
+        box: clean(pick(row, ['kutu'])),
+        file: clean(pick(row, ['dosya'])),
+        document: clean(pick(row, ['belge'])),
+        amount: numberFrom(pick(row, ['miktar'])),
+        unit: clean(pick(row, ['birim'])),
+        statuses: splitList(pick(row, ['durum'])),
+        notes: clean(pick(row, ['not'])),
+        webVisible: truthy(pick(row, ['webde_goster'])),
+        recordId: clean(pick(row, ['kayit_id']))
+      };
+    }).filter(hasPilotContent).sort(descByDate);
+  }
+
+  function mapAtomExportRows(table) {
+    const rows = rowsWithHeaders(table, ['referans_kodu', 'ust_referans_kodu', 'baslik']);
+    return rows.map(function (row) {
+      return {
+        referenceCode: clean(pick(row, ['referans_kodu'])),
+        parent: clean(pick(row, ['ust_referans_kodu'])),
+        title: clean(pick(row, ['baslik'])),
+        dateStart: clean(pick(row, ['tarih_baslangic'])),
+        dateEnd: clean(pick(row, ['tarih_bitis'])),
+        level: clean(pick(row, ['duzey'])),
+        extent: clean(pick(row, ['kapsam_icerik'])),
+        fund: clean(pick(row, ['fon'])),
+        box: clean(pick(row, ['kutu'])),
+        file: clean(pick(row, ['dosya'])),
+        document: clean(pick(row, ['belge'])),
+        digitalObject: clean(pick(row, ['dijital_nesne'])),
+        statuses: splitList(pick(row, ['durum'])),
+        notes: clean(pick(row, ['not'])),
+        recordId: clean(pick(row, ['kaynak_kayit_id']))
+      };
+    }).filter(function (row) {
+      return row.referenceCode || row.title || row.digitalObject;
+    });
   }
 
   function mapActivityRows(table) {
@@ -251,15 +412,49 @@
     });
   }
 
-  function rowsWithHeaders(table) {
+  function selectedLabels(row, labels) {
+    return labels.filter(function (label) {
+      return truthy(pick(row, [label]));
+    });
+  }
+
+  function splitList(value) {
+    return clean(value)
+      .split(/\s*(?:,|;|\||·)\s*/)
+      .map(clean)
+      .filter(Boolean);
+  }
+
+  function hasPilotContent(row) {
+    return row.date
+      || row.people.length
+      || row.work
+      || row.workTypes.length
+      || row.fund
+      || row.box
+      || row.file
+      || row.document
+      || row.page
+      || row.code
+      || row.notes
+      || row.recordId;
+  }
+
+  function rowsWithHeaders(table, expectedHeaders) {
+    const sentinels = expectedHeaders || ['Tarih', 'Paydaş', 'Fon Adı', 'Fon', 'Kutu No', 'Kutu'];
     const headerRowIndex = table.findIndex(function (row) {
       return row.some(function (value) {
-        return ['Tarih', 'Paydaş', 'Fon Adı', 'Fon', 'Kutu No', 'Kutu'].includes(clean(value));
+        return sentinels.includes(clean(value));
       });
     });
-    if (headerRowIndex < 0) return [];
-    const headers = table[headerRowIndex].map(clean);
-    return table.slice(headerRowIndex + 1).map(function (cells) {
+    const resolvedHeaderRowIndex = headerRowIndex >= 0
+      ? headerRowIndex
+      : table.findIndex(function (row) {
+        return row.filter(function (value) { return clean(value); }).length >= 2;
+      });
+    if (resolvedHeaderRowIndex < 0) return [];
+    const headers = table[resolvedHeaderRowIndex].map(clean);
+    return table.slice(resolvedHeaderRowIndex + 1).map(function (cells) {
       const row = { __first: clean(cells[0]) };
       headers.forEach(function (header, index) {
         if (!header) return;
@@ -304,10 +499,10 @@
     const targetPages = state.inventoryRows.reduce(function (sum, row) {
       return sum + Number(row.targetPages || 0);
     }, 0);
-    const detailRows = state.detailRows.length;
+    const detailRows = pilotDetailRows().length;
     return {
       progress: targetPages ? (detailRows / targetPages) * 100 : null,
-      records: state.activityRows.length + detailRows,
+      records: state.pilotDailyRows.length + detailRows,
       details: detailRows,
       volunteers: volunteerStats().length,
       boxes: boxStats().filter(function (row) { return row.done > 0; }).length
@@ -336,11 +531,28 @@
     }
 
     el.dataNote.textContent = state.loading
-      ? 'Veri yükleniyor; büyük detay sekmeleri birkaç saniye sürebilir.'
-      : `${state.sourceNote || 'Pilot Google Sheet doğrudan okunuyor.'} · ${formatNumber(state.detailRows.length)} detay satırı · ${formatNumber(state.activityRows.length)} günlük akış satırı`;
+      ? 'Veri yükleniyor; pilot sekmeler birkaç saniye sürebilir.'
+      : `${state.sourceNote || 'Yeni pilot sekmeleri doğrudan okunuyor.'} · ${formatNumber(pilotDetailRows().length)} detay satırı · ${formatNumber(state.pilotDailyRows.length)} gönüllü günlüğü satırı`;
   }
 
   function tableConfig(view) {
+    if (view === 'pilot') {
+      return {
+        kicker: 'Yeni pilot görünüm',
+        title: 'Pilot girişleri',
+        rows: pilotRows,
+        columns: [
+          { label: 'Tarih', render: function (row) { return `<strong>${escapeHtml(row.date || '—')}</strong>`; } },
+          { label: 'Gönüllü', render: function (row) { return escapeHtml(row.people.join(', ') || '—'); } },
+          { label: 'İşler', render: function (row) { return workPills(row.workTypes); } },
+          { label: 'Fon / kutu', render: function (row) { return escapeHtml([row.fund, row.box ? `Kutu ${row.box}` : ''].filter(Boolean).join(' · ') || '—'); } },
+          { label: 'Kayıt', render: function (row) { return escapeHtml(recordSummary(row)); } },
+          { label: 'Durum', render: function (row) { return statusPills(row.statuses); } },
+          { label: 'Not', render: function (row) { return escapeHtml(row.notes || '—'); } }
+        ]
+      };
+    }
+
     if (view === 'kutular') {
       return {
         kicker: 'Sayısallaştırma görünümü',
@@ -422,17 +634,43 @@
 
     return {
       kicker: 'Günlük görünüm',
-      title: 'Günlük akış',
-      rows: function () { return state.activityRows; },
+      title: 'Gönüllü günlüğü',
+      rows: function () { return state.pilotDailyRows.length ? state.pilotDailyRows : state.activityRows; },
       columns: [
         { label: 'Tarih', render: function (row) { return `<strong>${escapeHtml(row.date || '—')}</strong>`; } },
-        { label: 'Paydaş', render: function (row) { return escapeHtml(row.people.join(', ') || '—'); } },
-        { label: 'Çalışma alanı', render: function (row) { return escapeHtml(row.area || '—'); } },
+        { label: 'Gönüllü', render: function (row) { return escapeHtml(row.people.join(', ') || '—'); } },
+        { label: 'Çalışma alanı', render: function (row) { return workPills(row.workTypes || [row.area].filter(Boolean)); } },
         { label: 'Yapılan iş', render: function (row) { return escapeHtml(row.work || row.notes || '—'); } },
-        { label: 'Sayı', render: function (row) { return row.amount ? formatNumber(row.amount) : '—'; } },
-        { label: 'Araç', render: function (row) { return escapeHtml([row.computer, row.scanner].filter(Boolean).join(' · ') || '—'); } }
+        { label: 'Sayı', render: function (row) { return row.amount ? `${formatNumber(row.amount)} ${escapeHtml(row.unit || '')}` : '—'; } },
+        { label: 'Araç', render: function (row) { return escapeHtml([row.computer, row.scanner].filter(Boolean).join(' · ') || row.scanner || '—'); } }
       ]
     };
+  }
+
+  function pilotRows() {
+    const sourceRows = state.webSummaryRows.length
+      ? state.webSummaryRows
+      : state.pilotDailyRows.concat(state.pilotScanRows, state.pilotCodeRows);
+    return sourceRows.sort(descByDate);
+  }
+
+  function pilotDetailRows() {
+    return state.pilotScanRows.concat(state.pilotCodeRows);
+  }
+
+  function recordSummary(row) {
+    const parts = [];
+    if (row.code) parts.push(row.code);
+    if (row.file) parts.push(`Dosya ${row.file}`);
+    if (row.document) parts.push(`Belge ${row.document}`);
+    if (row.page) parts.push(`Sayfa ${row.page}`);
+    if (!parts.length && row.amount) parts.push(`${formatNumber(row.amount)} ${row.unit || ''}`.trim());
+    return parts.join(' · ') || row.recordId || '—';
+  }
+
+  function workPills(values) {
+    const list = Array.isArray(values) ? values.filter(Boolean) : [];
+    return list.length ? statusPills(list) : '—';
   }
 
   function boxStats() {
@@ -452,7 +690,7 @@
       if (row.catalogDone) group.statuses.add('Kataloglama işaretli');
     });
 
-    state.detailRows.forEach(function (row) {
+    state.pilotScanRows.forEach(function (row) {
       const key = boxKey(row.fund, row.box);
       if (!groups.has(key)) {
         groups.set(key, emptyBox(row.fund, row.box));
@@ -460,6 +698,7 @@
       const group = groups.get(key);
       group.done += 1;
       row.people.forEach(function (person) { group.peopleSet.add(person); });
+      row.statuses.forEach(function (status) { group.statuses.add(status); });
       if (row.dateKey && (!group.lastDateKey || row.dateKey > group.lastDateKey)) {
         group.lastDateKey = row.dateKey;
         group.lastDate = row.date;
@@ -505,6 +744,56 @@
 
   function workStats() {
     const groups = new Map();
+    state.pilotDailyRows.forEach(function (row) {
+      const labels = row.workTypes.length ? row.workTypes : [row.area || inferArea(row.work) || 'Diğer çalışma'];
+      labels.forEach(function (label) {
+        if (!groups.has(label)) {
+          groups.set(label, { label, activityCount: 0, detailCount: 0, amount: 0, peopleSet: new Set() });
+        }
+        const group = groups.get(label);
+        group.activityCount += 1;
+        group.amount += row.amount || 0;
+        row.people.forEach(function (person) { group.peopleSet.add(person); });
+      });
+    });
+
+    pilotDetailRows().forEach(function (row) {
+      const labels = row.workTypes.length ? row.workTypes : [`${row.fund || 'Arşiv'} sayısallaştırma`];
+      labels.forEach(function (label) {
+        if (!groups.has(label)) {
+          groups.set(label, { label, activityCount: 0, detailCount: 0, amount: 0, peopleSet: new Set() });
+        }
+        const group = groups.get(label);
+        group.detailCount += 1;
+        group.amount += row.amount || 1;
+        row.people.forEach(function (person) { group.peopleSet.add(person); });
+      });
+    });
+
+    if (!groups.size) {
+      state.activityRows.forEach(function (row) {
+        const label = row.area || inferArea(row.work) || 'Diğer çalışma';
+        if (!groups.has(label)) {
+          groups.set(label, { label, activityCount: 0, detailCount: 0, amount: 0, peopleSet: new Set() });
+        }
+        const group = groups.get(label);
+        group.activityCount += 1;
+        group.amount += row.amount || 0;
+        row.people.forEach(function (person) { group.peopleSet.add(person); });
+      });
+    }
+
+    return Array.from(groups.values()).map(function (group) {
+      return Object.assign({}, group, {
+        people: Array.from(group.peopleSet).sort(localeSort)
+      });
+    }).sort(function (a, b) {
+      return (b.activityCount + b.detailCount) - (a.activityCount + a.detailCount);
+    });
+  }
+
+  function legacyWorkStats() {
+    const groups = new Map();
     state.activityRows.forEach(function (row) {
       const label = row.area || inferArea(row.work) || 'Diğer çalışma';
       if (!groups.has(label)) {
@@ -538,24 +827,39 @@
 
   function volunteerStats() {
     const groups = new Map();
-    state.activityRows.forEach(function (row) {
+    state.pilotDailyRows.forEach(function (row) {
       row.people.forEach(function (person) {
         const group = volunteerGroup(groups, person);
         group.activityCount += 1;
-        if (row.area || row.work) group.works.add(row.area || row.work);
+        (row.workTypes.length ? row.workTypes : [row.area || row.work]).filter(Boolean).forEach(function (work) {
+          group.works.add(work);
+        });
         updateLastDate(group, row.date, row.dateKey);
       });
     });
 
-    state.detailRows.forEach(function (row) {
+    pilotDetailRows().forEach(function (row) {
       row.people.forEach(function (person) {
         const group = volunteerGroup(groups, person);
         group.detailCount += 1;
         if (row.box) group.boxes.add(`${row.fund} ${row.box}`.trim());
-        if (row.fund) group.works.add(`${row.fund} sayısallaştırma`);
+        (row.workTypes.length ? row.workTypes : [`${row.fund || 'Arşiv'} sayısallaştırma`]).forEach(function (work) {
+          group.works.add(work);
+        });
         updateLastDate(group, row.date, row.dateKey);
       });
     });
+
+    if (!groups.size) {
+      state.activityRows.forEach(function (row) {
+        row.people.forEach(function (person) {
+          const group = volunteerGroup(groups, person);
+          group.activityCount += 1;
+          if (row.area || row.work) group.works.add(row.area || row.work);
+          updateLastDate(group, row.date, row.dateKey);
+        });
+      });
+    }
 
     return Array.from(groups.values()).map(function (group) {
       return {
@@ -587,6 +891,19 @@
   }
 
   function atomRows() {
+    if (state.atomExportRows.length) {
+      return state.atomExportRows.map(function (row) {
+        return {
+          referenceCode: row.referenceCode || row.recordId || '—',
+          parent: row.parent || '—',
+          title: row.title || row.referenceCode || '—',
+          extent: row.extent || [row.level, row.fund, row.box ? `Kutu ${row.box}` : ''].filter(Boolean).join(' · '),
+          digitalObject: row.digitalObject || '—',
+          statuses: row.statuses.length ? row.statuses : ['Aktarım satırı']
+        };
+      });
+    }
+
     return boxStats().filter(function (row) {
       return row.done || row.target;
     }).map(function (row) {
@@ -672,8 +989,12 @@
   }
 
   function dateKey(value) {
-    const text = clean(value);
+    const text = clean(value)
+      .replace(/[/-]/g, '.')
+      .replace(/\.{2,}/g, '.');
     if (!text) return '';
+    const splitYear = text.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2})\.(\d{2})$/);
+    if (splitYear) return `${splitYear[3]}${splitYear[4]}-${pad(splitYear[2])}-${pad(splitYear[1])}`;
     const dot = text.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/);
     if (dot) return `${dot[3]}-${pad(dot[2])}-${pad(dot[1])}`;
     const tr = text.match(/^(\d{1,2})\s+([A-Za-zÇĞİÖŞÜçğıöşü]+)\s+(\d{4})/);

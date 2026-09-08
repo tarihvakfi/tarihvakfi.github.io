@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,500;1,600&family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/site.css?v=20260815-gorev-tercihi" />
-  <link rel="stylesheet" href="./styles.css?v=20260908-pilot-1" />
+  <link rel="stylesheet" href="./styles.css?v=20260908-pilot-2" />
 </head>
 <body class="journal pilot-dashboard">
   <main class="page pilot-page">
@@ -42,12 +42,12 @@
       <div>
         <p class="context-eyebrow">Google Sheet pilot geçişi</p>
         <h1 id="pilot-title">Yeni Sheet yapısının sonuç ekranı</h1>
-        <p class="lede">Bu sayfa veri girişi yapmaz. Gönüllü ve koordinatör kayıtları pilot Google Sheet’te kalır; burada yalnızca web sitesine yansıyacak temiz sonuçlar görülür.</p>
+        <p class="lede">Bu sayfa veri girişi yapmaz. Gönüllü ve koordinatör kayıtları pilot Google Sheet’te kalır; burada yeni pilot sekmelerden gelen sonuçlar ve eski çalışma özetleri birlikte görülür.</p>
       </div>
       <div class="source-card">
         <p class="mini-label">Kaynak</p>
         <strong id="sourceName">Hazırlanıyor</strong>
-        <span id="sourceDetail">Pilot Google Sheet’teki mevcut sekmeler okunur.</span>
+        <span id="sourceDetail">Yeni pilot sekmeleri ve eski özet sekmeleri okunur.</span>
       </div>
     </section>
 
@@ -87,7 +87,8 @@
       </div>
 
       <div class="view-tabs" aria-label="Pilot görünümleri">
-        <button type="button" data-view="gunluk" aria-pressed="true">Günlük akış</button>
+        <button type="button" data-view="pilot" aria-pressed="true">Pilot girişleri</button>
+        <button type="button" data-view="gunluk" aria-pressed="false">Günlük akış</button>
         <button type="button" data-view="kutular">Kutular</button>
         <button type="button" data-view="isler">İş türleri</button>
         <button type="button" data-view="gonulluler">Gönüllüler</button>
@@ -113,7 +114,7 @@
       <div class="step-list">
         <div><b>1</b><span>Ana Sheet çalışmaya devam eder.</span></div>
         <div><b>2</b><span>Pilot Sheet sadeleştirilir ve korunur.</span></div>
-        <div><b>3</b><span>GitHub yalnızca temiz pilot çıktısını okur.</span></div>
+        <div><b>3</b><span>Gönüllüler Sheet’te çalışır; GitHub yalnızca sonuçları okur.</span></div>
         <div><b>4</b><span>AtoM/Omeka aktarımı için CSV zemini oluşur.</span></div>
       </div>
     </section>
@@ -127,6 +128,6 @@
     </footer>
   </main>
 
-  <script src="./app.js?v=20260908-pilot-1"></script>
+  <script src="./app.js?v=20260908-pilot-2"></script>
 </body>
 </html>
