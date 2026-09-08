@@ -1,6 +1,6 @@
 (function () {
-  const ROWS_KEY = 'tvf-baserow-demo-v2';
-  const VOLUNTEERS_KEY = 'tvf-baserow-volunteers-v1';
+  const ROWS_KEY = 'tvf-baserow-demo-v3';
+  const VOLUNTEERS_KEY = 'tvf-baserow-volunteers-v2';
 
   const defaultVolunteers = [
     'Berfin Yazıcı',
@@ -10,64 +10,41 @@
     'Arif Solmaz'
   ];
 
+  const areas = [
+    'Sayısallaştırma',
+    'Kütüphane taşınması',
+    'Proje geliştirme',
+    'Web sitesi',
+    'Kronoloji',
+    'Koordinasyon',
+    'Eğitim / toplantı',
+    'Diğer'
+  ];
+
   const workTypes = {
-    'Sayısallaştırma': [
-      'Tarama',
-      'Kodlama',
-      'Kontrol',
-      'Kataloglama',
-      'PDF/JPEG çıktısı',
-      'Diğer'
-    ],
-    'Kütüphane taşınması': [
-      'Raf sayımı',
-      'Kitap envanteri',
-      'Kutu hazırlama',
-      'Künye kontrolü',
-      'Taşıma kararı',
-      'Diğer'
-    ],
-    'Proje geliştirme': [
-      'Proje fikri',
-      'Başvuru metni',
-      'Bütçe çalışması',
-      'Ortak görüşmesi',
-      'Raporlama',
-      'Diğer'
-    ],
-    'Web sitesi': [
-      'İçerik güncelleme',
-      'Veri kontrolü',
-      'Tasarım düzeltmesi',
-      'Yayın hazırlığı',
-      'Hata düzeltme',
-      'Diğer'
-    ],
-    'Kronoloji': [
-      'Olay girişi',
-      'Kaynak kontrolü',
-      'Düzeltme önerisi',
-      'Görsel/bağlantı kontrolü',
-      'Diğer'
-    ],
-    'Koordinasyon': [
-      'Haftalık plan',
-      'Gönüllü iletişimi',
-      'İş bölümü',
-      'Toplantı',
-      'Diğer'
-    ],
-    'Eğitim / toplantı': [
-      'Oryantasyon',
-      'Eğitim',
-      'Değerlendirme',
-      'Toplantı',
-      'Diğer'
-    ],
-    'Diğer': [
-      'Diğer'
-    ]
+    'Sayısallaştırma': ['Tarama', 'Kodlama', 'Kontrol', 'Kataloglama', 'PDF/JPEG', 'Diğer'],
+    'Kütüphane taşınması': ['Raf sayımı', 'Kitap envanteri', 'Kutu hazırlama', 'Künye kontrolü', 'Taşıma kararı', 'Diğer'],
+    'Proje geliştirme': ['Proje fikri', 'Başvuru metni', 'Bütçe', 'Ortak görüşmesi', 'Raporlama', 'Diğer'],
+    'Web sitesi': ['İçerik', 'Veri kontrolü', 'Tasarım', 'Yayın', 'Hata düzeltme', 'Diğer'],
+    'Kronoloji': ['Olay girişi', 'Kaynak kontrolü', 'Düzeltme', 'Görsel kontrol', 'Diğer'],
+    'Koordinasyon': ['Haftalık plan', 'Gönüllü iletişimi', 'İş bölümü', 'Toplantı', 'Diğer'],
+    'Eğitim / toplantı': ['Oryantasyon', 'Eğitim', 'Değerlendirme', 'Toplantı', 'Diğer'],
+    'Diğer': ['Diğer']
   };
+
+  const deviceOptions = {
+    'Sayısallaştırma': ['Bookeye', 'Viisan S21', 'Viisan A3', 'Canon', 'Bilgisayar', 'Diğer'],
+    'Kütüphane taşınması': ['Raf', 'Telefon', 'Bilgisayar', 'Toplantı', 'Diğer'],
+    'Proje geliştirme': ['Bilgisayar', 'Toplantı', 'Telefon', 'Diğer'],
+    'Web sitesi': ['Bilgisayar', 'Web sitesi', 'Telefon', 'Diğer'],
+    'Kronoloji': ['Bilgisayar', 'Web sitesi', 'Kaynak', 'Diğer'],
+    'Koordinasyon': ['Toplantı', 'Telefon', 'Bilgisayar', 'Diğer'],
+    'Eğitim / toplantı': ['Toplantı', 'Bilgisayar', 'Diğer'],
+    'Diğer': ['Bilgisayar', 'Toplantı', 'Diğer']
+  };
+
+  const fonds = ['PNB', 'NSS Harita', 'Kütüphane', 'Genel arşiv', 'Diğer'];
+  const statuses = ['Kaydedildi', 'Sürüyor', 'Kontrol bekliyor', 'Takip gerekiyor', 'Tamamlandı'];
 
   const areaNotes = {
     'Sayısallaştırma': 'Kutu, dosya, belge ve sayfa bilgisi AtoM aktarımı için korunur.',
@@ -93,7 +70,7 @@
       dosya: '12',
       belge: '1',
       miktar: 48,
-      cihaz: 'Viisan A3 Flat',
+      cihaz: 'Viisan A3',
       durum: 'Kontrol bekliyor',
       not: 'Dosya sonu kontrol edilecek'
     },
@@ -125,7 +102,7 @@
       dosya: 'Raf B-12',
       belge: 'Sıra 3',
       miktar: 84,
-      cihaz: 'Kütüphane rafı',
+      cihaz: 'Raf',
       durum: 'Takip gerekiyor',
       not: 'Sayım onayı bekliyor'
     },
@@ -183,92 +160,65 @@
     rows: loadRows(),
     volunteers: loadVolunteers(),
     view: 'kayitlar',
-    query: ''
+    query: '',
+    editingId: null
   };
 
   const form = document.getElementById('calismaForm');
-  const resetButton = document.getElementById('demoSifirla');
+  const clearButton = document.getElementById('formuTemizle');
+  const resetButton = document.getElementById('ornekleriYenile');
+  const saveButton = document.getElementById('kayitButonu');
+  const formTitle = document.getElementById('formBaslik');
   const searchInput = document.getElementById('arama');
   const viewButtons = Array.from(document.querySelectorAll('[data-view]'));
-  const areaSelect = document.getElementById('calismaAlani');
-  const workSelect = document.getElementById('isTuru');
   const volunteerSelect = form.elements.gonullu;
   const newVolunteerRow = document.getElementById('yeniGonulluSatiri');
   const otherWorkRow = document.getElementById('digerIsSatiri');
   const archiveFields = document.getElementById('arsivAlanlari');
+  const generalAmountRow = document.getElementById('genelMiktarSatiri');
   const areaNote = document.getElementById('alanNotu');
   const amountLabel = document.getElementById('miktarEtiketi');
+  const generalAmountLabel = document.getElementById('genelMiktarEtiketi');
+
+  const choiceTargets = {
+    calismaAlani: document.getElementById('calismaAlaniSecenekleri'),
+    isTuru: document.getElementById('isTuruSecenekleri'),
+    fon: document.getElementById('fonSecenekleri'),
+    cihaz: document.getElementById('cihazSecenekleri'),
+    durum: document.getElementById('durumSecenekleri')
+  };
 
   form.elements.tarih.value = new Date().toISOString().slice(0, 10);
   renderVolunteerOptions();
-  updateWorkOptions();
+  renderAllChoices();
+  setChoice('calismaAlani', 'Sayısallaştırma');
+  setChoice('fon', 'PNB');
+  setChoice('durum', 'Kaydedildi');
+  renderDependentChoices();
   updateConditionalFields();
+  renderAll();
 
-  areaSelect.addEventListener('change', function () {
-    updateWorkOptions();
-    updateConditionalFields();
-  });
-
-  workSelect.addEventListener('change', updateConditionalFields);
   volunteerSelect.addEventListener('change', updateConditionalFields);
+  clearButton.addEventListener('click', clearForm);
+  resetButton.addEventListener('click', resetDemo);
 
   form.addEventListener('submit', function (event) {
     event.preventDefault();
+    const row = collectFormRow();
+    if (!row) return;
 
-    const data = Object.fromEntries(new FormData(form).entries());
-    const volunteerName = resolveVolunteerName(data);
-    const workDescription = String(data.yapilanIs || '').trim();
-
-    if (!volunteerName) {
-      showMessage('Ad soyad alanını doldurun.');
-      form.elements.yeniGonullu.focus();
-      return;
+    if (state.editingId) {
+      const index = state.rows.findIndex(function (item) { return item.id === state.editingId; });
+      if (index >= 0) state.rows[index] = Object.assign({}, row, { id: state.editingId });
+      showMessage('Değişiklikler kaydedildi.');
+    } else {
+      state.rows.unshift(Object.assign({}, row, { id: Date.now() }));
+      showMessage('Kayıt gönderildi.');
     }
 
-    if (requiresWorkDescription(data.calismaAlani, data.isTuru) && !workDescription) {
-      showMessage('Diğer seçildiğinde yapılan işi açıkça yazın.');
-      form.elements.yapilanIs.focus();
-      return;
-    }
-
-    rememberVolunteer(volunteerName);
-
-    const row = {
-      id: Date.now(),
-      gonullu: volunteerName,
-      tarih: data.tarih,
-      calismaAlani: data.calismaAlani,
-      isTuru: data.isTuru,
-      yapilanIs: workDescription,
-      fon: archiveFields.hidden ? '' : String(data.fon || '').trim(),
-      kutu: archiveFields.hidden ? '' : String(data.kutu || '').trim(),
-      dosya: archiveFields.hidden ? '' : String(data.dosya || '').trim(),
-      belge: archiveFields.hidden ? '' : String(data.belge || '').trim(),
-      miktar: Number(data.miktar || 0),
-      cihaz: data.cihaz,
-      durum: data.durum,
-      not: String(data.not || '').trim()
-    };
-
-    state.rows.unshift(row);
+    rememberVolunteer(row.gonullu);
     saveRows();
-    form.elements.not.value = '';
-    form.elements.yapilanIs.value = '';
-    form.elements.yeniGonullu.value = '';
-    if (volunteerSelect.value === '__new__') volunteerSelect.value = volunteerName;
-    updateConditionalFields();
-    showMessage('Demo çalışma kaydı eklendi. Bu kayıt yalnızca bu tarayıcıda tutulur.');
-    renderAll();
-  });
-
-  resetButton.addEventListener('click', function () {
-    state.rows = seedRows.slice();
-    state.volunteers = defaultVolunteers.slice();
-    saveRows();
-    saveVolunteers();
-    renderVolunteerOptions();
-    updateConditionalFields();
-    showMessage('Demo veri yenilendi.');
+    clearForm({ keepMessage: true });
     renderAll();
   });
 
@@ -289,7 +239,13 @@
     });
   });
 
-  renderAll();
+  document.getElementById('kaydedilenKayitlar').addEventListener('click', function (event) {
+    const action = event.target.dataset.action;
+    const id = Number(event.target.dataset.id);
+    if (!action || !id) return;
+    if (action === 'edit') editRow(id);
+    if (action === 'delete') deleteRow(id);
+  });
 
   function loadRows() {
     try {
@@ -317,6 +273,52 @@
     localStorage.setItem(VOLUNTEERS_KEY, JSON.stringify(state.volunteers));
   }
 
+  function renderAllChoices() {
+    renderChoiceGroup('calismaAlani', areas, 'Sayısallaştırma');
+    renderChoiceGroup('fon', fonds, 'PNB');
+    renderChoiceGroup('durum', statuses, 'Kaydedildi');
+  }
+
+  function renderDependentChoices() {
+    const area = getChoice('calismaAlani') || 'Sayısallaştırma';
+    renderChoiceGroup('isTuru', workTypes[area] || workTypes['Diğer'], getChoice('isTuru'));
+    renderChoiceGroup('cihaz', deviceOptions[area] || deviceOptions['Diğer'], getChoice('cihaz'));
+    updateConditionalFields();
+  }
+
+  function renderChoiceGroup(name, options, preferred) {
+    const selected = options.includes(preferred) ? preferred : options[0];
+    choiceTargets[name].innerHTML = options.map(function (option, index) {
+      const id = `${name}-${index}-${slug(option)}`;
+      return `
+        <label class="choice-tile${option === selected ? ' selected' : ''}" for="${id}">
+          <input id="${id}" type="radio" name="${name}" value="${escapeHtml(option)}"${option === selected ? ' checked' : ''} />
+          <span>${escapeHtml(option)}</span>
+        </label>
+      `;
+    }).join('');
+
+    Array.from(choiceTargets[name].querySelectorAll('input')).forEach(function (input) {
+      input.addEventListener('change', function () {
+        setChoice(name, input.value);
+        if (name === 'calismaAlani') renderDependentChoices();
+        updateConditionalFields();
+      });
+    });
+  }
+
+  function setChoice(name, value) {
+    Array.from(document.querySelectorAll(`input[name="${name}"]`)).forEach(function (input) {
+      input.checked = input.value === value;
+      input.closest('.choice-tile').classList.toggle('selected', input.checked);
+    });
+  }
+
+  function getChoice(name) {
+    const checked = document.querySelector(`input[name="${name}"]:checked`);
+    return checked ? checked.value : '';
+  }
+
   function renderVolunteerOptions(selected) {
     const current = selected || volunteerSelect.value || defaultVolunteers[0];
     volunteerSelect.innerHTML = state.volunteers.map(function (name) {
@@ -324,32 +326,130 @@
     }).join('') + '<option value="__new__">Listede yokum / adımı ekle</option>';
   }
 
-  function updateWorkOptions() {
-    const options = workTypes[areaSelect.value] || workTypes['Diğer'];
-    workSelect.innerHTML = options.map(function (name) {
-      return `<option>${escapeHtml(name)}</option>`;
-    }).join('');
-  }
-
   function updateConditionalFields() {
+    const area = getChoice('calismaAlani') || 'Sayısallaştırma';
+    const workType = getChoice('isTuru') || 'Tarama';
     const needsVolunteer = volunteerSelect.value === '__new__';
+    const needsWorkDescription = area === 'Diğer' || workType === 'Diğer';
+    const usesArchive = usesArchiveFields(area);
+
     newVolunteerRow.hidden = !needsVolunteer;
     form.elements.yeniGonullu.required = needsVolunteer;
-
-    const needsWorkDescription = requiresWorkDescription(areaSelect.value, workSelect.value);
     otherWorkRow.hidden = !needsWorkDescription;
     form.elements.yapilanIs.required = needsWorkDescription;
-
-    archiveFields.hidden = !usesArchiveFields(areaSelect.value);
-    areaNote.textContent = areaNotes[areaSelect.value] || '';
-    amountLabel.textContent = amountLabelFor(areaSelect.value);
+    archiveFields.hidden = !usesArchive;
+    generalAmountRow.hidden = usesArchive;
+    form.elements.miktar.disabled = !usesArchive;
+    form.elements.genelMiktar.disabled = usesArchive;
+    amountLabel.textContent = amountLabelFor(area);
+    generalAmountLabel.textContent = amountLabelFor(area);
+    areaNote.textContent = areaNotes[area] || '';
   }
 
-  function resolveVolunteerName(data) {
-    if (data.gonullu === '__new__') {
-      return String(data.yeniGonullu || '').trim();
+  function collectFormRow() {
+    const data = Object.fromEntries(new FormData(form).entries());
+    const volunteerName = data.gonullu === '__new__' ? String(data.yeniGonullu || '').trim() : String(data.gonullu || '').trim();
+    const area = getChoice('calismaAlani');
+    const workType = getChoice('isTuru');
+    const workDescription = String(data.yapilanIs || '').trim();
+    const usesArchive = usesArchiveFields(area);
+
+    if (!volunteerName) {
+      showMessage('Ad soyad alanını doldurun.');
+      form.elements.yeniGonullu.focus();
+      return null;
     }
-    return String(data.gonullu || '').trim();
+
+    if ((area === 'Diğer' || workType === 'Diğer') && !workDescription) {
+      showMessage('Diğer seçildiğinde yapılan işi açıkça yazın.');
+      form.elements.yapilanIs.focus();
+      return null;
+    }
+
+    return {
+      gonullu: volunteerName,
+      tarih: data.tarih,
+      calismaAlani: area,
+      isTuru: workType,
+      yapilanIs: workDescription,
+      fon: usesArchive ? getChoice('fon') : '',
+      kutu: usesArchive ? String(data.kutu || '').trim() : '',
+      dosya: usesArchive ? String(data.dosya || '').trim() : '',
+      belge: usesArchive ? String(data.belge || '').trim() : '',
+      miktar: Number(usesArchive ? data.miktar || 0 : data.genelMiktar || 0),
+      cihaz: getChoice('cihaz'),
+      durum: getChoice('durum'),
+      not: String(data.not || '').trim()
+    };
+  }
+
+  function clearForm(options) {
+    state.editingId = null;
+    formTitle.textContent = 'Yeni çalışma kaydı';
+    saveButton.textContent = 'Kaydı gönder';
+    form.elements.tarih.value = new Date().toISOString().slice(0, 10);
+    form.elements.gonullu.value = state.volunteers[0] || defaultVolunteers[0];
+    form.elements.yeniGonullu.value = '';
+    form.elements.yapilanIs.value = '';
+    form.elements.kutu.value = '34';
+    form.elements.dosya.value = '12';
+    form.elements.belge.value = '1';
+    form.elements.miktar.value = '48';
+    form.elements.genelMiktar.value = '1';
+    form.elements.not.value = '';
+    setChoice('calismaAlani', 'Sayısallaştırma');
+    renderDependentChoices();
+    setChoice('fon', 'PNB');
+    setChoice('durum', 'Kaydedildi');
+    if (!options || !options.keepMessage) showMessage('Form temizlendi.');
+  }
+
+  function resetDemo() {
+    state.rows = seedRows.slice();
+    state.volunteers = defaultVolunteers.slice();
+    state.editingId = null;
+    saveRows();
+    saveVolunteers();
+    renderVolunteerOptions();
+    clearForm({ keepMessage: true });
+    showMessage('Örnek kayıtlar yenilendi.');
+    renderAll();
+  }
+
+  function editRow(id) {
+    const row = state.rows.find(function (item) { return item.id === id; });
+    if (!row) return;
+    state.editingId = id;
+    formTitle.textContent = 'Çalışma kaydını düzenle';
+    saveButton.textContent = 'Değişiklikleri kaydet';
+    rememberVolunteer(row.gonullu);
+    volunteerSelect.value = row.gonullu;
+    form.elements.tarih.value = row.tarih;
+    form.elements.yeniGonullu.value = '';
+    form.elements.yapilanIs.value = row.yapilanIs || '';
+    form.elements.kutu.value = row.kutu || '';
+    form.elements.dosya.value = row.dosya || '';
+    form.elements.belge.value = row.belge || '';
+    form.elements.miktar.value = row.miktar || 0;
+    form.elements.genelMiktar.value = row.miktar || 0;
+    form.elements.not.value = row.not || '';
+    setChoice('calismaAlani', row.calismaAlani);
+    renderDependentChoices();
+    setChoice('isTuru', row.isTuru);
+    setChoice('fon', row.fon || 'PNB');
+    setChoice('cihaz', row.cihaz);
+    setChoice('durum', row.durum);
+    updateConditionalFields();
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    showMessage('Kayıt düzenleme için açıldı.');
+  }
+
+  function deleteRow(id) {
+    state.rows = state.rows.filter(function (row) { return row.id !== id; });
+    if (state.editingId === id) clearForm({ keepMessage: true });
+    saveRows();
+    showMessage('Kayıt silindi.');
+    renderAll();
   }
 
   function rememberVolunteer(name) {
@@ -357,16 +457,10 @@
       return item.toLocaleLowerCase('tr') === name.toLocaleLowerCase('tr');
     })) {
       state.volunteers.push(name);
-      state.volunteers.sort(function (a, b) {
-        return a.localeCompare(b, 'tr');
-      });
+      state.volunteers.sort(function (a, b) { return a.localeCompare(b, 'tr'); });
       saveVolunteers();
       renderVolunteerOptions(name);
     }
-  }
-
-  function requiresWorkDescription(area, type) {
-    return area === 'Diğer' || type === 'Diğer';
   }
 
   function usesArchiveFields(area) {
@@ -392,7 +486,7 @@
 
   function renderAll() {
     renderSummary();
-    renderToday();
+    renderSavedRecords();
     renderTable();
   }
 
@@ -400,40 +494,39 @@
     const totalAmount = state.rows.reduce(function (sum, row) {
       return sum + Number(row.miktar || 0);
     }, 0);
-    const areas = new Set(state.rows.map(function (row) {
-      return row.calismaAlani;
-    }));
+    const activeAreas = new Set(state.rows.map(function (row) { return row.calismaAlani; }));
     const waiting = state.rows.filter(function (row) {
       return row.durum === 'Kontrol bekliyor' || row.durum === 'Takip gerekiyor';
     }).length;
-    const volunteers = new Set(state.rows.map(function (row) {
-      return row.gonullu;
-    }));
+    const volunteers = new Set(state.rows.map(function (row) { return row.gonullu; }));
 
     document.getElementById('toplamSayfa').textContent = formatNumber(totalAmount);
-    document.getElementById('alanSayisi').textContent = formatNumber(areas.size);
+    document.getElementById('alanSayisi').textContent = formatNumber(activeAreas.size);
     document.getElementById('kontrolBekleyen').textContent = formatNumber(waiting);
     document.getElementById('gonulluSayisi').textContent = formatNumber(volunteers.size);
   }
 
-  function renderToday() {
-    const target = document.getElementById('bugunkuIsler');
-    const recentRows = state.rows.slice(0, 5);
+  function renderSavedRecords() {
+    const target = document.getElementById('kaydedilenKayitlar');
+    const rows = state.rows.slice(0, 6);
 
-    if (!recentRows.length) {
-      target.innerHTML = '<p class="form-note">Henüz demo kaydı yok.</p>';
+    if (!rows.length) {
+      target.innerHTML = '<p class="form-note">Henüz kayıt yok.</p>';
       return;
     }
 
-    target.innerHTML = recentRows.map(function (row) {
+    target.innerHTML = rows.map(function (row) {
       return `
-        <div class="today-item">
+        <article class="saved-record">
           <div>
-            <b>${escapeHtml(row.gonullu)}</b>
+            <b>${escapeHtml(row.gonullu)} · ${escapeHtml(row.tarih)}</b>
             <span>${escapeHtml(row.calismaAlani)} · ${escapeHtml(displayWork(row))}${escapeHtml(displayPlace(row, ' · '))}</span>
           </div>
-          <em>${formatNumber(row.miktar)} ${escapeHtml(unitFor(row))}</em>
-        </div>
+          <div class="record-actions">
+            <button type="button" data-action="edit" data-id="${row.id}">Düzenle</button>
+            <button type="button" class="danger" data-action="delete" data-id="${row.id}">Sil</button>
+          </div>
+        </article>
       `;
     }).join('');
   }
@@ -538,10 +631,10 @@
   }
 
   function areaRows() {
-    const areas = new Map();
+    const grouped = new Map();
     state.rows.forEach(function (row) {
-      if (!areas.has(row.calismaAlani)) {
-        areas.set(row.calismaAlani, {
+      if (!grouped.has(row.calismaAlani)) {
+        grouped.set(row.calismaAlani, {
           alan: row.calismaAlani,
           kayit: 0,
           miktar: 0,
@@ -550,33 +643,33 @@
           gonulluSet: new Set()
         });
       }
-      const area = areas.get(row.calismaAlani);
-      area.kayit += 1;
-      area.miktar += Number(row.miktar || 0);
-      area.sonTarih = row.tarih > area.sonTarih ? row.tarih : area.sonTarih;
-      area.gonulluSet.add(row.gonullu);
+      const group = grouped.get(row.calismaAlani);
+      group.kayit += 1;
+      group.miktar += Number(row.miktar || 0);
+      group.sonTarih = row.tarih > group.sonTarih ? row.tarih : group.sonTarih;
+      group.gonulluSet.add(row.gonullu);
     });
 
-    return Array.from(areas.values()).map(function (area) {
+    return Array.from(grouped.values()).map(function (group) {
       return {
-        alan: area.alan,
-        kayit: area.kayit,
-        miktar: area.miktar,
-        birim: area.birim,
-        sonTarih: area.sonTarih,
-        gonulluler: Array.from(area.gonulluSet).join(', ')
+        alan: group.alan,
+        kayit: group.kayit,
+        miktar: group.miktar,
+        birim: group.birim,
+        sonTarih: group.sonTarih,
+        gonulluler: Array.from(group.gonulluSet).join(', ')
       };
     });
   }
 
   function placeRows() {
-    const places = new Map();
+    const grouped = new Map();
     state.rows.filter(function (row) {
       return row.fon || row.kutu || row.dosya || row.belge;
     }).forEach(function (row) {
       const key = displayPlace(row) || row.calismaAlani;
-      if (!places.has(key)) {
-        places.set(key, {
+      if (!grouped.has(key)) {
+        grouped.set(key, {
           yer: key,
           alanSet: new Set(),
           miktar: 0,
@@ -586,23 +679,23 @@
           durumSet: new Set()
         });
       }
-      const place = places.get(key);
-      place.alanSet.add(row.calismaAlani);
-      place.miktar += Number(row.miktar || 0);
-      place.sonTarih = row.tarih > place.sonTarih ? row.tarih : place.sonTarih;
-      place.gonulluSet.add(row.gonullu);
-      place.durumSet.add(row.durum);
+      const group = grouped.get(key);
+      group.alanSet.add(row.calismaAlani);
+      group.miktar += Number(row.miktar || 0);
+      group.sonTarih = row.tarih > group.sonTarih ? row.tarih : group.sonTarih;
+      group.gonulluSet.add(row.gonullu);
+      group.durumSet.add(row.durum);
     });
 
-    return Array.from(places.values()).map(function (place) {
+    return Array.from(grouped.values()).map(function (group) {
       return {
-        yer: place.yer,
-        alan: Array.from(place.alanSet).join(', '),
-        miktar: place.miktar,
-        birim: place.birim,
-        sonTarih: place.sonTarih,
-        gonulluler: Array.from(place.gonulluSet).join(', '),
-        durum: combinedStatus(place.durumSet)
+        yer: group.yer,
+        alan: Array.from(group.alanSet).join(', '),
+        miktar: group.miktar,
+        birim: group.birim,
+        sonTarih: group.sonTarih,
+        gonulluler: Array.from(group.gonulluSet).join(', '),
+        durum: combinedStatus(group.durumSet)
       };
     });
   }
@@ -662,6 +755,10 @@
   function statusPill(status) {
     const cls = status === 'Tamamlandı' ? 'done' : status === 'Takip gerekiyor' || status === 'Kontrol bekliyor' ? 'warn' : '';
     return `<span class="status-pill ${cls}">${escapeHtml(status)}</span>`;
+  }
+
+  function slug(value) {
+    return String(value).toLocaleLowerCase('tr').replace(/[^a-z0-9ığüşöç-]+/g, '-');
   }
 
   function formatNumber(value) {
