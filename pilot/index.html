@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+
+  <title>Pilot Sheet İzleme · Tarih Vakfı</title>
+  <meta name="description" content="Tarih Vakfı gönüllü ve dijitalleştirme yönetimi için pilot Google Sheet sonuç ekranı." />
+
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,500;1,600&family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/site.css?v=20260815-gorev-tercihi" />
+  <link rel="stylesheet" href="./styles.css?v=20260908-pilot-1" />
+</head>
+<body class="journal pilot-dashboard">
+  <main class="page pilot-page">
+    <header class="masthead">
+      <div class="brand-lockup">
+        <img src="../assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" class="brand-logo" />
+        <div>
+          <b>Tarih Vakfı</b>
+          <span>Pilot Sheet İzleme</span>
+        </div>
+      </div>
+      <div class="mast-actions">
+        <div class="pilot-status" id="pilotStatus" data-state="loading">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span>veri bekleniyor</span>
+        </div>
+        <nav class="top-tabs" aria-label="Site bölümleri">
+          <a href="../index.html">Emek Günlüğü</a>
+          <a href="../gonullu-planlamasi.html">Gönüllü Planlaması</a>
+          <a href="./index.html" aria-current="page">Pilot</a>
+        </nav>
+      </div>
+    </header>
+
+    <section class="pilot-intro" aria-labelledby="pilot-title">
+      <div>
+        <p class="context-eyebrow">Google Sheet pilot geçişi</p>
+        <h1 id="pilot-title">Yeni Sheet yapısının sonuç ekranı</h1>
+        <p class="lede">Bu sayfa veri girişi yapmaz. Gönüllü ve koordinatör kayıtları pilot Google Sheet’te kalır; burada yalnızca web sitesine yansıyacak temiz sonuçlar görülür.</p>
+      </div>
+      <div class="source-card">
+        <p class="mini-label">Kaynak</p>
+        <strong id="sourceName">Hazırlanıyor</strong>
+        <span id="sourceDetail">Pilot Google Sheet’teki mevcut sekmeler okunur.</span>
+      </div>
+    </section>
+
+    <section class="metric-strip" aria-label="Kısa durum özeti">
+      <article>
+        <p class="metric-value" id="metricProgress">—</p>
+        <p class="metric-label">toplam ilerleme</p>
+      </article>
+      <article>
+        <p class="metric-value" id="metricRecords">—</p>
+        <p class="metric-label">dönem kaydı</p>
+      </article>
+      <article>
+        <p class="metric-value" id="metricPages">—</p>
+        <p class="metric-label">sayfa / detay</p>
+      </article>
+      <article>
+        <p class="metric-value" id="metricVolunteers">—</p>
+        <p class="metric-label">katkı veren</p>
+      </article>
+      <article>
+        <p class="metric-value" id="metricBoxes">—</p>
+        <p class="metric-label">aktif kutu</p>
+      </article>
+    </section>
+
+    <section class="pilot-panel">
+      <div class="panel-head">
+        <div>
+          <p class="context-eyebrow" id="viewKicker">Pilot görünüm</p>
+          <h2 id="viewTitle">Günlük akış</h2>
+        </div>
+        <label class="search-box">
+          <span>Arama</span>
+          <input type="search" id="searchInput" placeholder="Gönüllü, kutu, iş, durum..." />
+        </label>
+      </div>
+
+      <div class="view-tabs" aria-label="Pilot görünümleri">
+        <button type="button" data-view="gunluk" aria-pressed="true">Günlük akış</button>
+        <button type="button" data-view="kutular">Kutular</button>
+        <button type="button" data-view="isler">İş türleri</button>
+        <button type="button" data-view="gonulluler">Gönüllüler</button>
+        <button type="button" data-view="plan">Haftalık plan</button>
+        <button type="button" data-view="atom">AtoM aktarımı</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead id="tableHead"></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <p class="data-note" id="dataNote">Veri hazırlanıyor.</p>
+    </section>
+
+    <section class="architecture-grid" aria-labelledby="architecture-title">
+      <div>
+        <p class="context-eyebrow">Pilot mimari</p>
+        <h2 id="architecture-title">Ana dosyayı bozmadan deneme</h2>
+        <p>Önce ana Sheet’in kopyası üzerinde sonuç ekranı denenir. Sonra sade giriş sekmeleri, temiz web çıktısı ve AtoM’a aktarılabilir alanlar bu kopyada kurulabilir. Sonuç düzgünse kopya yeni ana çalışma dosyasına dönüşür.</p>
+      </div>
+      <div class="step-list">
+        <div><b>1</b><span>Ana Sheet çalışmaya devam eder.</span></div>
+        <div><b>2</b><span>Pilot Sheet sadeleştirilir ve korunur.</span></div>
+        <div><b>3</b><span>GitHub yalnızca temiz pilot çıktısını okur.</span></div>
+        <div><b>4</b><span>AtoM/Omeka aktarımı için CSV zemini oluşur.</span></div>
+      </div>
+    </section>
+
+    <footer class="colophon">
+      <div class="footer-brand">
+        <img src="../assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" />
+        <p class="signoff">Tarih Vakfı · Pilot Sheet İzleme</p>
+      </div>
+      <p>Bu sayfa veri toplamaz; yalnızca pilot veri kaynağından gelen kamuya uygun özetleri gösterir.</p>
+    </footer>
+  </main>
+
+  <script src="./app.js?v=20260908-pilot-1"></script>
+</body>
+</html>
