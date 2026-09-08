@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+
+  <title>Baserow Denemesi · Tarih Vakfı</title>
+  <meta name="description" content="Tarih Vakfı sayısallaştırma yönetimi için Türkçe Baserow çalışma modeli denemesi." />
+
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/site.css?v=20260815-gorev-tercihi" />
+  <link rel="stylesheet" href="./styles.css?v=20260908-baserow-demo" />
+</head>
+<body class="journal baserow-demo">
+  <main class="page baserow-page">
+    <header class="masthead">
+      <div class="brand-lockup">
+        <img src="../assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" class="brand-logo" />
+        <div>
+          <b>Tarih Vakfı</b>
+          <span>Sayısallaştırma Yönetimi Denemesi</span>
+        </div>
+      </div>
+      <div class="mast-actions">
+        <nav class="top-tabs" aria-label="Site bölümleri">
+          <a href="../index.html">Emek Günlüğü</a>
+          <a href="../gonullu-planlamasi.html">Gönüllü Planlaması</a>
+          <a href="./index.html" aria-current="page">Baserow Denemesi</a>
+        </nav>
+      </div>
+    </header>
+
+    <section class="baserow-workspace" aria-labelledby="demo-title">
+      <div class="workspace-head">
+        <div>
+          <p class="context-eyebrow">Baserow yerine kullanılacak Türkçe alan adlarıyla</p>
+          <h1 id="demo-title">Sayısallaştırma işi tek yerde</h1>
+          <p class="lede">Bu deneme gerçek kayıt yapmaz. Ama gönüllünün göreceği sadeliği ve koordinatörün ihtiyaç duyduğu düzenli veriyi aynı ekranda gösterir.</p>
+        </div>
+        <div class="demo-status" aria-label="Deneme durumu">
+          <span class="status-dot"></span>
+          <span>Demo veri</span>
+        </div>
+      </div>
+
+      <section class="entry-grid" aria-label="Günlük çalışma girişi ve özet">
+        <form class="entry-panel" id="taramaForm">
+          <div class="panel-title">
+            <p class="kicker">Gönüllü ekranı</p>
+            <h2>Bugünkü çalışma girişi</h2>
+          </div>
+
+          <label>
+            <span>Gönüllü</span>
+            <select name="gonullu" required>
+              <option>Berfin Yazıcı</option>
+              <option>Anıl Olcan</option>
+              <option>Özden Özütemiz</option>
+              <option>Sibel Dağ</option>
+              <option>Arif Solmaz</option>
+            </select>
+          </label>
+
+          <div class="field-row">
+            <label>
+              <span>Çalışma günü</span>
+              <input type="date" name="tarih" required />
+            </label>
+            <label>
+              <span>İş türü</span>
+              <select name="isTuru" required>
+                <option>Tarama</option>
+                <option>Kontrol</option>
+                <option>Kodlama</option>
+                <option>Kataloglama</option>
+                <option>PDF/JPEG çıktısı</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="field-row four">
+            <label>
+              <span>Fon</span>
+              <select name="fon">
+                <option>PNB</option>
+                <option>NSS Harita</option>
+              </select>
+            </label>
+            <label>
+              <span>Kutu</span>
+              <input type="number" name="kutu" min="1" value="34" required />
+            </label>
+            <label>
+              <span>Dosya</span>
+              <input type="text" name="dosya" value="12" required />
+            </label>
+            <label>
+              <span>Belge</span>
+              <input type="text" name="belge" value="1" />
+            </label>
+          </div>
+
+          <div class="field-row">
+            <label>
+              <span>Sayfa / adet</span>
+              <input type="number" name="sayfa" min="0" value="48" required />
+            </label>
+            <label>
+              <span>Tarayıcı</span>
+              <select name="tarayici">
+                <option>Bookeye</option>
+                <option>Viisan S21</option>
+                <option>Viisan A3 Flat</option>
+                <option>Canon</option>
+              </select>
+            </label>
+          </div>
+
+          <label>
+            <span>Durum</span>
+            <select name="durum">
+              <option>Kontrol bekliyor</option>
+              <option>Sürüyor</option>
+              <option>Tamamlandı</option>
+              <option>Sorun var</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Not</span>
+            <textarea name="not" placeholder="Eksik sayfa, tekrar tarama, tarih belirsizliği gibi kısa notlar"></textarea>
+          </label>
+
+          <div class="button-row">
+            <button type="submit">Demo kaydı ekle</button>
+            <button type="button" class="secondary" id="demoSifirla">Demo veriye dön</button>
+          </div>
+          <p class="form-note" id="formMesaj" role="status" aria-live="polite"></p>
+        </form>
+
+        <aside class="summary-panel" aria-label="Koordinatör özeti">
+          <div class="panel-title">
+            <p class="kicker">Koordinatör özeti</p>
+            <h2>Bugünkü durum</h2>
+          </div>
+          <div class="metric-grid">
+            <div>
+              <p class="metric-value" id="toplamSayfa">0</p>
+              <p class="metric-label">sayfa / adet</p>
+            </div>
+            <div>
+              <p class="metric-value" id="aktifKutu">0</p>
+              <p class="metric-label">aktif kutu</p>
+            </div>
+            <div>
+              <p class="metric-value" id="kontrolBekleyen">0</p>
+              <p class="metric-label">kontrol bekleyen</p>
+            </div>
+            <div>
+              <p class="metric-value" id="gonulluSayisi">0</p>
+              <p class="metric-label">gönüllü</p>
+            </div>
+          </div>
+
+          <div class="mini-board">
+            <h3>Bugünkü işler</h3>
+            <div id="bugunkuIsler"></div>
+          </div>
+        </aside>
+      </section>
+    </section>
+
+    <section class="view-toolbar" aria-label="Koordinatör görünümleri">
+      <button type="button" data-view="taramalar" aria-pressed="true">Taramalar</button>
+      <button type="button" data-view="kutular">Kutular</button>
+      <button type="button" data-view="kontrol">Kontrol</button>
+      <button type="button" data-view="atom">AtoM aktarımı</button>
+    </section>
+
+    <section class="data-view" aria-live="polite">
+      <div class="view-head">
+        <div>
+          <p class="context-eyebrow" id="viewKicker">Baserow görünümü</p>
+          <h2 id="viewTitle">Taramalar</h2>
+        </div>
+        <label class="search-box">
+          <span>Arama</span>
+          <input type="search" id="arama" placeholder="Kutu, gönüllü, durum..." />
+        </label>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead id="tabloBaslik"></thead>
+          <tbody id="tabloGövde"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="model-map" aria-labelledby="model-title">
+      <div class="model-copy">
+        <p class="context-eyebrow">Önerilen veri modeli</p>
+        <h2 id="model-title">Az tablo, net ilişki</h2>
+        <p>Gönüllü yalnızca kendi işini girer. Sistem arkada kutu, dosya, belge, tarama oturumu ve kontrol sorununu birbirine bağlar. Böylece aynı veri daha sonra AtoM için temiz CSV’ye dönüşebilir.</p>
+      </div>
+      <div class="model-list" aria-label="Tablolar">
+        <div><b>Kutular</b><span>Fon, kutu no, hedef sayfa, genel durum</span></div>
+        <div><b>Dosyalar</b><span>Kutu bağlantısı, dosya no, tarih aralığı, açıklama</span></div>
+        <div><b>Belgeler</b><span>Dosya bağlantısı, belge no, başlık, erişim durumu</span></div>
+        <div><b>Tarama Oturumları</b><span>Gönüllü, tarih, cihaz, sayfa/adet, not</span></div>
+        <div><b>Kontrol Sorunları</b><span>Eksik, bulanık, tekrar tarama, kod çakışması</span></div>
+        <div><b>AtoM Aktarımı</b><span>Referans kodu, üst kayıt, başlık, dijital nesne</span></div>
+      </div>
+    </section>
+
+    <footer class="colophon">
+      <div class="footer-brand">
+        <img src="../assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" />
+        <p class="signoff">Tarih Vakfı · Baserow Denemesi</p>
+      </div>
+      <p>Bu sayfa, Baserow’a geçiş düşüncesini gönüllüler ve koordinatörler için görünür kılmak üzere hazırlanmış yerel bir denemedir.</p>
+    </footer>
+  </main>
+
+  <script src="./app.js?v=20260908-baserow-demo"></script>
+</body>
+</html>
