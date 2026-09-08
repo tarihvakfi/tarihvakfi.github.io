@@ -227,11 +227,20 @@ function getSourceSpreadsheetId() {
 }
 
 function getOptionalSourceSpreadsheetId() {
-  return cleanText(
+  const configuredSheetId = cleanText(
     PropertiesService
       .getScriptProperties()
       .getProperty(SOURCE_SPREADSHEET_ID_PROPERTY),
   );
+  if (configuredSheetId) return configuredSheetId;
+
+  if (typeof getMirrorStatus === "function") {
+    const status = getMirrorStatus();
+    const mirrorSpreadsheetId = cleanText(status && status.mirrorSpreadsheetId);
+    if (mirrorSpreadsheetId && mirrorSpreadsheetId.indexOf("PASTE_") !== 0) return mirrorSpreadsheetId;
+  }
+
+  return "";
 }
 
 function getCorrectionNotificationEmails() {

@@ -126,7 +126,7 @@ const FALLBACK_ACTIVITY_CODES = {
 const PAGE_SIZE = 100;
 const LIVE_REFRESH_TIMEOUT_MS = 12000;
 const PUBLIC_CONTACT_EMAIL_PARTS = {
-  local: "gulistaneren",
+  local: "arif.solmaz",
   host: "gmail",
   tld: "com",
 };
