@@ -3,7 +3,7 @@
   const SOURCE_TITLE = 'Tarih Vakfı Dijitalleştirme Yönetimi - Pilot';
   const PILOT_DAILY_SHEET = '01 Gönüllü Günlüğü';
   const PILOT_SCAN_SHEET = '02 Tarama Satır Girişi';
-  const PILOT_CODE_SHEET = '03 Kodlama Kontrol';
+  const PILOT_CODE_SHEET = '03 Kontrol ve Onay';
   const WEB_SUMMARY_SHEET = '04 Web Özeti';
   const ATOM_EXPORT_SHEET = '05 AtoM Aktarım';
   const ACTIVITY_SHEET = 'Günlük Akış';
@@ -98,7 +98,7 @@
       const core = await Promise.all([
         fetchTable(PILOT_DAILY_SHEET, 'A1:X1000'),
         fetchTable(PILOT_SCAN_SHEET, 'A1:Y12000'),
-        fetchTable(PILOT_CODE_SHEET, 'A1:S1500'),
+        fetchTable(PILOT_CODE_SHEET, 'A1:V1500'),
         fetchTable(WEB_SUMMARY_SHEET, 'A1:N1000'),
         fetchTable(ATOM_EXPORT_SHEET, 'A1:O1000'),
         fetchTable(ACTIVITY_SHEET, 'A1:H1200'),
@@ -266,32 +266,44 @@
   }
 
   function mapPilotCodeRows(table) {
-    const rows = rowsWithHeaders(table, ['Tarih', 'Gönüllü adı', 'Fon', 'Belge aralığı']);
+    const rows = rowsWithHeaders(table, ['Kontrol tarihi', 'Kontrol eden', 'İşi yapan', 'Kaynak kayıt ID / aralık']);
     return rows.map(function (row) {
-      const workTypes = selectedLabels(row, ['Tarama kontrolü', 'Kodlama', 'Kontrol']);
-      const statuses = selectedLabels(row, ['Eksik / sorun var', 'Takip gerekiyor', 'Tamamlandı']);
-      const coded = numberFrom(pick(row, ['Kodlanan belge']));
-      const checked = numberFrom(pick(row, ['Kontrol edilen belge']));
-      const fixed = numberFrom(pick(row, ['Düzeltilen kayıt']));
+      const workTypes = selectedLabels(row, [
+        'Tarama kalitesi',
+        'Dosya adı / dijital kod',
+        'Sayfa sırası',
+        'Kodlama',
+        'Kataloglama'
+      ]);
+      const result = clean(pick(row, ['Sonuç']));
+      const issue = clean(pick(row, ['Sorun türü']));
+      const status = clean(pick(row, ['Durum']));
+      const statuses = [result, issue && issue !== 'Yok' ? issue : '', status].filter(Boolean);
+      const checkedPeople = splitPeople(pick(row, ['İşi yapan']));
       return {
         source: PILOT_CODE_SHEET,
         kind: 'detail',
-        date: clean(pick(row, ['Tarih'])),
-        dateKey: dateKey(pick(row, ['Tarih'])),
-        people: splitPeople(pick(row, ['Gönüllü adı'])),
+        date: clean(pick(row, ['Kontrol tarihi'])),
+        dateKey: dateKey(pick(row, ['Kontrol tarihi'])),
+        people: splitPeople(pick(row, ['Kontrol eden'])),
+        checkedPeople,
         fund: clean(pick(row, ['Fon'])),
         box: clean(pick(row, ['Kutu'])),
         file: clean(pick(row, ['Dosya'])),
-        document: clean(pick(row, ['Belge aralığı'])),
+        document: clean(pick(row, ['Belge / sayfa aralığı'])),
         page: '',
-        code: '',
+        code: clean(pick(row, ['Kaynak kayıt ID / aralık'])),
         documentDate: '',
         scanner: '',
         workTypes,
         statuses: statuses.length ? statuses : ['Pilot kayıt'],
-        amount: coded + checked + fixed,
-        unit: 'belge/kayıt',
-        notes: clean(pick(row, ['Not'])),
+        amount: 1,
+        unit: 'kontrol',
+        notes: [
+          checkedPeople.length ? `İşi yapan: ${checkedPeople.join(', ')}` : '',
+          clean(pick(row, ['Düzeltme notu'])),
+          clean(pick(row, ['Düzeltmeyi yapan'])) ? `Düzeltme: ${clean(pick(row, ['Düzeltmeyi yapan']))}` : ''
+        ].filter(Boolean).join(' · '),
         webVisible: truthy(pick(row, ["Web'de göster"])),
         atomReady: truthy(pick(row, ["AtoM'a hazır"])),
         recordId: clean(pick(row, ['Kayıt ID']))
