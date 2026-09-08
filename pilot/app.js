@@ -43,7 +43,8 @@
     activityRows: [],
     detailRows: [],
     inventoryRows: [],
-    planRows: []
+    planRows: [],
+    progressPercent: null
   };
 
   const el = {
@@ -102,7 +103,8 @@
         fetchTable(ATOM_EXPORT_SHEET, 'A1:O1000'),
         fetchTable(ACTIVITY_SHEET, 'A1:H1200'),
         fetchTable(INVENTORY_SHEET, 'A1:L1100'),
-        fetchTable(PLAN_SHEET, 'A1:I80')
+        fetchTable(PLAN_SHEET, 'A1:I80'),
+        fetchCell(INVENTORY_SHEET, 'L105:L105')
       ]);
       state.pilotDailyRows = mapPilotDailyRows(core[0]);
       state.pilotScanRows = mapPilotScanRows(core[1]);
@@ -112,10 +114,11 @@
       state.activityRows = mapActivityRows(core[5]);
       state.inventoryRows = mapInventoryRows(core[6]);
       state.planRows = mapPlanRows(core[7]);
+      state.progressPercent = progressPercentFrom(core[8]);
 
       state.loading = false;
       state.loadError = '';
-      state.sourceNote = 'Yeni pilot sekmeleri doğrudan okunuyor.';
+      state.sourceNote = 'Yeni pilot sekmeleri doğrudan okunuyor. Genel ilerleme PNB Sayısallaştırma L105 hücresinden alınıyor.';
       setStatus('live', 'pilot sheet canlı');
       render();
     } catch (error) {
@@ -140,6 +143,32 @@
         return response.text();
       })
       .then(parseGvizResponse);
+  }
+
+  function fetchCell(sheetName, range) {
+    const url = new URL(`https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq`);
+    url.searchParams.set('tqx', 'out:json');
+    url.searchParams.set('sheet', sheetName);
+    url.searchParams.set('range', range);
+    url.searchParams.set('headers', '0');
+    url.searchParams.set('_', String(Date.now()));
+
+    return fetch(url.toString(), { cache: 'no-store' })
+      .then(function (response) {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.text();
+      })
+      .then(function (text) {
+        const match = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\);?$/);
+        if (!match) throw new Error('bad_gviz_response');
+        const table = JSON.parse(match[1]).table || {};
+        const row = Array.isArray(table.rows) ? table.rows[0] : null;
+        const cell = row && Array.isArray(row.c) ? row.c[0] : null;
+        if (!cell) return '';
+        if (cell.f != null) return String(cell.f);
+        if (cell.v == null) return '';
+        return String(cell.v);
+      });
   }
 
   function parseGvizResponse(text) {
@@ -500,8 +529,9 @@
       return sum + Number(row.targetPages || 0);
     }, 0);
     const detailRows = pilotDetailRows().length;
+    const sheetProgress = state.progressPercent == null ? null : state.progressPercent;
     return {
-      progress: targetPages ? (detailRows / targetPages) * 100 : null,
+      progress: sheetProgress == null && targetPages ? (detailRows / targetPages) * 100 : sheetProgress,
       records: state.pilotDailyRows.length + detailRows,
       details: detailRows,
       volunteers: volunteerStats().length,
@@ -1033,6 +1063,23 @@
     const text = clean(value).replace(/\./g, '').replace(',', '.');
     const match = text.match(/-?\d+(?:\.\d+)?/);
     return match ? Number(match[0]) : 0;
+  }
+
+  function progressPercentFrom(value) {
+    const text = clean(value);
+    if (!text) return null;
+    let normalized = text.replace('%', '').trim();
+    if (normalized.includes(',') && normalized.includes('.')) {
+      normalized = normalized.replace(/\./g, '').replace(',', '.');
+    } else if (normalized.includes(',')) {
+      normalized = normalized.replace(',', '.');
+    }
+    const match = normalized.match(/-?\d+(?:\.\d+)?/);
+    if (!match) return null;
+    let percent = Number(match[0]);
+    if (!Number.isFinite(percent)) return null;
+    if (percent > 0 && percent <= 1 && !text.includes('%')) percent *= 100;
+    return clamp(percent, 0, 100);
   }
 
   function clean(value) {
