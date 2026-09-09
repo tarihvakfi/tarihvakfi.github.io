@@ -743,7 +743,8 @@ var SUTUNLAR = ['Kayıt no', 'Yer kodu', 'Mekân', 'Raf', 'Sıra', 'Sıra no',
                 'Kategori', 'Kural', 'Durum', 'Not', 'Kaydeden', 'Kutu no', 'Tarih',
                 'Fotoğraf', 'OCR durumu', 'Öneri başlık', 'Öneri yazar', 'Öneri yıl',
                 'Öneri yayınevi', 'OCR metni', 'Onay', 'Kapak',
-                'İstemci no', 'Silindi', 'İstenen'];
+                'İstemci no', 'Silindi', 'İstenen',
+                'Karar veren', 'Karar tarihi', 'Karar geçmişi'];
 
 // Sık kullanılan sütun numaraları (1'den başlar)
 var S = {
@@ -752,7 +753,8 @@ var S = {
   durum: 13, not: 14, kaydeden: 15, kutu: 16, tarih: 17,
   foto: 18, ocrDurum: 19, oneriBaslik: 20, oneriYazar: 21, oneriYil: 22,
   oneriYayinevi: 23, ocrMetin: 24, onay: 25, kapak: 26,
-  istemci: 27, silindi: 28, istenen: 29
+  istemci: 27, silindi: 28, istenen: 29,
+  kararVeren: 30, kararTarihi: 31, kararGecmisi: 32
 };
 
 /* 'Kutular' sayfası: hangi kutuda ne var, nereye gitti.
@@ -827,6 +829,12 @@ function sade_(b) {
     .replace(/[İIıi]/g, 'i').replace(/[Ğğ]/g, 'g').replace(/[Şş]/g, 's')
     .replace(/[Öö]/g, 'o').replace(/[Üü]/g, 'u').replace(/[Çç]/g, 'c')
     .toLowerCase();
+}
+
+function tarihMetni_(v) {
+  return v instanceof Date
+    ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'd.MM.yyyy HH:mm')
+    : String(v == null ? '' : v).trim();
 }
 
 /* ═══════════════ KARAR ÖNERİSİ ═══════════════
@@ -1576,7 +1584,7 @@ function ekle_(g) {
     sayfa.appendRow([no, yer, d.k.mekan, d.k.raf, pad_(d.k.sira, 2), s.siraNo,
                      d.k.yazar, d.k.baslik, d.k.yil, d.k.nusha,
                      d.k.kategori, d.k.kural, d.k.durum, d.k.not, d.k.kaydeden, d.k.kutu, simdi,
-                     '', '', '', '', '', '', '', '', '', istemciId, '', '']);
+                     '', '', '', '', '', '', '', '', '', istemciId, '', '', '', '', '']);
     sonuc = { ok: true, no: no, yerKodu: yer, siraNo: s.siraNo, duzeltildi: s.duzeltildi,
               rafAdet: s.adet + 1 };
   } finally {
@@ -1881,10 +1889,35 @@ function dosya_() {
   return _dosya;
 }
 
+function tabloBasliklariniTamamla_(sayfa, basliklar, logMesaji) {
+  if (!sayfa || !basliklar || !basliklar.length) return;
+  if (sayfa.getMaxColumns() < basliklar.length) {
+    sayfa.insertColumnsAfter(sayfa.getMaxColumns(),
+                             basliklar.length - sayfa.getMaxColumns());
+  }
+  var mevcut = sayfa.getRange(1, 1, 1, basliklar.length).getValues()[0];
+  var ayni = basliklar.every(function (b, i) { return String(mevcut[i]) === b; });
+  if (ayni) return;
+  sayfa.getRange(1, 1, 1, basliklar.length).setValues([basliklar])
+    .setFontWeight('bold').setBackground('#601040').setFontColor('#ffffff');
+  if (logMesaji) Logger.log(logMesaji);
+}
+
 function sayfaAl_(ad) {
   var dosya = dosya_();
   var sayfa = dosya.getSheetByName(ad);
-  if (sayfa) return sayfa;
+  if (sayfa) {
+    if (ad === 'Envanter') {
+      tabloBasliklariniTamamla_(sayfa, SUTUNLAR, 'Envanter başlıkları güncellendi.');
+    } else if (ad === 'Sıralar') {
+      tabloBasliklariniTamamla_(sayfa, SIRA_SUTUNLARI, 'Sıralar başlıkları güncellendi.');
+    } else if (ad === 'Sayım geçmişi') {
+      tabloBasliklariniTamamla_(sayfa, GECMIS_SUTUNLARI, 'Sayım geçmişi başlıkları güncellendi.');
+    } else if (ad === 'Kutular') {
+      tabloBasliklariniTamamla_(sayfa, KUTU_SUTUNLARI, 'Kutular başlıkları güncellendi.');
+    }
+    return sayfa;
+  }
 
   sayfa = dosya.insertSheet(ad);
   if (ad === 'Envanter') {
@@ -2264,7 +2297,10 @@ function kayitCikar_(s) {
       oneriBaslik: s[S.oneriBaslik - 1], oneriYazar: s[S.oneriYazar - 1],
       oneriYil: s[S.oneriYil - 1], oneriYayinevi: s[S.oneriYayinevi - 1],
       ocrMetin: s[S.ocrMetin - 1],
-      istenen: s[S.istenen - 1]
+      istenen: s[S.istenen - 1],
+      kararVeren: s[S.kararVeren - 1],
+      kararTarihi: tarihMetni_(s[S.kararTarihi - 1]),
+      kararGecmisi: s[S.kararGecmisi - 1]
   };
   // Karar önerisi: koordinatör onaylayacak, ama hazır gelsin.
   var o = kararOner_(k);
@@ -2358,6 +2394,23 @@ function kararVerilmis_(kategoriDegeri) {
 
 function kararsiz_(s) { return !kararVerilmis_(s[S.kategori - 1]); }
 
+function kararEtiketi_(kategori, kural) {
+  var kat = String(kategori || SINIFLANDIRILMADI).trim() || SINIFLANDIRILMADI;
+  var kod = String(kural || '').trim();
+  return kat + (kod ? ' / ' + kod : '');
+}
+
+function kararGecmisiEkle_(eski, oncekiKategori, oncekiKural, yeniKategori, yeniKural, veren, zaman) {
+  var satir = tarihMetni_(zaman) + ' · ' + (String(veren || '').trim() || '—') +
+    ' · ' + kararEtiketi_(oncekiKategori, oncekiKural) + ' → ' +
+    kararEtiketi_(yeniKategori, yeniKural);
+  var satirlar = String(eski || '').split('\n').map(function (s) {
+    return String(s || '').trim();
+  }).filter(Boolean);
+  satirlar.push(satir);
+  return satirlar.slice(-20).join('\n');
+}
+
 /** Künyesi onaylı, kararı verilmemiş kitaplar — karar ekranının kuyruğu. */
 function kararBekleyen_(adet) {
   adet = Math.min(Number(adet) || 100, 300);
@@ -2386,6 +2439,7 @@ function kararVer_(g) {
   var kategori = String(g.kategori || '');
   var kural = String(g.kural || '').trim();
   if (!KATEGORILER[kategori]) return { ok: false, error: 'Karar seçilmeli (gidecek/gitmeyecek…).' };
+  var kategoriAdi = KATEGORILER[kategori].ad;
   if (/^Diğer:/i.test(kural)) {
     kural = kural.slice(0, 120);
     var ac = kural.replace(/^[^:]*:\s*/, '');
@@ -2403,19 +2457,26 @@ function kararVer_(g) {
   try {
     var sayfa = sayfaAl_('Envanter');
     var yazilan = [], atlanan = [];
+    var veren = String(g.veren || g.onaylayan || '').trim();
+    var simdi = new Date();
     numaralar.forEach(function (no) {
       var bulunan = satirBul_(no);
       if (!bulunan || bulunan.silindi) { atlanan.push({ no: no, neden: 'bulunamadı' }); return; }
       var st = sayfa.getRange(bulunan.satir, 1, 1, SUTUNLAR.length).getValues()[0];
       if (!String(st[S.onay - 1] || '')) { atlanan.push({ no: no, neden: 'künyesi onaylanmamış' }); return; }
       if (!kararsiz_(st) && !g.uzerineYaz) { atlanan.push({ no: no, neden: 'kararı verilmiş: ' + st[S.kategori - 1] }); return; }
-      sayfa.getRange(bulunan.satir, S.kategori).setValue(KATEGORILER[kategori].ad);
+      var gecmis = kararGecmisiEkle_(st[S.kararGecmisi - 1],
+        st[S.kategori - 1], st[S.kural - 1], kategoriAdi, kural, veren, simdi);
+      sayfa.getRange(bulunan.satir, S.kategori).setValue(kategoriAdi);
       sayfa.getRange(bulunan.satir, S.kural).setValue(kural);
       sayfa.getRange(bulunan.satir, S.istenen).setValue('');
+      sayfa.getRange(bulunan.satir, S.kararVeren, 1, 3)
+        .setValues([[veren, simdi, gecmis]]);
       yazilan.push(no);
     });
     return { ok: true, yazilan: yazilan, atlanan: atlanan,
-             kategori: KATEGORILER[kategori].ad, kural: kural };
+             kategori: kategoriAdi, kural: kural, kararVeren: veren,
+             kararTarihi: tarihMetni_(simdi) };
   } finally {
     kilit.releaseLock();
   }
@@ -2515,14 +2576,18 @@ function topluOnayla_(g) {
     var son = sayfa.getLastRow();
     if (son < 2) return { ok: false, error: 'Kayıt yok.' };
 
-    var damga = 'Onaylandı — ' + String(g.onaylayan || '').trim() + ' · toplu · ' +
-      Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'd.MM.yyyy HH:mm');
+    var simdi = new Date();
+    var kararVeren = String(g.onaylayan || '').trim();
+    var kategoriAdi = KATEGORILER[kategori].ad;
+    var damga = 'Onaylandı — ' + kararVeren + ' · toplu · ' +
+      Utilities.formatDate(simdi, Session.getScriptTimeZone(), 'd.MM.yyyy HH:mm');
 
     var no = sayfa.getRange(2, S.no, son - 1, 1).getValues();
     var onay = sayfa.getRange(2, S.onay, son - 1, 1).getValues();
     var silindi = sayfa.getRange(2, S.silindi, son - 1, 1).getValues();
     var kat = sayfa.getRange(2, S.kategori, son - 1, 2).getValues();   // Kategori, Kural
     var baslik = sayfa.getRange(2, S.baslik, son - 1, 1).getValues();
+    var kararMeta = sayfa.getRange(2, S.kararVeren, son - 1, 3).getValues();
 
     var istenen = {};
     numaralar.forEach(function (x) { istenen[x] = true; });
@@ -2535,7 +2600,11 @@ function topluOnayla_(g) {
       // Başlıksız kayıt toplu onaydan geçmesin: künyesi hiç yoksa insan baksın.
       if (!String(baslik[i][0] || '').trim() ||
           /künye fotoğraftan/i.test(String(baslik[i][0]))) { basliksiz++; continue; }
-      kat[i][0] = KATEGORILER[kategori].ad;
+      kararMeta[i][2] = kararGecmisiEkle_(kararMeta[i][2], kat[i][0], kat[i][1],
+        kategoriAdi, kural, kararVeren, simdi);
+      kararMeta[i][0] = kararVeren;
+      kararMeta[i][1] = simdi;
+      kat[i][0] = kategoriAdi;
       kat[i][1] = kural;
       onay[i][0] = damga;
       yazildi++;
@@ -2544,6 +2613,7 @@ function topluOnayla_(g) {
     if (yazildi) {
       sayfa.getRange(2, S.kategori, son - 1, 2).setValues(kat);
       sayfa.getRange(2, S.onay, son - 1, 1).setValues(onay);
+      sayfa.getRange(2, S.kararVeren, son - 1, 3).setValues(kararMeta);
     }
     return { ok: true, onaylanan: yazildi, atlanan: atlanan, basliksiz: basliksiz };
   } finally {
@@ -2569,6 +2639,8 @@ function katalog_(g) {
   var ara = String(g.ara || '').trim().toLocaleLowerCase('tr');
   var kategori = String(g.kategori || '');
   var mekan = String(g.mekan || '');
+  var yalnizKararli = !!g.yalnizKararli;
+  var yalnizKararsiz = !!g.yalnizKararsiz;
   // Ayıklama listesi için: tek bir sıranın ya da tek bir kutunun içeriği.
   var siraSuzgec = String(g.sira || '').trim().toUpperCase();
   var kutuSuzgec = String(g.kutu || '').trim();
@@ -2577,13 +2649,16 @@ function katalog_(g) {
   satirlar.forEach(function (s) {
     if (!s[S.no - 1] || silinmis_(s)) return;
     if (yalnizOnayli && !s[S.onay - 1]) return;
+    if (yalnizKararli && !kararVerilmis_(s[S.kategori - 1])) return;
+    if (yalnizKararsiz && kararVerilmis_(s[S.kategori - 1])) return;
     if (kategori && String(s[S.kategori - 1]) !== kategori) return;
     if (mekan && String(s[S.mekan - 1]) !== mekan) return;
     if (siraSuzgec &&
         rafAnahtari_(s[S.mekan - 1], s[S.raf - 1], s[S.sira - 1]) !== siraSuzgec) return;
     if (kutuSuzgec && String(s[S.kutu - 1]).trim() !== kutuSuzgec) return;
     if (ara) {
-      var havuz = [s[S.baslik - 1], s[S.yazar - 1], s[S.yer - 1], s[S.not - 1], s[S.kutu - 1]]
+      var havuz = [s[S.baslik - 1], s[S.yazar - 1], s[S.yer - 1], s[S.not - 1],
+        s[S.kutu - 1], s[S.kararVeren - 1], s[S.kararGecmisi - 1]]
         .join(' ').toLocaleLowerCase('tr');
       if (havuz.indexOf(ara) < 0) return;
     }
@@ -2594,6 +2669,9 @@ function katalog_(g) {
       durum: s[S.durum - 1], not: s[S.not - 1], kaydeden: s[S.kaydeden - 1],
       istenen: s[S.istenen - 1],
       kutu: s[S.kutu - 1], onay: s[S.onay - 1],
+      kararVeren: s[S.kararVeren - 1],
+      kararTarihi: tarihMetni_(s[S.kararTarihi - 1]),
+      kararGecmisi: s[S.kararGecmisi - 1],
       foto: s[S.foto - 1], fotoId: (String(s[S.foto - 1]).match(/[-\w]{25,}/) || [''])[0],
       kapak: s[S.kapak - 1], kapakId: (String(s[S.kapak - 1]).match(/[-\w]{25,}/) || [''])[0]
     });
@@ -2867,7 +2945,8 @@ function onayla_(no, k) {
 
     // İki koordinatör aynı anda çalışıyorsa ikisi de aynı 25'liği görür.
     // İkincisi birincinin kararını sessizce ezmesin.
-    var oncekiOnay = String(sayfa.getRange(bulunan.satir, S.onay).getValue() || '');
+    var mevcutSatir = sayfa.getRange(bulunan.satir, 1, 1, SUTUNLAR.length).getValues()[0];
+    var oncekiOnay = String(mevcutSatir[S.onay - 1] || '');
     if (oncekiOnay && !k.uzerineYaz) {
       return { ok: false, zatenOnayli: true,
                error: 'Bu kaydı başkası onaylamış: ' + oncekiOnay };
@@ -2892,12 +2971,20 @@ function onayla_(no, k) {
     }
 
     // Sınıflandırma bu ekranda yapılır; onaylanan her kayıt kararlı olmalı.
-    sayfa.getRange(bulunan.satir, S.kategori).setValue(KATEGORILER[kategori].ad);
+    var simdi = new Date();
+    var kararVeren = String(k.onaylayan || '').trim();
+    var kategoriAdi = KATEGORILER[kategori].ad;
+    var gecmis = kararGecmisiEkle_(mevcutSatir[S.kararGecmisi - 1],
+      mevcutSatir[S.kategori - 1], mevcutSatir[S.kural - 1],
+      kategoriAdi, kural, kararVeren, simdi);
+    sayfa.getRange(bulunan.satir, S.kategori).setValue(kategoriAdi);
     sayfa.getRange(bulunan.satir, S.kural).setValue(kural);
     sayfa.getRange(bulunan.satir, S.onay).setValue(
-      'Onaylandı — ' + String(k.onaylayan || '').trim() + ' · ' +
-      Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'd.MM.yyyy HH:mm'));
+      'Onaylandı — ' + kararVeren + ' · ' +
+      Utilities.formatDate(simdi, Session.getScriptTimeZone(), 'd.MM.yyyy HH:mm'));
     sayfa.getRange(bulunan.satir, S.istenen).setValue('');   // istek kapandı
+    sayfa.getRange(bulunan.satir, S.kararVeren, 1, 3)
+      .setValues([[kararVeren, simdi, gecmis]]);
     return { ok: true, no: no };
   } finally {
     kilit.releaseLock();
@@ -2907,17 +2994,7 @@ function onayla_(no, k) {
 /** 'Sıralar' sayfasına sonradan eklenen sütunları açar. */
 function siraBasliklariOnar_() {
   var sayfa = sayfaAl_('Sıralar');
-  if (sayfa.getMaxColumns() < SIRA_SUTUNLARI.length) {
-    sayfa.insertColumnsAfter(sayfa.getMaxColumns(),
-                             SIRA_SUTUNLARI.length - sayfa.getMaxColumns());
-  }
-  var mevcut = sayfa.getRange(1, 1, 1, sayfa.getLastColumn() || 1).getValues()[0];
-  var ayni = mevcut.length === SIRA_SUTUNLARI.length &&
-    SIRA_SUTUNLARI.every(function (b, i) { return String(mevcut[i]) === b; });
-  if (ayni) return;
-  sayfa.getRange(1, 1, 1, SIRA_SUTUNLARI.length).setValues([SIRA_SUTUNLARI])
-    .setFontWeight('bold').setBackground('#601040').setFontColor('#ffffff');
-  Logger.log('Sıralar başlıkları güncellendi.');
+  tabloBasliklariniTamamla_(sayfa, SIRA_SUTUNLARI, 'Sıralar başlıkları güncellendi.');
 }
 
 /**
@@ -3174,19 +3251,7 @@ function ozetiGuncelle() {
  */
 function basliklariOnar_() {
   var sayfa = sayfaAl_('Envanter');
-  // Yeni sütun eklendiyse tabloyu genişlet (yoksa appendRow "sütun sayısı uymuyor" der).
-  if (sayfa.getMaxColumns() < SUTUNLAR.length) {
-    sayfa.insertColumnsAfter(sayfa.getMaxColumns(),
-                             SUTUNLAR.length - sayfa.getMaxColumns());
-  }
-  var mevcut = sayfa.getRange(1, 1, 1, sayfa.getLastColumn() || 1).getValues()[0];
-  var ayni = mevcut.length === SUTUNLAR.length &&
-    SUTUNLAR.every(function (b, i) { return String(mevcut[i]) === b; });
-  if (ayni) return;
-
-  sayfa.getRange(1, 1, 1, SUTUNLAR.length).setValues([SUTUNLAR])
-    .setFontWeight('bold').setBackground('#601040').setFontColor('#ffffff');
-  Logger.log('Başlık satırı güncellendi.');
+  tabloBasliklariniTamamla_(sayfa, SUTUNLAR, 'Başlık satırı güncellendi.');
 }
 
 function onOpen() {

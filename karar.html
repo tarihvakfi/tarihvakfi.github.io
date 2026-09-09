@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
-<title>Karar · Tarih Vakfı</title>
+<title>Gidecek mi? · Tarih Vakfı</title>
 <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
 <style>
   :root{
@@ -25,19 +25,20 @@
   .ust button{background:#ffffff26;border:1px solid #ffffff4d;color:#fff;border-radius:7px;
     padding:7px 12px;font:inherit;font-size:13px;cursor:pointer}
 
-  .sayfa{max-width:980px;margin:0 auto;padding:18px}
+  .sayfa{max-width:1080px;margin:0 auto;padding:18px}
   .kart{background:var(--kagit);border:1px solid var(--cizgi);border-radius:12px;padding:20px}
   .giris{max-width:420px;margin:60px auto}
   h2{font-size:20px;margin:0 0 4px;color:var(--bordo)}
   .ipucu{color:var(--soluk);font-size:14px;margin:0 0 16px}
   label{display:block;font-weight:600;font-size:12.5px;margin:14px 0 5px;color:var(--soluk);
     text-transform:uppercase;letter-spacing:.05em}
-  input{width:100%;padding:11px 12px;border:1.5px solid var(--cizgi);border-radius:9px;
+  input,select{width:100%;padding:11px 12px;border:1.5px solid var(--cizgi);border-radius:9px;
     font:inherit;font-size:16px;background:#fff;color:var(--murekkep)}
-  input:focus{outline:2px solid var(--bordo);outline-offset:1px;border-color:transparent}
+  input:focus,select:focus{outline:2px solid var(--bordo);outline-offset:1px;border-color:transparent}
   .btn{padding:13px 18px;border:none;border-radius:10px;background:var(--bordo);color:#fff;
     font:inherit;font-size:16px;font-weight:700;cursor:pointer}
   .btn.genis{width:100%;margin-top:16px}
+  .btn.ikincil{background:#fff;color:var(--murekkep);border:1.5px solid var(--cizgi);font-weight:500}
   .btn:disabled{opacity:.5;cursor:default}
 
   .msg{padding:12px 14px;border-radius:9px;font-size:14.5px;margin:0 0 14px;display:none;border:1px solid}
@@ -45,6 +46,16 @@
   .msg.iyi{background:#f1f7f2;color:#2e6440;border-color:#cfe4d5}
   .msg.hata{background:#fdf2f4;color:#8a1230;border-color:#f0cdd6}
   .msg.uyari{background:#fffbeb;color:#92400e;border-color:#fde68a}
+
+  .modlar{display:flex;gap:5px;background:#f2eaee;border:1px solid var(--cizgi);
+    border-radius:11px;padding:4px;margin:0 0 14px;max-width:520px}
+  .modlar button{flex:1;border:0;border-radius:8px;background:transparent;color:var(--soluk);
+    padding:10px 12px;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+  .modlar button.sec{background:#fff;color:var(--bordo);box-shadow:0 1px 2px rgba(60,20,40,.12)}
+  .arama{display:grid;grid-template-columns:2fr 1fr auto;gap:10px;align-items:end;
+    background:#fff;border:1px solid var(--cizgi);border-radius:11px;padding:13px 15px;margin-bottom:14px}
+  .arama label{margin-top:0}
+  @media (max-width:720px){ .arama{grid-template-columns:1fr} }
 
   /* Grup kartı: aynı öneriyi taşıyan kitaplar bir arada */
   .grup{border:1.5px solid var(--cizgi);border-radius:11px;margin-bottom:14px;background:#fff;
@@ -87,6 +98,17 @@
   .bilgi .ad{font-size:19px;font-weight:800;line-height:1.3;margin:4px 0 2px}
   .bilgi .alt{color:var(--soluk);font-size:14.5px}
   .bilgi .dikkat{color:#8a5a1c;font-weight:700}
+  .kararMeta{margin-top:10px;padding:10px 12px;border-radius:9px;background:#fbf2f7;
+    border:1px solid var(--cizgi);font-size:14px;color:#4d3f46}
+  .kararMeta b{color:var(--bordo)}
+  .kararMeta span{display:block;color:var(--soluk);font-size:12.5px;margin-top:2px}
+  .duzeltAc{margin-top:10px;border:1.5px solid var(--bordo);background:#fff;color:var(--bordo);
+    border-radius:9px;padding:9px 13px;font:inherit;font-size:13.5px;font-weight:800;cursor:pointer}
+  .duzeltAc:hover{background:var(--vurgu-bg)}
+  .kararGecmis{margin-top:9px;font-size:12.5px;color:var(--soluk)}
+  .kararGecmis summary{cursor:pointer;color:var(--bordo);font-weight:700}
+  .kararGecmis pre{white-space:pre-wrap;background:#fff;border:1px solid var(--cizgi);
+    border-radius:8px;padding:9px 10px;max-height:150px;overflow:auto}
 
   /* Karar alanı: her kitapta AÇIK durur — gizli panel yok */
   .kararAlan{margin-top:14px;border-top:1px dashed #e5d9d1;padding-top:12px}
@@ -130,17 +152,17 @@
 <body>
 
 <div class="ust gizli" id="ust">
-  <h1>Karar</h1>
+  <h1>Gidecek mi?</h1>
   <button id="btnYenile">Listeyi yenile</button>
-  <div class="ilerleme"><b id="ilerlemeSayi">0</b> kitap karar bekliyor</div>
+  <div class="ilerleme"><b id="ilerlemeSayi">0</b> <span id="ilerlemeMetin">kitap karar bekliyor</span></div>
 </div>
 
 <div class="sayfa">
 
   <!-- giriş -->
   <section id="adim-giris" class="kart giris">
-    <h2>Karar</h2>
-    <p class="ipucu">Künyesi onaylanmış kitaplar burada: gidecek mi, kalacak mı?
+    <h2>Gidecek mi?</h2>
+    <p class="ipucu">Künyesi onaylanmış kitaplar burada: yeni binaya gidecek mi, yerinde mi kalacak?
       Öneriler hazır gelir — çoğu kitap tek dokunuşla kapanır.</p>
     <div class="msg" id="msgGiris"></div>
     <label for="ad">Adınız</label>
@@ -153,6 +175,21 @@
   <!-- karar ekranı -->
   <section id="adim-karar" class="gizli">
     <div class="msg" id="msg"></div>
+    <div class="modlar" id="modlar">
+      <button type="button" class="sec" data-gorunum="bekleyen">Karar bekleyenler</button>
+      <button type="button" data-gorunum="verilmis">Verilmiş kararlar</button>
+    </div>
+    <div class="arama gizli" id="duzeltArama">
+      <div>
+        <label for="kararAra">Ara</label>
+        <input type="search" id="kararAra" placeholder="Başlık, yazar, yer kodu, karar veren…">
+      </div>
+      <div>
+        <label for="kararKategori">Karar</label>
+        <select id="kararKategori"></select>
+      </div>
+      <button type="button" class="btn ikincil" id="btnKararAraTemizle">Temizle</button>
+    </div>
     <div id="liste"></div>
     <div class="kart bitti gizli" id="bos">
       <h2>Karar bekleyen kitap yok</h2>
@@ -171,7 +208,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
-  var D = { ad: '', sifre: '', kayitlar: [], kalan: 0, cfg: null };
+  var D = { ad: '', sifre: '', kayitlar: [], kalan: 0, cfg: null,
+            gorunum: 'bekleyen', ara: '', kategori: '' };
 
   var esc = function (s) {
     return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
@@ -185,7 +223,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     else { b.innerHTML = b.dataset.eski || b.innerHTML; b.disabled = false; }
   }
 
-  var TEKRARLANABILIR = ['config', 'kararBekleyen'];
+  var TEKRARLANABILIR = ['config', 'kararBekleyen', 'katalog'];
   function tekIstek(action, yuk, sure) {
     var govde = { action: action, sifre: D.sifre };
     for (var k in (yuk || {})) govde[k] = yuk[k];
@@ -245,6 +283,13 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         throw new Error('Sunucudan gelen ayarlar eksik. Koordinatöre bildirin.');
       }
       D.cfg = cfg;
+      $('kararKategori').innerHTML = '<option value="">Tüm kararlar</option>' +
+        Object.keys(cfg.kategoriler).filter(function (a) {
+          return !cfg.kategoriler[a].serbest;
+        }).map(function (a) {
+          return '<option value="' + esc(cfg.kategoriler[a].ad) + '">' +
+            esc(cfg.kategoriler[a].ad) + '</option>';
+        }).join('');
       return listeGetir();
     }).then(function () {
       localStorage.setItem('tv_env_ad', ad);
@@ -262,10 +307,23 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
   /* ───────── liste ───────── */
   function listeGetir() {
+    if (D.gorunum === 'verilmis') {
+      return api('katalog', {
+        yalnizOnayli: true, yalnizKararli: true, bas: 0, adet: 300,
+        ara: D.ara, kategori: D.kategori, sirala: 'yeni'
+      }).then(function (r) {
+        D.kayitlar = r.kayitlar || [];
+        D.kalan = r.toplam || 0;
+        $('ilerlemeSayi').textContent = D.kalan;
+        $('ilerlemeMetin').textContent = 'verilmiş karar';
+        return r;
+      });
+    }
     return api('kararBekleyen', { adet: 100 }).then(function (r) {
       D.kayitlar = r.kayitlar || [];
       D.kalan = r.kalan || 0;
       $('ilerlemeSayi').textContent = D.kalan;
+      $('ilerlemeMetin').textContent = 'kitap karar bekliyor';
       return r;
     });
   }
@@ -276,10 +334,51 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   });
   $('btnTekrar').addEventListener('click', function () { $('btnYenile').click(); });
 
+  $('modlar').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-gorunum]');
+    if (!b || b.dataset.gorunum === D.gorunum) return;
+    D.gorunum = b.dataset.gorunum;
+    Array.prototype.forEach.call($('modlar').querySelectorAll('button'), function (x) {
+      x.classList.toggle('sec', x === b);
+    });
+    $('duzeltArama').classList.toggle('gizli', D.gorunum !== 'verilmis');
+    $('liste').innerHTML = '';
+    mesgul($('btnYenile'), true, 'Yenileniyor…');
+    listeGetir().then(ciz)['catch'](function (h) { goster($('msg'), 'hata', ağHata(h)); })
+      .then(function () { mesgul($('btnYenile'), false); });
+  });
+
+  var aramaZamani = null;
+  $('kararAra').addEventListener('input', function () {
+    D.ara = $('kararAra').value.trim();
+    clearTimeout(aramaZamani);
+    aramaZamani = setTimeout(function () {
+      if (D.gorunum !== 'verilmis') return;
+      listeGetir().then(ciz)['catch'](function (h) { goster($('msg'), 'hata', ağHata(h)); });
+    }, 350);
+  });
+  $('kararKategori').addEventListener('change', function () {
+    D.kategori = $('kararKategori').value;
+    if (D.gorunum === 'verilmis') {
+      listeGetir().then(ciz)['catch'](function (h) { goster($('msg'), 'hata', ağHata(h)); });
+    }
+  });
+  $('btnKararAraTemizle').addEventListener('click', function () {
+    $('kararAra').value = ''; $('kararKategori').value = '';
+    D.ara = ''; D.kategori = '';
+    if (D.gorunum === 'verilmis') {
+      listeGetir().then(ciz)['catch'](function (h) { goster($('msg'), 'hata', ağHata(h)); });
+    }
+  });
+
   /* ───────── çizim: öneriye göre gruplanmış liste ─────────
      Aynı öneriyi taşıyan kitaplar bir kartta toplanır; koordinatör isterse
      kartın hepsini tek tıkla kapatır, isterse satır satır karar verir. */
   function ciz() {
+    if (D.gorunum === 'verilmis') return cizVerilmis();
+
+    $('bos').querySelector('h2').textContent = 'Karar bekleyen kitap yok';
+    $('bos').querySelector('p').textContent = 'Kitap Bilgisi sekmesinde künyesi onaylanan her kitap buraya düşer.';
     var gruplar = {}, sirali = [];
     D.kayitlar.forEach(function (k) {
       var a = k.oneriKural || '__yok';
@@ -300,8 +399,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     D.gruplar = sirali;                 // uyeSatiri çizim sırasında buna bakar
     $('bos').classList.toggle('gizli', !!D.kayitlar.length);
     $('liste').innerHTML = sirali.map(function (g, gi) {
-      var katAd = g.kategori && D.cfg.kategoriler[g.kategori]
-        ? D.cfg.kategoriler[g.kategori].ad : '';
+      var katAd = g.kategori ? kararEtiketi(g.kategori) : '';
       var aciklama = '';
       (D.cfg.kurallar || []).forEach(function (x) { if (x.kod === g.kural) aciklama = x.aciklama; });
 
@@ -328,7 +426,31 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     }).join('');
   }
 
+  function cizVerilmis() {
+    $('bos').classList.toggle('gizli', !!D.kayitlar.length);
+    $('bos').querySelector('h2').textContent = 'Verilmiş karar bulunamadı';
+    $('bos').querySelector('p').textContent = D.ara || D.kategori
+      ? 'Aramayı ya da karar süzgecini temizleyip tekrar bakın.'
+      : 'Henüz kararı verilmiş kitap yok.';
+    if (!D.kayitlar.length) { $('liste').innerHTML = ''; return; }
+
+    $('liste').innerHTML = '<div class="grup elle">' +
+      '<div class="grupBas"><div class="ne"><b>Verilmiş kararlar</b>' +
+      '<span>Son karar kimin tarafından verildiyse burada görünür. Eski kayda ulaşmak için arama kullanın.</span></div>' +
+      '<span class="adet">' + D.kayitlar.length + ' / ' + D.kalan + '</span></div>' +
+      D.kayitlar.map(kararliSatiri).join('') + '</div>';
+  }
+
   function ortaKapak(id) { return id ? 'https://drive.google.com/thumbnail?id=' + id + '&sz=w400' : ''; }
+
+  function kararEtiketi(kod) {
+    return {
+      gidecek: 'Gitsin',
+      belki: 'Kapasite varsa gitsin',
+      gitmeyecek: 'Yerinde kalsın',
+      belirsiz: 'Uzman bakacak'
+    }[kod] || ((D.cfg && D.cfg.kategoriler && D.cfg.kategoriler[kod]) ? D.cfg.kategoriler[kod].ad : kod);
+  }
 
   function fotoTaraf(ad, goruntu, id) {
     var kucuk = goruntu || ortaKapak(id);
@@ -340,6 +462,49 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     return '<figure data-buyuk="' + esc(buyuk) + '"><div class="cerceve">' +
       '<img loading="lazy" src="' + esc(kucuk) + '" alt="' + ad + ' fotoğrafı"></div>' +
       '<figcaption>' + ad + ' · dokun, büyüt</figcaption></figure>';
+  }
+
+  function kararliSatiri(k) {
+    var altlar = [k.yazar, k.yil, (Number(k.nusha) > 1 ? k.nusha + ' nüsha' : '')]
+      .filter(Boolean).join(' · ');
+    var dikkat = [];
+    if (k.durum && k.durum !== 'Sağlam') dikkat.push(k.durum);
+    if (k.not) dikkat.push('Not: ' + k.not);
+    var sinif = { gidecek: 'g', belki: 's', gitmeyecek: 'k', belirsiz: 'm' };
+    var katlar = Object.keys(D.cfg.kategoriler).filter(function (a) {
+      return !D.cfg.kategoriler[a].serbest;
+    }).map(function (a) {
+      return '<button type="button" class="kat ' + sinif[a] + '" data-pk="' + a +
+        '" data-no="' + k.no + '">' + esc(kararEtiketi(a)) + '</button>';
+    }).join('');
+    var gecmis = k.kararGecmisi
+      ? '<details class="kararGecmis"><summary>Karar geçmişi</summary><pre>' +
+        esc(k.kararGecmisi) + '</pre></details>' : '';
+
+    return '<div class="uye kararli" data-no="' + k.no + '"><div class="kitap">' +
+      '<div class="fotolar">' +
+        fotoTaraf('Kapak', k.kapakGoruntu, k.kapakId) +
+        fotoTaraf('Künye', k.fotoGoruntu, k.fotoId) +
+      '</div>' +
+      '<div class="bilgi">' +
+        '<span class="yk" title="' + esc(yerAciklama(k.yer)) + '">' + esc(k.yer || ('#' + k.no)) + '</span>' +
+        '<div class="ad">' + esc(k.baslik || '(başlık yok)') + '</div>' +
+        '<div class="alt">' + esc(altlar || '—') +
+          (dikkat.length ? ' · <span class="dikkat">' + esc(dikkat.join(' · ')) + '</span>' : '') +
+        '</div>' +
+        '<div class="kararMeta"><b>' + esc(k.kategori || 'Karar') + '</b>' +
+          (k.kural ? ' · ' + esc(k.kural) : '') +
+          '<span>Kararı veren: ' + esc(k.kararVeren || 'eski kayıt / yazılmamış') +
+          (k.kararTarihi ? ' · ' + esc(k.kararTarihi) : '') + '</span></div>' +
+        '<button type="button" class="duzeltAc" data-duzelt="' + k.no + '">Kararı düzelt</button>' +
+        gecmis +
+        '<div class="kararAlan gizli">' +
+          '<div class="katlar">' + katlar + '</div>' +
+          '<div class="kurallarIc"></div>' +
+        '</div>' +
+        '<div class="sonucB"></div>' +
+      '</div>' +
+    '</div></div>';
   }
 
   function uyeSatiri(k, gi) {
@@ -354,7 +519,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       return !D.cfg.kategoriler[a].serbest;
     }).map(function (a) {
       return '<button type="button" class="kat ' + sinif[a] + '" data-pk="' + a +
-        '" data-no="' + k.no + '">' + esc(D.cfg.kategoriler[a].ad) + '</button>';
+        '" data-no="' + k.no + '">' + esc(kararEtiketi(a)) + '</button>';
     }).join('');
 
     return '<div class="uye" data-no="' + k.no + '"><div class="kitap">' +
@@ -399,7 +564,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
 
   function kararGonder(numaralar, kategori, kural, tamam, hata) {
-    api('kararVer', { numaralar: numaralar, kategori: kategori, kural: kural, veren: D.ad })
+    api('kararVer', { numaralar: numaralar, kategori: kategori, kural: kural,
+      veren: D.ad, uzerineYaz: D.gorunum === 'verilmis' })
       .then(tamam)['catch'](hata);
   }
 
@@ -413,6 +579,17 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
     var hepsi = e.target.closest('[data-hepsi]');
     if (hepsi) { grubaUygula(Number(hepsi.dataset.hepsi), hepsi); return; }
+
+    var duzelt = e.target.closest('[data-duzelt]');
+    if (duzelt) {
+      var uyeD = duzelt.closest('.uye');
+      var alanD = uyeD.querySelector('.kararAlan');
+      var acilacak = alanD.classList.contains('gizli');
+      alanD.classList.toggle('gizli', !acilacak);
+      duzelt.textContent = acilacak ? 'Düzeltmeden vazgeç' : 'Kararı düzelt';
+      if (acilacak) uyeD.querySelector('.kurallarIc').innerHTML = '';
+      return;
+    }
 
     // ✓ Öneriyle kapat
     var oner = e.target.closest('.tOner');
@@ -468,7 +645,20 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var no = Number(uye.dataset.no);
     Array.prototype.forEach.call(uye.querySelectorAll('button'), function (b) { b.disabled = true; });
     kararGonder([no], kategori, kural, function (r) {
-      if (r.yazilan && r.yazilan.length) { satirKapat(uye, yazi, renk); grupSayaci(uye); }
+      if (r.yazilan && r.yazilan.length) {
+        if (D.gorunum === 'verilmis') {
+          goster($('msg'), 'iyi', '#' + no + ' kararı güncellendi: <b>' +
+            esc(r.kategori || yazi) + '</b>' + (r.kural ? ' · ' + esc(r.kural) : '') +
+            '. Kararı veren: <b>' + esc(r.kararVeren || D.ad) + '</b>.');
+          listeGetir().then(ciz)['catch'](function (h) {
+            goster($('msg'), 'uyari', 'Karar kaydedildi; liste yenilenemedi: ' + esc(ağHata(h)));
+            Array.prototype.forEach.call(uye.querySelectorAll('button'), function (b) { b.disabled = false; });
+          });
+        } else {
+          satirKapat(uye, yazi, renk);
+          grupSayaci(uye);
+        }
+      }
       else {
         atlandiGoster(uye, r);
         Array.prototype.forEach.call(uye.querySelectorAll('button'), function (b) { b.disabled = false; });

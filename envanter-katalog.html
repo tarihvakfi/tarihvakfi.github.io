@@ -94,6 +94,10 @@
   .nerede.depo{background:#efe6f3;color:#5a2a63}
   .nerede.yeni{background:#e4f0e7;color:#22502f}
   .nerede.raf{background:#f0eae6;color:#6b5c63}
+  .kararIz{margin:6px 0 2px;padding:7px 8px;border-radius:8px;background:#fbf2f7;
+    color:#5a4a52;font-size:12.5px;line-height:1.35}
+  .kararIz b{color:#601040}
+  .kararIz .meta{display:block;color:#74686e;margin-top:2px}
 
   .kutula{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 16px;
     background:#fdf6f0;border:1.5px solid #e0cdbb;border-radius:10px;padding:12px 14px}
@@ -408,6 +412,12 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         nerede = '<div class="nerede raf">RAFTA' +
           (yerKod ? '<b>' + esc(yerKod) + '</b>' : '') + '</div>';
       }
+      var kararIz = k.kararVeren || k.kararTarihi
+        ? '<div class="kararIz"><b>' + esc(k.kategori || 'Karar') + '</b>' +
+          (k.kural ? ' · ' + esc(k.kural) : '') +
+          '<span class="meta">Kararı veren: ' + esc(k.kararVeren || '—') +
+          (k.kararTarihi ? ' · ' + esc(k.kararTarihi) : '') + '</span></div>'
+        : '';
       return '<article class="kitap ' + (sinif[k.kategori] || '') + '" data-no="' + k.no + '">' +
         resimKutusu(k) +
         '<div class="govde">' +
@@ -415,6 +425,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
           (k.yazar ? '<div class="yaz">' + esc(k.yazar) + '</div>' : '') +
           (altSatir ? '<div class="yaz">' + esc(altSatir) + '</div>' : '') +
           nerede +
+          kararIz +
           '<div class="alt"><span title="' + esc(yerAciklama(k.yer)) + '" class="ykIpucu">' +
             esc(k.yer || ('#' + k.no)) + '</span>' +
             '<span class="kat">' + esc(k.kural || '') + '</span></div>' +
@@ -714,9 +725,11 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     };
     devam().then(function () {
       var basliklar = ['Kayıt no', 'Yer kodu', 'Yazar', 'Başlık', 'Yıl', 'Nüsha', 'Kategori',
-        'Kural', 'Durum', 'Not', 'Kaydeden', 'Kutu no', 'Onay', 'Kapak', 'Künye fotoğrafı'];
+        'Kural', 'Karar veren', 'Karar tarihi', 'Karar geçmişi',
+        'Durum', 'Not', 'Kaydeden', 'Kutu no', 'Onay', 'Kapak', 'Künye fotoğrafı'];
       var satirlar = [basliklar].concat(hepsi.map(function (k) {
         return [k.no, k.yer, k.yazar, k.baslik, k.yil, k.nusha, k.kategori, k.kural,
+                k.kararVeren, k.kararTarihi, k.kararGecmisi,
                 k.durum, k.not, k.kaydeden, k.kutu, k.onay, k.kapak, k.foto];
       })).map(function (s) {
         return s.map(function (h) {

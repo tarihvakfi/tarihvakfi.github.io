@@ -62,6 +62,12 @@
   .baglanti-btn{display:block;width:100%;margin-top:14px;background:none;border:0;
     color:var(--bordo);text-decoration:underline;font:inherit;font-size:15px;
     cursor:pointer;padding:10px}
+  .digerSecenekler{margin-top:10px;border-top:1px solid var(--cizgi);padding-top:6px}
+  .digerSecenekler summary{cursor:pointer;color:var(--soluk);font-weight:700;
+    font-size:14px;padding:9px 2px;list-style:none}
+  .digerSecenekler summary::-webkit-details-marker{display:none}
+  .digerSecenekler summary::before{content:'▸ ';color:var(--bordo)}
+  .digerSecenekler[open] summary::before{content:'▾ '}
 
   /* ── ayrıntı katlama ── */
   .ayrinti-satir{display:flex;gap:10px;margin-top:16px;align-items:stretch;flex-wrap:wrap}
@@ -244,7 +250,7 @@
     background:var(--bordo);color:#fff;font-size:14.5px;font-weight:700}
 
   /* ── Sıradaki iş kartı ──
-     "Bana sıra ver" eskiden bir cümlelik mesaj bırakıyordu; gönüllü sonra
+     "Bugünkü görevimi al" eskiden bir cümlelik mesaj bırakıyordu; gönüllü sonra
      seçicilerle uğraşıyordu. Artık verilen raf bir kart olarak duruyor ve
      yapılacak iki iş düğme hâlinde: rafı say, kitapları kaydet. */
   .gorev{margin-top:14px;border:1.5px solid var(--bordo);border-radius:13px;
@@ -413,13 +419,16 @@
   <section id="adim-raf" class="kart gizli">
     <h1>Hangi sırada çalışacaksınız?</h1>
 
-    <button class="btn" id="btnSiraOner">Bana sıra ver</button>
+    <button class="btn" id="btnSiraOner">Bugünkü görevimi al</button>
     <div class="msg gizli" id="msgOner" style="margin:14px 0 0"></div>
     <div id="gorevKart" class="gorev gizli"></div>
 
-    <button type="button" id="btnKendimSec" class="baglanti-btn">Kendim seçeceğim</button>
-    <button type="button" id="btnHarita" class="baglanti-btn">Rafların durumunu gör</button>
-    <button type="button" id="btnSayim" class="baglanti-btn">📋 Raf sayımı yap</button>
+    <details class="digerSecenekler">
+      <summary>Diğer seçenekler</summary>
+      <button type="button" id="btnKendimSec" class="baglanti-btn">Kendim seçeceğim</button>
+      <button type="button" id="btnHarita" class="baglanti-btn">Rafların durumunu gör</button>
+      <button type="button" id="btnSayim" class="baglanti-btn">Raf sayımı yap</button>
+    </details>
 
     <!-- Ön sayım: envanterden bağımsız görev. Gönüllü rafı sayar, sayı sıranın
          kaydına yazılır; sıra kapanırken üç sayı karşılaştırılır. -->
@@ -776,7 +785,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       var adlar = (r.birakilan || []).join(', ');
       goster($('msgOner'), 'iyi', (r.birakilan && r.birakilan.length
         ? '<b>' + esc(adlar) + '</b> bırakıldı. Kayıtlarınız duruyor; ' +
-          'artık <b>Bana sıra ver</b> ile yeni sıra alabilirsiniz.'
+          'artık <b>Bugünkü görevimi al</b> ile yeni sıra alabilirsiniz.'
         : 'Üzerinizde sıra görünmüyor.'));
       rafOzetYenile();
     })['catch'](function (h) {
@@ -1364,7 +1373,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         hikaye = '<b style="display:inline;font-size:14px;color:var(--kirmizi)">' +
           'BU SIRA ' + esc(D.siraTutan.toLocaleUpperCase('tr')) + ' ÜZERİNDE</b> — ' +
           'bugün ona verildi. Aynı sırada iki kişi çalışmayın; ' +
-          '<b>Bana boş bir sıra ver</b> deyin.' +
+          '<b>Bugünkü görevimi al</b> düğmesine basıp boş bir sıra isteyin.' +
           '<br><span style="opacity:.8">' + hikaye + '</span>';
       }
       if (d.onSayim != null) {
@@ -1392,7 +1401,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     $(id).addEventListener('change', rafOzetYenile);
   });
 
-  /* Asıl yol "Bana sıra ver". Elle seçim istisna olduğu için katlı duruyor —
+  /* Asıl yol "Bugünkü görevimi al". Elle seçim istisna olduğu için katlı duruyor —
      ekranda üç açılır liste görmek gönüllüyü seçim yapması gerektiğine inandırıyordu. */
   $('btnKendimSec').addEventListener('click', function () {
     var acik = !$('secici').classList.contains('gizli');
