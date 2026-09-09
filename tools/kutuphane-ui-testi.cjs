@@ -14,6 +14,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   let shelfSuggestionAttempts = 0;
   let shelfReleaseAttempts = 0;
   let shelfSummaryAttempts = 0;
+  let coordinatorCatalogAttempts = 0;
   let countRecord = null;
   let nextBookNo = 36;
   page.on('pageerror', error => errors.push(error.message));
@@ -51,6 +52,15 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
     if (body.action === 'siraBirak' && ++shelfReleaseAttempts === 1) {
       await route.abort('failed');
       return;
+    }
+    if (body.action === 'katalog' && !request.frame().url().includes('kitap-envanteri.html') &&
+        body.sifre === 'test-only') {
+      coordinatorCatalogAttempts++;
+      if (coordinatorCatalogAttempts <= 2) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        await route.abort('failed');
+        return;
+      }
     }
     let result;
     if (body.action !== 'config' && body.sifre !== 'test-only') {
@@ -168,7 +178,18 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
 
   await page.locator('#sifre').fill('test-only');
   await page.locator('#btnGiris').click();
+  await page.locator('#sistemHazirlik:not(.gizli)').waitFor();
+  assert.equal(await page.locator('main').evaluate(el => el.inert), true, 'Koordinatör işlemleri veri hazırlanırken açık kaldı');
+  assert.match(await page.locator('#sistemDurumMetin').textContent(), /Veriler hazırlanıyor/);
+  if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-koordinator-hazirlaniyor.png' });
+  await page.getByText('Bağlantı kurulamadı — yeniden deneyin', { exact:true }).waitFor();
+  assert.equal(await page.locator('main').evaluate(el => el.inert), true, 'Koordinatör işlemleri bağlantı hatasında açıldı');
+  if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-koordinator-baglanti-hatasi.png' });
+  await page.locator('#btnSistemTekrar').click();
   await page.locator('#kararListe').getByText('Kitap 1', { exact:true }).waitFor();
+  await page.getByText('Sistem hazır — çalışmaya başlayabilirsiniz', { exact:true }).waitFor({ timeout:4000 });
+  await page.locator('#sistemHazirlik').waitFor({ state:'hidden', timeout:4000 });
+  assert.equal(await page.locator('main').evaluate(el => el.inert), false, 'Koordinatör işlemleri veri geldikten sonra açılmadı');
   if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-koordinator-yeni.png', fullPage:true });
   assert.ok(await page.getByRole('button', { name:/Kitap Seçimi/ }).getAttribute('aria-current'));
   assert.equal(await page.locator('iframe').count(), 0);
@@ -288,6 +309,12 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await page.locator('#sifre').fill('test-only');
   await page.locator('#btnGiris').click();
   await page.locator('#adim-raf:not(.gizli)').waitFor({ timeout:800 });
+  await page.locator('#gonulluSistemHazirlik:not(.gizli)').waitFor();
+  assert.equal(await page.locator('#adim-raf').evaluate(el => el.inert), true, 'Gönüllü işlemleri veri hazırlanırken açık kaldı');
+  if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-gonullu-hazirlaniyor.png' });
+  await page.getByText('Sistem hazır — çalışmaya başlayabilirsiniz', { exact:true }).waitFor({ timeout:4000 });
+  await page.locator('#gonulluSistemHazirlik').waitFor({ state:'hidden', timeout:4000 });
+  assert.equal(await page.locator('#adim-raf').evaluate(el => el.inert), false, 'Gönüllü işlemleri veri geldikten sonra açılmadı');
   if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-gonullu-yeni-mobil.png', fullPage:true });
   assert.ok(await page.getByRole('button', { name:/1 · Rafı say/ }).isVisible());
   assert.ok(await page.getByRole('button', { name:/2 · Kitapları kaydet/ }).isVisible());

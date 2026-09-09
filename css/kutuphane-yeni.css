@@ -59,6 +59,29 @@ input:focus, select:focus, textarea:focus { outline: 3px solid rgba(91,18,59,.15
 .hesap span { max-width: 220px; overflow: hidden; color: var(--soluk); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
 .hesap button { min-height: 40px; padding: 8px 12px; border: 1px solid var(--cizgi); border-radius: 10px; background: #fff; color: var(--bordo); font-weight: 700; }
 
+.sistem-durum { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 42px; padding: 9px 15px; border: 1px solid #e1c57d; border-radius: 999px; background: #fff8e6; color: #76500f; font-size: 14px; font-weight: 800; }
+.sistem-durum:disabled { opacity: 1; cursor: default; }
+.sistem-durum-isaret { width: 12px; height: 12px; flex: 0 0 12px; border-radius: 50%; background: #d59a19; box-shadow: 0 0 0 4px rgba(213,154,25,.14); }
+.sistem-durum.bekliyor .sistem-durum-isaret { animation: durumNabiz 1.15s ease-in-out infinite; }
+.sistem-durum.hazir { border-color: #afd1bb; background: #eaf6ee; color: #24593d; }
+.sistem-durum.hazir .sistem-durum-isaret { background: #2f754e; box-shadow: 0 0 0 4px rgba(47,117,78,.14); }
+.sistem-durum.hata { border-color: #e4aeb8; background: #fff0f2; color: #8b2131; cursor: pointer; }
+.sistem-durum.hata .sistem-durum-isaret { background: #b92d42; box-shadow: 0 0 0 4px rgba(185,45,66,.13); }
+@keyframes durumNabiz { 50% { opacity: .45; transform: scale(.8); } }
+
+.sistem-hazirlik { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 22px; background: rgba(246,242,236,.82); backdrop-filter: blur(5px); }
+.sistem-hazirlik.gizli { display: none; }
+.sistem-hazirlik-kart { width: min(100%, 510px); padding: 34px 30px; border: 1px solid var(--cizgi); border-radius: 23px; background: var(--kagit); box-shadow: 0 20px 65px rgba(50,28,39,.18); text-align: center; }
+.sistem-hazirlik-isaret { display: block; width: 42px; height: 42px; margin: 0 auto 18px; border: 5px solid #ead8a8; border-top-color: #a66f08; border-radius: 50%; animation: sistemDon .85s linear infinite; }
+.sistem-hazirlik-kart h2 { margin: 0; color: var(--bordo-koyu); font-family: Georgia, serif; font-size: 29px; }
+.sistem-hazirlik-kart p { margin: 10px auto 0; color: var(--soluk); }
+.sistem-hazirlik-kart .btn { margin-top: 20px; }
+.sistem-hazirlik.hazir .sistem-hazirlik-isaret { display: grid; place-items: center; border: 0; background: #2f754e; color: #fff; animation: none; }
+.sistem-hazirlik.hazir .sistem-hazirlik-isaret::after { content: '✓'; font-size: 27px; font-weight: 900; }
+.sistem-hazirlik.hata .sistem-hazirlik-isaret { display: grid; place-items: center; border: 0; background: #b92d42; color: #fff; animation: none; }
+.sistem-hazirlik.hata .sistem-hazirlik-isaret::after { content: '!'; font-size: 27px; font-weight: 900; }
+@keyframes sistemDon { to { transform: rotate(360deg); } }
+
 .ana-menu { position: sticky; top: 76px; z-index: 40; display: flex; gap: 8px; padding: 12px max(24px, calc((100vw - 1240px) / 2)); overflow-x: auto; background: rgba(246,242,236,.95); border-bottom: 1px solid var(--cizgi); scrollbar-width: none; }
 .ana-menu::-webkit-scrollbar { display: none; }
 .ana-menu button { flex: 0 0 auto; min-height: 48px; padding: 9px 18px; border: 1px solid transparent; border-radius: 13px; background: transparent; color: var(--soluk); font-weight: 750; }
@@ -176,9 +199,11 @@ main { width: min(100% - 36px, 1240px); margin: 0 auto; padding: 38px 0 80px; }
 
 @media (max-width: 720px) {
   body { font-size: 16px; }
-  .uygulama-ust { position: static; min-height: 66px; padding: 9px 14px; }
+  .uygulama-ust { position: static; min-height: 66px; padding: 9px 14px; flex-wrap: wrap; }
   .marka small, .hesap > span { display: none; }
   .hesap { gap: 5px; }.hesap button { padding: 7px 9px; font-size: 13px; }
+  .sistem-durum { order: 3; width: 100%; min-height: 39px; padding: 7px 12px; font-size: 13px; }
+  .sistem-hazirlik-kart { padding: 29px 21px; }.sistem-hazirlik-kart h2 { font-size: 26px; }
   .ana-menu { top: 0; padding: 9px 12px; }.ana-menu button { min-height: 44px; padding: 8px 12px; font-size: 14px; }.ana-menu button span { display: none; }
   main { width: min(100% - 24px, 1240px); padding-top: 24px; }
   .sayfa-baslik { align-items: flex-start; margin-bottom: 20px; }.sayfa-baslik .yenile { flex: 0 0 auto; width: 46px; overflow: hidden; padding: 9px; font-size: 0; }.sayfa-baslik .yenile::before { content: '↻'; font-size: 23px; }

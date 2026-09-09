@@ -13,7 +13,7 @@
   var kararEtiket = { 'Gidecek':'Gitsin', 'Gitse de olur':'Gitse de olur', 'Gitmeyecek':'Gitmesin', 'Belirsiz':'Belirsiz' };
   var kararKod = { gidecek:'Gitsin', belki:'Gitse de olur', gitmeyecek:'Gitmesin', belirsiz:'Belirsiz' };
   var kararSinif = { 'Gidecek':'g', 'Gitse de olur':'s', 'Gitmeyecek':'k', 'Belirsiz':'m' };
-  var bildirimZamani;
+  var bildirimZamani, sistemHazirlikNo = 0, sistemKapatmaZamani;
 
   function esc(v) {
     return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
@@ -64,6 +64,62 @@
     $('bildirim').textContent = metin;
     $('bildirim').classList.add('goster');
     bildirimZamani = setTimeout(function () { $('bildirim').classList.remove('goster'); }, 3500);
+  }
+
+  function sistemEtkilesimi(acik) {
+    var ana = document.querySelector('main'), menu = document.querySelector('.ana-menu');
+    if (ana) { ana.inert = !acik; ana.setAttribute('aria-busy', acik ? 'false' : 'true'); }
+    if (menu) menu.inert = !acik;
+  }
+
+  function sistemDurumu(tur, kisa, baslik, aciklama) {
+    var durum = $('sistemDurum'), katman = $('sistemHazirlik');
+    durum.classList.remove('bekliyor', 'hazir', 'hata');
+    durum.classList.add(tur);
+    durum.disabled = tur !== 'hata';
+    $('sistemDurumMetin').textContent = kisa;
+    katman.classList.remove('bekliyor', 'hazir', 'hata');
+    katman.classList.add(tur);
+    $('sistemHazirlikBaslik').textContent = baslik;
+    $('sistemHazirlikMetin').textContent = aciklama;
+    $('btnSistemTekrar').classList.toggle('gizli', tur !== 'hata');
+  }
+
+  function sistemYukleniyor() {
+    clearTimeout(sistemKapatmaZamani);
+    var no = ++sistemHazirlikNo;
+    $('sistemHazirlik').classList.remove('gizli');
+    sistemEtkilesimi(false);
+    sistemDurumu('bekliyor', 'Veriler hazırlanıyor — lütfen bekleyin',
+      'Bilgiler hazırlanıyor…',
+      'Güncel raf ve kitap kayıtları getiriliyor. Ekran hazır olduğunda çalışmaya başlayabilirsiniz.');
+    return { no:no, baslangic:Date.now() };
+  }
+
+  function sistemHazir(context) {
+    var kalan = Math.max(0, 1600 - (Date.now() - context.baslangic));
+    return new Promise(function (tamam) { setTimeout(tamam, kalan); }).then(function () {
+      if (context.no !== sistemHazirlikNo) return;
+      sistemEtkilesimi(true);
+      sistemDurumu('hazir', 'Sistem hazır — çalışmaya başlayabilirsiniz',
+        'Sistem hazır', 'Güncel bilgiler alındı. Çalışmaya başlayabilirsiniz.');
+      sistemKapatmaZamani = setTimeout(function () {
+        if (context.no === sistemHazirlikNo) $('sistemHazirlik').classList.add('gizli');
+      }, 950);
+    });
+  }
+
+  function sistemHatasiGoster(context, e) {
+    if (context.no !== sistemHazirlikNo) return;
+    if (e && e.sifreHatasi) {
+      $('sistemHazirlik').classList.add('gizli');
+      sistemEtkilesimi(true);
+      return;
+    }
+    sistemEtkilesimi(false);
+    sistemDurumu('hata', 'Bağlantı kurulamadı — yeniden deneyin',
+      'Bilgiler alınamadı',
+      hataMetni(e, 'Güncel bilgiler') + ' Yeniden denemek için aşağıdaki düğmeye dokunun.');
   }
 
   function foto(id, url, boyut) {
@@ -160,7 +216,7 @@
     $('kararAralik').textContent = (D.kararlar.length ? D.kararBas + 1 : 0) + '–' + (D.kararBas + D.kararlar.length) + ' / ' + sayi(D.kararToplam);
   }
 
-  function kararYukle() {
+  function kararYukle(hataAktar) {
     var token = ++D.islem;
     mesaj($('kararMsg'), '', 'Kitaplar yükleniyor…');
     $('kararListe').innerHTML = '';
@@ -177,8 +233,10 @@
       mesaj($('kararMsg'), '', '');
       kararListeCiz();
     }).catch(function (e) {
-      if (token !== D.islem || sifreHatasi(e)) return;
+      if (token !== D.islem) return;
+      if (sifreHatasi(e)) { if (hataAktar) throw e; return; }
       mesaj($('kararMsg'), 'hata', hataMetni(e, 'Kitaplar'));
+      if (hataAktar) throw e;
     });
   }
 
@@ -553,9 +611,14 @@
     /* İlk ekranda asıl iş kitap seçimidir. Apps Script'e aynı anda iki ağır
        istek gönderip ikisini de yavaşlatmamak için listeyi önce getirir,
        özet sayaçlarını hemen arkasından yenileriz. */
-    kararYukle().then(function () { return durumYukle(true); }).catch(function (e) {
-      if (!sifreHatasi(e)) { mesaj($('kararMsg'), 'hata', hataMetni(e, 'Kitaplar')); }
-    }).finally(function () { mesgul(btn, false); });
+    ilkVerileriYukle().finally(function () { mesgul(btn, false); });
+  }
+
+  function ilkVerileriYukle() {
+    var context = sistemYukleniyor();
+    return kararYukle(true).then(function () { return durumYukle(true); })
+      .then(function () { return sistemHazir(context); })
+      .catch(function (e) { sistemHatasiGoster(context, e); });
   }
 
   $('girisForm').addEventListener('submit', function (e) { e.preventDefault(); girisYap($('ad').value, $('sifre').value, false); });
@@ -563,6 +626,10 @@
   document.querySelectorAll('[data-bolum]').forEach(function (b) { b.addEventListener('click', function () { bolumAc(b.dataset.bolum); }); });
   document.querySelectorAll('[data-bolum-link]').forEach(function (b) { b.addEventListener('click', function (e) { e.preventDefault(); bolumAc(b.dataset.bolumLink); }); });
   $('btnIletisimUst').addEventListener('click', function () { bolumAc('iletisim'); });
+  $('btnSistemTekrar').addEventListener('click', ilkVerileriYukle);
+  $('sistemDurum').addEventListener('click', function () {
+    if ($('sistemDurum').classList.contains('hata')) ilkVerileriYukle();
+  });
 
   $('kararGorunum').addEventListener('click', function (e) { var b = e.target.closest('[data-gorunum]'); if (!b || b.dataset.gorunum === D.gorunum) return; D.gorunum = b.dataset.gorunum; D.kararBas = 0; $('kararGorunum').querySelectorAll('button').forEach(function (x) { x.classList.toggle('sec', x === b); }); $('kararKategori').classList.toggle('gizli', D.gorunum !== 'verilmis'); kararYukle(); });
   $('btnKararAra').addEventListener('click', function () { D.kararBas = 0; kararYukle(); });

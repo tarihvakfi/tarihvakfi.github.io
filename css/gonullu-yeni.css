@@ -21,6 +21,29 @@ body { min-height: 100%; background: radial-gradient(circle at 20% 0, #fff 0, tr
 .gonullu-marka small { color: var(--soluk); font-size: 12px; }
 .yetkili-gecis { padding: 9px 12px; border: 1px solid var(--cizgi); border-radius: 10px; background: rgba(255,255,255,.75); color: var(--bordo); font-size: 13px; font-weight: 700; text-decoration: none; }
 
+.gonullu-sistem-durum { position: sticky; top: 10px; z-index: 19; display: flex; align-items: center; justify-content: center; gap: 9px; width: fit-content; max-width: 100%; min-height: 43px; margin: 0 auto 12px; padding: 9px 16px; border: 1px solid #e1c57d; border-radius: 999px; background: #fff8e6; color: #76500f; font-size: 14px; font-weight: 800; box-shadow: 0 6px 20px rgba(50,28,39,.08); }
+.gonullu-sistem-durum.gizli { display: none; }
+.gonullu-sistem-durum:disabled { opacity: 1; cursor: default; }
+.gonullu-sistem-isaret { width: 12px; height: 12px; flex: 0 0 12px; border-radius: 50%; background: #d59a19; box-shadow: 0 0 0 4px rgba(213,154,25,.14); animation: gonulluNabiz 1.15s ease-in-out infinite; }
+.gonullu-sistem-durum.hazir { border-color: #afd1bb; background: #eaf6ee; color: #24593d; }
+.gonullu-sistem-durum.hazir .gonullu-sistem-isaret { background: #2f754e; box-shadow: 0 0 0 4px rgba(47,117,78,.14); animation: none; }
+.gonullu-sistem-durum.hata { border-color: #e4aeb8; background: #fff0f2; color: #8b2131; cursor: pointer; }
+.gonullu-sistem-durum.hata .gonullu-sistem-isaret { background: #b92d42; box-shadow: 0 0 0 4px rgba(185,45,66,.13); animation: none; }
+@keyframes gonulluNabiz { 50% { opacity: .45; transform: scale(.8); } }
+
+.gonullu-sistem-hazirlik { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 22px; background: rgba(246,242,236,.84); backdrop-filter: blur(5px); }
+.gonullu-sistem-hazirlik.gizli { display: none; }
+.gonullu-sistem-kart { width: min(100%, 480px); padding: 32px 27px; border: 1px solid var(--cizgi); border-radius: 22px; background: var(--kagit); box-shadow: 0 20px 65px rgba(50,28,39,.18); text-align: center; }
+.gonullu-hazirlik-isaret { display: block; width: 42px; height: 42px; margin: 0 auto 17px; border: 5px solid #ead8a8; border-top-color: #a66f08; border-radius: 50%; animation: gonulluDon .85s linear infinite; }
+.gonullu-sistem-kart h2 { margin: 0; font-family: Georgia, serif; font-size: 28px; }
+.gonullu-sistem-kart p { margin: 10px auto 0; color: var(--soluk); }
+.gonullu-sistem-kart .btn { margin-top: 19px; }
+.gonullu-sistem-hazirlik.hazir .gonullu-hazirlik-isaret { display: grid; place-items: center; border: 0; background: #2f754e; color: #fff; animation: none; }
+.gonullu-sistem-hazirlik.hazir .gonullu-hazirlik-isaret::after { content: '✓'; font-size: 27px; font-weight: 900; }
+.gonullu-sistem-hazirlik.hata .gonullu-hazirlik-isaret { display: grid; place-items: center; border: 0; background: #b92d42; color: #fff; animation: none; }
+.gonullu-sistem-hazirlik.hata .gonullu-hazirlik-isaret::after { content: '!'; font-size: 27px; font-weight: 900; }
+@keyframes gonulluDon { to { transform: rotate(360deg); } }
+
 .kart { margin: 14px 0; padding: clamp(20px, 5vw, 32px); border-color: var(--cizgi); border-radius: 20px; box-shadow: 0 12px 36px rgba(49,29,40,.06); }
 #adim-giris { max-width: 570px; margin: clamp(28px,7vh,70px) auto 0; }
 h1 { color: var(--bordo-koyu); font-family: Georgia, "Times New Roman", serif; font-size: clamp(30px,7vw,42px); line-height: 1.08; letter-spacing: -.02em; }
@@ -86,6 +109,8 @@ input, textarea, select { min-height: 52px; border-color: var(--cizgi); border-r
   body { font-size: 16px; }
   .sayfa { padding: 0 12px 44px; }
   .gonullu-marka { min-height: 66px; padding: 8px 1px; }.gonullu-isaret { width: 39px; height: 39px; }.gonullu-marka small { display: none; }.yetkili-gecis { padding: 8px; font-size: 12px; }
+  .gonullu-sistem-durum { top: 7px; width: 100%; min-height: 40px; padding: 7px 11px; font-size: 13px; }
+  .gonullu-sistem-kart { padding: 28px 20px; }.gonullu-sistem-kart h2 { font-size: 25px; }
   #adim-giris { margin-top: 16px; }
   .kart { padding: 20px 17px; border-radius: 17px; }
   .anaGorevler { grid-template-columns: 1fr; }

@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#5b123b">
   <title>Kütüphane · Tarih Vakfı</title>
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./css/kutuphane-yeni.css?v=20260909i">
+  <link rel="stylesheet" href="./css/kutuphane-yeni.css?v=20260910a">
   <link rel="stylesheet" href="./css/fotograf-goruntuleyici.css?v=20260909i">
 </head>
 <body>
@@ -35,6 +35,10 @@
         <span class="marka-isareti">TV</span>
         <span><b>Tarih Vakfı</b><small>Kütüphane taşınma çalışması</small></span>
       </a>
+      <button type="button" id="sistemDurum" class="sistem-durum bekliyor" disabled aria-live="polite">
+        <span class="sistem-durum-isaret" aria-hidden="true"></span>
+        <span id="sistemDurumMetin">Veriler hazırlanıyor — lütfen bekleyin</span>
+      </button>
       <div class="hesap">
         <span id="kimAd"></span>
         <button type="button" id="btnIletisimUst">İletişim</button>
@@ -92,6 +96,15 @@
         <form id="iletisimForm" class="iletisim-form bilgi-kart"><div class="form-iki"><div><label for="iletisimTur">Konu türü</label><select id="iletisimTur"><option value="soru">Soru</option><option value="duzeltme">Düzeltme</option><option value="oneri">Öneri</option><option value="iletisim">Bana ulaşın</option></select></div><div><label for="iletisimBilgi">Telefon veya e-posta <small>(isteğe bağlı)</small></label><input id="iletisimBilgi" placeholder="Size nasıl ulaşalım?"></div></div><label for="iletisimKonu">Konu <small>(isteğe bağlı)</small></label><input id="iletisimKonu" placeholder="Örn. Bir kitabın kararı hakkında"><label for="iletisimMesaj">Mesajınız</label><textarea id="iletisimMesaj" rows="6" required minlength="5" placeholder="Sorunuzu, düzeltmeyi veya önerinizi yazın"></textarea><button class="btn btn-ana" id="btnIletisim">Mesajı gönder</button><p id="iletisimMsg" class="mesaj" role="status"></p></form>
       </section>
     </main>
+
+    <div id="sistemHazirlik" class="sistem-hazirlik gizli" role="status" aria-live="polite">
+      <div class="sistem-hazirlik-kart">
+        <span class="sistem-hazirlik-isaret" aria-hidden="true"></span>
+        <h2 id="sistemHazirlikBaslik">Bilgiler hazırlanıyor…</h2>
+        <p id="sistemHazirlikMetin">Güncel raf ve kitap kayıtları getiriliyor. Ekran hazır olduğunda çalışmaya başlayabilirsiniz.</p>
+        <button type="button" id="btnSistemTekrar" class="btn btn-ana gizli">Yeniden dene</button>
+      </div>
+    </div>
   </div>
 
   <dialog id="kitapDetay" class="kitap-dialog"><button type="button" id="detayKapat" class="dialog-kapat" aria-label="Kapat">×</button><div id="detayIcerik"></div></dialog>
@@ -99,6 +112,6 @@
   <script src="./js/envanter-ag.js?v=20260909i"></script>
   <script src="./js/gonullu-config.js?v=20260909i"></script>
   <script src="./js/fotograf-goruntuleyici.js?v=20260909i"></script>
-  <script src="./js/koordinator-yeni.js?v=20260909i"></script>
+  <script src="./js/koordinator-yeni.js?v=20260910a"></script>
 </body>
 </html>

@@ -407,7 +407,7 @@
   .dip{text-align:center;color:var(--soluk);font-size:12px;margin:22px 12px 0}
 .anaGorevler{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}.anaGorevler .btn{margin:0;min-height:62px;font-size:17px;padding:12px}.anaGorevler .btn:last-child{background:#fff;color:var(--bordo);border:2px solid var(--bordo)}@media(max-width:380px){.anaGorevler{grid-template-columns:1fr}}
 </style>
-<link rel="stylesheet" href="./css/gonullu-yeni.css?v=20260909i">
+<link rel="stylesheet" href="./css/gonullu-yeni.css?v=20260910a">
 <link rel="stylesheet" href="./css/fotograf-goruntuleyici.css?v=20260909i">
 </head>
 <body>
@@ -417,6 +417,20 @@
     <a href="./kitap-envanteri.html"><span class="gonullu-isaret">TV</span><span><b>Tarih Vakfı</b><small>Kitap envanteri · gönüllü ekranı</small></span></a>
     <a class="yetkili-gecis" href="./koordinator.html">Yetkili girişi</a>
   </header>
+
+  <button type="button" id="gonulluSistemDurum" class="gonullu-sistem-durum gizli" disabled aria-live="polite">
+    <span class="gonullu-sistem-isaret" aria-hidden="true"></span>
+    <span id="gonulluSistemDurumMetin">Veriler hazırlanıyor — lütfen bekleyin</span>
+  </button>
+
+  <div id="gonulluSistemHazirlik" class="gonullu-sistem-hazirlik gizli" role="status" aria-live="polite">
+    <div class="gonullu-sistem-kart">
+      <span class="gonullu-hazirlik-isaret" aria-hidden="true"></span>
+      <h2 id="gonulluSistemBaslik">Bilgiler hazırlanıyor…</h2>
+      <p id="gonulluSistemMetin">Güncel raf ve sayım bilgileri getiriliyor. Ekran hazır olduğunda çalışmaya başlayabilirsiniz.</p>
+      <button type="button" id="btnGonulluTekrar" class="btn gizli">Yeniden dene</button>
+    </div>
+  </div>
 
   <div class="kuyruk" id="kurBar" style="background:#f1f7f2;border-color:#cfe4d5;color:#2e6440">
     <span id="kurMetin">Uygulama gibi kurabilirsiniz — telefonda daha hızlı açılır.</span>
@@ -796,8 +810,8 @@
   </section>
 </div>
 
-<script src="./js/envanter-ag.js?v=20260909i"></script>
-<script src="./js/gonullu-config.js?v=20260909i"></script>
+<script src="./js/envanter-ag.js?v=20260910a"></script>
+<script src="./js/gonullu-config.js?v=20260910a"></script>
 <script>
 /* Apps Script web uygulamasının adresi.
    js/gonullu-config.js içinde window.TV_ENVANTER_URL tanımlıysa oradan okunur. */
@@ -1143,6 +1157,75 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     else { b.innerHTML = b.dataset.eski || b.innerHTML; b.disabled = false; }
   }
 
+  var gonulluHazirlikNo = 0, gonulluHazirlikKapatma;
+  function gonulluEtkilesimi(acik) {
+    ['adim-raf', 'adim-kayit'].forEach(function (id) {
+      var alan = $(id);
+      alan.inert = !acik;
+      alan.setAttribute('aria-busy', acik ? 'false' : 'true');
+    });
+  }
+
+  function gonulluSistemDurumu(tur, kisa, baslik, aciklama) {
+    var durum = $('gonulluSistemDurum'), katman = $('gonulluSistemHazirlik');
+    durum.classList.remove('gizli', 'bekliyor', 'hazir', 'hata');
+    durum.classList.add(tur);
+    durum.disabled = tur !== 'hata';
+    $('gonulluSistemDurumMetin').textContent = kisa;
+    katman.classList.remove('bekliyor', 'hazir', 'hata');
+    katman.classList.add(tur);
+    $('gonulluSistemBaslik').textContent = baslik;
+    $('gonulluSistemMetin').textContent = aciklama;
+    $('btnGonulluTekrar').classList.toggle('gizli', tur !== 'hata');
+  }
+
+  function gonulluSistemYukleniyor() {
+    clearTimeout(gonulluHazirlikKapatma);
+    var context = { no:++gonulluHazirlikNo, baslangic:Date.now() };
+    $('gonulluSistemHazirlik').classList.remove('gizli');
+    gonulluEtkilesimi(false);
+    gonulluSistemDurumu('bekliyor', 'Veriler hazırlanıyor — lütfen bekleyin',
+      'Bilgiler hazırlanıyor…',
+      'Güncel raf ve sayım bilgileri getiriliyor. Ekran hazır olduğunda çalışmaya başlayabilirsiniz.');
+    return context;
+  }
+
+  function gonulluSistemHazir(context, cevrimdisi) {
+    var kalan = Math.max(0, 1600 - (Date.now() - context.baslangic));
+    return new Promise(function (tamam) { setTimeout(tamam, kalan); }).then(function () {
+      if (context.no !== gonulluHazirlikNo) return;
+      gonulluEtkilesimi(true);
+      if (cevrimdisi) {
+        gonulluSistemDurumu('hata', 'Çevrimdışı — kayıtlar telefonda saklanacak',
+          'Çevrimdışı çalışıyorsunuz',
+          'Kayıtlarınız telefonda saklanacak ve bağlantı gelince gönderilecek.');
+      } else {
+        gonulluSistemDurumu('hazir', 'Sistem hazır — çalışmaya başlayabilirsiniz',
+          'Sistem hazır', 'Güncel bilgiler alındı. Çalışmaya başlayabilirsiniz.');
+      }
+      gonulluHazirlikKapatma = setTimeout(function () {
+        if (context.no === gonulluHazirlikNo) $('gonulluSistemHazirlik').classList.add('gizli');
+      }, 950);
+    });
+  }
+
+  function gonulluSistemHatasi(context, e) {
+    if (context.no !== gonulluHazirlikNo) return;
+    gonulluEtkilesimi(false);
+    gonulluSistemDurumu('hata', 'Bağlantı kurulamadı — yeniden deneyin',
+      'Bilgiler alınamadı', agHataMetni(e,
+        'İnternet bağlantısı yok; raf planı alınamadı.',
+        'Kitap sunucusu geç yanıt verdi.') + ' Yeniden denemek için aşağıdaki düğmeye dokunun.');
+  }
+
+  function gonulluSistemSifirla() {
+    ++gonulluHazirlikNo;
+    clearTimeout(gonulluHazirlikKapatma);
+    $('gonulluSistemDurum').classList.add('gizli');
+    $('gonulluSistemHazirlik').classList.add('gizli');
+    gonulluEtkilesimi(true);
+  }
+
   function tekIstek(action, yuk, sure) {
     var govde = { action: action, sifre: D.sifre };
     for (var k in (yuk || {})) govde[k] = yuk[k];
@@ -1244,6 +1327,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     if (ad.length < 2) return goster($('msgGiris'), 'hata', 'Adınızı yazın.');
     if (!sifre) return goster($('msgGiris'), 'hata', 'Çalışma şifresini yazın.');
     D.ad = ad; D.sifre = sifre;
+    var hazirlik = gonulluSistemYukleniyor();
     mesgul($('btnGiris'), true, 'Kontrol ediliyor…');
     // Uykudaki sunucu 20 saniyeyi bulabiliyor; kullanıcı takıldığını sanmasın.
     var uyari = setTimeout(function () {
@@ -1270,6 +1354,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     function ekraniAc() {
       iceriGir(navigator.onLine === false);
       mesgul($('btnGiris'), false);
+      gonulluSistemHazir(hazirlik, navigator.onLine === false);
       api('sayac', { kaydeden: ad }, { sure:12000 }).then(function (r) {
         localStorage.setItem('tv_env_ad', ad);
         localStorage.setItem('tv_env_sifre', sifre);
@@ -1277,12 +1362,16 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         $('bugun').textContent = D.sayac;
       })['catch'](function (e) {
         if (!e.sifreHatasi) {
-          goster($('msgOner'), 'uyari', navigator.onLine === false
-            ? 'İnternet bağlantısı yok. Çalışma kayıtları telefonda saklanacak.'
-            : 'Canlı sayaç geç yanıt verdi. Raf seçip çalışmaya devam edebilirsiniz.');
+          /* Günlük sayaç çalışma için zorunlu değildir. Bağlantı varken geç
+             yanıt vermesi, yeşil "hazır" göstergesiyle çelişen bir uyarıya
+             dönüşmesin; yalnız gerçekten çevrimdışıysak bilgi ver. */
+          if (navigator.onLine === false) {
+            goster($('msgOner'), 'uyari', 'İnternet bağlantısı yok. Çalışma kayıtları telefonda saklanacak.');
+          }
           return;
         }
         localStorage.removeItem('tv_env_sifre');
+        gonulluSistemSifirla();
         $('adim-raf').classList.add('gizli');
         $('iletisimKart').classList.add('gizli');
         $('adim-giris').classList.remove('gizli');
@@ -1294,10 +1383,16 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     if (D.cfg) ekraniAc();
     else ayarlariYukle().then(ekraniAc)['catch'](function (e) {
       clearTimeout(uyari); mesgul($('btnGiris'), false);
+      gonulluSistemHatasi(hazirlik, e);
       goster($('msgGiris'), 'hata', agHataMetni(e,
         'İnternet bağlantısı yok; raf planı alınamadı.',
         'Kitap sunucusu geç yanıt verdi. Sayfayı yenileyip tekrar deneyin.'));
     });
+  });
+
+  $('btnGonulluTekrar').addEventListener('click', function () { $('btnGiris').click(); });
+  $('gonulluSistemDurum').addEventListener('click', function () {
+    if ($('gonulluSistemDurum').classList.contains('hata')) $('btnGiris').click();
   });
 
   /* ───────── yer kodu ─────────
@@ -2424,6 +2519,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     }
   });
   $('btnRafGeri').addEventListener('click', function () {
+    gonulluSistemSifirla();
     $('adim-raf').classList.add('gizli'); $('adim-giris').classList.remove('gizli');
     $('iletisimKart').classList.add('gizli');
   });
