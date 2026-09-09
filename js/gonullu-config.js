@@ -26,3 +26,41 @@ window.TV_APP_URL = "https://script.google.com/macros/s/AKfycbxKD1hzj0Qh6Oqm8Olo
  * sistemi bundan etkilenmez.
  */
 window.TV_ENVANTER_URL = "https://script.google.com/macros/s/AKfycbxCd0rKSe__Lp9ISe8A3Gh9Kq5ZShrzQIXVBayD5x2lUjQ0Cb36qghf74Fwk3W2u-t-/exec";
+
+/* Ekranların açılışta sunucudan beklemeden kullanacağı sabit kütüphane ayarları.
+ * Raf düzeni değişirse Apps Script'teki AYAR bölümüyle birlikte güncellenmelidir.
+ * Kitaplar, sayımlar ve kararlar burada tutulmaz; her zaman canlı tablodan gelir. */
+(function () {
+  var raflar = [];
+  for (var i = 1; i <= 60; i++) {
+    var n = i, ad = '';
+    while (n > 0) {
+      n--;
+      ad = String.fromCharCode(65 + (n % 26)) + ad;
+      n = Math.floor(n / 26);
+    }
+    raflar.push(ad);
+  }
+  window.TV_ENVANTER_CONFIG = {
+    ok: true,
+    org: 'Tarih Vakfı',
+    kategoriler: {
+      gidecek: { ad: 'Gidecek', renk: '#2e6440' },
+      belki: { ad: 'Gitse de olur', renk: '#a06a12' },
+      gitmeyecek: { ad: 'Gitmeyecek', renk: '#9c2233' },
+      belirsiz: { ad: 'Belirsiz', renk: '#2a5b86' },
+      diger: { ad: 'Diğer', renk: '#5a4a52', serbest: true }
+    },
+    durumlar: ['Sağlam', 'Yıpranmış', 'Küflü/böcekli'],
+    kurallar: [],
+    mekanlar: [
+      { kod: 'G', ad: 'Giriş Kat', rafSayisi: 53 },
+      { kod: 'U', ad: 'Üst Kat', rafBaslangic: 53, rafSayisi: 7 },
+      { kod: 'X', ad: 'Diğer', rafSayisi: 6 }
+    ],
+    siniflandirilmadi: 'Sınıflandırılmadı',
+    kutuKullan: false,
+    rafHarfleri: raflar,
+    siraSayisi: 6
+  };
+})();

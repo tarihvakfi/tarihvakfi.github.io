@@ -9,10 +9,11 @@
  *
  * Sayfayı güncellediğinizde SURUM numarasını artırın — eski kabuk temizlenir.
  */
-var SURUM = 'tv-envanter-v5';
+var SURUM = 'tv-envanter-v6';
 var KABUK = [
   './kitap-envanteri.html',
   './js/gonullu-config.js',
+  './js/envanter-ag.js',
   './envanter-manifest.json',
   './assets/envanter-192.png',
   './assets/envanter-512.png'

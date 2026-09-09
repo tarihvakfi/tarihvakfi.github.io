@@ -217,7 +217,8 @@
   <div id="buyukKapak" class="gizli"><img alt="Kapak büyük görünüm"></div>
 </div>
 
-<script src="./js/gonullu-config.js?v=20260823"></script>
+<script src="./js/envanter-ag.js?v=20260909d"></script>
+<script src="./js/gonullu-config.js?v=20260909d"></script>
 <script>
 var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPISTIRIN';
 
@@ -243,27 +244,15 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   function tekIstek(action, yuk, sure) {
     var govde = { action: action, sifre: D.sifre };
     for (var k in (yuk || {})) govde[k] = yuk[k];
-    var kes = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    var saat = setTimeout(function () { if (kes) kes.abort(); }, sure);
-    var bitir = function () { clearTimeout(saat); };
-    return fetch(ENVANTER_URL, {
-      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(govde), redirect: 'follow', signal: kes ? kes.signal : undefined
-    }).catch(function () { bitir(); throw new Error('AĞ'); })
-      .then(function (r) { bitir(); return r.text(); })
-      .then(function (m) {
-        var d;
-        try { d = JSON.parse(m); } catch (h) { throw new Error('Sunucudan beklenmeyen yanıt.'); }
-        if (!d.ok) throw new Error(d.error || 'Hata');
-        return d;
-      });
+    return window.TVEnvanterAg.request(ENVANTER_URL, govde, { timeout: sure });
   }
+
   function api(action, yuk) {
     if (window.parent !== window && window.parent.TVPanel && ['config','durum'].indexOf(action) >= 0) return window.parent.TVPanel.api(action, yuk);
     if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
       return Promise.reject(new Error('Sistem adresi tanımlanmamış (TV_ENVANTER_URL).'));
     }
-    var kalan = TEKRARLANABILIR.indexOf(action) >= 0 ? 2 : 0;
+    var kalan = 0;
     function dene(kalanDeneme, bekle) {
       return tekIstek(action, yuk, 30000)['catch'](function (e) {
         if (e.message !== 'AĞ' || kalanDeneme <= 0) throw e;
@@ -707,7 +696,20 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   });
 
   /* ───────── açılış ───────── */
-  if (window.parent !== window) document.body.classList.add('gomulu');
+  if (window.parent !== window) {
+    document.body.classList.add('gomulu');
+    document.documentElement.style.overflow = 'hidden';
+    var sonYukseklik = 0;
+    var yukseklikBildir = function () {
+      var h = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+      if (Math.abs(h - sonYukseklik) < 2) return;
+      sonYukseklik = h;
+      window.parent.postMessage({ tv: 'cerceveYukseklik', yukseklik: h }, location.origin);
+    };
+    if (typeof ResizeObserver !== 'undefined') new ResizeObserver(yukseklikBildir).observe(document.body);
+    window.addEventListener('load', yukseklikBildir);
+    window.addEventListener('resize', yukseklikBildir);
+  }
   var ad = localStorage.getItem('tv_env_ad'), sifre = localStorage.getItem('tv_env_koord_sifre');
   if (ad) $('ad').value = ad;
   if (sifre) $('sifre').value = sifre;

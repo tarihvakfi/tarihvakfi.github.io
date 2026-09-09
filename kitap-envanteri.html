@@ -788,7 +788,8 @@
   </section>
 </div>
 
-<script src="./js/gonullu-config.js?v=20260818"></script>
+<script src="./js/envanter-ag.js?v=20260909d"></script>
+<script src="./js/gonullu-config.js?v=20260909d"></script>
 <script>
 /* Apps Script web uygulamasının adresi.
    js/gonullu-config.js içinde window.TV_ENVANTER_URL tanımlıysa oradan okunur. */
@@ -1126,38 +1127,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   function tekIstek(action, yuk, sure) {
     var govde = { action: action, sifre: D.sifre };
     for (var k in (yuk || {})) govde[k] = yuk[k];
-
-    var kes = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    var saat = setTimeout(function () { if (kes) kes.abort(); }, sure);
-    var bitir = function () { clearTimeout(saat); };
-
-    return fetch(ENVANTER_URL, {
-      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(govde), redirect: 'follow',
-      signal: kes ? kes.signal : undefined
-    }).catch(function () { bitir(); agDurumu(false); throw new Error('AĞ'); })
-      .then(function (r) { bitir(); agDurumu(true); return r.text(); })
-      .then(function (m) {
-        var d;
-        try { d = JSON.parse(m); } catch (h) {
-          /* JSON yerine HTML geldiyse istek sunucuya ulaşıyor ama Apps Script yanıt
-             vermiyor demektir. En sık sebebi dağıtımın erişim ayarıdır: yeni
-             dağıtımlarda varsayılan "Yalnızca kendim"dir ve Google giriş sayfası döner. */
-          throw new Error(/^\s*</.test(m)
-            ? 'Sunucu JSON yerine web sayfası döndürdü. Apps Script dağıtımında ' +
-              '“Erişimi olan: Herkes” seçili mi? (Yeni dağıtımlarda varsayılan “Yalnızca kendim”dir.)'
-            : 'Sunucudan beklenmeyen yanıt.');
-        }
-        if (!d.ok) { var e = new Error(d.error || 'Hata'); e.sifreHatasi = d.sifreHatasi; throw e; }
-        return d;
-      });
+    return window.TVEnvanterAg.request(ENVANTER_URL, govde, { timeout: sure }).then(function(r){agDurumu(true);return r;}).catch(function(e){if(e.message==='AĞ')agDurumu(false);throw e;});
   }
 
-  /**
-   * secenek: { sure, deneme }
-   * Yalnızca ağ hatasında tekrar denenir — sunucunun verdiği hatada (şifre yanlış vb.)
-   * tekrar denemek anlamsız. Yazma istekleri hiç tekrarlanmaz.
-   */
   function api(action, yuk, secenek) {
     if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
       return Promise.reject(new Error('Sistem adresi tanımlanmamış. Koordinatöre bildirin.'));
@@ -1166,7 +1138,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var sure = secenek.sure ||
       (action === 'fotoEkle' ? ZAMAN_ASIMI_FOTO : (action === 'config' ? ZAMAN_ASIMI_AYAR : ZAMAN_ASIMI));
     var kalan = (secenek.deneme != null) ? secenek.deneme
-      : (TEKRARLANABILIR.indexOf(action) >= 0 ? 2 : 0);
+      : 0;
 
     function dene(kalanDeneme, bekle) {
       return tekIstek(action, yuk, sure)['catch'](function (e) {
@@ -1240,7 +1212,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     mesgul($('btnGiris'), true, 'Kontrol ediliyor…');
     // Uykudaki sunucu 20 saniyeyi bulabiliyor; kullanıcı takıldığını sanmasın.
     var uyari = setTimeout(function () {
-      $('btnGiris').innerHTML = '<span class="donen"></span>Sunucu uyanıyor, bekleyin…';
+      $('btnGiris').innerHTML = '<span class="donen"></span>Bağlantı kuruluyor…';
     }, 4000);
 
     function iceriGir(cevrimdisi) {
@@ -1257,12 +1229,12 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       }
     }
 
-    api('sayac', { kaydeden: ad }).then(function (r) {
+    Promise.all([api('sayac', { kaydeden: ad }), ayarlariYukle()]).then(function (sonuc) {
+      var r = sonuc[0];
       localStorage.setItem('tv_env_ad', ad);
       localStorage.setItem('tv_env_sifre', sifre);
       D.sayac = (r.benim != null) ? r.benim : (r.sayac ? r.sayac.benim : 0);
       // Açılışta ayarlar alınamamış olabilir: raf ekranına geçmeden bir daha denenir.
-      return ayarlariYukle();
     }).then(function () { iceriGir(false); })
       ['catch'](function (e) {
         /* Ağ yoksa ama bu şifreyle daha önce girilmişse ve ayarlar telefonda saklıysa

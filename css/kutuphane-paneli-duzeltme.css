@@ -1,0 +1,12 @@
+/* Karar ekranı içeriği kadar uzar; sayfada tek kaydırma çubuğu kalır. */
+.kararPanel iframe {
+  height: 700px;
+  overflow: hidden;
+}
+
+@media (max-width: 720px) {
+  .kararPanel iframe {
+    height: 700px;
+    min-height: 560px;
+  }
+}

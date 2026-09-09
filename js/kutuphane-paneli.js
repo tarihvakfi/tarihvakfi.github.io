@@ -8,20 +8,23 @@
   function esc(x) { return String(x == null ? '' : x).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
   function sayi(x) { return Number(x || 0).toLocaleString('tr-TR'); }
   function hata(el,e) { el.className='hata'; el.textContent=e.message || 'Bilgiler alınamadı. Yeniden deneyin.'; }
+  function giriseDon(e) {
+    if(!e || !e.sifreHatasi)return false;
+    D.sifre='';localStorage.removeItem('tv_env_koord_sifre');$('sifre').value='';$('uygulama').classList.add('gizli');$('giris').classList.remove('gizli');hata($('msgGiris'),e);$('sifre').focus();return true;
+  }
   function kopya(x) { return JSON.parse(JSON.stringify(x)); }
   function api(action, yuk, zorla) {
     var anahtar = action + ':' + JSON.stringify(yuk || {}), sakla = ['config','durum','siraHaritasi','katalog','rafFotograflari'].indexOf(action)>=0;
     var eski=cache.get(anahtar), sure=action==='config'?300000:60000, oturum=D.oturum, surum=cacheSurum;
     if(sakla && !zorla && eski && Date.now()-eski.t < sure) return Promise.resolve(kopya(eski.v));
     if(sakla && bekleyen.has(anahtar)) return bekleyen.get(anahtar).then(kopya);
-    var kes=new AbortController(), saat=setTimeout(function(){kes.abort();},30000);
-    var istek=fetch(window.TV_ENVANTER_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action:action,sifre:D.sifre},yuk||{})),signal:kes.signal})
-      .then(function(r){return r.json();}).then(function(r){
+    var istek=window.TVEnvanterAg.request(window.TV_ENVANTER_URL,Object.assign({action:action,sifre:D.sifre},yuk||{}),{timeout:25000})
+      .then(function(r){
         if(oturum!==D.oturum) throw new Error('Oturum değişti.');
         if(!r.ok) throw new Error(r.error || 'İşlem tamamlanamadı.');
         if(sakla && surum===cacheSurum) cache.set(anahtar,{t:Date.now(),v:kopya(r)}); return r;
-      }).catch(function(e){if(e.name==='AbortError'||e.message==='Failed to fetch') throw new Error('Sunucuya ulaşılamadı. Yeniden deneyin.');throw e;})
-      .finally(function(){clearTimeout(saat);if(oturum===D.oturum && surum===cacheSurum) bekleyen.delete(anahtar);});
+      }).catch(function(e){if(e.name==='AbortError'||e.message==='Failed to fetch'||e.message==='AĞ') throw new Error('Sunucuya ulaşılamadı. Yeniden deneyin.');throw e;})
+      .finally(function(){if(oturum===D.oturum && surum===cacheSurum) bekleyen.delete(anahtar);});
     if(sakla) bekleyen.set(anahtar,istek);
     return istek.then(kopya);
   }
@@ -84,7 +87,7 @@
   }
   function envanterYukle(zorla) {
     if(yukleniyor||!D.sifre)return Promise.resolve();yukleniyor=true;$('btnYenile').disabled=true;$('envanterMsg').textContent='Raf bilgileri yükleniyor…';$('envanterMsg').className='';
-    return Promise.all([api('siraHaritasi',{},zorla),api('config')]).then(function(r){D.raflar=r[0].siralar||[];D.cfg=r[1];D.zaman=Date.now();ozetCiz();secicileriCiz();$('envanterMsg').textContent='';}).catch(function(e){hata($('envanterMsg'),e);}).finally(function(){yukleniyor=false;$('btnYenile').disabled=false;});
+    return Promise.all([api('siraHaritasi',{},zorla),api('config')]).then(function(r){D.raflar=r[0].siralar||[];D.cfg=r[1];D.zaman=Date.now();ozetCiz();secicileriCiz();$('envanterMsg').textContent='';}).catch(function(e){if(!giriseDon(e))hata($('envanterMsg'),e);}).finally(function(){yukleniyor=false;$('btnYenile').disabled=false;});
   }
   function panelSec(ad) {
     D.panel=ad;document.querySelectorAll('main > .panel').forEach(function(p){p.classList.toggle('gizli',p.dataset.ad!==ad);});
@@ -92,8 +95,8 @@
     if(ad==='karar'){var f=$('kararCerceve');if(!f.getAttribute('src'))f.src=f.dataset.src;else f.contentWindow.postMessage({tv:'sekme'},location.origin);}
     if(ad==='envanter'&&Date.now()-D.zaman>60000)envanterYukle();
   }
-  $('girisForm').addEventListener('submit',function(e){e.preventDefault();D.ad=$('ad').value.trim();D.sifre=$('sifre').value.trim();if(D.ad.length<2)return;D.oturum++;cacheSurum++;cache.clear();bekleyen.clear();$('btnGiris').disabled=true;$('btnGiris').textContent='Raf bilgileri alınıyor…';$('msgGiris').textContent='';
-    Promise.all([api('siraHaritasi'),api('config')]).then(function(){localStorage.setItem('tv_env_ad',D.ad);localStorage.setItem('tv_env_koord_sifre',D.sifre);$('kimAd').textContent=D.ad;$('giris').classList.add('gizli');$('uygulama').classList.remove('gizli');panelSec('envanter');}).catch(function(e){hata($('msgGiris'),e);}).finally(function(){$('btnGiris').disabled=false;$('btnGiris').textContent='Giriş yap';});
+  $('girisForm').addEventListener('submit',function(e){e.preventDefault();D.ad=$('ad').value.trim();D.sifre=$('sifre').value.trim();if(D.ad.length<2)return;D.oturum++;cacheSurum++;cache.clear();bekleyen.clear();$('btnGiris').disabled=true;$('btnGiris').textContent='Giriş yapılıyor…';$('msgGiris').textContent='';
+    localStorage.setItem('tv_env_ad',D.ad);localStorage.setItem('tv_env_koord_sifre',D.sifre);$('kimAd').textContent=D.ad;$('giris').classList.add('gizli');$('uygulama').classList.remove('gizli');panelSec('envanter');$('btnGiris').disabled=false;$('btnGiris').textContent='Giriş yap';
   });
   $('btnCikis').addEventListener('click',function(){D.oturum++;D.islem++;clearTimeout(yenileSaat);D.sifre='';D.zaman=0;cacheSurum++;cache.clear();bekleyen.clear();localStorage.removeItem('tv_env_koord_sifre');$('kararCerceve').removeAttribute('src');$('sifre').value='';$('giris').classList.remove('gizli');$('uygulama').classList.add('gizli');$('kitapDetay').close();});
   document.querySelectorAll('[data-hedef]').forEach(function(b){b.addEventListener('click',function(){panelSec(b.dataset.hedef);});});
@@ -106,9 +109,19 @@
   $('btnRafFoto').addEventListener('click',function(){var kod=D.secili,p=parcala(kod),r=D.raflar.find(function(x){return x.sira===kod;});if(!$('rafFotolar').classList.contains('gizli')){$('rafFotolar').classList.add('gizli');return;}$('btnRafFoto').disabled=true;
     api('rafFotograflari',{mekan:p.kat,raf:p.kitaplik,sira:p.sira}).then(function(v){if(kod!==D.secili)return;var src=(v.fotograflar||[]).map(function(f){return foto(f.id||f.fotoId,f.url||f.foto);}).filter(Boolean);if(!src.length&&r.sayimFoto)src.push(foto('',r.sayimFoto));$('rafFotolar').innerHTML=src.length?src.map(function(s){return '<a href="'+esc(s)+'" target="_blank" rel="noopener"><img src="'+esc(s)+'" alt="Raf fotoğrafı"></a>';}).join(''):'<p>Bu rafın fotoğrafı henüz eklenmemiş.</p>';$('rafFotolar').classList.remove('gizli');}).catch(function(e){if(kod===D.secili)hata($('kitapMsg'),e);}).finally(function(){if(kod===D.secili)$('btnRafFoto').disabled=false;});
   });
-  window.addEventListener('message',function(e){if(e.origin!==location.origin||e.source!==$('kararCerceve').contentWindow||!e.data||e.data.tv!=='kararDegisti')return;cacheSurum++;cache.clear();bekleyen.clear();D.zaman=0;clearTimeout(yenileSaat);if(D.panel==='envanter')yenileSaat=setTimeout(function(){envanterYukle(true);},1200);});
+  window.addEventListener('message',function(e){
+    if(e.origin!==location.origin||e.source!==$('kararCerceve').contentWindow||!e.data)return;
+    if(e.data.tv==='cerceveYukseklik'){
+      var h=Math.max(560,Math.min(30000,Number(e.data.yukseklik)||0));
+      if(h)$('kararCerceve').style.height=h+'px';
+      return;
+    }
+    if(e.data.tv!=='kararDegisti')return;
+    cacheSurum++;cache.clear();bekleyen.clear();D.zaman=0;clearTimeout(yenileSaat);if(D.panel==='envanter')yenileSaat=setTimeout(function(){envanterYukle(true);},1200);
+  });
   document.addEventListener('visibilitychange',function(){if(!document.hidden&&D.panel==='envanter'&&Date.now()-D.zaman>60000)envanterYukle();});
   $('btnKoordIletisim').addEventListener('click',function(){var m=$('koordIletisimMsg'),metin=$('koordIletisimMesaj').value.trim();if(metin.length<5){m.textContent='Lütfen mesajınızı yazın.';return;}var b=$('btnKoordIletisim');b.disabled=true;b.textContent='Gönderiliyor…';api('iletisimGonder',{sayfa:'koordinator',tur:$('koordIletisimTur').value,ad:D.ad,iletisim:$('koordIletisimBilgi').value.trim(),konu:$('koordIletisimKonu').value.trim(),mesaj:metin,baglam:D.secili}).then(function(r){m.className='msg iyi';m.textContent=r.mesaj||'Mesajınız alındı. Teşekkür ederiz.';$('koordIletisimMesaj').value='';}).catch(function(e){hata(m,e);}).finally(function(){b.disabled=false;b.textContent='Mesajı gönder';});});
   $('ad').value=localStorage.getItem('tv_env_ad')||'';
   $('sifre').value=localStorage.getItem('tv_env_koord_sifre')||'';
+  if (/[?&]geri=1/.test(location.search) && $('ad').value && $('sifre').value) $('girisForm').requestSubmit();
 })();

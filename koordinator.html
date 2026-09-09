@@ -4,7 +4,8 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex"><title>Kütüphane · Tarih Vakfı</title>
 <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="./css/kutuphane-paneli.css?v=20260909c">
+<link rel="stylesheet" href="./css/kutuphane-paneli.css?v=20260909d">
+<link rel="stylesheet" href="./css/kutuphane-paneli-duzeltme.css?v=20260909d">
 </head>
 <body>
 <section id="giris" class="giris"><form id="girisForm" class="girisKutu">
@@ -34,7 +35,7 @@
 <div class="sayfalama gizli" id="kitapSayfalama"><button id="kitapOnceki">Önceki</button><span id="kitapAralik"></span><button id="kitapSonraki">Sonraki</button></div>
 </section></div>
 </section>
-<section class="panel kararPanel gizli" data-ad="karar"><iframe id="kararCerceve" title="Kitap Seçimi" data-src="./karar.html?oto=1&amp;s=20260909c"></iframe></section>
+<section class="panel kararPanel gizli" data-ad="karar"><iframe id="kararCerceve" title="Kitap Seçimi" scrolling="no" data-src="./karar.html?oto=1&amp;s=20260909d"></iframe></section>
   <section class="panel gizli" data-ad="iletisim" id="panelIletisim"><div class="iletisimSayfa">
     <div class="iletisimKart">
       <h2>İletişim</h2>
@@ -63,9 +64,10 @@
     </div>
   </div></section>
 
-<details class="ekip"><summary>Envanter ekibi için araçlar</summary><p>Kitap bilgilerindeki eksikleri kontrol etmek veya kayıt düzeltmek için:</p><a href="./kunye-onay.html?oto=1">Kitap bilgilerini kontrol et</a><a href="./envanter-katalog.html?oto=1">Kayıt ara ve düzelt</a><a href="./envanter-durum.html?oto=1">Ayrıntılı sayım takibi</a></details>
+<details class="ekip"><summary>Koordinatörler için ayrıntılı işlemler</summary><p>Bu ekranlar yalnızca eksik veya hatalı bir kayıtla karşılaşıldığında kullanılır:</p><a href="./kunye-onay.html?oto=1" target="_blank" rel="noopener">Fotoğraftan kitap bilgisini kontrol et</a><a href="./envanter-katalog.html?oto=1" target="_blank" rel="noopener">Kaydı bul ve düzelt</a><a href="./envanter-durum.html?oto=1" target="_blank" rel="noopener">Sayım uyuşmazlıklarını incele</a></details>
 </main></div>
 <dialog id="kitapDetay"><button id="detayKapat" class="kapat">Kapat</button><div id="detayIcerik"></div></dialog>
-<script src="./js/gonullu-config.js?v=20260822"></script>
-<script src="./js/kutuphane-paneli.js?v=20260909c"></script>
+<script src="./js/envanter-ag.js?v=20260909d"></script>
+<script src="./js/gonullu-config.js?v=20260909d"></script>
+<script src="./js/kutuphane-paneli.js?v=20260909d"></script>
 </body></html>

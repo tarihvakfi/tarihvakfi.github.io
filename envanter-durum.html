@@ -375,6 +375,8 @@
 </style>
 </head>
 <body>
+<div id="oturumAciliyor" role="status" class="gizli" style="padding:24px;text-align:center">Kitap bilgileri alınıyor…</div>
+<a class="paneleDon" href="./koordinator.html?geri=1" style="display:block;padding:12px 18px;color:#601040">← Kütüphane ekranına dön</a>
 
 <div class="ust gizli" id="ust">
   <h1>Envanter Durumu</h1>
@@ -454,7 +456,8 @@
   </section>
 </div>
 
-<script src="./js/gonullu-config.js?v=20260909b"></script>
+<script src="./js/envanter-ag.js?v=20260909d"></script>
+<script src="./js/gonullu-config.js?v=20260909d"></script>
 <script>
 var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPISTIRIN';
 
@@ -484,35 +487,14 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   function tekIstek(action, yuk, sure) {
     var govde = { action: action, sifre: D.sifre };
     for (var k in (yuk || {})) govde[k] = yuk[k];
-    var kes = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    var saat = setTimeout(function () { if (kes) kes.abort(); }, sure);
-    var bitir = function () { clearTimeout(saat); };
-    return fetch(ENVANTER_URL, {
-      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(govde), redirect: 'follow', signal: kes ? kes.signal : undefined
-    }).catch(function () { bitir(); throw new Error('AĞ'); })
-      .then(function (r) { bitir(); return r.text(); })
-      .then(function (m) {
-        var d;
-        try { d = JSON.parse(m); } catch (h) {
-          /* JSON yerine HTML geldiyse istek sunucuya ulaşıyor ama Apps Script yanıt
-             vermiyor demektir. En sık sebebi dağıtımın erişim ayarıdır: yeni
-             dağıtımlarda varsayılan "Yalnızca kendim"dir ve Google giriş sayfası döner. */
-          throw new Error(/^\s*</.test(m)
-            ? 'Sunucu JSON yerine web sayfası döndürdü. Apps Script dağıtımında ' +
-              '“Erişimi olan: Herkes” seçili mi? (Yeni dağıtımlarda varsayılan “Yalnızca kendim”dir.)'
-            : 'Sunucudan beklenmeyen yanıt.');
-        }
-        if (!d.ok) throw new Error(d.error || 'Hata');
-        return d;
-      });
+    return window.TVEnvanterAg.request(ENVANTER_URL, govde, { timeout: sure });
   }
 
   function api(action, yuk) {
     if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
       return Promise.reject(new Error('Sistem adresi tanımlanmamış (TV_ENVANTER_URL).'));
     }
-    var kalan = TEKRARLANABILIR.indexOf(action) >= 0 ? 2 : 0;
+    var kalan = 0;
     function dene(kalanDeneme, bekle) {
       return tekIstek(action, yuk, 30000)['catch'](function (e) {
         if (e.message !== 'AĞ' || kalanDeneme <= 0) throw e;
@@ -535,11 +517,13 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     yukle().then(function () {
       localStorage.setItem('tv_env_ad', ad);
       localStorage.setItem('tv_env_koord_sifre', sifre);
+      $('oturumAciliyor').classList.add('gizli');
       gizle($('msgGiris'));
       $('adim-giris').classList.add('gizli');
       $('adim-pano').classList.remove('gizli');
       $('ust').classList.remove('gizli');
     })['catch'](function (e) {
+      $('oturumAciliyor').classList.add('gizli');
       if (/[?&]oto=1/.test(location.search)) $('adim-giris').classList.remove('gizli');
       goster($('msgGiris'), 'hata', agHata(e));
     }).then(function () { mesgul($('btnGiris'), false); });
@@ -1566,6 +1550,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   /* Koordinatör panelinin sekmesinde açıldıysak (?oto=1) girişi bekletme:
      panel şifreyi zaten doğruladı, ikinci kez sordurma. */
   if (ad && sifre && /[?&]oto=1/.test(location.search)) {
+    $('oturumAciliyor').classList.remove('gizli');
     $('adim-giris').classList.add('gizli');
     setTimeout(function () { $('btnGiris').click(); }, 10);
   }
