@@ -12,6 +12,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   const errors = [];
   const calls = [];
   let shelfSuggestionAttempts = 0;
+  let shelfReleaseAttempts = 0;
   page.on('pageerror', error => errors.push(error.message));
 
   const categories = {
@@ -44,6 +45,10 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
       await route.abort('failed');
       return;
     }
+    if (body.action === 'siraBirak' && ++shelfReleaseAttempts === 1) {
+      await route.abort('failed');
+      return;
+    }
     let result;
     if (body.action !== 'config' && body.sifre !== 'test-only') {
       result = { ok: false, sifreHatasi: true, error: 'Şifre hatalı.' };
@@ -57,6 +62,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
       case 'sayac': await new Promise(resolve => setTimeout(resolve, 1500)); result = { ok:true, benim:0 }; break;
       case 'siraOzeti': result = { ok:false, error:'Raf servisi geçici olarak yanıt vermedi.' }; break;
       case 'siraOner': result = { ok:true, anahtar:'G-A01', tur:'sizin', zatenSizde:true, kalanBos:0, yarimKalan:0 }; break;
+      case 'siraBirak': result = { ok:true, birakilan:['G-A01'] }; break;
       case 'siraHaritasi':
         result = { ok:false, error:'Raf servisi geçici olarak yanıt vermedi.' };
         break;
@@ -196,6 +202,9 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await page.getByRole('button', { name:'Çalışacağım rafı sistem seçsin' }).click();
   await page.getByText('zaten sizin üzerinizde.', { exact:false }).waitFor();
   assert.equal(shelfSuggestionAttempts, 2, 'Raf önerisi ilk ağ hatasından sonra güvenli biçimde tekrarlanmadı');
+  await page.getByRole('button', { name:'Üzerimdeki sıraları bırak' }).click();
+  await page.getByText('G-A01 bırakıldı.', { exact:false }).waitFor();
+  assert.equal(shelfReleaseAttempts, 2, 'Raf bırakma ilk ağ hatasından sonra güvenli biçimde tekrarlanmadı');
   await page.getByRole('button', { name:'Rafların durumunu gör' }).click();
   await page.locator('#haritaPanel:not(.gizli)').waitFor();
   await page.getByText('Raf servisi geçici olarak yanıt vermedi.', { exact:true }).waitFor();

@@ -833,18 +833,27 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     if (e.target.id !== 'btnSiraBirak') return;
     var b = e.target;
     b.disabled = true; b.textContent = 'Bırakılıyor…';
-    api('siraBirak', { kaydeden: D.ad }).then(function (r) {
+    var beklemeMesaji = setTimeout(function () {
+      if (b.isConnected && b.disabled) b.textContent = 'Sunucu yanıtı bekleniyor…';
+    }, 5000);
+    /* Bırakma işlemi yalnız bu kişinin rezervasyon alanını temizler. Aynı
+       istek ikinci kez gelirse hiçbir ek değişiklik yapmadan boş liste döner;
+       bu yüzden ilk yanıt kaybolduğunda bir otomatik tekrar güvenlidir. */
+    api('siraBirak', { kaydeden: D.ad }, { sure:15000, deneme:1 }).then(function (r) {
       var adlar = (r.birakilan || []).join(', ');
       goster($('msgOner'), 'iyi', (r.birakilan && r.birakilan.length
         ? '<b>' + esc(adlar) + '</b> bırakıldı. Kayıtlarınız duruyor; ' +
           'artık <b>Bugünkü görevimi al</b> ile yeni sıra alabilirsiniz.'
-        : 'Üzerinizde sıra görünmüyor.'));
+        : 'Üzerinizde sıra görünmüyor; bırakma işlemi tamamlandı. Kayıtlarınız duruyor.'));
       rafOzetYenile();
     })['catch'](function (h) {
       b.disabled = false; b.textContent = 'Üzerimdeki sıraları bırak';
       goster($('msgOner'), 'hata', h.message === 'AĞ'
-        ? 'Bağlantı yok — bırakma işlemi sunucuya ulaşamadı.' : h.message);
-    });
+        ? (navigator.onLine === false
+            ? 'İnternet bağlantısı yok. Bağlantı gelince tekrar deneyin.'
+            : 'Kitap sunucusu iki denemede de yanıt vermedi. Biraz sonra tekrar deneyin.')
+        : h.message);
+    }).then(function () { clearTimeout(beklemeMesaji); });
   });
   var AYAR_DEPO = 'tv_env_ayarlar';     // son başarılı ayarlar telefonda saklanır
 
