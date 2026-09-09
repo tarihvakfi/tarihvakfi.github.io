@@ -407,8 +407,8 @@
   .dip{text-align:center;color:var(--soluk);font-size:12px;margin:22px 12px 0}
 .anaGorevler{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}.anaGorevler .btn{margin:0;min-height:62px;font-size:17px;padding:12px}.anaGorevler .btn:last-child{background:#fff;color:var(--bordo);border:2px solid var(--bordo)}@media(max-width:380px){.anaGorevler{grid-template-columns:1fr}}
 </style>
-<link rel="stylesheet" href="./css/gonullu-yeni.css?v=20260909f">
-<link rel="stylesheet" href="./css/fotograf-goruntuleyici.css?v=20260909f">
+<link rel="stylesheet" href="./css/gonullu-yeni.css?v=20260909i">
+<link rel="stylesheet" href="./css/fotograf-goruntuleyici.css?v=20260909i">
 </head>
 <body>
 <div class="sayfa">
@@ -769,7 +769,8 @@
     <details>
       <summary>Soru / düzeltme / öneri gönder</summary>
       <p class="iletisimMini">Bir kayıtla ilgili hata gördüyseniz, sistem takıldıysa
-        ya da öneriniz varsa buradan yazın. Mesajınız koordinatöre e-posta olarak gider.</p>
+        ya da öneriniz varsa buradan yazın. Mesajınız <b>arif.solmaz@gmail.com</b>
+        adresine e-posta olarak gider.</p>
       <div class="iletisimForm">
         <label for="iletisimTur">Konu türü</label>
         <select id="iletisimTur">
@@ -795,8 +796,8 @@
   </section>
 </div>
 
-<script src="./js/envanter-ag.js?v=20260909h"></script>
-<script src="./js/gonullu-config.js?v=20260909f"></script>
+<script src="./js/envanter-ag.js?v=20260909i"></script>
+<script src="./js/gonullu-config.js?v=20260909i"></script>
 <script>
 /* Apps Script web uygulamasının adresi.
    js/gonullu-config.js içinde window.TV_ENVANTER_URL tanımlıysa oradan okunur. */
@@ -1216,9 +1217,14 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       mesaj: mesajMetni,
       baglam: iletisimBaglami()
     }, { deneme: 0 }).then(function (r) {
-      $('iletisimKonu').value = '';
-      $('iletisimMesaj').value = '';
-      goster(m, 'iyi', esc(r.mesaj || 'Mesajınız alındı. Teşekkür ederiz.'));
+      if (r.mailGonderildi !== false) {
+        $('iletisimKonu').value = '';
+        $('iletisimMesaj').value = '';
+      }
+      goster(m, r.mailGonderildi === false ? 'hata' : 'iyi',
+        esc(r.mailGonderildi === false
+          ? (r.mesaj || 'Mesaj tabloya kaydedildi ancak e-posta gönderilemedi.')
+          : 'Mesajınız arif.solmaz@gmail.com adresine e-posta olarak iletildi. Teşekkür ederiz.'));
     })['catch'](function (e) {
       goster(m, 'hata', agHataMetni(e,
         'İnternet bağlantısı yok; mesaj gönderilmedi. Bağlantı gelince tekrar deneyin.',
@@ -2593,8 +2599,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     istek.then(function (r) {
       var no = duzenleme || r.no;
       var etiket = kayit.baslik || 'künye fotoğraftan tamamlanacak';
+      var basariMesaji;
       if (duzenleme) {
-        goster($('msgKayit'), 'iyi', '#' + duzenleme + ' güncellendi.');
+        basariMesaji = '#' + duzenleme + ' güncellendi.';
       } else {
         // Sunucu numarayı değiştirdiyse (aynı sırada başka biri de çalışıyorsa) uy.
         var kod = r.yerKodu || benimKod;
@@ -2605,12 +2612,15 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         D.sayac++;
         $('ustSayac').textContent = D.sayac;
         var kacFoto = (foto ? 1 : 0) + (kapak ? 1 : 0);
-        goster($('msgKayit'), 'iyi', '<b>' + esc(kod) + '</b> kaydedildi — ' + esc(etiket) +
+        basariMesaji = '<b>' + esc(kod) + '</b> kaydedildi — ' + esc(etiket) +
           (r.duzeltildi ? ' <span style="opacity:.8">(numara sunucuda düzeltildi)</span>' : '') +
           (kacFoto ? ' <span style="opacity:.8">· ' + kacFoto +
-            ' fotoğraf gönderiliyor…</span>' : ''));
+            ' fotoğraf gönderiliyor…</span>' : '');
       }
       formTemizle();
+      /* Form temizlenirken eski uyarı gizlenir; başarıyı bundan sonra göster
+         ki gönüllü kaydın gerçekten gittiğini görebilsin. */
+      goster($('msgKayit'), 'iyi', basariMesaji);
       sonKayitlariYukle();
       [[foto, 'kunye'], [kapak, 'kapak']].forEach(function (ç) {
         if (!ç[0]) return;
@@ -2629,9 +2639,10 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         ustuYenile();
         D.sayac++;
         $('ustSayac').textContent = D.sayac;
-        goster($('msgKayit'), 'uyari', '<b>' + esc(benimKod) + '</b> telefona kaydedildi' +
-          ((foto || kapak) ? ' (fotoğraflarıyla)' : '') + ' — bağlantı gelince gönderilecek.');
+        var cevrimdisiMesaj = '<b>' + esc(benimKod) + '</b> telefona kaydedildi' +
+          ((foto || kapak) ? ' (fotoğraflarıyla)' : '') + ' — bağlantı gelince gönderilecek.';
         formTemizle();
+        goster($('msgKayit'), 'uyari', cevrimdisiMesaj);
       } else {
         goster($('msgKayit'), 'hata', agHataMetni(e,
           'İnternet bağlantısı yok; düzeltme gönderilmedi.',
@@ -3117,6 +3128,6 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   });
 })();
 </script>
-<script src="./js/fotograf-goruntuleyici.js?v=20260909h"></script>
+<script src="./js/fotograf-goruntuleyici.js?v=20260909i"></script>
 </body>
 </html>

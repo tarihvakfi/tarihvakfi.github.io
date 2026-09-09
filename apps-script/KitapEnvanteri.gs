@@ -1465,6 +1465,16 @@ var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayGruplari', 'onayla', 'topluOna
                              'kararBekleyen', 'kararVer', 'kararGeriAl', 'kunyeErtele',
                              'katalog', 'kutular', 'durum', 'siraHaritasi', 'kitapIste'];
 
+/* Şifreleri herkese açık kaynak koduna yazmak yerine Apps Script'in gizli
+   proje özelliklerinde tutarız. Eski kurulumlar için AYAR değeri yedektir. */
+function gizliAyar_(ad, varsayilan) {
+  try {
+    var deger = PropertiesService.getScriptProperties().getProperty(ad);
+    if (String(deger || '').trim()) return String(deger).trim();
+  } catch (h) {}
+  return String(varsayilan || '').trim();
+}
+
 function islet_(istek) {
   try {
     if (istek.action === 'config') return cikti_(ayarlar_());
@@ -1473,8 +1483,8 @@ function islet_(istek) {
        kaçan tek bir boşluk, kimsenin göremeyeceği bir kilit yaratıyordu:
        koordinatör girebiliyor, gönüllüler giremiyordu. */
     var sifre = String(istek.sifre || '').trim();
-    var calismaSifresi = String(AYAR.CALISMA_SIFRESI || '').trim();
-    var koordinatorSifresi = String(AYAR.KOORDINATOR_SIFRESI || '').trim();
+    var calismaSifresi = gizliAyar_('CALISMA_SIFRESI', AYAR.CALISMA_SIFRESI);
+    var koordinatorSifresi = gizliAyar_('KOORDINATOR_SIFRESI', AYAR.KOORDINATOR_SIFRESI);
 
     if (KOORDINATOR_EYLEMLERI.indexOf(istek.action) >= 0 && koordinatorSifresi) {
       // Onay ekranı ve katalog ayrı şifre ister; çalışma şifresi buraya yetmez.
@@ -1588,6 +1598,24 @@ function iletisimEpostaAdresi_() {
   return String(AYAR.ILETISIM_EPOSTA || '').trim();
 }
 
+/* Proje sahibinin e-posta yetkisini ilk dağıtımdan sonra bir kez onaylaması
+   için düzenleyiciden çalıştırılır. E-posta göndermez; günlük kota ile gizli
+   şifre ayarlarının tanımlı olup olmadığını, değerleri göstermeden doğrular. */
+function epostaYetkisiniKontrolEt() {
+  var ozellikler = PropertiesService.getScriptProperties();
+  var calisma = String(ozellikler.getProperty('CALISMA_SIFRESI') || '');
+  var koordinator = String(ozellikler.getProperty('KOORDINATOR_SIFRESI') || '');
+  var sonuc = {
+    kota: MailApp.getRemainingDailyQuota(),
+    calismaSifresiTanimli: !!calisma,
+    calismaSifresiUzunlugu: calisma.length,
+    koordinatorSifresiTanimli: !!koordinator,
+    koordinatorSifresiUzunlugu: koordinator.length
+  };
+  console.log(JSON.stringify(sonuc));
+  return sonuc;
+}
+
 function iletisimGonder_(g) {
   var tur = iletisimTuru_(g.tur);
   var veri = {
@@ -1657,8 +1685,9 @@ function iletisimGonder_(g) {
     ok: true,
     mailGonderildi: mailGonderildi,
     mesaj: mailGonderildi
-      ? 'Mesajınız alındı. Teşekkür ederiz.'
-      : 'Mesajınız alındı ve tabloya kaydedildi. E-posta için koordinatöre bilgi verildi.'
+      ? 'Mesajınız alındı ve ' + alici + ' adresine e-posta olarak iletildi. Teşekkür ederiz.'
+      : 'Mesajınız tabloya kaydedildi ancak ' + (alici || 'tanımlı alıcı') +
+        ' adresine e-posta gönderilemedi. Lütfen koordinatöre bildirin.'
   };
 }
 

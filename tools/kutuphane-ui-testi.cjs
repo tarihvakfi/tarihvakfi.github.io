@@ -14,6 +14,8 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   let shelfSuggestionAttempts = 0;
   let shelfReleaseAttempts = 0;
   let shelfSummaryAttempts = 0;
+  let countRecord = null;
+  let nextBookNo = 36;
   page.on('pageerror', error => errors.push(error.message));
 
   const categories = {
@@ -41,7 +43,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
     const request = route.request();
     const url = new URL(request.url());
     const body = request.method() === 'GET' ? Object.fromEntries(url.searchParams) : (request.postDataJSON() || {});
-    calls.push({ action: body.action, method: request.method(), fresh: url.searchParams.has('tv_req') });
+    calls.push({ action: body.action, method: request.method(), fresh: url.searchParams.has('tv_req'), sira:body.sira || '' });
     if (body.action === 'siraOner' && ++shelfSuggestionAttempts === 1) {
       await route.abort('failed');
       return;
@@ -72,8 +74,13 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
         break;
       case 'siraOner': result = { ok:true, anahtar:'G-A01', tur:'sizin', zatenSizde:true, kalanBos:0, yarimKalan:0 }; break;
       case 'siraBirak': result = { ok:true, birakilan:['G-A01'] }; break;
+      case 'siraSec': result = { ok:true, anahtar:'G-A01' }; break;
       case 'siraHaritasi':
         result = { ok:false, error:'Raf servisi geçici olarak yanıt vermedi.' };
+        break;
+      case 'rafDurum':
+        result = { ok:true, anahtar:'G-A01', durum:'devam', sonNo:35, adet:35, cilt:35,
+          onSayim:countRecord && countRecord.toplam, sayim:countRecord };
         break;
       case 'katalog': {
         const list = books.filter(book =>
@@ -103,7 +110,50 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
         break;
       }
       case 'rafFotograflari': result = { ok:true, fotograflar:[{id:photoId,kim:'Deneme',tarih:'9.09.2026'}] }; break;
-      case 'sayimBilgisi': result = { ok:true, sayim:null }; break;
+      case 'sayimBilgisi': result = { ok:true, sayim:countRecord }; break;
+      case 'sayimKaydet': {
+        const total = Number(body.on || body.adet || 0);
+        countRecord = { durum:'bekliyor', toplam:total, sayan:body.sayan, sayimTarihi:'9.09.2026 22:00', duzen:body.duzen || 'tek' };
+        result = { ok:true, anahtar:'G-A01', adet:total, toplam:total, duzen:body.duzen || 'tek',
+          onSira:total, arkaSira:null, eksik:false, fotoUrl:body.foto ? 'https://drive.google.com/file/d/' + photoId + '/view' : '' };
+        break;
+      }
+      case 'sayimOnayla':
+        countRecord = Object.assign({}, countRecord, { durum:'onaylandi', onaylayan:body.onaylayan, onayTarihi:'9.09.2026 22:01' });
+        result = { ok:true, anahtar:'G-A01', adet:countRecord.toplam }; break;
+      case 'sayimGeriAl': {
+        const removed = countRecord && countRecord.toplam;
+        countRecord = null;
+        result = { ok:true, anahtar:'G-A01', geriAlinanSayi:removed, temizlendi:true, adet:null };
+        break;
+      }
+      case 'ekle': {
+        const record = Object.assign({ no:nextBookNo++, yer:'G-A01-' + String(nextBookNo - 1).padStart(3,'0'), kategori:'', kural:'', kaydeden:body.kayit.kaydeden }, body.kayit);
+        books.push(record); result = { ok:true, no:record.no, siraNo:record.no, yerKodu:record.yer }; break;
+      }
+      case 'guncelle': {
+        const record = books.find(book => book.no === Number(body.no));
+        Object.assign(record, body.kayit); result = { ok:true, no:record.no }; break;
+      }
+      case 'kayitBul': {
+        const record = books.find(book => book.yer === body.yer);
+        result = { ok:true, bulundu:!!record, kayit:record || null, silinmis:false }; break;
+      }
+      case 'sonKayitlar': result = { ok:true, kayitlar:books.slice(-6).reverse() }; break;
+      case 'istenenler': result = { ok:true, kayitlar:[] }; break;
+      case 'sil': {
+        const index = books.findIndex(book => book.no === Number(body.no));
+        if (index >= 0) books.splice(index,1);
+        result = { ok:true }; break;
+      }
+      case 'siraBitir': result = { ok:true, anahtar:'G-A01', raftaki:Number(body.raftaki), cikarilan:0,
+        kayitli:Number(body.raftaki), kayitSayisi:Number(body.raftaki), onSayim:countRecord && countRecord.toplam,
+        onSayimFark:countRecord ? Number(body.raftaki) - countRecord.toplam : null, fark:0 }; break;
+      case 'fotoEkle': result = { ok:true, url:'https://drive.google.com/file/d/' + photoId + '/view' }; break;
+      case 'iletisimGonder': result = body.mesaj && body.mesaj.includes('Yetki denemesi')
+        ? { ok:true, mailGonderildi:false, mesaj:'Mesaj tabloya kaydedildi ancak arif.solmaz@gmail.com adresine e-posta gönderilemedi.' }
+        : { ok:true, mailGonderildi:true, mesaj:'Mesajınız alındı ve arif.solmaz@gmail.com adresine e-posta olarak iletildi. Teşekkür ederiz.' };
+        break;
       default: result = { ok:true, kayitlar:[], siralar:[] };
     }
     await route.fulfill({ contentType:'application/json', body:JSON.stringify(result) });
@@ -153,6 +203,8 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await page.getByText('Raf sayımları ve kitap kayıtları gösteriliyor.', { exact:false }).waitFor();
   assert.ok(await page.locator('#rafSayaclari').getByText('35', { exact:true }).count() >= 1);
   assert.equal(shelfSummaryAttempts, 2, 'Raf özeti ilk ağ hatasından sonra güvenli biçimde tekrarlanmadı');
+  assert.equal(calls.filter(call => call.action === 'katalog' && call.sira === 'G-A01').length, 1,
+    'Raf özeti yüklenirken aynı raf için yeni katalog isteği başlatıldı');
   await page.getByRole('button', { name:'Raf fotoğrafları' }).click();
   await page.locator('#rafFotolar img').waitFor();
   const shelfPhoto = await page.locator('#rafFotolar img').evaluate(img => ({
@@ -191,9 +243,14 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await page.getByText('287 toplam kayıt', { exact:false }).waitFor();
   await page.getByText('94 kitap bilgisi/kontrol aşamasında', { exact:false }).waitFor();
   await page.locator('#btnIletisimUst').click();
+  await page.locator('#iletisimMesaj').fill('Yetki denemesi mesajıdır.');
+  await page.locator('#btnIletisim').click();
+  await page.getByText('Mesaj tabloya kaydedildi ancak arif.solmaz@gmail.com adresine e-posta gönderilemedi.', { exact:true }).waitFor();
+  assert.equal(await page.locator('#iletisimMesaj').inputValue(), 'Yetki denemesi mesajıdır.', 'E-posta başarısızken mesaj alanı temizlendi');
+  await page.waitForFunction(() => !document.getElementById('btnIletisim').disabled);
   await page.locator('#iletisimMesaj').fill('Deneme mesajıdır.');
   await page.locator('#btnIletisim').click();
-  await page.getByText('Mesajınız gönderildi. Teşekkür ederiz.', { exact:true }).waitFor();
+  await page.getByText('Mesajınız arif.solmaz@gmail.com adresine e-posta olarak iletildi. Teşekkür ederiz.', { exact:true }).waitFor();
   assert.equal(calls.findLast(call => call.action === 'iletisimGonder').method, 'POST');
   assert.equal(errors.length, 0, errors.join('\n'));
 
@@ -234,6 +291,30 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-gonullu-yeni-mobil.png', fullPage:true });
   assert.ok(await page.getByRole('button', { name:/1 · Rafı say/ }).isVisible());
   assert.ok(await page.getByRole('button', { name:/2 · Kitapları kaydet/ }).isVisible());
+
+  /* Sayımın tamamı: fotoğraf seç, kaydet, onayla ve iki adımlı geri al. */
+  await page.locator('#btnSayim').click();
+  await page.locator('#sayimPanel:not(.gizli)').waitFor();
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+XprqVwAAAABJRU5ErkJggg==','base64');
+  await page.locator('#sayimFotoGirdi').setInputFiles({ name:'raf.png', mimeType:'image/png', buffer:png });
+  await page.locator('#sayimFotoOn:not(.gizli)').waitFor();
+  await page.locator('#sayimFotoOn img').click();
+  await page.locator('.tv-foto-goruntuleyici.acik').waitFor();
+  await page.getByRole('button', { name:'Kapat', exact:true }).click();
+  await page.locator('#sayimAdet').fill('35');
+  await page.locator('#btnSayimKaydet').click();
+  await page.getByText(/sayımı kaydedildi:.*35 kitap/).waitFor();
+  await page.locator('#sayimMevcut [data-is="onay"]').click();
+  await page.getByText(/sayımı.*onaylandı.*35 kitap/).waitFor();
+  const undoCount = page.locator('#sayimMevcut [data-is="geri"]');
+  await undoCount.click();
+  await page.getByRole('button', { name:'Emin misiniz? Dokunun' }).click();
+  await page.getByText(/son işlem geri alındı.*yeniden.*sayılmamış/).waitFor();
+  assert.ok(calls.some(call => call.action === 'sayimKaydet'));
+  assert.ok(calls.some(call => call.action === 'sayimOnayla'));
+  assert.ok(calls.some(call => call.action === 'sayimGeriAl'));
+  await page.locator('#btnSayim').click();
+
   await page.getByText('Raf bulma ve çalışma durumu', { exact:true }).click();
   await page.getByRole('button', { name:'Çalışacağım rafı sistem seçsin' }).click();
   await page.getByText('zaten sizin üzerinizde.', { exact:false }).waitFor();
@@ -241,13 +322,40 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await page.getByRole('button', { name:'Üzerimdeki sıraları bırak' }).click();
   await page.getByText('G-A01 bırakıldı.', { exact:false }).waitFor();
   assert.equal(shelfReleaseAttempts, 2, 'Raf bırakma ilk ağ hatasından sonra güvenli biçimde tekrarlanmadı');
+
+  /* Elle raf seçme, kitap ekleme, bulup düzeltme, silme ve sırayı kapatma. */
+  await page.locator('#btnKendimSec').click();
+  await page.locator('#btnRaf').click();
+  await page.locator('#adim-kayit:not(.gizli)').waitFor();
+  await page.locator('#btnAyrinti').click();
+  await page.locator('#baslik').fill('Yeni Deneme Kitabı');
+  await page.locator('#btnKaydet').click();
+  await page.getByText(/G-A01-036.*kaydedildi/).waitFor();
+  await page.locator('#bulNo').fill('36');
+  await page.locator('#btnBul').click();
+  await page.locator('#duzenleUyari:not(.gizli)').waitFor();
+  await page.locator('#baslik').fill('Düzeltilmiş Deneme Kitabı');
+  await page.locator('#btnKaydet').click();
+  await page.getByText('#36 güncellendi.', { exact:true }).waitFor();
+  const addedCard = page.locator('#sonListe .kayit[data-no="36"]');
+  await addedCard.getByRole('button', { name:'Sil' }).click();
+  await addedCard.getByRole('button', { name:'Evet' }).click();
+  await page.getByText('#36 silindi.', { exact:true }).waitFor();
+  await page.locator('#btnRafDegis').click();
+  await page.locator('#raftaki').fill('35');
+  await page.locator('#btnSiraBitir').click();
+  await page.getByText(/bitti.*tutuyor/).waitFor();
+  for (const action of ['siraSec','ekle','kayitBul','guncelle','sil','siraBitir']) {
+    assert.ok(calls.some(call => call.action === action), action + ' akışı çağrılmadı');
+  }
+
   await page.getByRole('button', { name:'Rafların durumunu gör' }).click();
   await page.locator('#haritaPanel:not(.gizli)').waitFor();
   await page.getByText('Raf servisi geçici olarak yanıt vermedi.', { exact:true }).waitFor();
   await page.getByText('Soru / düzeltme / öneri gönder', { exact:true }).click();
   await page.locator('#iletisimMesaj').fill('Gönüllü deneme mesajıdır.');
   await page.locator('#btnIletisimGonder').click();
-  await page.getByText(/Mesajınız (alındı|gönderildi)/).waitFor();
+  await page.getByText('Mesajınız arif.solmaz@gmail.com adresine e-posta olarak iletildi. Teşekkür ederiz.', { exact:true }).waitFor();
   const volunteerWidth = await page.evaluate(() => ({ scroll:document.documentElement.scrollWidth, inner:window.innerWidth }));
   assert.ok(volunteerWidth.scroll <= volunteerWidth.inner + 1, 'Gönüllü sayfasında yatay taşma var: ' + JSON.stringify(volunteerWidth));
   assert.equal(errors.length, 0, errors.join('\n'));
@@ -263,6 +371,6 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
     assert.ok(!(await page.locator('body').innerText()).includes('Aradığınız sayfa bulunamadı'), legacyPage + ' 404 sayfasına düştü');
   }
 
-  console.log('PASS: koordinatör, gönüllü, bakım sayfaları, karar akışı, raflar, fotoğraf üst katmanı ve mobil/geniş ekran görünümü.');
+  console.log('PASS: giriş, karar/verilmiş karar/geri alma, raflar, sayım-kayıt-onay-geri alma, raf seçme/bırakma, kitap ekleme-bulma-düzeltme-silme, sıra kapatma, iletişim, fotoğraf üst katmanı, bakım sayfaları ve mobil/geniş ekran görünümü.');
   await browser.close();
 })().catch(error => { console.error(error); process.exit(1); });
