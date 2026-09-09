@@ -1048,12 +1048,15 @@
     const shown = rows.slice(0, 8);
     setElementText(el.report.volunteersMeta, rows.length ? 'son katkılar öne çıkarılıyor' : 'kayıt bekleniyor');
     el.report.volunteers.innerHTML = shown.map(function (row) {
+      const lastDate = row.lastDateKey ? formatDateKey(row.lastDateKey) : (row.lastDate || '—');
+      const works = row.works.length
+        ? row.works.slice(0, 2).join(', ') + (row.works.length > 2 ? ' ve diğer işler' : '')
+        : 'çalışma kaydı';
       return `<article class="report-vol-card">
         <span class="report-avatar">${escapeHtml(initials(row.name))}</span>
         <div>
           <h3>${escapeHtml(row.name)}</h3>
-          <p>son iz ${escapeHtml(row.lastDate || '—')} · ${escapeHtml(row.works.slice(0, 3).join(', ') || 'çalışma kaydı')}</p>
-          <div class="report-chipline">${row.works.slice(0, 4).map(function (work) { return `<span>${escapeHtml(work)}</span>`; }).join('')}</div>
+          <p>son iz ${escapeHtml(lastDate)} · ${escapeHtml(works)}</p>
         </div>
         <strong>${escapeHtml(volunteerSignal(row))}</strong>
       </article>`;
