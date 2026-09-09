@@ -2291,7 +2291,13 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   $('btnSiraOner').addEventListener('click', function () {
     mesgul($('btnSiraOner'), true, 'Bakılıyor…');
     gizle($('msgOner'));
-    api('siraOner', { kaydeden: D.ad }).then(function (d) {
+    /* Bu işlem aynı kişi için tekrarlandığında yeni raf ayırmaz; sunucu mevcut
+       rafı "zaten sizde" diye geri verir. İlk yanıt yolda kaybolursa kullanıcıya
+       hata göstermeden bir kez daha sormak bu nedenle güvenlidir. */
+    var beklemeMesaji = setTimeout(function () {
+      if ($('btnSiraOner').disabled) $('btnSiraOner').textContent = 'Sunucu yanıtı bekleniyor…';
+    }, 5000);
+    api('siraOner', { kaydeden: D.ad }, { sure:15000, deneme:1 }).then(function (d) {
       if (!d.anahtar) {
         goster($('msgOner'), d.tur === 'hepsiTutulu' ? 'uyari' : 'iyi',
           d.tur === 'hepsiTutulu'
@@ -2330,8 +2336,11 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       goster($('msgOner'), m[0], m[1]);
     })['catch'](function (e) {
       goster($('msgOner'), 'hata', e.message === 'AĞ'
-        ? 'Sunucuya ulaşılamadı. Koordinatörden sıra isteyin.' : e.message);
-    }).then(function () { mesgul($('btnSiraOner'), false); });
+        ? (navigator.onLine === false
+            ? 'İnternet bağlantısı yok. Elle raf seçebilir veya bağlantı gelince tekrar deneyebilirsiniz.'
+            : 'Kitap sunucusu iki denemede de yanıt vermedi. Elle raf seçebilir veya biraz sonra tekrar deneyebilirsiniz.')
+        : e.message);
+    }).then(function () { clearTimeout(beklemeMesaji); mesgul($('btnSiraOner'), false); });
   });
 
   function ustuYenile() {
