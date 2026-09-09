@@ -182,8 +182,8 @@ body.pilot-dashboard {
   margin: 0;
   color: var(--ink-mute);
   font-family: 'DM Mono', monospace;
-  font-size: 10.5px;
-  letter-spacing: 0.08em;
+  font-size: 12px;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -206,8 +206,8 @@ body.pilot-dashboard {
 .glance-head span {
   color: var(--accent);
   font-family: 'DM Mono', monospace;
-  font-size: 10.5px;
-  letter-spacing: 0.14em;
+  font-size: 12px;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -271,8 +271,8 @@ body.pilot-dashboard {
 .report-empty span {
   color: var(--ink-mute);
   font-family: 'DM Mono', monospace;
-  font-size: 10.5px;
-  letter-spacing: 0.08em;
+  font-size: 12px;
+  letter-spacing: 0;
 }
 
 .report-signals span,
@@ -334,12 +334,12 @@ body.pilot-dashboard {
 
 .indicator-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
 }
 
 .indicator-card {
-  min-height: 152px;
+  min-height: 138px;
   padding-top: 14px;
   border-top: 1px solid var(--rule);
 }
@@ -359,10 +359,10 @@ body.pilot-dashboard {
   margin: 8px 0 6px;
   color: var(--ink);
   font-family: 'Crimson Pro', serif;
-  font-size: 29px;
+  font-size: 25px;
   font-style: italic;
   font-weight: 500;
-  line-height: 1;
+  line-height: 1.05;
 }
 
 .indicator-card p {
@@ -389,17 +389,17 @@ body.pilot-dashboard {
   margin: 8px 0 3px;
   color: var(--accent);
   font-family: 'Crimson Pro', serif;
-  font-size: 32px;
+  font-size: 26px;
   font-style: italic;
   font-weight: 500;
-  line-height: 1;
+  line-height: 1.05;
 }
 
 .stage-card p {
-  min-height: 42px;
+  min-height: 54px;
   margin: 12px 0 10px;
   color: var(--ink-soft);
-  font-size: 13.5px;
+  font-size: 14.5px;
   line-height: 1.45;
 }
 
@@ -483,8 +483,8 @@ body.pilot-dashboard {
   border-left: 2px solid var(--accent);
   background: transparent;
   color: var(--ink-mute);
-  font-family: 'DM Mono', monospace;
-  font-size: 10.5px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13.5px;
   line-height: 1.45;
 }
 
@@ -565,11 +565,12 @@ body.pilot-dashboard {
 }
 
 .report-vol-card strong {
-  color: var(--accent);
-  font-family: 'Crimson Pro', serif;
-  font-size: 22px;
-  font-style: italic;
-  line-height: 1;
+  color: var(--accent-deep);
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1.25;
+  text-align: right;
 }
 
 .report-chipline {
@@ -585,8 +586,8 @@ body.pilot-dashboard {
   background: var(--accent-bg);
   color: var(--accent-deep);
   font-family: 'DM Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 0.04em;
+  font-size: 12px;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -597,7 +598,7 @@ body.pilot-dashboard {
 
 .report-track-row {
   display: grid;
-  grid-template-columns: minmax(210px, 0.9fr) minmax(140px, 1fr) 58px;
+  grid-template-columns: minmax(210px, 0.9fr) minmax(140px, 1fr) 78px;
   gap: 14px;
   align-items: center;
   padding: 12px 0;
@@ -625,8 +626,10 @@ body.pilot-dashboard {
 .report-track-row strong {
   color: var(--accent);
   font-family: 'DM Mono', monospace;
-  font-size: 15px;
+  font-size: 12px;
+  font-weight: 500;
   text-align: right;
+  text-transform: uppercase;
 }
 
 .report-split {
@@ -698,8 +701,8 @@ body.pilot-dashboard {
   margin: 0;
   color: var(--accent);
   font-family: 'DM Mono', monospace;
-  font-size: 10.5px;
-  letter-spacing: 0.08em;
+  font-size: 12px;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -715,6 +718,58 @@ body.pilot-dashboard {
   border-top: 2px solid var(--ink);
   background: transparent;
   padding: 22px 0 0;
+}
+
+.panel-toggle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+  outline-offset: 6px;
+}
+
+.panel-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.panel-toggle span {
+  color: var(--accent);
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.panel-toggle strong {
+  display: block;
+  grid-column: 1;
+  margin-top: 4px;
+  color: var(--ink);
+  font-family: 'Crimson Pro', serif;
+  font-size: 25px;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.panel-toggle::after {
+  content: '+';
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  color: var(--accent);
+  font-family: 'Crimson Pro', serif;
+  font-size: 38px;
+  line-height: 1;
+}
+
+.pilot-panel[open] .panel-toggle::after {
+  content: '-';
+}
+
+.panel-content {
+  padding-top: 20px;
 }
 
 .panel-head {

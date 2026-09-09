@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,500;1,600&family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/site.css?v=20260815-gorev-tercihi" />
-  <link rel="stylesheet" href="./styles.css?v=20260909-report-6" />
+  <link rel="stylesheet" href="./styles.css?v=20260909-report-8" />
 </head>
 <body class="journal pilot-dashboard">
   <main class="page pilot-page">
@@ -50,25 +50,6 @@
         <strong id="sourceName">Hazırlanıyor</strong>
         <span id="sourceDetail">Çalışma dosyasındaki güncel kayıtlar okunur.</span>
       </div>
-    </section>
-
-    <section class="metric-strip" aria-label="Kısa durum özeti">
-      <article>
-        <p class="metric-value" id="metricProgress">—</p>
-        <p class="metric-label">toplam ilerleme</p>
-      </article>
-      <article>
-        <p class="metric-value" id="metricRecords">—</p>
-        <p class="metric-label">katkı kaydı</p>
-      </article>
-      <article>
-        <p class="metric-value" id="metricPages">—</p>
-        <p class="metric-label">sayfa / detay</p>
-      </article>
-      <article>
-        <p class="metric-value" id="metricVolunteers">—</p>
-        <p class="metric-label">katkı veren</p>
-      </article>
     </section>
 
     <section class="pilot-glance" aria-label="PNB arşivi genel ilerleme ve hız özeti">
@@ -148,38 +129,45 @@
       </div>
     </section>
 
-    <section class="pilot-panel">
-      <div class="panel-head">
-        <div>
-          <p class="context-eyebrow" id="viewKicker">Kayıt dökümü</p>
-          <h2 id="viewTitle">Denetlenebilir kayıtlar</h2>
+    <details class="pilot-panel">
+      <summary class="panel-toggle">
+        <span>Ayrıntılı tablolar</span>
+        <strong>Hız, kutular, gönüllüler ve kayıt dökümleri</strong>
+      </summary>
+
+      <div class="panel-content">
+        <div class="panel-head">
+          <div>
+            <p class="context-eyebrow" id="viewKicker">Kayıt dökümü</p>
+            <h2 id="viewTitle">Denetlenebilir kayıtlar</h2>
+          </div>
+          <label class="search-box">
+            <span>Arama</span>
+            <input type="search" id="searchInput" placeholder="Gönüllü, kutu, iş, durum..." />
+          </label>
         </div>
-        <label class="search-box">
-          <span>Arama</span>
-          <input type="search" id="searchInput" placeholder="Gönüllü, kutu, iş, durum..." />
-        </label>
-      </div>
 
-      <div class="view-tabs" aria-label="Rapor görünümleri">
-        <button type="button" data-view="pilot" aria-pressed="true">Tüm kayıtlar</button>
-        <button type="button" data-view="hiz">Hız / öngörü</button>
-        <button type="button" data-view="gunluk" aria-pressed="false">Günlük akış</button>
-        <button type="button" data-view="kutular">Kutular</button>
-        <button type="button" data-view="isler">İş türleri</button>
-        <button type="button" data-view="gonulluler">Gönüllüler</button>
-        <button type="button" data-view="kontrol">Kontrol / onay</button>
-        <button type="button" data-view="plan">Haftalık plan</button>
-        <button type="button" data-view="atom">AtoM aktarımı</button>
-      </div>
+        <div class="view-tabs" aria-label="Rapor görünümleri">
+          <button type="button" data-view="pilot" aria-pressed="true">Tüm kayıtlar</button>
+          <button type="button" data-view="hiz">Hız / öngörü</button>
+          <button type="button" data-view="gunluk" aria-pressed="false">Günlük akış</button>
+          <button type="button" data-view="kutular">Kutular</button>
+          <button type="button" data-view="isler">İş türleri</button>
+          <button type="button" data-view="gonulluler">Gönüllüler</button>
+          <button type="button" data-view="kontrol">Kontrol / onay</button>
+          <button type="button" data-view="plan">Haftalık plan</button>
+          <button type="button" data-view="atom">AtoM aktarımı</button>
+        </div>
 
-      <div class="table-wrap">
-        <table>
-          <thead id="tableHead"></thead>
-          <tbody id="tableBody"></tbody>
-        </table>
+        <div class="table-wrap">
+          <table>
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+        <p class="data-note" id="dataNote">Veri hazırlanıyor.</p>
       </div>
-      <p class="data-note" id="dataNote">Veri hazırlanıyor.</p>
-    </section>
+    </details>
 
     <footer class="colophon">
       <div class="footer-brand">
@@ -190,6 +178,6 @@
     </footer>
   </main>
 
-  <script src="./app.js?v=20260909-report-6"></script>
+  <script src="./app.js?v=20260909-report-8"></script>
 </body>
 </html>

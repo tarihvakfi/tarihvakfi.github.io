@@ -591,7 +591,7 @@
     if (el.heroLede) {
       el.heroLede.innerHTML = state.loading
         ? 'Çalışma dosyasındaki gönüllü emeği, sayısallaştırma ayrıntıları ve kontrol/onay kayıtları birlikte okunuyor.'
-        : `Bu raporda <b>${formatNumber(state.pilotDailyRows.length + pilotDetailRows().length)} katkı kaydı</b> görünür durumda: ${formatNumber(state.pilotScanRows.length)} sayfa/detay satırı, ${formatNumber(state.pilotDailyRows.length)} gönüllü günlüğü kaydı ve ${formatNumber(state.pilotCodeRows.length)} kontrol/onay kaydı.`;
+        : 'Bu sayfa gönüllü günlüğünü, sayısallaştırma ayrıntılarını ve kontrol izlerini birlikte okur. Ayrıntılı sayılar alttaki rapor sekmelerinde; ilk bakışta işin yönü, ritmi ve emek hafızası görünür.';
     }
 
     setElementText(el.report.progressPercent, progress.percent == null ? '—' : `%${formatNumber(progress.percent)}`);
@@ -599,17 +599,15 @@
       el.report.progressFill.style.width = progress.percent == null ? '0%' : `${clamp(progress.percent, 0, 100)}%`;
     }
     setElementText(el.report.progressText, progress.targetPages
-      ? `${formatNumber(progress.donePages)} / ${formatNumber(progress.targetPages)} sayfa · ${formatNumber(progress.remainingPages)} sayfa hedefte kaldı.`
+      ? `PNB arşivi için tarama hedefinin ${progressPhrase(progress.percent)} tamamlandı; kalan iş hız takibiyle planlanıyor.`
       : 'Hedef sayfa bilgisi bekleniyor.');
-    setElementText(el.report.recentDetail, state.loading ? '—' : `${formatNumber(window.detailRows)} detay`);
+    setElementText(el.report.recentDetail, state.loading ? '—' : 'Güncel akış');
     setElementText(el.report.recentNote, state.loading
       ? 'detay ve günlük kayıt'
-      : `${formatNumber(window.dailyRows)} günlük kayıt · ${formatNumber(window.people.length)} kişi · ${formatNumber(window.boxes.length)} kutu`);
-    setElementText(el.report.pace, window.activeDays ? `${formatNumber(window.detailRows / window.activeDays)}/gün` : '—');
-    setElementText(el.report.remaining, progress.targetPages ? formatNumber(progress.remainingPages) : '—');
-    setElementText(el.report.remainingNote, progress.targetPages && window.detailRows
-      ? `son aktif gün ortalamasıyla yaklaşık ${formatNumber(Math.ceil(progress.remainingPages / Math.max(1, window.detailRows / Math.max(1, window.activeDays))))} aktif gün`
-      : 'yaklaşık hedef');
+      : latestKey ? `son iz ${formatDateKey(latestKey)}` : 'günlük ve detay kayıtları');
+    setElementText(el.report.pace, window.activeDays ? 'Hız izleniyor' : '—');
+    setElementText(el.report.remaining, progress.targetPages ? 'Planlanıyor' : '—');
+    setElementText(el.report.remainingNote, 'ayrıntı Hız / öngörü sekmesinde');
 
     renderIndicatorReport(progress);
     renderWorkflowReport();
@@ -636,6 +634,15 @@
       donePages,
       remainingPages: Math.max(0, targetPages - donePages)
     };
+  }
+
+  function progressPhrase(percent) {
+    if (percent == null) return 'bir bölümü';
+    if (percent >= 95) return 'son bölümü';
+    if (percent >= 70) return 'büyük bölümü';
+    if (percent >= 40) return 'yaklaşık yarısı';
+    if (percent > 0) return 'ilk bölümü';
+    return 'başlangıcı';
   }
 
   function recentWindow() {
@@ -666,12 +673,38 @@
 
   function renderIndicatorReport(progress) {
     const forecast = forecastModel(progress);
-    setElementText(el.report.forecastDate, forecast.dateLabel);
-    setElementText(el.report.forecastNote, forecast.note);
-    setElementText(el.report.forecastMeta, forecast.meta);
+    setElementText(el.report.forecastDate, forecast.pace ? 'Tarama takvimi' : 'Takvim bekleniyor');
+    setElementText(el.report.forecastNote, forecast.pace
+      ? 'Mevcut giriş hızı, kalan tarama işini raporlanabilir bir takvime bağlamak için kullanılabilir.'
+      : forecast.note);
+    setElementText(el.report.forecastMeta, forecast.pace
+      ? `Tahmini tarama bitişi: ${forecast.dateLabel}. Ayrıntılar Hız / öngörü sekmesinde.`
+      : forecast.meta);
 
     if (!el.report.indicators) return;
-    const rows = reportMetricRows(progress).slice(0, 4);
+    const controlStage = workflowStageStats().find(function (row) { return row.label === 'Kontrol'; }) || emptyStage('Kontrol');
+    const rows = [
+      {
+        label: 'Emek hafızası',
+        value: 'Günlük akış',
+        period: 'tarama dışındaki işler de görünür',
+        note: 'Kütüphane, web, proje geliştirme ve araştırma kayıtları aynı hafızada tutulur.'
+      },
+      {
+        label: 'Üretim ritmi',
+        value: 'Hız izleniyor',
+        period: 'ortalamalar rapor sekmesinde',
+        note: 'Günlük, haftalık ve aylık ortalamalar gerektiğinde tabloya iner.'
+      },
+      {
+        label: 'Yayın hazırlığı',
+        value: controlStage.detailCount ? 'Kontrol başladı' : 'Kontrol ayrılacak',
+        period: 'günlük iz ayrı, onay defteri ayrı',
+        note: controlStage.detailCount
+          ? 'Kontrol kayıtları yayın kararını destekleyecek biçimde ayrıca izleniyor.'
+          : 'Günlükte kontrol izi var; yayın için satır bazlı kontrol defteri ayrıca doldurulmalı.'
+      }
+    ];
     el.report.indicators.innerHTML = rows.map(function (row) {
       return `<article class="indicator-card">
         <span>${escapeHtml(row.label)}</span>
@@ -688,13 +721,14 @@
     const totalDetail = Math.max(1, state.pilotScanRows.length);
     el.report.workflow.innerHTML = rows.map(function (row) {
       const width = clamp(row.detailCount / totalDetail * 100, 0, 100);
+      const story = stageStory(row);
       return `<article class="stage-card">
         <div>
           <span>${escapeHtml(row.label)}</span>
-          <b>${formatNumber(row.detailCount)}</b>
-          <small>${escapeHtml(row.unit)}</small>
+          <b>${escapeHtml(story.title)}</b>
+          <small>${escapeHtml(story.meta)}</small>
         </div>
-        <p>${formatNumber(row.dailyCount)} günlük iz · ${formatNumber(row.people.length)} kişi · ${formatNumber(row.boxes.length)} kutu · son ${escapeHtml(row.lastDate || '—')}</p>
+        <p>${escapeHtml(story.note)}</p>
         <div class="stage-track" aria-hidden="true"><span style="width:${width}%"></span></div>
       </article>`;
     }).join('');
@@ -822,6 +856,29 @@
     };
   }
 
+  function stageStory(row) {
+    const last = row.lastDateKey ? `son iz ${formatDateKey(row.lastDateKey)}` : 'kayıt bekleniyor';
+    if (row.label === 'Kontrol' && !row.detailCount && row.dailyCount) {
+      return {
+        title: 'Ayrılacak',
+        meta: last,
+        note: 'Kontrol günlüklerde görünüyor; yayın kararı için ayrı kontrol/onay satırlarına dönüşmeli.'
+      };
+    }
+    if (row.detailCount) {
+      return {
+        title: row.label === 'Kodlama' ? 'Eş zamanlı' : 'Sürüyor',
+        meta: last,
+        note: 'Ayrıntılı sayı, kişi ve kutu dökümü aşağıdaki rapor sekmelerinde tutuluyor.'
+      };
+    }
+    return {
+      title: 'Bekliyor',
+      meta: last,
+      note: 'Bu aşama için yapılandırılmış kayıt girildiğinde rapora otomatik yansır.'
+    };
+  }
+
   function workflowStageStats() {
     return ['Tarama', 'Kodlama', 'Kontrol'].map(function (label) {
       const structuredRows = label === 'Kontrol'
@@ -917,30 +974,27 @@
     if (!el.report.latestRows) return;
     const groups = dayGroups();
     setElementText(el.report.latestMeta, groups.length
-      ? `son 3 çalışma günü · son kayıt ${formatDateKey(groups[0].dateKey)}`
+      ? `son çalışma günleri · son kayıt ${formatDateKey(groups[0].dateKey)}`
       : 'kayıt bekleniyor');
     el.report.latestRows.innerHTML = groups.slice(0, 3).map(function (group) {
       const people = Array.from(group.people.values()).slice(0, 3).map(function (person) {
         const works = Array.from(person.works).slice(0, 3).join(', ');
-        const parts = [];
-        if (person.detailCount) parts.push(`${formatNumber(person.detailCount)} detay`);
-        if (person.dailyCount) parts.push(`${formatNumber(person.dailyCount)} günlük kayıt`);
-        if (person.controlCount) parts.push(`${formatNumber(person.controlCount)} kontrol`);
         return `<div class="report-person-line">
           <b>${escapeHtml(person.name)}</b>
-          <span>${escapeHtml(parts.join(' · ') || 'kayıt')} ${works ? `· ${escapeHtml(works)}` : ''}</span>
+          <span>${escapeHtml(works || 'çalışma kaydı')}</span>
         </div>`;
       }).join('');
+      const workSummary = Array.from(group.works).slice(0, 4).join(' · ');
       return `<article class="report-day-card">
         <div class="report-day-top">
           <span>${escapeHtml(weekdayFromKey(group.dateKey))}</span>
-          <span>${formatNumber(group.records)} kayıt</span>
+          <span>gönüllü akışı</span>
         </div>
         <div class="report-day-date">
           <b>${escapeHtml(dayNumberFromKey(group.dateKey))}</b>
           <span>${escapeHtml(monthNameFromKey(group.dateKey))}</span>
         </div>
-        <p class="report-day-summary">${formatNumber(group.detailCount)} detay · ${formatNumber(group.dailyCount)} günlük kayıt · ${formatNumber(group.people.size)} kişi${group.boxes.size ? ` · ${formatNumber(group.boxes.size)} kutu` : ''}</p>
+        <p class="report-day-summary">${escapeHtml(workSummary || 'Çalışma kaydı')}</p>
         <div class="report-day-people">${people || '<p class="empty-line">Bu gün için kişi bilgisi yok.</p>'}</div>
       </article>`;
     }).join('') || '<article class="report-empty">Kayıt bekleniyor.</article>';
@@ -958,7 +1012,8 @@
           dailyCount: 0,
           controlCount: 0,
           people: new Map(),
-          boxes: new Set()
+          boxes: new Set(),
+          works: new Set()
         });
       }
       const group = groups.get(row.dateKey);
@@ -967,6 +1022,7 @@
       if (row.kind === 'daily') group.dailyCount += 1;
       if (row.source === PILOT_CODE_SHEET) group.controlCount += 1;
       if (row.box) group.boxes.add(`${row.fund || ''} ${row.box}`.trim());
+      row.workTypes.forEach(function (work) { group.works.add(work); });
       row.people.forEach(function (person) {
         if (!group.people.has(person)) {
           group.people.set(person, { name: person, detailCount: 0, dailyCount: 0, controlCount: 0, works: new Set() });
@@ -990,17 +1046,16 @@
         || (b.detailCount + b.activityCount) - (a.detailCount + a.activityCount);
     });
     const shown = rows.slice(0, 8);
-    setElementText(el.report.volunteersMeta, rows.length ? `${formatNumber(rows.length)} kişi · öne çıkan ${formatNumber(shown.length)} katkı` : 'kayıt bekleniyor');
+    setElementText(el.report.volunteersMeta, rows.length ? 'son katkılar öne çıkarılıyor' : 'kayıt bekleniyor');
     el.report.volunteers.innerHTML = shown.map(function (row) {
-      const total = row.totalCount || row.detailCount + row.activityCount;
       return `<article class="report-vol-card">
         <span class="report-avatar">${escapeHtml(initials(row.name))}</span>
         <div>
           <h3>${escapeHtml(row.name)}</h3>
-          <p>${formatNumber(row.detailCount)} detay · ${formatNumber(row.activityCount)} günlük kayıt · son ${escapeHtml(row.lastDate || '—')}</p>
+          <p>son iz ${escapeHtml(row.lastDate || '—')} · ${escapeHtml(row.works.slice(0, 3).join(', ') || 'çalışma kaydı')}</p>
           <div class="report-chipline">${row.works.slice(0, 4).map(function (work) { return `<span>${escapeHtml(work)}</span>`; }).join('')}</div>
         </div>
-        <strong>${formatNumber(total)}</strong>
+        <strong>${escapeHtml(volunteerSignal(row))}</strong>
       </article>`;
     }).join('') || '<article class="report-empty">Gönüllü kaydı bekleniyor.</article>';
   }
@@ -1010,17 +1065,17 @@
     const rows = workStats();
     const shown = rows.slice(0, 6);
     const max = Math.max(1, ...rows.map(function (row) { return row.activityCount + row.detailCount; }));
-    setElementText(el.report.tracksMeta, rows.length ? `${formatNumber(rows.length)} iş alanı` : 'iş alanı bekleniyor');
+    setElementText(el.report.tracksMeta, rows.length ? 'iş alanları' : 'iş alanı bekleniyor');
     el.report.tracks.innerHTML = shown.map(function (row) {
       const total = row.activityCount + row.detailCount;
       const width = Math.max(4, Math.round((total / max) * 100));
       return `<div class="report-track-row">
         <div class="report-track-label">
           <b>${escapeHtml(row.label)}</b>
-          <span>${formatNumber(row.people.length)} kişi · ${formatNumber(row.activityCount)} günlük · ${formatNumber(row.detailCount)} detay</span>
+          <span>${row.people.length ? 'gönüllü emeği kaydediliyor' : 'kayıt bekleniyor'}</span>
         </div>
         <div class="report-track-bar" aria-hidden="true"><span style="width:${width}%"></span></div>
-        <strong>${formatNumber(total)}</strong>
+        <strong>${escapeHtml(activitySignal(total, max))}</strong>
       </div>`;
     }).join('') || '<article class="report-empty">İş alanı kaydı bekleniyor.</article>';
   }
@@ -1029,7 +1084,7 @@
     if (!el.report.boxes) return;
     const rows = boxStats().filter(function (row) { return row.done > 0; });
     const shown = rows.slice(0, 4);
-    setElementText(el.report.boxesMeta, rows.length ? `${formatNumber(rows.length)} aktif kutu · ilk ${formatNumber(shown.length)}` : 'kutu bekleniyor');
+    setElementText(el.report.boxesMeta, rows.length ? 'öne çıkan aktif kutular' : 'kutu bekleniyor');
     el.report.boxes.innerHTML = shown.map(function (row) {
       const percent = clamp(Number(row.percent || 0), 0, 100);
       return `<article class="report-box-card">
@@ -1037,11 +1092,31 @@
           <span>${escapeHtml(row.fund || 'Fon')}</span>
           <h3>Kutu ${escapeHtml(row.box || '—')}</h3>
         </div>
-        <p>${formatNumber(row.done)} / ${formatNumber(row.target)} sayfa · %${formatNumber(percent)}</p>
+        <p>${escapeHtml(boxSignal(row))}</p>
         <div class="report-mini-track" aria-hidden="true"><span style="width:${percent}%"></span></div>
         <small>${escapeHtml(row.people.slice(0, 4).join(', ') || 'gönüllü bilgisi yok')} · son ${escapeHtml(row.lastDate || '—')}</small>
       </article>`;
     }).join('') || '<article class="report-empty">Aktif kutu kaydı bekleniyor.</article>';
+  }
+
+  function volunteerSignal(row) {
+    if (row.detailCount && row.activityCount) return 'Çok yönlü';
+    if (row.detailCount) return 'Detay işi';
+    if (row.controlCount) return 'Kontrol';
+    return 'Günlük iz';
+  }
+
+  function activitySignal(total, max) {
+    if (!total) return 'Bekliyor';
+    if (total >= max * 0.65) return 'Yoğun';
+    if (total >= max * 0.2) return 'Düzenli';
+    return 'Seyrek';
+  }
+
+  function boxSignal(row) {
+    if (Number(row.percent || 0) >= 99.5) return 'Bu kutu tamamlanmış görünüyor.';
+    if (row.done) return 'Bu kutuda çalışma sürüyor.';
+    return 'Bu kutu sırada bekliyor.';
   }
 
   function renderControlReport() {
