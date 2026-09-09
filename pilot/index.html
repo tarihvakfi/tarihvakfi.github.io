@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="robots" content="noindex,nofollow" />
 
-  <title>Pilot Sheet İzleme · Tarih Vakfı</title>
-  <meta name="description" content="Tarih Vakfı gönüllü ve dijitalleştirme yönetimi için pilot Google Sheet sonuç ekranı." />
+  <title>Pilot Emek Raporu · Tarih Vakfı</title>
+  <meta name="description" content="Tarih Vakfı gönüllü ve dijitalleştirme yönetimi için pilot Google Sheet emek ve ilerleme raporu." />
 
   <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,500;1,600&family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/site.css?v=20260815-gorev-tercihi" />
-  <link rel="stylesheet" href="./styles.css?v=20260908-pilot-2" />
+  <link rel="stylesheet" href="./styles.css?v=20260909-report-3" />
 </head>
 <body class="journal pilot-dashboard">
   <main class="page pilot-page">
@@ -22,7 +22,7 @@
         <img src="../assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" class="brand-logo" />
         <div>
           <b>Tarih Vakfı</b>
-          <span>Pilot Sheet İzleme</span>
+          <span>Pilot Emek Raporu</span>
         </div>
       </div>
       <div class="mast-actions">
@@ -40,9 +40,10 @@
 
     <section class="pilot-intro" aria-labelledby="pilot-title">
       <div>
-        <p class="context-eyebrow">Google Sheet pilot geçişi</p>
-        <h1 id="pilot-title">Yeni Sheet yapısının sonuç ekranı</h1>
-        <p class="lede">Bu sayfa veri girişi yapmaz. Gönüllü ve koordinatör kayıtları pilot Google Sheet’te kalır; burada yeni pilot sekmelerden gelen sonuçlar ve eski çalışma özetleri birlikte görülür.</p>
+        <p class="context-eyebrow">Tarih Vakfı · pilot çalışma düzeni</p>
+        <h1 id="pilot-title">Bu pilotta<br><em>ne yapıldı?</em></h1>
+        <p class="hero-period" id="pilotHeroPeriod">Canlı pilot · veri bekleniyor</p>
+        <p class="lede" id="pilotHeroLede">Pilot Sheet’teki gönüllü emeği, sayısallaştırma ayrıntıları ve kontrol/onay kayıtları birlikte okunuyor.</p>
       </div>
       <div class="source-card">
         <p class="mini-label">Kaynak</p>
@@ -58,7 +59,7 @@
       </article>
       <article>
         <p class="metric-value" id="metricRecords">—</p>
-        <p class="metric-label">dönem kaydı</p>
+        <p class="metric-label">katkı kaydı</p>
       </article>
       <article>
         <p class="metric-value" id="metricPages">—</p>
@@ -74,11 +75,82 @@
       </article>
     </section>
 
+    <section class="pilot-glance" aria-label="PNB arşivi genel ilerleme ve hız özeti">
+      <div class="glance-head">
+        <span>PNB arşivi · genel ilerleme</span>
+        <strong id="reportProgressPercent">—</strong>
+      </div>
+      <div class="report-progress-track" aria-hidden="true">
+        <span id="reportProgressFill" style="width:0%"></span>
+      </div>
+      <p class="report-progress-text" id="reportProgressText">İlerleme pilot Sheet’ten okunuyor.</p>
+      <div class="report-signals">
+        <article>
+          <span>son 7 gün</span>
+          <b id="reportRecentDetail">—</b>
+          <small id="reportRecentNote">detay ve günlük kayıt</small>
+        </article>
+        <article>
+          <span>hız</span>
+          <b id="reportPace">—</b>
+          <small>aktif gün ortalaması</small>
+        </article>
+        <article>
+          <span>kalan</span>
+          <b id="reportRemaining">—</b>
+          <small id="reportRemainingNote">yaklaşık hedef</small>
+        </article>
+      </div>
+    </section>
+
+    <section class="report-latest" id="reportLatest" aria-labelledby="report-latest-title">
+      <div class="boxes-head">
+        <h3 id="report-latest-title">Son <em>çalışmalar</em></h3>
+        <span class="meta" id="reportLatestMeta">veri bekleniyor</span>
+      </div>
+      <div class="report-day-grid" id="reportLatestRows"></div>
+    </section>
+
+    <section class="context-card priority-context" aria-labelledby="pilot-priority-title">
+      <p class="context-eyebrow">Öncelikli iş kalemi</p>
+      <h2 id="pilot-priority-title">PNB arşivi sayısallaştırması</h2>
+      <p>Pilot düzen, gönüllülerin yaptığı farklı işleri tek yerde görünür tutarken Pertev Naili Boratav Arşivi’nin sayısallaştırma ilerlemesini ayrıca izler. Böylece günlük emek kaybolmaz, sayfa/detay üretimi ve kontrol süreci de arşiv aktarımına uygun biçimde kayıt altına alınır.</p>
+    </section>
+
+    <header class="section-head">
+      <h2>Katkı verenler <em>· pilot görünüm</em></h2>
+      <span class="tag" id="reportVolunteersMeta">veri bekleniyor</span>
+    </header>
+    <section class="report-volunteers" id="reportVolunteers"></section>
+
+    <header class="section-head">
+      <h2>Çalışma <em>izleri</em></h2>
+      <span class="tag" id="reportTracksMeta">iş alanları</span>
+    </header>
+    <section class="report-tracks" id="reportTracks"></section>
+
+    <section class="report-split">
+      <div>
+        <div class="boxes-head">
+          <h3>Aktif <em>kutular</em></h3>
+          <span class="meta" id="reportBoxesMeta">veri bekleniyor</span>
+        </div>
+        <div class="report-boxes" id="reportBoxes"></div>
+      </div>
+      <div>
+        <div class="boxes-head">
+          <h3>Kontrol <em>ve onay</em></h3>
+          <span class="meta" id="reportControlMeta">pilot defter</span>
+        </div>
+        <div class="report-control" id="reportControl"></div>
+      </div>
+    </section>
+
     <section class="pilot-panel">
       <div class="panel-head">
         <div>
-          <p class="context-eyebrow" id="viewKicker">Pilot görünüm</p>
-          <h2 id="viewTitle">Günlük akış</h2>
+          <p class="context-eyebrow" id="viewKicker">Kayıt dökümü</p>
+          <h2 id="viewTitle">Denetlenebilir kayıtlar</h2>
         </div>
         <label class="search-box">
           <span>Arama</span>
@@ -109,25 +181,25 @@
       <div>
         <p class="context-eyebrow">Pilot mimari</p>
         <h2 id="architecture-title">Ana dosyayı bozmadan deneme</h2>
-        <p>Önce ana Sheet’in kopyası üzerinde sonuç ekranı denenir. Sonra sade giriş sekmeleri, temiz web çıktısı ve AtoM’a aktarılabilir alanlar bu kopyada kurulabilir. Sonuç düzgünse kopya yeni ana çalışma dosyasına dönüşür.</p>
+        <p>Önce ana Sheet’in kopyası üzerinde yeni çalışma düzeni denenir. Gönüllüler yine Sheet’te çalışır; GitHub bu veriden emek günlüğü, hız ve aktarım önizlemesi üretir. Sonuç düzgünse kopya yeni ana çalışma dosyasına dönüşebilir.</p>
       </div>
       <div class="step-list">
         <div><b>1</b><span>Ana Sheet çalışmaya devam eder.</span></div>
         <div><b>2</b><span>Pilot Sheet sadeleştirilir ve korunur.</span></div>
-        <div><b>3</b><span>Gönüllüler Sheet’te çalışır; GitHub yalnızca sonuçları okur.</span></div>
-        <div><b>4</b><span>AtoM/Omeka aktarımı için CSV zemini oluşur.</span></div>
+        <div><b>3</b><span>Kontrol ve düzeltmeler ayrı kayıt olur; eski işler sessizce kaybolmaz.</span></div>
+        <div><b>4</b><span>AtoM/Omeka aktarımı için temiz ve taşınabilir zemin oluşur.</span></div>
       </div>
     </section>
 
     <footer class="colophon">
       <div class="footer-brand">
         <img src="../assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı logosu" />
-        <p class="signoff">Tarih Vakfı · Pilot Sheet İzleme</p>
+        <p class="signoff">Tarih Vakfı · Pilot Emek Raporu</p>
       </div>
       <p>Bu sayfa veri toplamaz; yalnızca pilot veri kaynağından gelen kamuya uygun özetleri gösterir.</p>
     </footer>
   </main>
 
-  <script src="./app.js?v=20260909-pilot-4"></script>
+  <script src="./app.js?v=20260909-report-3"></script>
 </body>
 </html>

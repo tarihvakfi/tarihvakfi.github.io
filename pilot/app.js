@@ -51,6 +51,8 @@
     status: document.getElementById('pilotStatus'),
     sourceName: document.getElementById('sourceName'),
     sourceDetail: document.getElementById('sourceDetail'),
+    heroPeriod: document.getElementById('pilotHeroPeriod'),
+    heroLede: document.getElementById('pilotHeroLede'),
     dataNote: document.getElementById('dataNote'),
     viewKicker: document.getElementById('viewKicker'),
     viewTitle: document.getElementById('viewTitle'),
@@ -58,6 +60,27 @@
     tableBody: document.getElementById('tableBody'),
     searchInput: document.getElementById('searchInput'),
     buttons: Array.from(document.querySelectorAll('[data-view]')),
+    report: {
+      progressPercent: document.getElementById('reportProgressPercent'),
+      progressFill: document.getElementById('reportProgressFill'),
+      progressText: document.getElementById('reportProgressText'),
+      recentDetail: document.getElementById('reportRecentDetail'),
+      recentNote: document.getElementById('reportRecentNote'),
+      pace: document.getElementById('reportPace'),
+      remaining: document.getElementById('reportRemaining'),
+      remainingNote: document.getElementById('reportRemainingNote'),
+      latest: document.getElementById('reportLatest'),
+      latestMeta: document.getElementById('reportLatestMeta'),
+      latestRows: document.getElementById('reportLatestRows'),
+      volunteersMeta: document.getElementById('reportVolunteersMeta'),
+      volunteers: document.getElementById('reportVolunteers'),
+      tracksMeta: document.getElementById('reportTracksMeta'),
+      tracks: document.getElementById('reportTracks'),
+      boxesMeta: document.getElementById('reportBoxesMeta'),
+      boxes: document.getElementById('reportBoxes'),
+      controlMeta: document.getElementById('reportControlMeta'),
+      control: document.getElementById('reportControl')
+    },
     metrics: {
       progress: document.getElementById('metricProgress'),
       records: document.getElementById('metricRecords'),
@@ -118,7 +141,7 @@
 
       state.loading = false;
       state.loadError = '';
-      state.sourceNote = 'Yeni pilot sekmeleri doğrudan okunuyor. Genel ilerleme PNB Sayısallaştırma L105 hücresinden alınıyor.';
+      state.sourceNote = 'Pilot Sheet canlı okunuyor. Genel ilerleme PNB Sayısallaştırma L105 hücresinden alınıyor.';
       setStatus('live', 'pilot sheet canlı');
       render();
     } catch (error) {
@@ -508,6 +531,7 @@
   function render() {
     renderChrome();
     renderMetrics();
+    renderReport();
     renderTable();
   }
 
@@ -540,15 +564,245 @@
     const targetPages = state.inventoryRows.reduce(function (sum, row) {
       return sum + Number(row.targetPages || 0);
     }, 0);
-    const detailRows = pilotDetailRows().length;
+    const detailRows = state.pilotScanRows.length;
     const sheetProgress = state.progressPercent == null ? null : state.progressPercent;
     return {
       progress: sheetProgress == null && targetPages ? (detailRows / targetPages) * 100 : sheetProgress,
-      records: state.pilotDailyRows.length + detailRows,
+      records: state.pilotDailyRows.length + detailRows + state.pilotCodeRows.length,
       details: detailRows,
       volunteers: volunteerStats().length,
       boxes: boxStats().filter(function (row) { return row.done > 0; }).length
     };
+  }
+
+  function renderReport() {
+    const progress = progressModel();
+    const window = recentWindow();
+    const latestKey = latestDateKey(state.pilotDailyRows.concat(state.pilotScanRows, state.pilotCodeRows));
+
+    setElementText(el.heroPeriod, state.loading
+      ? 'Canlı pilot · veri bekleniyor'
+      : latestKey ? `Canlı pilot · ${formatDateKey(todayKey())} itibarıyla · son görünür kayıt ${formatDateKey(latestKey)}` : `Canlı pilot · ${formatDateKey(todayKey())} itibarıyla · kayıt bekleniyor`);
+    if (el.heroLede) {
+      el.heroLede.innerHTML = state.loading
+        ? 'Pilot Sheet’teki gönüllü emeği, sayısallaştırma ayrıntıları ve kontrol/onay kayıtları birlikte okunuyor.'
+        : `Bu pilotta <b>${formatNumber(state.pilotDailyRows.length + pilotDetailRows().length)} katkı kaydı</b> görünür durumda: ${formatNumber(state.pilotScanRows.length)} sayfa/detay satırı, ${formatNumber(state.pilotDailyRows.length)} gönüllü günlüğü kaydı ve ${formatNumber(state.pilotCodeRows.length)} kontrol/onay kaydı.`;
+    }
+
+    setElementText(el.report.progressPercent, progress.percent == null ? '—' : `%${formatNumber(progress.percent)}`);
+    if (el.report.progressFill) {
+      el.report.progressFill.style.width = progress.percent == null ? '0%' : `${clamp(progress.percent, 0, 100)}%`;
+    }
+    setElementText(el.report.progressText, progress.targetPages
+      ? `${formatNumber(progress.donePages)} / ${formatNumber(progress.targetPages)} sayfa · ${formatNumber(progress.remainingPages)} sayfa hedefte kaldı.`
+      : 'Hedef sayfa bilgisi bekleniyor.');
+    setElementText(el.report.recentDetail, state.loading ? '—' : `${formatNumber(window.detailRows)} detay`);
+    setElementText(el.report.recentNote, state.loading
+      ? 'detay ve günlük kayıt'
+      : `${formatNumber(window.dailyRows)} günlük kayıt · ${formatNumber(window.people.length)} kişi · ${formatNumber(window.boxes.length)} kutu`);
+    setElementText(el.report.pace, window.activeDays ? `${formatNumber(window.detailRows / window.activeDays)}/gün` : '—');
+    setElementText(el.report.remaining, progress.targetPages ? formatNumber(progress.remainingPages) : '—');
+    setElementText(el.report.remainingNote, progress.targetPages && window.detailRows
+      ? `son aktif gün ortalamasıyla yaklaşık ${formatNumber(Math.ceil(progress.remainingPages / Math.max(1, window.detailRows / Math.max(1, window.activeDays))))} aktif gün`
+      : 'yaklaşık hedef');
+
+    renderLatestReport();
+    renderVolunteerReport();
+    renderTrackReport();
+    renderBoxReport();
+    renderControlReport();
+  }
+
+  function progressModel() {
+    const targetPages = state.inventoryRows.reduce(function (sum, row) {
+      return sum + Number(row.targetPages || 0);
+    }, 0);
+    const percent = state.progressPercent == null && targetPages
+      ? (state.pilotScanRows.length / targetPages) * 100
+      : state.progressPercent;
+    const donePages = targetPages && percent != null
+      ? Math.round(targetPages * (percent / 100))
+      : state.pilotScanRows.length;
+    return {
+      percent,
+      targetPages,
+      donePages,
+      remainingPages: Math.max(0, targetPages - donePages)
+    };
+  }
+
+  function recentWindow() {
+    const rows = state.pilotDailyRows.concat(state.pilotScanRows, state.pilotCodeRows);
+    const latestKey = latestDateKey(rows);
+    const startKey = latestKey ? shiftDateKey(latestKey, -6) : '';
+    const filtered = rows.filter(function (row) {
+      return row.dateKey && (!startKey || row.dateKey >= startKey) && (!latestKey || row.dateKey <= latestKey);
+    });
+    const peopleSet = new Set();
+    const boxSet = new Set();
+    const daySet = new Set();
+    filtered.forEach(function (row) {
+      row.people.forEach(function (person) { peopleSet.add(person); });
+      if (row.box) boxSet.add(`${row.fund || ''} ${row.box}`.trim());
+      if (row.dateKey) daySet.add(row.dateKey);
+    });
+    return {
+      rows: filtered,
+      detailRows: filtered.filter(function (row) { return row.source === PILOT_SCAN_SHEET; }).length,
+      dailyRows: filtered.filter(function (row) { return row.kind === 'daily'; }).length,
+      controlRows: filtered.filter(function (row) { return row.source === PILOT_CODE_SHEET; }).length,
+      people: Array.from(peopleSet).sort(localeSort),
+      boxes: Array.from(boxSet).sort(localeSort),
+      activeDays: daySet.size
+    };
+  }
+
+  function renderLatestReport() {
+    if (!el.report.latestRows) return;
+    const groups = dayGroups();
+    setElementText(el.report.latestMeta, groups.length
+      ? `son 5 çalışma günü · son kayıt ${formatDateKey(groups[0].dateKey)}`
+      : 'kayıt bekleniyor');
+    el.report.latestRows.innerHTML = groups.slice(0, 5).map(function (group) {
+      const people = Array.from(group.people.values()).slice(0, 4).map(function (person) {
+        const works = Array.from(person.works).slice(0, 3).join(', ');
+        const parts = [];
+        if (person.detailCount) parts.push(`${formatNumber(person.detailCount)} detay`);
+        if (person.dailyCount) parts.push(`${formatNumber(person.dailyCount)} günlük kayıt`);
+        if (person.controlCount) parts.push(`${formatNumber(person.controlCount)} kontrol`);
+        return `<div class="report-person-line">
+          <b>${escapeHtml(person.name)}</b>
+          <span>${escapeHtml(parts.join(' · ') || 'kayıt')} ${works ? `· ${escapeHtml(works)}` : ''}</span>
+        </div>`;
+      }).join('');
+      return `<article class="report-day-card">
+        <div class="report-day-top">
+          <span>${escapeHtml(weekdayFromKey(group.dateKey))}</span>
+          <span>${formatNumber(group.records)} kayıt</span>
+        </div>
+        <div class="report-day-date">
+          <b>${escapeHtml(dayNumberFromKey(group.dateKey))}</b>
+          <span>${escapeHtml(monthNameFromKey(group.dateKey))}</span>
+        </div>
+        <p class="report-day-summary">${formatNumber(group.detailCount)} detay · ${formatNumber(group.dailyCount)} günlük kayıt · ${formatNumber(group.people.size)} kişi${group.boxes.size ? ` · ${formatNumber(group.boxes.size)} kutu` : ''}</p>
+        <div class="report-day-people">${people || '<p class="empty-line">Bu gün için kişi bilgisi yok.</p>'}</div>
+      </article>`;
+    }).join('') || '<article class="report-empty">Pilot kayıtları bekleniyor.</article>';
+  }
+
+  function dayGroups() {
+    const groups = new Map();
+    state.pilotDailyRows.concat(state.pilotScanRows, state.pilotCodeRows).forEach(function (row) {
+      if (!row.dateKey) return;
+      if (!groups.has(row.dateKey)) {
+        groups.set(row.dateKey, {
+          dateKey: row.dateKey,
+          records: 0,
+          detailCount: 0,
+          dailyCount: 0,
+          controlCount: 0,
+          people: new Map(),
+          boxes: new Set()
+        });
+      }
+      const group = groups.get(row.dateKey);
+      group.records += 1;
+      if (row.source === PILOT_SCAN_SHEET) group.detailCount += 1;
+      if (row.kind === 'daily') group.dailyCount += 1;
+      if (row.source === PILOT_CODE_SHEET) group.controlCount += 1;
+      if (row.box) group.boxes.add(`${row.fund || ''} ${row.box}`.trim());
+      row.people.forEach(function (person) {
+        if (!group.people.has(person)) {
+          group.people.set(person, { name: person, detailCount: 0, dailyCount: 0, controlCount: 0, works: new Set() });
+        }
+        const stats = group.people.get(person);
+        if (row.source === PILOT_SCAN_SHEET) stats.detailCount += 1;
+        if (row.kind === 'daily') stats.dailyCount += 1;
+        if (row.source === PILOT_CODE_SHEET) stats.controlCount += 1;
+        row.workTypes.forEach(function (work) { stats.works.add(work); });
+      });
+    });
+    return Array.from(groups.values()).sort(function (a, b) {
+      return String(b.dateKey).localeCompare(String(a.dateKey), 'tr');
+    });
+  }
+
+  function renderVolunteerReport() {
+    if (!el.report.volunteers) return;
+    const rows = volunteerStats().slice().sort(function (a, b) {
+      return String(b.lastDateKey || '').localeCompare(String(a.lastDateKey || ''), 'tr')
+        || (b.detailCount + b.activityCount) - (a.detailCount + a.activityCount);
+    });
+    setElementText(el.report.volunteersMeta, rows.length ? `${formatNumber(rows.length)} kişi · pilot kayıtlardan` : 'kayıt bekleniyor');
+    el.report.volunteers.innerHTML = rows.map(function (row) {
+      const total = row.detailCount + row.activityCount;
+      return `<article class="report-vol-card">
+        <span class="report-avatar">${escapeHtml(initials(row.name))}</span>
+        <div>
+          <h3>${escapeHtml(row.name)}</h3>
+          <p>${formatNumber(row.detailCount)} detay · ${formatNumber(row.activityCount)} günlük kayıt · son ${escapeHtml(row.lastDate || '—')}</p>
+          <div class="report-chipline">${row.works.slice(0, 4).map(function (work) { return `<span>${escapeHtml(work)}</span>`; }).join('')}</div>
+        </div>
+        <strong>${formatNumber(total)}</strong>
+      </article>`;
+    }).join('') || '<article class="report-empty">Gönüllü kaydı bekleniyor.</article>';
+  }
+
+  function renderTrackReport() {
+    if (!el.report.tracks) return;
+    const rows = workStats();
+    const max = Math.max(1, ...rows.map(function (row) { return row.activityCount + row.detailCount; }));
+    setElementText(el.report.tracksMeta, rows.length ? `${formatNumber(rows.length)} iş alanı` : 'iş alanı bekleniyor');
+    el.report.tracks.innerHTML = rows.slice(0, 10).map(function (row) {
+      const total = row.activityCount + row.detailCount;
+      const width = Math.max(4, Math.round((total / max) * 100));
+      return `<div class="report-track-row">
+        <div class="report-track-label">
+          <b>${escapeHtml(row.label)}</b>
+          <span>${formatNumber(row.people.length)} kişi · ${formatNumber(row.activityCount)} günlük · ${formatNumber(row.detailCount)} detay</span>
+        </div>
+        <div class="report-track-bar" aria-hidden="true"><span style="width:${width}%"></span></div>
+        <strong>${formatNumber(total)}</strong>
+      </div>`;
+    }).join('') || '<article class="report-empty">İş alanı kaydı bekleniyor.</article>';
+  }
+
+  function renderBoxReport() {
+    if (!el.report.boxes) return;
+    const rows = boxStats().filter(function (row) { return row.done > 0; }).slice(0, 6);
+    setElementText(el.report.boxesMeta, rows.length ? `${formatNumber(rows.length)} aktif kutu` : 'kutu bekleniyor');
+    el.report.boxes.innerHTML = rows.map(function (row) {
+      const percent = clamp(Number(row.percent || 0), 0, 100);
+      return `<article class="report-box-card">
+        <div>
+          <span>${escapeHtml(row.fund || 'Fon')}</span>
+          <h3>Kutu ${escapeHtml(row.box || '—')}</h3>
+        </div>
+        <p>${formatNumber(row.done)} / ${formatNumber(row.target)} sayfa · %${formatNumber(percent)}</p>
+        <div class="report-mini-track" aria-hidden="true"><span style="width:${percent}%"></span></div>
+        <small>${escapeHtml(row.people.slice(0, 4).join(', ') || 'gönüllü bilgisi yok')} · son ${escapeHtml(row.lastDate || '—')}</small>
+      </article>`;
+    }).join('') || '<article class="report-empty">Aktif kutu kaydı bekleniyor.</article>';
+  }
+
+  function renderControlReport() {
+    if (!el.report.control) return;
+    const rows = state.pilotCodeRows.slice(0, 5);
+    setElementText(el.report.controlMeta, state.pilotCodeRows.length ? `${formatNumber(state.pilotCodeRows.length)} kontrol kaydı` : 'pilot defter boş');
+    if (!rows.length) {
+      el.report.control.innerHTML = `<article class="report-empty">
+        <b>Kontrol/onay defteri henüz boş.</b>
+        <span>İlk kontrol kaydı girilince burada kim neyi kontrol etti, sorun var mı ve yayın/AtoM için hazır mı görünecek.</span>
+      </article>`;
+      return;
+    }
+    el.report.control.innerHTML = rows.map(function (row) {
+      return `<article class="report-control-card">
+        <b>${escapeHtml(row.date || '—')} · ${escapeHtml(row.people.join(', ') || 'Kontrol eden yok')}</b>
+        <span>${escapeHtml(recordSummary(row))}</span>
+        <p>${escapeHtml(row.statuses.join(' · ') || 'Sonuç bekleniyor')}</p>
+      </article>`;
+    }).join('');
   }
 
   function renderTable() {
@@ -574,7 +828,7 @@
 
     el.dataNote.textContent = state.loading
       ? 'Veri yükleniyor; pilot sekmeler birkaç saniye sürebilir.'
-      : `${state.sourceNote || 'Yeni pilot sekmeleri doğrudan okunuyor.'} · ${formatNumber(pilotDetailRows().length)} detay satırı · ${formatNumber(state.pilotDailyRows.length)} gönüllü günlüğü satırı`;
+      : `${state.sourceNote || 'Yeni pilot sekmeleri doğrudan okunuyor.'} · ${formatNumber(state.pilotScanRows.length)} sayfa/detay satırı · ${formatNumber(state.pilotDailyRows.length)} gönüllü günlüğü · ${formatNumber(state.pilotCodeRows.length)} kontrol/onay`;
   }
 
   function tableConfig(view) {
@@ -910,7 +1164,8 @@
         detailCount: group.detailCount,
         boxes: Array.from(group.boxes).sort(localeSort).slice(0, 8),
         works: Array.from(group.works).sort(localeSort).slice(0, 5),
-        lastDate: group.lastDate
+        lastDate: group.lastDate,
+        lastDateKey: group.lastDateKey
       };
     }).sort(function (a, b) {
       return (b.detailCount + b.activityCount) - (a.detailCount + a.activityCount);
@@ -999,12 +1254,44 @@
   }
 
   function splitPeople(value) {
+    const seen = new Set();
     return clean(value)
-      .split(/\s*(?:,|&|\+| ve )\s*/i)
-      .map(clean)
+      .split(/\s*(?:,|&|\+|\s+-\s+| ve )\s*/i)
+      .map(canonicalPersonName)
       .filter(function (person) {
-        return person && person !== '-' && person.length > 1;
+        const key = personKey(person);
+        if (!person || person === '-' || person.length <= 1 || seen.has(key)) return false;
+        seen.add(key);
+        return true;
       });
+  }
+
+  function canonicalPersonName(value) {
+    const name = clean(value);
+    const aliases = {
+      'ilknur arslan': 'İlknur Arslan',
+      'kubra baspinar': 'Kübra Başpınar',
+      'ozden': 'Özden Özütemiz',
+      'ozden ozutemiz': 'Özden Özütemiz',
+      'sibel dag': 'Sibel Dağ'
+    };
+    return aliases[personKey(name)] || name;
+  }
+
+  function personKey(value) {
+    return clean(value)
+      .toLocaleLowerCase('tr')
+      .replace(/ı/g, 'i')
+      .replace(/ğ/g, 'g')
+      .replace(/ü/g, 'u')
+      .replace(/ş/g, 's')
+      .replace(/ö/g, 'o')
+      .replace(/ç/g, 'c')
+      .replace(/İ/g, 'i')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
   }
 
   function inferArea(value) {
@@ -1062,6 +1349,47 @@
     return '';
   }
 
+  function latestDateKey(rows) {
+    return (Array.isArray(rows) ? rows : []).reduce(function (latest, row) {
+      return row.dateKey && (!latest || row.dateKey > latest) ? row.dateKey : latest;
+    }, '');
+  }
+
+  function shiftDateKey(key, days) {
+    const date = new Date(`${key}T12:00:00`);
+    if (Number.isNaN(date.getTime())) return '';
+    date.setDate(date.getDate() + days);
+    return date.toISOString().slice(0, 10);
+  }
+
+  function todayKey() {
+    const now = new Date();
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  }
+
+  function formatDateKey(key) {
+    if (!key) return '—';
+    const parts = key.split('-');
+    return `${Number(parts[2])} ${monthNameFromKey(key)} ${parts[0]}`;
+  }
+
+  function weekdayFromKey(key) {
+    const date = new Date(`${key}T12:00:00`);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('tr-TR', { weekday: 'long' });
+  }
+
+  function dayNumberFromKey(key) {
+    const parts = String(key || '').split('-');
+    return parts[2] || '—';
+  }
+
+  function monthNameFromKey(key) {
+    const date = new Date(`${key}T12:00:00`);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('tr-TR', { month: 'long' });
+  }
+
   function descByDate(a, b) {
     return String(b.dateKey || '').localeCompare(String(a.dateKey || ''), 'tr') || String(b.date || '').localeCompare(String(a.date || ''), 'tr');
   }
@@ -1104,6 +1432,16 @@
 
   function localeSort(a, b) {
     return String(a).localeCompare(String(b), 'tr');
+  }
+
+  function initials(name) {
+    return clean(name).split(/\s+/).filter(Boolean).map(function (part) {
+      return part[0];
+    }).slice(0, 2).join('').toLocaleUpperCase('tr') || '—';
+  }
+
+  function setElementText(element, value) {
+    if (element) element.textContent = value == null ? '' : String(value);
   }
 
   function clamp(value, min, max) {

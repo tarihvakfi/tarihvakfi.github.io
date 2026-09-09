@@ -92,10 +92,24 @@ body.pilot-dashboard {
   max-width: 760px;
   margin: 0 0 10px;
   font-family: 'Crimson Pro', serif;
-  font-size: 38px;
+  font-size: clamp(44px, 5.4vw, 70px);
   font-weight: 500;
-  line-height: 1.08;
+  line-height: 1;
   color: var(--ink);
+}
+
+.pilot-intro h1 em {
+  color: var(--accent);
+  font-style: italic;
+}
+
+.pilot-intro .hero-period {
+  margin: 0 0 12px;
+  color: var(--accent);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .pilot-intro .lede,
@@ -170,8 +184,403 @@ body.pilot-dashboard {
   text-transform: uppercase;
 }
 
-.pilot-panel {
+.pilot-glance {
   margin-top: 28px;
+  padding: 24px 26px;
+  border-top: 2px solid var(--ink);
+  border-bottom: 1px solid var(--rule);
+  background:
+    linear-gradient(180deg, rgba(96, 16, 64, 0.035), transparent 54%),
+    var(--paper);
+}
+
+.glance-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+
+.glance-head span {
+  color: var(--accent);
+  font-family: 'DM Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.glance-head strong {
+  color: var(--accent);
+  font-family: 'Crimson Pro', serif;
+  font-size: 42px;
+  font-style: italic;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.report-progress-track,
+.report-mini-track,
+.report-track-bar {
+  overflow: hidden;
+  background: var(--rule-soft);
+}
+
+.report-progress-track {
+  height: 12px;
+  border: 1px solid var(--rule);
+}
+
+.report-progress-track span,
+.report-mini-track span,
+.report-track-bar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.report-progress-text {
+  margin: 12px 0 0;
+  color: var(--ink-soft);
+  font-size: 16px;
+}
+
+.report-signals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.report-signals article {
+  min-height: 96px;
+  padding: 14px 15px;
+  border: 1px solid var(--rule);
+  background: var(--paper-soft);
+}
+
+.report-signals span,
+.report-signals small,
+.report-day-top,
+.report-box-card span,
+.report-box-card small,
+.report-track-label span,
+.report-control-card span,
+.report-empty span {
+  color: var(--ink-mute);
+  font-family: 'DM Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+}
+
+.report-signals span,
+.report-box-card span {
+  text-transform: uppercase;
+}
+
+.report-signals b {
+  display: block;
+  margin: 5px 0 4px;
+  color: var(--ink);
+  font-family: 'Crimson Pro', serif;
+  font-size: 30px;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.report-latest {
+  margin-top: 44px;
+}
+
+.report-latest h3,
+.report-split h3 {
+  margin: 0;
+  color: var(--ink);
+  font-family: 'Crimson Pro', serif;
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.report-latest h3 em,
+.report-split h3 em {
+  color: var(--accent);
+  font-style: italic;
+}
+
+.report-day-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.report-day-card {
+  min-height: 238px;
+  padding: 15px 14px;
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--accent);
+  background:
+    linear-gradient(to bottom, transparent 36px, rgba(96, 16, 64, 0.055) 37px, transparent 38px),
+    var(--paper);
+}
+
+.report-day-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  text-transform: uppercase;
+}
+
+.report-day-date {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 13px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.report-day-date b {
+  color: var(--accent);
+  font-family: 'DM Mono', monospace;
+  font-size: 34px;
+  line-height: 0.9;
+}
+
+.report-day-date span {
+  color: var(--ink);
+  font-size: 20px;
+}
+
+.report-day-summary {
+  margin: 12px 0 10px;
+  padding: 8px 9px;
+  border-left: 2px solid var(--accent);
+  background: rgba(96, 16, 64, 0.055);
+  color: var(--ink-mute);
+  font-family: 'DM Mono', monospace;
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+.report-day-people {
+  display: grid;
+  gap: 8px;
+}
+
+.report-person-line {
+  display: grid;
+  gap: 2px;
+}
+
+.report-person-line b {
+  color: var(--ink);
+  font-family: 'Crimson Pro', serif;
+  font-size: 16px;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.report-person-line span,
+.empty-line {
+  margin: 0;
+  color: var(--ink-mute);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.report-volunteers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.report-vol-card {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  min-height: 132px;
+  padding: 15px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+}
+
+.report-avatar {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--paper);
+  font-family: 'Crimson Pro', serif;
+  font-size: 15px;
+  font-style: italic;
+}
+
+.report-vol-card h3 {
+  margin: 0 0 4px;
+  color: var(--ink);
+  font-family: 'Crimson Pro', serif;
+  font-size: 18px;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.report-vol-card p {
+  margin: 0;
+  color: var(--ink-mute);
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+.report-vol-card strong {
+  color: var(--accent);
+  font-family: 'Crimson Pro', serif;
+  font-size: 22px;
+  font-style: italic;
+  line-height: 1;
+}
+
+.report-chipline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.report-chipline span {
+  padding: 2px 7px;
+  border: 1px solid var(--accent-soft);
+  background: var(--accent-bg);
+  color: var(--accent-deep);
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.report-tracks {
+  display: grid;
+  gap: 10px;
+}
+
+.report-track-row {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.9fr) minmax(140px, 1fr) 58px;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--rule-soft);
+}
+
+.report-track-label {
+  display: grid;
+  gap: 3px;
+}
+
+.report-track-label b {
+  color: var(--ink);
+  font-family: 'Crimson Pro', serif;
+  font-size: 18px;
+  font-style: italic;
+  font-weight: 500;
+}
+
+.report-track-bar {
+  height: 10px;
+  border: 1px solid var(--rule);
+}
+
+.report-track-row strong {
+  color: var(--accent);
+  font-family: 'DM Mono', monospace;
+  font-size: 15px;
+  text-align: right;
+}
+
+.report-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+  gap: 28px;
+  margin-top: 52px;
+}
+
+.report-boxes,
+.report-control {
+  display: grid;
+  gap: 12px;
+}
+
+.report-box-card,
+.report-control-card,
+.report-empty {
+  padding: 15px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+}
+
+.report-box-card h3 {
+  margin: 2px 0 8px;
+  color: var(--accent);
+  font-family: 'Crimson Pro', serif;
+  font-size: 26px;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.report-box-card p {
+  margin: 0 0 9px;
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+
+.report-mini-track {
+  height: 9px;
+  margin-bottom: 10px;
+  border: 1px solid var(--rule);
+}
+
+.report-box-card small {
+  display: block;
+  line-height: 1.45;
+}
+
+.report-control-card {
+  display: grid;
+  gap: 5px;
+}
+
+.report-control-card b,
+.report-empty b {
+  color: var(--ink);
+  font-family: 'Crimson Pro', serif;
+  font-size: 18px;
+  font-style: italic;
+  font-weight: 500;
+}
+
+.report-control-card p {
+  margin: 0;
+  color: var(--accent);
+  font-family: 'DM Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.report-empty {
+  display: grid;
+  gap: 7px;
+  color: var(--ink-mute);
+}
+
+.pilot-panel {
+  margin-top: 52px;
   border: 1px solid var(--rule);
   background: var(--paper);
   padding: 20px;
@@ -393,11 +802,17 @@ body.pilot-dashboard {
 @media (max-width: 920px) {
   .pilot-intro,
   .panel-head,
-  .architecture-grid {
+  .architecture-grid,
+  .report-split {
     grid-template-columns: 1fr;
   }
 
-  .metric-strip {
+  .metric-strip,
+  .report-volunteers {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .report-day-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -405,7 +820,10 @@ body.pilot-dashboard {
 @media (max-width: 620px) {
   .pilot-page .top-tabs,
   .metric-strip,
-  .step-list {
+  .step-list,
+  .report-signals,
+  .report-day-grid,
+  .report-volunteers {
     grid-template-columns: 1fr;
   }
 
@@ -419,10 +837,23 @@ body.pilot-dashboard {
   }
 
   .pilot-intro h1 {
-    font-size: 34px;
+    font-size: 40px;
   }
 
   .pilot-panel {
     padding: 18px;
+  }
+
+  .glance-head,
+  .report-track-row {
+    grid-template-columns: 1fr;
+  }
+
+  .glance-head {
+    align-items: start;
+  }
+
+  .report-track-row strong {
+    text-align: left;
   }
 }
