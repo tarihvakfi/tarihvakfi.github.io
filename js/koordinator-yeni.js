@@ -5,7 +5,7 @@
   var D = {
     ad: '', sifre: '', bolum: 'secim', gorunum: 'bekleyen',
     kararlar: [], kararToplam: 0, kararBas: 0, kararAdet: 20,
-    durum: null, raflar: [], raflarYuklendi: false, rafHaritasiTam: false, rafHaritaIstegi: null, rafBas: 0,
+    durum: null, raflar: [], raflarYuklendi: false, rafHaritasiTam: false, rafOzetiVar: false, rafHaritaIstegi: null, rafBas: 0,
     seciliRaf: '', rafKitaplar: [], rafKitapToplam: 0,
     cfg: window.TV_ENVANTER_CONFIG || null, islem: 0
   };
@@ -21,6 +21,15 @@
   }
 
   function sayi(v) { return Number(v || 0).toLocaleString('tr-TR'); }
+
+  function hataMetni(e, konu) {
+    if (e && e.message === 'AĞ') {
+      return navigator.onLine === false
+        ? 'İnternet bağlantısı yok. Bağlantı gelince tekrar deneyin.'
+        : (konu || 'Bilgi') + ' kitap sunucusundan alınamadı. Sunucu geç yanıt veriyor; biraz sonra tekrar deneyin.';
+    }
+    return (e && e.message) || ((konu || 'İşlem') + ' tamamlanamadı.');
+  }
 
   function api(action, yuk, timeout) {
     return window.TVEnvanterAg.request(window.TV_ENVANTER_URL,
@@ -110,7 +119,7 @@
 
   function durumYukle(zorla) {
     if (D.durum && !zorla) { sayaclariCiz(); return Promise.resolve(D.durum); }
-    return api('durum').then(function (r) { D.durum = r; sayaclariCiz(); return r; });
+    return api('durum', {}, 15000).then(function (r) { D.durum = r; sayaclariCiz(); return r; });
   }
 
   function kitapFotografi(ad, id, url) {
@@ -160,7 +169,7 @@
       yalnizKararsiz: D.gorunum === 'bekleyen',
       kategori: D.gorunum === 'verilmis' ? $('kararKategori').value : '',
       ara: $('kararAra').value.trim(), sirala: 'yer', bas: D.kararBas, adet: D.kararAdet
-    }).then(function (r) {
+    }, 15000).then(function (r) {
       if (token !== D.islem) return;
       D.kararlar = r.kayitlar || [];
       D.kararToplam = Number(r.toplam || 0);
@@ -168,7 +177,7 @@
       kararListeCiz();
     }).catch(function (e) {
       if (token !== D.islem || sifreHatasi(e)) return;
-      mesaj($('kararMsg'), 'hata', e.message || 'Kitaplar alınamadı.');
+      mesaj($('kararMsg'), 'hata', hataMetni(e, 'Kitaplar'));
     });
   }
 
@@ -197,7 +206,7 @@
     }).catch(function (e) {
       if (sifreHatasi(e)) return;
       kart.querySelectorAll('button').forEach(function (b) { b.disabled = false; });
-      mesaj(kart.querySelector('.kart-mesaj'), 'hata', e.message);
+      mesaj(kart.querySelector('.kart-mesaj'), 'hata', e.message === 'AĞ' ? 'Sunucu yanıt vermedi. Kararın kaydolup kaydolmadığını “Bilgileri yenile” ile kontrol edin.' : e.message);
     });
   }
 
@@ -217,7 +226,7 @@
       kart.classList.add('satir-basarili');
       setTimeout(function () { kararYukle(); }, 500);
     }).catch(function (e) {
-      if (!sifreHatasi(e)) { mesgul(dugme, false); mesaj(kart.querySelector('.kart-mesaj'), 'hata', e.message); }
+      if (!sifreHatasi(e)) { mesgul(dugme, false); mesaj(kart.querySelector('.kart-mesaj'), 'hata', e.message === 'AĞ' ? 'Sunucu yanıt vermedi. Kitabı yenileyip karar durumunu kontrol edin.' : e.message); }
     });
   }
 
@@ -294,18 +303,48 @@
     ].map(function (x) { return '<div class="ozet-karti"><b>' + sayi(x[0]) + '</b><span>' + esc(x[1]) + '</span></div>'; }).join('');
   }
 
+  function rafOzetiniBirlestir(siralar) {
+    var gelen = {};
+    (siralar || []).forEach(function (r) { gelen[r.sira] = r; });
+    D.raflar = D.raflar.map(function (r) {
+      var o = gelen[r.sira];
+      if (!o) return r;
+      return Object.assign({}, r, {
+        durum:o.durum || r.durum,
+        kayitli:o.kayitli == null ? r.kayitli : Number(o.kayitli),
+        onSayim:o.onSayim == null ? null : Number(o.onSayim),
+        sayim:o.sayim || null,
+        tutulu:!!o.tutulu, tutan:o.tutan || '', bitiren:o.bitiren || '',
+        hizliOzet:false
+      });
+    });
+    D.rafOzetiVar = true;
+    rafSayaclariCiz(); rafSecicileriCiz();
+    if (D.bolum === 'durum') genelDurumCiz();
+  }
+
   function ayrintiliRafHaritasiniYukle(zorla) {
     if (D.rafHaritaIstegi && !zorla) return D.rafHaritaIstegi;
-    D.rafHaritaIstegi = api('siraHaritasi', {}, 15000).then(function (r) {
+    var ozetAlindi = false;
+    D.rafHaritaIstegi = api('siraOzeti', {}, 10000).then(function (r) {
+      rafOzetiniBirlestir(r.siralar || []); ozetAlindi = true;
+      mesaj($('rafMsg'), 'iyi', 'Raf sayımları yüklendi. Karar bilgileri eşleştiriliyor…');
+    }).catch(function (e) {
+      if (sifreHatasi(e)) throw e;
+    }).then(function () {
+      return api('siraHaritasi', {}, 15000);
+    }).then(function (r) {
       D.raflar = r.siralar || [];
-      D.raflarYuklendi = true; D.rafHaritasiTam = true;
+      D.raflarYuklendi = true; D.rafHaritasiTam = true; D.rafOzetiVar = true;
       rafSayaclariCiz(); rafSecicileriCiz();
       mesaj($('rafMsg'), 'iyi', 'Kitap kayıtları ve raf sayımı eşleştirildi.');
       if (D.bolum === 'durum') genelDurumCiz();
       return D.raflar;
     }).catch(function (e) {
       if (sifreHatasi(e)) throw e;
-      mesaj($('rafMsg'), '', 'Kitap kayıtları gösteriliyor. Raf sayımı ayrıntıları şu anda alınamadı; “Bilgileri yenile” ile tekrar deneyebilirsiniz.');
+      mesaj($('rafMsg'), '', ozetAlindi
+        ? 'Raf sayımları ve kitap kayıtları gösteriliyor. Kararların raf bazındaki ayrıntısı daha sonra yenilenecek.'
+        : hataMetni(e, 'Raf sayımları'));
       return D.raflar;
     }).finally(function () { D.rafHaritaIstegi = null; });
     return D.rafHaritaIstegi;
@@ -325,7 +364,7 @@
       ayrintiliRafHaritasiniYukle(zorla);
       return D.raflar;
     }).catch(function (e) {
-      if (!sifreHatasi(e)) mesaj($('rafMsg'), 'hata', e.message || 'Raf bilgileri alınamadı.');
+      if (!sifreHatasi(e)) mesaj($('rafMsg'), 'hata', hataMetni(e, 'Raf bilgileri'));
       throw e;
     });
   }
@@ -357,15 +396,21 @@
     if (D.seciliRaf) rafAc();
   }
 
-  function rafAc() {
-    var r = D.raflar.find(function (x) { return x.sira === D.seciliRaf; });
-    if (!r) return;
+  function rafOzetCiz(r, fotograflariKoru) {
     var n = sayimSayisi(r), kayitli = Number(r.kayitli || 0), fark = n == null ? null : n - kayitli;
     $('rafKod').textContent = r.sira;
     $('rafBaslik').textContent = yerAdi(r.sira);
     $('btnRafFoto').classList.remove('gizli');
-    $('rafFotolar').classList.add('gizli'); $('rafFotolar').innerHTML = '';
+    if (!fotograflariKoru) {
+      $('rafFotolar').classList.add('gizli'); $('rafFotolar').innerHTML = '';
+    }
     $('rafOzet').innerHTML = '<div class="raf-ozet-grid"><div><b>' + (n == null ? '—' : sayi(n)) + '</b><span>Sayım sonucu</span></div><div><b>' + sayi(kayitli) + '</b><span>Kaydedilen kitap / nüsha</span></div><div><b>' + sayi(r.kararVerilen) + ' / ' + sayi(r.kayitSayisi) + '</b><span>Kararı verilen kayıt</span></div></div><p class="uyusma ' + (fark === 0 ? '' : 'uyari') + '">' + esc(sayimMetni(r)) + ' · ' + (fark == null ? 'Sayım yapılınca kayıtlarla karşılaştırılacak.' : fark === 0 ? 'Sayım ile kayıtlar eşleşiyor.' : fark > 0 ? sayi(fark) + ' kitabın kaydı eksik görünüyor.' : 'Kayıt sayısı sayımdan ' + sayi(-fark) + ' fazla görünüyor.') + '</p>';
+  }
+
+  function rafAc() {
+    var r = D.raflar.find(function (x) { return x.sira === D.seciliRaf; });
+    if (!r) return;
+    rafOzetCiz(r);
     rafKitapYukle();
   }
 
@@ -373,15 +418,22 @@
     var kod = D.seciliRaf, bas = D.rafBas;
     mesaj($('rafKitapMsg'), '', 'Bu raftaki kitaplar yükleniyor…');
     $('rafKitaplar').innerHTML = '';
-    return api('katalog', { sira:kod, yalnizOnayli:false, sirala:'yer', adet:30, bas:bas }).then(function (r) {
+    return api('katalog', { sira:kod, yalnizOnayli:false, sirala:'yer', adet:30, bas:bas }, 12000).then(function (r) {
       if (kod !== D.seciliRaf) return;
       D.rafKitaplar = r.kayitlar || []; D.rafKitapToplam = Number(r.toplam || 0);
+      var raf = D.raflar.find(function (x) { return x.sira === kod; });
+      if (raf && D.rafBas === 0 && D.rafKitapToplam <= D.rafKitaplar.length) {
+        raf.kayitSayisi = D.rafKitapToplam;
+        raf.kayitli = D.rafKitaplar.reduce(function (t, k) { return t + Math.max(1, Number(k.nusha) || 1); }, 0);
+        raf.kararVerilen = D.rafKitaplar.filter(function (k) { return !!kararEtiket[k.kategori]; }).length;
+        rafOzetCiz(raf, true); rafSayaclariCiz();
+      }
       mesaj($('rafKitapMsg'), '', '');
       $('rafKitaplar').innerHTML = D.rafKitaplar.length ? D.rafKitaplar.map(function (k) { return '<button type="button" class="raf-kitap" data-kitap="' + Number(k.no) + '"><span><strong>' + esc(k.baslik || 'Kitap bilgisi henüz tamamlanmamış') + '</strong><small>' + esc([k.yazar, k.yil, k.yer].filter(Boolean).join(' · ')) + '</small></span>' + kararRozeti(k.kategori, k.onay ? 'Karar bekliyor' : 'Bilgi kontrolü bekliyor') + '</button>'; }).join('') : '<div class="bos-durum"><h2>Bu rafta kitap kaydı yok</h2><p>Gönüllüler kitap kaydettikçe burada görünecek.</p></div>';
       $('rafSayfalama').classList.toggle('gizli', D.rafKitapToplam <= 30 && D.rafBas === 0);
       $('rafOnceki').disabled = D.rafBas === 0; $('rafSonraki').disabled = D.rafBas + D.rafKitaplar.length >= D.rafKitapToplam;
       $('rafAralik').textContent = (D.rafKitaplar.length ? D.rafBas + 1 : 0) + '–' + (D.rafBas + D.rafKitaplar.length) + ' / ' + sayi(D.rafKitapToplam);
-    }).catch(function (e) { if (!sifreHatasi(e)) mesaj($('rafKitapMsg'), 'hata', e.message); });
+    }).catch(function (e) { if (!sifreHatasi(e)) mesaj($('rafKitapMsg'), 'hata', hataMetni(e, 'Bu raftaki kitaplar')); });
   }
 
   function kitapDetayAc(no) {
@@ -396,12 +448,12 @@
     if (!$('rafFotolar').classList.contains('gizli')) { $('rafFotolar').classList.add('gizli'); return; }
     var p = parcala(D.seciliRaf), r = D.raflar.find(function (x) { return x.sira === D.seciliRaf; });
     mesgul($('btnRafFoto'), true, 'Yükleniyor…');
-    api('rafFotograflari', { mekan:p.kat, raf:p.kitaplik, sira:p.sira }).then(function (v) {
-      var liste = (v.fotograflar || []).map(function (f) { return { kucuk:foto(f.id || f.fotoId, f.url || f.foto, 500), buyuk:foto(f.id || f.fotoId, f.url || f.foto, 1800), ad:['Raf fotoğrafı', f.kim, f.tarih].filter(Boolean).join(' · ') }; }).filter(function (f) { return f.kucuk; });
-      if (!liste.length && r && r.sayimFoto) liste.push({ kucuk:foto('', r.sayimFoto, 500), buyuk:foto('', r.sayimFoto, 1800), ad:'Raf fotoğrafı' });
+    api('rafFotograflari', { mekan:p.kat, raf:p.kitaplik, sira:p.sira }, 12000).then(function (v) {
+      var liste = (v.fotograflar || []).map(function (f) { return { kucuk:foto(f.id || f.fotoId, f.url || f.foto, 1400), buyuk:foto(f.id || f.fotoId, f.url || f.foto, 2200), ad:['Raf fotoğrafı', f.kim, f.tarih].filter(Boolean).join(' · ') }; }).filter(function (f) { return f.kucuk; });
+      if (!liste.length && r && r.sayimFoto) liste.push({ kucuk:foto('', r.sayimFoto, 1400), buyuk:foto('', r.sayimFoto, 2200), ad:'Raf fotoğrafı' });
       $('rafFotolar').innerHTML = liste.length ? liste.map(function (f) { return '<button type="button" data-tv-foto="' + esc(f.buyuk) + '" data-tv-foto-ad="' + esc(f.ad) + '"><img loading="lazy" src="' + esc(f.kucuk) + '" alt="' + esc(f.ad) + '"></button>'; }).join('') : '<p>Bu rafın fotoğrafı henüz eklenmemiş.</p>';
       $('rafFotolar').classList.remove('gizli');
-    }).catch(function (e) { if (!sifreHatasi(e)) mesaj($('rafKitapMsg'), 'hata', e.message); }).finally(function () { mesgul($('btnRafFoto'), false); });
+    }).catch(function (e) { if (!sifreHatasi(e)) mesaj($('rafKitapMsg'), 'hata', hataMetni(e, 'Raf fotoğrafları')); }).finally(function () { mesgul($('btnRafFoto'), false); });
   }
 
   function genelDurumCiz() {
@@ -443,7 +495,7 @@
       if (!D.raflarYuklendi || zorla) { raflariDurumdanKur(); D.raflarYuklendi = true; }
       genelDurumCiz(); mesaj($('durumMsg'), '', '');
       ayrintiliRafHaritasiniYukle(zorla);
-    }).catch(function (e) { if (!e.sifreHatasi) mesaj($('durumMsg'), 'hata', e.message); });
+    }).catch(function (e) { if (!e.sifreHatasi) mesaj($('durumMsg'), 'hata', hataMetni(e, 'Genel durum')); });
   }
 
   function bolumAc(ad) {
@@ -464,12 +516,12 @@
     localStorage.setItem('tv_env_ad', D.ad); localStorage.setItem('tv_env_koord_sifre', D.sifre);
     $('kimAd').textContent = D.ad;
     $('giris').classList.add('gizli'); $('uygulama').classList.remove('gizli');
-    D.durum = null; D.raflarYuklendi = false; D.rafHaritasiTam = false; D.kararlar = [];
+    D.durum = null; D.raflarYuklendi = false; D.rafHaritasiTam = false; D.rafOzetiVar = false; D.kararlar = [];
     /* İlk ekranda asıl iş kitap seçimidir. Apps Script'e aynı anda iki ağır
        istek gönderip ikisini de yavaşlatmamak için listeyi önce getirir,
        özet sayaçlarını hemen arkasından yenileriz. */
     kararYukle().then(function () { return durumYukle(true); }).catch(function (e) {
-      if (!sifreHatasi(e)) { mesaj($('kararMsg'), 'hata', e.message || 'Bilgiler alınamadı.'); }
+      if (!sifreHatasi(e)) { mesaj($('kararMsg'), 'hata', hataMetni(e, 'Kitaplar')); }
     }).finally(function () { mesgul(btn, false); });
   }
 
@@ -498,7 +550,7 @@
   $('kitapDetay').addEventListener('click', function (e) { if (e.target === $('kitapDetay')) $('kitapDetay').close(); });
   $('rafUyarilari').addEventListener('click', function (e) { var b = e.target.closest('[data-uyari-raf]'); if (!b) return; var p = parcala(b.dataset.uyariRaf); D.seciliRaf = b.dataset.uyariRaf; bolumAc('raflar'); raflariYukle(false).then(function () { $('rafKat').value = p.kat; rafKitapliklariCiz(p.kitaplik); $('rafKitaplik').value = p.kitaplik; rafSiralarCiz(); }); });
 
-  $('iletisimForm').addEventListener('submit', function (e) { e.preventDefault(); var btn = $('btnIletisim'), metin = $('iletisimMesaj').value.trim(); if (metin.length < 5) { mesaj($('iletisimMsg'),'hata','Mesajınızı biraz daha açık yazın.'); return; } mesgul(btn,true,'Gönderiliyor…'); api('iletisimGonder',{ sayfa:'Koordinatör paneli', tur:$('iletisimTur').value, ad:D.ad, iletisim:$('iletisimBilgi').value.trim(), konu:$('iletisimKonu').value.trim(), mesaj:metin, baglam:'Açık bölüm: ' + D.bolum }).then(function () { mesaj($('iletisimMsg'),'iyi','Mesajınız gönderildi. Teşekkür ederiz.'); $('iletisimMesaj').value=''; $('iletisimKonu').value=''; }).catch(function (h) { if (!sifreHatasi(h)) mesaj($('iletisimMsg'),'hata',h.message); }).finally(function(){mesgul(btn,false);}); });
+  $('iletisimForm').addEventListener('submit', function (e) { e.preventDefault(); var btn = $('btnIletisim'), metin = $('iletisimMesaj').value.trim(); if (metin.length < 5) { mesaj($('iletisimMsg'),'hata','Mesajınızı biraz daha açık yazın.'); return; } mesgul(btn,true,'Gönderiliyor…'); api('iletisimGonder',{ sayfa:'Koordinatör paneli', tur:$('iletisimTur').value, ad:D.ad, iletisim:$('iletisimBilgi').value.trim(), konu:$('iletisimKonu').value.trim(), mesaj:metin, baglam:'Açık bölüm: ' + D.bolum }).then(function () { mesaj($('iletisimMsg'),'iyi','Mesajınız gönderildi. Teşekkür ederiz.'); $('iletisimMesaj').value=''; $('iletisimKonu').value=''; }).catch(function (h) { if (!sifreHatasi(h)) mesaj($('iletisimMsg'),'hata',h.message === 'AĞ' ? 'Sunucu yanıt vermedi; mesaj gönderilmedi. Biraz sonra tekrar deneyin.' : h.message); }).finally(function(){mesgul(btn,false);}); });
 
   var ad = localStorage.getItem('tv_env_ad') || '', sifre = localStorage.getItem('tv_env_koord_sifre') || '';
   $('ad').value = ad; $('sifre').value = sifre;

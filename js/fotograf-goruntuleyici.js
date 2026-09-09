@@ -2,6 +2,7 @@
   'use strict';
 
   var kok, alan, resim, baslik;
+  var kapatilanModallar = [];
   var durum = { olcek: 1, aci: 0, x: 0, y: 0 };
   var noktalar = new Map();
   var ilkUzaklik = 0, ilkOlcek = 1, sonDokunma = 0;
@@ -119,6 +120,14 @@
   function ac(src, ad) {
     if (!src) return;
     kur();
+    /* HTML <dialog> öğeleri tarayıcının özel "üst katman"ında durur; normal
+       z-index değeri onları geçemez. Fotoğraf bir kitap ayrıntı penceresinden
+       açıldıysa o pencereyi geçici kapatır, görüntüleyici kapanınca geri açarız. */
+    kapatilanModallar = Array.from(document.querySelectorAll('dialog[open]')).map(function (d) {
+      var kayit = { dialog:d, scrollTop:d.scrollTop };
+      d.close();
+      return kayit;
+    });
     sifirla();
     resim.src = src;
     resim.alt = ad || 'Fotoğraf';
@@ -134,6 +143,13 @@
     kok.classList.remove('acik');
     document.documentElement.classList.remove('tv-foto-acik');
     noktalar.clear();
+    var geriAc = kapatilanModallar.slice();
+    kapatilanModallar = [];
+    geriAc.forEach(function (k) {
+      if (!k.dialog.isConnected || k.dialog.open) return;
+      k.dialog.showModal();
+      k.dialog.scrollTop = k.scrollTop;
+    });
     setTimeout(function () { if (!kok.classList.contains('acik')) resim.removeAttribute('src'); }, 200);
   }
 

@@ -44,11 +44,19 @@
       if(configRequests.has(url))return configRequests.get(url);
     }
     var read=reads.indexOf(body.action)>=0;
-    var result=once(url,body,options.timeout).catch(function(e){
-      // Retry only a bad read response, never a write whose outcome is unknown.
-      if(read&&e.code==='SERVER_RESPONSE')return once(url,body,options.timeout);
-      throw e;
-    }).then(function(data){
+    var kalan=read?(options.retries==null?1:Math.max(0,Number(options.retries)||0)):0;
+    function dene() {
+      return once(url,body,options.timeout).catch(function(e){
+        // Reads are side-effect free. A cold Apps Script redirect may fail once;
+        // retry it with a fresh URL. Writes still run exactly once here.
+        if(read&&kalan>0&&(e.code==='SERVER_RESPONSE'||e.code==='NETWORK')){
+          kalan--;
+          return new Promise(function(t){setTimeout(t,700);}).then(dene);
+        }
+        throw e;
+      });
+    }
+    var result=dene().then(function(data){
       if(body.action==='config')try{sessionStorage.setItem('tv_env_config_v1',JSON.stringify({url:url,time:Date.now(),data:data}));}catch(e){}
       return data;
     }).finally(function(){if(body.action==='config')configRequests.delete(url);});

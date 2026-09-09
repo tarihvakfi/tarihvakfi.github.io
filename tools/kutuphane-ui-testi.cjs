@@ -13,6 +13,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   const calls = [];
   let shelfSuggestionAttempts = 0;
   let shelfReleaseAttempts = 0;
+  let shelfSummaryAttempts = 0;
   page.on('pageerror', error => errors.push(error.message));
 
   const categories = {
@@ -60,7 +61,15 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
         result = { ok:true, kategoriler:categories, kurallar:[], durumlar:['Sağlam'], mekanlar:[{kod:'G',ad:'Giriş Kat'}], rafHarfleri:['A'], siraSayisi:1 };
         break;
       case 'sayac': await new Promise(resolve => setTimeout(resolve, 1500)); result = { ok:true, benim:0 }; break;
-      case 'siraOzeti': result = { ok:false, error:'Raf servisi geçici olarak yanıt vermedi.' }; break;
+      case 'siraOzeti':
+        if (!request.frame().url().includes('kitap-envanteri.html') && ++shelfSummaryAttempts === 1) {
+          await route.abort('failed');
+          return;
+        }
+        result = request.frame().url().includes('kitap-envanteri.html')
+          ? { ok:false, error:'Raf servisi geçici olarak yanıt vermedi.' }
+          : { ok:true, siralar:[{sira:'G-A01',durum:'devam',kayitli:35,onSayim:35,sayim:{toplam:35,durum:'onaylandi'}}] };
+        break;
       case 'siraOner': result = { ok:true, anahtar:'G-A01', tur:'sizin', zatenSizde:true, kalanBos:0, yarimKalan:0 }; break;
       case 'siraBirak': result = { ok:true, birakilan:['G-A01'] }; break;
       case 'siraHaritasi':
@@ -141,13 +150,40 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
 
   await page.getByRole('button', { name:/Raflar ve Kitaplar/ }).click();
   await page.getByText('Giriş Kat · A kitaplığı · 1. sıra', { exact:true }).waitFor();
-  await page.getByText('Kitap kayıtları gösteriliyor.', { exact:false }).waitFor();
-  assert.equal(await page.locator('#rafSayaclari').getByText('35', { exact:true }).count(), 1);
+  await page.getByText('Raf sayımları ve kitap kayıtları gösteriliyor.', { exact:false }).waitFor();
+  assert.ok(await page.locator('#rafSayaclari').getByText('35', { exact:true }).count() >= 1);
+  assert.equal(shelfSummaryAttempts, 2, 'Raf özeti ilk ağ hatasından sonra güvenli biçimde tekrarlanmadı');
   await page.getByRole('button', { name:'Raf fotoğrafları' }).click();
   await page.locator('#rafFotolar img').waitFor();
+  const shelfPhoto = await page.locator('#rafFotolar img').evaluate(img => ({
+    objectFit:getComputedStyle(img).objectFit,
+    imageWidth:img.getBoundingClientRect().width,
+    galleryWidth:img.closest('#rafFotolar').getBoundingClientRect().width
+  }));
+  assert.equal(shelfPhoto.objectFit, 'contain');
+  assert.ok(shelfPhoto.imageWidth >= shelfPhoto.galleryWidth - 3, 'Raf fotoğrafı panel genişliğinde değil: ' + JSON.stringify(shelfPhoto));
+  if (process.env.TV_TEST_SCREENSHOTS) {
+    await page.locator('#rafFotolar').scrollIntoViewIfNeeded();
+    await page.locator('.raf-detay').screenshot({ path:'/tmp/tv-raf-fotografi-tam.png' });
+  }
   await page.locator('#rafFotolar button').click();
   await page.locator('.tv-foto-goruntuleyici.acik').waitFor();
   await page.getByRole('button', { name:'Kapat', exact:true }).click();
+
+  await page.locator('#rafKitaplar .raf-kitap').first().click();
+  await page.locator('#kitapDetay[open]').waitFor();
+  await page.locator('#kitapDetay [data-tv-foto]').first().click();
+  await page.locator('.tv-foto-goruntuleyici.acik').waitFor();
+  assert.equal(await page.locator('#kitapDetay').evaluate(d => d.open), false, 'Kitap penceresi fotoğraf görüntüleyicinin altında açık kaldı');
+  const viewerIsTopLayer = await page.evaluate(() => {
+    const top=document.elementFromPoint(innerWidth/2,innerHeight/2);
+    return !!(top && top.closest('.tv-foto-goruntuleyici.acik'));
+  });
+  assert.equal(viewerIsTopLayer, true, 'Fotoğraf görüntüleyici ekranın üst katmanında değil');
+  if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-foto-ust-katman.png' });
+  await page.getByRole('button', { name:'Kapat', exact:true }).click();
+  await page.locator('#kitapDetay[open]').waitFor();
+  await page.locator('#detayKapat').click();
 
   await page.getByRole('button', { name:/Genel Durum/ }).click();
   await page.locator('#genelSayaclar').getByText('Raflarda sayılan kitap', { exact:true }).waitFor();
@@ -227,6 +263,6 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
     assert.ok(!(await page.locator('body').innerText()).includes('Aradığınız sayfa bulunamadı'), legacyPage + ' 404 sayfasına düştü');
   }
 
-  console.log('PASS: koordinatör, gönüllü, bakım sayfaları, karar akışı, raflar, fotoğraf araçları ve mobil/geniş ekran görünümü.');
+  console.log('PASS: koordinatör, gönüllü, bakım sayfaları, karar akışı, raflar, fotoğraf üst katmanı ve mobil/geniş ekran görünümü.');
   await browser.close();
 })().catch(error => { console.error(error); process.exit(1); });

@@ -795,7 +795,7 @@
   </section>
 </div>
 
-<script src="./js/envanter-ag.js?v=20260909f"></script>
+<script src="./js/envanter-ag.js?v=20260909h"></script>
 <script src="./js/gonullu-config.js?v=20260909f"></script>
 <script>
 /* Apps Script web uygulamasının adresi.
@@ -1024,8 +1024,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
             (f.tarih ? '<br>' + esc(f.tarih) : '') + '</figcaption></figure>';
         }).join('');
       })['catch'](function (e) {
-        $('rafFotoListe').innerHTML = '<p class="rfBos">' + esc(e.message === 'AĞ'
-          ? 'Bağlantı yok — raf fotoğrafları getirilemedi.' : e.message) + '</p>';
+        $('rafFotoListe').innerHTML = '<p class="rfBos">' + esc(agHataMetni(e,
+          'İnternet bağlantısı yok; raf fotoğrafları getirilemedi.',
+          'Kitap sunucusu geç yanıt verdi; raf fotoğraflarını biraz sonra tekrar açın.')) + '</p>';
       });
   }
 
@@ -1173,6 +1174,11 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     return dene(kalan, 1200);
   }
 
+  function agHataMetni(e, cevrimdisi, gecikti) {
+    if (!e || e.message !== 'AĞ') return (e && e.message) || 'İşlem tamamlanamadı.';
+    return navigator.onLine === false ? cevrimdisi : gecikti;
+  }
+
   /* ───────── iletişim ───────── */
   function iletisimBaglami() {
     var parcalar = ['Gönüllü kayıt ekranı'];
@@ -1214,9 +1220,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       $('iletisimMesaj').value = '';
       goster(m, 'iyi', esc(r.mesaj || 'Mesajınız alındı. Teşekkür ederiz.'));
     })['catch'](function (e) {
-      goster(m, 'hata', e.message === 'AĞ'
-        ? 'Bağlantı yok — mesaj gönderilemedi. Bağlantı gelince tekrar deneyin.'
-        : e.message);
+      goster(m, 'hata', agHataMetni(e,
+        'İnternet bağlantısı yok; mesaj gönderilmedi. Bağlantı gelince tekrar deneyin.',
+        'Sunucu yanıt vermedi; mesaj gönderilmedi. Biraz sonra tekrar deneyin.'));
     }).then(function () { mesgul($('btnIletisimGonder'), false); });
   }
 
@@ -1282,8 +1288,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     if (D.cfg) ekraniAc();
     else ayarlariYukle().then(ekraniAc)['catch'](function (e) {
       clearTimeout(uyari); mesgul($('btnGiris'), false);
-      goster($('msgGiris'), 'hata', e.message === 'AĞ'
-        ? 'Raf planı alınamadı. Sayfayı yenileyip tekrar deneyin.' : e.message);
+      goster($('msgGiris'), 'hata', agHataMetni(e,
+        'İnternet bağlantısı yok; raf planı alınamadı.',
+        'Kitap sunucusu geç yanıt verdi. Sayfayı yenileyip tekrar deneyin.'));
     });
   });
 
@@ -1811,8 +1818,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
           c.adet + ' kitap.');
         return sayimDurumYukle();
       })['catch'](function (e) {
-        goster($('msgSayim'), 'hata', e.message === 'AĞ'
-          ? 'Bağlantı yok — onay kaydedilemedi.' : e.message);
+        goster($('msgSayim'), 'hata', agHataMetni(e,
+          'İnternet bağlantısı yok; onay gönderilmedi.',
+          'Sunucu yanıt vermedi. Sayfayı yenileyip onayın kaydolup kaydolmadığını kontrol edin.'));
       });
   }
 
@@ -1840,8 +1848,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
                         : 'Bir önceki sayım geri geldi: <b>' + c.adet + ' kitap</b>.'));
         return sayimDurumYukle();
       })['catch'](function (e) {
-        goster($('msgSayim'), 'hata', e.message === 'AĞ'
-          ? 'Bağlantı yok — geri alınamadı.' : e.message);
+        goster($('msgSayim'), 'hata', agHataMetni(e,
+          'İnternet bağlantısı yok; geri alma işlemi gönderilmedi.',
+          'Sunucu yanıt vermedi. Sayfayı yenileyip işlemin gerçekleşip gerçekleşmediğini kontrol edin.'));
       });
   }
 
@@ -1955,9 +1964,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         (c.fotoUrl ? ' 📷 Raf fotoğrafı da kaydedildi.' : ''));
       return sayimDurumYukle();
     })['catch'](function (e) {
-      goster($('msgSayim'), 'hata', e.message === 'AĞ'
-        ? 'Bağlantı yok — kaydedilemedi. Bağlantı gelince tekrar deneyin.'
-        : e.message);
+      goster($('msgSayim'), 'hata', agHataMetni(e,
+        'İnternet bağlantısı yok; bilgi gönderilmedi. Bağlantı gelince tekrar deneyin.',
+        'Sunucu yanıt vermedi. Sayfayı yenileyip bilginin kaydolup kaydolmadığını kontrol edin.'));
     }).then(function () { mesgul($('btnSayimEngelKaydet'), false); });
   });
 
@@ -2040,9 +2049,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         : ' <b>Bu mekânın son gözüydü</b> — mekân değiştirebilirsiniz.'));
       return sayimDurumYukle();
     })['catch'](function (e) {
-      goster($('msgSayim'), 'hata', e.message === 'AĞ'
-        ? 'Bağlantı yok — sayım kaydedilemedi. Bağlantı gelince tekrar deneyin.'
-        : e.message);
+      goster($('msgSayim'), 'hata', agHataMetni(e,
+        'İnternet bağlantısı yok; sayım gönderilmedi. Bağlantı gelince tekrar deneyin.',
+        'Sunucu yanıt vermedi. Sayfayı yenileyip sayımın kaydolup kaydolmadığını kontrol edin.'));
     }).then(function () { mesgul($('btnSayimKaydet'), false); });
   });
 
@@ -2624,7 +2633,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
           ((foto || kapak) ? ' (fotoğraflarıyla)' : '') + ' — bağlantı gelince gönderilecek.');
         formTemizle();
       } else {
-        goster($('msgKayit'), 'hata', e.message === 'AĞ' ? 'Sunucuya ulaşılamadı.' : e.message);
+        goster($('msgKayit'), 'hata', agHataMetni(e,
+          'İnternet bağlantısı yok; düzeltme gönderilmedi.',
+          'Sunucu yanıt vermedi. Sayfayı yenileyip düzeltmenin kaydolup kaydolmadığını kontrol edin.'));
       }
     }).then(function () { mesgul(dugme, false); });
   }
@@ -2715,9 +2726,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       }
       D.siraDurumu = 'bitti';
     })['catch'](function (e) {
-      goster($('msgBitir'), 'hata', e.message === 'AĞ'
-        ? 'Sunucuya ulaşılamadı. Bağlantı gelince tekrar deneyin — sıra bitmiş sayılmadı.'
-        : e.message);
+      goster($('msgBitir'), 'hata', agHataMetni(e,
+        'İnternet bağlantısı yok; bitirme işlemi gönderilmedi.',
+        'Sunucu yanıt vermedi. Sayfayı yenileyip sıranın bitmiş görünüp görünmediğini kontrol edin.'));
     }).then(function () { mesgul($('btnSiraBitir'), false); });
   });
 
@@ -2799,9 +2810,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         : '<b>' + esc(yer) + '</b> numarasında kayıt yok. Bu kitap hiç girilmemiş ' +
           'olabilir; normal şekilde kaydedin.');
     })['catch'](function (e) {
-      goster($('msgBul'), 'hata', e.message === 'AĞ'
-        ? 'Bağlantı yokken arama yapılamıyor. Bağlantı gelince tekrar deneyin.'
-        : e.message);
+      goster($('msgBul'), 'hata', agHataMetni(e,
+        'İnternet bağlantısı yok; arama yapılamıyor.',
+        'Kitap sunucusu geç yanıt verdi. Biraz sonra tekrar arayın.'));
     }).then(function () { mesgul($('btnBul'), false); });
   }
 
@@ -3106,6 +3117,6 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   });
 })();
 </script>
-<script src="./js/fotograf-goruntuleyici.js?v=20260909f"></script>
+<script src="./js/fotograf-goruntuleyici.js?v=20260909h"></script>
 </body>
 </html>
