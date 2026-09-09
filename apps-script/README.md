@@ -72,3 +72,47 @@ The endpoint must not emit emails, raw row IDs, private notes, URLs, scanner lab
 ## Refresh Schedule
 
 GitHub Actions calls `?public=1&period=rolling_7_days` hourly and bakes the response into `js/snapshot.js`. The page also tries the live endpoint in the browser after rendering the snapshot.
+
+## Digitization Transition Bridge
+
+`DigitizationBridgeSync.gs` is the temporary bridge between the original working file and the new digitization/reporting workbook.
+
+Purpose:
+
+- volunteers keep working in **Tarih Vakfı Gönüllü Ağı** during the transition;
+- the new workbook is rebuilt daily from that source;
+- `/pilot/` reads the new workbook, so the public report follows the latest copied state;
+- normalized tabs stay transferable for AtoM/Omeka/Baserow-style export work.
+
+Daily generated target tabs:
+
+- `01 Gönüllü Günlüğü`
+- `02 Tarama Satır Girişi`
+- `04 Web Özeti`
+- `05 AtoM Aktarım`
+
+The bridge also mirrors these operational tabs from the old workbook into the new workbook:
+
+- `Günlük Akış`
+- `PNB Sayısallaştırma`
+- `Haftalık Plan`
+
+The bridge does **not** overwrite `03 Kontrol ve Onay`. That tab remains available for coordinator review, correction, and approval records.
+
+One-time setup:
+
+1. Open the Google Apps Script project used by the foundation Google account.
+2. Add/paste `DigitizationBridgeSync.gs`.
+3. Run `runDigitizationBridgeSync` once and approve Google permissions.
+4. Check the new workbook: `98 Senkron Günlüğü` should show `Tamamlandı`.
+5. Run `installDigitizationBridgeDailyTrigger` once.
+
+Daily behavior:
+
+- The trigger runs once per day around 07:00 Türkiye time.
+- Rows are rebuilt from the old workbook, so appended rows, edited rows, and deleted rows are all reflected.
+- Volunteers should not edit the generated target tabs during the transition; their source of truth remains the old workbook until cutover.
+
+Cutover:
+
+When volunteers move to the new workbook, remove the trigger with `removeDigitizationBridgeDailyTrigger`. After that, the generated tabs can become the working tabs.
