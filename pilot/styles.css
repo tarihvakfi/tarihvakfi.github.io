@@ -291,6 +291,131 @@ body.pilot-dashboard {
   line-height: 1;
 }
 
+.report-intelligence {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.28fr);
+  gap: 34px;
+  margin-top: 30px;
+  padding-bottom: 30px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.forecast-card {
+  padding-top: 14px;
+  border-top: 2px solid var(--accent);
+}
+
+.forecast-card h2 {
+  margin: 4px 0 10px;
+  color: var(--accent);
+  font-family: 'Crimson Pro', serif;
+  font-size: 36px;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.forecast-card p {
+  margin: 0 0 12px;
+  color: var(--ink-soft);
+  font-size: 15.5px;
+  line-height: 1.55;
+}
+
+.forecast-card small,
+.indicator-card small,
+.stage-card small,
+.progress-line small {
+  color: var(--ink-mute);
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+.indicator-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.indicator-card {
+  min-height: 152px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+}
+
+.indicator-card span,
+.stage-card span {
+  display: block;
+  color: var(--accent);
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.indicator-card b {
+  display: block;
+  margin: 8px 0 6px;
+  color: var(--ink);
+  font-family: 'Crimson Pro', serif;
+  font-size: 29px;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.indicator-card p {
+  margin: 10px 0 0;
+  color: var(--ink-mute);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.workflow-stage-panel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  margin-top: 28px;
+}
+
+.stage-card {
+  padding: 15px 0 0;
+  border-top: 1px solid var(--rule);
+}
+
+.stage-card b {
+  display: block;
+  margin: 8px 0 3px;
+  color: var(--accent);
+  font-family: 'Crimson Pro', serif;
+  font-size: 32px;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.stage-card p {
+  min-height: 42px;
+  margin: 12px 0 10px;
+  color: var(--ink-soft);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.stage-track {
+  overflow: hidden;
+  height: 8px;
+  border: 1px solid var(--rule);
+  background: var(--rule-soft);
+}
+
+.stage-track span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
 .report-latest {
   margin-top: 36px;
 }
@@ -765,11 +890,13 @@ body.pilot-dashboard {
 @media (max-width: 920px) {
   .pilot-intro,
   .panel-head,
+  .report-intelligence,
   .report-split {
     grid-template-columns: 1fr;
   }
 
   .metric-strip,
+  .indicator-grid,
   .report-volunteers {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -782,6 +909,8 @@ body.pilot-dashboard {
 @media (max-width: 620px) {
   .pilot-page .top-tabs,
   .metric-strip,
+  .indicator-grid,
+  .workflow-stage-panel,
   .report-signals,
   .report-day-grid,
   .report-volunteers {

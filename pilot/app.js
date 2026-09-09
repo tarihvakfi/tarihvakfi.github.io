@@ -69,6 +69,11 @@
       pace: document.getElementById('reportPace'),
       remaining: document.getElementById('reportRemaining'),
       remainingNote: document.getElementById('reportRemainingNote'),
+      forecastDate: document.getElementById('forecastDate'),
+      forecastNote: document.getElementById('forecastNote'),
+      forecastMeta: document.getElementById('forecastMeta'),
+      indicators: document.getElementById('reportIndicators'),
+      workflow: document.getElementById('reportWorkflow'),
       latest: document.getElementById('reportLatest'),
       latestMeta: document.getElementById('reportLatestMeta'),
       latestRows: document.getElementById('reportLatestRows'),
@@ -606,6 +611,8 @@
       ? `son aktif gün ortalamasıyla yaklaşık ${formatNumber(Math.ceil(progress.remainingPages / Math.max(1, window.detailRows / Math.max(1, window.activeDays))))} aktif gün`
       : 'yaklaşık hedef');
 
+    renderIndicatorReport(progress);
+    renderWorkflowReport();
     renderLatestReport();
     renderVolunteerReport();
     renderTrackReport();
@@ -654,6 +661,255 @@
       people: Array.from(peopleSet).sort(localeSort),
       boxes: Array.from(boxSet).sort(localeSort),
       activeDays: daySet.size
+    };
+  }
+
+  function renderIndicatorReport(progress) {
+    const forecast = forecastModel(progress);
+    setElementText(el.report.forecastDate, forecast.dateLabel);
+    setElementText(el.report.forecastNote, forecast.note);
+    setElementText(el.report.forecastMeta, forecast.meta);
+
+    if (!el.report.indicators) return;
+    const rows = reportMetricRows(progress).slice(0, 4);
+    el.report.indicators.innerHTML = rows.map(function (row) {
+      return `<article class="indicator-card">
+        <span>${escapeHtml(row.label)}</span>
+        <b>${escapeHtml(row.value)}</b>
+        <small>${escapeHtml(row.period)}</small>
+        <p>${escapeHtml(row.note)}</p>
+      </article>`;
+    }).join('') || '<article class="report-empty">Gösterge için kayıt bekleniyor.</article>';
+  }
+
+  function renderWorkflowReport() {
+    if (!el.report.workflow) return;
+    const rows = workflowStageStats();
+    const totalDetail = Math.max(1, state.pilotScanRows.length);
+    el.report.workflow.innerHTML = rows.map(function (row) {
+      const width = clamp(row.detailCount / totalDetail * 100, 0, 100);
+      return `<article class="stage-card">
+        <div>
+          <span>${escapeHtml(row.label)}</span>
+          <b>${formatNumber(row.detailCount)}</b>
+          <small>${escapeHtml(row.unit)}</small>
+        </div>
+        <p>${formatNumber(row.dailyCount)} günlük iz · ${formatNumber(row.people.length)} kişi · ${formatNumber(row.boxes.length)} kutu · son ${escapeHtml(row.lastDate || '—')}</p>
+        <div class="stage-track" aria-hidden="true"><span style="width:${width}%"></span></div>
+      </article>`;
+    }).join('');
+  }
+
+  function reportMetricRows(progress) {
+    const rows = allReportRows();
+    const latestKey = latestDateKey(rows);
+    const all = summarizeRows(rows);
+    const scan7 = summarizeWindow(state.pilotScanRows, 7, latestKey);
+    const scan30 = summarizeWindow(state.pilotScanRows, 30, latestKey);
+    const forecast = forecastModel(progress);
+    const stages = workflowStageStats();
+    const scanStage = stages.find(function (row) { return row.label === 'Tarama'; }) || emptyStage('Tarama');
+    const codeStage = stages.find(function (row) { return row.label === 'Kodlama'; }) || emptyStage('Kodlama');
+    const controlStage = stages.find(function (row) { return row.label === 'Kontrol'; }) || emptyStage('Kontrol');
+
+    return [
+      {
+        label: 'Günlük katkı',
+        value: `${formatNumber(safeDivide(all.totalRecords, all.activeDays))}/gün`,
+        period: `${formatNumber(all.activeDays)} aktif gün`,
+        note: `${formatNumber(all.totalRecords)} toplam kayıt; tarama, kodlama, kontrol ve günlük izler birlikte.`
+      },
+      {
+        label: 'Haftalık katkı',
+        value: `${formatNumber(safeDivide(all.totalRecords, all.activeWeeks))}/hafta`,
+        period: `${formatNumber(all.activeWeeks)} aktif hafta`,
+        note: 'Hafta içinde en az bir kayıt olan haftaların ortalaması.'
+      },
+      {
+        label: 'Aylık katkı',
+        value: `${formatNumber(safeDivide(all.totalRecords, all.activeMonths))}/ay`,
+        period: `${formatNumber(all.activeMonths)} aktif ay`,
+        note: 'Ay içinde en az bir kayıt olan ayların ortalaması.'
+      },
+      {
+        label: 'Son 30 gün tarama',
+        value: `${formatNumber(safeDivide(scan30.detailRows, scan30.calendarDays))}/gün`,
+        period: `${formatNumber(scan30.detailRows)} detay`,
+        note: `${formatNumber(scan30.activeDays)} aktif gün · ${formatNumber(scan30.people.length)} kişi · son 30 takvim günü.`
+      },
+      {
+        label: 'Son 7 gün tarama',
+        value: `${formatNumber(safeDivide(scan7.detailRows, scan7.calendarDays))}/gün`,
+        period: `${formatNumber(scan7.detailRows)} detay`,
+        note: `${formatNumber(scan7.activeDays)} aktif gün · ${formatNumber(scan7.people.length)} kişi · son 7 takvim günü.`
+      },
+      {
+        label: 'Tarama aşaması',
+        value: `${formatNumber(scanStage.detailCount)} detay`,
+        period: `${formatNumber(scanStage.dailyCount)} günlük iz`,
+        note: `${formatNumber(scanStage.people.length)} kişi · ${formatNumber(scanStage.boxes.length)} kutu · son ${scanStage.lastDate || '—'}.`
+      },
+      {
+        label: 'Kodlama aşaması',
+        value: `${formatNumber(codeStage.detailCount)} detay`,
+        period: `${formatNumber(codeStage.dailyCount)} günlük iz`,
+        note: `${formatNumber(codeStage.people.length)} kişi · ${formatNumber(codeStage.boxes.length)} kutu · son ${codeStage.lastDate || '—'}.`
+      },
+      {
+        label: 'Kontrol aşaması',
+        value: `${formatNumber(controlStage.detailCount)} kontrol satırı`,
+        period: `${formatNumber(controlStage.dailyCount)} günlük iz`,
+        note: `${formatNumber(controlStage.people.length)} kişi · ${formatNumber(controlStage.boxes.length)} kutu · son ${controlStage.lastDate || '—'}.`
+      },
+      {
+        label: 'Tahmini tarama bitişi',
+        value: forecast.dateLabel,
+        period: forecast.pace ? `${formatNumber(forecast.pace)} sayfa/gün` : 'hız bekleniyor',
+        note: forecast.meta
+      },
+      {
+        label: 'Kontrol defteri',
+        value: formatNumber(state.pilotCodeRows.length),
+        period: 'satır bazlı kontrol',
+        note: 'Günlükte kontrol izleri olabilir; yayın/açık arşiv için satır bazlı kontrol ayrıca tutulmalı.'
+      }
+    ];
+  }
+
+  function forecastModel(progress) {
+    if (state.loading) {
+      return {
+        dateLabel: 'Veri bekleniyor',
+        note: 'Tarama hızı hesaplanıyor.',
+        meta: 'Son 30 gün takvim hızına göre.',
+        pace: 0
+      };
+    }
+
+    const latestKey = latestDateKey(allReportRows());
+    const scan30 = summarizeWindow(state.pilotScanRows, 30, latestKey);
+    const allScan = summarizeWindow(state.pilotScanRows, null, latestDateKey(state.pilotScanRows));
+    const pace = safeDivide(scan30.detailRows, scan30.calendarDays) || safeDivide(allScan.detailRows, allScan.calendarDays);
+    if (!progress.remainingPages || !pace) {
+      return {
+        dateLabel: 'Öngörü için veri bekleniyor',
+        note: 'Kalan sayfa ya da hız bilgisi yeterli değil.',
+        meta: 'Tarama bitişi için kalan sayfa ve son dönem hızı gerekir.',
+        pace: 0
+      };
+    }
+
+    const remainingDays = Math.ceil(progress.remainingPages / pace);
+    const targetDateKey = shiftDateKey(todayKey(), remainingDays);
+    return {
+      dateLabel: formatDateKey(targetDateKey),
+      note: `${formatNumber(progress.remainingPages)} sayfa kaldı; son 30 günün takvim hızına göre tarama bitiş tarihi.`,
+      meta: `Son 30 gün: ${formatNumber(scan30.detailRows)} detay · ${formatNumber(scan30.activeDays)} aktif gün. Kontrol, kataloglama ve yayın hazırlığı ayrıca izlenir.`,
+      pace
+    };
+  }
+
+  function emptyStage(label) {
+    return {
+      label,
+      detailCount: 0,
+      dailyCount: 0,
+      people: [],
+      boxes: [],
+      lastDate: '',
+      lastDateKey: '',
+      unit: label === 'Kontrol' ? 'kontrol satırı' : 'detay satırı'
+    };
+  }
+
+  function workflowStageStats() {
+    return ['Tarama', 'Kodlama', 'Kontrol'].map(function (label) {
+      const structuredRows = label === 'Kontrol'
+        ? state.pilotCodeRows.concat(state.pilotScanRows.filter(function (row) { return hasWorkType(row, label); }))
+        : state.pilotScanRows.filter(function (row) { return hasWorkType(row, label); });
+      const dailyRows = state.pilotDailyRows.filter(function (row) {
+        return hasWorkType(row, label);
+      });
+      const peopleSet = new Set();
+      const boxSet = new Set();
+      let lastDate = '';
+      let lastDateKey = '';
+
+      structuredRows.concat(dailyRows).forEach(function (row) {
+        row.people.forEach(function (person) { peopleSet.add(person); });
+        (row.checkedPeople || []).forEach(function (person) { peopleSet.add(person); });
+        if (row.box) boxSet.add(`${row.fund || ''} ${row.box}`.trim());
+        if (row.dateKey && (!lastDateKey || row.dateKey > lastDateKey)) {
+          lastDateKey = row.dateKey;
+          lastDate = row.date;
+        }
+      });
+
+      return {
+        label,
+        detailCount: structuredRows.length,
+        dailyCount: dailyRows.length,
+        people: Array.from(peopleSet).sort(localeSort),
+        boxes: Array.from(boxSet).sort(localeSort),
+        lastDate,
+        lastDateKey,
+        unit: label === 'Kontrol' ? 'kontrol satırı' : 'detay satırı'
+      };
+    });
+  }
+
+  function allReportRows() {
+    return state.pilotDailyRows.concat(state.pilotScanRows, state.pilotCodeRows);
+  }
+
+  function summarizeWindow(rows, days, fallbackLatestKey) {
+    const sourceRows = Array.isArray(rows) ? rows.filter(function (row) { return row.dateKey; }) : [];
+    const endKey = fallbackLatestKey || latestDateKey(sourceRows);
+    const firstKey = firstDateKey(sourceRows);
+    const startKey = days && endKey ? shiftDateKey(endKey, -(days - 1)) : firstKey;
+    const filtered = sourceRows.filter(function (row) {
+      return row.dateKey && (!startKey || row.dateKey >= startKey) && (!endKey || row.dateKey <= endKey);
+    });
+    const summary = summarizeRows(filtered);
+    summary.startKey = startKey;
+    summary.endKey = endKey;
+    summary.calendarDays = days || diffDaysInclusive(startKey, endKey) || summary.activeDays;
+    return summary;
+  }
+
+  function summarizeRows(rows) {
+    const daySet = new Set();
+    const weekSet = new Set();
+    const monthSet = new Set();
+    const peopleSet = new Set();
+    const boxSet = new Set();
+    let detailRows = 0;
+    let dailyRows = 0;
+    let controlRows = 0;
+
+    (Array.isArray(rows) ? rows : []).forEach(function (row) {
+      if (row.source === PILOT_SCAN_SHEET) detailRows += 1;
+      if (row.kind === 'daily') dailyRows += 1;
+      if (row.source === PILOT_CODE_SHEET) controlRows += 1;
+      if (row.dateKey) {
+        daySet.add(row.dateKey);
+        weekSet.add(weekKey(row.dateKey));
+        monthSet.add(monthKey(row.dateKey));
+      }
+      row.people.forEach(function (person) { peopleSet.add(person); });
+      if (row.box) boxSet.add(`${row.fund || ''} ${row.box}`.trim());
+    });
+
+    return {
+      totalRecords: (Array.isArray(rows) ? rows.length : 0),
+      detailRows,
+      dailyRows,
+      controlRows,
+      activeDays: daySet.size,
+      activeWeeks: weekSet.size,
+      activeMonths: monthSet.size,
+      people: Array.from(peopleSet).sort(localeSort),
+      boxes: Array.from(boxSet).sort(localeSort)
     };
   }
 
@@ -736,7 +992,7 @@
     const shown = rows.slice(0, 8);
     setElementText(el.report.volunteersMeta, rows.length ? `${formatNumber(rows.length)} kişi · öne çıkan ${formatNumber(shown.length)} katkı` : 'kayıt bekleniyor');
     el.report.volunteers.innerHTML = shown.map(function (row) {
-      const total = row.detailCount + row.activityCount;
+      const total = row.totalCount || row.detailCount + row.activityCount;
       return `<article class="report-vol-card">
         <span class="report-avatar">${escapeHtml(initials(row.name))}</span>
         <div>
@@ -822,16 +1078,22 @@
       el.tableBody.innerHTML = `<tr><td colspan="${config.columns.length}">${escapeHtml(state.loadError)}</td></tr>`;
     } else {
       const rows = config.rows().filter(matchesQuery);
-      el.tableBody.innerHTML = rows.slice(0, 80).map(function (row) {
+      const limit = config.limit || 80;
+      const visibleRows = rows.slice(0, limit);
+      el.tableBody.innerHTML = visibleRows.map(function (row) {
         return `<tr>${config.columns.map(function (column) {
           return `<td>${column.render(row)}</td>`;
         }).join('')}</tr>`;
       }).join('') || `<tr><td colspan="${config.columns.length}">Bu görünüm için kayıt yok.</td></tr>`;
     }
 
+    const configRows = state.loading ? [] : config.rows().filter(matchesQuery);
+    const limitNote = configRows.length > (config.limit || 80)
+      ? ` · tabloda ilk ${formatNumber(config.limit || 80)} kayıt gösteriliyor`
+      : '';
     el.dataNote.textContent = state.loading
       ? 'Veri yükleniyor; çalışma sekmeleri birkaç saniye sürebilir.'
-      : `${state.sourceNote || 'Çalışma dosyasındaki sekmeler doğrudan okunuyor.'} · ${formatNumber(state.pilotScanRows.length)} sayfa/detay satırı · ${formatNumber(state.pilotDailyRows.length)} gönüllü günlüğü · ${formatNumber(state.pilotCodeRows.length)} kontrol/onay`;
+      : `${state.sourceNote || 'Çalışma dosyasındaki sekmeler doğrudan okunuyor.'} · ${formatNumber(state.pilotScanRows.length)} sayfa/detay satırı · ${formatNumber(state.pilotDailyRows.length)} gönüllü günlüğü · ${formatNumber(state.pilotCodeRows.length)} kontrol/onay${limitNote}`;
   }
 
   function tableConfig(view) {
@@ -852,15 +1114,33 @@
       };
     }
 
+    if (view === 'hiz') {
+      return {
+        kicker: 'Rapor göstergeleri',
+        title: 'Hız ve öngörü',
+        limit: 40,
+        rows: function () { return reportMetricRows(progressModel()); },
+        columns: [
+          { label: 'Gösterge', render: function (row) { return `<strong>${escapeHtml(row.label)}</strong>`; } },
+          { label: 'Değer', render: function (row) { return escapeHtml(row.value); } },
+          { label: 'Dönem', render: function (row) { return escapeHtml(row.period); } },
+          { label: 'Not', render: function (row) { return escapeHtml(row.note); } }
+        ]
+      };
+    }
+
     if (view === 'kutular') {
       return {
         kicker: 'Sayısallaştırma görünümü',
         title: 'Kutular',
+        limit: 200,
         rows: boxStats,
         columns: [
           { label: 'Fon / kutu', render: function (row) { return `<strong>${escapeHtml(row.label)}</strong>`; } },
           { label: 'İlerleme', render: progressCell },
-          { label: 'Dosya / belge', render: function (row) { return `${formatNumber(row.fileCount)} dosya · ${formatNumber(row.documentCount)} belge`; } },
+          { label: 'Aşamalar', render: function (row) { return `${formatNumber(row.scanCount)} tarama · ${formatNumber(row.codeCount)} kodlama · ${formatNumber(row.controlCount)} kontrol`; } },
+          { label: 'Kalan', render: function (row) { return `${formatNumber(row.remaining)} sayfa`; } },
+          { label: 'Hız / tahmin', render: boxPaceCell },
           { label: 'Gönüllüler', render: function (row) { return escapeHtml(row.people.join(', ') || '—'); } },
           { label: 'Son tarih', render: function (row) { return escapeHtml(row.lastDate || '—'); } },
           { label: 'Durum', render: function (row) { return statusPills(row.statuses); } }
@@ -872,6 +1152,7 @@
       return {
         kicker: 'Çalışma alanı görünümü',
         title: 'İş türleri',
+        limit: 200,
         rows: workStats,
         columns: [
           { label: 'İş / alan', render: function (row) { return `<strong>${escapeHtml(row.label)}</strong>`; } },
@@ -887,11 +1168,13 @@
       return {
         kicker: 'Gönüllü görünümü',
         title: 'Gönüllüler',
+        limit: 500,
         rows: volunteerStats,
         columns: [
           { label: 'Gönüllü', render: function (row) { return `<strong>${escapeHtml(row.name)}</strong>`; } },
-          { label: 'Günlük kayıt', render: function (row) { return formatNumber(row.activityCount); } },
-          { label: 'Detay satırı', render: function (row) { return formatNumber(row.detailCount); } },
+          { label: 'Tüm çalışma izleri', render: function (row) { return `${formatNumber(row.totalCount)} toplam · ${formatNumber(row.detailCount)} detay · ${formatNumber(row.activityCount)} günlük`; } },
+          { label: 'Ortalamalar', render: volunteerPaceCell },
+          { label: 'Kontrol', render: function (row) { return `${formatNumber(row.controlCount)} satır/iz`; } },
           { label: 'Kutular', render: function (row) { return escapeHtml(row.boxes.join(', ') || '—'); } },
           { label: 'Son tarih', render: function (row) { return escapeHtml(row.lastDate || '—'); } },
           { label: 'İşler', render: function (row) { return escapeHtml(row.works.join(', ') || '—'); } }
@@ -903,6 +1186,7 @@
       return {
         kicker: 'Denetim görünümü',
         title: 'Kontrol ve onay',
+        limit: 500,
         rows: function () { return state.pilotCodeRows; },
         columns: [
           { label: 'Tarih', render: function (row) { return `<strong>${escapeHtml(row.date || '—')}</strong>`; } },
@@ -920,6 +1204,7 @@
       return {
         kicker: 'Koordinasyon görünümü',
         title: 'Haftalık plan',
+        limit: 200,
         rows: function () { return state.planRows; },
         columns: [
           { label: 'İstasyon', render: function (row) { return `<strong>${escapeHtml(row.station)}</strong>`; } },
@@ -936,6 +1221,7 @@
       return {
         kicker: 'Aktarım önizlemesi',
         title: 'AtoM aktarımı',
+        limit: 500,
         rows: atomRows,
         columns: [
           { label: 'Referans kodu', render: function (row) { return `<strong>${escapeHtml(row.referenceCode)}</strong>`; } },
@@ -951,6 +1237,7 @@
     return {
       kicker: 'Günlük görünüm',
       title: 'Gönüllü günlüğü',
+      limit: 500,
       rows: function () { return state.pilotDailyRows.length ? state.pilotDailyRows : state.activityRows; },
       columns: [
         { label: 'Tarih', render: function (row) { return `<strong>${escapeHtml(row.date || '—')}</strong>`; } },
@@ -1013,8 +1300,29 @@
       }
       const group = groups.get(key);
       group.done += 1;
+      if (hasWorkType(row, 'Tarama')) group.scanCount += 1;
+      if (hasWorkType(row, 'Kodlama')) group.codeCount += 1;
+      if (hasWorkType(row, 'Kontrol')) group.controlCount += 1;
       row.people.forEach(function (person) { group.peopleSet.add(person); });
       row.statuses.forEach(function (status) { group.statuses.add(status); });
+      if (row.dateKey) group.daySet.add(row.dateKey);
+      if (row.dateKey && (!group.lastDateKey || row.dateKey > group.lastDateKey)) {
+        group.lastDateKey = row.dateKey;
+        group.lastDate = row.date;
+      }
+    });
+
+    state.pilotCodeRows.forEach(function (row) {
+      const key = boxKey(row.fund, row.box);
+      if (!groups.has(key)) {
+        groups.set(key, emptyBox(row.fund, row.box));
+      }
+      const group = groups.get(key);
+      group.controlCount += 1;
+      row.people.forEach(function (person) { group.peopleSet.add(person); });
+      row.checkedPeople.forEach(function (person) { group.peopleSet.add(person); });
+      row.statuses.forEach(function (status) { group.statuses.add(status); });
+      if (row.dateKey) group.daySet.add(row.dateKey);
       if (row.dateKey && (!group.lastDateKey || row.dateKey > group.lastDateKey)) {
         group.lastDateKey = row.dateKey;
         group.lastDate = row.date;
@@ -1023,6 +1331,8 @@
 
     return Array.from(groups.values()).map(function (group) {
       const percent = group.target ? (group.done / group.target) * 100 : 0;
+      const remaining = Math.max(0, group.target - group.done);
+      const activeDays = group.daySet.size;
       if (percent >= 100) group.statuses.add('Tamamlandı');
       if (group.done && percent < 100) group.statuses.add('Sürüyor');
       return {
@@ -1031,9 +1341,15 @@
         box: group.box,
         done: group.done,
         target: group.target,
+        remaining,
         percent,
         fileCount: group.fileCount,
         documentCount: group.documentCount,
+        scanCount: group.scanCount,
+        codeCount: group.codeCount,
+        controlCount: group.controlCount,
+        activeDays,
+        paceActiveDay: safeDivide(group.done, activeDays),
         people: Array.from(group.peopleSet).sort(localeSort),
         lastDate: group.lastDate,
         statuses: Array.from(group.statuses)
@@ -1051,7 +1367,11 @@
       target: 0,
       fileCount: 0,
       documentCount: 0,
+      scanCount: 0,
+      codeCount: 0,
+      controlCount: 0,
       peopleSet: new Set(),
+      daySet: new Set(),
       statuses: new Set(),
       lastDate: '',
       lastDateKey: ''
@@ -1150,6 +1470,8 @@
         (row.workTypes.length ? row.workTypes : [row.area || row.work]).filter(Boolean).forEach(function (work) {
           group.works.add(work);
         });
+        if (hasWorkType(row, 'Kontrol')) group.controlTraceCount += 1;
+        addVolunteerPeriod(group, row.dateKey);
         updateLastDate(group, row.date, row.dateKey);
       });
     });
@@ -1157,11 +1479,16 @@
     pilotDetailRows().forEach(function (row) {
       row.people.forEach(function (person) {
         const group = volunteerGroup(groups, person);
-        group.detailCount += 1;
+        if (row.source === PILOT_CODE_SHEET) {
+          group.structuredControlCount += 1;
+        } else {
+          group.detailCount += 1;
+        }
         if (row.box) group.boxes.add(`${row.fund} ${row.box}`.trim());
         (row.workTypes.length ? row.workTypes : [`${row.fund || 'Arşiv'} sayısallaştırma`]).forEach(function (work) {
           group.works.add(work);
         });
+        addVolunteerPeriod(group, row.dateKey);
         updateLastDate(group, row.date, row.dateKey);
       });
     });
@@ -1172,16 +1499,26 @@
           const group = volunteerGroup(groups, person);
           group.activityCount += 1;
           if (row.area || row.work) group.works.add(row.area || row.work);
+          addVolunteerPeriod(group, row.dateKey);
           updateLastDate(group, row.date, row.dateKey);
         });
       });
     }
 
     return Array.from(groups.values()).map(function (group) {
+      const totalCount = group.activityCount + group.detailCount + group.structuredControlCount;
       return {
         name: group.name,
+        totalCount,
         activityCount: group.activityCount,
         detailCount: group.detailCount,
+        controlCount: group.structuredControlCount + group.controlTraceCount,
+        activeDays: group.daySet.size,
+        activeWeeks: group.weekSet.size,
+        activeMonths: group.monthSet.size,
+        avgDay: safeDivide(totalCount, group.daySet.size),
+        avgWeek: safeDivide(totalCount, group.weekSet.size),
+        avgMonth: safeDivide(totalCount, group.monthSet.size),
         boxes: Array.from(group.boxes).sort(localeSort).slice(0, 8),
         works: Array.from(group.works).sort(localeSort).slice(0, 5),
         lastDate: group.lastDate,
@@ -1198,13 +1535,25 @@
         name,
         activityCount: 0,
         detailCount: 0,
+        structuredControlCount: 0,
+        controlTraceCount: 0,
         boxes: new Set(),
         works: new Set(),
+        daySet: new Set(),
+        weekSet: new Set(),
+        monthSet: new Set(),
         lastDate: '',
         lastDateKey: ''
       });
     }
     return groups.get(name);
+  }
+
+  function addVolunteerPeriod(group, key) {
+    if (!key) return;
+    group.daySet.add(key);
+    group.weekSet.add(weekKey(key));
+    group.monthSet.add(monthKey(key));
   }
 
   function atomRows() {
@@ -1241,6 +1590,24 @@
     return `<div class="progress-line">
       <span>${formatNumber(row.done)} / ${formatNumber(row.target)} sayfa · ${formatNumber(percent)}%</span>
       <span class="progress-track" aria-hidden="true"><span class="progress-fill" style="width:${percent}%"></span></span>
+    </div>`;
+  }
+
+  function boxPaceCell(row) {
+    const pace = row.paceActiveDay || 0;
+    const estimate = pace && row.remaining
+      ? `${formatNumber(Math.ceil(row.remaining / pace))} aktif gün`
+      : '—';
+    return `<div class="progress-line">
+      <span>${pace ? `${formatNumber(pace)} sayfa/aktif gün` : 'hız bekleniyor'}</span>
+      <small>${escapeHtml(row.remaining ? estimate : 'tamamlandı ya da hedef yok')}</small>
+    </div>`;
+  }
+
+  function volunteerPaceCell(row) {
+    return `<div class="progress-line">
+      <span>${formatNumber(row.avgDay)} / gün</span>
+      <small>${formatNumber(row.avgWeek)} / hafta · ${formatNumber(row.avgMonth)} / ay</small>
     </div>`;
   }
 
@@ -1337,6 +1704,19 @@
     }
   }
 
+  function hasWorkType(row, label) {
+    const needle = clean(label).toLocaleLowerCase('tr');
+    return (row.workTypes || []).some(function (work) {
+      return clean(work).toLocaleLowerCase('tr').includes(needle);
+    });
+  }
+
+  function safeDivide(numerator, denominator) {
+    const top = Number(numerator || 0);
+    const bottom = Number(denominator || 0);
+    return bottom ? top / bottom : 0;
+  }
+
   function dateKey(value) {
     const text = clean(value)
       .replace(/[/-]/g, '.')
@@ -1375,11 +1755,36 @@
     }, '');
   }
 
+  function firstDateKey(rows) {
+    return (Array.isArray(rows) ? rows : []).reduce(function (first, row) {
+      return row.dateKey && (!first || row.dateKey < first) ? row.dateKey : first;
+    }, '');
+  }
+
   function shiftDateKey(key, days) {
     const date = new Date(`${key}T12:00:00`);
     if (Number.isNaN(date.getTime())) return '';
     date.setDate(date.getDate() + days);
     return date.toISOString().slice(0, 10);
+  }
+
+  function diffDaysInclusive(startKey, endKey) {
+    const start = new Date(`${startKey}T12:00:00`);
+    const end = new Date(`${endKey}T12:00:00`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+    return Math.max(1, Math.round((end - start) / 86400000) + 1);
+  }
+
+  function weekKey(key) {
+    const date = new Date(`${key}T12:00:00`);
+    if (Number.isNaN(date.getTime())) return '';
+    const mondayOffset = (date.getDay() + 6) % 7;
+    date.setDate(date.getDate() - mondayOffset);
+    return date.toISOString().slice(0, 10);
+  }
+
+  function monthKey(key) {
+    return String(key || '').slice(0, 7);
   }
 
   function todayKey() {
