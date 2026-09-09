@@ -1,6 +1,6 @@
 (function () {
   const SPREADSHEET_ID = '1DiUCoI9f7xrnBil2-H7EPqb9Scj37QKSOpnwdrFZghw';
-  const SOURCE_TITLE = 'Tarih Vakfı Dijitalleştirme Yönetimi - Pilot';
+  const SOURCE_TITLE = 'Tarih Vakfı Dijitalleştirme Yönetimi';
   const PILOT_DAILY_SHEET = '01 Gönüllü Günlüğü';
   const PILOT_SCAN_SHEET = '02 Tarama Satır Girişi';
   const PILOT_CODE_SHEET = '03 Kontrol ve Onay';
@@ -114,7 +114,7 @@
   }
 
   async function loadPilotSheet() {
-    setStatus('loading', 'pilot sheet okunuyor');
+    setStatus('loading', 'çalışma dosyası okunuyor');
     render();
 
     try {
@@ -141,12 +141,12 @@
 
       state.loading = false;
       state.loadError = '';
-      state.sourceNote = 'Pilot Sheet canlı okunuyor. Genel ilerleme PNB Sayısallaştırma L105 hücresinden alınıyor.';
-      setStatus('live', 'pilot sheet canlı');
+      state.sourceNote = 'Çalışma dosyası canlı okunuyor. Genel ilerleme PNB Sayısallaştırma L105 hücresinden alınıyor.';
+      setStatus('live', 'canlı veri');
       render();
     } catch (error) {
       state.loading = false;
-      state.loadError = 'Pilot Sheet okunamadı. Dosyanın bağlantıyla görüntülenebilir olması gerekiyor.';
+      state.loadError = 'Çalışma dosyası okunamadı. Dosyanın bağlantıyla görüntülenebilir olması gerekiyor.';
       setStatus('error', 'bağlantı yok');
       render();
     }
@@ -250,7 +250,7 @@
         box: clean(pick(row, ['Kutu / raf'])),
         scanner: clean(pick(row, ['Tarayıcı / araç'])),
         notes: note || other,
-        statuses: truthy(pick(row, ["Web'de göster"])) ? ['Webde göster'] : ['Pilot kayıt'],
+        statuses: truthy(pick(row, ["Web'de göster"])) ? ['Webde göster'] : ['Kayıt'],
         webVisible: truthy(pick(row, ["Web'de göster"])),
         recordId: clean(pick(row, ['Kayıt ID']))
       };
@@ -277,7 +277,7 @@
         documentDate: clean(pick(row, ['Belge tarihi'])),
         scanner: clean(pick(row, ['Tarayıcı'])),
         workTypes,
-        statuses: statuses.length ? statuses : ['Pilot kayıt'],
+        statuses: statuses.length ? statuses : ['Kayıt'],
         amount: 1,
         unit: 'satır',
         notes: [clean(pick(row, ['Takip notu'])), clean(pick(row, ['Not']))].filter(Boolean).join(' · '),
@@ -319,7 +319,7 @@
         documentDate: '',
         scanner: '',
         workTypes,
-        statuses: statuses.length ? statuses : ['Pilot kayıt'],
+        statuses: statuses.length ? statuses : ['Kayıt'],
         amount: 1,
         unit: 'kontrol',
         notes: [
@@ -539,7 +539,7 @@
     if (el.sourceName) el.sourceName.textContent = SOURCE_TITLE;
     if (el.sourceDetail) {
       el.sourceDetail.textContent = state.loading
-        ? 'Pilot dosyadaki mevcut sekmeler okunuyor.'
+        ? 'Çalışma dosyasındaki mevcut sekmeler okunuyor.'
         : (state.loadError || state.sourceNote);
     }
   }
@@ -553,11 +553,11 @@
 
   function renderMetrics() {
     const metrics = buildMetrics();
-    el.metrics.progress.textContent = metrics.progress == null ? '—' : `${formatNumber(metrics.progress)}%`;
-    el.metrics.records.textContent = formatNumber(metrics.records);
-    el.metrics.pages.textContent = formatNumber(metrics.details);
-    el.metrics.volunteers.textContent = formatNumber(metrics.volunteers);
-    el.metrics.boxes.textContent = formatNumber(metrics.boxes);
+    if (el.metrics.progress) el.metrics.progress.textContent = metrics.progress == null ? '—' : `${formatNumber(metrics.progress)}%`;
+    if (el.metrics.records) el.metrics.records.textContent = formatNumber(metrics.records);
+    if (el.metrics.pages) el.metrics.pages.textContent = formatNumber(metrics.details);
+    if (el.metrics.volunteers) el.metrics.volunteers.textContent = formatNumber(metrics.volunteers);
+    if (el.metrics.boxes) el.metrics.boxes.textContent = formatNumber(metrics.boxes);
   }
 
   function buildMetrics() {
@@ -581,12 +581,12 @@
     const latestKey = latestDateKey(state.pilotDailyRows.concat(state.pilotScanRows, state.pilotCodeRows));
 
     setElementText(el.heroPeriod, state.loading
-      ? 'Canlı pilot · veri bekleniyor'
-      : latestKey ? `Canlı pilot · ${formatDateKey(todayKey())} itibarıyla · son görünür kayıt ${formatDateKey(latestKey)}` : `Canlı pilot · ${formatDateKey(todayKey())} itibarıyla · kayıt bekleniyor`);
+      ? 'Canlı rapor · veri bekleniyor'
+      : latestKey ? `Canlı rapor · ${formatDateKey(todayKey())} itibarıyla · son görünür kayıt ${formatDateKey(latestKey)}` : `Canlı rapor · ${formatDateKey(todayKey())} itibarıyla · kayıt bekleniyor`);
     if (el.heroLede) {
       el.heroLede.innerHTML = state.loading
-        ? 'Pilot Sheet’teki gönüllü emeği, sayısallaştırma ayrıntıları ve kontrol/onay kayıtları birlikte okunuyor.'
-        : `Bu pilotta <b>${formatNumber(state.pilotDailyRows.length + pilotDetailRows().length)} katkı kaydı</b> görünür durumda: ${formatNumber(state.pilotScanRows.length)} sayfa/detay satırı, ${formatNumber(state.pilotDailyRows.length)} gönüllü günlüğü kaydı ve ${formatNumber(state.pilotCodeRows.length)} kontrol/onay kaydı.`;
+        ? 'Çalışma dosyasındaki gönüllü emeği, sayısallaştırma ayrıntıları ve kontrol/onay kayıtları birlikte okunuyor.'
+        : `Bu raporda <b>${formatNumber(state.pilotDailyRows.length + pilotDetailRows().length)} katkı kaydı</b> görünür durumda: ${formatNumber(state.pilotScanRows.length)} sayfa/detay satırı, ${formatNumber(state.pilotDailyRows.length)} gönüllü günlüğü kaydı ve ${formatNumber(state.pilotCodeRows.length)} kontrol/onay kaydı.`;
     }
 
     setElementText(el.report.progressPercent, progress.percent == null ? '—' : `%${formatNumber(progress.percent)}`);
@@ -661,10 +661,10 @@
     if (!el.report.latestRows) return;
     const groups = dayGroups();
     setElementText(el.report.latestMeta, groups.length
-      ? `son 5 çalışma günü · son kayıt ${formatDateKey(groups[0].dateKey)}`
+      ? `son 3 çalışma günü · son kayıt ${formatDateKey(groups[0].dateKey)}`
       : 'kayıt bekleniyor');
-    el.report.latestRows.innerHTML = groups.slice(0, 5).map(function (group) {
-      const people = Array.from(group.people.values()).slice(0, 4).map(function (person) {
+    el.report.latestRows.innerHTML = groups.slice(0, 3).map(function (group) {
+      const people = Array.from(group.people.values()).slice(0, 3).map(function (person) {
         const works = Array.from(person.works).slice(0, 3).join(', ');
         const parts = [];
         if (person.detailCount) parts.push(`${formatNumber(person.detailCount)} detay`);
@@ -687,7 +687,7 @@
         <p class="report-day-summary">${formatNumber(group.detailCount)} detay · ${formatNumber(group.dailyCount)} günlük kayıt · ${formatNumber(group.people.size)} kişi${group.boxes.size ? ` · ${formatNumber(group.boxes.size)} kutu` : ''}</p>
         <div class="report-day-people">${people || '<p class="empty-line">Bu gün için kişi bilgisi yok.</p>'}</div>
       </article>`;
-    }).join('') || '<article class="report-empty">Pilot kayıtları bekleniyor.</article>';
+    }).join('') || '<article class="report-empty">Kayıt bekleniyor.</article>';
   }
 
   function dayGroups() {
@@ -733,8 +733,9 @@
       return String(b.lastDateKey || '').localeCompare(String(a.lastDateKey || ''), 'tr')
         || (b.detailCount + b.activityCount) - (a.detailCount + a.activityCount);
     });
-    setElementText(el.report.volunteersMeta, rows.length ? `${formatNumber(rows.length)} kişi · pilot kayıtlardan` : 'kayıt bekleniyor');
-    el.report.volunteers.innerHTML = rows.map(function (row) {
+    const shown = rows.slice(0, 8);
+    setElementText(el.report.volunteersMeta, rows.length ? `${formatNumber(rows.length)} kişi · öne çıkan ${formatNumber(shown.length)} katkı` : 'kayıt bekleniyor');
+    el.report.volunteers.innerHTML = shown.map(function (row) {
       const total = row.detailCount + row.activityCount;
       return `<article class="report-vol-card">
         <span class="report-avatar">${escapeHtml(initials(row.name))}</span>
@@ -751,9 +752,10 @@
   function renderTrackReport() {
     if (!el.report.tracks) return;
     const rows = workStats();
+    const shown = rows.slice(0, 6);
     const max = Math.max(1, ...rows.map(function (row) { return row.activityCount + row.detailCount; }));
     setElementText(el.report.tracksMeta, rows.length ? `${formatNumber(rows.length)} iş alanı` : 'iş alanı bekleniyor');
-    el.report.tracks.innerHTML = rows.slice(0, 10).map(function (row) {
+    el.report.tracks.innerHTML = shown.map(function (row) {
       const total = row.activityCount + row.detailCount;
       const width = Math.max(4, Math.round((total / max) * 100));
       return `<div class="report-track-row">
@@ -769,9 +771,10 @@
 
   function renderBoxReport() {
     if (!el.report.boxes) return;
-    const rows = boxStats().filter(function (row) { return row.done > 0; }).slice(0, 6);
-    setElementText(el.report.boxesMeta, rows.length ? `${formatNumber(rows.length)} aktif kutu` : 'kutu bekleniyor');
-    el.report.boxes.innerHTML = rows.map(function (row) {
+    const rows = boxStats().filter(function (row) { return row.done > 0; });
+    const shown = rows.slice(0, 4);
+    setElementText(el.report.boxesMeta, rows.length ? `${formatNumber(rows.length)} aktif kutu · ilk ${formatNumber(shown.length)}` : 'kutu bekleniyor');
+    el.report.boxes.innerHTML = shown.map(function (row) {
       const percent = clamp(Number(row.percent || 0), 0, 100);
       return `<article class="report-box-card">
         <div>
@@ -788,7 +791,7 @@
   function renderControlReport() {
     if (!el.report.control) return;
     const rows = state.pilotCodeRows.slice(0, 5);
-    setElementText(el.report.controlMeta, state.pilotCodeRows.length ? `${formatNumber(state.pilotCodeRows.length)} kontrol kaydı` : 'pilot defter boş');
+    setElementText(el.report.controlMeta, state.pilotCodeRows.length ? `${formatNumber(state.pilotCodeRows.length)} kontrol kaydı` : 'denetim defteri boş');
     if (!rows.length) {
       el.report.control.innerHTML = `<article class="report-empty">
         <b>Kontrol/onay defteri henüz boş.</b>
@@ -814,12 +817,12 @@
     }).join('')}</tr>`;
 
     if (state.loading && !config.rows().length) {
-      el.tableBody.innerHTML = `<tr><td colspan="${config.columns.length}">Pilot Sheet okunuyor.</td></tr>`;
+      el.tableBody.innerHTML = `<tr><td colspan="${config.columns.length}">Çalışma dosyası okunuyor.</td></tr>`;
     } else if (state.loadError) {
       el.tableBody.innerHTML = `<tr><td colspan="${config.columns.length}">${escapeHtml(state.loadError)}</td></tr>`;
     } else {
       const rows = config.rows().filter(matchesQuery);
-      el.tableBody.innerHTML = rows.slice(0, 120).map(function (row) {
+      el.tableBody.innerHTML = rows.slice(0, 80).map(function (row) {
         return `<tr>${config.columns.map(function (column) {
           return `<td>${column.render(row)}</td>`;
         }).join('')}</tr>`;
@@ -827,15 +830,15 @@
     }
 
     el.dataNote.textContent = state.loading
-      ? 'Veri yükleniyor; pilot sekmeler birkaç saniye sürebilir.'
-      : `${state.sourceNote || 'Yeni pilot sekmeleri doğrudan okunuyor.'} · ${formatNumber(state.pilotScanRows.length)} sayfa/detay satırı · ${formatNumber(state.pilotDailyRows.length)} gönüllü günlüğü · ${formatNumber(state.pilotCodeRows.length)} kontrol/onay`;
+      ? 'Veri yükleniyor; çalışma sekmeleri birkaç saniye sürebilir.'
+      : `${state.sourceNote || 'Çalışma dosyasındaki sekmeler doğrudan okunuyor.'} · ${formatNumber(state.pilotScanRows.length)} sayfa/detay satırı · ${formatNumber(state.pilotDailyRows.length)} gönüllü günlüğü · ${formatNumber(state.pilotCodeRows.length)} kontrol/onay`;
   }
 
   function tableConfig(view) {
     if (view === 'pilot') {
       return {
-        kicker: 'Yeni pilot görünüm',
-        title: 'Pilot girişleri',
+        kicker: 'Rapor görünümü',
+        title: 'Tüm kayıtlar',
         rows: pilotRows,
         columns: [
           { label: 'Tarih', render: function (row) { return `<strong>${escapeHtml(row.date || '—')}</strong>`; } },
@@ -892,6 +895,23 @@
           { label: 'Kutular', render: function (row) { return escapeHtml(row.boxes.join(', ') || '—'); } },
           { label: 'Son tarih', render: function (row) { return escapeHtml(row.lastDate || '—'); } },
           { label: 'İşler', render: function (row) { return escapeHtml(row.works.join(', ') || '—'); } }
+        ]
+      };
+    }
+
+    if (view === 'kontrol') {
+      return {
+        kicker: 'Denetim görünümü',
+        title: 'Kontrol ve onay',
+        rows: function () { return state.pilotCodeRows; },
+        columns: [
+          { label: 'Tarih', render: function (row) { return `<strong>${escapeHtml(row.date || '—')}</strong>`; } },
+          { label: 'Kontrol eden', render: function (row) { return escapeHtml(row.people.join(', ') || '—'); } },
+          { label: 'İşi yapan', render: function (row) { return escapeHtml(row.checkedPeople.join(', ') || '—'); } },
+          { label: 'Kayıt', render: function (row) { return escapeHtml(recordSummary(row)); } },
+          { label: 'Kontrol alanı', render: function (row) { return workPills(row.workTypes); } },
+          { label: 'Sonuç', render: function (row) { return statusPills(row.statuses); } },
+          { label: 'Not', render: function (row) { return escapeHtml(row.notes || '—'); } }
         ]
       };
     }

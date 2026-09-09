@@ -3,8 +3,8 @@ body.pilot-dashboard {
 }
 
 .pilot-page {
-  width: min(100%, 1140px);
-  max-width: 1140px;
+  width: min(100%, 1080px);
+  max-width: 1080px;
 }
 
 .pilot-page .mast-actions {
@@ -82,19 +82,20 @@ body.pilot-dashboard {
 
 .pilot-intro {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
-  gap: 24px;
+  grid-template-columns: minmax(0, 1.05fr) minmax(240px, 320px);
+  gap: 42px;
   align-items: end;
-  padding-top: 8px;
+  padding: 22px 0 30px;
+  border-bottom: 1px solid var(--rule);
 }
 
 .pilot-intro h1 {
-  max-width: 760px;
-  margin: 0 0 10px;
+  max-width: 820px;
+  margin: 0 0 14px;
   font-family: 'Crimson Pro', serif;
-  font-size: clamp(44px, 5.4vw, 70px);
+  font-size: clamp(46px, 6vw, 76px);
   font-weight: 500;
-  line-height: 1;
+  line-height: 0.98;
   color: var(--ink);
 }
 
@@ -122,10 +123,10 @@ body.pilot-dashboard {
 }
 
 .source-card {
-  border: 1px solid var(--rule);
-  border-left: 4px solid var(--accent);
-  background: var(--paper);
-  padding: 16px;
+  border: 0;
+  border-top: 1px solid var(--accent-soft);
+  background: transparent;
+  padding: 14px 0 0;
 }
 
 .mini-label {
@@ -153,16 +154,18 @@ body.pilot-dashboard {
 
 .metric-strip {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 26px;
   margin-top: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--rule);
 }
 
 .metric-strip article {
-  min-height: 104px;
-  border: 1px solid var(--rule);
-  background: var(--paper);
-  padding: 15px;
+  min-height: 82px;
+  border: 0;
+  background: transparent;
+  padding: 0;
 }
 
 .metric-value {
@@ -185,13 +188,11 @@ body.pilot-dashboard {
 }
 
 .pilot-glance {
-  margin-top: 28px;
-  padding: 24px 26px;
-  border-top: 2px solid var(--ink);
+  margin-top: 30px;
+  padding: 26px 0 28px;
+  border-top: 0;
   border-bottom: 1px solid var(--rule);
-  background:
-    linear-gradient(180deg, rgba(96, 16, 64, 0.035), transparent 54%),
-    var(--paper);
+  background: transparent;
 }
 
 .glance-head {
@@ -253,10 +254,11 @@ body.pilot-dashboard {
 }
 
 .report-signals article {
-  min-height: 96px;
-  padding: 14px 15px;
-  border: 1px solid var(--rule);
-  background: var(--paper-soft);
+  min-height: 88px;
+  padding: 0 0 0 15px;
+  border: 0;
+  border-left: 2px solid var(--accent-soft);
+  background: transparent;
 }
 
 .report-signals span,
@@ -290,7 +292,7 @@ body.pilot-dashboard {
 }
 
 .report-latest {
-  margin-top: 44px;
+  margin-top: 36px;
 }
 
 .report-latest h3,
@@ -310,18 +312,16 @@ body.pilot-dashboard {
 
 .report-day-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .report-day-card {
-  min-height: 238px;
-  padding: 15px 14px;
+  min-height: 218px;
+  padding: 16px 0 0;
   border: 1px solid var(--rule);
-  border-top: 3px solid var(--accent);
-  background:
-    linear-gradient(to bottom, transparent 36px, rgba(96, 16, 64, 0.055) 37px, transparent 38px),
-    var(--paper);
+  border-width: 1px 0 0;
+  background: transparent;
 }
 
 .report-day-top {
@@ -354,9 +354,9 @@ body.pilot-dashboard {
 
 .report-day-summary {
   margin: 12px 0 10px;
-  padding: 8px 9px;
+  padding: 8px 0 8px 10px;
   border-left: 2px solid var(--accent);
-  background: rgba(96, 16, 64, 0.055);
+  background: transparent;
   color: var(--ink-mute);
   font-family: 'DM Mono', monospace;
   font-size: 10.5px;
@@ -392,8 +392,8 @@ body.pilot-dashboard {
 
 .report-volunteers {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 28px;
 }
 
 .report-vol-card {
@@ -401,10 +401,11 @@ body.pilot-dashboard {
   grid-template-columns: 38px minmax(0, 1fr) auto;
   gap: 12px;
   align-items: start;
-  min-height: 132px;
-  padding: 15px;
-  border: 1px solid var(--rule);
-  background: var(--paper);
+  min-height: 100px;
+  padding: 14px 0;
+  border: 0;
+  border-top: 1px solid var(--rule-soft);
+  background: transparent;
 }
 
 .report-avatar {
@@ -413,8 +414,9 @@ body.pilot-dashboard {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: var(--accent);
-  color: var(--paper);
+  border: 1px solid var(--accent-soft);
+  background: var(--paper);
+  color: var(--accent);
   font-family: 'Crimson Pro', serif;
   font-size: 15px;
   font-style: italic;
@@ -504,9 +506,11 @@ body.pilot-dashboard {
 
 .report-split {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
-  gap: 28px;
-  margin-top: 52px;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.76fr);
+  gap: 46px;
+  margin-top: 42px;
+  padding-top: 28px;
+  border-top: 1px solid var(--rule);
 }
 
 .report-boxes,
@@ -518,9 +522,10 @@ body.pilot-dashboard {
 .report-box-card,
 .report-control-card,
 .report-empty {
-  padding: 15px;
-  border: 1px solid var(--rule);
-  background: var(--paper);
+  padding: 14px 0;
+  border: 0;
+  border-top: 1px solid var(--rule-soft);
+  background: transparent;
 }
 
 .report-box-card h3 {
@@ -580,10 +585,11 @@ body.pilot-dashboard {
 }
 
 .pilot-panel {
-  margin-top: 52px;
-  border: 1px solid var(--rule);
-  background: var(--paper);
-  padding: 20px;
+  margin-top: 48px;
+  border: 0;
+  border-top: 2px solid var(--ink);
+  background: transparent;
+  padding: 22px 0 0;
 }
 
 .panel-head {
@@ -641,11 +647,11 @@ body.pilot-dashboard {
   margin: 0 0 16px;
   padding: 7px;
   border: 1px solid var(--rule);
-  background: var(--paper-soft);
+  background: transparent;
 }
 
 .view-tabs button {
-  flex: 1 1 135px;
+  flex: 1 1 126px;
   min-height: 40px;
   border: 1px solid transparent;
   background: var(--paper);
@@ -668,7 +674,7 @@ body.pilot-dashboard {
 
 .table-wrap {
   overflow-x: auto;
-  border-top: 2px solid var(--ink);
+  border-top: 1px solid var(--rule);
 }
 
 .pilot-panel table {
@@ -756,53 +762,9 @@ body.pilot-dashboard {
   color: #7c4b14;
 }
 
-.architecture-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-  gap: 24px;
-  margin-top: 34px;
-  padding-top: 28px;
-  border-top: 1px solid var(--rule);
-}
-
-.step-list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.step-list div {
-  display: grid;
-  grid-template-columns: 36px minmax(0, 1fr);
-  gap: 10px;
-  align-items: center;
-  min-height: 78px;
-  border: 1px solid var(--rule);
-  background: var(--paper);
-  padding: 14px;
-}
-
-.step-list b {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--accent);
-  color: var(--accent);
-  font-family: 'DM Mono', monospace;
-  font-size: 13px;
-}
-
-.step-list span {
-  color: var(--ink-soft);
-  font-size: 14px;
-  line-height: 1.45;
-}
-
 @media (max-width: 920px) {
   .pilot-intro,
   .panel-head,
-  .architecture-grid,
   .report-split {
     grid-template-columns: 1fr;
   }
@@ -820,7 +782,6 @@ body.pilot-dashboard {
 @media (max-width: 620px) {
   .pilot-page .top-tabs,
   .metric-strip,
-  .step-list,
   .report-signals,
   .report-day-grid,
   .report-volunteers {
@@ -841,7 +802,7 @@ body.pilot-dashboard {
   }
 
   .pilot-panel {
-    padding: 18px;
+    padding: 18px 0 0;
   }
 
   .glance-head,
