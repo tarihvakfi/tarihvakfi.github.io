@@ -573,24 +573,6 @@ body.pilot-dashboard {
   text-align: right;
 }
 
-.report-chipline {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 8px;
-}
-
-.report-chipline span {
-  padding: 2px 7px;
-  border: 1px solid var(--accent-soft);
-  background: var(--accent-bg);
-  color: var(--accent-deep);
-  font-family: 'DM Mono', monospace;
-  font-size: 12px;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
 .report-tracks {
   display: grid;
   gap: 10px;
