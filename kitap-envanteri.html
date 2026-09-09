@@ -405,6 +405,7 @@
   .rfBos{font-size:13px;color:var(--soluk);line-height:1.45}
   .foto-aciklama{font-size:12.5px;color:var(--soluk);margin:9px 2px 0;line-height:1.4}
   .dip{text-align:center;color:var(--soluk);font-size:12px;margin:22px 12px 0}
+.anaGorevler{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}.anaGorevler .btn{margin:0;min-height:62px;font-size:17px;padding:12px}.anaGorevler .btn:last-child{background:#fff;color:var(--bordo);border:2px solid var(--bordo)}@media(max-width:380px){.anaGorevler{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -418,7 +419,7 @@
   <!-- ══ 1. KURULUM ══ -->
   <section id="adim-giris" class="kart">
     <h1>Kitap Envanteri</h1>
-    <p class="ipucu">Tarih Vakfı Kütüphanesi · taşınma çalışması</p>
+    <p class="ipucu">Gönüllü çalışma ekranı: rafı sayın, kitapları kaydedin. Taşınma kararlarını yetkililer verecek.</p>
     <label for="ad">Adınız</label>
     <input type="text" id="ad" placeholder="Ad Soyad" autocomplete="name">
     <label for="sifre">Çalışma şifresi</label>
@@ -429,17 +430,19 @@
 
   <!-- ══ 2. RAF ══ -->
   <section id="adim-raf" class="kart gizli">
-    <h1>Hangi sırada çalışacaksınız?</h1>
-
-    <button class="btn" id="btnSiraOner">Bugünkü görevimi al</button>
+    <h1>Sayım ve kitap kaydı</h1>
+    <p class="ipucu">Çalışacağınız rafı seçin. Önce kitapları sayın, ardından her kitabı kapak ve künye fotoğrafıyla kaydedin.</p>
+    <div class="anaGorevler">
+      <button type="button" id="btnSayim" class="btn">1 · Rafı say</button>
+      <button type="button" id="btnKendimSec" class="btn">2 · Kitapları kaydet</button>
+    </div>
     <div class="msg gizli" id="msgOner" style="margin:14px 0 0"></div>
     <div id="gorevKart" class="gorev gizli"></div>
 
     <details class="digerSecenekler">
-      <summary>Diğer seçenekler</summary>
-      <button type="button" id="btnKendimSec" class="baglanti-btn">Kendim seçeceğim</button>
+      <summary>Raf bulma ve çalışma durumu</summary>
+      <button type="button" id="btnSiraOner" class="baglanti-btn">Çalışacağım rafı sistem seçsin</button>
       <button type="button" id="btnHarita" class="baglanti-btn">Rafların durumunu gör</button>
-      <button type="button" id="btnSayim" class="baglanti-btn">Raf sayımı yap</button>
     </details>
 
     <!-- Ön sayım: envanterden bağımsız görev. Gönüllü rafı sayar, sayı sıranın
@@ -1502,7 +1505,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   $('btnKendimSec').addEventListener('click', function () {
     var acik = !$('secici').classList.contains('gizli');
     $('secici').classList.toggle('gizli', acik);
-    $('btnKendimSec').textContent = acik ? 'Kendim seçeceğim' : 'Seçimden vazgeç';
+    $('btnKendimSec').textContent = acik ? '2 · Kitapları kaydet' : 'Raf seçimini kapat';
+    if (!acik) { panelleriKapat('kayit'); $('gorevKart').classList.add('gizli'); }
     if (!acik) rafOzetYenile();
   });
 
@@ -1870,6 +1874,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   $('btnSayim').addEventListener('click', function () {
     var acik = !$('sayimPanel').classList.contains('gizli');
     panelleriKapat('sayim');
+    $('secici').classList.add('gizli'); $('btnKendimSec').textContent = '2 · Kitapları kaydet';
     $('sayimPanel').classList.toggle('gizli', acik);
     if (!acik) {
       sayimSecicileriKur(); sayimSirasiniGoster(); gizle($('msgSayim'));
@@ -2414,9 +2419,11 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     } catch (h) { return null; }
   }
 
+  var ayarIstegi = null;
   function ayarlariYukle(zorla) {
     if (D.cfg && !zorla) return Promise.resolve(D.cfg);
-    return api('config').then(function (cfg) {
+    if (ayarIstegi) return ayarIstegi;
+    ayarIstegi = api('config').then(function (cfg) {
       if (!cfg || !cfg.kurallar || !cfg.rafHarfleri) {
         throw new Error('Sunucudan gelen ayarlar eksik. Koordinatöre bildirin.');
       }
@@ -2424,7 +2431,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       try { localStorage.setItem(AYAR_DEPO, JSON.stringify(cfg)); } catch (h) {}
       seceneklerCiz();
       return cfg;
-    });
+    }).finally(function () { ayarIstegi = null; });
+    return ayarIstegi;
   }
 
   /* ───────── seçenekleri çiz ───────── */

@@ -65,7 +65,7 @@
   .kararSayaci span{display:block;font-size:12.5px;color:var(--soluk);line-height:1.25}
   .kararEslesme{margin:-6px 0 14px;color:var(--soluk);font-size:12.5px}
   @media (max-width:840px){ .kararSayaclari{grid-template-columns:1fr 1fr} }
-  @media (max-width:520px){ .kararSayaclari{grid-template-columns:1fr} }
+  @media (max-width:520px){ .kararSayaclari{grid-template-columns:repeat(2,1fr)} }
 
   /* Grup kartı: aynı öneriyi taşıyan kitaplar bir arada */
   .grup{border:1.5px solid var(--cizgi);border-radius:11px;margin-bottom:14px;background:#fff;
@@ -157,6 +157,10 @@
   .donen{display:inline-block;width:14px;height:14px;border:2px solid #ffffff59;border-top-color:#fff;
     border-radius:50%;animation:don .7s linear infinite;vertical-align:-2px;margin-right:7px}
   @keyframes don{to{transform:rotate(360deg)}}
+  /* İki aşamalı çalışma: okunaklı kitap bilgisi ve dört doğrudan karar. */
+  .gomulu{background:#f6f6f8}.gomulu .ust h1{display:none}.sayfa{max-width:1120px;padding:8px 0 20px}.ust{background:transparent;color:var(--murekkep);position:static;padding:0 0 20px}.ust h1{font-size:26px}.ust button{color:var(--bordo);border:1px solid var(--cizgi);background:white;font-size:16px}
+  .grup.elle{border-left:1px solid var(--cizgi)}.uye{padding:24px}.uye.bitti{text-align:left;padding:24px;opacity:1;background:#f5f8f5}.notEtiket{text-transform:none;letter-spacing:0;font-size:14px}.notEtiket input{font-size:14px;margin-top:6px}.kat{font-size:17px;min-height:48px;padding:11px 18px}.kararSayaci span{font-size:14px}.kararSayaci span:empty{display:none}.kararSayaci b{font-size:26px}.bilgi .ad{font-size:22px}.bilgi .yk{font-size:15px}.fotolar figure{width:130px}.fotolar .cerceve{height:180px;background:#f2f0f3}.fotolar .yokF{color:#625d66}.fotolar figcaption,.kararMeta span{font-size:14px}.sonucB small{display:block;font-size:14px;font-weight:400}.sayfalama{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:20px 0}.arama{grid-template-columns:2fr 1fr auto}.arama label{font-size:14px;text-transform:none;letter-spacing:0}.modlar button{font-size:16px}.kararEslesme{font-size:14px}.grupBas{background:white}.grupBas .kod,.tOner{display:none}
+  @media(max-width:720px){.sayfa{padding:8px}.ust{flex-wrap:wrap;padding:12px 8px}.arama{grid-template-columns:1fr}.bilgi{min-width:0;width:100%}.fotolar figure{width:120px}.katlar{display:grid;grid-template-columns:1fr 1fr}.kat{padding:12px 8px}.uye{padding:18px}.kararSayaclari{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -168,16 +172,16 @@
 </div>
 
 <div class="sayfa">
+  <p id="acilisDurumu" class="ipucu gizli" role="status">Kitaplar yükleniyor…</p>
 
   <!-- giriş -->
   <section id="adim-giris" class="kart giris">
     <h2>Kitap Seçimi</h2>
-    <p class="ipucu">Künyesi onaylanmış kitaplar burada: yeni binaya gitsin mi, yerinde mi kalsın?
-      Öneriler hazır gelir — çoğu kitap tek dokunuşla kapanır.</p>
+    <p class="ipucu">Kitabı inceleyin; Gitsin, Gitse de olur, Gitmesin veya Belirsiz seçeneğine dokunun.</p>
     <div class="msg" id="msgGiris"></div>
     <label for="ad">Adınız</label>
     <input type="text" id="ad" placeholder="Ad Soyad" autocomplete="name">
-    <label for="sifre">Koordinatör şifresi</label>
+    <label for="sifre">Yetkili şifresi</label>
     <input type="password" id="sifre" autocapitalize="none" autocorrect="off">
     <button class="btn genis" id="btnGiris">Başla</button>
   </section>
@@ -187,9 +191,9 @@
     <div class="msg" id="msg"></div>
     <div class="modlar" id="modlar">
       <button type="button" class="sec" data-gorunum="bekleyen">Karar bekleyenler</button>
-      <button type="button" data-gorunum="verilmis">Verilmiş kararlar / geri al</button>
+      <button type="button" data-gorunum="verilmis">Verilmiş kararlar</button>
     </div>
-    <div class="arama gizli" id="duzeltArama">
+    <div class="arama" id="duzeltArama">
       <div>
         <label for="kararAra">Ara</label>
         <input type="search" id="kararAra" placeholder="Başlık, yazar, yer kodu, karar veren…">
@@ -198,14 +202,14 @@
         <label for="kararKategori">Karar</label>
         <select id="kararKategori"></select>
       </div>
-      <button type="button" class="btn ikincil" id="btnKararAraTemizle">Temizle</button>
+      <div><button type="button" class="btn" id="btnAra">Ara</button> <button type="button" class="btn ikincil" id="btnKararAraTemizle">Temizle</button></div>
     </div>
     <div class="kararSayaclari" id="kararSayaclari"></div>
     <div class="kararEslesme" id="kararEslesme"></div>
-    <div id="liste"></div>
+    <p class="ipucu">Kitaplar raf sırasındadır. Seçtiğiniz karar adınızla kaydedilir.</p><div id="liste"></div><div id="sayfalama" class="sayfalama gizli"><button class="btn ikincil" id="btnOnceki">Önceki</button><span id="sayfaBilgi"></span><button class="btn ikincil" id="btnSonraki">Sonraki</button></div>
     <div class="kart bitti gizli" id="bos">
       <h2>Karar bekleyen kitap yok</h2>
-      <p>Kitap Bilgisi sekmesinde künyesi onaylanan her kitap buraya düşer.</p>
+      <p>Gönüllülerin kaydettiği kitaplar, bilgileri kontrol edildikçe burada görünür.</p>
       <button class="btn" id="btnTekrar">Yeniden bak</button>
     </div>
   </section>
@@ -221,7 +225,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
   var D = { ad: '', sifre: '', kayitlar: [], kalan: 0, cfg: null, durum: null,
-            gorunum: 'bekleyen', ara: '', kategori: '' };
+            gorunum: 'bekleyen', ara: '', kategori: '', bas: 0, sonYukleme: 0, surum: 0, listeIslem: 0 };
 
   var esc = function (s) {
     return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
@@ -255,6 +259,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       });
   }
   function api(action, yuk) {
+    if (window.parent !== window && window.parent.TVPanel && ['config','durum'].indexOf(action) >= 0) return window.parent.TVPanel.api(action, yuk);
     if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
       return Promise.reject(new Error('Sistem adresi tanımlanmamış (TV_ENVANTER_URL).'));
     }
@@ -287,31 +292,28 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   $('btnGiris').addEventListener('click', function () {
     var ad = $('ad').value.trim(), sifre = $('sifre').value.trim();
     if (ad.length < 2) return goster($('msgGiris'), 'hata', 'Adınızı yazın.');
-    if (!sifre) return goster($('msgGiris'), 'hata', 'Koordinatör şifresini yazın.');
+    if (!sifre) return goster($('msgGiris'), 'hata', 'Yetkili şifresini yazın.');
     D.ad = ad; D.sifre = sifre;
     mesgul($('btnGiris'), true, 'Kontrol ediliyor…');
-    api('config').then(function (cfg) {
-      if (!cfg || !cfg.kurallar || !cfg.kategoriler) {
-        throw new Error('Sunucudan gelen ayarlar eksik. Koordinatöre bildirin.');
-      }
-      D.cfg = cfg;
+    Promise.all([api('config'), listeGetir()]).then(function (r) {
+      D.cfg = r[0];
       $('kararKategori').innerHTML = '<option value="">Tüm kararlar</option>' +
-        Object.keys(cfg.kategoriler).filter(function (a) {
-          return !cfg.kategoriler[a].serbest;
-        }).map(function (a) {
-          return '<option value="' + esc(cfg.kategoriler[a].ad) + '">' +
-            esc(cfg.kategoriler[a].ad) + '</option>';
+        ['gidecek','belki','gitmeyecek','belirsiz'].map(function (a) {
+          return '<option value="' + esc(D.cfg.kategoriler[a].ad) + '">' + esc(kararEtiketi(a)) + '</option>';
         }).join('');
-      return ekraniYenile();
+      D.sonYukleme = Date.now();
     }).then(function () {
       localStorage.setItem('tv_env_ad', ad);
       localStorage.setItem('tv_env_koord_sifre', sifre);
+      $('acilisDurumu').classList.add('gizli');
       gizle($('msgGiris'));
       $('adim-giris').classList.add('gizli');
       $('adim-karar').classList.remove('gizli');
       $('ust').classList.remove('gizli');
       ciz();
+      durumGetir()['catch'](function () { $('kararEslesme').textContent = 'Toplamlar alınamadı; listeyi yenileyebilirsiniz.'; });
     })['catch'](function (e) {
+      $('acilisDurumu').classList.add('gizli');
       if (/[?&]oto=1/.test(location.search)) $('adim-giris').classList.remove('gizli');
       goster($('msgGiris'), 'hata', ağHata(e));
     }).then(function () { mesgul($('btnGiris'), false); });
@@ -320,29 +322,29 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
   /* ───────── liste ───────── */
   function listeGetir() {
-    if (D.gorunum === 'verilmis') {
-      return api('katalog', {
-        yalnizOnayli: true, yalnizKararli: true, bas: 0, adet: 300,
-        ara: D.ara, kategori: D.kategori, sirala: 'yeni'
-      }).then(function (r) {
-        D.kayitlar = r.kayitlar || [];
-        D.kalan = r.toplam || 0;
-        $('ilerlemeSayi').textContent = D.kalan;
-        $('ilerlemeMetin').textContent = 'verilmiş karar';
-        return r;
-      });
-    }
-    return api('kararBekleyen', { adet: 100 }).then(function (r) {
-      D.kayitlar = r.kayitlar || [];
-      D.kalan = r.kalan || 0;
+    var token = ++D.listeIslem;
+    return api('katalog', {
+      yalnizOnayli: true, yalnizKararli: D.gorunum === 'verilmis',
+      yalnizKararsiz: D.gorunum === 'bekleyen', bas: D.bas, adet: 30,
+      ara: D.ara, kategori: D.gorunum === 'verilmis' ? D.kategori : '', sirala: 'yer'
+    }).then(function (r) {
+      if (token !== D.listeIslem) return;
+      D.kayitlar = r.kayitlar || []; D.kalan = r.toplam || 0;
       $('ilerlemeSayi').textContent = D.kalan;
-      $('ilerlemeMetin').textContent = 'kitap karar bekliyor';
+      $('ilerlemeMetin').textContent = D.gorunum === 'verilmis' ? 'verilmiş karar' : 'kitap karar bekliyor';
+      $('sayfalama').classList.toggle('gizli', D.kalan <= 30 && D.bas === 0);
+      $('btnOnceki').disabled = D.bas === 0;
+      $('btnSonraki').textContent = 'Sonraki';
+      $('btnSonraki').disabled = D.bas + D.kayitlar.length >= D.kalan;
+      $('sayfaBilgi').textContent = (D.kayitlar.length ? D.bas + 1 : 0) + '–' + (D.bas + D.kayitlar.length) + ' / ' + D.kalan;
       return r;
     });
   }
 
   function durumGetir() {
+    var surum = D.surum;
     return api('durum').then(function (r) {
+      if (surum !== D.surum) return;
       D.durum = r;
       sayaclariCiz();
       return r;
@@ -350,7 +352,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
 
   function ekraniYenile() {
-    return Promise.all([listeGetir(), durumGetir()]).then(function () { ciz(); });
+    return listeGetir().then(function () { D.sonYukleme = Date.now(); ciz(); });
   }
 
   function kararSayisiniDegistir(kategoriAdi, fark) {
@@ -369,7 +371,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   function kararDegistiHaberVer() {
     try {
       if (window.parent && window.parent !== window) {
-        window.parent.postMessage({ tv: 'kararDegisti' }, '*');
+        window.parent.postMessage({ tv: 'kararDegisti' }, location.origin);
       }
     } catch (h) {}
   }
@@ -378,11 +380,11 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var v = D.durum || {};
     var kat = v.kategori || {};
     var kartlar = [
-      ['', 'Karar bekleyen', Number(v.kararBekleyen || 0), 'kitap seçimi yapılacak'],
-      ['g', 'Gitsin', Number(kat['Gidecek'] || 0), 'yeni binaya gider'],
-      ['s', 'Kapasite varsa', Number(kat['Gitse de olur'] || 0), 'yer kalırsa gider'],
-      ['k', 'Yerinde kalsın', Number(kat['Gitmeyecek'] || 0), 'taşınmayacak'],
-      ['m', 'Uzman bakacak', Number(kat['Belirsiz'] || 0), 'ayrıca incelenecek']
+      ['', 'Karar bekleyen', Number(v.kararBekleyen || 0), ''],
+      ['g', 'Gitsin', Number(kat['Gidecek'] || 0), ''],
+      ['s', 'Gitse de olur', Number(kat['Gitse de olur'] || 0), ''],
+      ['k', 'Gitmesin', Number(kat['Gitmeyecek'] || 0), ''],
+      ['m', 'Belirsiz', Number(kat['Belirsiz'] || 0), '']
     ];
     $('kararSayaclari').innerHTML = kartlar.map(function (k) {
       return '<div class="kararSayaci ' + k[0] + '"><b>' +
@@ -390,12 +392,14 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         esc(k[1]) + '</span><span>' + esc(k[3]) + '</span></div>';
     }).join('');
     $('kararEslesme').textContent = v.toplam
-      ? 'Raf kayıtlarıyla eşleşen toplam kitap: ' + Number(v.toplam || 0).toLocaleString('tr-TR') +
-        '. Bu sayılar canlı envanter kaydından hesaplanır.'
+      ? 'Kaydedilen kitap kaydı: ' + Number(v.toplam || 0).toLocaleString('tr-TR') +
+        '. Kararlar kitap kaydı başına sayılır.'
       : '';
   }
 
   $('btnYenile').addEventListener('click', function () {
+    if (window.parent !== window && window.parent.TVPanel) window.parent.TVPanel.invalidate();
+    durumGetir()['catch'](function () {});
     mesgul($('btnYenile'), true, 'Yenileniyor…');
     ekraniYenile()['catch'](function (e) { goster($('msg'), 'hata', ağHata(e)); })
       .then(function () { mesgul($('btnYenile'), false); });
@@ -405,93 +409,41 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   $('modlar').addEventListener('click', function (e) {
     var b = e.target.closest('button[data-gorunum]');
     if (!b || b.dataset.gorunum === D.gorunum) return;
-    D.gorunum = b.dataset.gorunum;
+    D.gorunum = b.dataset.gorunum; D.bas = 0;
     Array.prototype.forEach.call($('modlar').querySelectorAll('button'), function (x) {
       x.classList.toggle('sec', x === b);
     });
-    $('duzeltArama').classList.toggle('gizli', D.gorunum !== 'verilmis');
+    $('kararKategori').closest('div').classList.toggle('gizli', D.gorunum !== 'verilmis');
     $('liste').innerHTML = '';
     mesgul($('btnYenile'), true, 'Yenileniyor…');
     ekraniYenile()['catch'](function (h) { goster($('msg'), 'hata', ağHata(h)); })
       .then(function () { mesgul($('btnYenile'), false); });
   });
 
-  var aramaZamani = null;
-  $('kararAra').addEventListener('input', function () {
-    D.ara = $('kararAra').value.trim();
-    clearTimeout(aramaZamani);
-    aramaZamani = setTimeout(function () {
-      if (D.gorunum !== 'verilmis') return;
-      listeGetir().then(ciz)['catch'](function (h) { goster($('msg'), 'hata', ağHata(h)); });
-    }, 350);
-  });
-  $('kararKategori').addEventListener('change', function () {
-    D.kategori = $('kararKategori').value;
-    if (D.gorunum === 'verilmis') {
-      listeGetir().then(ciz)['catch'](function (h) { goster($('msg'), 'hata', ağHata(h)); });
-    }
-  });
-  $('btnKararAraTemizle').addEventListener('click', function () {
-    $('kararAra').value = ''; $('kararKategori').value = '';
-    D.ara = ''; D.kategori = '';
-    if (D.gorunum === 'verilmis') {
-      listeGetir().then(ciz)['catch'](function (h) { goster($('msg'), 'hata', ağHata(h)); });
-    }
-  });
+  function ara() {
+    D.ara = $('kararAra').value.trim(); D.kategori = $('kararKategori').value; D.bas = 0;
+    $('btnAra').disabled = true;
+    ekraniYenile()['catch'](function (e) { goster($('msg'),'hata',esc(ağHata(e))); })
+      .then(function () { $('btnAra').disabled = false; });
+  }
+  $('btnAra').addEventListener('click',ara);
+  $('kararAra').addEventListener('keydown',function(e){if(e.key==='Enter')ara();});
+  $('kararKategori').addEventListener('change',ara);
+  $('kararKategori').closest('div').classList.add('gizli');
+  $('btnKararAraTemizle').addEventListener('click',function(){$('kararAra').value='';$('kararKategori').value='';ara();});
+  function sayfaGit(fark) {
+    D.bas = Math.max(0,D.bas + fark); $('btnOnceki').disabled = true; $('btnSonraki').disabled = true;
+    ekraniYenile().then(function(){ window.scrollTo(0,0); })['catch'](function(e){goster($('msg'),'hata',esc(ağHata(e)));});
+  }
+  $('btnOnceki').addEventListener('click',function(){sayfaGit(-30);});
+  $('btnSonraki').addEventListener('click',function(){sayfaGit(D.kayitlar.length);});
 
-  /* ───────── çizim: öneriye göre gruplanmış liste ─────────
-     Aynı öneriyi taşıyan kitaplar bir kartta toplanır; koordinatör isterse
-     kartın hepsini tek tıkla kapatır, isterse satır satır karar verir. */
   function ciz() {
     if (D.gorunum === 'verilmis') return cizVerilmis();
-
-    $('bos').querySelector('h2').textContent = 'Karar bekleyen kitap yok';
-    $('bos').querySelector('p').textContent = 'Kitap Bilgisi sekmesinde künyesi onaylanan her kitap buraya düşer.';
-    var gruplar = {}, sirali = [];
-    D.kayitlar.forEach(function (k) {
-      var a = k.oneriKural || '__yok';
-      if (!gruplar[a]) {
-        gruplar[a] = { kural: k.oneriKural || '', kategori: k.oneriKategori || '',
-                       guven: k.oneriGuven || '', sebep: k.oneriSebep || '', uyeler: [] };
-        sirali.push(gruplar[a]);
-      }
-      gruplar[a].uyeler.push(k);
-    });
-    // Kalabalık ve güvenli gruplar üste; önerisizler en sona.
-    sirali.sort(function (a, b) {
-      if (!a.kural !== !b.kural) return a.kural ? -1 : 1;
-      var za = a.guven === 'dusuk' ? 1 : 0, zb = b.guven === 'dusuk' ? 1 : 0;
-      return za !== zb ? za - zb : b.uyeler.length - a.uyeler.length;
-    });
-
-    D.gruplar = sirali;                 // uyeSatiri çizim sırasında buna bakar
+    $('bos').querySelector('h2').textContent = D.ara ? 'Aramanıza uygun kitap yok' : 'Karar bekleyen kitap yok';
+    $('bos').querySelector('p').textContent = D.ara ? 'Başka bir kitap adı, yazar veya yer kodu deneyin.' : 'Gönüllülerin kaydettiği kitaplar, bilgileri kontrol edildikçe burada görünür.';
     $('bos').classList.toggle('gizli', !!D.kayitlar.length);
-    $('liste').innerHTML = sirali.map(function (g, gi) {
-      var katAd = g.kategori ? kararEtiketi(g.kategori) : '';
-      var aciklama = '';
-      (D.cfg.kurallar || []).forEach(function (x) { if (x.kod === g.kural) aciklama = x.aciklama; });
-
-      var bas = g.kural
-        ? '<div class="grupBas">' +
-            '<span class="kod">' + esc(g.kural) + '</span>' +
-            '<div class="ne"><b>' + esc(katAd) + ' — ' + esc(aciklama) + '</b>' +
-              '<span>' + esc(g.sebep) + (g.guven === 'dusuk' ? ' · zayıf öneri — satır satır bakın' : '') +
-            '</span></div>' +
-            '<span class="adet" data-adet="' + gi + '">' + g.uyeler.length + '</span>' +
-            (g.uyeler.length > 1 && g.guven !== 'dusuk'
-              ? '<button class="hepsi" data-hepsi="' + gi + '">Hepsine uygula</button>' : '') +
-          '</div>'
-        : '<div class="grupBas">' +
-            '<div class="ne"><b>Öneri yok — kararı siz vereceksiniz</b>' +
-              '<span>Alttaki karar düğmelerinden seçin; kural listesi hemen altında açılır.</span></div>' +
-            '<span class="adet" data-adet="' + gi + '">' + g.uyeler.length + '</span>' +
-          '</div>';
-
-      return '<div class="grup ' + (g.kural ? esc(g.guven || 'orta') : 'elle') +
-        '" data-grup="' + gi + '">' + bas +
-        g.uyeler.map(function (k) { return uyeSatiri(k, gi); }).join('') +
-        '</div>';
-    }).join('');
+    $('liste').innerHTML = '<div class="grup elle">' + D.kayitlar.map(function(k){return uyeSatiri(k,0);}).join('') + '</div>';
   }
 
   function cizVerilmis() {
@@ -514,9 +466,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   function kararEtiketi(kod) {
     return {
       gidecek: 'Gitsin',
-      belki: 'Kapasite varsa gitsin',
-      gitmeyecek: 'Yerinde kalsın',
-      belirsiz: 'Uzman bakacak'
+      belki: 'Gitse de olur',
+      gitmeyecek: 'Gitmesin',
+      belirsiz: 'Belirsiz'
     }[kod] || ((D.cfg && D.cfg.kategoriler && D.cfg.kategoriler[kod]) ? D.cfg.kategoriler[kod].ad : kod);
   }
 
@@ -553,8 +505,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         '<div class="alt">' + esc(altlar || '—') +
           (dikkat.length ? ' · <span class="dikkat">' + esc(dikkat.join(' · ')) + '</span>' : '') +
         '</div>' +
-        '<div class="kararMeta"><b>' + esc(k.kategori || 'Karar') + '</b>' +
-          (k.kural ? ' · ' + esc(k.kural) : '') +
+        '<div class="kararMeta"><b>' + esc({'Gidecek':'Gitsin','Gitmeyecek':'Gitmesin'}[k.kategori] || k.kategori || 'Karar') + '</b>' +
           '<span>Kararı veren: ' + esc(k.kararVeren || 'eski kayıt / yazılmamış') +
           (k.kararTarihi ? ' · ' + esc(k.kararTarihi) : '') + '</span></div>' +
         '<button type="button" class="duzeltAc" data-geri-al="' + k.no + '">Karar bekleyenlere geri al</button>' +
@@ -575,16 +526,13 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
 
   function uyeSatiri(k, gi) {
-    var g = D.gruplar[gi];
     var altlar = [k.yazar, k.yil, (Number(k.nusha) > 1 ? k.nusha + ' nüsha' : '')]
       .filter(Boolean).join(' · ');
     var dikkat = [];
     if (k.durum && k.durum !== 'Sağlam') dikkat.push(k.durum);
     if (k.not) dikkat.push('Not: ' + k.not);
     var sinif = { gidecek: 'g', belki: 's', gitmeyecek: 'k', belirsiz: 'm' };
-    var katlar = Object.keys(D.cfg.kategoriler).filter(function (a) {
-      return !D.cfg.kategoriler[a].serbest;
-    }).map(function (a) {
+    var katlar = ['gidecek','belki','gitmeyecek','belirsiz'].map(function (a) {
       return '<button type="button" class="kat ' + sinif[a] + '" data-pk="' + a +
         '" data-no="' + k.no + '">' + esc(kararEtiketi(a)) + '</button>';
     }).join('');
@@ -602,12 +550,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         '</div>' +
         kararBekleyenNotu(k) +
         '<div class="kararAlan">' +
-          (g && g.kural ? '<button type="button" class="tOner" data-k="oner" data-g="' + gi +
-            '" data-no="' + k.no + '">✓ Öneriyle kapat — ' + esc(g.kural) +
-            (g.sebep ? ' <span style="font-weight:400;color:#4a6b53">(' + esc(g.sebep) + ')</span>' : '') +
-            '</button>' : '') +
           '<div class="katlar">' + katlar + '</div>' +
-          '<div class="kurallarIc"></div>' +
+          '<label class="notEtiket">Not (isteğe bağlı)<input maxlength="100" data-karar-not placeholder="Eklemek istediğiniz bir not varsa…"></label>' +
         '</div>' +
         '<div class="sonucB"></div>' +
       '</div>' +
@@ -625,10 +569,15 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var alan = uye.querySelector('.kararAlan');
     if (alan) alan.style.display = 'none';
     uye.querySelector('.sonucB').innerHTML =
-      '<span style="color:' + renk + '">' + yazi + ' ✓ karar verildi</span>';
+      '<span style="color:' + renk + '">' + yazi + ' ✓</span><small>Kararı veren: ' + esc(D.ad) + '</small>';
     Array.prototype.forEach.call(uye.querySelectorAll('button'), function (b) { b.disabled = true; });
     D.kalan = Math.max(0, D.kalan - 1);
+    D.kayitlar = D.kayitlar.filter(function(k){return Number(k.no) !== Number(uye.dataset.no);});
     $('ilerlemeSayi').textContent = D.kalan;
+    $('btnSonraki').disabled = D.bas + D.kayitlar.length >= D.kalan;
+    $('btnSonraki').textContent = D.kayitlar.length ? 'Sonraki' : 'Sıradaki kitapları getir';
+    $('sayfalama').classList.toggle('gizli', D.bas === 0 && D.kalan === D.kayitlar.length);
+    $('sayfaBilgi').textContent = D.kayitlar.length + ' kitap bu sayfada · ' + D.kalan + ' kitap bekliyor';
   }
 
   function kararGonder(numaralar, kategori, kural, tamam, hata) {
@@ -649,76 +598,30 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       return;
     }
 
-    var hepsi = e.target.closest('[data-hepsi]');
-    if (hepsi) { grubaUygula(Number(hepsi.dataset.hepsi), hepsi); return; }
-
     var geriAl = e.target.closest('[data-geri-al]');
     if (geriAl && !geriAl.disabled) {
       kararGeriAl(geriAl.closest('.uye'), geriAl);
       return;
     }
 
-    // ✓ Öneriyle kapat
-    var oner = e.target.closest('.tOner');
-    if (oner && !oner.disabled) {
-      var gO = D.gruplar[Number(oner.dataset.g)];
-      kararUygula(oner.closest('.uye'), gO.kategori, gO.kural, esc(gO.kural), 'var(--yesil)');
-      return;
-    }
-
-    // Karar düğmesi: o kararın kural listesi hemen altında açılır
     var pk = e.target.closest('[data-pk]');
-    if (pk && !pk.disabled) { kurallariCiz(pk.closest('.uye'), pk.dataset.pk); return; }
-
-    // Kural çipi ya da "Diğer → Uygula": kararı hemen yazar
-    var cip = e.target.closest('[data-pkural]');
-    var digerOk = e.target.closest('[data-pdigerok]');
-    if ((cip && !cip.disabled) || (digerOk && !digerOk.disabled)) {
-      var uyeC = (cip || digerOk).closest('.uye');
-      var kategori = (cip || digerOk).dataset.pkat;
-      var kural;
-      if (cip) kural = cip.dataset.pkural;
-      else {
-        var metin = uyeC.querySelector('[data-pdiger]').value.trim();
-        if (!metin) { uyeC.querySelector('[data-pdiger]').focus(); return; }
-        kural = 'Diğer: ' + metin;
-      }
-      kararUygula(uyeC, kategori, kural,
-        esc(kural.length > 16 ? kural.slice(0, 16) + '…' : kural),
-        kategori === 'gitmeyecek' ? 'var(--kirmizi)' : 'var(--yesil)');
+    if (pk && !pk.disabled) {
+      var uye = pk.closest('.uye'), not = uye.querySelector('[data-karar-not]').value.trim();
+      kararUygula(uye, pk.dataset.pk, 'Diğer: ' + (not || 'Yetkili kararı'), esc(kararEtiketi(pk.dataset.pk)), 'var(--bordo)');
     }
   });
-
-  /* Seçilen kararın kuralları satırın içinde, hemen altında çizilir. */
-  function kurallariCiz(uye, kat) {
-    Array.prototype.forEach.call(uye.querySelectorAll('.kat'), function (b) {
-      b.classList.toggle('pasif', b.dataset.pk !== kat);
-    });
-    var liste = (D.cfg.kurallar || []).filter(function (x) {
-      return x.kategori === kat && !/0$/.test(x.kod);
-    });
-    uye.querySelector('.kurallarIc').innerHTML =
-      liste.map(function (x) {
-        return '<button type="button" class="cip" data-pkural="' + esc(x.kod) +
-          '" data-pkat="' + esc(kat) + '"><b>' + esc(x.kod) + '</b>' + esc(x.aciklama) + '</button>';
-      }).join('') +
-      '<div class="diger">' +
-        '<input type="text" maxlength="110" placeholder="Diğer — kısa açıklama (örn: harita, plak)" data-pdiger>' +
-        '<button type="button" data-pdigerok data-pkat="' + esc(kat) + '">Uygula</button>' +
-      '</div>';
-  }
 
   function kararUygula(uye, kategori, kural, yazi, renk) {
     var no = Number(uye.dataset.no);
     Array.prototype.forEach.call(uye.querySelectorAll('button'), function (b) { b.disabled = true; });
     kararGonder([no], kategori, kural, function (r) {
       if (r.yazilan && r.yazilan.length) {
+        D.surum++;
         kararBekleyenDegistir(-1);
         kararSayisiniDegistir(r.kategori, 1);
         satirKapat(uye, yazi, renk);
-        grupSayaci(uye);
         kararDegistiHaberVer();
-        durumGetir()['catch'](function () {});
+        sayacYenilemeyiPlanla();
       }
       else {
         atlandiGoster(uye, r);
@@ -739,6 +642,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var kayit = kayitBul(no);
     kararGeriAlGonder([no], function (r) {
       if (r.yazilan && r.yazilan.length) {
+        D.surum++;
         if (kayit) kararSayisiniDegistir(kayit.kategori, -1);
         kararBekleyenDegistir(1);
         kararDegistiHaberVer();
@@ -746,8 +650,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         uye.querySelector('.sonucB').innerHTML =
           '<span style="color:var(--yesil)">Karar kaldırıldı; kitap karar bekleyenlere döndü.</span>';
         D.kalan = Math.max(0, D.kalan - 1);
+        D.bas = Math.min(D.bas, Math.max(0, Math.ceil(D.kalan / 30) - 1) * 30);
         $('ilerlemeSayi').textContent = D.kalan;
-        durumGetir()['catch'](function () {});
+        sayacYenilemeyiPlanla();
         setTimeout(function () { listeGetir().then(ciz)['catch'](function () {}); }, 500);
       } else {
         atlandiGoster(uye, r);
@@ -767,51 +672,13 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     uye.querySelector('.sonucB').innerHTML = '<span style="color:#8a5a1c">' + esc(neden) + '</span>';
   }
 
-  function grupSayaci(uye) {
-    var kart = uye.closest('.grup');
-    var acik = kart.querySelectorAll('.uye:not(.bitti)').length;
-    var adet = kart.querySelector('.adet');
-    if (adet) adet.textContent = acik;
-    var hepsi = kart.querySelector('.hepsi');
-    if (hepsi && acik < 2) hepsi.style.display = 'none';
-  }
-
-  function grubaUygula(gi, dugme) {
-    var g = D.gruplar[gi];
-    if (!g) return;
-    var kart = $('liste').querySelector('[data-grup="' + gi + '"]');
-    var acikUyeler = Array.prototype.filter.call(kart.querySelectorAll('.uye'),
-      function (u) { return !u.classList.contains('bitti'); });
-    var numaralar = acikUyeler.map(function (u) { return Number(u.dataset.no); });
-    if (!numaralar.length) return;
-    if (!window.confirm(numaralar.length + ' kitabın hepsi "' + g.kural +
-        '" kuralıyla kapanacak.\n\nEmin misiniz?')) return;
-    mesgul(dugme, true, 'Uygulanıyor…');
-    kararGonder(numaralar, g.kategori, g.kural, function (r) {
-      var yazilanAdet = (r.yazilan || []).length;
-      acikUyeler.forEach(function (u) {
-        if ((r.yazilan || []).indexOf(Number(u.dataset.no)) >= 0) {
-          satirKapat(u, esc(g.kural), 'var(--yesil)');
-        }
-      });
-      if (yazilanAdet) {
-        kararBekleyenDegistir(-yazilanAdet);
-        kararSayisiniDegistir(r.kategori || ((D.cfg.kategoriler[g.kategori] || {}).ad), yazilanAdet);
-        kararDegistiHaberVer();
-        durumGetir()['catch'](function () {});
-      }
-      grupSayaci(acikUyeler[0] || kart.querySelector('.uye'));
-      mesgul(dugme, false);
-      if (r.atlanan && r.atlanan.length) {
-        goster($('msg'), 'uyari', r.atlanan.length + ' kayıt atlandı (başkası karar vermiş olabilir) — liste yenileyin.');
-      } else {
-        goster($('msg'), 'iyi', '<b>' + yazilanAdet + ' kitap</b> ' +
-          esc(g.kural) + ' ile kapandı.');
-      }
-    }, function (h) {
-      mesgul(dugme, false);
-      goster($('msg'), 'hata', ağHata(h));
-    });
+  var sayacZamani;
+  function sayacYenilemeyiPlanla() {
+    clearTimeout(sayacZamani);
+    sayacZamani = setTimeout(function () {
+      if (window.parent !== window && window.parent.TVPanel) window.parent.TVPanel.invalidate();
+      durumGetir()['catch'](function () {});
+    }, 1500);
   }
 
   $('buyukKapak').addEventListener('click', function () {
@@ -825,25 +692,27 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     }
   });
 
-  /* Koordinatör panelinde sekmeye her dönüşte liste kendiliğinden tazelenir;
-     ayrıca sayfa yeniden görünür olduğunda da (başka pencereden dönüş). */
+  /* Son bir dakika içinde alınmış listeyi sekmeye dönüşte tekrar indirme. */
   function kendiliğindenYenile() {
     if ($('adim-karar').classList.contains('gizli')) return;   // henüz giriş yok
+    if (Date.now() - D.sonYukleme < 60000) return;
     if ($('btnYenile').disabled) return;                       // zaten yenileniyor
     $('btnYenile').click();
   }
   window.addEventListener('message', function (e) {
-    if (e.data && e.data.tv === 'sekme') kendiliğindenYenile();
+    if (e.origin === location.origin && e.source === window.parent && e.data && e.data.tv === 'sekme') kendiliğindenYenile();
   });
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden) kendiliğindenYenile();
   });
 
   /* ───────── açılış ───────── */
+  if (window.parent !== window) document.body.classList.add('gomulu');
   var ad = localStorage.getItem('tv_env_ad'), sifre = localStorage.getItem('tv_env_koord_sifre');
   if (ad) $('ad').value = ad;
   if (sifre) $('sifre').value = sifre;
   if (ad && sifre && /[?&]oto=1/.test(location.search)) {
+    $('acilisDurumu').classList.remove('gizli');
     $('adim-giris').classList.add('gizli');
     setTimeout(function () { $('btnGiris').click(); }, 10);
   }
