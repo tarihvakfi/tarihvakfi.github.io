@@ -3,11 +3,11 @@ const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
-const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8765';
+const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
 
 (async () => {
   const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: 'block' });
+  const context = await browser.newContext({ viewport: { width: 1280, height: 850 }, serviceWorkers: 'block' });
   const page = await context.newPage();
   const errors = [];
   const calls = [];
@@ -17,25 +17,27 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8765';
     gidecek: { ad: 'Gidecek' }, belki: { ad: 'Gitse de olur' },
     gitmeyecek: { ad: 'Gitmeyecek' }, belirsiz: { ad: 'Belirsiz' }
   };
+  const photoId = '1abcdefghijklmnopqrstuvwxyz123456';
   const books = Array.from({ length: 35 }, (_, index) => ({
     no: index + 1, yer: 'G-A01-' + String(index + 1).padStart(3, '0'),
-    baslik: 'Kitap ' + (index + 1), yazar: 'Yazar', yil: '1980',
-    nusha: 1, onay: 'evet', kategori: ''
+    baslik: 'Kitap ' + (index + 1), yazar: 'Yazar ' + (index + 1), yil: '1980',
+    nusha: 1, onay: 'evet', kategori: '', kapakId: index === 0 ? photoId : '',
+    fotoId: index === 0 ? photoId : '', kararVeren: '', kararTarihi: ''
   }));
 
   const configSource = fs.readFileSync('js/gonullu-config.js', 'utf8').replace(
     /window\.TV_ENVANTER_URL\s*=\s*"[^"]+";/,
     'window.TV_ENVANTER_URL="https://mock.invalid/api";'
   );
-  await context.route('**/js/gonullu-config.js*', route => route.fulfill({
-    contentType: 'application/javascript', body: configSource
+  await context.route('**/js/gonullu-config.js*', route => route.fulfill({ contentType: 'application/javascript', body: configSource }));
+  await context.route('https://drive.google.com/thumbnail**', route => route.fulfill({
+    contentType: 'image/svg+xml',
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="500" height="700"><rect width="100%" height="100%" fill="#ded6d8"/><text x="50%" y="50%" text-anchor="middle" font-size="34">Kitap</text></svg>'
   }));
   await context.route('**://mock.invalid/api**', async route => {
     const request = route.request();
     const url = new URL(request.url());
-    const body = request.method() === 'GET'
-      ? { action: url.searchParams.get('action') }
-      : (request.postDataJSON() || {});
+    const body = request.method() === 'GET' ? Object.fromEntries(url.searchParams) : (request.postDataJSON() || {});
     calls.push({ action: body.action, method: request.method(), fresh: url.searchParams.has('tv_req') });
     let result;
     if (body.action !== 'config' && body.sifre !== 'test-only') {
@@ -45,100 +47,129 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8765';
     }
     switch (body.action) {
       case 'config':
-        result = { ok: true, kategoriler: categories, kurallar: [], durumlar: ['Sağlam'], mekanlar: [{ kod: 'G', ad: 'Giriş katı' }], rafHarfleri: ['A'], siraSayisi: 1 };
+        result = { ok:true, kategoriler:categories, kurallar:[], durumlar:['Sağlam'], mekanlar:[{kod:'G',ad:'Giriş Kat'}], rafHarfleri:['A'], siraSayisi:1 };
         break;
-      case 'sayac': result = { ok: true, benim: 0 }; break;
+      case 'sayac': result = { ok:true, benim:0 }; break;
+      case 'siraOzeti': result = { ok:true, siralar:[] }; break;
       case 'siraHaritasi':
-        result = { ok: true, siralar: [{ sira: 'G-A01', kayitSayisi: 35, kayitli: 35, kararVerilen: books.filter(book => book.kategori).length, onSayim: 35, sayim: { toplam: 35, durum: 'onaylandi' } }] };
+        result = { ok:true, siralar:[{ sira:'G-A01', kayitSayisi:35, kayitli:35, kararVerilen:books.filter(book => book.kategori).length, onSayim:35, sayimFoto:'https://drive.google.com/file/d/' + photoId + '/view', sayim:{toplam:35,durum:'onaylandi'} }] };
         break;
       case 'katalog': {
-        let list = books.filter(book =>
+        const list = books.filter(book =>
           (!body.yalnizKararli || book.kategori) &&
           (!body.yalnizKararsiz || !book.kategori) &&
-          (!body.sira || book.yer.startsWith(body.sira + '-'))
+          (!body.sira || book.yer.startsWith(body.sira + '-')) &&
+          (!body.kategori || book.kategori === body.kategori)
         );
-        result = { ok: true, toplam: list.length, kayitlar: list.slice(body.bas || 0, (body.bas || 0) + (body.adet || 30)) };
+        const start = Number(body.bas || 0), amount = Number(body.adet || 30);
+        result = { ok:true, toplam:list.length, kayitlar:list.slice(start,start + amount) };
         break;
       }
       case 'durum':
-        result = { ok: true, toplam: 35, kararBekleyen: books.filter(book => !book.kategori).length, kategori: books.reduce((all, book) => { if (book.kategori) all[book.kategori] = (all[book.kategori] || 0) + 1; return all; }, {}) };
+        result = { ok:true, toplam:35, kararBekleyen:books.filter(book => !book.kategori).length, kategori:books.reduce((all,book) => { if (book.kategori) all[book.kategori]=(all[book.kategori]||0)+1; return all; },{}) };
         break;
       case 'kararVer': {
         const book = books.find(item => item.no === body.numaralar[0]);
-        book.kategori = categories[body.kategori].ad;
-        result = { ok: true, yazilan: [book.no], kategori: book.kategori };
+        book.kategori = categories[body.kategori].ad; book.kararVeren = body.veren; book.kararTarihi = '9.09.2026 20:00';
+        result = { ok:true, yazilan:[book.no], kategori:book.kategori };
         break;
       }
       case 'kararGeriAl': {
-        const book = books.find(item => item.no === body.numaralar[0]);
-        book.kategori = '';
-        result = { ok: true, yazilan: [book.no] };
+        const book = books.find(item => item.no === body.numaralar[0]); book.kategori = '';
+        result = { ok:true, yazilan:[book.no] };
         break;
       }
-      case 'kutular': result = { ok: true, siralar: [], kutular: [] }; break;
-      case 'onayBekleyen': result = { ok: true, kayitlar: [], kalan: 0 }; break;
-      case 'rafFotograflari': result = { ok: true, fotograflar: [] }; break;
-      default: result = { ok: true, kayitlar: [], siralar: [] };
+      case 'rafFotograflari': result = { ok:true, fotograflar:[{id:photoId,kim:'Deneme',tarih:'9.09.2026'}] }; break;
+      case 'sayimBilgisi': result = { ok:true, sayim:null }; break;
+      default: result = { ok:true, kayitlar:[], siralar:[] };
     }
-    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(result) });
+    await route.fulfill({ contentType:'application/json', body:JSON.stringify(result) });
   });
 
   await page.goto(base + '/koordinator.html');
   await page.locator('#ad').fill('Deneme Yetkilisi');
   await page.locator('#sifre').fill('wrong');
   await page.locator('#btnGiris').click();
-  await page.getByText('Şifre hatalı.', { exact: true }).waitFor();
+  await page.getByText('Şifre hatalı.', { exact:true }).waitFor();
   assert.ok(await page.locator('#giris').isVisible());
+
   await page.locator('#sifre').fill('test-only');
   await page.locator('#btnGiris').click();
-  await page.getByText('Kitap 1', { exact: true }).waitFor();
-  assert.ok(calls.some(call => call.action === 'siraHaritasi'));
+  await page.locator('#kararListe').getByText('Kitap 1', { exact:true }).waitFor();
+  if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-koordinator-yeni.png', fullPage:true });
+  assert.ok(await page.getByRole('button', { name:/Kitap Seçimi/ }).getAttribute('aria-current'));
+  assert.equal(await page.locator('iframe').count(), 0);
   assert.ok(calls.every(call => call.fresh));
   assert.equal(calls.some(call => call.action === 'config'), false);
 
-  await page.getByRole('button', { name: 'Kitap Seçimi' }).click();
-  const frame = page.frameLocator('#kararCerceve');
-  await frame.getByText('Kitap 1', { exact: true }).waitFor();
-  await page.waitForTimeout(100);
-  assert.equal(await frame.locator('html').evaluate(element => getComputedStyle(element).overflow), 'hidden');
-  assert.equal(await page.locator('#kararCerceve').getAttribute('scrolling'), 'no');
-  assert.ok(await page.locator('#kararCerceve').evaluate(element => element.offsetHeight > 700));
-  await frame.locator('.uye').first().getByRole('button', { name: 'Gitsin' }).click();
-  await frame.getByText('Gitsin ✓', { exact: true }).waitFor();
-  assert.equal(calls.findLast(call => call.action === 'kararVer').method, 'POST');
-  await frame.getByRole('button', { name: 'Verilmiş kararlar' }).click();
-  await frame.getByRole('button', { name: 'Karar bekleyenlere geri al' }).waitFor();
-  page.on('dialog', dialog => dialog.accept());
-  await frame.getByRole('button', { name: 'Karar bekleyenlere geri al' }).click();
-  await frame.getByText('Karar kaldırıldı; kitap karar bekleyenlere döndü.', { exact: true }).waitFor();
+  await page.locator('.kitap-foto').first().click();
+  await page.locator('.tv-foto-goruntuleyici.acik').waitFor();
+  const before = await page.locator('.tv-foto-alan img').getAttribute('style');
+  await page.getByRole('button', { name:'Büyüt', exact:true }).click();
+  await page.getByRole('button', { name:'Sağa döndür', exact:true }).click();
+  const after = await page.locator('.tv-foto-alan img').getAttribute('style');
+  assert.notEqual(after, before);
+  assert.match(after, /rotate\(90deg\)/);
+  await page.getByRole('button', { name:'Kapat', exact:true }).click();
 
-  await page.getByRole('button', { name: 'Raflar ve Kitaplar' }).click();
-  await page.locator('.ekip summary').click();
-  for (const label of [
-    'Fotoğraftan kitap bilgisini kontrol et',
-    'Kaydı bul ve düzelt',
-    'Sayım uyuşmazlıklarını incele'
-  ]) {
-    const [toolPage] = await Promise.all([
-      context.waitForEvent('page'),
-      page.getByRole('link', { name: label }).click()
-    ]);
-    await toolPage.locator('.paneleDon').waitFor();
-    await toolPage.locator('#oturumAciliyor').waitFor({ state: 'hidden' });
-    await toolPage.close();
-  }
+  await page.locator('.kitap-karti').first().getByRole('button', { name:'Gitsin' }).click();
+  await page.waitForTimeout(900);
+  assert.equal(books[0].kategori, 'Gidecek');
+  const pendingIds = await page.locator('.kitap-karti').evaluateAll(nodes => nodes.map(node => node.dataset.no));
+  const decisionMessage = await page.locator('.kart-mesaj').first().textContent();
+  assert.ok(!pendingIds.includes('1'), 'Karar verilen kitap listede kaldı: ' + JSON.stringify(pendingIds.slice(0,5)) + ' · mesaj: ' + decisionMessage + ' · hatalar: ' + errors.join(' | '));
+  assert.equal(calls.findLast(call => call.action === 'kararVer').method, 'POST');
+  await page.getByRole('button', { name:'Verilmiş kararlar' }).click();
+  await page.getByRole('button', { name:'Karar bekleyenlere geri al' }).waitFor();
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name:'Karar bekleyenlere geri al' }).click();
+  await page.getByText('Kitap karar bekleyenlere geri alındı.', { exact:true }).waitFor();
+
+  await page.getByRole('button', { name:/Raflar ve Kitaplar/ }).click();
+  await page.getByText('Giriş Kat · A kitaplığı · 1. sıra', { exact:true }).waitFor();
+  await page.getByRole('button', { name:'Raf fotoğrafları' }).click();
+  await page.locator('#rafFotolar img').waitFor();
+  await page.locator('#rafFotolar button').click();
+  await page.locator('.tv-foto-goruntuleyici.acik').waitFor();
+  await page.getByRole('button', { name:'Kapat', exact:true }).click();
+
+  await page.getByRole('button', { name:/Genel Durum/ }).click();
+  await page.locator('#genelSayaclar').getByText('Raflarda sayılan kitap', { exact:true }).waitFor();
+  await page.locator('#btnIletisimUst').click();
+  await page.locator('#iletisimMesaj').fill('Deneme mesajıdır.');
+  await page.locator('#btnIletisim').click();
+  await page.getByText('Mesajınız gönderildi. Teşekkür ederiz.', { exact:true }).waitFor();
+  assert.equal(calls.findLast(call => call.action === 'iletisimGonder').method, 'POST');
+  assert.equal(errors.length, 0, errors.join('\n'));
+
+  await page.setViewportSize({ width:390, height:844 });
+  await page.getByRole('button', { name:/Kitap Seçimi/ }).click();
+  await page.getByRole('button', { name:'Karar bekleyenler' }).click();
+  await page.locator('#kararListe').getByText('Kitap 1', { exact:true }).waitFor();
+  await page.waitForTimeout(100);
+  if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-koordinator-yeni-mobil.png', fullPage:true });
+  const width = await page.evaluate(() => ({ scroll:document.documentElement.scrollWidth, inner:window.innerWidth }));
+  assert.ok(width.scroll <= width.inner + 1, 'Koordinatör sayfasında yatay taşma var: ' + JSON.stringify(width));
+  await page.getByRole('button', { name:/Raflar ve Kitaplar/ }).click();
+  const shelfWidth = await page.evaluate(() => ({ scroll:document.documentElement.scrollWidth, inner:window.innerWidth }));
+  assert.ok(shelfWidth.scroll <= shelfWidth.inner + 1, 'Mobil raf sayfasında yatay taşma var: ' + JSON.stringify(shelfWidth));
 
   await page.goto(base + '/kitap-envanteri.html');
   await page.locator('#ad').fill('Deneme Gönüllüsü');
   await page.locator('#sifre').fill('test-only');
   await page.locator('#btnGiris').click();
   await page.locator('#adim-raf:not(.gizli)').waitFor();
-  assert.ok(calls.some(call => call.action === 'sayac'));
-  assert.deepEqual(errors, []);
+  if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-gonullu-yeni-mobil.png', fullPage:true });
+  assert.ok(await page.getByRole('button', { name:/1 · Rafı say/ }).isVisible());
+  assert.ok(await page.getByRole('button', { name:/2 · Kitapları kaydet/ }).isVisible());
+  await page.getByText('Soru / düzeltme / öneri gönder', { exact:true }).click();
+  await page.locator('#iletisimMesaj').fill('Gönüllü deneme mesajıdır.');
+  await page.locator('#btnIletisimGonder').click();
+  await page.getByText(/Mesajınız (alındı|gönderildi)/).waitFor();
+  const volunteerWidth = await page.evaluate(() => ({ scroll:document.documentElement.scrollWidth, inner:window.innerWidth }));
+  assert.ok(volunteerWidth.scroll <= volunteerWidth.inner + 1, 'Gönüllü sayfasında yatay taşma var: ' + JSON.stringify(volunteerWidth));
+  assert.equal(errors.length, 0, errors.join('\n'));
 
-  console.log('PASS: hızlı giriş, taze sunucu isteği, araç bağlantıları ve tek kaydırma.');
+  console.log('PASS: yeni koordinatör ve gönüllü tasarımı, karar akışı, raflar, fotoğraf araçları ve mobil görünüm.');
   await browser.close();
-})().catch(error => {
-  console.error(error);
-  process.exit(1);
-});
+})().catch(error => { console.error(error); process.exit(1); });

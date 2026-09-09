@@ -1,73 +1,103 @@
 <!doctype html>
 <html lang="tr">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex"><title>Kütüphane · Tarih Vakfı</title>
-<link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="./css/kutuphane-paneli.css?v=20260909d">
-<link rel="stylesheet" href="./css/kutuphane-paneli-duzeltme.css?v=20260909d">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#5b123b">
+  <title>Kütüphane · Tarih Vakfı</title>
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./css/kutuphane-yeni.css?v=20260909e">
+  <link rel="stylesheet" href="./css/fotograf-goruntuleyici.css?v=20260909e">
 </head>
 <body>
-<section id="giris" class="giris"><form id="girisForm" class="girisKutu">
-  <p class="kurum">TARİH VAKFI</p><h1>Kütüphane taşınma çalışması</h1>
-  <p>Raflardaki kitapları inceleyin, taşınacak kitapları seçin.</p>
-  <label for="ad">Adınız ve soyadınız</label><input id="ad" autocomplete="name" required minlength="2">
-  <label for="sifre">Yetkili şifresi</label><input id="sifre" type="password" autocomplete="current-password" required>
-  <button class="ana" id="btnGiris">Giriş yap</button><p id="msgGiris" role="status"></p>
-  <a href="./kitap-envanteri.html">Gönüllüyüm, sayım veya kitap kaydı yapacağım</a>
-</form></section>
-<div id="uygulama" class="gizli">
-<header><div><b>Tarih Vakfı</b><span>Kütüphane</span></div><div class="hesap"><span id="kimAd"></span><button id="btnCikis">Çıkış</button></div></header>
-<div class="menu"><nav aria-label="Ana menü" id="sekmeler">
-<button class="sec" data-hedef="envanter" aria-current="page">Raflar ve Kitaplar</button>
-<button data-hedef="karar">Kitap Seçimi</button>
-</nav><button class="yardim" data-hedef="iletisim">İletişim</button></div>
-<main>
-<section class="panel" data-ad="envanter" id="envanter">
-<div class="baslik"><div><h1>Raflar ve Kitaplar</h1><p>Önce sayım ve kayıt, sonra kitap seçimi.</p></div><button id="btnYenile">Bilgileri yenile</button></div>
-<p id="envanterMsg" role="status"></p>
-<div id="sayilar" class="sayilar"></div><p id="sayimAciklama" class="aciklama"></p>
-<div class="filtreler"><div><label for="kat">Kat / bölüm</label><select id="kat"></select></div><div><label for="kitaplik">Kitaplık</label><select id="kitaplik"></select></div></div>
-<div class="rafDuzeni"><aside><h2>Raf sıraları</h2><div id="raflar"></div></aside><section class="rafIcerik" aria-label="Seçili raf">
-<h2 id="rafBaslik">Bir raf seçin</h2><div id="rafOzet"></div>
-<div class="rafArac"><button id="btnRafFoto" class="gizli">Raf fotoğrafını gör</button></div><div id="rafFotolar" class="gizli"></div>
-<div id="kitapMsg" role="status"></div><div id="kitaplar"></div>
-<div class="sayfalama gizli" id="kitapSayfalama"><button id="kitapOnceki">Önceki</button><span id="kitapAralik"></span><button id="kitapSonraki">Sonraki</button></div>
-</section></div>
-</section>
-<section class="panel kararPanel gizli" data-ad="karar"><iframe id="kararCerceve" title="Kitap Seçimi" scrolling="no" data-src="./karar.html?oto=1&amp;s=20260909d"></iframe></section>
-  <section class="panel gizli" data-ad="iletisim" id="panelIletisim"><div class="iletisimSayfa">
-    <div class="iletisimKart">
-      <h2>İletişim</h2>
-      <p>Panelle, kitap kararıyla, düzeltmeyle ya da çalışma düzeniyle ilgili notunuzu buradan gönderin. Mesajınız Arif Solmaz’a iletilir.</p>
-      <div class="iletisimGrid">
-        <div>
-          <label for="koordIletisimTur">Konu türü</label>
-          <select id="koordIletisimTur">
-            <option value="soru">Soru</option>
-            <option value="duzeltme">Düzeltme</option>
-            <option value="oneri">Öneri</option>
-            <option value="iletisim">Bana ulaşın</option>
-          </select>
-        </div>
-        <div>
-          <label for="koordIletisimBilgi">Size nasıl ulaşalım? <span style="font-weight:400">(isteğe bağlı)</span></label>
-          <input type="text" id="koordIletisimBilgi" placeholder="Telefon ya da e-posta">
-        </div>
-      </div>
-      <label for="koordIletisimKonu">Konu <span style="font-weight:400">(isteğe bağlı)</span></label>
-      <input type="text" id="koordIletisimKonu" placeholder="Örn. Karar ekranında düzeltme">
-      <label for="koordIletisimMesaj">Mesajınız</label>
-      <textarea id="koordIletisimMesaj" placeholder="Soruyu, düzeltmeyi ya da öneriyi yazın"></textarea>
-      <button type="button" id="btnKoordIletisim">Mesajı gönder</button>
-      <div class="msg" id="koordIletisimMsg"></div>
+  <section id="giris" class="giris-sayfasi">
+    <div class="giris-kart">
+      <div class="marka-isareti" aria-hidden="true">TV</div>
+      <p class="ust-etiket">TARİH VAKFI KÜTÜPHANESİ</p>
+      <h1>Taşınacak kitapları birlikte seçelim</h1>
+      <p class="giris-aciklama">Kitaplar raf sırasıyla önünüze gelir. Her kitap için dört karardan birini vermeniz yeterli.</p>
+      <form id="girisForm">
+        <label for="ad">Adınız ve soyadınız</label>
+        <input id="ad" autocomplete="name" required minlength="2" placeholder="Ad Soyad">
+        <label for="sifre">Yetkili şifresi</label>
+        <input id="sifre" type="password" autocomplete="current-password" required placeholder="Şifreniz">
+        <button class="btn btn-ana btn-buyuk" id="btnGiris">Giriş yap</button>
+        <p id="msgGiris" class="mesaj" role="status"></p>
+      </form>
+      <a class="gonullu-link" href="./kitap-envanteri.html">Raf sayımı veya kitap kaydı yapacağım →</a>
     </div>
-  </div></section>
+  </section>
 
-<details class="ekip"><summary>Koordinatörler için ayrıntılı işlemler</summary><p>Bu ekranlar yalnızca eksik veya hatalı bir kayıtla karşılaşıldığında kullanılır:</p><a href="./kunye-onay.html?oto=1" target="_blank" rel="noopener">Fotoğraftan kitap bilgisini kontrol et</a><a href="./envanter-katalog.html?oto=1" target="_blank" rel="noopener">Kaydı bul ve düzelt</a><a href="./envanter-durum.html?oto=1" target="_blank" rel="noopener">Sayım uyuşmazlıklarını incele</a></details>
-</main></div>
-<dialog id="kitapDetay"><button id="detayKapat" class="kapat">Kapat</button><div id="detayIcerik"></div></dialog>
-<script src="./js/envanter-ag.js?v=20260909d"></script>
-<script src="./js/gonullu-config.js?v=20260909d"></script>
-<script src="./js/kutuphane-paneli.js?v=20260909d"></script>
-</body></html>
+  <div id="uygulama" class="uygulama gizli">
+    <header class="uygulama-ust">
+      <a class="marka" href="#secim" data-bolum-link="secim" aria-label="Kitap seçimine git">
+        <span class="marka-isareti">TV</span>
+        <span><b>Tarih Vakfı</b><small>Kütüphane taşınma çalışması</small></span>
+      </a>
+      <div class="hesap">
+        <span id="kimAd"></span>
+        <button type="button" id="btnIletisimUst">İletişim</button>
+        <button type="button" id="btnCikis">Çıkış</button>
+      </div>
+    </header>
+
+    <nav class="ana-menu" aria-label="Ana bölümler">
+      <button type="button" class="sec" data-bolum="secim" aria-current="page"><span>1</span> Kitap Seçimi</button>
+      <button type="button" data-bolum="raflar"><span>2</span> Raflar ve Kitaplar</button>
+      <button type="button" data-bolum="durum"><span>3</span> Genel Durum</button>
+    </nav>
+
+    <main>
+      <section id="bolum-secim" class="bolum">
+        <div class="sayfa-baslik">
+          <div><p class="ust-etiket">YETKİLİ ÇALIŞMA EKRANI</p><h1>Kitap Seçimi</h1><p>Kitaplar kütüphanedeki yerlerine göre sıralanır.</p></div>
+          <button type="button" class="btn btn-ikincil yenile" data-yenile="secim">Bilgileri yenile</button>
+        </div>
+        <div id="kararSayaclari" class="karar-sayaclari" aria-label="Karar sayıları"></div>
+        <div class="arac-cubugu">
+          <div class="gorunum-secici" id="kararGorunum"><button type="button" class="sec" data-gorunum="bekleyen">Karar bekleyenler</button><button type="button" data-gorunum="verilmis">Verilmiş kararlar</button></div>
+          <div class="arama-alani"><label class="sadece-ekran-okuyucu" for="kararAra">Kitap ara</label><input id="kararAra" type="search" placeholder="Kitap, yazar veya raf ara"><select id="kararKategori" class="gizli" aria-label="Karara göre süz"><option value="">Tüm kararlar</option><option value="Gidecek">Gitsin</option><option value="Gitse de olur">Gitse de olur</option><option value="Gitmeyecek">Gitmesin</option><option value="Belirsiz">Belirsiz</option></select><button type="button" class="btn btn-ikincil" id="btnKararAra">Ara</button></div>
+        </div>
+        <p id="kararMsg" class="mesaj" role="status"></p>
+        <div id="kararListe" class="kitap-kartlari" aria-live="polite"></div>
+        <div id="kararBos" class="bos-durum gizli"><div>✓</div><h2>Karar bekleyen kitap yok</h2><p>Yeni kitap kayıtları geldikçe burada görünecek.</p></div>
+        <div id="kararSayfalama" class="sayfalama gizli"><button type="button" id="kararOnceki">Önceki</button><span id="kararAralik"></span><button type="button" id="kararSonraki">Sonraki</button></div>
+      </section>
+
+      <section id="bolum-raflar" class="bolum gizli">
+        <div class="sayfa-baslik"><div><p class="ust-etiket">KÜTÜPHANE ENVANTERİ</p><h1>Raflar ve Kitaplar</h1><p>Sayım ile kitap kayıtlarını raf raf karşılaştırın.</p></div><button type="button" class="btn btn-ikincil yenile" data-yenile="raflar">Bilgileri yenile</button></div>
+        <div id="rafSayaclari" class="ozet-kartlari"></div><p id="rafMsg" class="mesaj" role="status"></p>
+        <div class="raf-seciciler"><div><label for="rafKat">Kat / bölüm</label><select id="rafKat"></select></div><div><label for="rafKitaplik">Kitaplık</label><select id="rafKitaplik"></select></div></div>
+        <div class="raf-yerlesim">
+          <aside class="raf-listesi"><h2>Raf sıraları</h2><div id="rafSiralar"></div></aside>
+          <section class="raf-detay" aria-label="Seçilen raf">
+            <div class="raf-detay-baslik"><div><p id="rafKod" class="yer-kodu"></p><h2 id="rafBaslik">Bir raf seçin</h2></div><button type="button" id="btnRafFoto" class="btn btn-ikincil gizli">Raf fotoğrafları</button></div>
+            <div id="rafOzet"></div><div id="rafFotolar" class="foto-galeri gizli"></div><p id="rafKitapMsg" class="mesaj" role="status"></p><div id="rafKitaplar" class="raf-kitaplar"></div>
+            <div id="rafSayfalama" class="sayfalama gizli"><button type="button" id="rafOnceki">Önceki</button><span id="rafAralik"></span><button type="button" id="rafSonraki">Sonraki</button></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="bolum-durum" class="bolum gizli">
+        <div class="sayfa-baslik"><div><p class="ust-etiket">YÖNETİM ÖZETİ</p><h1>Kütüphanenin Genel Durumu</h1><p>Sayım, kayıt ve kararların güncel görünümü.</p></div><button type="button" class="btn btn-ikincil yenile" data-yenile="durum">Bilgileri yenile</button></div>
+        <p id="durumMsg" class="mesaj" role="status"></p><div id="genelSayaclar" class="yonetim-sayilari"></div>
+        <div class="durum-iki-sutun"><section class="bilgi-kart"><h2>Kararların dağılımı</h2><div id="kararDagilim" class="dagilim"></div></section><section class="bilgi-kart"><h2>Dikkat gereken raflar</h2><div id="rafUyarilari"></div></section></div>
+        <section class="bilgi-kart surec-kart"><h2>Çalışma nasıl ilerliyor?</h2><div class="surec"><div><b>1</b><span><strong>Raf sayılıyor</strong><small>Rafdaki toplam kitap belirleniyor.</small></span></div><div><b>2</b><span><strong>Kitaplar kaydediliyor</strong><small>Kapak, künye ve raftaki yer sisteme ekleniyor.</small></span></div><div><b>3</b><span><strong>Yetkililer karar veriyor</strong><small>Her kitap için dört seçenekten biri işaretleniyor.</small></span></div></div></section>
+      </section>
+
+      <section id="bolum-iletisim" class="bolum gizli">
+        <div class="sayfa-baslik"><div><p class="ust-etiket">İLETİŞİM</p><h1>Soru, düzeltme veya öneri gönderin</h1><p>Mesajınız doğrudan proje sorumlusuna e-posta olarak iletilir.</p></div></div>
+        <form id="iletisimForm" class="iletisim-form bilgi-kart"><div class="form-iki"><div><label for="iletisimTur">Konu türü</label><select id="iletisimTur"><option value="soru">Soru</option><option value="duzeltme">Düzeltme</option><option value="oneri">Öneri</option><option value="iletisim">Bana ulaşın</option></select></div><div><label for="iletisimBilgi">Telefon veya e-posta <small>(isteğe bağlı)</small></label><input id="iletisimBilgi" placeholder="Size nasıl ulaşalım?"></div></div><label for="iletisimKonu">Konu <small>(isteğe bağlı)</small></label><input id="iletisimKonu" placeholder="Örn. Bir kitabın kararı hakkında"><label for="iletisimMesaj">Mesajınız</label><textarea id="iletisimMesaj" rows="6" required minlength="5" placeholder="Sorunuzu, düzeltmeyi veya önerinizi yazın"></textarea><button class="btn btn-ana" id="btnIletisim">Mesajı gönder</button><p id="iletisimMsg" class="mesaj" role="status"></p></form>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="kitapDetay" class="kitap-dialog"><button type="button" id="detayKapat" class="dialog-kapat" aria-label="Kapat">×</button><div id="detayIcerik"></div></dialog>
+  <div id="bildirim" class="bildirim" role="status" aria-live="polite"></div>
+  <script src="./js/envanter-ag.js?v=20260909e"></script>
+  <script src="./js/gonullu-config.js?v=20260909e"></script>
+  <script src="./js/fotograf-goruntuleyici.js?v=20260909e"></script>
+  <script src="./js/koordinator-yeni.js?v=20260909e"></script>
+</body>
+</html>

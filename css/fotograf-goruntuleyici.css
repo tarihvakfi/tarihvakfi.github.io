@@ -1,0 +1,118 @@
+.tv-foto-acik {
+  overflow: hidden !important;
+}
+
+.tv-foto-goruntuleyici {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background: rgba(20, 14, 17, .96);
+  color: #fff;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .18s ease, visibility .18s ease;
+  overscroll-behavior: contain;
+  touch-action: none;
+}
+
+.tv-foto-goruntuleyici.acik {
+  opacity: 1;
+  visibility: visible;
+}
+
+.tv-foto-ust {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 62px;
+  padding: 10px max(14px, env(safe-area-inset-right)) 10px max(14px, env(safe-area-inset-left));
+  background: rgba(20, 14, 17, .82);
+  border-bottom: 1px solid rgba(255,255,255,.12);
+}
+
+.tv-foto-baslik {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 700 15px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.tv-foto-kapat,
+.tv-foto-araclar button {
+  min-width: 46px;
+  min-height: 46px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255,255,255,.24);
+  border-radius: 12px;
+  background: rgba(255,255,255,.1);
+  color: #fff;
+  font: 700 16px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+
+.tv-foto-kapat {
+  font-size: 22px;
+}
+
+.tv-foto-alan {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  cursor: grab;
+}
+
+.tv-foto-alan.surukleniyor {
+  cursor: grabbing;
+}
+
+.tv-foto-alan img {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: block;
+  max-width: min(92vw, 1500px);
+  max-height: calc(100vh - 150px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  transform-origin: center;
+  user-select: none;
+  -webkit-user-drag: none;
+  will-change: transform;
+}
+
+.tv-foto-araclar {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px max(14px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+  background: rgba(20, 14, 17, .82);
+  border-top: 1px solid rgba(255,255,255,.12);
+}
+
+.tv-foto-araclar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.tv-foto-araclar span {
+  font-size: 13px;
+}
+
+@media (max-width: 620px) {
+  .tv-foto-ust { min-height: 56px; }
+  .tv-foto-araclar { gap: 6px; }
+  .tv-foto-araclar button { min-width: 48px; padding: 8px; }
+  .tv-foto-araclar span { display: none; }
+  .tv-foto-alan img { max-width: 96vw; max-height: calc(100vh - 136px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-foto-goruntuleyici { transition: none; }
+}

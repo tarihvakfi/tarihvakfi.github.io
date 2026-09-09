@@ -407,9 +407,16 @@
   .dip{text-align:center;color:var(--soluk);font-size:12px;margin:22px 12px 0}
 .anaGorevler{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}.anaGorevler .btn{margin:0;min-height:62px;font-size:17px;padding:12px}.anaGorevler .btn:last-child{background:#fff;color:var(--bordo);border:2px solid var(--bordo)}@media(max-width:380px){.anaGorevler{grid-template-columns:1fr}}
 </style>
+<link rel="stylesheet" href="./css/gonullu-yeni.css?v=20260909e">
+<link rel="stylesheet" href="./css/fotograf-goruntuleyici.css?v=20260909e">
 </head>
 <body>
 <div class="sayfa">
+
+  <header class="gonullu-marka">
+    <a href="./kitap-envanteri.html"><span class="gonullu-isaret">TV</span><span><b>Tarih Vakfı</b><small>Kitap envanteri · gönüllü ekranı</small></span></a>
+    <a class="yetkili-gecis" href="./koordinator.html">Yetkili girişi</a>
+  </header>
 
   <div class="kuyruk" id="kurBar" style="background:#f1f7f2;border-color:#cfe4d5;color:#2e6440">
     <span id="kurMetin">Uygulama gibi kurabilirsiniz — telefonda daha hızlı açılır.</span>
@@ -501,7 +508,7 @@
         <div class="sayimFotoSatir">
           <input type="file" id="sayimFotoGirdi" accept="image/*" capture="environment" hidden>
           <button type="button" id="btnSayimFoto">📷 Rafın fotoğrafını çek</button>
-          <span id="sayimFotoOn" class="gizli"><img alt="Raf fotoğrafı önizleme">
+          <span id="sayimFotoOn" class="gizli"><img alt="Raf fotoğrafı önizleme" data-tv-foto data-tv-foto-ad="Raf fotoğrafı">
             <button type="button" id="btnSayimFotoSil" title="Fotoğrafı kaldır">✕</button></span>
         </div>
 
@@ -582,7 +589,7 @@
           kitaba kadar sayın, <b style="font-size:14px">sonrakinden</b> devam edin.</span>
       </div>
       <div class="kitap" id="devirKitap">
-        <img id="devirKapak" alt="" onerror="this.style.visibility='hidden'">
+        <img id="devirKapak" alt="Son kaydedilen kitap" data-tv-foto data-tv-foto-ad="Son kaydedilen kitabın kapağı" onerror="this.style.visibility='hidden'">
         <div>
           <div class="ad" id="devirAd">—</div>
           <div class="alt" id="devirAlt"></div>
@@ -642,7 +649,7 @@
             <p class="foto-ipucu">kitabı tanımak için</p>
           </div>
           <div id="kapakVar" class="foto-onizleme gizli">
-            <img id="kapakOnizleme" alt="Kapak fotoğrafı">
+            <img id="kapakOnizleme" alt="Kapak fotoğrafı" data-tv-foto data-tv-foto-ad="Kapak fotoğrafı">
             <div class="bilgi">
               <b>Hazır</b>
               <span id="kapakBilgi"></span>
@@ -663,7 +670,7 @@
             <p class="foto-ipucu">kitabın başındaki sol sayfa</p>
           </div>
           <div id="fotoVar" class="foto-onizleme gizli">
-            <img id="fotoOnizleme" alt="Künye fotoğrafı">
+            <img id="fotoOnizleme" alt="Künye fotoğrafı" data-tv-foto data-tv-foto-ad="Künye fotoğrafı">
             <div class="bilgi">
               <b>Hazır</b>
               <span id="fotoBilgi"></span>
@@ -1003,6 +1010,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
           return '<figure data-url="' + esc(f.url) + '" data-id="' + esc(f.id || '') +
             '" data-on="' + esc(rafFotoGoruntu(f, 800)) + '">' +
             '<img src="' + esc(rafFotoGoruntu(f, 400)) + '" alt="Raf fotoğrafı" loading="lazy">' +
+            '<button type="button" class="rf-buyut" data-tv-foto="' + esc(rafFotoGoruntu(f, 1600)) + '" data-tv-foto-ad="Raf fotoğrafı">Büyüt</button>' +
             '<figcaption>' + esc(f.kim || '—') +
             (f.tarih ? '<br>' + esc(f.tarih) : '') + '</figcaption></figure>';
         }).join('');
@@ -3066,5 +3074,6 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   });
 })();
 </script>
+<script src="./js/fotograf-goruntuleyici.js?v=20260909e"></script>
 </body>
 </html>
