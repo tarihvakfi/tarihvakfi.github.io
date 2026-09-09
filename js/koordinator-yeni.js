@@ -13,7 +13,7 @@
   var kararEtiket = { 'Gidecek':'Gitsin', 'Gitse de olur':'Gitse de olur', 'Gitmeyecek':'Gitmesin', 'Belirsiz':'Belirsiz' };
   var kararKod = { gidecek:'Gitsin', belki:'Gitse de olur', gitmeyecek:'Gitmesin', belirsiz:'Belirsiz' };
   var kararSinif = { 'Gidecek':'g', 'Gitse de olur':'s', 'Gitmeyecek':'k', 'Belirsiz':'m' };
-  var bildirimZamani, sistemHazirlikNo = 0, sistemKapatmaZamani;
+  var bildirimZamani, sistemHazirlikNo = 0, sistemKapatmaZamani, sistemSerbestBirakmaZamani;
 
   function esc(v) {
     return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
@@ -87,19 +87,30 @@
 
   function sistemYukleniyor() {
     clearTimeout(sistemKapatmaZamani);
+    clearTimeout(sistemSerbestBirakmaZamani);
     var no = ++sistemHazirlikNo;
     $('sistemHazirlik').classList.remove('gizli');
     sistemEtkilesimi(false);
     sistemDurumu('bekliyor', 'Veriler hazırlanıyor — lütfen bekleyin',
       'Bilgiler hazırlanıyor…',
       'Güncel raf ve kitap kayıtları getiriliyor. Ekran hazır olduğunda çalışmaya başlayabilirsiniz.');
-    return { no:no, baslangic:Date.now() };
+    var context = { no:no, baslangic:Date.now() };
+    /* Yavaş Apps Script yanıtları bütün ekranı uzun süre kapatmasın. Kullanıcıya
+       kısa hazırlık uyarısı ver; veri gelene kadar durumu üst çubukta göster. */
+    sistemSerbestBirakmaZamani = setTimeout(function () {
+      if (context.no !== sistemHazirlikNo || !$('sistemHazirlik').classList.contains('bekliyor')) return;
+      sistemEtkilesimi(true);
+      $('sistemHazirlik').classList.add('gizli');
+      $('sistemDurumMetin').textContent = 'Veriler getiriliyor…';
+    }, 2200);
+    return context;
   }
 
   function sistemHazir(context) {
     var kalan = Math.max(0, 1600 - (Date.now() - context.baslangic));
     return new Promise(function (tamam) { setTimeout(tamam, kalan); }).then(function () {
       if (context.no !== sistemHazirlikNo) return;
+      clearTimeout(sistemSerbestBirakmaZamani);
       sistemEtkilesimi(true);
       sistemDurumu('hazir', 'Sistem hazır — çalışmaya başlayabilirsiniz',
         'Sistem hazır', 'Güncel bilgiler alındı. Çalışmaya başlayabilirsiniz.');
@@ -111,15 +122,16 @@
 
   function sistemHatasiGoster(context, e) {
     if (context.no !== sistemHazirlikNo) return;
+    clearTimeout(sistemSerbestBirakmaZamani);
+    $('sistemHazirlik').classList.add('gizli');
+    sistemEtkilesimi(true);
     if (e && e.sifreHatasi) {
-      $('sistemHazirlik').classList.add('gizli');
-      sistemEtkilesimi(true);
       return;
     }
-    sistemEtkilesimi(false);
-    sistemDurumu('hata', 'Bağlantı kurulamadı — yeniden deneyin',
+    sistemDurumu('hata', 'Bağlantı gecikti — yeniden deneyin',
       'Bilgiler alınamadı',
-      hataMetni(e, 'Güncel bilgiler') + ' Yeniden denemek için aşağıdaki düğmeye dokunun.');
+      hataMetni(e, 'Güncel bilgiler'));
+    $('sistemHazirlik').classList.add('gizli');
   }
 
   function foto(id, url, boyut) {
@@ -176,7 +188,7 @@
 
   function durumYukle(zorla) {
     if (D.durum && !zorla) { sayaclariCiz(); return Promise.resolve(D.durum); }
-    return api('durum', {}, 15000).then(function (r) { D.durum = r; sayaclariCiz(); return r; });
+    return api('durum', {}, 45000).then(function (r) { D.durum = r; sayaclariCiz(); return r; });
   }
 
   function kitapFotografi(ad, id, url) {
@@ -226,7 +238,7 @@
       yalnizKararsiz: D.gorunum === 'bekleyen',
       kategori: D.gorunum === 'verilmis' ? $('kararKategori').value : '',
       ara: $('kararAra').value.trim(), sirala: 'yer', bas: D.kararBas, adet: D.kararAdet
-    }, 15000).then(function (r) {
+    }, 45000).then(function (r) {
       if (token !== D.islem) return;
       D.kararlar = r.kayitlar || [];
       D.kararToplam = Number(r.toplam || 0);
@@ -387,13 +399,13 @@
        haritayı ikinci kez başlatmak Apps Script'i yavaşlatır; süren isteği paylaş. */
     if (D.rafHaritaIstegi) return D.rafHaritaIstegi;
     var ozetAlindi = false;
-    D.rafHaritaIstegi = api('siraOzeti', {}, 10000).then(function (r) {
+    D.rafHaritaIstegi = api('siraOzeti', {}, 40000).then(function (r) {
       rafOzetiniBirlestir(r.siralar || []); ozetAlindi = true;
       mesaj($('rafMsg'), 'iyi', 'Raf sayımları yüklendi. Karar bilgileri eşleştiriliyor…');
     }).catch(function (e) {
       if (sifreHatasi(e)) throw e;
     }).then(function () {
-      return api('siraHaritasi', {}, 15000);
+      return api('siraHaritasi', {}, 45000);
     }).then(function (r) {
       D.raflar = r.siralar || [];
       D.raflarYuklendi = true; D.rafHaritasiTam = true; D.rafOzetiVar = true;
@@ -497,7 +509,7 @@
       : 'Bu raftaki kitaplar yükleniyor…');
     if (!oncekiGosteriliyor) $('rafKitaplar').innerHTML = '';
     D.rafKitapIstekAnahtari = anahtar;
-    D.rafKitapIstegi = api('katalog', { sira:kod, yalnizOnayli:false, sirala:'yer', adet:30, bas:bas }, 18000).then(function (r) {
+    D.rafKitapIstegi = api('katalog', { sira:kod, yalnizOnayli:false, sirala:'yer', adet:30, bas:bas }, 45000).then(function (r) {
       if (istekNo !== D.rafKitapIstekNo || kod !== D.seciliRaf || bas !== D.rafBas) return;
       D.rafKitaplar = r.kayitlar || []; D.rafKitapToplam = Number(r.toplam || 0);
       D.rafKitapYukluAnahtari = anahtar;
@@ -538,7 +550,7 @@
     if (!$('rafFotolar').classList.contains('gizli')) { $('rafFotolar').classList.add('gizli'); return; }
     var p = parcala(D.seciliRaf), r = D.raflar.find(function (x) { return x.sira === D.seciliRaf; });
     mesgul($('btnRafFoto'), true, 'Yükleniyor…');
-    api('rafFotograflari', { mekan:p.kat, raf:p.kitaplik, sira:p.sira }, 12000).then(function (v) {
+    api('rafFotograflari', { mekan:p.kat, raf:p.kitaplik, sira:p.sira }, 35000).then(function (v) {
       var liste = (v.fotograflar || []).map(function (f) { return { kucuk:foto(f.id || f.fotoId, f.url || f.foto, 1400), buyuk:foto(f.id || f.fotoId, f.url || f.foto, 2200), ad:['Raf fotoğrafı', f.kim, f.tarih].filter(Boolean).join(' · ') }; }).filter(function (f) { return f.kucuk; });
       if (!liste.length && r && r.sayimFoto) liste.push({ kucuk:foto('', r.sayimFoto, 1400), buyuk:foto('', r.sayimFoto, 2200), ad:'Raf fotoğrafı' });
       $('rafFotolar').innerHTML = liste.length ? liste.map(function (f) { return '<button type="button" data-tv-foto="' + esc(f.buyuk) + '" data-tv-foto-ad="' + esc(f.ad) + '"><img loading="lazy" src="' + esc(f.kucuk) + '" alt="' + esc(f.ad) + '"></button>'; }).join('') : '<p>Bu rafın fotoğrafı henüz eklenmemiş.</p>';

@@ -61,6 +61,9 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
         await route.abort('failed');
         return;
       }
+      if (coordinatorCatalogAttempts === 3) {
+        await new Promise(resolve => setTimeout(resolve, 2800));
+      }
     }
     let result;
     if (body.action !== 'config' && body.sifre !== 'test-only') {
@@ -182,10 +185,16 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   assert.equal(await page.locator('main').evaluate(el => el.inert), true, 'Koordinatör işlemleri veri hazırlanırken açık kaldı');
   assert.match(await page.locator('#sistemDurumMetin').textContent(), /Veriler hazırlanıyor/);
   if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-koordinator-hazirlaniyor.png' });
-  await page.getByText('Bağlantı kurulamadı — yeniden deneyin', { exact:true }).waitFor();
-  assert.equal(await page.locator('main').evaluate(el => el.inert), true, 'Koordinatör işlemleri bağlantı hatasında açıldı');
+  await page.getByText('Bağlantı gecikti — yeniden deneyin', { exact:true }).waitFor();
+  assert.equal(await page.locator('main').evaluate(el => el.inert), false, 'Koordinatör ekranı bağlantı hatasında kilitli kaldı');
+  assert.equal(await page.locator('#sistemHazirlik').isHidden(), true, 'Bağlantı hatası tam ekran katmanında kaldı');
   if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-koordinator-baglanti-hatasi.png' });
-  await page.locator('#btnSistemTekrar').click();
+  await page.locator('#sistemDurum').click();
+  await page.locator('#sistemHazirlik:not(.gizli)').waitFor();
+  await page.waitForTimeout(2350);
+  assert.equal(await page.locator('#sistemHazirlik').isHidden(), true, 'Yavaş veri çağrısı tam ekranı iki saniyeden uzun kapattı');
+  assert.equal(await page.locator('main').evaluate(el => el.inert), false, 'Yavaş veri çağrısı sırasında sayfa kullanıma açılmadı');
+  assert.match(await page.locator('#sistemDurumMetin').textContent(), /Veriler getiriliyor/);
   await page.locator('#kararListe').getByText('Kitap 1', { exact:true }).waitFor();
   await page.getByText('Sistem hazır — çalışmaya başlayabilirsiniz', { exact:true }).waitFor({ timeout:4000 });
   await page.locator('#sistemHazirlik').waitFor({ state:'hidden', timeout:4000 });
