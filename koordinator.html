@@ -50,9 +50,10 @@
   .ozetKararlar{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px}.ozetKarar{border:1px solid #e8dbe2;border-radius:10px;background:#fff;padding:14px 15px;border-top:5px solid #e8dbe2}.ozetKarar.g{border-top-color:var(--yesil)}.ozetKarar.s{border-top-color:var(--sari)}.ozetKarar.k{border-top-color:var(--kirmizi)}.ozetKarar.m{border-top-color:var(--mavi)}.ozetKarar b{display:block;font-size:28px;font-variant-numeric:tabular-nums}.ozetKarar span{display:block;color:var(--soluk);font-size:13px}
   .ozetUyarilar{display:grid;gap:9px;margin-top:10px}.ozetUyari{background:#fff;border:1px solid #e8dbe2;border-left:5px solid var(--sari);border-radius:9px;padding:11px 13px}.ozetUyari.kirmizi{border-left-color:var(--kirmizi)}.ozetUyari b{display:block}.ozetUyari span,.ozetUyari em{display:block;color:var(--soluk);font-size:13px;margin-top:2px}.ozetUyari em{font-style:normal;font-weight:700;color:#5a4a52}
   .ozetAkis{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}.ozetAdim{background:#fff;border:1px solid #e8dbe2;border-radius:10px;padding:13px 12px}.ozetAdim strong{display:block;color:var(--bordo);font-size:13px;margin-bottom:5px}.ozetAdim span{display:block;font-size:13.5px;color:#4b3d43}
+  .iletisimSayfa{max-width:760px;margin:0 auto}.iletisimKart{background:var(--kagit);border:1px solid #e8dbe2;border-radius:12px;padding:22px}.iletisimKart h2{margin:0 0 5px;color:var(--bordo);font-size:22px}.iletisimKart p{margin:0 0 16px;color:var(--soluk);font-size:14px;line-height:1.5}.iletisimKart label{display:block;margin:12px 0 5px;font-size:13px;font-weight:800;color:#5a4a52}.iletisimKart input,.iletisimKart textarea,.iletisimKart select{width:100%;padding:12px;border:1.5px solid var(--cizgi);border-radius:9px;background:#fff;color:#211a1d;font:inherit;font-size:15px}.iletisimKart textarea{min-height:130px;resize:vertical}.iletisimKart input:focus,.iletisimKart textarea:focus,.iletisimKart select:focus{outline:2px solid var(--bordo);outline-offset:1px;border-color:transparent}.iletisimGrid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.iletisimKart button{margin-top:16px;border:none;border-radius:10px;background:var(--bordo);color:#fff;font:inherit;font-size:15.5px;font-weight:800;padding:13px 18px;cursor:pointer}.iletisimKart button:disabled{opacity:.55}.iletisimKart .msg{margin:12px 0 0}
   @media (max-width:850px){.ozetSayilar{grid-template-columns:1fr 1fr}.ozetKararlar{grid-template-columns:1fr 1fr}.ozetAkis{grid-template-columns:1fr}}
   @media (max-width:640px){header .marka span{display:none}.sekme{padding:10px 12px 9px;font-size:13px}header .kim span{display:none}}
-  @media (max-width:520px){.ozetSayilar,.ozetKararlar{grid-template-columns:1fr}.ozetSayi.ana .deger{font-size:42px}}
+  @media (max-width:520px){.ozetSayilar,.ozetKararlar,.iletisimGrid{grid-template-columns:1fr}.ozetSayi.ana .deger{font-size:42px}}
 </style>
 </head>
 <body>
@@ -72,6 +73,7 @@
     <button class="sekme" data-hedef="onay">Kitap Bilgisi</button>
     <button class="sekme" data-hedef="durum">Raf/Durum</button>
     <button class="sekme" data-hedef="katalog">Kayıt Arama</button>
+    <button class="sekme" data-hedef="iletisim">İletişim</button>
   </nav>
   <div class="kim"><span id="kimAd"></span><button id="btnCikis">Çıkış</button></div>
 </header>
@@ -88,6 +90,33 @@
   <iframe data-ad="onay" data-src="./kunye-onay.html?oto=1" title="Kitap Bilgisi"></iframe>
   <iframe data-ad="durum" data-src="./envanter-durum.html?oto=1" title="Raf/Durum"></iframe>
   <iframe data-ad="katalog" data-src="./envanter-katalog.html?oto=1" title="Kayıt Arama"></iframe>
+  <section class="panel" data-ad="iletisim" id="panelIletisim"><div class="iletisimSayfa">
+    <div class="iletisimKart">
+      <h2>İletişim</h2>
+      <p>Panelle, kitap kararıyla, düzeltmeyle ya da çalışma düzeniyle ilgili notunuzu buradan gönderin. Mesajınız e-posta olarak iletilir ve ayrıca tabloda saklanır.</p>
+      <div class="iletisimGrid">
+        <div>
+          <label for="koordIletisimTur">Konu türü</label>
+          <select id="koordIletisimTur">
+            <option value="soru">Soru</option>
+            <option value="duzeltme">Düzeltme</option>
+            <option value="oneri">Öneri</option>
+            <option value="iletisim">Bana ulaşın</option>
+          </select>
+        </div>
+        <div>
+          <label for="koordIletisimBilgi">Size nasıl ulaşalım? <span style="font-weight:400">(isteğe bağlı)</span></label>
+          <input type="text" id="koordIletisimBilgi" placeholder="Telefon ya da e-posta">
+        </div>
+      </div>
+      <label for="koordIletisimKonu">Konu <span style="font-weight:400">(isteğe bağlı)</span></label>
+      <input type="text" id="koordIletisimKonu" placeholder="Örn. Karar ekranında düzeltme">
+      <label for="koordIletisimMesaj">Mesajınız</label>
+      <textarea id="koordIletisimMesaj" placeholder="Soruyu, düzeltmeyi ya da öneriyi yazın"></textarea>
+      <button type="button" id="btnKoordIletisim">Mesajı gönder</button>
+      <div class="msg" id="koordIletisimMsg"></div>
+    </div>
+  </div></section>
 </main>
 <script src="./js/gonullu-config.js?v=20260822"></script>
 <script>
@@ -95,7 +124,7 @@
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
   var API = (window.TV_ENVANTER_URL || '').trim();
-  var SURUM = '20260909a';
+  var SURUM = '20260909b';
   var oturum = { ad: '', sifre: '' };
   var ozetYuklendi = false, ozetYukleniyor = false;
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
@@ -128,6 +157,10 @@
     if (!e.data || e.data.tv !== 'kararDegisti') return;
     ozetYuklendi = false;
     if ($('panelOzet').classList.contains('sec')) ozetYukle(true);
+    var durum = document.querySelector('iframe[data-ad="durum"]');
+    if (durum && durum.contentWindow) {
+      try { durum.contentWindow.postMessage({ tv: 'kararDegisti' }, '*'); } catch (h) {}
+    }
   });
   function panelAc(ad, sifre) { oturum.ad = ad; oturum.sifre = sifre; $('kimAd').textContent = ad; $('giris').classList.add('gizli'); sekmeSec('karar'); }
   $('btnGiris').addEventListener('click', function () {
@@ -150,6 +183,44 @@
     $('sifre').value = ''; $('giris').classList.remove('gizli');
   });
   $('btnOzetYenile').addEventListener('click', function () { ozetYukle(true); });
+  function dugmeMesgul(b, acik, metin) {
+    if (acik) { b.dataset.eski = b.textContent; b.textContent = metin || 'Bekleyin…'; b.disabled = true; }
+    else { b.textContent = b.dataset.eski || b.textContent; b.disabled = false; }
+  }
+  function iletisimBaglami() {
+    var secili = document.querySelector('.sekme.sec');
+    return 'Koordinatör paneli' + (secili ? ' · açık sekme: ' + secili.textContent.trim() : '');
+  }
+  function iletisimGonder() {
+    var m = $('koordIletisimMsg');
+    var mesajMetni = $('koordIletisimMesaj').value.trim();
+    if (oturum.ad.length < 2) return mesaj(m, 'hata', 'Mesaj göndermek için önce panele girin.');
+    if (mesajMetni.length < 5) {
+      $('koordIletisimMesaj').focus();
+      return mesaj(m, 'hata', 'Mesajınızı biraz daha açık yazın.');
+    }
+    dugmeMesgul($('btnKoordIletisim'), true, 'Gönderiliyor…');
+    api('iletisimGonder', {
+      sayfa: 'koordinator',
+      tur: $('koordIletisimTur').value,
+      ad: oturum.ad,
+      iletisim: $('koordIletisimBilgi').value.trim(),
+      konu: $('koordIletisimKonu').value.trim(),
+      mesaj: mesajMetni,
+      baglam: iletisimBaglami()
+    }).then(function (r) {
+      $('koordIletisimKonu').value = '';
+      $('koordIletisimMesaj').value = '';
+      mesaj(m, 'iyi', esc(r.mesaj || 'Mesajınız alındı. Teşekkür ederiz.'));
+    })['catch'](function (e) {
+      mesaj(m, 'hata', agHata(e));
+    }).then(function () { dugmeMesgul($('btnKoordIletisim'), false); });
+  }
+  $('btnKoordIletisim').addEventListener('click', iletisimGonder);
+  ['koordIletisimTur', 'koordIletisimBilgi', 'koordIletisimKonu', 'koordIletisimMesaj'].forEach(function (id) {
+    $(id).addEventListener('input', function () { mesajGizle($('koordIletisimMsg')); });
+    $(id).addEventListener('change', function () { mesajGizle($('koordIletisimMsg')); });
+  });
   function ozetYukle(zorla) {
     if (!oturum.sifre || ozetYukleniyor || (ozetYuklendi && !zorla)) return;
     ozetYukleniyor = true; $('btnOzetYenile').disabled = true; $('btnOzetYenile').textContent = 'Yenileniyor…'; mesajGizle($('ozetMsg'));

@@ -266,10 +266,111 @@
   .sayimIslem button:disabled{opacity:.55}
   .sayimMsg{margin-top:9px;font-size:13px}
 
+  /* Kütüphane haritası: sade, okunaklı, yönetim ekranına yakışan görünüm. */
+  .kutuphane-giris{display:flex;align-items:flex-start;gap:12px;margin:10px 0 14px;
+    padding:13px 15px;border:1px solid var(--cizgi);border-left:5px solid var(--bordo);
+    border-radius:14px;background:#fff}
+  .kutuphane-giris .ikon{font-size:22px;line-height:1;color:var(--bordo)}
+  .kutuphane-giris b{display:block;color:var(--bordo);margin-bottom:2px}
+  .kutuphane-giris span{display:block;color:var(--soluk);font-size:13px}
+  .kutuphane{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:13px}
+  .kitaplik-sanal{background:#fff;border:1px solid var(--cizgi);border-radius:16px;
+    padding:13px;box-shadow:0 8px 22px rgba(54,27,12,.06);color:var(--murekkep)}
+  .kitaplik-sanal .bas{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;
+    padding-bottom:8px;border-bottom:1px solid #f0e6ec}
+  .kitaplik-sanal .harf{font-size:22px;font-weight:850;color:var(--bordo);letter-spacing:.03em}
+  .kitaplik-sanal .oran{font-size:12px;color:var(--soluk)}
+  .sanal-kat{display:grid;grid-template-columns:74px minmax(0,1fr) 70px;gap:10px;align-items:center;
+    width:100%;border:1px solid var(--cizgi);border-left:7px solid var(--a0);border-radius:12px;
+    background:#fffdf8;padding:9px 10px;margin-top:8px;text-align:left;color:var(--murekkep);
+    cursor:pointer;transition:background .12s,border-color .12s,box-shadow .12s,transform .12s}
+  .sanal-kat:hover{background:#fff7fb;border-color:#dac4d1;transform:translateY(-1px)}
+  .sanal-kat.secili{background:#fff;border-color:var(--bordo);box-shadow:0 0 0 3px #f1dce8;outline:none}
+  .sanal-kat.sonuk{opacity:.34}
+  .sanal-kat[data-a="1"]{border-left-color:var(--a1)}.sanal-kat[data-a="2"]{border-left-color:var(--a2)}
+  .sanal-kat[data-a="3"]{border-left-color:var(--a3)}.sanal-kat[data-a="4"]{border-left-color:var(--a4)}
+  .sanal-kat[data-a="5"]{border-left-color:var(--a5)}
+  .sanal-kat[data-sorun="sayim"]{box-shadow:0 0 0 2px #b81d33;border-color:#b81d33}
+  .sanal-kat[data-sorun="sayilamadi"]{box-shadow:0 0 0 2px #5c3576;border-color:#5c3576}
+  .sanal-kat[data-sorun="sayim-eksik"]{box-shadow:0 0 0 2px #8f76a8;border-color:#8f76a8}
+  .sanal-kat[data-sorun="uzerinde"]{box-shadow:0 0 0 2px #c08400;border-color:#c08400}
+  .kat-etiket{display:block;font-size:12px;font-weight:800;color:var(--murekkep)}
+  .kat-etiket small{display:block;font-size:11px;color:var(--soluk);font-weight:700;margin-top:2px}
+  .mini-kitaplar{height:34px;display:flex;align-items:flex-end;gap:2px;overflow:hidden;
+    margin:0;padding:0;border-bottom:3px solid #e6d9c9}
+  .mini-sirt{display:block;flex:0 0 6px;border-radius:2px 2px 0 0;background:var(--a0);
+    box-shadow:inset 1px 0 0 rgba(255,255,255,.25), inset -1px 0 0 rgba(0,0,0,.10)}
+  .mini-sirt[data-a="1"]{background:var(--a1)}.mini-sirt[data-a="2"]{background:var(--a2)}
+  .mini-sirt[data-a="3"]{background:var(--a3)}.mini-sirt[data-a="4"]{background:var(--a4)}
+  .mini-sirt[data-a="5"]{background:var(--a5)}
+  .mini-sirt:nth-child(3n){flex-basis:5px}.mini-sirt:nth-child(5n){flex-basis:8px}
+  .mini-bos{font-size:11px;color:var(--soluk);align-self:center}
+  .kat-durum{display:block;text-align:right;font-size:11.5px;color:var(--soluk);line-height:1.25}
+  .kat-durum span{display:block}.kat-durum b{color:var(--bordo)}
+
+  .kontrol-listesi{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:10px;margin:15px 0}
+  .kontrol{display:flex;gap:10px;align-items:flex-start;padding:11px 12px;border-radius:12px;
+    border:1px solid var(--cizgi);border-left:5px solid #d7c8d0;background:#fff;font-size:13px;line-height:1.35}
+  .kontrol i{flex:0 0 20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;
+    justify-content:center;font-style:normal;font-weight:800;font-size:11px;margin-top:1px}
+  .kontrol b{display:block;font-size:13px}.kontrol span{display:block;color:var(--soluk);margin-top:1px}
+  .kontrol.ok{border-left-color:#0d6b3e}.kontrol.uyari{border-left-color:#c08400}.kontrol.eksik{border-left-color:#b81d33}
+  .kontrol.ok i{background:#e4f2e8;color:#0d6b3e}.kontrol.uyari i{background:#fff2cf;color:#8a5c00}
+  .kontrol.eksik i{background:#fae6ea;color:#9c2233}
+
+  .raf-gezgin{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr);gap:14px;
+    align-items:stretch;margin-top:13px}
+  .raf-sahne,.kitap-panel{border:1px solid var(--cizgi);border-radius:14px;background:#fff;padding:14px}
+  .raf-sahne h4,.kitap-panel h4{margin:0 0 7px;color:var(--bordo);font-size:14px}
+  .raf-ipucu{margin:0 0 12px;color:var(--soluk);font-size:13px}
+  .raf-tahta{min-height:210px;display:flex;align-items:flex-end;gap:4px;overflow:auto;
+    padding:18px 14px 13px;border-radius:13px;border:1px solid #eadfe5;background:
+    linear-gradient(180deg,#fffdf8 0,#fffdf8 82%,#e8d9c8 82%,#d9c2ab 100%)}
+  .kitap-sirt{--sirt:#9f8b75;appearance:none;border:1px solid rgba(0,0,0,.12);border-radius:4px 4px 1px 1px;
+    background:linear-gradient(90deg,rgba(0,0,0,.18),transparent 20%,transparent 82%,rgba(255,255,255,.20)),
+    var(--sirt);color:#fff;cursor:pointer;padding:7px 4px;display:flex;align-items:center;
+    justify-content:flex-start;writing-mode:vertical-rl;
+    font:650 11px/1.15 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;text-shadow:0 1px 1px rgba(0,0,0,.35);
+    box-shadow:0 2px 0 rgba(41,17,8,.18)}
+  .kitap-sirt:hover,.kitap-sirt.secili{filter:brightness(1.08);outline:3px solid #f1dce8;outline-offset:1px}
+  .kitap-sirt.k-gidecek{--sirt:#0d6b3e}.kitap-sirt.k-belki{--sirt:#c08400}
+  .kitap-sirt.k-gitmeyecek{--sirt:#b81d33}.kitap-sirt.k-belirsiz{--sirt:#1a6fbd}
+  .kitap-sirt.k-bekleyen{--sirt:#7e746d}
+  .kitap-sirt .sirt-baslik{max-height:142px;overflow:hidden;text-overflow:ellipsis}
+  .kitap-sirt .sirt-no{font-size:9px;opacity:.78;margin-top:7px}
+  .raf-bos{min-height:132px;display:flex;align-items:center;justify-content:center;
+    color:var(--soluk);background:#faf4f7;border:1px dashed #d9c8d2;border-radius:10px;
+    width:100%;font-size:13px}
+  .raf-fotolar{display:flex;gap:9px;overflow:auto;margin:7px 0 12px}
+  .raf-foto{flex:0 0 126px;border:1px solid var(--cizgi);border-radius:11px;overflow:hidden;background:#fff;color:inherit;text-decoration:none}
+  .raf-foto img{width:100%;height:84px;object-fit:cover;display:block;background:#f1ece5}
+  .raf-foto span{display:block;padding:6px 8px;font-size:11px;color:var(--soluk)}
+  .kitap-panel{min-height:100%}
+  .kitap-panel .bos{margin:0;color:var(--soluk);font-size:13px}
+  .kitap-baslik{font-size:18px;font-weight:800;color:var(--murekkep);line-height:1.25;margin:0 0 2px}
+  .kitap-yazar{color:var(--soluk);font-size:13px;margin:0 0 10px}
+  .karar-rozet{display:inline-flex;align-items:center;border-radius:999px;padding:5px 9px;
+    color:#fff;font-size:12px;font-weight:800;margin:0 0 10px;background:#7e746d}
+  .karar-rozet.k-gidecek{background:#0d6b3e}.karar-rozet.k-belki{background:#c08400}
+  .karar-rozet.k-gitmeyecek{background:#b81d33}.karar-rozet.k-belirsiz{background:#1a6fbd}
+  .kitap-meta{display:grid;gap:5px;margin:9px 0 12px;font-size:13px}
+  .kitap-meta div{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #f0e7ec;padding-bottom:5px}
+  .kitap-meta span{color:var(--soluk)}.kitap-meta b{text-align:right}
+  .foto-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:10px}
+  .foto-kart{border:1px solid var(--cizgi);border-radius:12px;overflow:hidden;background:#fff;color:inherit;text-decoration:none}
+  .foto-kart img{width:100%;height:142px;object-fit:cover;display:block;background:#f4eee6}
+  .foto-kart span{display:block;padding:7px 9px;font-size:12px;color:var(--soluk)}
+  .foto-yok{display:flex;align-items:center;justify-content:center;height:142px;background:#f7f1e9;
+    color:#8b7b6f;font-size:12px;text-align:center;padding:10px}
+  .detay-yukleniyor{border:1px dashed var(--cizgi);border-radius:12px;padding:13px;color:var(--soluk);font-size:13px;background:#fff}
+
   @media (max-width:620px){
     .isi{grid-template-columns:1fr}
     .gorunumler{margin-left:0;width:100%}
     .gbtn{flex:1;padding:8px 6px;font-size:12.5px}
+    .raf-gezgin{grid-template-columns:1fr}
+    .kutuphane{grid-template-columns:1fr}
+    .foto-grid{grid-template-columns:1fr}
   }
 </style>
 </head>
@@ -324,11 +425,12 @@
     <div class="kart">
       <div class="pano-bas">
         <div>
-          <h3>Raf durumu</h3>
-          <p class="altbaslik">Her kutu bir raf. Koyuluk ilerlemeyi, çerçeve sorunu gösterir.</p>
+          <h3>Kütüphane haritası / raf durumu</h3>
+          <p class="altbaslik">Kitaplık → raf → kitap düzeyinde ilerleyin; sayım, fotoğraf ve karar durumunu aynı yerde görün.</p>
         </div>
         <div class="gorunumler" id="gorunumler">
-          <button class="gbtn sec" type="button" data-g="isi">Isı haritası</button>
+          <button class="gbtn sec" type="button" data-g="gez">Kütüphane haritası</button>
+          <button class="gbtn" type="button" data-g="isi">Isı haritası</button>
           <button class="gbtn" type="button" data-g="kart">Raf kartları</button>
           <button class="gbtn" type="button" data-g="hat">Aşama hattı</button>
         </div>
@@ -352,7 +454,7 @@
   </section>
 </div>
 
-<script src="./js/gonullu-config.js?v=20260818"></script>
+<script src="./js/gonullu-config.js?v=20260909b"></script>
 <script>
 var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPISTIRIN';
 
@@ -377,7 +479,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   /* Apps Script uykudan kalkarken ilk istek 20–30 saniye sürebiliyor; zayıf bağlantıda
      istek büsbütün düşebiliyor. Okuma istekleri otomatik tekrar denenir, yazma istekleri
      (onayla) denenmez — aynı kayıt iki kez işlenmesin. */
-  var TEKRARLANABILIR = ['config', 'onayBekleyen', 'katalog', 'durum', 'siraHaritasi'];
+  var TEKRARLANABILIR = ['config', 'onayBekleyen', 'katalog', 'durum', 'siraHaritasi', 'rafFotograflari'];
 
   function tekIstek(action, yuk, sure) {
     var govde = { action: action, sifre: D.sifre };
@@ -450,6 +552,12 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       .then(function () { mesgul($('btnYenile'), false); });
   });
 
+  window.addEventListener('message', function (e) {
+    if (!e.data || (e.data.tv !== 'sekme' && e.data.tv !== 'yenile' && e.data.tv !== 'kararDegisti')) return;
+    if ($('adim-pano').classList.contains('gizli')) return;
+    yukle()['catch'](function (h) { goster($('msg'), 'hata', agHata(h)); });
+  });
+
   /* Sıra haritası: sistemin yakaladığı sayım tutarsızlıkları burada görünür.
      Bunun bir ekranı yoksa uyarılar kimsenin bakmadığı bir hücrede kalıyor. */
   /* ═══════════ RAF DURUMU PANOSU ═══════════
@@ -485,8 +593,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     ['sayilamadi', 'Sayılamadı'],
     ['sayim-eksik', 'Arka sıra eksik']
   ];
-  var P = { satirlar: [], gorunum: 'isi', mekan: '', suzgec: 'hepsi',
-            secili: '', mekanAdlari: {}, adlarGeldi: false };
+  var P = { satirlar: [], gorunum: 'gez', mekan: '', suzgec: 'hepsi',
+            secili: '', mekanAdlari: {}, adlarGeldi: false,
+            detayCache: {}, detayIslem: 0 };
 
   /* "G-A01" → mekân G, kitaplık A, raf 1. Kitaplık iki harfli olabilir (AA, BH). */
   function anahtarCoz(k) {
@@ -578,6 +687,335 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       if (P.satirlar[i].kod === kod) return P.satirlar[i];
     }
     return null;
+  }
+
+  function kararVerildiMi(k) {
+    return ['Gidecek', 'Gitse de olur', 'Gitmeyecek', 'Belirsiz']
+      .indexOf(String(k || '')) >= 0;
+  }
+
+  function kararEtiketi(k) {
+    k = String(k || '');
+    if (k === 'Gitse de olur') return 'Kapasite varsa';
+    if (k === 'Gitmeyecek') return 'Kalacak';
+    if (k === 'Belirsiz') return 'Uzman bakacak';
+    return kararVerildiMi(k) ? k : 'Karar bekliyor';
+  }
+
+  function kararSinifi(k) {
+    k = String(k || '');
+    if (k === 'Gidecek') return 'k-gidecek';
+    if (k === 'Gitse de olur') return 'k-belki';
+    if (k === 'Gitmeyecek') return 'k-gitmeyecek';
+    if (k === 'Belirsiz') return 'k-belirsiz';
+    return 'k-bekleyen';
+  }
+
+  function kararSay(kitaplar) {
+    var say = { gidecek: 0, belki: 0, kalacak: 0, belirsiz: 0, bekleyen: 0 };
+    (kitaplar || []).forEach(function (k) {
+      if (k.kategori === 'Gidecek') say.gidecek++;
+      else if (k.kategori === 'Gitse de olur') say.belki++;
+      else if (k.kategori === 'Gitmeyecek') say.kalacak++;
+      else if (k.kategori === 'Belirsiz') say.belirsiz++;
+      else say.bekleyen++;
+    });
+    return say;
+  }
+
+  function kisalt(s, n) {
+    s = String(s || '').trim();
+    return s.length > n ? s.slice(0, Math.max(0, n - 1)) + '…' : s;
+  }
+
+  function urlKimligi(url) {
+    return (String(url || '').match(/[-\w]{25,}/) || [''])[0];
+  }
+
+  function driveThumb(id, boy) {
+    return id ? 'https://drive.google.com/thumbnail?id=' +
+      encodeURIComponent(id) + '&sz=w' + (boy || 420) : '';
+  }
+
+  function fotoKaynak(url, id, boy) {
+    var kimlik = id || urlKimligi(url);
+    return kimlik ? driveThumb(kimlik, boy || 420) : '';
+  }
+
+  function fotoKartCiz(baslik, url, id, bosYazi) {
+    var src = fotoKaynak(url, id, 520);
+    var hedef = url || src;
+    if (src) {
+      return '<a class="foto-kart" href="' + esc(hedef) + '" target="_blank" rel="noopener">' +
+        '<img src="' + esc(src) + '" alt="' + esc(baslik) + '">' +
+        '<span>' + esc(baslik) + '</span></a>';
+    }
+    if (url) {
+      return '<a class="foto-kart" href="' + esc(url) + '" target="_blank" rel="noopener">' +
+        '<div class="foto-yok">Fotoğrafı aç</div><span>' + esc(baslik) + '</span></a>';
+    }
+    return '<div class="foto-kart"><div class="foto-yok">' + esc(bosYazi || 'Fotoğraf yok') +
+      '</div><span>' + esc(baslik) + '</span></div>';
+  }
+
+  function rafFotoGaleriCiz(fotograflar, sayimFoto) {
+    var liste = (fotograflar || []).slice();
+    if (!liste.length && sayimFoto) {
+      liste.push({ url: sayimFoto, id: urlKimligi(sayimFoto), kim: '', tarih: '' });
+    }
+    if (!liste.length) return '';
+    return '<div class="raf-fotolar">' + liste.map(function (f, ix) {
+      var src = fotoKaynak(f.url, f.id, 260);
+      return '<a class="raf-foto" href="' + esc(f.url || src) + '" target="_blank" rel="noopener">' +
+        (src ? '<img src="' + esc(src) + '" alt="Raf fotoğrafı">' :
+          '<div class="foto-yok" style="height:84px">Raf fotoğrafı</div>') +
+        '<span>' + (liste.length > 1 ? (ix + 1) + '. fotoğraf' : 'Raf fotoğrafı') +
+        (f.kim ? ' · ' + esc(f.kim) : '') +
+        (f.tarih ? '<br>' + esc(f.tarih) : '') + '</span></a>';
+    }).join('') + '</div>';
+  }
+
+  function kontrolSatiri(sinif, baslik, aciklama) {
+    return '<div class="kontrol ' + sinif + '"><i aria-hidden="true">' +
+      (sinif === 'ok' ? '✓' : sinif === 'uyari' ? '!' : '×') + '</i><div><b>' +
+      esc(baslik) + '</b><span>' + aciklama + '</span></div></div>';
+  }
+
+  function kontrolListesiCiz(r, detay) {
+    var x = r.ham, sy = x.sayim || null;
+    var kitaplar = detay.kitaplar || [];
+    var toplamKayit = Number(detay.toplam || x.kayitSayisi || kitaplar.length || 0);
+    var kitapSayisi = Number(x.kayitli || 0) || kitaplar.reduce(function (t, k) {
+      return t + (Number(k.nusha) || 1);
+    }, 0);
+    var kapakli = kitaplar.filter(function (k) { return k.kapak || k.kapakId; }).length;
+    var kunye = kitaplar.filter(function (k) { return k.foto || k.fotoId; }).length;
+    var karar = kararSay(kitaplar);
+    var kararli = karar.gidecek + karar.belki + karar.kalacak + karar.belirsiz;
+    if (!kitaplar.length && x.kararVerilen) kararli = Number(x.kararVerilen || 0);
+    var bekleyen = Math.max(0, toplamKayit - kararli);
+    var fotoSayisi = (detay.fotograflar || []).length + (x.sayimFoto && !(detay.fotograflar || []).length ? 1 : 0);
+
+    var sayimSinif = 'uyari';
+    var sayimBas = 'Sayım bekliyor';
+    var sayimAlt = 'Bu raf henüz sayılmamış görünüyor.';
+    if (sy && sy.durum === 'onaylandi') {
+      sayimSinif = 'ok';
+      sayimBas = 'Sayımı yapıldı + sayım onaylandı';
+      sayimAlt = 'Geçerli sayı ' + sayi(sy.toplam) +
+        (sy.onaylayan ? ' · onaylayan: ' + esc(sy.onaylayan) : '') + '.';
+    } else if (sy && sy.durum === 'sayilamadi') {
+      sayimSinif = 'eksik';
+      sayimBas = 'Raf sayılamadı';
+      sayimAlt = 'Rafa yeniden gidilmesi gerekiyor' + (sy.not ? ': ' + esc(sy.not) : '') + '.';
+    } else if (sy && sy.durum === 'sayildi') {
+      sayimSinif = sy.uyusmazlik ? 'eksik' : 'uyari';
+      sayimBas = sy.uyusmazlik ? 'İki sayım tutmuyor' : 'Sayımı yapıldı, onay bekliyor';
+      sayimAlt = 'Sayım: ' + sayi(sy.toplam) +
+        (sy.uyusmazlik ? ' · ikinci sayım: ' + sayi(sy.ikinciSayim) : '') + '.';
+    } else if (x.onSayim != null) {
+      sayimSinif = 'uyari';
+      sayimBas = 'Sayımı yapıldı, onay bekliyor';
+      sayimAlt = 'Rafta sayılan: ' + sayi(x.onSayim) + '.';
+    }
+
+    var fotoOk = fotoSayisi > 0;
+    var kayitEksik = x.onSayim != null && Number(kitapSayisi || 0) < Number(x.onSayim || 0);
+    var fotoTam = toplamKayit > 0 && kitaplar.length > 0 &&
+      kapakli >= kitaplar.length && kunye >= kitaplar.length && !detay.kitapHata && !kayitEksik;
+    var kitapSinif = toplamKayit ? (fotoTam ? 'ok' : 'uyari') : 'eksik';
+    var kararSinif = toplamKayit && !bekleyen ? 'ok' : (toplamKayit ? 'uyari' : 'eksik');
+    var kitapBaslik = toplamKayit
+      ? (kayitEksik ? 'Kitap kaydı sürüyor' :
+        (fotoTam ? 'Kitaplar ve fotoğraflar tamam' : 'Kitap kaydı var, fotoğraf eksikleri var'))
+      : 'Kitap kaydı bekliyor';
+    var kitapAciklama = toplamKayit ? sayi(toplamKayit) + ' kitap kaydı · ' + sayi(kitapSayisi) +
+      ' cilt/nüsha · kapak ' + kapakli + ' · künye ' + kunye +
+      (kayitEksik ? ' · sayım ' + sayi(x.onSayim) + ', kayıt daha az' : '') + '.' :
+      'Bu rafta henüz kitap kaydı görünmüyor.';
+
+    var kararAciklama = toplamKayit
+      ? (kitaplar.length
+        ? 'Gidecek ' + karar.gidecek + ' · kapasite varsa ' + karar.belki +
+          ' · kalacak ' + karar.kalacak + ' · uzman bakacak ' + karar.belirsiz +
+          (bekleyen ? ' · karar bekleyen ' + bekleyen : '') + '.'
+        : 'Kararı verilen ' + kararli + ' · karar bekleyen ' + bekleyen +
+          '. Tür dökümü kitap listesi açılınca görünür.')
+      : 'Önce kitaplar kaydedilecek.';
+
+    return '<div class="kontrol-listesi">' +
+      kontrolSatiri(sayimSinif, sayimBas, sayimAlt) +
+      kontrolSatiri(fotoOk ? 'ok' : 'uyari',
+        fotoOk ? 'Raf fotoğraflandı' : 'Raf fotoğrafı bekliyor',
+        fotoOk ? fotoSayisi + ' raf fotoğrafı var.' : 'Sayım sırasında rafın genel fotoğrafı çekilmemiş.') +
+      kontrolSatiri(kitapSinif, kitapBaslik, kitapAciklama) +
+      kontrolSatiri(kararSinif,
+        toplamKayit ? 'Kitap kararları' : 'Karar verilecek kitap yok',
+        kararAciklama) +
+      '</div>';
+  }
+
+  function sanalSirtlar(r) {
+    var x = r.ham;
+    var adet = Math.min(42, Number(x.kayitSayisi || x.kayitli || x.onSayim || 0));
+    if (!adet) return '<span class="mini-bos">henüz kitap yok</span>';
+    var html = '';
+    for (var i = 0; i < adet; i++) {
+      html += '<span class="mini-sirt" data-a="' + r.asama + '" style="height:' +
+        (18 + ((i * 7 + r.raf * 3) % 25)) + 'px"></span>';
+    }
+    return html;
+  }
+
+  function gezginCiz() {
+    var liste = gorunur();
+    var g = kitapliklar(liste);
+    var aktif = liste.filter(function (r) { return suzgecGecer(r, P.suzgec); }).length;
+    var mekan = P.mekanAdlari[P.mekan] || P.mekan || 'Kütüphane';
+    var giris = '<div class="kutuphane-giris"><div class="ikon">▦</div><div><b>' +
+      esc(mekan) + ' içinde gezin</b><span>' + aktif + ' raf süzgece uyuyor. ' +
+      'Her kart bir kitaplık, her satır bir raftır. Soldaki renk çizgisi ilerlemeyi, çerçeve uyarıyı gösterir. ' +
+      'Rafa dokununca altta kitaplar ve kararlar açılır.</span></div></div>';
+    return giris + '<div class="kutuphane">' + g.sira.map(function (k) {
+      var raflar = g.harita[k];
+      var ilerleyen = raflar.filter(function (r) { return r.asama >= 3; }).length;
+      return '<div class="kitaplik-sanal"><div class="bas"><span class="harf">' + esc(k) +
+        '</span><span class="oran">' + ilerleyen + '/' + raflar.length + ' raf kayıtlı</span></div>' +
+        raflar.map(function (r) {
+          var x = r.ham, toplam = Number(x.kayitSayisi || 0);
+          var baslik = r.kod + ' — ' + ASAMALAR[r.asama].ad + kararNotu(r);
+          return '<button class="sanal-kat' + (suzgecGecer(r, P.suzgec) ? '' : ' sonuk') +
+            (r.kod === P.secili ? ' secili' : '') + '" type="button" data-kod="' + esc(r.kod) +
+            '" data-a="' + r.asama + '"' + (r.sorun ? ' data-sorun="' + r.sorun + '"' : '') +
+            ' title="' + esc(baslik) + '" aria-label="' + esc(baslik) + '">' +
+            '<span class="kat-etiket"><span>' + r.raf + '. sıra</span><small>' +
+              esc(r.kod) + '</small></span>' +
+            '<span class="mini-kitaplar">' + sanalSirtlar(r) + '</span>' +
+            '<span class="kat-durum"><span>' + sayi(x.kayitli || toplam || 0) +
+              ' kitap</span><span><b>' + Number(x.kararVerilen || 0) + '/' +
+              toplam + '</b> karar</span></span></button>';
+        }).join('') + '</div>';
+    }).join('') + '</div>';
+  }
+
+  function kitapSirtCiz(k, ix, seciliNo) {
+    var h = 128 + ((ix * 11) % 42);
+    var w = 24 + ((ix * 5) % 15);
+    var baslik = k.baslik || '(başlık yok)';
+    return '<button class="kitap-sirt ' + kararSinifi(k.kategori) +
+      (String(k.no) === String(seciliNo) ? ' secili' : '') + '" type="button" data-no="' +
+      esc(k.no) + '" style="height:' + h + 'px;width:' + w + 'px" title="' +
+      esc('#' + k.no + ' · ' + baslik + ' · ' + kararEtiketi(k.kategori)) + '">' +
+      '<span class="sirt-baslik">' + esc(kisalt(baslik, 42)) + '</span>' +
+      '<span class="sirt-no">#' + esc(k.no) + '</span></button>';
+  }
+
+  function kitapPanelCiz(k) {
+    if (!k) {
+      return '<h4>Kitap ayrıntısı</h4><p class="bos">Raftaki bir kitap sırtına dokunun; kapak, künye ve karar burada açılır.</p>';
+    }
+    var kararSinif = kararSinifi(k.kategori);
+    var kararVeren = k.kararVeren ? esc(k.kararVeren) : '—';
+    var kararTarihi = k.kararTarihi ? esc(k.kararTarihi) : '—';
+    var meta =
+      '<div><span>Yer kodu</span><b>' + esc(k.yer || '') + '</b></div>' +
+      '<div><span>Yıl / nüsha</span><b>' + esc((k.yil || '—') + ' / ' + (k.nusha || '1')) + '</b></div>' +
+      '<div><span>Durum</span><b>' + esc(k.durum || '—') + '</b></div>' +
+      '<div><span>Kararı veren</span><b>' + kararVeren + '</b></div>' +
+      '<div><span>Karar tarihi</span><b>' + kararTarihi + '</b></div>';
+    if (k.kutu) meta += '<div><span>Kutu</span><b>' + esc(k.kutu) + '</b></div>';
+    return '<h4>Kitap ayrıntısı</h4>' +
+      '<p class="kitap-baslik">' + esc(k.baslik || '(başlık yok)') + '</p>' +
+      '<p class="kitap-yazar">' + esc(k.yazar || 'Yazar bilgisi yok') + '</p>' +
+      '<span class="karar-rozet ' + kararSinif + '">' + esc(kararEtiketi(k.kategori)) + '</span>' +
+      '<div class="kitap-meta">' + meta + '</div>' +
+      (k.kural ? '<p class="sayimNot"><b>Kural:</b> ' + esc(k.kural) + '</p>' : '') +
+      (k.not ? '<p class="sayimNot"><b>Not:</b> ' + esc(k.not) + '</p>' : '') +
+      (k.kararGecmisi ? '<p class="sayimNot"><b>Karar geçmişi:</b> ' + esc(k.kararGecmisi) + '</p>' : '') +
+      '<div class="foto-grid">' +
+        fotoKartCiz('Kapak fotoğrafı', k.kapak, k.kapakId, 'Kapak fotoğrafı yok') +
+        fotoKartCiz('Künye fotoğrafı', k.foto, k.fotoId, 'Künye fotoğrafı yok') +
+      '</div>';
+  }
+
+  function rafKitaplariCiz(kod, detay) {
+    var hedef = $('rafCanliDetay');
+    var r = rafBul(kod);
+    if (!hedef || !r) return;
+    var kitaplar = detay.kitaplar || [];
+    var ilkNo = kitaplar.length ? kitaplar[0].no : '';
+    var hata = [];
+    if (detay.kitapHata) hata.push('Kitap listesi alınamadı: ' + esc(detay.kitapHata));
+    if (detay.fotoHata) hata.push('Raf fotoğrafları alınamadı: ' + esc(detay.fotoHata));
+    hedef.className = '';
+    hedef.innerHTML =
+      kontrolListesiCiz(r, detay) +
+      rafFotoGaleriCiz(detay.fotograflar, r.ham.sayimFoto) +
+      '<div class="raf-gezgin" data-kod="' + esc(kod) + '">' +
+        '<div class="raf-sahne"><h4>Bu raftaki kitaplar</h4>' +
+        '<p class="raf-ipucu">' + (kitaplar.length
+          ? 'Sırta dokunun; kitap, künye fotoğrafı ve karar sağda açılır.'
+          : 'Bu raf için tek tek kitap kaydı henüz görünmüyor.') + '</p>' +
+        '<div class="raf-tahta">' +
+          (kitaplar.length ? kitaplar.map(function (k, ix) {
+            return kitapSirtCiz(k, ix, ilkNo);
+          }).join('') : '<div class="raf-bos">Bu rafta gösterilecek kitap kaydı yok.</div>') +
+        '</div>' +
+        (detay.toplam > kitaplar.length
+          ? '<p class="sayimNot">Bu rafta ' + detay.toplam + ' kayıt var; ilk ' +
+            kitaplar.length + ' kayıt gösteriliyor.</p>' : '') +
+        '</div>' +
+        '<div class="kitap-panel" id="kitapPanel">' + kitapPanelCiz(kitaplar[0]) + '</div>' +
+      '</div>' +
+      (hata.length ? '<p class="sayimNot" style="color:#b81d33">' + hata.join('<br>') + '</p>' : '');
+  }
+
+  function rafKitaplariniYukle(kod) {
+    var r = rafBul(kod), p = anahtarCoz(kod);
+    var hedef = $('rafCanliDetay');
+    if (!r || !p || !hedef) return;
+    var token = ++P.detayIslem;
+    if (P.detayCache[kod]) {
+      rafKitaplariCiz(kod, P.detayCache[kod]);
+      return;
+    }
+    hedef.className = 'detay-yukleniyor';
+    hedef.innerHTML = 'Raf fotoğrafı, kitap sırtları ve kararlar yükleniyor…';
+    function guvenli(promise) {
+      return promise.then(function (v) { return { ok: true, veri: v }; })
+        ['catch'](function (e) { return { ok: false, hata: agHata(e) }; });
+    }
+    Promise.all([
+      guvenli(api('katalog', { sira: kod, yalnizOnayli: false, sirala: 'yer', adet: 300 })),
+      guvenli(api('rafFotograflari', { mekan: p.mekan, raf: p.kitaplik, sira: p.raf }))
+    ]).then(function (sonuc) {
+      if (token !== P.detayIslem || P.secili !== kod) return;
+      var katalog = sonuc[0].ok ? sonuc[0].veri : {};
+      var fotolar = sonuc[1].ok ? sonuc[1].veri : {};
+      var detay = {
+        kitaplar: katalog.kayitlar || [],
+        toplam: Number(katalog.toplam || (katalog.kayitlar || []).length || 0),
+        fotograflar: fotolar.fotograflar || [],
+        kitapHata: sonuc[0].ok ? '' : sonuc[0].hata,
+        fotoHata: sonuc[1].ok ? '' : sonuc[1].hata
+      };
+      P.detayCache[kod] = detay;
+      rafKitaplariCiz(kod, detay);
+    });
+  }
+
+  function kitapSec(no) {
+    var detay = P.detayCache[P.secili];
+    if (!detay) return;
+    var kitap = (detay.kitaplar || []).filter(function (k) {
+      return String(k.no) === String(no);
+    })[0];
+    if (!kitap) return;
+    var panel = $('kitapPanel');
+    if (panel) panel.innerHTML = kitapPanelCiz(kitap);
+    Array.prototype.forEach.call(document.querySelectorAll('#rafCanliDetay .kitap-sirt'), function (b) {
+      b.classList.toggle('secili', String(b.dataset.no) === String(no));
+    });
   }
 
   /* ── çizim ── */
@@ -729,6 +1167,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   function panoCiz() {
     ozetCiz();
     $('panoGovde').innerHTML =
+      P.gorunum === 'gez' ? gezginCiz() :
       P.gorunum === 'kart' ? kartCiz() : P.gorunum === 'hat' ? hatCiz() : isiCiz();
     suzgecCipCiz();
   }
@@ -736,10 +1175,14 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   function detayCiz(kod) {
     var r = rafBul(kod);
     var el = $('rafDetay');
-    if (!r) { el.innerHTML = '<p class="bos">Ayrıntı için bir rafa tıklayın.</p>'; return; }
+    if (!r) {
+      P.detayIslem++;
+      el.innerHTML = '<p class="bos">Ayrıntı için bir rafa tıklayın.</p>';
+      return;
+    }
     var x = r.ham;
     var yer = (P.mekanAdlari[r.mekan] || r.mekan || '') +
-      (r.mekan ? ' · ' : '') + r.kitaplik + ' kitaplığı · ' + r.raf + '. raf';
+      (r.mekan ? ' · ' : '') + r.kitaplik + ' kitaplığı · ' + r.raf + '. sıra';
 
     var sy = x.sayim || null;
     var satirlar = [];
@@ -808,7 +1251,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
           : '') +
       (x.not ? '<p class="uyari-yazi" style="font-weight:400;color:var(--soluk)">' +
         esc(x.not) + '</p>' : '') +
+      '<div id="rafCanliDetay" class="detay-yukleniyor">Raf fotoğrafı, kitap sırtları ve kararlar yükleniyor…</div>' +
       sayimKutusu(r);
+    rafKitaplariniYukle(kod);
   }
 
   /* ── Sayım hakemliği ──────────────────────────────────────────────
@@ -874,6 +1319,11 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
 
   $('rafDetay').addEventListener('click', function (e) {
+    var kitap = e.target.closest('.kitap-sirt[data-no]');
+    if (kitap) {
+      kitapSec(kitap.dataset.no);
+      return;
+    }
     var b = e.target.closest('button[data-sayim="onay"]');
     if (!b) return;
     var kutu = b.closest('.sayimKutu');
@@ -917,22 +1367,27 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     if (!b) return;
     P.mekan = b.dataset.m;
     mekanCipCiz();
+    var adaylar = gorunur();
+    var filtreli = adaylar.filter(function (r) { return suzgecGecer(r, P.suzgec); });
+    P.secili = (filtreli[0] || adaylar[0] || {}).kod || '';
     panoCiz();
+    if (P.secili) detayCiz(P.secili);
   });
   $('asamaCip').addEventListener('click', function (e) {
     var b = e.target.closest('.cip');
     if (!b) return;
     P.suzgec = b.dataset.s;
+    var adaylar = gorunur();
+    var filtreli = adaylar.filter(function (r) { return suzgecGecer(r, P.suzgec); });
+    if (filtreli.length) P.secili = filtreli[0].kod;
     panoCiz();
+    if (P.secili) detayCiz(P.secili);
   });
   $('panoGovde').addEventListener('click', function (e) {
     var b = e.target.closest('[data-kod]');
     if (!b) return;
     P.secili = b.dataset.kod;
-    Array.prototype.forEach.call(this.querySelectorAll('.hucre.secili'), function (x) {
-      x.classList.remove('secili');
-    });
-    if (b.classList.contains('hucre')) b.classList.add('secili');
+    panoCiz();
     detayCiz(P.secili);
     $('rafDetay').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   });
@@ -957,11 +1412,19 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         return { ham: x, kod: x.sira, mekan: a.mekan, kitaplik: a.kitaplik, raf: a.raf,
                  asama: asamaBul(x), sorun: sorunBul(x) };
       });
+      P.detayCache = {};
       mekanCipCiz();
+      var seciliRaf = rafBul(P.secili);
+      if (!seciliRaf || (P.mekan && seciliRaf.mekan !== P.mekan)) {
+        var adaylar = gorunur();
+        var filtreli = adaylar.filter(function (r) { return suzgecGecer(r, P.suzgec); });
+        P.secili = (filtreli[0] || adaylar[0] || {}).kod || '';
+      }
       efsaneCiz();
       panoCiz();
       if (P.secili) detayCiz(P.secili);
-      $('haritaNot').textContent = 'Bir rafa tıklayınca ayrıntısı altta açılır. ' +
+      else $('rafDetay').innerHTML = '<p class="bos">Ayrıntı için bir rafa tıklayın.</p>';
+      $('haritaNot').textContent = 'Haritada raf seçin; altta o raftaki gerçek kitap sırtları, fotoğraflar ve kararlar açılır. ' +
         'Sıra tutma süresi: ' + (h.tutmaSaat || 8) + ' saat.';
     })['catch'](function (e) {
       $('haritaNot').textContent = 'Raf durumu alınamadı: ' + agHata(e);

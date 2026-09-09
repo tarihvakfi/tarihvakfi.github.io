@@ -43,7 +43,7 @@
   label{display:block;font-weight:600;font-size:13px;margin:12px 0 5px;color:var(--soluk)}
   input,textarea,select{width:100%;padding:13px 12px;border:1.5px solid var(--cizgi);border-radius:9px;
     font:inherit;font-size:16px;background:#fff;color:var(--murekkep)}
-  input:focus,textarea:focus{outline:2px solid var(--bordo);outline-offset:1px;border-color:transparent}
+  input:focus,textarea:focus,select:focus{outline:2px solid var(--bordo);outline-offset:1px;border-color:transparent}
   textarea{min-height:56px;resize:vertical}
   .ikili{display:flex;gap:10px}
   .ikili>div{flex:1}
@@ -68,6 +68,18 @@
   .digerSecenekler summary::-webkit-details-marker{display:none}
   .digerSecenekler summary::before{content:'▸ ';color:var(--bordo)}
   .digerSecenekler[open] summary::before{content:'▾ '}
+
+  /* ── iletişim ── */
+  .iletisimKart{border-style:dashed;background:#fff}
+  .iletisimKart details{margin:0}
+  .iletisimKart summary{cursor:pointer;list-style:none;color:var(--bordo);
+    font-weight:800;font-size:16px;padding:2px 0}
+  .iletisimKart summary::-webkit-details-marker{display:none}
+  .iletisimKart summary::before{content:'▸ ';color:var(--bordo)}
+  .iletisimKart details[open] summary::before{content:'▾ '}
+  .iletisimForm{margin-top:12px;border-top:1px solid var(--cizgi);padding-top:2px}
+  .iletisimMini{margin:8px 0 0;color:var(--soluk);font-size:13px;line-height:1.45}
+  #msgIletisim{margin:12px 0 0}
 
   /* ── ayrıntı katlama ── */
   .ayrinti-satir{display:flex;gap:10px;margin-top:16px;align-items:stretch;flex-wrap:wrap}
@@ -410,7 +422,7 @@
     <label for="ad">Adınız</label>
     <input type="text" id="ad" placeholder="Ad Soyad" autocomplete="name">
     <label for="sifre">Çalışma şifresi</label>
-    <input type="text" id="sifre" placeholder="Koordinatörden alın" autocapitalize="none" autocorrect="off">
+    <input type="password" id="sifre" placeholder="Koordinatörden alın" autocapitalize="none" autocorrect="off">
     <button class="btn" id="btnGiris">Başla</button>
     <div class="msg" id="msgGiris"></div>
   </section>
@@ -741,6 +753,35 @@
     </div>
 
 
+  </section>
+
+  <section id="iletisimKart" class="kart iletisimKart gizli">
+    <details>
+      <summary>Soru / düzeltme / öneri gönder</summary>
+      <p class="iletisimMini">Bir kayıtla ilgili hata gördüyseniz, sistem takıldıysa
+        ya da öneriniz varsa buradan yazın. Mesajınız koordinatöre e-posta olarak gider.</p>
+      <div class="iletisimForm">
+        <label for="iletisimTur">Konu türü</label>
+        <select id="iletisimTur">
+          <option value="soru">Soru</option>
+          <option value="duzeltme">Düzeltme</option>
+          <option value="oneri">Öneri</option>
+          <option value="iletisim">Bana ulaşın</option>
+        </select>
+
+        <label for="iletisimBilgi">Size nasıl ulaşalım? <span style="font-weight:400">(isteğe bağlı)</span></label>
+        <input type="text" id="iletisimBilgi" placeholder="Telefon ya da e-posta">
+
+        <label for="iletisimKonu">Konu <span style="font-weight:400">(isteğe bağlı)</span></label>
+        <input type="text" id="iletisimKonu" placeholder="Örn. G-A03 sırasında eksik kayıt">
+
+        <label for="iletisimMesaj">Mesajınız</label>
+        <textarea id="iletisimMesaj" rows="4" placeholder="Soruyu, düzeltmeyi ya da öneriyi yazın"></textarea>
+
+        <button type="button" class="btn ikincil" id="btnIletisimGonder">Mesajı gönder</button>
+        <div class="msg gizli" id="msgIletisim"></div>
+      </div>
+    </details>
   </section>
 </div>
 
@@ -1134,6 +1175,59 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     return dene(kalan, 1200);
   }
 
+  /* ───────── iletişim ───────── */
+  function iletisimBaglami() {
+    var parcalar = ['Gönüllü kayıt ekranı'];
+    if (D.anahtar) {
+      parcalar.push('Çalışılan sıra: ' + D.anahtar);
+      var soz = yerSozu(D.anahtar);
+      if (soz) parcalar.push(soz);
+      parcalar.push('sıradaki kitap: ' + yerKodu(D.anahtar, D.sonraki || 1));
+    } else if (D.cfg && $('rafHarf').options.length) {
+      var r = seciliRaf();
+      var a = anahtarKur(r.mekan, r.raf, r.sira);
+      if (a) parcalar.push('Seçili sıra: ' + a + (yerSozu(a) ? ' (' + yerSozu(a) + ')' : ''));
+    }
+    if (D.duzenleNo) parcalar.push('Düzenlenen kayıt: #' + D.duzenleNo);
+    return parcalar.join(' · ');
+  }
+
+  function iletisimGonder() {
+    var m = $('msgIletisim');
+    var mesajMetni = $('iletisimMesaj').value.trim();
+    if (D.ad.length < 2) {
+      return goster(m, 'hata', 'Mesaj göndermek için önce adınızla giriş yapın.');
+    }
+    if (mesajMetni.length < 5) {
+      $('iletisimMesaj').focus();
+      return goster(m, 'hata', 'Mesajınızı biraz daha açık yazın.');
+    }
+    mesgul($('btnIletisimGonder'), true, 'Gönderiliyor…');
+    api('iletisimGonder', {
+      sayfa: 'kitap-envanteri',
+      tur: $('iletisimTur').value,
+      ad: D.ad,
+      iletisim: $('iletisimBilgi').value.trim(),
+      konu: $('iletisimKonu').value.trim(),
+      mesaj: mesajMetni,
+      baglam: iletisimBaglami()
+    }, { deneme: 0 }).then(function (r) {
+      $('iletisimKonu').value = '';
+      $('iletisimMesaj').value = '';
+      goster(m, 'iyi', esc(r.mesaj || 'Mesajınız alındı. Teşekkür ederiz.'));
+    })['catch'](function (e) {
+      goster(m, 'hata', e.message === 'AĞ'
+        ? 'Bağlantı yok — mesaj gönderilemedi. Bağlantı gelince tekrar deneyin.'
+        : e.message);
+    }).then(function () { mesgul($('btnIletisimGonder'), false); });
+  }
+
+  $('btnIletisimGonder').addEventListener('click', iletisimGonder);
+  ['iletisimTur', 'iletisimBilgi', 'iletisimKonu', 'iletisimMesaj'].forEach(function (id) {
+    $(id).addEventListener('input', function () { gizle($('msgIletisim')); });
+    $(id).addEventListener('change', function () { gizle($('msgIletisim')); });
+  });
+
   /* ───────── kurulum ───────── */
   $('btnGiris').addEventListener('click', function () {
     var ad = $('ad').value.trim(), sifre = $('sifre').value.trim();
@@ -1151,6 +1245,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       gizle($('msgGiris'));
       $('adim-giris').classList.add('gizli');
       $('adim-raf').classList.remove('gizli');
+      $('iletisimKart').classList.remove('gizli');
       rafEkraniHazirla();
       if (cevrimdisi) {
         agDurumu(false);
@@ -1300,6 +1395,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     if (!D.cfg) {                                    // ayarlar gelmediyse boş menü gösterme
       goster($('msgGiris'), 'hata', 'Ayarlar alınamadı. Sayfayı yenileyip tekrar deneyin.');
       $('adim-raf').classList.add('gizli');
+      $('iletisimKart').classList.add('gizli');
       $('adim-giris').classList.remove('gizli');
       return;
     }
@@ -2297,6 +2393,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   });
   $('btnRafGeri').addEventListener('click', function () {
     $('adim-raf').classList.add('gizli'); $('adim-giris').classList.remove('gizli');
+    $('iletisimKart').classList.add('gizli');
   });
   $('btnRafDegis').addEventListener('click', function () {
     $('adim-kayit').classList.add('gizli'); $('adim-raf').classList.remove('gizli');

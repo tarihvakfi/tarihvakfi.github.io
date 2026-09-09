@@ -24,6 +24,11 @@ var AYAR = {
   // Boş bırakırsanız ayrım kalkar, ikisi de çalışma şifresiyle açılır.
   KOORDINATOR_SIFRESI: '',
 
+  // Gönüllü ve koordinatör iletişim formlarından gelen bildirimler.
+  // İsterseniz Apps Script "Komut dosyası özellikleri"ne ILETISIM_EPOSTA
+  // ekleyerek kodu değiştirmeden farklı bir adrese yönlendirebilirsiniz.
+  ILETISIM_EPOSTA: 'arif.solmaz@gmail.com',
+
   // Formda kaç son kayıt görünsün (düzeltme/silme için)
   SON_KAYIT: 8,
 
@@ -763,6 +768,16 @@ var S = {
 var KUTU_SUTUNLARI = ['Kutu', 'Hedef', 'Kaynak sıra', 'Yer kodu aralığı',
                       'Kitap sayısı', 'Paketleyen', 'Tarih', 'Not'];
 
+/* Gönüllü ve koordinatörlerden gelen soru, düzeltme ve öneriler.
+   Mail gönderimi başarısız olsa bile mesaj kaybolmasın diye hepsi ayrıca
+   tabloda saklanır. */
+var ILETISIM_SUTUNLARI = ['Tarih', 'Sayfa', 'Tür', 'Ad', 'İletişim',
+                          'Konu', 'Mesaj', 'Bağlam', 'Durum',
+                          'E-posta', 'Cevaplayan', 'Cevap tarihi', 'Not'];
+var IL = { tarih: 1, sayfa: 2, tur: 3, ad: 4, iletisim: 5,
+           konu: 6, mesaj: 7, baglam: 8, durum: 9, eposta: 10,
+           cevaplayan: 11, cevapTarihi: 12, not: 13 };
+
 /* 'Sıralar' sayfası: her sıranın tek satırlık hikâyesi — kime verildi, kim
    bitirdi, sayım tuttu mu. */
 var SIRA_SUTUNLARI = ['Sıra', 'Raftaki kitap', 'Kayıtlı cilt', 'Bitiren', 'Bitiş tarihi',
@@ -1425,7 +1440,7 @@ function siraHaritasi_() {
 // önizlemesi ya da yanlışlıkla paylaşılan adres kayıt silmemeli.
 var YAZAN_EYLEMLER = ['ekle', 'guncelle', 'sil', 'fotoEkle', 'onayla', 'topluOnayla', 'kararVer', 'kararGeriAl', 'kunyeErtele',
                       'kutula', 'siraBitir', 'siraOner', 'siraSec', 'kitapIste', 'sayimKaydet', 'siraBirak',
-                      'sayimOnayla', 'sayimGeriAl', 'fotoBagla'];
+                      'sayimOnayla', 'sayimGeriAl', 'fotoBagla', 'iletisimGonder'];
 
 function doGet(e) {
   if (e && e.parameter && e.parameter.action) {
@@ -1506,6 +1521,7 @@ function islet_(istek) {
       case 'siraHaritasi':return cikti_(siraHaritasi_());
       case 'kitapIste':   return cikti_(kitapIste_(istek));
       case 'istenenler':  return cikti_(istenenler_());
+      case 'iletisimGonder': return cikti_(iletisimGonder_(istek));
       case 'fotoEkle':    return cikti_(fotoEkle_(istek.no, istek.veri, istek.tur, istek.hangi));
       case 'onayBekleyen':return cikti_(onayBekleyen_(istek.adet));
       case 'kunyeErtele': return cikti_(kunyeErtele_(istek));
@@ -1533,6 +1549,117 @@ function cikti_(nesne) {
   if (nesne && nesne.ok === undefined) nesne.ok = true;
   return ContentService.createTextOutput(JSON.stringify(nesne))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+/* ═══════════════ İLETİŞİM FORMU ═══════════════ */
+
+function iletisimTekSatir_(v, sinir) {
+  return String(v == null ? '' : v)
+    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, sinir || 200);
+}
+
+function iletisimCokSatir_(v, sinir) {
+  return String(v == null ? '' : v)
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .trim()
+    .slice(0, sinir || 2000);
+}
+
+function iletisimTuru_(v) {
+  var turler = {
+    soru: 'Soru',
+    iletisim: 'İletişim isteği',
+    duzeltme: 'Düzeltme',
+    oneri: 'Öneri'
+  };
+  var kod = sade_(v || 'soru');
+  return turler[kod] ? { kod: kod, ad: turler[kod] } : { kod: 'soru', ad: turler.soru };
+}
+
+function iletisimEpostaAdresi_() {
+  try {
+    var ozellik = PropertiesService.getScriptProperties().getProperty('ILETISIM_EPOSTA');
+    if (String(ozellik || '').trim()) return String(ozellik).trim();
+  } catch (h) {}
+  return String(AYAR.ILETISIM_EPOSTA || '').trim();
+}
+
+function iletisimGonder_(g) {
+  var tur = iletisimTuru_(g.tur);
+  var veri = {
+    tarih: new Date(),
+    sayfa: iletisimTekSatir_(g.sayfa || 'Belirtilmedi', 80),
+    tur: tur.ad,
+    ad: iletisimTekSatir_(g.ad || g.kaydeden, 120),
+    iletisim: iletisimTekSatir_(g.iletisim, 180),
+    konu: iletisimTekSatir_(g.konu, 160),
+    mesaj: iletisimCokSatir_(g.mesaj, 3000),
+    baglam: iletisimTekSatir_(g.baglam, 500)
+  };
+
+  if (veri.ad.length < 2) return { ok: false, error: 'Adınızı yazın.' };
+  if (veri.mesaj.length < 5) return { ok: false, error: 'Mesajınızı biraz daha açık yazın.' };
+
+  var satir = 0;
+  var kilit = LockService.getScriptLock();
+  kilit.waitLock(20000);
+  try {
+    var sayfa = sayfaAl_('İletişim');
+    sayfa.appendRow([veri.tarih, veri.sayfa, veri.tur, veri.ad, veri.iletisim,
+                     veri.konu, veri.mesaj, veri.baglam, 'Yeni', 'Bekliyor',
+                     '', '', '']);
+    satir = sayfa.getLastRow();
+  } finally {
+    kilit.releaseLock();
+  }
+
+  var alici = iletisimEpostaAdresi_();
+  var mailGonderildi = false;
+  var mailDurumu = alici ? 'Gönderilemedi' : 'Alıcı tanımlı değil';
+  if (alici) {
+    try {
+      var mailKonu = '[Kitap Envanteri] ' + veri.tur + (veri.konu ? ': ' + veri.konu : '');
+      var govde = [
+        'Kitap envanteri iletişim formundan yeni mesaj geldi.',
+        '',
+        'Sayfa: ' + veri.sayfa,
+        'Tür: ' + veri.tur,
+        'Gönderen: ' + veri.ad,
+        'İletişim: ' + (veri.iletisim || '—'),
+        'Konu: ' + (veri.konu || '—'),
+        'Bağlam: ' + (veri.baglam || '—'),
+        '',
+        'Mesaj:',
+        veri.mesaj,
+        '',
+        'Tablo: İletişim',
+        'Satır: ' + satir
+      ].join('\n');
+      MailApp.sendEmail({ to: alici, subject: mailKonu, body: govde,
+                          name: 'Tarih Vakfı Envanter' });
+      mailGonderildi = true;
+      mailDurumu = 'Gönderildi';
+    } catch (h) {
+      mailDurumu = 'Gönderilemedi: ' + String(h.message || h).slice(0, 160);
+      Logger.log('İletişim e-postası gönderilemedi: ' + mailDurumu);
+    }
+  }
+
+  try {
+    if (satir) sayfaAl_('İletişim').getRange(satir, IL.eposta).setValue(mailDurumu);
+  } catch (h2) {}
+
+  return {
+    ok: true,
+    mailGonderildi: mailGonderildi,
+    mesaj: mailGonderildi
+      ? 'Mesajınız alındı. Teşekkür ederiz.'
+      : 'Mesajınız alındı ve tabloya kaydedildi. E-posta için koordinatöre bilgi verildi.'
+  };
 }
 
 function ayarlar_() {
@@ -1916,6 +2043,8 @@ function sayfaAl_(ad) {
       tabloBasliklariniTamamla_(sayfa, GECMIS_SUTUNLARI, 'Sayım geçmişi başlıkları güncellendi.');
     } else if (ad === 'Kutular') {
       tabloBasliklariniTamamla_(sayfa, KUTU_SUTUNLARI, 'Kutular başlıkları güncellendi.');
+    } else if (ad === 'İletişim') {
+      tabloBasliklariniTamamla_(sayfa, ILETISIM_SUTUNLARI, 'İletişim başlıkları güncellendi.');
     }
     return sayfa;
   }
@@ -1958,6 +2087,15 @@ function sayfaAl_(ad) {
     sayfa.getRange(1, 1, 1, KUTU_SUTUNLARI.length)
       .setFontWeight('bold').setBackground('#601040').setFontColor('#ffffff');
     sayfa.setColumnWidth(2, 110); sayfa.setColumnWidth(4, 170);
+  } else if (ad === 'İletişim') {
+    sayfa.appendRow(ILETISIM_SUTUNLARI);
+    sayfa.setFrozenRows(1);
+    sayfa.getRange(1, 1, 1, ILETISIM_SUTUNLARI.length)
+      .setFontWeight('bold').setBackground('#601040').setFontColor('#ffffff');
+    sayfa.setColumnWidth(1, 130); sayfa.setColumnWidth(2, 120);
+    sayfa.setColumnWidth(5, 180); sayfa.setColumnWidth(6, 220);
+    sayfa.setColumnWidth(7, 460); sayfa.setColumnWidth(8, 280);
+    sayfa.setColumnWidth(10, 180);
   }
   return sayfa;
 }
@@ -3330,6 +3468,7 @@ function kurulum() {
   sayfaAl_('Sıralar');
   siraBasliklariOnar_();
   sayfaAl_('Kutular');
+  sayfaAl_('İletişim');
   ozetiGuncelle();
   if (AYAR.OCR_ACIK) {
     try { zamanlayiciKur(); } catch (h) { Logger.log('Zamanlayıcı kurulamadı: ' + h.message); }
