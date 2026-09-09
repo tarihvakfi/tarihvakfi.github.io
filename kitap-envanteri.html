@@ -407,8 +407,8 @@
   .dip{text-align:center;color:var(--soluk);font-size:12px;margin:22px 12px 0}
 .anaGorevler{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}.anaGorevler .btn{margin:0;min-height:62px;font-size:17px;padding:12px}.anaGorevler .btn:last-child{background:#fff;color:var(--bordo);border:2px solid var(--bordo)}@media(max-width:380px){.anaGorevler{grid-template-columns:1fr}}
 </style>
-<link rel="stylesheet" href="./css/gonullu-yeni.css?v=20260909e">
-<link rel="stylesheet" href="./css/fotograf-goruntuleyici.css?v=20260909e">
+<link rel="stylesheet" href="./css/gonullu-yeni.css?v=20260909f">
+<link rel="stylesheet" href="./css/fotograf-goruntuleyici.css?v=20260909f">
 </head>
 <body>
 <div class="sayfa">
@@ -795,8 +795,8 @@
   </section>
 </div>
 
-<script src="./js/envanter-ag.js?v=20260909d"></script>
-<script src="./js/gonullu-config.js?v=20260909d"></script>
+<script src="./js/envanter-ag.js?v=20260909f"></script>
+<script src="./js/gonullu-config.js?v=20260909f"></script>
 <script>
 /* Apps Script web uygulamasının adresi.
    js/gonullu-config.js içinde window.TV_ENVANTER_URL tanımlıysa oradan okunur. */
@@ -1135,7 +1135,13 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   function tekIstek(action, yuk, sure) {
     var govde = { action: action, sifre: D.sifre };
     for (var k in (yuk || {})) govde[k] = yuk[k];
-    return window.TVEnvanterAg.request(ENVANTER_URL, govde, { timeout: sure }).then(function(r){agDurumu(true);return r;}).catch(function(e){if(e.message==='AĞ')agDurumu(false);throw e;});
+    return window.TVEnvanterAg.request(ENVANTER_URL, govde, { timeout: sure }).then(function(r){agDurumu(true);return r;}).catch(function(e){
+      /* Bir sunucu zaman aşımı internetin kesildiği anlamına gelmez. Tarayıcı
+         gerçekten çevrimdışıysa rozeti değiştir; çalışan bağlantıyı yanlışlıkla
+         "çevrimdışı" diye göstermeyelim. */
+      if(e.message==='AĞ' && navigator.onLine === false) agDurumu(false);
+      throw e;
+    });
   }
 
   function api(action, yuk, secenek) {
@@ -1237,38 +1243,39 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       }
     }
 
-    Promise.all([api('sayac', { kaydeden: ad }), ayarlariYukle()]).then(function (sonuc) {
-      var r = sonuc[0];
-      localStorage.setItem('tv_env_ad', ad);
-      localStorage.setItem('tv_env_sifre', sifre);
-      D.sayac = (r.benim != null) ? r.benim : (r.sayac ? r.sayac.benim : 0);
-      // Açılışta ayarlar alınamamış olabilir: raf ekranına geçmeden bir daha denenir.
-    }).then(function () { iceriGir(false); })
-      ['catch'](function (e) {
-        /* Ağ yoksa ama bu şifreyle daha önce girilmişse ve ayarlar telefonda saklıysa
-           gönüllüyü bekletmenin anlamı yok: çevrimdışı başlasın, kayıtlar kuyruğa gitsin. */
-        var oncedenCalisti = localStorage.getItem('tv_env_sifre') === sifre;
-        if (e.message === 'AĞ' && oncedenCalisti && D.cfg) return iceriGir(true);
-
-        clearTimeout(uyari);
-
-        /* Şifre reddedildiyse telefonda saklananı SİL. Yoksa alan her açılışta
-           eski şifreyle dolu geliyor, kullanıcı "yazdım ya" deyip aynı yanlışı
-           tekrar tekrar gönderiyor ve döngüden çıkamıyordu. Şifre değiştirildiği
-           gün, o günden önce bir kez girmiş herkesin başına gelen buydu. */
-        if (e.sifreHatasi) {
-          localStorage.removeItem('tv_env_sifre');
-          $('sifre').value = '';
-          $('sifre').focus();
+    /* Raf planı sayfanın içinde hazırdır; gönüllüyü Apps Script'in uyanmasını
+       bekletmeden çalışma ekranına geçiririz. Şifre ve canlı sayaç arka planda
+       doğrulanır. Hatalı şifre hiçbir kayıt gönderemez ve girişe geri alınır. */
+    function ekraniAc() {
+      iceriGir(navigator.onLine === false);
+      mesgul($('btnGiris'), false);
+      api('sayac', { kaydeden: ad }, { sure:12000 }).then(function (r) {
+        localStorage.setItem('tv_env_ad', ad);
+        localStorage.setItem('tv_env_sifre', sifre);
+        D.sayac = (r.benim != null) ? r.benim : (r.sayac ? r.sayac.benim : 0);
+        $('bugun').textContent = D.sayac;
+      })['catch'](function (e) {
+        if (!e.sifreHatasi) {
+          goster($('msgOner'), 'uyari', navigator.onLine === false
+            ? 'İnternet bağlantısı yok. Çalışma kayıtları telefonda saklanacak.'
+            : 'Canlı sayaç geç yanıt verdi. Raf seçip çalışmaya devam edebilirsiniz.');
+          return;
         }
-
-        goster($('msgGiris'), 'hata', e.message === 'AĞ'
-          ? 'Sunucuya ulaşılamadı. Bağlantınızı kontrol edip “Başla”ya tekrar basın.'
-          : e.message + (e.sifreHatasi
-              ? '<br><small>Telefonda saklanan eski şifre silindi — karttaki şifreyi ' +
-                'yeniden yazın.</small>'
-              : ''));
-      }).then(function () { clearTimeout(uyari); mesgul($('btnGiris'), false); });
+        localStorage.removeItem('tv_env_sifre');
+        $('adim-raf').classList.add('gizli');
+        $('iletisimKart').classList.add('gizli');
+        $('adim-giris').classList.remove('gizli');
+        $('sifre').value = '';
+        $('sifre').focus();
+        goster($('msgGiris'), 'hata', e.message + '<br><small>Telefonda saklanan eski şifre silindi; çalışma şifresini yeniden yazın.</small>');
+      });
+    }
+    if (D.cfg) ekraniAc();
+    else ayarlariYukle().then(ekraniAc)['catch'](function (e) {
+      clearTimeout(uyari); mesgul($('btnGiris'), false);
+      goster($('msgGiris'), 'hata', e.message === 'AĞ'
+        ? 'Raf planı alınamadı. Sayfayı yenileyip tekrar deneyin.' : e.message);
+    });
   });
 
   /* ───────── yer kodu ─────────
@@ -1368,7 +1375,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         : (yasDk < 60 ? yasDk + ' dakika önce'
           : (yasDk < 1440 ? Math.round(yasDk / 60) + ' saat önce'
             : Math.round(yasDk / 1440) + ' gün önce'));
-      eski.innerHTML = '<b>Bağlantı yok</b> — bu bilgi telefonunuzda saklanan, ' +
+      eski.innerHTML = '<b>' + (navigator.onLine === false ? 'Bağlantı yok' : 'Sunucu geç yanıt verdi') + '</b> — bu bilgi telefonunuzda saklanan, ' +
         esc(ne) + ' alınmış hâli. Bu arada başkası çalışmış olabilir; ' +
         'saydığınız kitapla adı tutmuyorsa bağlantı gelene kadar bu sırayı almayın.';
     }
@@ -1472,7 +1479,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       devirCiz(saklanan ? saklanan.b : null, false,
                saklanan ? Math.round((Date.now() - saklanan.z) / 60000) : null);
       $('rafOzet').innerHTML = '<b>' + esc(anahtar) + '</b>' +
-        '<span class="ek">bağlantı yok — telefondaki sayaçtan devam: ' +
+        '<span class="ek">' + (navigator.onLine === false ? 'bağlantı yok' : 'sunucu geç yanıt verdi') + ' — telefondaki sayaçtan devam: ' +
         esc(yerKodu(anahtar, yerel)) + '</span>';
     });
   }
@@ -2041,15 +2048,22 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var acik = !$('haritaPanel').classList.contains('gizli');
     panelleriKapat('harita');
     if (acik) { $('haritaPanel').classList.add('gizli'); return; }
-    $('btnHarita').textContent = 'Yükleniyor…';
-    api('siraOzeti', {}).then(function (r) {
+    /* Boş raf planı bağlantı beklemeden açılır. Canlı durum gelince noktalar
+       güncellenir; sunucu yavaşsa gönüllü yine raf seçebilir. */
+    haritaVerisi = haritaVerisi || {};
+    haritaCiz();
+    $('haritaPanel').classList.remove('gizli');
+    $('btnHarita').textContent = 'Güncelleniyor…';
+    api('siraOzeti', {}, { sure:12000 }).then(function (r) {
       haritaVerisi = {};
       (r.siralar || []).forEach(function (x) { haritaVerisi[x.sira] = x; });
       haritaCiz();
-      $('haritaPanel').classList.remove('gizli');
+      gizle($('msgOner'));
     })['catch'](function (e) {
       goster($('msgOner'), 'hata', e.message === 'AĞ'
-        ? 'Harita için bağlantı gerekiyor. Bağlantı gelince tekrar deneyin.'
+        ? (navigator.onLine === false
+            ? 'İnternet bağlantısı yok. Raf planı yine kullanılabilir; canlı durum bağlantı gelince güncellenir.'
+            : 'Rafların canlı durumu geç yanıt verdi. Raf planını kullanabilir veya biraz sonra yenileyebilirsiniz.')
         : e.message);
     }).then(function () { $('btnHarita').textContent = 'Rafların durumunu gör'; });
   });
@@ -3074,6 +3088,6 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   });
 })();
 </script>
-<script src="./js/fotograf-goruntuleyici.js?v=20260909e"></script>
+<script src="./js/fotograf-goruntuleyici.js?v=20260909f"></script>
 </body>
 </html>

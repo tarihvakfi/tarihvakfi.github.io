@@ -5,7 +5,7 @@
   var D = {
     ad: '', sifre: '', bolum: 'secim', gorunum: 'bekleyen',
     kararlar: [], kararToplam: 0, kararBas: 0, kararAdet: 20,
-    durum: null, raflar: [], raflarYuklendi: false, rafBas: 0,
+    durum: null, raflar: [], raflarYuklendi: false, rafHaritasiTam: false, rafHaritaIstegi: null, rafBas: 0,
     seciliRaf: '', rafKitaplar: [], rafKitapToplam: 0,
     cfg: window.TV_ENVANTER_CONFIG || null, islem: 0
   };
@@ -22,9 +22,9 @@
 
   function sayi(v) { return Number(v || 0).toLocaleString('tr-TR'); }
 
-  function api(action, yuk) {
+  function api(action, yuk, timeout) {
     return window.TVEnvanterAg.request(window.TV_ENVANTER_URL,
-      Object.assign({ action: action, sifre: D.sifre }, yuk || {}), { timeout: 30000 })
+      Object.assign({ action: action, sifre: D.sifre }, yuk || {}), { timeout: timeout || 30000 })
       .then(function (r) {
         if (!r || !r.ok) {
           var e = new Error((r && r.error) || 'İşlem tamamlanamadı.');
@@ -246,6 +246,40 @@
     return sayimSayisi(r) == null ? 'Henüz sayılmadı' : 'Sayım onay bekliyor';
   }
 
+  function mekanRaflari(kod) {
+    var cfg = D.cfg || {}, hepsi = cfg.rafHarfleri || [];
+    var mekan = (cfg.mekanlar || []).find(function (m) { return m.kod === kod; });
+    if (!mekan) return hepsi;
+    var bas = Math.max(0, Number(mekan.rafBaslangic) || 0);
+    var adet = Number(mekan.rafSayisi) || 0;
+    return adet ? hepsi.slice(bas, bas + adet) : hepsi.slice(bas);
+  }
+
+  /* Raf haritası yavaşlasa bile sayfa boş kalmaz. Hızlı "durum" yanıtındaki
+     kayıt sayılarını sabit raf planının üzerine koyarız; ayrıntılı sayım
+     geldiğinde aynı listeyi gerçek sayım bilgileriyle değiştiririz. */
+  function raflariDurumdanKur() {
+    var cfg = D.cfg || {}, siraAdedi = Math.max(1, Number(cfg.siraSayisi) || 6), hizli = {};
+    ((D.durum || {}).siralar || []).forEach(function (r) { hizli[r.sira] = r; });
+    var onceki = {};
+    D.raflar.forEach(function (r) { onceki[r.sira] = r; });
+    var liste = [];
+    (cfg.mekanlar || []).forEach(function (mekan) {
+      mekanRaflari(mekan.kod).forEach(function (raf) {
+        for (var sira = 1; sira <= siraAdedi; sira++) {
+          var kod = mekan.kod + '-' + raf + String(sira).padStart(2, '0');
+          var h = hizli[kod] || {}, o = onceki[kod] || {};
+          liste.push(Object.assign({
+            sira:kod, durum:Number(h.sayi || 0) ? 'devam' : 'bos',
+            kayitli:Number(h.sayi || 0), kayitSayisi:Number(h.sayi || 0), kararVerilen:0,
+            onSayim:null, sayim:null, hizliOzet:true
+          }, D.rafHaritasiTam ? o : {}));
+        }
+      });
+    });
+    D.raflar = liste;
+  }
+
   function rafSayaclariCiz() {
     var sayilan = 0, kayitli = 0, sayimli = 0, onayli = 0;
     D.raflar.forEach(function (r) {
@@ -260,13 +294,35 @@
     ].map(function (x) { return '<div class="ozet-karti"><b>' + sayi(x[0]) + '</b><span>' + esc(x[1]) + '</span></div>'; }).join('');
   }
 
-  function raflariYukle(zorla) {
-    if (D.raflarYuklendi && !zorla) { rafSayaclariCiz(); rafSecicileriCiz(); return Promise.resolve(D.raflar); }
-    mesaj($('rafMsg'), '', 'Raf bilgileri yükleniyor…');
-    return api('siraHaritasi').then(function (r) {
+  function ayrintiliRafHaritasiniYukle(zorla) {
+    if (D.rafHaritaIstegi && !zorla) return D.rafHaritaIstegi;
+    D.rafHaritaIstegi = api('siraHaritasi', {}, 15000).then(function (r) {
       D.raflar = r.siralar || [];
-      D.raflarYuklendi = true;
-      rafSayaclariCiz(); rafSecicileriCiz(); mesaj($('rafMsg'), '', '');
+      D.raflarYuklendi = true; D.rafHaritasiTam = true;
+      rafSayaclariCiz(); rafSecicileriCiz();
+      mesaj($('rafMsg'), 'iyi', 'Kitap kayıtları ve raf sayımı eşleştirildi.');
+      if (D.bolum === 'durum') genelDurumCiz();
+      return D.raflar;
+    }).catch(function (e) {
+      if (sifreHatasi(e)) throw e;
+      mesaj($('rafMsg'), '', 'Kitap kayıtları gösteriliyor. Raf sayımı ayrıntıları şu anda alınamadı; “Bilgileri yenile” ile tekrar deneyebilirsiniz.');
+      return D.raflar;
+    }).finally(function () { D.rafHaritaIstegi = null; });
+    return D.rafHaritaIstegi;
+  }
+
+  function raflariYukle(zorla) {
+    if (D.raflarYuklendi && !zorla) {
+      rafSayaclariCiz(); rafSecicileriCiz();
+      if (!D.rafHaritasiTam) ayrintiliRafHaritasiniYukle(false);
+      return Promise.resolve(D.raflar);
+    }
+    mesaj($('rafMsg'), '', 'Kitap kayıtları hazırlanıyor…');
+    return durumYukle(zorla).then(function () {
+      raflariDurumdanKur(); D.raflarYuklendi = true;
+      rafSayaclariCiz(); rafSecicileriCiz();
+      mesaj($('rafMsg'), '', 'Kitap kayıtları hazır. Raf sayımı ayrıntıları yükleniyor…');
+      ayrintiliRafHaritasiniYukle(zorla);
       return D.raflar;
     }).catch(function (e) {
       if (!sifreHatasi(e)) mesaj($('rafMsg'), 'hata', e.message || 'Raf bilgileri alınamadı.');
@@ -356,6 +412,19 @@
       [sayilan, 'Raflarda sayılan kitap', 'vurgu'], [kayitli, 'Kaydedilen kitap / nüsha', ''],
       [v.toplam || 0, 'Ayrı kitap kaydı', ''], [v.kararBekleyen || 0, 'Karar bekleyen kitap', '']
     ].map(function (x) { return '<div class="yonetim-sayi ' + x[2] + '"><b>' + sayi(x[0]) + '</b><span>' + esc(x[1]) + '</span></div>'; }).join('');
+    var kararli = Number(k.Gidecek || 0) + Number(k['Gitse de olur'] || 0) + Number(k.Gitmeyecek || 0) + Number(k.Belirsiz || 0);
+    var kararBekleyen = Number(v.kararBekleyen || 0), toplam = Number(v.toplam || 0);
+    var bilgiAsamasi = Math.max(0, toplam - kararBekleyen - kararli);
+    var bilgiDetay = [];
+    if (Number(v.onayBekleyen || 0)) bilgiDetay.push(sayi(v.onayBekleyen) + ' bilgi onayı bekliyor');
+    if (Number(v.kunyeEksik || 0)) bilgiDetay.push(sayi(v.kunyeEksik) + ' künye/fotoğraf eksiği var');
+    if (Number(v.tamam || 0)) bilgiDetay.push(sayi(v.tamam) + ' elle girilmiş kayıt kontrol ediliyor');
+    $('kayitAsamalari').innerHTML = '<p class="kayit-denklemi"><b>' + sayi(toplam) + ' toplam kayıt</b> = ' +
+      sayi(kararBekleyen) + ' karar bekleyen + ' + sayi(kararli) + ' karar verilen + ' +
+      sayi(bilgiAsamasi) + ' kitap bilgisi/kontrol aşamasında</p><div class="kayit-asama-grid">' +
+      '<div class="kayit-asama"><b>' + sayi(kararBekleyen) + '</b><span>Karara hazır</span><small>Yetkililerin önüne gelen kitaplar</small></div>' +
+      '<div class="kayit-asama"><b>' + sayi(kararli) + '</b><span>Kararı verildi</span><small>Dört karardan biri seçildi</small></div>' +
+      '<div class="kayit-asama"><b>' + sayi(bilgiAsamasi) + '</b><span>Bilgi/kontrol aşamasında</span><small>' + esc(bilgiDetay.join(' · ') || 'Kitap bilgileri karar öncesinde hazırlanıyor') + '</small></div></div>';
     var dagilim = [['g','Gitsin',k.Gidecek || 0],['s','Gitse de olur',k['Gitse de olur'] || 0],['k','Gitmesin',k.Gitmeyecek || 0],['m','Belirsiz',k.Belirsiz || 0]];
     var en = Math.max(1, Math.max.apply(null, dagilim.map(function (x) { return Number(x[2]); })));
     $('kararDagilim').innerHTML = dagilim.map(function (x) {
@@ -370,7 +439,11 @@
 
   function genelDurumYukle(zorla) {
     mesaj($('durumMsg'), '', 'Güncel sayılar hazırlanıyor…');
-    return Promise.all([durumYukle(zorla), raflariYukle(zorla)]).then(function () { genelDurumCiz(); mesaj($('durumMsg'), '', ''); }).catch(function (e) { if (!e.sifreHatasi) mesaj($('durumMsg'), 'hata', e.message); });
+    return durumYukle(zorla).then(function () {
+      if (!D.raflarYuklendi || zorla) { raflariDurumdanKur(); D.raflarYuklendi = true; }
+      genelDurumCiz(); mesaj($('durumMsg'), '', '');
+      ayrintiliRafHaritasiniYukle(zorla);
+    }).catch(function (e) { if (!e.sifreHatasi) mesaj($('durumMsg'), 'hata', e.message); });
   }
 
   function bolumAc(ad) {
@@ -391,8 +464,11 @@
     localStorage.setItem('tv_env_ad', D.ad); localStorage.setItem('tv_env_koord_sifre', D.sifre);
     $('kimAd').textContent = D.ad;
     $('giris').classList.add('gizli'); $('uygulama').classList.remove('gizli');
-    D.durum = null; D.raflarYuklendi = false; D.kararlar = [];
-    Promise.all([durumYukle(true), kararYukle()]).catch(function (e) {
+    D.durum = null; D.raflarYuklendi = false; D.rafHaritasiTam = false; D.kararlar = [];
+    /* İlk ekranda asıl iş kitap seçimidir. Apps Script'e aynı anda iki ağır
+       istek gönderip ikisini de yavaşlatmamak için listeyi önce getirir,
+       özet sayaçlarını hemen arkasından yenileriz. */
+    kararYukle().then(function () { return durumYukle(true); }).catch(function (e) {
       if (!sifreHatasi(e)) { mesaj($('kararMsg'), 'hata', e.message || 'Bilgiler alınamadı.'); }
     }).finally(function () { mesgul(btn, false); });
   }

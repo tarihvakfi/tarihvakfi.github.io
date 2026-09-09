@@ -49,10 +49,10 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
       case 'config':
         result = { ok:true, kategoriler:categories, kurallar:[], durumlar:['Sağlam'], mekanlar:[{kod:'G',ad:'Giriş Kat'}], rafHarfleri:['A'], siraSayisi:1 };
         break;
-      case 'sayac': result = { ok:true, benim:0 }; break;
-      case 'siraOzeti': result = { ok:true, siralar:[] }; break;
+      case 'sayac': await new Promise(resolve => setTimeout(resolve, 1500)); result = { ok:true, benim:0 }; break;
+      case 'siraOzeti': result = { ok:false, error:'Raf servisi geçici olarak yanıt vermedi.' }; break;
       case 'siraHaritasi':
-        result = { ok:true, siralar:[{ sira:'G-A01', kayitSayisi:35, kayitli:35, kararVerilen:books.filter(book => book.kategori).length, onSayim:35, sayimFoto:'https://drive.google.com/file/d/' + photoId + '/view', sayim:{toplam:35,durum:'onaylandi'} }] };
+        result = { ok:false, error:'Raf servisi geçici olarak yanıt vermedi.' };
         break;
       case 'katalog': {
         const list = books.filter(book =>
@@ -66,7 +66,9 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
         break;
       }
       case 'durum':
-        result = { ok:true, toplam:35, kararBekleyen:books.filter(book => !book.kategori).length, kategori:books.reduce((all,book) => { if (book.kategori) all[book.kategori]=(all[book.kategori]||0)+1; return all; },{}) };
+        result = { ok:true, toplam:287, onayBekleyen:70, kunyeEksik:24, tamam:0,
+          kararBekleyen:193, kategori:books.reduce((all,book) => { if (book.kategori) all[book.kategori]=(all[book.kategori]||0)+1; return all; },{}),
+          siralar:[{sira:'G-A01',sayi:35}] };
         break;
       case 'kararVer': {
         const book = books.find(item => item.no === body.numaralar[0]);
@@ -127,6 +129,8 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
 
   await page.getByRole('button', { name:/Raflar ve Kitaplar/ }).click();
   await page.getByText('Giriş Kat · A kitaplığı · 1. sıra', { exact:true }).waitFor();
+  await page.getByText('Kitap kayıtları gösteriliyor.', { exact:false }).waitFor();
+  assert.equal(await page.locator('#rafSayaclari').getByText('35', { exact:true }).count(), 1);
   await page.getByRole('button', { name:'Raf fotoğrafları' }).click();
   await page.locator('#rafFotolar img').waitFor();
   await page.locator('#rafFotolar button').click();
@@ -135,12 +139,32 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
 
   await page.getByRole('button', { name:/Genel Durum/ }).click();
   await page.locator('#genelSayaclar').getByText('Raflarda sayılan kitap', { exact:true }).waitFor();
+  await page.locator('[data-yenile="durum"]').click();
+  await page.getByText('287 toplam kayıt', { exact:false }).waitFor();
+  await page.getByText('94 kitap bilgisi/kontrol aşamasında', { exact:false }).waitFor();
   await page.locator('#btnIletisimUst').click();
   await page.locator('#iletisimMesaj').fill('Deneme mesajıdır.');
   await page.locator('#btnIletisim').click();
   await page.getByText('Mesajınız gönderildi. Teşekkür ederiz.', { exact:true }).waitFor();
   assert.equal(calls.findLast(call => call.action === 'iletisimGonder').method, 'POST');
   assert.equal(errors.length, 0, errors.join('\n'));
+
+  await page.setViewportSize({ width:2728, height:1200 });
+  await page.getByRole('button', { name:/Kitap Seçimi/ }).click();
+  await page.getByRole('button', { name:'Karar bekleyenler' }).click();
+  await page.locator('#kararListe').getByText('Kitap 1', { exact:true }).waitFor();
+  const desktopPhoto = await page.locator('.kitap-foto img').first().evaluate(img => ({
+    objectFit:getComputedStyle(img).objectFit,
+    width:img.getBoundingClientRect().width,
+    height:img.getBoundingClientRect().height
+  }));
+  assert.equal(desktopPhoto.objectFit, 'contain');
+  assert.ok(desktopPhoto.width > 150 && desktopPhoto.height > 280, 'Geniş ekran fotoğraf alanı çok küçük: ' + JSON.stringify(desktopPhoto));
+  const nestedDesktopScrollers = await page.evaluate(() => [...document.querySelectorAll('body *')].filter(el => {
+    const s=getComputedStyle(el), r=el.getBoundingClientRect();
+    return r.height > 300 && el.scrollHeight > el.clientHeight + 3 && /auto|scroll/.test(s.overflowY) && !el.matches('dialog,textarea');
+  }).map(el => el.id || el.className));
+  assert.deepEqual(nestedDesktopScrollers, [], 'İç içe dikey kaydırma alanı var: ' + JSON.stringify(nestedDesktopScrollers));
 
   await page.setViewportSize({ width:390, height:844 });
   await page.getByRole('button', { name:/Kitap Seçimi/ }).click();
@@ -158,10 +182,14 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await page.locator('#ad').fill('Deneme Gönüllüsü');
   await page.locator('#sifre').fill('test-only');
   await page.locator('#btnGiris').click();
-  await page.locator('#adim-raf:not(.gizli)').waitFor();
+  await page.locator('#adim-raf:not(.gizli)').waitFor({ timeout:800 });
   if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-gonullu-yeni-mobil.png', fullPage:true });
   assert.ok(await page.getByRole('button', { name:/1 · Rafı say/ }).isVisible());
   assert.ok(await page.getByRole('button', { name:/2 · Kitapları kaydet/ }).isVisible());
+  await page.getByText('Raf bulma ve çalışma durumu', { exact:true }).click();
+  await page.getByRole('button', { name:'Rafların durumunu gör' }).click();
+  await page.locator('#haritaPanel:not(.gizli)').waitFor();
+  await page.getByText('Raf servisi geçici olarak yanıt vermedi.', { exact:true }).waitFor();
   await page.getByText('Soru / düzeltme / öneri gönder', { exact:true }).click();
   await page.locator('#iletisimMesaj').fill('Gönüllü deneme mesajıdır.');
   await page.locator('#btnIletisimGonder').click();
@@ -170,6 +198,17 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   assert.ok(volunteerWidth.scroll <= volunteerWidth.inner + 1, 'Gönüllü sayfasında yatay taşma var: ' + JSON.stringify(volunteerWidth));
   assert.equal(errors.length, 0, errors.join('\n'));
 
-  console.log('PASS: yeni koordinatör ve gönüllü tasarımı, karar akışı, raflar, fotoğraf araçları ve mobil görünüm.');
+  /* Eski bakım araçları ana akışta görünmese de eldeki bağlantılar 404 vermemeli
+     ve koordinatör oturumuyla doğrudan açılabilmeli. */
+  for (const legacyPage of ['kunye-onay.html?oto=1','envanter-katalog.html?oto=1','envanter-durum.html?oto=1','karar.html?oto=1']) {
+    const beforeErrors = errors.length;
+    const response = await page.goto(base + '/' + legacyPage);
+    assert.equal(response.status(), 200, legacyPage + ' açılmadı');
+    await page.waitForTimeout(700);
+    assert.equal(errors.length, beforeErrors, legacyPage + ' JavaScript hatası: ' + errors.slice(beforeErrors).join('\n'));
+    assert.ok(!(await page.locator('body').innerText()).includes('Aradığınız sayfa bulunamadı'), legacyPage + ' 404 sayfasına düştü');
+  }
+
+  console.log('PASS: koordinatör, gönüllü, bakım sayfaları, karar akışı, raflar, fotoğraf araçları ve mobil/geniş ekran görünümü.');
   await browser.close();
 })().catch(error => { console.error(error); process.exit(1); });
