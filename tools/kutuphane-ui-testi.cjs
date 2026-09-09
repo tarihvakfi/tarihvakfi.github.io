@@ -82,7 +82,8 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
           return;
         }
         result = request.frame().url().includes('kitap-envanteri.html')
-          ? { ok:false, error:'Raf servisi geçici olarak yanıt vermedi.' }
+          ? { ok:true, siralar:[{sira:'G-A01',durum:'devam',kayitli:35,
+              onSayim:countRecord && countRecord.toplam, sayim:countRecord}] }
           : { ok:true, siralar:[{sira:'G-A01',durum:'devam',kayitli:35,onSayim:35,sayim:{toplam:35,durum:'onaylandi'}}] };
         break;
       case 'siraOner': result = { ok:true, anahtar:'G-A01', tur:'sizin', zatenSizde:true, kalanBos:0, yarimKalan:0 }; break;
@@ -324,6 +325,8 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await page.getByText('Sistem hazır — çalışmaya başlayabilirsiniz', { exact:true }).waitFor({ timeout:4000 });
   await page.locator('#gonulluSistemHazirlik').waitFor({ state:'hidden', timeout:4000 });
   assert.equal(await page.locator('#adim-raf').evaluate(el => el.inert), false, 'Gönüllü işlemleri veri geldikten sonra açılmadı');
+  assert.equal(await page.locator('#gonulluSistemDurum').evaluate(el => getComputedStyle(el).position), 'static',
+    'Gönüllü sistem durumu sayfayla birlikte kaymaya devam ediyor');
   if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-gonullu-yeni-mobil.png', fullPage:true });
   assert.ok(await page.getByRole('button', { name:/1 · Rafı say/ }).isVisible());
   assert.ok(await page.getByRole('button', { name:/2 · Kitapları kaydet/ }).isVisible());
@@ -331,6 +334,13 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   /* Sayımın tamamı: fotoğraf seç, kaydet, onayla ve iki adımlı geri al. */
   await page.locator('#btnSayim').click();
   await page.locator('#sayimPanel:not(.gizli)').waitFor();
+  await page.getByText('Sıradaki sayılmamış raf seçildi:', { exact:false }).waitFor();
+  if (process.env.TV_TEST_SCREENSHOTS) {
+    await page.screenshot({ path:'/tmp/tv-gonullu-yeni-sayim.png', fullPage:true });
+    await page.setViewportSize({ width:1440, height:900 });
+    await page.screenshot({ path:'/tmp/tv-gonullu-yeni-sayim-genis.png', fullPage:true });
+    await page.setViewportSize({ width:390, height:844 });
+  }
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+XprqVwAAAABJRU5ErkJggg==','base64');
   await page.locator('#sayimFotoGirdi').setInputFiles({ name:'raf.png', mimeType:'image/png', buffer:png });
   await page.locator('#sayimFotoOn:not(.gizli)').waitFor();
@@ -340,6 +350,11 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await page.locator('#sayimAdet').fill('35');
   await page.locator('#btnSayimKaydet').click();
   await page.getByText(/sayımı kaydedildi:.*35 kitap/).waitFor();
+  await page.waitForFunction(() => document.querySelector('#sayimSiraSec').value !== '1');
+  assert.equal(await page.locator('#sayimSiraSec option[value="1"]').count(), 0, 'Sayılmış raf yeni sayım listesinde kaldı');
+  await page.getByRole('button', { name:'Kontrol / düzeltme sayımı' }).click();
+  await page.locator('#sayimMevcut [data-is="onay"]').waitFor();
+  if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-gonullu-kontrol-sayimi.png', fullPage:true });
   await page.locator('#sayimMevcut [data-is="onay"]').click();
   await page.getByText(/sayımı.*onaylandı.*35 kitap/).waitFor();
   const undoCount = page.locator('#sayimMevcut [data-is="geri"]');
@@ -387,7 +402,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
 
   await page.getByRole('button', { name:'Rafların durumunu gör' }).click();
   await page.locator('#haritaPanel:not(.gizli)').waitFor();
-  await page.getByText('Raf servisi geçici olarak yanıt vermedi.', { exact:true }).waitFor();
+  await page.locator('#hRaflar .hRaf').waitFor();
   await page.getByText('Soru / düzeltme / öneri gönder', { exact:true }).click();
   await page.locator('#iletisimMesaj').fill('Gönüllü deneme mesajıdır.');
   await page.locator('#btnIletisimGonder').click();

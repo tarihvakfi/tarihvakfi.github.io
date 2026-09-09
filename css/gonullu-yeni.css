@@ -14,6 +14,7 @@ body { min-height: 100%; background: radial-gradient(circle at 20% 0, #fff 0, tr
 .sayfa { max-width: 780px; padding: 0 18px 64px; }
 
 .gonullu-marka { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 78px; padding: 12px 2px; }
+.gonullu-marka-sag { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
 .gonullu-marka > a:first-child { display: flex; align-items: center; gap: 11px; color: inherit; text-decoration: none; }
 .gonullu-isaret { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 13px; background: var(--bordo); color: #fff; font-family: Georgia, serif; font-size: 15px; font-weight: 800; }
 .gonullu-marka b, .gonullu-marka small { display: block; }
@@ -21,7 +22,7 @@ body { min-height: 100%; background: radial-gradient(circle at 20% 0, #fff 0, tr
 .gonullu-marka small { color: var(--soluk); font-size: 12px; }
 .yetkili-gecis { padding: 9px 12px; border: 1px solid var(--cizgi); border-radius: 10px; background: rgba(255,255,255,.75); color: var(--bordo); font-size: 13px; font-weight: 700; text-decoration: none; }
 
-.gonullu-sistem-durum { position: sticky; top: 10px; z-index: 19; display: flex; align-items: center; justify-content: center; gap: 9px; width: fit-content; max-width: 100%; min-height: 43px; margin: 0 auto 12px; padding: 9px 16px; border: 1px solid #e1c57d; border-radius: 999px; background: #fff8e6; color: #76500f; font-size: 14px; font-weight: 800; box-shadow: 0 6px 20px rgba(50,28,39,.08); }
+.gonullu-sistem-durum { display: flex; align-items: center; justify-content: center; gap: 8px; width: fit-content; max-width: 360px; min-height: 39px; margin: 0; padding: 7px 13px; border: 1px solid #e1c57d; border-radius: 999px; background: #fff8e6; color: #76500f; font-size: 13px; font-weight: 800; box-shadow: 0 4px 14px rgba(50,28,39,.07); }
 .gonullu-sistem-durum.gizli { display: none; }
 .gonullu-sistem-durum:disabled { opacity: 1; cursor: default; }
 .gonullu-sistem-isaret { width: 12px; height: 12px; flex: 0 0 12px; border-radius: 50%; background: #d59a19; box-shadow: 0 0 0 4px rgba(213,154,25,.14); animation: gonulluNabiz 1.15s ease-in-out infinite; }
@@ -68,6 +69,9 @@ input, textarea, select { min-height: 52px; border-color: var(--cizgi); border-r
 .sayimKutu > p { font-size: 15px; }
 .sayimSec { gap: 9px; }
 .sayimSec select { min-height: 48px; border-radius: 10px; }
+.sayim-asama { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 15px 0 12px; }
+.sayim-asama button { min-height: 48px; padding: 8px 11px; border: 1.5px solid #bbcedd; border-radius: 10px; background: #fff; color: #3c5064; font: inherit; font-size: 14px; font-weight: 750; cursor: pointer; }
+.sayim-asama button.sec { border-color: #2a5b86; background: #dbe6f0; color: #1f4260; }
 .sayimDuzen button { min-height: 58px; border-radius: 10px; }
 #sayimAdet, #sayimArka { min-height: 58px; font-size: 22px; }
 #btnSayimKaydet { min-height: 54px !important; border-radius: 11px !important; font-size: 17px !important; }
@@ -108,8 +112,8 @@ input, textarea, select { min-height: 52px; border-color: var(--cizgi); border-r
 @media (max-width: 600px) {
   body { font-size: 16px; }
   .sayfa { padding: 0 12px 44px; }
-  .gonullu-marka { min-height: 66px; padding: 8px 1px; }.gonullu-isaret { width: 39px; height: 39px; }.gonullu-marka small { display: none; }.yetkili-gecis { padding: 8px; font-size: 12px; }
-  .gonullu-sistem-durum { top: 7px; width: 100%; min-height: 40px; padding: 7px 11px; font-size: 13px; }
+  .gonullu-marka { min-height: 66px; padding: 8px 1px; align-items: flex-start; }.gonullu-isaret { width: 39px; height: 39px; }.gonullu-marka small { display: none; }.gonullu-marka-sag { flex-direction: column-reverse; align-items: flex-end; gap: 6px; }.yetkili-gecis { padding: 8px; font-size: 12px; }
+  .gonullu-sistem-durum { max-width: 205px; min-height: 34px; padding: 5px 9px; font-size: 11px; line-height: 1.2; text-align: left; }
   .gonullu-sistem-kart { padding: 28px 20px; }.gonullu-sistem-kart h2 { font-size: 25px; }
   #adim-giris { margin-top: 16px; }
   .kart { padding: 20px 17px; border-radius: 17px; }
@@ -118,6 +122,7 @@ input, textarea, select { min-height: 52px; border-color: var(--cizgi); border-r
   .sayimKutu { margin: 0 -7px; padding: 16px 13px; }
   .sayimSec { grid-template-columns: 1fr 1fr; }.sayimSec select:first-child { grid-column: 1 / -1; }
   .sayimDuzen, .sayimGiris { gap: 7px; }
+  .sayim-asama { grid-template-columns: 1fr; }
   .ust { margin: 0 -12px 12px; }.ust .raf { font-size: 18px; }.ust .sag { display: none; }.ust button { margin-left: auto; max-width: 150px; }
   .foto-ikili { grid-template-columns: 1fr 1fr; gap: 8px; }.foto-kutu { min-height: 220px; padding: 11px 8px; }.foto-btn { min-height: 56px; font-size: 17px; }
   .ayrinti-satir { gap: 8px; }.ayrinti-ac, .sorunlu-btn { flex: 1 1 100%; }

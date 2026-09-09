@@ -407,7 +407,7 @@
   .dip{text-align:center;color:var(--soluk);font-size:12px;margin:22px 12px 0}
 .anaGorevler{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}.anaGorevler .btn{margin:0;min-height:62px;font-size:17px;padding:12px}.anaGorevler .btn:last-child{background:#fff;color:var(--bordo);border:2px solid var(--bordo)}@media(max-width:380px){.anaGorevler{grid-template-columns:1fr}}
 </style>
-<link rel="stylesheet" href="./css/gonullu-yeni.css?v=20260910a">
+<link rel="stylesheet" href="./css/gonullu-yeni.css?v=20260910b">
 <link rel="stylesheet" href="./css/fotograf-goruntuleyici.css?v=20260909i">
 </head>
 <body>
@@ -415,13 +415,14 @@
 
   <header class="gonullu-marka">
     <a href="./kitap-envanteri.html"><span class="gonullu-isaret">TV</span><span><b>Tarih Vakfı</b><small>Kitap envanteri · gönüllü ekranı</small></span></a>
-    <a class="yetkili-gecis" href="./koordinator.html">Yetkili girişi</a>
+    <div class="gonullu-marka-sag">
+      <button type="button" id="gonulluSistemDurum" class="gonullu-sistem-durum gizli" disabled aria-live="polite">
+        <span class="gonullu-sistem-isaret" aria-hidden="true"></span>
+        <span id="gonulluSistemDurumMetin">Veriler hazırlanıyor — lütfen bekleyin</span>
+      </button>
+      <a class="yetkili-gecis" href="./koordinator.html">Yetkili girişi</a>
+    </div>
   </header>
-
-  <button type="button" id="gonulluSistemDurum" class="gonullu-sistem-durum gizli" disabled aria-live="polite">
-    <span class="gonullu-sistem-isaret" aria-hidden="true"></span>
-    <span id="gonulluSistemDurumMetin">Veriler hazırlanıyor — lütfen bekleyin</span>
-  </button>
 
   <div id="gonulluSistemHazirlik" class="gonullu-sistem-hazirlik gizli" role="status" aria-live="polite">
     <div class="gonullu-sistem-kart">
@@ -473,6 +474,10 @@
         <b>Raf sayımı</b>
         <p>Sırayı seçin, o gözdeki kitapları <b>elle sayın</b>, sayıyı yazıp
           kaydedin. Kitaplara başka bir şey yapmayın — bu görev yalnızca saymak.</p>
+        <div class="sayim-asama" id="sayimAsama" aria-label="Sayım aşaması">
+          <button type="button" class="sec" data-sayim-asama="yeni">Yeni raf sayımı</button>
+          <button type="button" data-sayim-asama="kontrol">Kontrol / düzeltme sayımı</button>
+        </div>
         <div class="sayimSec">
           <select id="sayimMekan"></select>
           <select id="sayimRaf"></select>
@@ -1621,25 +1626,76 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   /* Sayım panelinin KENDİ seçicileri var: üstteki sıra seçimiyle bağı yok.
      (Eskiden üstteki seçiciyi kullanıyordu; kişinin üzerindeki sıra G-A02
      iken panel G-A01 gösteriyor, kimin neyi seçtiği karışıyordu.) */
-  function sayimSecicileriKur() {
-    if (!D.cfg || $('sayimMekan').options.length) return;
-    var mekanlar = D.cfg.mekanlar || [];
-    $('sayimMekan').innerHTML = mekanlar.map(function (m) {
-      return '<option value="' + esc(m.kod) + '">' + esc(m.ad) + '</option>';
-    }).join('') || '<option value="">—</option>';
-    sayimRafKur();
-    var kac = Number(D.cfg.siraSayisi || 6), sec = '';
-    for (var i = 1; i <= kac; i++) sec += '<option value="' + i + '">' + i + '. sıra</option>';
-    $('sayimSiraSec').innerHTML = sec;
+  var sayimAsama = 'yeni';          // 'yeni' · 'kontrol'
+  var sayimOzetHarita = null;       // sayılmış gözleri normal akıştan ayırır
+
+  function tumSayimGozleri() {
+    var sonuc = [], mekanlar = (D.cfg && D.cfg.mekanlar) || [];
+    var kac = Number((D.cfg && D.cfg.siraSayisi) || 6);
+    mekanlar.forEach(function (m) {
+      mekanRaflari(m.kod).forEach(function (raf) {
+        for (var sira = 1; sira <= kac; sira++) {
+          sonuc.push({ mekan:m.kod, raf:raf, sira:sira,
+            anahtar:anahtarKur(m.kod, raf, sira) });
+        }
+      });
+    });
+    return sonuc;
   }
-  function sayimRafKur() {
-    var eski = $('sayimRaf').value;
-    var raflar = mekanRaflari($('sayimMekan').value);
-    $('sayimRaf').innerHTML = raflar.map(function (h) {
-      return '<option value="' + esc(h) + '">' + esc(h) + ' kitaplığı</option>';
-    }).join('');
-    if (raflar.indexOf(eski) >= 0) $('sayimRaf').value = eski;
+
+  function sayimYapilmis(x) {
+    return !!(x && (x.onSayim != null ||
+      (x.sayim && (x.sayim.durum || x.sayim.toplam != null))));
   }
+
+  function sayimAsamaDugmeleriniCiz() {
+    Array.prototype.forEach.call($('sayimAsama').children, function (b) {
+      b.classList.toggle('sec', b.dataset.sayimAsama === sayimAsama);
+    });
+  }
+
+  /* Normal sayımda yalnız hiç sayılmamış gözler; kontrol aşamasında yalnız
+     daha önce sayılmış gözler seçilebilir. Böylece tamamlanmış raf, ilk
+     sayım görevi olarak gönüllünün önüne yeniden gelmez. */
+  function sayimSecicileriKur(tercih) {
+    tercih = tercih || {};
+    if (!D.cfg || !sayimOzetHarita) return false;
+    var uygun = tumSayimGozleri().filter(function (g) {
+      var yapilmis = sayimYapilmis(sayimOzetHarita[g.anahtar]);
+      return sayimAsama === 'kontrol' ? yapilmis : !yapilmis;
+    });
+    var mekanAdlari = {};
+    (D.cfg.mekanlar || []).forEach(function (m) { mekanAdlari[m.kod] = m.ad; });
+    var tekil = function (liste) { return liste.filter(function (v, i) { return liste.indexOf(v) === i; }); };
+    var mekanlar = tekil(uygun.map(function (g) { return g.mekan; }));
+    var seciliMekan = tercih.mekan || $('sayimMekan').value;
+    if (mekanlar.indexOf(seciliMekan) < 0) seciliMekan = mekanlar[0] || '';
+    $('sayimMekan').innerHTML = mekanlar.length ? mekanlar.map(function (m) {
+      return '<option value="' + esc(m) + '">' + esc(mekanAdlari[m] || m) + '</option>';
+    }).join('') : '<option value="">—</option>';
+    $('sayimMekan').value = seciliMekan;
+
+    var raflar = tekil(uygun.filter(function (g) { return g.mekan === seciliMekan; })
+      .map(function (g) { return g.raf; }));
+    var seciliRaf = tercih.raf || $('sayimRaf').value;
+    if (raflar.indexOf(seciliRaf) < 0) seciliRaf = raflar[0] || '';
+    $('sayimRaf').innerHTML = raflar.length ? raflar.map(function (r) {
+      return '<option value="' + esc(r) + '">' + esc(r) + ' kitaplığı</option>';
+    }).join('') : '<option value="">—</option>';
+    $('sayimRaf').value = seciliRaf;
+
+    var siralar = uygun.filter(function (g) { return g.mekan === seciliMekan && g.raf === seciliRaf; });
+    var seciliSira = Number(tercih.sira || $('sayimSiraSec').value) || 0;
+    if (!siralar.some(function (g) { return g.sira === seciliSira; })) seciliSira = siralar.length ? siralar[0].sira : 0;
+    $('sayimSiraSec').innerHTML = siralar.length ? siralar.map(function (g) {
+      return '<option value="' + g.sira + '">' + g.sira + '. sıra</option>';
+    }).join('') : '<option value="">—</option>';
+    if (seciliSira) $('sayimSiraSec').value = String(seciliSira);
+    ['sayimMekan', 'sayimRaf', 'sayimSiraSec'].forEach(function (id) { $(id).disabled = !uygun.length; });
+    sayimSirasiniGoster();
+    return !!uygun.length;
+  }
+
   function sayimSirasiniGoster() {
     var a = anahtarKur($('sayimMekan').value, $('sayimRaf').value,
                        Number($('sayimSiraSec').value) || 1);
@@ -1648,57 +1704,46 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
   /* Seçicileri verilen göze getirir (mekân değişirse raf listesi tazelenir). */
   function sayimGozSec(mekan, raf, sira) {
-    if ($('sayimMekan').value !== mekan) {
-      $('sayimMekan').value = mekan;
-      sayimRafKur();
+    var anahtar = anahtarKur(mekan, raf, sira);
+    if (sayimOzetHarita) {
+      sayimAsama = sayimYapilmis(sayimOzetHarita[anahtar]) ? 'kontrol' : 'yeni';
+      sayimAsamaDugmeleriniCiz();
     }
-    $('sayimRaf').value = raf;
-    $('sayimSiraSec').value = String(sira);
-    sayimSirasiniGoster();
-  }
-
-  /* Sıradaki göz: aynı rafta bir alt sıra; raf bitince sonraki rafın 1'i.
-     Mekân bitince null döner. */
-  function sonrakiGoz(mekan, raf, sira) {
-    var kac = Number((D.cfg && D.cfg.siraSayisi) || 6);
-    if (sira < kac) return { mekan: mekan, raf: raf, sira: sira + 1 };
-    var raflar = mekanRaflari(mekan);
-    var i = raflar.indexOf(raf);
-    if (i >= 0 && i < raflar.length - 1) return { mekan: mekan, raf: raflar[i + 1], sira: 1 };
-    return null;
+    sayimSecicileriKur({ mekan:mekan, raf:raf, sira:sira });
   }
 
   /* Panel açılınca ekip nerede kaldıysa oradan devam: sunucudan sayımlar
      çekilir, sırayla ilk DOKUNULMAMIŞ göz seçili gelir. Sayılamayan raf da
      "işi bitmiş" sayılır — oraya yeniden gidilmesi koordinatörün kararıdır,
      gönüllü aynı kapalı dolabın önünde ikinci kez durmasın. */
-  function sayimKaldigiYer() {
-    api('siraOzeti', {}).then(function (r) {
-      var islenmis = {};
-      (r.siralar || []).forEach(function (x) {
-        if (x.onSayim != null) islenmis[x.sira] = true;
-        if (x.sayim && x.sayim.durum === 'sayilamadi') islenmis[x.sira] = true;
-      });
-      var mekanlar = (D.cfg && D.cfg.mekanlar) || [];
-      for (var m = 0; m < mekanlar.length; m++) {
-        var raflar = mekanRaflari(mekanlar[m].kod);
-        var kac = Number((D.cfg && D.cfg.siraSayisi) || 6);
-        for (var ri = 0; ri < raflar.length; ri++) {
-          for (var si = 1; si <= kac; si++) {
-            var a = anahtarKur(mekanlar[m].kod, raflar[ri], si);
-            if (!islenmis[a]) {
-              sayimGozSec(mekanlar[m].kod, raflar[ri], si);
-              if (Object.keys(islenmis).length) {
-                goster($('msgSayim'), 'iyi', 'Kaldığınız yerden devam: <b>' +
-                  esc(a) + '</b> (' + esc(yerSozu(a)) + ') seçildi.');
-              }
-              return;
-            }
-          }
-        }
+  function sayimKaldigiYer(tercih) {
+    ['sayimMekan', 'sayimRaf', 'sayimSiraSec'].forEach(function (id) { $(id).disabled = true; });
+    sayimFormGoster(false);
+    goster($('msgSayim'), 'uyari', 'Sayım kayıtları kontrol ediliyor…');
+    return api('siraOzeti', {}, { sure:30000 }).then(function (r) {
+      sayimOzetHarita = {};
+      (r.siralar || []).forEach(function (x) { sayimOzetHarita[x.sira] = x; });
+      var varMi = sayimSecicileriKur(tercih);
+      if (!varMi) {
+        sayimDurumu = null;
+        sayimFormGoster(false);
+        goster($('msgSayim'), 'iyi', sayimAsama === 'yeni'
+          ? 'Tanımlı tüm raflar sayılmış görünüyor. Kontrol etmek veya düzeltmek için <b>Kontrol / düzeltme sayımı</b> bölümünü açın. ✓'
+          : 'Kontrol edilecek bir sayım bulunamadı.');
+        return;
       }
-      goster($('msgSayim'), 'iyi', 'Tanımlı tüm gözler sayılmış görünüyor. 🎉');
-    })['catch'](function () { /* bağlantı yoksa seçiciler elle kullanılır */ });
+      var a = anahtarKur($('sayimMekan').value, $('sayimRaf').value, Number($('sayimSiraSec').value));
+      goster($('msgSayim'), 'iyi', sayimAsama === 'yeni'
+        ? 'Sıradaki sayılmamış raf seçildi: <b>' + esc(a) + '</b> (' + esc(yerSozu(a)) + ').'
+        : 'Sayılmış raflar gösteriliyor. Kontrol etmek istediğiniz rafı seçin.');
+      return sayimDurumYukle();
+    })['catch'](function (e) {
+      sayimOzetHarita = null;
+      sayimFormGoster(false);
+      goster($('msgSayim'), 'hata', agHataMetni(e,
+        'İnternet bağlantısı yok; sayılmış raflar kontrol edilemedi.',
+        'Sayım kayıtları alınamadı. Biraz sonra paneli kapatıp yeniden açın.'));
+    });
   }
 
   /* ── Sayım formunun hâli ──────────────────────────────────────────
@@ -1866,6 +1911,29 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     $('sayimAdet').focus();
   });
 
+  $('sayimAsama').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-sayim-asama]');
+    if (!b || b.dataset.sayimAsama === sayimAsama) return;
+    sayimAsama = b.dataset.sayimAsama;
+    sayimAsamaDugmeleriniCiz();
+    sayimFormTemizle(); sayimEngelKapat();
+    if (sayimOzetHarita) {
+      if (sayimSecicileriKur()) {
+        goster($('msgSayim'), 'iyi', sayimAsama === 'yeni'
+          ? 'Sıradaki sayılmamış raf seçildi.'
+          : 'Sayılmış raflar gösteriliyor. Kontrol etmek istediğiniz rafı seçin.');
+        sayimDurumYukle();
+      } else {
+        sayimFormGoster(false);
+        goster($('msgSayim'), 'iyi', sayimAsama === 'yeni'
+          ? 'Tanımlı tüm raflar sayılmış görünüyor. ✓'
+          : 'Kontrol edilecek bir sayım bulunamadı.');
+      }
+    } else {
+      sayimKaldigiYer();
+    }
+  });
+
   /* Seçili gözün sunucudaki hâlini çeker. Bağlantı yoksa panel yine
      çalışır: sayım kaydı zaten sunucuya gidiyor, o an hata verir. */
   /* Sayfalar GitHub'a anında çıkar, sunucu betiği ise elle yeniden
@@ -1943,11 +2011,14 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     goster($('msgSayim'), 'uyari', 'Geri alınıyor…');
     api('sayimGeriAl', { mekan: mekan, raf: raf, sira: sira, sayan: D.ad })
       .then(function (c) {
-        goster($('msgSayim'), 'iyi', yerEtiket(c.anahtar) + ' — son işlem geri alındı' +
+        var geriMesaji = yerEtiket(c.anahtar) + ' — son işlem geri alındı' +
           (c.geriAlinanSayi != null ? ' (' + c.geriAlinanSayi + ' kitap)' : '') + '. ' +
           (c.temizlendi ? 'Göz yeniden <b>sayılmamış</b> durumda.'
-                        : 'Bir önceki sayım geri geldi: <b>' + c.adet + ' kitap</b>.'));
-        return sayimDurumYukle();
+                        : 'Bir önceki sayım geri geldi: <b>' + c.adet + ' kitap</b>.');
+        goster($('msgSayim'), 'iyi', geriMesaji);
+        return sayimKaldigiYer().then(function () {
+          goster($('msgSayim'), 'iyi', geriMesaji);
+        });
       })['catch'](function (e) {
         goster($('msgSayim'), 'hata', agHataMetni(e,
           'İnternet bağlantısı yok; geri alma işlemi gönderilmedi.',
@@ -1955,16 +2026,22 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       });
   }
 
-  $('sayimMekan').addEventListener('change', sayimRafKur);
-  ['sayimMekan', 'sayimRaf', 'sayimSiraSec'].forEach(function (id) {
-    $(id).addEventListener('change', function () {
-      sayimSirasiniGoster();
-      gizle($('msgSayim'));               // yeni sıra seçilince eski mesaj kalmasın
-      sayimFormTemizle();
-      sayimEngelKapat();
-      sayimDurumYukle();                  // yeni gözün hâlini getir
-    });
+  function sayimSecimiDegisti() {
+    sayimSirasiniGoster();
+    gizle($('msgSayim'));                 // yeni sıra seçilince eski mesaj kalmasın
+    sayimFormTemizle();
+    sayimEngelKapat();
+    sayimDurumYukle();                    // yeni gözün hâlini getir
+  }
+  $('sayimMekan').addEventListener('change', function () {
+    sayimSecicileriKur({ mekan:$('sayimMekan').value, raf:'', sira:0 });
+    sayimSecimiDegisti();
   });
+  $('sayimRaf').addEventListener('change', function () {
+    sayimSecicileriKur({ mekan:$('sayimMekan').value, raf:$('sayimRaf').value, sira:0 });
+    sayimSecimiDegisti();
+  });
+  $('sayimSiraSec').addEventListener('change', sayimSecimiDegisti);
   $('sayimAdet').addEventListener('input', function () { gizle($('msgSayim')); });
   $('sayimArka').addEventListener('input', function () { gizle($('msgSayim')); });
 
@@ -1983,10 +2060,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     $('secici').classList.add('gizli'); $('btnKendimSec').textContent = '2 · Kitapları kaydet';
     $('sayimPanel').classList.toggle('gizli', acik);
     if (!acik) {
-      sayimSecicileriKur(); sayimSirasiniGoster(); gizle($('msgSayim'));
+      sayimAsama = 'yeni'; sayimAsamaDugmeleriniCiz();
       sayimFormTemizle(); sayimEngelKapat();
       sayimKaldigiYer();               // ekip nerede kaldıysa oradan başla
-      sayimDurumYukle();
     }
   });
 
@@ -2063,7 +2139,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       goster($('msgSayim'), 'uyari', yerEtiket(c.anahtar) +
         ' <b>sayılamadı</b> olarak kaydedildi. Sebep koordinatöre iletildi.' +
         (c.fotoUrl ? ' 📷 Raf fotoğrafı da kaydedildi.' : ''));
-      return sayimDurumYukle();
+      return sayimAsama === 'yeni' ? sayimKaldigiYer() : sayimDurumYukle();
     })['catch'](function (e) {
       goster($('msgSayim'), 'hata', agHataMetni(e,
         'İnternet bağlantısı yok; bilgi gönderilmedi. Bağlantı gelince tekrar deneyin.',
@@ -2117,10 +2193,6 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       var duzeltmeMi = sayimKip === 'duzelt';
       sayimFormTemizle();
 
-      /* Düzeltmede aynı gözde kalınır (gönüllü o gözle uğraşıyor); normal
-         sayımda seçiciler kendiliğinden bir sonrakine geçer: N rafı 3. sıra
-         kaydedildiyse sıradaki N-4'tür, raf bitince sonraki rafın 1'i. */
-      var sonraki = duzeltmeMi ? null : sonrakiGoz(mekan, raf, sira);
       var mesaj = yerEtiket(c.anahtar) + (duzeltmeMi ? ' sayımı düzeltildi: ' : ' sayımı kaydedildi: ') +
         '<b>' + c.adet + ' kitap</b>' +
         (c.duzen === 'iki'
@@ -2137,17 +2209,19 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         (c.onayBozuldu ? ' <span style="color:#8a5a1c">Bu göz onaylanmıştı; ' +
           'sayı değiştiği için onay kaldırıldı.</span>' : '');
 
-      if (sonraki) {
-        sayimGozSec(sonraki.mekan, sonraki.raf, sonraki.sira);
-        mesaj += ' Sıradaki göz seçildi: <b>' +
-          esc(anahtarKur(sonraki.mekan, sonraki.raf, sonraki.sira)) + '</b>.';
-        goster($('msgSayim'), 'iyi', mesaj);
-        sayimDurumYukle();
-        $('sayimAdet').focus();
-        return;
+      if (!duzeltmeMi && sayimAsama === 'yeni') {
+        /* Sunucudan özeti yeniden al: başka bir gönüllünün bu sırada yaptığı
+           sayımı da görüp gerçekten boş olan ilk göze geçelim. */
+        return sayimKaldigiYer().then(function () {
+          var yeni = $('sayimSiraSec').disabled ? '' : anahtarKur(
+            $('sayimMekan').value, $('sayimRaf').value, Number($('sayimSiraSec').value));
+          goster($('msgSayim'), 'iyi', mesaj + (yeni
+            ? ' Sıradaki sayılmamış raf seçildi: <b>' + esc(yeni) + '</b>.'
+            : ' Başka sayılmamış raf kalmadı.'));
+          if (yeni) $('sayimAdet').focus();
+        });
       }
-      goster($('msgSayim'), 'iyi', mesaj + (duzeltmeMi ? ''
-        : ' <b>Bu mekânın son gözüydü</b> — mekân değiştirebilirsiniz.'));
+      goster($('msgSayim'), 'iyi', mesaj);
       return sayimDurumYukle();
     })['catch'](function (e) {
       goster($('msgSayim'), 'hata', agHataMetni(e,
@@ -2355,7 +2429,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       $('gtSay').addEventListener('click', function () {
         panelleriKapat('sayim');
         $('sayimPanel').classList.remove('gizli');
-        sayimGozSec(mekan, raf, sira);
+        sayimAsama = onSayim != null ? 'kontrol' : 'yeni';
+        sayimAsamaDugmeleriniCiz();
+        sayimKaldigiYer({ mekan:mekan, raf:raf, sira:sira });
         $('sayimPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
       });
       $('gtKayit').addEventListener('click', function () { $('btnRaf').click(); });
