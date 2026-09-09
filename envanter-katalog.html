@@ -142,7 +142,7 @@
     <label for="ad">Adınız</label>
     <input type="text" id="ad" placeholder="Ad Soyad" autocomplete="name">
     <label for="sifre">Koordinatör şifresi</label>
-    <input type="text" id="sifre" placeholder="Gönüllülerinkinden farklı" autocapitalize="none" autocorrect="off">
+    <input type="password" id="sifre" placeholder="Gönüllülerinkinden farklı" autocapitalize="none" autocorrect="off">
     <button class="btn genis" id="btnGiris">Aç</button>
   </section>
 
@@ -311,6 +311,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       $('adim-liste').classList.remove('gizli');
       $('ust').classList.remove('gizli');
     })['catch'](function (e) {
+      if (/[?&]oto=1/.test(location.search)) $('adim-giris').classList.remove('gizli');
       goster($('msgGiris'), 'hata', agHata(e));
     }).then(function () { mesgul($('btnGiris'), false); });
   });
@@ -752,7 +753,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   /* Koordinatör panelinin sekmesinde açıldıysak (?oto=1) girişi bekletme:
      panel şifreyi zaten doğruladı, ikinci kez sordurma. */
   if (ad && sifre && /[?&]oto=1/.test(location.search)) {
-    setTimeout(function () { $('btnGiris').click(); }, 60);
+    $('adim-giris').classList.add('gizli');
+    setTimeout(function () { $('btnGiris').click(); }, 10);
   }
 })();
 </script>

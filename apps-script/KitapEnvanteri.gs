@@ -1423,7 +1423,7 @@ function siraHaritasi_() {
 
 // Bağlantıya (GET) tıklanarak çalıştırılamayacak işlemler: bir bağlantı
 // önizlemesi ya da yanlışlıkla paylaşılan adres kayıt silmemeli.
-var YAZAN_EYLEMLER = ['ekle', 'guncelle', 'sil', 'fotoEkle', 'onayla', 'topluOnayla', 'kararVer', 'kunyeErtele',
+var YAZAN_EYLEMLER = ['ekle', 'guncelle', 'sil', 'fotoEkle', 'onayla', 'topluOnayla', 'kararVer', 'kararGeriAl', 'kunyeErtele',
                       'kutula', 'siraBitir', 'siraOner', 'siraSec', 'kitapIste', 'sayimKaydet', 'siraBirak',
                       'sayimOnayla', 'sayimGeriAl', 'fotoBagla'];
 
@@ -1447,7 +1447,7 @@ function doPost(e) {
 // Yalnızca koordinatörün açabileceği işlemler
 // istenenler_ bilerek gönüllü eylemi: rafta çalışan görecek.
 var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayGruplari', 'onayla', 'topluOnayla', 'kutula',
-                             'kararBekleyen', 'kararVer', 'kunyeErtele',
+                             'kararBekleyen', 'kararVer', 'kararGeriAl', 'kunyeErtele',
                              'katalog', 'kutular', 'durum', 'siraHaritasi', 'kitapIste'];
 
 function islet_(istek) {
@@ -1512,6 +1512,7 @@ function islet_(istek) {
       case 'onayGruplari':return cikti_(onayGruplari_(istek.adet));
       case 'kararBekleyen':return cikti_(kararBekleyen_(istek.adet));
       case 'kararVer':    return cikti_(kararVer_(istek));
+      case 'kararGeriAl': return cikti_(kararGeriAl_(istek));
       case 'topluOnayla': return cikti_(topluOnayla_(istek));
       case 'kutula':      return cikti_(kutula_(istek));
       case 'onayla':      return cikti_(onayla_(istek.no, istek.kayit || {}));
@@ -2394,6 +2395,20 @@ function kararVerilmis_(kategoriDegeri) {
 
 function kararsiz_(s) { return !kararVerilmis_(s[S.kategori - 1]); }
 
+function rafSirasinaGore_(a, b) {
+  var am = String(a[S.mekan - 1] || ''), bm = String(b[S.mekan - 1] || '');
+  var ar = String(a[S.raf - 1] || ''), br = String(b[S.raf - 1] || '');
+  var m = am.localeCompare(bm, 'tr');
+  if (m) return m;
+  var r = ar.localeCompare(br, 'tr', { numeric: true });
+  if (r) return r;
+  var sira = (Number(a[S.sira - 1]) || 0) - (Number(b[S.sira - 1]) || 0);
+  if (sira) return sira;
+  var siraNo = (Number(a[S.siraNo - 1]) || 0) - (Number(b[S.siraNo - 1]) || 0);
+  if (siraNo) return siraNo;
+  return (Number(a[S.no - 1]) || 0) - (Number(b[S.no - 1]) || 0);
+}
+
 function kararEtiketi_(kategori, kural) {
   var kat = String(kategori || SINIFLANDIRILMADI).trim() || SINIFLANDIRILMADI;
   var kod = String(kural || '').trim();
@@ -2422,6 +2437,7 @@ function kararBekleyen_(adet) {
   var bekleyen = satirlar.filter(function (s) {
     return !silinmis_(s) && String(s[S.onay - 1] || '') && kararsiz_(s);
   });
+  bekleyen.sort(rafSirasinaGore_);
   var liste = bekleyen.slice(0, adet).map(function (s) { return kayitCikar_(s); });
   return { ok: true, kayitlar: liste, kalan: bekleyen.length };
 }
@@ -2477,6 +2493,48 @@ function kararVer_(g) {
     return { ok: true, yazilan: yazilan, atlanan: atlanan,
              kategori: kategoriAdi, kural: kural, kararVeren: veren,
              kararTarihi: tarihMetni_(simdi) };
+  } finally {
+    kilit.releaseLock();
+  }
+}
+
+/**
+ * Verilmiş kararı kaldırır; kitabı yeniden "Karar bekleyenler" kuyruğuna döndürür.
+ * Geçmiş silinmez: kim geri aldı, önceki karar neydi, satırın karar geçmişine eklenir.
+ */
+function kararGeriAl_(g) {
+  var numaralar = (g.numaralar || (g.no ? [g.no] : [])).map(Number).filter(Boolean);
+  if (!numaralar.length) return { ok: false, error: 'Geri alınacak kayıt seçilmedi.' };
+  if (numaralar.length > 400) return { ok: false, error: 'Tek seferde en fazla 400 kayıt.' };
+
+  var kilit = LockService.getScriptLock();
+  kilit.waitLock(20000);
+  try {
+    var sayfa = sayfaAl_('Envanter');
+    var yazilan = [], atlanan = [];
+    var veren = String(g.veren || g.onaylayan || '').trim();
+    var simdi = new Date();
+
+    numaralar.forEach(function (no) {
+      var bulunan = satirBul_(no);
+      if (!bulunan || bulunan.silindi) { atlanan.push({ no: no, neden: 'bulunamadı' }); return; }
+      var st = sayfa.getRange(bulunan.satir, 1, 1, SUTUNLAR.length).getValues()[0];
+      if (!String(st[S.onay - 1] || '')) { atlanan.push({ no: no, neden: 'künyesi onaylanmamış' }); return; }
+      if (kararsiz_(st)) { atlanan.push({ no: no, neden: 'zaten karar bekliyor' }); return; }
+
+      var gecmis = kararGecmisiEkle_(st[S.kararGecmisi - 1],
+        st[S.kategori - 1], st[S.kural - 1],
+        SINIFLANDIRILMADI, 'Karar bekleyenlere geri alındı', veren, simdi);
+      sayfa.getRange(bulunan.satir, S.kategori).setValue(SINIFLANDIRILMADI);
+      sayfa.getRange(bulunan.satir, S.kural).setValue('');
+      sayfa.getRange(bulunan.satir, S.istenen).setValue('');
+      sayfa.getRange(bulunan.satir, S.kararVeren, 1, 3)
+        .setValues([[veren, simdi, gecmis]]);
+      yazilan.push(no);
+    });
+
+    return { ok: true, yazilan: yazilan, atlanan: atlanan,
+             kararVeren: veren, kararTarihi: tarihMetni_(simdi) };
   } finally {
     kilit.releaseLock();
   }
