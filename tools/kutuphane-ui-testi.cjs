@@ -327,9 +327,12 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   assert.equal(books[0].kategori, '', 'Karar bekleyenlere geri alma çalışmadı');
   await page.getByRole('button', { name:'Karar bekleyenler', exact:true }).click();
   await page.locator('.kitap-karti[data-no="1"]').waitFor();
+  const durumCallsBeforeDecision = calls.filter(call => call.action === 'durum').length;
   await page.locator('.kitap-karti[data-no="1"]').getByRole('button', { name:'Gitsin' }).click();
   await page.locator('.kitap-karti[data-no="1"]').waitFor({state:'detached'});
   assert.equal(books[0].kategori, 'Gidecek');
+  assert.equal(calls.filter(call => call.action === 'durum').length, durumCallsBeforeDecision,
+    'Tek kitap kararı sonrası bütün yönetim özeti gereksiz yere yeniden istendi');
 
   await page.getByRole('button', { name:/Kitap Kayıtları/ }).click();
   await page.locator('[data-kayit-no="1"]').waitFor();
@@ -457,9 +460,9 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
     'Mobil kitap fotoğrafı kırpılıyor veya oranı bozuluyor');
   const transformedPhoto = await page.evaluate(() => window.TVEnvanterAg.photoUrl(
     'https://test.supabase.co/storage/v1/object/public/library-photos/books/test/cover.jpg', 500));
-  assert.match(transformedPhoto, /width=500/);
-  assert.match(transformedPhoto, /height=667/);
-  assert.match(transformedPhoto, /resize=contain/);
+  assert.equal(transformedPhoto,
+    'https://test.supabase.co/storage/v1/object/public/library-photos/books/test/cover.jpg',
+    'Fotoğraf oranını bozan Supabase dönüşüm adresi yeniden kullanıldı');
   for (const menu of ['Kitap Seçimi','Kitap Kayıtları','Raflar ve Kitaplar','Genel Durum']) {
     const item = page.getByRole('button', { name:new RegExp(menu) });
     await item.waitFor();

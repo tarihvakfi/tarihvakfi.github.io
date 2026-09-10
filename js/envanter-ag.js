@@ -81,23 +81,19 @@
 
   function photoUrl(url, width) {
     var value = String(url || '');
-    if (!value || !/\/storage\/v1\/object\/public\/library-photos\//.test(value)) return value;
-    var rendered = value.replace('/storage/v1/object/public/library-photos/', '/storage/v1/render/image/public/library-photos/');
-    var targetWidth = Math.max(160, Number(width) || 900);
-    /* Supabase Image Transformation yalnız genişlik verilince bu projedeki
-       1200×1600 fotoğrafları 500×1600 üretip görüntüyü inceltiyor. 3:4 hedef
-       kutusunu ve contain kipini birlikte vererek oranı koru. */
+    if (!value || !/\/storage\/v1\/(?:object|render\/image)\/public\/library-photos\//.test(value)) return value;
+    /* Bu projede Image Transformation yalnız genişlik verilince 1200×1600
+       dosyayı 500×1600 üretip görüntüyü bozdu. Kartlarda lazy-loading var;
+       bu yüzden güvenilir ve oranı değişmeyen asıl Storage dosyasını kullan. */
     try {
-      var parsed = new URL(rendered);
-      parsed.searchParams.set('width', String(targetWidth));
-      parsed.searchParams.set('height', String(Math.round(targetWidth * 4 / 3)));
-      parsed.searchParams.set('resize', 'contain');
-      parsed.searchParams.set('quality', '82');
+      var parsed = new URL(value.replace('/storage/v1/render/image/public/library-photos/',
+        '/storage/v1/object/public/library-photos/'));
+      parsed.search = '';
+      parsed.hash = '';
       return parsed.href;
     } catch (e) {
-      var join = rendered.indexOf('?') >= 0 ? '&' : '?';
-      return rendered + join + 'width=' + targetWidth + '&height=' +
-        Math.round(targetWidth * 4 / 3) + '&resize=contain&quality=82';
+      return value.replace('/storage/v1/render/image/public/library-photos/',
+        '/storage/v1/object/public/library-photos/').split('?')[0];
     }
   }
 

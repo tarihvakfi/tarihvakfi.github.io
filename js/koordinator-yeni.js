@@ -335,7 +335,10 @@
         kararKaydiniYereldeTut(kayit || { no:no }, r.kategori, r.gorusler.map(function (g) { return g.veren; }).join(' + '), r.kararTarihi || 'Az önce', { kararDurumu:'kesin', kararGorusleri:r.gorusler });
         D.kararlar = D.kararlar.filter(function (k) { return Number(k.no) !== no; });
         D.kararToplam = Math.max(0, D.kararToplam - 1);
-        setTimeout(function () { kararListeCiz(); durumYukle(true).catch(function () {}); }, 650);
+        /* Sayaçlar ve liste yukarıda yerel olarak güncellendi. Her karardan sonra
+           bütün yönetim özetini yeniden istemek küçük veritabanında bile gereksiz
+           disk okumaları ve gecikme oluşturuyordu. */
+        setTimeout(kararListeCiz, 250);
       } else {
         gorusSayaciniDegistir(kayit && kayit.kararDurumu, r.kararDurumu);
         var guncel = Object.assign({}, kayit || { no:no }, { kategori:'', kararVeren:'', kararTarihi:'', kararDurumu:r.kararDurumu, kararGorusleri:r.gorusler || [] });
