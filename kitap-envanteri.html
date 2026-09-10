@@ -602,8 +602,8 @@
       <div class="bas">Bu sıra yarım kalmış — nereden devam edeceksiniz</div>
       <div class="sayi">
         <b id="devirSayi">—</b>
-        <span>kitap kaydedilmiş. Rafta <b id="devirSayi2" style="font-size:14px">—</b>.
-          kitaba kadar sayın, <b style="font-size:14px">sonrakinden</b> devam edin.</span>
+        <span>kitap kaydedilmiş. Son kaydedilen kitabın kapağını aşağıda kontrol edin;
+          raftaki bir sonraki kitaptan devam edin.</span>
       </div>
       <div class="kitap" id="devirKitap">
         <img id="devirKapak" alt="Son kaydedilen kitap" data-tv-foto data-tv-foto-ad="Son kaydedilen kitabın kapağı" onerror="this.style.visibility='hidden'">
@@ -1309,7 +1309,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_SUPABASE_EDGE_FUNCTION_ADRE
       parcalar.push('Çalışılan sıra: ' + D.anahtar);
       var soz = yerSozu(D.anahtar);
       if (soz) parcalar.push(soz);
-      parcalar.push('sıradaki kitap: ' + yerKodu(D.anahtar, D.sonraki || 1));
+      parcalar.push('yeni kayıt kodu: ' + yerKodu(D.anahtar, D.sonraki || 1));
     } else if (D.cfg && $('rafHarf').options.length) {
       var r = seciliRaf();
       var a = anahtarKur(r.mekan, r.raf, r.sira);
@@ -1432,7 +1432,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_SUPABASE_EDGE_FUNCTION_ADRE
   });
 
   /* ───────── yer kodu ─────────
-     Kod:  G-A01-007  →  mekân · raf · sıra · o sıradaki kaçıncı kitap.
+     Kod:  G-A01-007  →  mekân · raf · sıra · benzersiz kayıt numarası.
+     Silinen ya da atlanan kayıtlar yüzünden bu son bölüm rafın güncel kitap
+     adediyle aynı olmayabilir; gönüllü ekranında ilerleme olarak gösterilmez.
      Numarayı telefon verir (bağlantı yokken de çalışsın diye), sunucu senkronda
      doğrular; çakışma olursa düzeltip yeni numarayı geri bildirir. */
 
@@ -1501,7 +1503,6 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_SUPABASE_EDGE_FUNCTION_ADRE
 
     var sira = Number(bilgi.raftakiSira) || 0;
     $('devirSayi').textContent = sira;
-    $('devirSayi2').textContent = sira;
 
     $('devirAd').textContent = bilgi.baslik || '(başlık girilmemiş)';
     var alt = [];
@@ -1585,7 +1586,10 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_SUPABASE_EDGE_FUNCTION_ADRE
       esc(yerSozu(anahtar)) + '</span></div><p>Raf bilgileri kontrol ediliyor…</p>';
 
     api('rafDurum', { mekan: r.mekan, raf: r.raf, sira: r.sira }).then(function (d) {
-      var sonraki = Math.max(Number(d.sonNo || 0) + 1, yerel);
+      /* Sunucuya ulaşıldığında onun sayacını esas al. Telefondaki sayaç yalnız
+         çevrimdışı kayıtlar içindir; eski bir yerel değer yeni boşluklar
+         üretmemeli. */
+      var sonraki = Number(d.sonNo || 0) + 1;
       siraDepoYaz(anahtar, sonraki);
       D.siraDurumu = d.durum || '';
 
@@ -1595,12 +1599,12 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_SUPABASE_EDGE_FUNCTION_ADRE
           '<span>Başka bir raf seçin. Yalnız atlanmış bir kitap bulduysanız bu rafı yeniden açın.</span>';
       } else if (d.adet) {
         hikaye = '<strong>' + d.adet + ' kitap kaydedilmiş.</strong>' +
-          '<span><b>' + esc(yerKodu(anahtar, sonraki)) + '</b> kodundan devam edin.' +
+          '<span>Raftaki bir sonraki kitaptan devam edin.' +
           (d.sonCalisan ? ' Son çalışan: ' + esc(String(d.sonCalisan)) : '') +
           (d.sonTarih ? ' · ' + esc(String(d.sonTarih)) : '') + '</span>';
       } else {
         hikaye = '<strong>Bu rafta henüz kitap kaydı yok.</strong>' +
-          '<span>İlk kitaba <b>' + esc(yerKodu(anahtar, sonraki)) + '</b> koduyla başlayın.</span>';
+          '<span>Raftaki ilk kitaptan başlayın.</span>';
       }
       D.siraTutan = (d.tutulu && String(d.tutan || '').toLowerCase() !== D.ad.toLowerCase())
         ? String(d.tutan) : '';
@@ -1629,7 +1633,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_SUPABASE_EDGE_FUNCTION_ADRE
                saklanan ? Math.round((Date.now() - saklanan.z) / 60000) : null);
       $('rafOzet').innerHTML = '<div class="raf-ozet-baslik"><b>' + esc(anahtar) + '</b></div>' +
         '<p>' + (navigator.onLine === false ? 'Bağlantı yok.' : 'Sunucu geç yanıt verdi.') +
-        ' Son bilinen sıradaki kod: <b>' + esc(yerKodu(anahtar, yerel)) + '</b></p>';
+        ' Rafın güncel kayıt sayısı alınamadı; çalışmaya başlamadan önce yeniden deneyin.</p>';
     });
   }
   ['mekan', 'rafHarf', 'siraSec'].forEach(function (id) {
@@ -2454,7 +2458,6 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_SUPABASE_EDGE_FUNCTION_ADRE
     function ciz(d) {
       var onSayim = d && d.onSayim != null ? Number(d.onSayim) : null;
       var girilen = d ? Number(d.cilt || d.adet || 0) : 0;
-      var sonraki = d ? (Number(d.sonNo || 0) + 1) : 1;
       var oran = (onSayim && onSayim > 0)
         ? Math.min(100, Math.round((girilen / onSayim) * 100)) : 0;
 
@@ -2472,11 +2475,24 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_SUPABASE_EDGE_FUNCTION_ADRE
           ? '<div class="gorev-sayim">Raf daha önce sayıldı: <b>' + onSayim +
             ' kitap</b>. Fotoğraf kaydı sürerken yeniden saymayın.</div>' : '');
 
+      var kayitAciklamasi;
+      if (onSayim != null) {
+        var kalan = onSayim - girilen;
+        kayitAciklamasi = kalan > 0
+          ? kalan + ' kitap daha fotoğraflanacak'
+          : (kalan === 0
+            ? 'Raf sayımı ile kayıt sayısı eşleşti'
+            : Math.abs(kalan) + ' kayıt fazla görünüyor; kontrol gerekiyor');
+      } else {
+        kayitAciklamasi = girilen > 0
+          ? girilen + ' kayıt var; raftaki bir sonraki kitaptan devam edin'
+          : 'Raftaki ilk kitaptan başlayın';
+      }
+
       var kayitTus = '<button type="button" class="gtus ana" id="gtKayit">' +
         '<span class="im">→</span>' +
         '<span><b>Kitap fotoğraflarını kaydet</b><span>' +
-        (girilen > 0 ? doldurSayi(sonraki, 3) + ' numaradan devam edin'
-                     : 'İlk kitaptan başlayın') + '</span></span></button>';
+        esc(kayitAciklamasi) + '</span></span></button>';
 
       k.innerHTML =
         '<div class="bas"><div class="ustyazi">Sıradaki raf</div>' +
@@ -2601,7 +2617,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_SUPABASE_EDGE_FUNCTION_ADRE
     $('ustRaf').textContent = D.anahtar;
     $('ustSoz').textContent = yerSozu(D.anahtar);
     $('bulOnek').textContent = D.anahtar ? D.anahtar + '-' : '—';
-    $('ustSira').textContent = 'sıradaki ' + doldurSayi(D.sonraki, 3);
+    /* Bu numara kayıt kimliğidir; silinen kayıtlar yüzünden raftaki kitap
+       sayısından büyük olabilir. "Sıradaki kitap" demek yanlış yönlendiriyordu. */
+    $('ustSira').textContent = 'yeni kayıt ' + doldurSayi(D.sonraki, 3);
     $('ustKutu').textContent = D.kutu ? '· kutu ' + D.kutu : '';
   }
 

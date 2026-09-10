@@ -21,6 +21,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   let volunteerUpdateAttempts = 0;
   let volunteerDeleteAttempts = 0;
   let countInfoFailures = 0;
+  let gapNumberScenario = false;
   let countRecord = { durum:'onaylandi', toplam:34, sayan:'Önceki gönüllü', sayimTarihi:'9.09.2026 20:00', duzen:'tek' };
   let previousCountRecord = null;
   let nextBookNo = 36;
@@ -129,7 +130,10 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
           onSayim:35,sayim:{toplam:35,durum:'onaylandi'}}] };
         break;
       case 'rafDurum':
-        result = { ok:true, anahtar:'G-A01', durum:'devam', sonNo:35, adet:35, cilt:35,
+        result = gapNumberScenario
+          ? { ok:true, anahtar:'G-A01', durum:'devam', sonNo:51, adet:48, cilt:48,
+              onSayim:50, sayim:{durum:'onaylandi',toplam:50}, devir:null }
+          : { ok:true, anahtar:'G-A01', durum:'devam', sonNo:35, adet:35, cilt:35,
           onSayim:countRecord && countRecord.toplam, sayim:countRecord,
           devir:{ raftakiSira:35, baslik:'Kitap 35', yazar:'Yazar 35', yer:'G-A01-035',
             kaydeden:'Deneme', tarih:'9.09.2026',
@@ -522,8 +526,17 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   assert.ok(calls.some(call => call.action === 'sayimOnayla'));
   await page.locator('#btnSayim').click();
 
+  gapNumberScenario = true;
   await page.getByRole('button', { name:/Sistem bana bir raf versin/ }).click();
   await page.getByText('zaten sizin üzerinizde.', { exact:false }).waitFor();
+  await page.locator('#gorevKart').getByText('48 / 50 kitap', { exact:true }).waitFor();
+  await page.locator('#gorevKart').getByText('2 kitap daha fotoğraflanacak', { exact:true }).waitFor();
+  assert.equal((await page.locator('#gorevKart').innerText()).includes('052'), false,
+    'Silinen/atlanmış kayıt numarası gönüllüye sıradaki kitap gibi gösterildi');
+  if (process.env.TV_TEST_SCREENSHOTS) {
+    await page.screenshot({ path:'/tmp/tv-gonullu-48-50-duzeltme.png', fullPage:true });
+  }
+  gapNumberScenario = false;
   assert.equal(shelfSuggestionAttempts, 2, 'Raf önerisi ilk ağ hatasından sonra güvenli biçimde tekrarlanmadı');
   await page.getByRole('button', { name:'Üzerimdeki sıraları bırak' }).click();
   await page.getByText('G-A01 bırakıldı.', { exact:false }).waitFor();
@@ -532,6 +545,9 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
 
   /* Elle raf seçme, kitap ekleme, bulup düzeltme, silme ve sırayı kapatma. */
   await page.locator('#btnKendimSec').click();
+  /* Önceki görev kartının gecikmiş raf isteği elle seçim kartını ezmesin;
+     seçili rafın güncel özetini açıkça yeniden iste. */
+  await page.locator('#siraSec').dispatchEvent('change');
   await page.locator('#devirKapak').waitFor({ state:'visible' });
   assert.match(await page.locator('#devirKapak').getAttribute('src'), /drive\.google\.com\/thumbnail\?id=/,
     'Devir kartındaki Drive görüntüleme sayfası resim adresine dönüştürülmedi');
