@@ -121,7 +121,7 @@ function decisionState(ctx: Context, book: any) {
     opinions,
     decidedAt: d.decided_at || '',
     decidedBy: Array.isArray(d.decided_by_names) ? d.decided_by_names.join(' + ') : '',
-    rule: d.resolution_kind === 'consensus' ? 'Ortak görüş' : (d.resolution_kind === 'single_after_30_days' ? '30 gün sonunda tek görüş' : ''),
+    rule: d.resolution_kind === 'manual' ? 'Yetkili kararı' : (d.resolution_kind === 'legacy' ? 'Eski karar' : ''),
   };
 }
 
@@ -428,7 +428,7 @@ async function handle(body: Record<string, any>, role: 'volunteer' | 'coordinato
       const voterKey=normalizeName(name), note=clean(body.kural).replace(/^Diğer:\s*/i,'')==='Yetkili kararı'?'':clean(body.kural).replace(/^Diğer:\s*/i,'');const {data:existing}=await supabase.from('library_decision_opinions').select('id').eq('book_id',book.id).eq('voter_key',voterKey).maybeSingle();let e;if(existing)({error:e}=await supabase.from('library_decision_opinions').update({voter_name:name,choice:code,note:note||null,updated_at:new Date().toISOString()}).eq('id',existing.id));else({error:e}=await supabase.from('library_decision_opinions').insert({book_id:book.id,voter_name:name,choice:code,note:note||null}));if(e)throw e;
       const {data:d,error:de}=await supabase.from('library_book_decision_status').select('*').eq('book_id',book.id).single();if(de)throw de;first=d;written.push(no);
     }
-    const ops=(first?.opinions||[]).map((o:any)=>({kategori:choiceCodes[o.choice],kategoriAdi:choiceNames[o.choice],veren:o.voter_name,tarih:o.updated_at,not:o.note||''}));return {ok:true,yazilan:written,atlanan:skipped,kesinlesti:!!first?.final_choice,kararDurumu:first?.final_choice?'kesin':(Number(first?.distinct_choice_count)>1?'gorus_ayriligi':'ikinci_gorus_bekliyor'),gorusler:ops,kategori:first?.final_choice?choiceNames[first.final_choice]:'',kural:body.kural||'',kararVeren:name,kararTarihi:trDate(new Date()),tekGorusGun:30};
+    const ops=(first?.opinions||[]).map((o:any)=>({kategori:choiceCodes[o.choice],kategoriAdi:choiceNames[o.choice],veren:o.voter_name,tarih:o.updated_at,not:o.note||''}));return {ok:true,yazilan:written,atlanan:skipped,kesinlesti:!!first?.final_choice,kararDurumu:first?.final_choice?'kesin':'gorus_bekliyor',gorusler:ops,kategori:first?.final_choice?choiceNames[first.final_choice]:'',kural:body.kural||'',kararVeren:name,kararTarihi:trDate(new Date())};
   }
   if (action === 'kararGorusGeriAl') {
     const nums=(body.numaralar||(body.no?[body.no]:[])).map(Number), name=clean(body.veren||body.onaylayan), written=[], skipped=[];let first:any=null;

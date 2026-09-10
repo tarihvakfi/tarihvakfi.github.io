@@ -8,7 +8,6 @@ const password = process.env.LIBRARY_COORDINATOR_PASSWORD;
 if (!serviceKey || !password) throw new Error('Test için SUPABASE_SERVICE_ROLE_KEY ve LIBRARY_COORDINATOR_PASSWORD gerekli.');
 const runId = Date.now().toString(36);
 const actor = `Codex Kabul ${runId}`;
-const actor2 = `Codex İkinci ${runId}`;
 const location = `T${runId.slice(-4).toUpperCase()}`;
 const shelfCode = `${location}-ZZ01`;
 const photo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
@@ -76,10 +75,7 @@ async function removePhoto(path) {
     await api('kunyeErtele', {no:bookNo});
     await api('onayla', {no:bookNo,kayit:{yalnizKunye:true,baslik:'Geçici kabul kitabı düzeltildi',yazar:'Test',yil:'2026',onaylayan:actor}});
 
-    const first = await api('kararVer', {numaralar:[bookNo],kategori:'gidecek',veren:actor,kural:'Diğer: Canlı kabul testi'}); assert.equal(first.kararDurumu, 'ikinci_gorus_bekliyor');
-    const withdrawn = await api('kararGorusGeriAl', {numaralar:[bookNo],veren:actor}); assert.equal(withdrawn.kararDurumu, 'gorus_bekliyor');
-    await api('kararVer', {numaralar:[bookNo],kategori:'gidecek',veren:actor,kural:'Diğer: Canlı kabul testi'});
-    const final = await api('kararVer', {numaralar:[bookNo],kategori:'gidecek',veren:actor2,kural:'Diğer: Canlı kabul testi'}); assert.equal(final.kesinlesti, true);
+    const final = await api('kararVer', {numaralar:[bookNo],kategori:'gidecek',veren:actor,kural:'Diğer: Canlı kabul testi'}); assert.equal(final.kesinlesti, true);
     await api('kararGeriAl', {numaralar:[bookNo],veren:actor});
 
     const packed = await api('kutula', {numaralar:[bookNo],kutu:'9999',hedef:'yeni',paketleyen:actor}); assert.equal(packed.yazilan, 1);

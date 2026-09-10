@@ -170,22 +170,15 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
       }
       case 'kararVer': {
         const book = books.find(item => item.no === body.numaralar[0]);
-        const key = String(body.veren).trim().toLocaleLowerCase('tr');
         const opinion = { kategori:body.kategori, kategoriAdi:categories[body.kategori].ad,
           veren:body.veren, tarih:'2026-09-10T10:00:00.000Z', not:'' };
-        const previous = book.kararGorusleri.findIndex(item => item.veren.trim().toLocaleLowerCase('tr') === key);
-        if (previous >= 0) book.kararGorusleri[previous] = opinion; else book.kararGorusleri.push(opinion);
-        const agreeing = book.kararGorusleri.filter(item => item.kategori === body.kategori);
-        const distinct = new Set(book.kararGorusleri.map(item => item.kategori));
-        const final = agreeing.length >= 2;
-        book.kararDurumu = final ? 'kesin' : (distinct.size > 1 ? 'gorus_ayriligi' : 'ikinci_gorus_bekliyor');
-        if (final) {
-          book.kategori = categories[body.kategori].ad;
-          book.kararVeren = agreeing.map(item => item.veren).join(' + ');
-          book.kararTarihi = '10.09.2026 13:00';
-          staleShelfDecisionReads = 1;
-        }
-        result = { ok:true, yazilan:[book.no], kategori:final ? book.kategori : '', kesinlesti:final,
+        book.kararGorusleri = [opinion];
+        book.kararDurumu = 'kesin';
+        book.kategori = categories[body.kategori].ad;
+        book.kararVeren = body.veren;
+        book.kararTarihi = '10.09.2026 13:00';
+        staleShelfDecisionReads = 1;
+        result = { ok:true, yazilan:[book.no], kategori:book.kategori, kesinlesti:true,
           kararDurumu:book.kararDurumu, gorusler:book.kararGorusleri, kararTarihi:book.kararTarihi };
         break;
       }
@@ -315,19 +308,20 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await page.getByRole('button', { name:'Kapat', exact:true }).click();
 
   await page.locator('.kitap-karti').first().getByRole('button', { name:'Gitsin' }).click();
-  await page.getByText('İkinci görüş bekleniyor', { exact:true }).waitFor();
-  assert.equal(books[0].kategori, '', 'İlk görüş kesin karar sayıldı');
+  await page.locator('.kitap-karti[data-no="1"]').waitFor({state:'detached'});
+  assert.equal(books[0].kategori, 'Gidecek', 'Tek yetkilinin kararı kesinleşmedi');
   assert.equal(books[0].kararGorusleri.length, 1);
-  assert.equal(await page.locator('.kitap-karti[data-no="1"]').count(), 1, 'İlk görüşten sonra kitap kuyruktan çıktı');
-  await page.locator('.kitap-karti[data-no="1"]').getByRole('button', { name:'Görüşümü geri al' }).click();
-  await page.getByText('Görüşünüz geri alındı. Kitap yeniden görüş bekliyor.', { exact:true }).waitFor();
-  assert.equal(books[0].kararGorusleri.length, 0, 'Görüş geri alınmadı');
+  await page.getByRole('button', { name:'Verilmiş kararlar', exact:true }).click();
+  await page.locator('.kitap-karti[data-no="1"]').waitFor();
+  page.once('dialog', dialog => dialog.accept());
+  await page.locator('.kitap-karti[data-no="1"]').getByRole('button', { name:'Karar bekleyenlere geri al' }).click();
+  await page.locator('.kitap-karti[data-no="1"]').waitFor({state:'detached'});
+  assert.equal(books[0].kategori, '', 'Karar bekleyenlere geri alma çalışmadı');
+  await page.getByRole('button', { name:'Karar bekleyenler', exact:true }).click();
+  await page.locator('.kitap-karti[data-no="1"]').waitFor();
   await page.locator('.kitap-karti[data-no="1"]').getByRole('button', { name:'Gitsin' }).click();
-  await page.getByText('İkinci görüş bekleniyor', { exact:true }).waitFor();
-  await page.locator('.kitap-karti[data-no="1"]').getByRole('button', { name:'Gitsin' }).click();
-  await page.waitForTimeout(500);
-  assert.equal(books[0].kararGorusleri.length, 1, 'Aynı kişinin ikinci dokunuşu iki görüş sayıldı');
-  assert.equal(books[0].kategori, '');
+  await page.locator('.kitap-karti[data-no="1"]').waitFor({state:'detached'});
+  assert.equal(books[0].kategori, 'Gidecek');
 
   await page.getByRole('button', { name:/Kitap Kayıtları/ }).click();
   await page.locator('[data-kayit-no="1"]').waitFor();
@@ -343,28 +337,18 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   assert.equal(books[1].baslik,'Kitap 2 Düzeltilmiş','Koordinatör künye düzeltmesi kaydolmadı');
   await page.getByRole('button', { name:/Kitap Seçimi/ }).click();
   await page.locator('.kitap-karti[data-no="2"]').getByRole('button', { name:'Gitsin' }).click();
-  await page.getByText('İkinci görüş bekleniyor', { exact:true }).nth(1).waitFor();
-  await page.locator('#btnCikis').click();
-  await page.locator('#ad').fill('İkinci Yetkili');
-  await page.locator('#sifre').fill('test-only');
-  await page.locator('#btnGiris').click();
-  await page.locator('#kararListe').getByText('Kitap 1', { exact:true }).waitFor();
-  await page.locator('.kitap-karti[data-no="2"]').getByRole('button', { name:'Gitmesin' }).click();
-  await page.locator('.kitap-karti[data-no="2"]').getByText('Görüş ayrılığı var', { exact:true }).waitFor();
+  await page.locator('.kitap-karti[data-no="2"]').waitFor({state:'detached'});
   if (process.env.TV_TEST_SCREENSHOTS) {
-    await page.locator('.kitap-karti[data-no="2"]').screenshot({ path:'/tmp/tv-gorus-ayriligi.png' });
+    await page.screenshot({ path:'/tmp/tv-tek-adim-karar.png', fullPage:true });
     await page.setViewportSize({ width:390, height:844 });
-    await page.locator('.kitap-karti[data-no="2"]').screenshot({ path:'/tmp/tv-gorus-ayriligi-mobil.png' });
+    await page.screenshot({ path:'/tmp/tv-tek-adim-karar-mobil.png', fullPage:true });
     await page.setViewportSize({ width:1280, height:850 });
   }
-  assert.equal(books[1].kategori, '', 'Farklı görüşler yanlışlıkla kesin karar sayıldı');
-  assert.equal(books[1].kararGorusleri.length, 2);
-  await page.locator('.kitap-karti[data-no="1"]').getByRole('button', { name:'Gitsin' }).click();
-  await page.waitForTimeout(900);
-  assert.equal(books[0].kategori, 'Gidecek', 'İki farklı yetkilinin ortak görüşü kesinleşmedi');
+  assert.equal(books[1].kategori, 'Gidecek', 'Tek adımlı ikinci karar kesinleşmedi');
   const pendingIds = await page.locator('.kitap-karti').evaluateAll(nodes => nodes.map(node => node.dataset.no));
   const decisionMessage = await page.locator('.kart-mesaj').first().textContent();
   assert.ok(!pendingIds.includes('1'), 'Karar verilen kitap listede kaldı: ' + JSON.stringify(pendingIds.slice(0,5)) + ' · mesaj: ' + decisionMessage + ' · hatalar: ' + errors.join(' | '));
+  assert.ok(!pendingIds.includes('2'), 'İkinci karar verilen kitap listede kaldı');
   assert.equal(calls.findLast(call => call.action === 'kararVer').method, 'POST');
 
   await page.getByRole('button', { name:/Raflar ve Kitaplar/ }).click();
@@ -376,9 +360,9 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
 
   await page.getByRole('button', { name:/Kitap Seçimi/ }).click();
   await page.getByRole('button', { name:'Verilmiş kararlar' }).click();
-  await page.getByRole('button', { name:'Karar bekleyenlere geri al' }).waitFor();
+  await page.getByRole('button', { name:'Karar bekleyenlere geri al' }).first().waitFor();
   page.once('dialog', dialog => dialog.accept());
-  await page.getByRole('button', { name:'Karar bekleyenlere geri al' }).click();
+  await page.getByRole('button', { name:'Karar bekleyenlere geri al' }).first().click();
   await page.getByText('Kitap karar bekleyenlere geri alındı.', { exact:true }).waitFor();
 
   await page.getByRole('button', { name:/Raflar ve Kitaplar/ }).click();
@@ -426,7 +410,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await page.locator('#genelSayaclar').getByText('Raflarda sayılan kitap', { exact:true }).waitFor();
   await page.locator('[data-yenile="durum"]').click();
   await page.getByText('287 toplam kayıt', { exact:false }).waitFor();
-  await page.getByText('94 kitap bilgisi/kontrol aşamasında', { exact:false }).waitFor();
+  await page.getByText('93 kitap bilgisi/kontrol aşamasında', { exact:false }).waitFor();
   await page.locator('#btnIletisimUst').click();
   await page.locator('#iletisimMesaj').fill('Yetki denemesi mesajıdır.');
   await page.locator('#btnIletisim').click();
@@ -441,7 +425,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
 
   await page.setViewportSize({ width:2728, height:1200 });
   await page.getByRole('button', { name:/Kitap Seçimi/ }).click();
-  await page.getByRole('button', { name:'Karar bekleyenler' }).click();
+  await page.getByRole('button', { name:'Karar bekleyenler', exact:true }).click();
   await page.locator('#kararListe').getByText('Kitap 1', { exact:true }).waitFor();
   const desktopPhoto = await page.locator('.kitap-foto img').first().evaluate(img => ({
     objectFit:getComputedStyle(img).objectFit,
@@ -458,7 +442,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
 
   await page.setViewportSize({ width:390, height:844 });
   await page.getByRole('button', { name:/Kitap Seçimi/ }).click();
-  await page.getByRole('button', { name:'Karar bekleyenler' }).click();
+  await page.getByRole('button', { name:'Karar bekleyenler', exact:true }).click();
   await page.locator('#kararListe').getByText('Kitap 1', { exact:true }).waitFor();
   await page.waitForTimeout(100);
   if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-koordinator-yeni-mobil.png', fullPage:true });
