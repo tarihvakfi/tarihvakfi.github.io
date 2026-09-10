@@ -66,6 +66,7 @@ jobs:
             envanter-katalog-deneme.html \
             envanter-durum-deneme.html \
             envanter-manifest.json \
+            favicon.ico \
             sw.js \
           ; do
             if [ -f "$f" ]; then cp "$f" _site/; else echo "ATLANDI (depoda yok): $f"; fi
