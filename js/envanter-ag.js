@@ -1,10 +1,10 @@
 /* Shared transport for the library pages.
-   Reads use GET with a one-way password digest. This avoids the unreliable
-   ContentService POST redirect without putting the actual password in a URL.
-   Writes keep the password in a POST body and are sent exactly once. */
+   Reads use GET with a one-way password digest. Writes first obtain a short,
+   single-use ticket, then send the payload without putting the password in
+   the URL. Both paths use JSONP to avoid Apps Script's slow fetch redirect. */
 (function () {
   'use strict';
-  var reads = ['config','sayac','rafDurum','sonKayitlar','kayitBul','siraOzeti','sayimBilgisi','rafFotograflari','istenenler','onayBekleyen','onayGruplari','kararBekleyen','katalog','kutular','durum','siraHaritasi','siraHaritasiKisa','koordinatorBaslangic'];
+  var reads = ['config','yazmaBileti','istekSonucu','sayac','rafDurum','sonKayitlar','kayitBul','siraOzeti','sayimBilgisi','rafFotograflari','istenenler','onayBekleyen','onayGruplari','kararBekleyen','katalog','kutular','durum','siraHaritasi','siraHaritasiKisa','koordinatorBaslangic'];
   var configRequests = new Map();
   var digestCache = new Map();
 
@@ -25,18 +25,66 @@
       digestCache.set(password,digest);return digest;
     }).catch(function(){return null;});
   }
-  function ilkBasarili(promises) {
-    return new Promise(function(resolve,reject){var kalan=promises.length,son;
-      promises.forEach(function(p){Promise.resolve(p).then(resolve,function(e){son=e;if(--kalan===0)reject(son);});});
+  function jsonpOku(url,parametreler,timeout) {
+    return new Promise(function(resolve,reject) {
+      var bitti=false, script=document.createElement('script');
+      var callback='tvEnvCb_'+requestId().replace(/[^A-Za-z0-9_$]/g,'');
+      var endpoint=new URL(url,location.href);
+      Object.keys(parametreler||{}).forEach(function(k){endpoint.searchParams.set(k,parametreler[k]);});
+      endpoint.searchParams.set('callback',callback);
+      endpoint.searchParams.set('tv_req',Date.now().toString(36)+'_'+Math.random().toString(36).slice(2));
+      function temizle(){
+        if(bitti)return;bitti=true;clearTimeout(timer);script.remove();
+        try{delete window[callback];}catch(e){window[callback]=undefined;}
+      }
+      function hata(){temizle();var e=new Error('AĞ');e.code='NETWORK';reject(e);}
+      window[callback]=function(data){temizle();try{resolve(resultOrError(data));}catch(e){reject(e);}};
+      script.async=true;script.src=endpoint.href;script.onerror=hata;
+      var timer=setTimeout(hata,Math.max(1000,Number(timeout)||20000));
+      document.head.appendChild(script);
     });
   }
-  function gecikmeli(ms,islem) { return new Promise(function(r){setTimeout(r,ms);}).then(islem); }
-  function okumaYarisi(url,body,timeout) {
-    var sure=Math.min(Number(timeout)||25000,12000);
-    return ilkBasarili([
-      once(url,body,sure,true),
-      gecikmeli(180,function(){return once(url,body,sure,true);})
-    ]);
+  function appsScriptOku(url,body,timeout) {
+    var configOku=body.action==='config';
+    return (configOku?Promise.resolve(null):passwordDigest(body.sifre)).then(function(digest){
+      var parametreler={};
+      if(configOku)parametreler.action='config';
+      else {
+        var safeBody={};Object.keys(body).forEach(function(key){if(key!=='sifre')safeBody[key]=body[key];});
+        parametreler.tv_json=JSON.stringify(safeBody);parametreler.sifreOzeti=digest||'';
+      }
+      return jsonpOku(url,parametreler,Math.min(Number(timeout)||25000,20000));
+    });
+  }
+  function appsScriptYaz(url,body,timeout) {
+    var toplam=Math.max(30000,Number(timeout)||0), baslangic=Date.now(), id=requestId();
+    return appsScriptOku(url,{action:'yazmaBileti',sifre:body.sifre,yazmaEylemi:body.action},Math.min(12000,toplam))
+      .then(function(bilet){
+        if(!bilet||!bilet.bilet)throw new Error('İşlem bileti alınamadı.');
+        var yuk={};Object.keys(body).forEach(function(k){if(k!=='sifre')yuk[k]=body[k];});yuk._requestId=id;
+        var parametreler={tv_yaz:JSON.stringify(yuk),bilet:bilet.bilet};
+        function gonder(){
+          var kalan=toplam-(Date.now()-baslangic);
+          if(kalan<=0){var e=new Error('AĞ');e.code='NETWORK';return Promise.reject(e);}
+          return jsonpOku(url,parametreler,Math.min(15000,kalan));
+        }
+        function sonucuBekle(){
+          var kalan=toplam-(Date.now()-baslangic);
+          if(kalan<=0){var e=new Error('AĞ');e.code='NETWORK';return Promise.reject(e);}
+          return appsScriptOku(url,{action:'istekSonucu',sifre:body.sifre,_requestId:id},Math.min(10000,kalan))
+            .then(function(data){
+              if(!data||!data.bekliyor)return data;
+              return new Promise(function(r){setTimeout(r,700);}).then(sonucuBekle);
+            })
+            .catch(function(e){
+              if(e.code!=='NETWORK')throw e;
+              return new Promise(function(r){setTimeout(r,700);}).then(sonucuBekle);
+            });
+        }
+        /* Yazma isteği yalnızca bir kez gider. Yanıt ağı aşarsa aynı işlemi
+           yeniden göndermek yerine sunucudaki sonuç kaydı okunur. */
+        return gonder().catch(function(e){if(e.code!=='NETWORK')throw e;return sonucuBekle();});
+      });
   }
   function requestId() {
     if(window.crypto&&window.crypto.getRandomValues){var a=new Uint32Array(4);window.crypto.getRandomValues(a);return Array.from(a).map(function(x){return x.toString(36);}).join('_');}
@@ -45,31 +93,41 @@
   function formPostOnce(url,body,timeout) {
     var id=requestId(), payload=Object.assign({},body,{_requestId:id}), started=Date.now();
     var name='tv_envanter_post_'+id.replace(/[^A-Za-z0-9_]/g,''), frame=document.createElement('iframe'), form=document.createElement('form'), input=document.createElement('input');
+    var tamamlandi=false, toplam=Math.max(45000,Number(timeout)||0), sonrakiYoklama;
     frame.name=name;frame.hidden=true;frame.tabIndex=-1;frame.setAttribute('aria-hidden','true');frame.title='';
     form.hidden=true;form.method='POST';form.action=url;form.target=name;form.acceptCharset='utf-8';
     input.type='hidden';input.name='tv_json';input.value=JSON.stringify(payload);form.appendChild(input);
-    document.body.appendChild(frame);document.body.appendChild(form);form.submit();form.remove();
-    function cleanup(){setTimeout(function(){frame.remove();},1000);}
-    function sonucuOku(sure) {
-      function tek() {
-        var controller=new AbortController(), timer=setTimeout(function(){controller.abort();},sure);
-        var endpoint=new URL(url,location.href);endpoint.searchParams.set('sonuc',id);
-        endpoint.searchParams.set('tv_req',Date.now().toString(36)+'_'+Math.random().toString(36).slice(2));
-        return fetch(endpoint.href,{method:'GET',cache:'no-store',redirect:'follow',signal:controller.signal})
-          .then(function(r){return r.text();}).then(function(t){try{return JSON.parse(t);}catch(h){var e=new Error('AĞ');e.code='NETWORK';throw e;}})
-          .catch(function(){var e=new Error('AĞ');e.code='NETWORK';throw e;}).finally(function(){clearTimeout(timer);});
-      }
-      return ilkBasarili([tek(),gecikmeli(180,tek)]);
+    function cleanup(){
+      clearTimeout(sonrakiYoklama);window.removeEventListener('message',mesajAl);
+      setTimeout(function(){frame.remove();},1000);
+    }
+    function bitir(resolve,reject,data,hata){
+      if(tamamlandi)return;tamamlandi=true;cleanup();
+      if(hata){reject(hata);return;}
+      try{resolve(resultOrError(data));}catch(e){reject(e);}
+    }
+    var disResolve,disReject;
+    function mesajAl(e){
+      var d=e&&e.data;
+      if(!d||d.kaynak!=='tv-envanter'||d.id!==id)return;
+      bitir(disResolve,disReject,d.yanit);
     }
     function poll(){
-      var remaining=(timeout||30000)-(Date.now()-started);
-      if(remaining<=0){cleanup();var e=new Error('AĞ');e.code='NETWORK';return Promise.reject(e);}
-      return sonucuOku(Math.min(6000,remaining)).then(function(data){
-        if(data&&data.bekliyor)return new Promise(function(r){setTimeout(r,350);}).then(poll);
-        cleanup();return resultOrError(data);
-      });
+      if(tamamlandi)return;
+      var kalan=toplam-(Date.now()-started);
+      if(kalan<=0){var e=new Error('AĞ');e.code='NETWORK';bitir(disResolve,disReject,null,e);return;}
+      appsScriptOku(url,{action:'istekSonucu',sifre:body.sifre,_requestId:id},Math.min(10000,kalan))
+        .then(function(data){
+          if(data&&data.bekliyor){sonrakiYoklama=setTimeout(poll,900);return;}
+          bitir(disResolve,disReject,data);
+        })
+        .catch(function(){sonrakiYoklama=setTimeout(poll,900);});
     }
-    return new Promise(function(r){setTimeout(r,250);}).then(poll).catch(function(e){cleanup();throw e;});
+    return new Promise(function(resolve,reject){
+      disResolve=resolve;disReject=reject;window.addEventListener('message',mesajAl);
+      document.body.appendChild(frame);document.body.appendChild(form);form.submit();form.remove();
+      sonrakiYoklama=setTimeout(poll,4000);
+    });
   }
   function once(url, body, timeout, read) {
     var controller = new AbortController();
@@ -119,11 +177,10 @@
     var kalan=read?(options.retries==null?1:Math.max(0,Number(options.retries)||0)):0;
     function dene() {
       var istek=appsScriptUrl(url)
-        ? (read ? okumaYarisi(url,body,options.timeout) : formPostOnce(url,body,options.timeout))
+        ? (read ? appsScriptOku(url,body,options.timeout) : appsScriptYaz(url,body,options.timeout))
         : once(url,body,options.timeout,read);
       return istek.catch(function(e){
-        // Reads are side-effect free. A cold Apps Script redirect may fail once;
-        // retry it with a fresh URL. Writes still run exactly once here.
+        // Reads are side-effect free, so a geçici ağ hatasında yeniden denenebilir.
         if(read&&kalan>0&&(e.code==='SERVER_RESPONSE'||e.code==='NETWORK')){
           kalan--;
           return new Promise(function(t){setTimeout(t,700);}).then(dene);

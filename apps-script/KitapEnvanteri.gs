@@ -1530,9 +1530,73 @@ function istekSonucuCikti_(id) {
     : cikti_({ ok:true, bekliyor:true });
 }
 
+function istekSonucu_(id) {
+  id = String(id || '');
+  if (!/^[A-Za-z0-9_-]{20,80}$/.test(id)) return { ok:false, error:'İstek kimliği geçersiz.' };
+  var metin = CacheService.getScriptCache().get('envanter_istek_' + id);
+  if (!metin) return { ok:true, bekliyor:true };
+  try { return JSON.parse(metin); }
+  catch (h) { return { ok:false, error:'İşlem sonucu okunamadı.' }; }
+}
+
+/* Form POST yanıtını üst sayfaya doğrudan bildirir. Böylece Google'ın
+   ContentService yönlendirmesini yeniden okumaya gerek kalmaz. */
+function formMesajiCikti_(id, metin) {
+  var paket;
+  try { paket = { kaynak:'tv-envanter', id:id, yanit:JSON.parse(metin) }; }
+  catch (h) { paket = { kaynak:'tv-envanter', id:id, yanit:{ok:false, error:'İşlem sonucu okunamadı.'} }; }
+  var json = JSON.stringify(paket).replace(/</g, '\\u003c');
+  return HtmlService.createHtmlOutput('<!doctype html><meta charset="utf-8"><script>parent.postMessage(' +
+    json + ',"*");<\/script>');
+}
+
+function yazmaBileti_(eylem, koordinatorYetkisi) {
+  eylem = String(eylem || '');
+  if (YAZAN_EYLEMLER.indexOf(eylem) < 0) return { ok:false, error:'Yazma işlemi tanınmıyor.' };
+  var bilet = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '').slice(0, 8);
+  CacheService.getScriptCache().put('envanter_bilet_' + bilet,
+    JSON.stringify({ eylem:eylem, koordinator:!!koordinatorYetkisi }), 120);
+  return { ok:true, bilet:bilet };
+}
+
+function biletliYazCikti_(bilet, istek) {
+  bilet = String(bilet || '');
+  var id = String(istek && istek._requestId || '');
+  var sonucAnahtari = /^[A-Za-z0-9_-]{20,80}$/.test(id) ? 'envanter_istek_' + id : '';
+  var cache = CacheService.getScriptCache();
+  if (sonucAnahtari) {
+    var onceki = cache.get(sonucAnahtari);
+    if (onceki) return ContentService.createTextOutput(onceki).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (!/^[a-f0-9]{40}$/.test(bilet)) return cikti_({ok:false,error:'İşlem bileti geçersiz.'});
+  var biletMetni = cache.get('envanter_bilet_' + bilet);
+  if (!biletMetni) return cikti_({ok:false,error:'İşlem biletinin süresi doldu. Lütfen yeniden deneyin.'});
+  var bilgi;
+  try { bilgi = JSON.parse(biletMetni); }
+  catch (h) { return cikti_({ok:false,error:'İşlem bileti okunamadı.'}); }
+  if (!istek || String(istek.action || '') !== bilgi.eylem || YAZAN_EYLEMLER.indexOf(bilgi.eylem) < 0) {
+    return cikti_({ok:false,error:'İşlem bileti bu işlem için geçerli değil.'});
+  }
+  cache.remove('envanter_bilet_' + bilet);
+  istek.sifre = bilgi.koordinator
+    ? gizliAyar_('KOORDINATOR_SIFRESI', AYAR.KOORDINATOR_SIFRESI)
+    : gizliAyar_('CALISMA_SIFRESI', AYAR.CALISMA_SIFRESI);
+  var yanit = islet_(istek);
+  if (sonucAnahtari) {
+    try { cache.put(sonucAnahtari, yanit.getContent(), 300); } catch (h2) {}
+  }
+  return yanit;
+}
+
 function doGet(e) {
   if (e && e.parameter) {
     if (e.parameter.sonuc) return jsonpCikti_(e.parameter.callback, istekSonucuCikti_(e.parameter.sonuc));
+    if (e.parameter.tv_yaz) {
+      var yazmaIstegi;
+      try { yazmaIstegi = JSON.parse(e.parameter.tv_yaz); }
+      catch (h0) { return jsonpCikti_(e.parameter.callback, cikti_({ok:false,error:'İstek okunamadı.'})); }
+      return jsonpCikti_(e.parameter.callback, biletliYazCikti_(e.parameter.bilet, yazmaIstegi));
+    }
     var istek = e.parameter;
     if (e.parameter.tv_json) {
       try { istek = JSON.parse(e.parameter.tv_json); }
@@ -1557,14 +1621,14 @@ function doPost(e) {
   var anahtar = /^[A-Za-z0-9_-]{20,80}$/.test(id) ? 'envanter_istek_' + id : '';
   if (anahtar) {
     var onceki = CacheService.getScriptCache().get(anahtar);
-    if (onceki) return ContentService.createTextOutput(onceki).setMimeType(ContentService.MimeType.JSON);
+    if (onceki) return formMesajiCikti_(id, onceki);
   }
   var yanit = islet_(istek);
   if (anahtar) {
     try { CacheService.getScriptCache().put(anahtar, yanit.getContent(), 300); }
     catch (h2) {}
   }
-  return yanit;
+  return anahtar ? formMesajiCikti_(id, yanit.getContent()) : yanit;
 }
 
 // Yalnızca koordinatörün açabileceği işlemler
@@ -1640,6 +1704,8 @@ function islet_(istek) {
     var sonuc;
     switch (istek.action) {
       case 'ekle':        sonuc = ekle_(istek.kayit || {}); break;
+      case 'yazmaBileti': sonuc = yazmaBileti_(istek.yazmaEylemi, koordinatorYetkisi); break;
+      case 'istekSonucu': sonuc = istekSonucu_(istek._requestId); break;
       case 'sonKayitlar': sonuc = sonKayitlar_(istek.kaydeden); break;
       case 'kayitBul':    sonuc = kayitBul_(istek); break;
       case 'guncelle':    sonuc = guncelle_(istek.no, istek.kayit || {}); break;
