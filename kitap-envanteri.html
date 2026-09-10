@@ -3151,12 +3151,17 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     $('kuyrukMetin').innerHTML = parca.join(' ve ') + boyut + ' gönderilmeyi bekliyor.' + uyari;
   }
   var kuyrukMesgul = false;              // iki tur üst üste binip aynı kaydı iki kez göndermesin
+  var kuyrukGonderim = null;             // aynı anda basılan “Tekrar dene” mevcut turu beklesin
 
   function kuyruguGonder() {
-    if (kuyrukMesgul) return Promise.resolve();
+    if (kuyrukMesgul) return kuyrukGonderim || Promise.resolve();
     kuyrukMesgul = true;
-    return kuyrukTuru()['catch'](function () {})
-      .then(function () { kuyrukMesgul = false; });
+    kuyrukGonderim = kuyrukTuru()['catch'](function () {})
+      .then(function () {
+        kuyrukMesgul = false;
+        kuyrukGonderim = null;
+      });
+    return kuyrukGonderim;
   }
 
   function kuyrukTuru() {

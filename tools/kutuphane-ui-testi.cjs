@@ -16,6 +16,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   let shelfSummaryAttempts = 0;
   let coordinatorCatalogAttempts = 0;
   let staleShelfDecisionReads = 0;
+  let volunteerAddAttempts = 0;
   let countRecord = null;
   let nextBookNo = 36;
   page.on('pageerror', error => errors.push(error.message));
@@ -53,6 +54,14 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
     if (body.action === 'siraBirak' && ++shelfReleaseAttempts === 1) {
       await route.fulfill({ contentType:'text/html', body:'<html>geçici yönlendirme</html>' });
       return;
+    }
+    if (body.action === 'ekle' && body.kayit && body.kayit.baslik === 'Yeni Deneme Kitabı') {
+      volunteerAddAttempts++;
+      if (volunteerAddAttempts === 1) {
+        await route.abort('failed');
+        return;
+      }
+      if (volunteerAddAttempts === 2) await new Promise(resolve => setTimeout(resolve, 800));
     }
     if (body.action === 'katalog' && !request.frame().url().includes('kitap-envanteri.html') &&
         body.sifre === 'test-only') {
@@ -412,7 +421,15 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await page.locator('#btnAyrinti').click();
   await page.locator('#baslik').fill('Yeni Deneme Kitabı');
   await page.locator('#btnKaydet').click();
-  await page.getByText(/G-A01-036.*kaydedildi/).waitFor();
+  await page.getByText(/G-A01-036.*telefona kaydedildi/).waitFor();
+  await page.waitForFunction(() => document.querySelector('#kuyruk').classList.contains('gor'));
+  await page.evaluate(() => dispatchEvent(new Event('online')));
+  await page.waitForTimeout(50);
+  await page.locator('#btnKuyruk').click();
+  await page.getByText('Bekleyen kayıtlar gönderildi.', { exact:true }).waitFor();
+  assert.equal(await page.locator('#kuyruk').isHidden(), true,
+    'Kuyruk gönderilmeden başarı mesajı gösterildi veya kuyruk uyarısı ekranda kaldı');
+  assert.equal(volunteerAddAttempts, 2, 'Bekleyen kayıt tek bir yeniden gönderimle sunucuya ulaşmadı');
   await page.locator('#bulNo').fill('36');
   await page.locator('#btnBul').click();
   await page.locator('#duzenleUyari:not(.gizli)').waitFor();
