@@ -117,6 +117,8 @@ main { width: min(100% - 36px, 1240px); margin: 0 auto; padding: 38px 0 80px; }
 .kitap-gorseller { align-self: start; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; height: 300px; padding: 14px; background: #eee8e3; }
 .kitap-foto { position: relative; display: block; min-width: 0; overflow: hidden; border: 1px solid rgba(92,71,79,.12); border-radius: 10px; background: #f5f1ee; color: var(--soluk); }
 .kitap-foto img { display: block; width: 100%; height: 100%; object-fit: contain; background: #f5f1ee; }
+.kitap-gorseller .kitap-foto img,
+.kayit-fotolar .kitap-foto img { object-fit: cover; object-position: center top; }
 .kitap-foto span { position: absolute; right: 7px; bottom: 7px; left: 7px; padding: 5px; border-radius: 7px; background: rgba(27,19,23,.76); color: #fff; font-size: 11px; font-weight: 700; text-align: center; }
 .kitap-foto.yok { display: grid; place-items: center; padding: 10px; font-size: 13px; text-align: center; }
 .kitap-bilgi { display: flex; flex-direction: column; padding: 18px 22px; }

@@ -440,7 +440,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
     width:img.getBoundingClientRect().width,
     height:img.getBoundingClientRect().height
   }));
-  assert.equal(desktopPhoto.objectFit, 'contain');
+  assert.equal(desktopPhoto.objectFit, 'cover');
   assert.ok(desktopPhoto.width >= 160 && desktopPhoto.width <= 195 && desktopPhoto.height >= 260 && desktopPhoto.height <= 280,
     'Geniş ekran fotoğraf önizlemesi beklenen ölçüde değil: ' + JSON.stringify(desktopPhoto));
   const nestedDesktopScrollers = await page.evaluate(() => [...document.querySelectorAll('body *')].filter(el => {
@@ -453,6 +453,8 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await page.getByRole('button', { name:/Kitap Seçimi/ }).click();
   await page.getByRole('button', { name:'Karar bekleyenler', exact:true }).click();
   await page.locator('#kararListe').getByText('Kitap 1', { exact:true }).waitFor();
+  assert.equal(await page.locator('#kararListe .kitap-foto img').first().evaluate(el => getComputedStyle(el).objectFit), 'cover',
+    'Mobil kitap fotoğrafı kutuyu doldurmuyor; ince şerit olarak görünüyor');
   for (const menu of ['Kitap Seçimi','Kitap Kayıtları','Raflar ve Kitaplar','Genel Durum']) {
     const item = page.getByRole('button', { name:new RegExp(menu) });
     await item.waitFor();
