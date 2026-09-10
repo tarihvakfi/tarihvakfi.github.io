@@ -678,6 +678,11 @@
         D.kararlar = k.kayitlar || [];
         D.kararToplam = Number(k.toplam || 0);
         D.durum = r.durum || null;
+        if (r.rafOzeti && Array.isArray(r.rafOzeti.siralar)) {
+          D.raflar = r.rafOzeti.siralar;
+          D.raflarYuklendi = true; D.rafHaritasiTam = true;
+          D.rafOzetiVar = true; D.rafOzetiHata = false;
+        }
         mesaj($('kararMsg'), '', '');
         kararListeCiz(); sayaclariCiz();
       }).catch(function (e) {

@@ -1432,7 +1432,7 @@ function siraHaritasi_() {
    Script soğuk açılışını hem de E-Tablo taramasını bir kereye indirir.
    30 saniyelik önbellek art arda açılan sekmeleri hızlandırır; yazan her
    işlem başarılı olduğunda aşağıda temizlenir. */
-var KOORDINATOR_BASLANGIC_CACHE = 'koordinator_baslangic_v1';
+var KOORDINATOR_BASLANGIC_CACHE = 'koordinator_baslangic_v2';
 var RAF_HARITASI_KISA_CACHE = 'raf_haritasi_kisa_v1';
 function koordinatorOnbellekTemizle_() {
   try { CacheService.getScriptCache().removeAll([KOORDINATOR_BASLANGIC_CACHE, RAF_HARITASI_KISA_CACHE]); }
@@ -1451,10 +1451,13 @@ function koordinatorBaslangic_(g) {
     yalnizOnayli: true, yalnizKararsiz: true,
     sirala: 'yer', bas: 0, adet: Math.min(Math.max(Number(g.adet) || 20, 1), 60)
   });
-  var paket = { ok: true, kararlar: kararlar, durum: durum_() };
+  /* Raf özeti de aynı çalışmada hazırlanır. Envanter satırları bu istek
+     boyunca bellekte olduğundan ikinci kez E-Tablo okunmaz; kullanıcı Raflar
+     sekmesine geçtiğinde 396 sırayı yeniden beklemez. */
+  var paket = { ok: true, kararlar: kararlar, durum: durum_(), rafOzeti: siraHaritasiKisa_() };
   try {
     var metin = JSON.stringify(paket);
-    if (metin.length < 95000) CacheService.getScriptCache().put(KOORDINATOR_BASLANGIC_CACHE, metin, 30);
+    if (metin.length < 95000) CacheService.getScriptCache().put(KOORDINATOR_BASLANGIC_CACHE, metin, 300);
   } catch (h2) {}
   return paket;
 }
@@ -1494,7 +1497,7 @@ function siraHaritasiKisa_() {
   };
   try {
     var metin = JSON.stringify(paket);
-    if (metin.length < 95000) CacheService.getScriptCache().put(RAF_HARITASI_KISA_CACHE, metin, 30);
+    if (metin.length < 95000) CacheService.getScriptCache().put(RAF_HARITASI_KISA_CACHE, metin, 300);
   } catch (h2) {}
   return paket;
 }
