@@ -54,4 +54,12 @@ const deduplicated = context.kararGorusleriOku_(JSON.stringify([
 assert.equal(deduplicated.length, 1);
 assert.equal(deduplicated[0].kategori, 'gitmeyecek');
 
-console.log('PASS: 30 gün, ikinci görüş, görüş ayrılığı, uzlaşma ve aynı kişi denetimi.');
+const removed = context.kararGorusuKaldir_([
+  { kategori:'gidecek', veren:'A Kişisi' },
+  { kategori:'gitmeyecek', veren:'B Kişisi' }
+], ' a  kişisi ');
+assert.equal(removed.kaldirilan.kategori, 'gidecek');
+assert.equal(removed.kalan.length, 1);
+assert.equal(removed.kalan[0].veren, 'B Kişisi');
+
+console.log('PASS: 30 gün, ikinci görüş, görüş ayrılığı, uzlaşma, aynı kişi ve görüş geri alma denetimi.');

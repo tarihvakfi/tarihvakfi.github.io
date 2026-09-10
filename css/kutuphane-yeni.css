@@ -143,6 +143,7 @@ main { width: min(100% - 36px, 1240px); margin: 0 auto; padding: 38px 0 80px; }
 .gorus-ozeti.ayrilik > span { border-top-color: rgba(160,106,18,.2); }
 .gorus-ozeti span small { display: block; margin-top: 3px; font-weight: 400; }
 .gorus-ozeti > small { margin-top: 2px; line-height: 1.4; }
+.gorus-ozeti .gorus-geri-al { justify-self: start; margin-top: 5px; background: rgba(255,255,255,.75); }
 .geri-al { align-self: flex-start; margin-top: 14px; padding: 10px 14px; border: 1.5px solid var(--cizgi); border-radius: 10px; background: #fff; color: var(--bordo); font-weight: 750; }
 .karar-gecmisi { margin-top: 12px; color: var(--soluk); font-size: 14px; }
 .karar-gecmisi pre { overflow: auto; padding: 10px; border-radius: 8px; background: #f5f0ec; white-space: pre-wrap; font: 12px/1.45 ui-monospace, monospace; }

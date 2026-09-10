@@ -17,7 +17,7 @@
   var kararSinif = { 'Gidecek':'g', 'Gitse de olur':'s', 'Gitmeyecek':'k', 'Belirsiz':'m' };
   var bildirimZamani, sistemHazirlikNo = 0, sistemKapatmaZamani, sistemSerbestBirakmaZamani;
   var BASLANGIC_ONBELLEGI = 'tv_koord_baslangic_v4';
-  var yazanEylemler = ['kararVer','kararGeriAl','sayimKaydet','sayimOnayla','sayimGeriAl','siraSec','siraBirak','siraBitir','kitapIste','onayla','topluOnayla','kunyeErtele','kutula'];
+  var yazanEylemler = ['kararVer','kararGorusGeriAl','kararGeriAl','sayimKaydet','sayimOnayla','sayimGeriAl','siraSec','siraBirak','siraBitir','kitapIste','onayla','topluOnayla','kunyeErtele','kutula'];
 
   function esc(v) {
     return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
@@ -172,17 +172,23 @@
     return isNaN(d.getTime()) ? String(v || '') : d.toLocaleDateString('tr-TR');
   }
 
-  function gorusOzeti(k) {
+  function gorusOzeti(k, geriAlGoster) {
     var liste = Array.isArray(k.kararGorusleri) ? k.kararGorusleri : [];
     if (!liste.length) return '';
     var ayrilik = k.kararDurumu === 'gorus_ayriligi';
+    var benim = liste.some(function (g) { return kararVerenAnahtari(g.veren) === kararVerenAnahtari(D.ad); });
     return '<div class="gorus-ozeti ' + (ayrilik ? 'ayrilik' : '') + '"><strong>' +
       (ayrilik ? 'Görüş ayrılığı var' : 'İkinci görüş bekleniyor') + '</strong>' +
       liste.map(function (g) {
         return '<span><b>' + esc(kararKod[g.kategori] || g.kategoriAdi || g.kategori) + '</b> · ' +
           esc(g.veren || '—') + (g.tarih ? ' · ' + esc(gorusTarihi(g.tarih)) : '') +
           (g.not ? '<small>' + esc(g.not) + '</small>' : '') + '</span>';
-      }).join('') + '<small>İki farklı yetkili aynı görüşü seçtiğinde karar kesinleşir. Tek görüş 30 gün sonra geçerli sayılır.</small></div>';
+      }).join('') + '<small>İki farklı yetkili aynı görüşü seçtiğinde karar kesinleşir. Tek görüş 30 gün sonra geçerli sayılır.</small>' +
+      (benim && geriAlGoster ? '<button type="button" class="geri-al gorus-geri-al" data-gorus-geri-al>Görüşümü geri al</button>' : '') + '</div>';
+  }
+
+  function kararVerenAnahtari(ad) {
+    return String(ad || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('tr');
   }
 
   function sifreHatasi(e) {
@@ -228,7 +234,7 @@
     var gecmis = k.kararGecmisi ? '<details class="karar-gecmisi"><summary>Karar geçmişi</summary><pre>' + esc(k.kararGecmisi) + '</pre></details>' : '';
     var kararAlan = '';
     if (D.gorunum === 'bekleyen') {
-      kararAlan = gorusOzeti(k) + '<div class="karar-alani"><label>Görüşünüz nedir?</label><div class="karar-dugmeleri">' +
+      kararAlan = gorusOzeti(k, true) + '<div class="karar-alani"><label>Görüşünüz nedir?</label><div class="karar-dugmeleri">' +
         '<button type="button" class="g" data-karar="gidecek">Gitsin</button>' +
         '<button type="button" class="s" data-karar="belki">Gitse de olur</button>' +
         '<button type="button" class="k" data-karar="gitmeyecek">Gitmesin</button>' +
@@ -392,11 +398,40 @@
     });
   }
 
+  function kararGorusGeriAl(kart, dugme) {
+    var no = Number(kart.dataset.no), kayit = D.kararlar.find(function (k) { return Number(k.no) === no; });
+    mesgul(dugme, true, 'Geri alınıyor…');
+    kart.querySelectorAll('button').forEach(function (b) { if (b !== dugme) b.disabled = true; });
+    api('kararGorusGeriAl', { numaralar:[no], veren:D.ad }).then(function (r) {
+      if (!(r.yazilan || []).length) throw new Error((r.atlanan && r.atlanan[0] && r.atlanan[0].neden) || 'Görüş geri alınamadı.');
+      gorusSayaciniDegistir(kayit && kayit.kararDurumu, r.kararDurumu);
+      var guncel = Object.assign({}, kayit || { no:no }, {
+        kategori:'', kararVeren:'', kararTarihi:'', kararDurumu:r.kararDurumu,
+        kararGorusleri:r.gorusler || []
+      });
+      kararKaydiniYereldeTut(guncel, '', '', '', { kararDurumu:r.kararDurumu, kararGorusleri:r.gorusler || [] });
+      D.kararlar = D.kararlar.map(function (k) { return Number(k.no) === no ? guncel : k; });
+      kararListeCiz();
+      var yeniKart = $('kararListe').querySelector('[data-no="' + no + '"]');
+      if (yeniKart) mesaj(yeniKart.querySelector('.kart-mesaj'), 'iyi', 'Görüşünüz geri alındı. Kitap yeniden görüş bekliyor.');
+      bildir('Görüşünüz geri alındı');
+      durumYukle(true).catch(function () {});
+    }).catch(function (e) {
+      if (!sifreHatasi(e)) {
+        mesgul(dugme, false);
+        kart.querySelectorAll('button').forEach(function (b) { b.disabled = false; });
+        mesaj(kart.querySelector('.kart-mesaj'), 'hata', e.message === 'AĞ' ? 'Sunucu yanıt vermedi. Bilgileri yenileyerek görüş durumunu kontrol edin.' : e.message);
+      }
+    });
+  }
+
   $('kararListe').addEventListener('click', function (e) {
     var kart = e.target.closest('.kitap-karti');
     if (!kart) return;
     var k = e.target.closest('[data-karar]');
     if (k) { kararVer(kart, k.dataset.karar, k); return; }
+    var gg = e.target.closest('[data-gorus-geri-al]');
+    if (gg) { kararGorusGeriAl(kart, gg); return; }
     var g = e.target.closest('[data-geri-al]');
     if (g) kararGeriAl(kart, g);
   });
@@ -630,7 +665,7 @@
     var k = D.rafKitaplar.find(function (x) { return Number(x.no) === no; });
     if (!k) return;
     var kapak = foto(k.kapakId, k.kapak, 1800), kunye = foto(k.fotoId, k.foto, 1800);
-    $('detayIcerik').innerHTML = '<div class="detay-govde"><p class="yer-kodu">' + esc(k.yer || ('#' + k.no)) + '</p><h2>' + esc(k.baslik || 'Kitap bilgisi henüz tamamlanmamış') + '</h2><p class="kitap-alt">' + esc([k.yazar, k.yil, Number(k.nusha) > 1 ? k.nusha + ' nüsha' : ''].filter(Boolean).join(' · ') || 'Yazar ve yıl bilgisi yok') + '</p>' + kararRozeti(k.kategori, k.onay ? 'Karar bekliyor' : 'Bilgi kontrolü bekliyor', k.kararDurumu) + (!kararEtiket[k.kategori] ? gorusOzeti(k) : '') + (kararEtiket[k.kategori] ? '<div class="karar-meta"><strong>' + esc(kararEtiket[k.kategori]) + '</strong><span>Kararı veren: ' + esc(k.kararVeren || 'Eski kayıtta yazılmamış') + (k.kararTarihi ? ' · ' + esc(k.kararTarihi) : '') + (k.kararDurumu === 'tek_gorusle_gecerli' ? ' · 30 gün sonunda tek görüşle geçerli' : '') + '</span></div>' : '') + (k.not ? '<p class="kitap-not">' + esc(k.not) + '</p>' : '') + '<div class="detay-fotolar">' + (kapak ? '<button type="button" data-tv-foto="' + esc(kapak) + '" data-tv-foto-ad="Kapak"><img src="' + esc(foto(k.kapakId, k.kapak, 700)) + '" alt="Kapak fotoğrafı"></button>' : '<div class="kitap-foto yok">Kapak fotoğrafı yok</div>') + (kunye ? '<button type="button" data-tv-foto="' + esc(kunye) + '" data-tv-foto-ad="Künye"><img src="' + esc(foto(k.fotoId, k.foto, 700)) + '" alt="Künye fotoğrafı"></button>' : '<div class="kitap-foto yok">Künye fotoğrafı yok</div>') + '</div>' + (k.kararGecmisi ? '<details class="karar-gecmisi"><summary>Karar geçmişi</summary><pre>' + esc(k.kararGecmisi) + '</pre></details>' : '') + '</div>';
+    $('detayIcerik').innerHTML = '<div class="detay-govde"><p class="yer-kodu">' + esc(k.yer || ('#' + k.no)) + '</p><h2>' + esc(k.baslik || 'Kitap bilgisi henüz tamamlanmamış') + '</h2><p class="kitap-alt">' + esc([k.yazar, k.yil, Number(k.nusha) > 1 ? k.nusha + ' nüsha' : ''].filter(Boolean).join(' · ') || 'Yazar ve yıl bilgisi yok') + '</p>' + kararRozeti(k.kategori, k.onay ? 'Karar bekliyor' : 'Bilgi kontrolü bekliyor', k.kararDurumu) + (!kararEtiket[k.kategori] ? gorusOzeti(k, false) : '') + (kararEtiket[k.kategori] ? '<div class="karar-meta"><strong>' + esc(kararEtiket[k.kategori]) + '</strong><span>Kararı veren: ' + esc(k.kararVeren || 'Eski kayıtta yazılmamış') + (k.kararTarihi ? ' · ' + esc(k.kararTarihi) : '') + (k.kararDurumu === 'tek_gorusle_gecerli' ? ' · 30 gün sonunda tek görüşle geçerli' : '') + '</span></div>' : '') + (k.not ? '<p class="kitap-not">' + esc(k.not) + '</p>' : '') + '<div class="detay-fotolar">' + (kapak ? '<button type="button" data-tv-foto="' + esc(kapak) + '" data-tv-foto-ad="Kapak"><img src="' + esc(foto(k.kapakId, k.kapak, 700)) + '" alt="Kapak fotoğrafı"></button>' : '<div class="kitap-foto yok">Kapak fotoğrafı yok</div>') + (kunye ? '<button type="button" data-tv-foto="' + esc(kunye) + '" data-tv-foto-ad="Künye"><img src="' + esc(foto(k.fotoId, k.foto, 700)) + '" alt="Künye fotoğrafı"></button>' : '<div class="kitap-foto yok">Künye fotoğrafı yok</div>') + '</div>' + (k.kararGecmisi ? '<details class="karar-gecmisi"><summary>Karar geçmişi</summary><pre>' + esc(k.kararGecmisi) + '</pre></details>' : '') + '</div>';
     $('kitapDetay').showModal();
   }
 

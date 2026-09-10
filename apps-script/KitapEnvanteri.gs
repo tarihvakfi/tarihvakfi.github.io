@@ -1506,7 +1506,7 @@ function siraHaritasiKisa_() {
 
 // Bağlantıya (GET) tıklanarak çalıştırılamayacak işlemler: bir bağlantı
 // önizlemesi ya da yanlışlıkla paylaşılan adres kayıt silmemeli.
-var YAZAN_EYLEMLER = ['ekle', 'guncelle', 'sil', 'fotoEkle', 'onayla', 'topluOnayla', 'kararVer', 'kararGeriAl', 'kunyeErtele',
+var YAZAN_EYLEMLER = ['ekle', 'guncelle', 'sil', 'fotoEkle', 'onayla', 'topluOnayla', 'kararVer', 'kararGorusGeriAl', 'kararGeriAl', 'kunyeErtele',
                       'kutula', 'siraBitir', 'siraOner', 'siraSec', 'kitapIste', 'sayimKaydet', 'siraBirak',
                       'sayimOnayla', 'sayimGeriAl', 'fotoBagla', 'iletisimGonder'];
 
@@ -1769,6 +1769,7 @@ function islet_(istek) {
       case 'onayGruplari':sonuc = onayGruplari_(istek.adet); break;
       case 'kararBekleyen':sonuc = kararBekleyen_(istek.adet); break;
       case 'kararVer':    sonuc = kararVer_(istek); break;
+      case 'kararGorusGeriAl': sonuc = kararGorusGeriAl_(istek); break;
       case 'kararGeriAl': sonuc = kararGeriAl_(istek); break;
       case 'topluOnayla': sonuc = topluOnayla_(istek); break;
       case 'kutula':      sonuc = kutula_(istek); break;
@@ -2865,6 +2866,16 @@ function kararGorusleriYaz_(gorusler) {
   }));
 }
 
+function kararGorusuKaldir_(gorusler, veren) {
+  var anahtar = kararVerenAnahtari_(veren), kaldirilan = null;
+  var kalan = (gorusler || []).filter(function (x) {
+    if (kararVerenAnahtari_(x.veren) !== anahtar) return true;
+    kaldirilan = x;
+    return false;
+  });
+  return { kalan:kalan, kaldirilan:kaldirilan };
+}
+
 function kararDurumuSatirdan_(s, simdi) {
   var kategori = String(s[S.kategori - 1] || '').trim();
   if (kararVerilmis_(kategori)) {
@@ -3042,6 +3053,56 @@ function kararVer_(g) {
              gorusler: ilk ? ilk.gorusler : [], kategori: ilk && ilk.kesinlesti ? kategoriAdi : '',
              kural: kural, kararVeren: veren, kararTarihi: tarihMetni_(simdi),
              tekGorusGun: KARAR_TEK_GORUS_GUN };
+  } finally {
+    kilit.releaseLock();
+  }
+}
+
+/**
+ * Henüz kesinleşmemiş bir kitaptan yalnızca isteği yapan kişinin görüşünü
+ * kaldırır. Diğer yetkililerin görüşleri korunur. Böylece bir yetkili deneme
+ * yapabilir veya yanlış dokunduğu seçimi tamamen geri alabilir.
+ */
+function kararGorusGeriAl_(g) {
+  var numaralar = (g.numaralar || (g.no ? [g.no] : [])).map(Number).filter(Boolean);
+  if (!numaralar.length) return { ok:false, error:'Geri alınacak görüş seçilmedi.' };
+  if (numaralar.length > 400) return { ok:false, error:'Tek seferde en fazla 400 kayıt.' };
+
+  var veren = String(g.veren || g.onaylayan || '').trim().replace(/\s+/g, ' ').slice(0, 80);
+  if (veren.length < 2) return { ok:false, error:'Görüşü geri alan kişinin adı yazılmalı.' };
+  var kilit = LockService.getScriptLock();
+  kilit.waitLock(20000);
+  try {
+    var sayfa = sayfaAl_('Envanter');
+    var yazilan = [], atlanan = [], ilkGorusler = [], ilkDurum = 'gorus_bekliyor';
+    var simdi = new Date();
+    numaralar.forEach(function (no) {
+      var bulunan = satirBul_(no);
+      if (!bulunan || bulunan.silindi) { atlanan.push({ no:no, neden:'bulunamadı' }); return; }
+      var st = sayfa.getRange(bulunan.satir, 1, 1, SUTUNLAR.length).getValues()[0];
+      if (!String(st[S.onay - 1] || '')) { atlanan.push({ no:no, neden:'künyesi onaylanmamış' }); return; }
+      var mevcutDurum = kararDurumuSatirdan_(st, simdi);
+      if (mevcutDurum.kesin) { atlanan.push({ no:no, neden:'karar kesinleşmiş; karar bekleyenlere geri alınmalı' }); return; }
+
+      var gorusler = kararGorusleriOku_(st[S.kararGorusleri - 1]);
+      var ayikla = kararGorusuKaldir_(gorusler, veren);
+      var kaldirilan = ayikla.kaldirilan, kalan = ayikla.kalan;
+      if (!kaldirilan) { atlanan.push({ no:no, neden:'bu kitapta size ait görüş bulunamadı' }); return; }
+
+      sayfa.getRange(bulunan.satir, S.kategori).setValue(SINIFLANDIRILMADI);
+      sayfa.getRange(bulunan.satir, S.kural).setValue('');
+      sayfa.getRange(bulunan.satir, S.kararVeren, 1, 2).setValues([['', '']]);
+      sayfa.getRange(bulunan.satir, S.kararGorusleri).setValue(kalan.length ? kararGorusleriYaz_(kalan) : '');
+      var gecmisSatirlari = String(st[S.kararGecmisi - 1] || '').split('\n').map(function (x) { return String(x || '').trim(); }).filter(Boolean);
+      gecmisSatirlari.push(tarihMetni_(simdi) + ' · ' + veren + ' · Görüş geri alındı: ' + (kaldirilan.kategoriAdi || kaldirilan.kategori));
+      sayfa.getRange(bulunan.satir, S.kararGecmisi).setValue(gecmisSatirlari.slice(-20).join('\n'));
+
+      var yeniDurum = kararDurumuSatirdan_(sayfa.getRange(bulunan.satir, 1, 1, SUTUNLAR.length).getValues()[0], simdi);
+      yazilan.push(no);
+      if (yazilan.length === 1) { ilkGorusler = kalan; ilkDurum = yeniDurum.durum; }
+    });
+    return { ok:true, yazilan:yazilan, atlanan:atlanan, gorusler:ilkGorusler,
+      kararDurumu:ilkDurum, kararVeren:veren, kararTarihi:tarihMetni_(simdi) };
   } finally {
     kilit.releaseLock();
   }
