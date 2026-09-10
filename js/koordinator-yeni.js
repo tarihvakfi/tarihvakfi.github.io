@@ -16,6 +16,8 @@
   var kararKod = { gidecek:'Gitsin', belki:'Gitse de olur', gitmeyecek:'Gitmesin', belirsiz:'Belirsiz' };
   var kararSinif = { 'Gidecek':'g', 'Gitse de olur':'s', 'Gitmeyecek':'k', 'Belirsiz':'m' };
   var bildirimZamani, sistemHazirlikNo = 0, sistemKapatmaZamani, sistemSerbestBirakmaZamani;
+  var BASLANGIC_ONBELLEGI = 'tv_koord_baslangic_v3';
+  var yazanEylemler = ['kararVer','kararGeriAl','sayimKaydet','sayimOnayla','sayimGeriAl','siraSec','siraBirak','siraBitir','kitapIste','onayla','topluOnayla','kunyeErtele','kutula'];
 
   function esc(v) {
     return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
@@ -43,6 +45,7 @@
           e.sifreHatasi = !!(r && r.sifreHatasi);
           throw e;
         }
+        if (yazanEylemler.indexOf(action) >= 0) try { localStorage.removeItem(BASLANGIC_ONBELLEGI); } catch (h) {}
         return r;
       });
   }
@@ -671,21 +674,37 @@
   }
 
   function baslangicVerileriniYukle(zorla) {
+    function uygula(r) {
+      var k = r.kararlar || {};
+      D.kararlar = k.kayitlar || [];
+      D.kararToplam = Number(k.toplam || 0);
+      D.durum = r.durum || null;
+      if (r.rafOzeti && Array.isArray(r.rafOzeti.siralar)) {
+        D.raflar = r.rafOzeti.siralar;
+        D.raflarYuklendi = true; D.rafHaritasiTam = true;
+        D.rafOzetiVar = true; D.rafOzetiHata = false;
+      }
+      mesaj($('kararMsg'), '', '');
+      kararListeCiz(); sayaclariCiz();
+    }
+    function sakla(r) { try { localStorage.setItem(BASLANGIC_ONBELLEGI, JSON.stringify({ zaman:Date.now(), veri:r })); } catch (h) {} }
+    function sunucudan() {
+      return api('koordinatorBaslangic', { adet:D.kararAdet, zorla:!!zorla }, 30000).then(function (r) { uygula(r); sakla(r); });
+    }
     mesaj($('kararMsg'), '', 'Kitaplar ve güncel sayılar birlikte yükleniyor…');
-    return api('koordinatorBaslangic', { adet:D.kararAdet, zorla:!!zorla }, 50000)
-      .then(function (r) {
-        var k = r.kararlar || {};
-        D.kararlar = k.kayitlar || [];
-        D.kararToplam = Number(k.toplam || 0);
-        D.durum = r.durum || null;
-        if (r.rafOzeti && Array.isArray(r.rafOzeti.siralar)) {
-          D.raflar = r.rafOzeti.siralar;
-          D.raflarYuklendi = true; D.rafHaritasiTam = true;
-          D.rafOzetiVar = true; D.rafOzetiHata = false;
+    if (!zorla) {
+      try {
+        var sakli = JSON.parse(localStorage.getItem(BASLANGIC_ONBELLEGI) || 'null');
+        if (sakli && sakli.veri && Date.now() - Number(sakli.zaman || 0) < 1800000) {
+          uygula(sakli.veri);
+          /* Kullanıcı beklemeden çalışabilir; taze yanıt gelince aynı ekran
+             sessizce güncellenir. Çakışan kararları sunucu zaten reddeder. */
+          sunucudan().catch(function () { mesaj($('kararMsg'), '', 'Son alınan bilgiler gösteriliyor; güncelleme gecikti.'); });
+          return Promise.resolve();
         }
-        mesaj($('kararMsg'), '', '');
-        kararListeCiz(); sayaclariCiz();
-      }).catch(function (e) {
+      } catch (h2) {}
+    }
+    return sunucudan().catch(function (e) {
         if (sifreHatasi(e)) throw e;
         /* Sayfa, Apps Script yeni sürümü dağıtılmadan önce de çalışsın. Eski
            sunucu yeni paketi tanımıyorsa önceki iki çağrılı akışa düşer. */
