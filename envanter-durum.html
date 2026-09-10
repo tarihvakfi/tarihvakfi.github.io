@@ -456,10 +456,10 @@
   </section>
 </div>
 
-<script src="./js/envanter-ag.js?v=20260910s"></script>
-<script src="./js/gonullu-config.js?v=20260910s"></script>
+<script src="./js/envanter-ag.js?v=20260910v"></script>
+<script src="./js/gonullu-config.js?v=20260910v"></script>
 <script>
-var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPISTIRIN';
+var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_SUPABASE_EDGE_FUNCTION_ADRESINI_YAZIN';
 
 (function () {
   'use strict';
@@ -479,9 +479,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     else { b.innerHTML = b.dataset.eski || b.innerHTML; b.disabled = false; }
   }
 
-  /* Apps Script uykudan kalkarken ilk istek 20–30 saniye sürebiliyor; zayıf bağlantıda
-     istek büsbütün düşebiliyor. Okuma istekleri otomatik tekrar denenir, yazma istekleri
-     (onayla) denenmez — aynı kayıt iki kez işlenmesin. */
+  /* Okumalar geçici bağlantı hatasında tekrar denenebilir; yazmalar yinelenmez. */
   var TEKRARLANABILIR = ['config', 'onayBekleyen', 'katalog', 'durum', 'siraHaritasi', 'rafFotograflari'];
 
   function tekIstek(action, yuk, sure) {
@@ -491,7 +489,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
 
   function api(action, yuk) {
-    if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
+    if (/BURAYA_SUPABASE/.test(ENVANTER_URL)) {
       return Promise.reject(new Error('Sistem adresi tanımlanmamış (TV_ENVANTER_URL).'));
     }
     var kalan = 0;
@@ -722,8 +720,12 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
 
   function fotoKaynak(url, id, boy) {
-    var kimlik = id || urlKimligi(url);
-    return kimlik ? driveThumb(kimlik, boy || 420) : '';
+    var adres = String(url || '');
+    if (adres && !/drive\.google\.com|googleusercontent\.com/i.test(adres)) {
+      return window.TVEnvanterAg.photoUrl ? window.TVEnvanterAg.photoUrl(adres, boy || 420) : adres;
+    }
+    var kimlik = id || urlKimligi(adres);
+    return kimlik ? driveThumb(kimlik, boy || 420) : adres;
   }
 
   function fotoKartCiz(baslik, url, id, bosYazi) {
@@ -1246,15 +1248,11 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
      verilir, çünkü rafların bütün resmi burada duruyor. */
   function sayimKutusu(r) {
     var x = r.ham, sy = x.sayim || null;
-    /* Sayfalar GitHub'a anında çıkar, Apps Script ise elle yeniden
-       yayınlanır. O aradaki pencerede sunucu 'sayim' alanını hiç
-       göndermez: sayılmış bir rafa "sayılmadı" dememek için eski alanla
-       (onSayim) idare ediyoruz. */
+    /* Eski kayıtlarda ayrıntılı sayım nesnesi yoksa toplam sayıyı yine göster. */
     if (!sy && x.onSayim != null) {
       return '<div class="sayimKutu">' +
         '<p class="sayimBaslik">Rafta sayılan: ' + sayi(x.onSayim) + '</p>' +
-        '<p class="sayimNot">Sayım onayı ve ikinci sayım için sunucu betiğinin ' +
-        'yeniden yayınlanması gerekiyor (Apps Script → Dağıt → Dağıtımı yönet).</p></div>';
+        '<p class="sayimNot">Bu eski sayım kaydının ayrıntısı bulunmuyor.</p></div>';
     }
     if (!sy || !sy.durum) {
       return '<div class="sayimKutu"><p class="sayimBos">Bu göz henüz sayılmadı.</p></div>';

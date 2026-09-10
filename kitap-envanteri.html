@@ -460,6 +460,7 @@
     </div>
     <div class="msg gizli" id="msgOner" style="margin:14px 0 0"></div>
     <div id="gorevKart" class="gorev gizli"></div>
+    <div class="msg gizli istenenler-ana" id="istenenlerAna" aria-live="polite"></div>
 
     <details class="digerSecenekler">
       <summary>Raf bulma ve çalışma durumu</summary>
@@ -815,12 +816,11 @@
   </section>
 </div>
 
-<script src="./js/envanter-ag.js?v=20260910s"></script>
-<script src="./js/gonullu-config.js?v=20260910s"></script>
+<script src="./js/envanter-ag.js?v=20260910v"></script>
+<script src="./js/gonullu-config.js?v=20260910v"></script>
 <script>
-/* Apps Script web uygulamasının adresi.
-   js/gonullu-config.js içinde window.TV_ENVANTER_URL tanımlıysa oradan okunur. */
-var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPISTIRIN';
+/* Supabase Edge Function adresi ortak ayar dosyasından okunur. */
+var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_SUPABASE_EDGE_FUNCTION_ADRESINI_YAZIN';
 
 (function () {
   'use strict';
@@ -835,10 +835,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
   /* Vakıfta bağlantı zayıf. Ölü bir wifi'de fetch dakikalarca asılı kalabilir;
      gönüllü ekrana bakıp bekler. Zaman aşımı koyup çevrimdışı kuyruğa düşürüyoruz. */
-  /* Apps Script uykudan kalkarken ilk istek 20–30 saniye sürebiliyor. Kısa zaman aşımı
-     koyarsak gönüllü "sunucuya ulaşılamadı" görüp sayfayı yeniliyor. Bu yüzden:
-     okuma isteklerine bol süre + otomatik tekrar, yazma isteklerine tekrar YOK
-     (aynı kitap iki kez kaydedilmesin). */
+  /* Okumalar geçici bağlantı hatasında tekrar denenebilir. Yazmalar, aynı kitabın
+     iki kez kaydolmasını önlemek için tarayıcıdan otomatik tekrarlanmaz. */
   var ZAMAN_ASIMI = 25000;              // normal istekler
   var ZAMAN_ASIMI_FOTO = 60000;         // fotoğraf yüklemesi
   var ZAMAN_ASIMI_AYAR = 30000;         // ayarlar (ilk istek, en yavaşı)
@@ -1012,6 +1010,9 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
      telefonun içindedir (data:…) ve olduğu gibi gösterilir. */
   function rafFotoGoruntu(f, en) {
     var url = String(f.url || '');
+    if (url && !/drive\.google\.com|googleusercontent\.com/i.test(url)) {
+      return window.TVEnvanterAg.photoUrl ? window.TVEnvanterAg.photoUrl(url, en || 400) : url;
+    }
     var id = f.id || ((url.match(/\/d\/([-\w]{25,})/) ||
       url.match(/[?&]id=([-\w]{25,})/) || [])[1]);
     return id
@@ -1270,7 +1271,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
 
   function api(action, yuk, secenek) {
-    if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
+    if (/BURAYA_SUPABASE/.test(ENVANTER_URL)) {
       return Promise.reject(new Error('Sistem adresi tanımlanmamış. Koordinatöre bildirin.'));
     }
     secenek = secenek || {};
@@ -1366,7 +1367,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     D.ad = ad; D.sifre = sifre;
     var hazirlik = gonulluSistemYukleniyor();
     mesgul($('btnGiris'), true, 'Kontrol ediliyor…');
-    // Uykudaki sunucu 20 saniyeyi bulabiliyor; kullanıcı takıldığını sanmasın.
+    // Bağlantı gecikirse kullanıcı işlemin sürdüğünü görsün.
     var uyari = setTimeout(function () {
       $('btnGiris').innerHTML = '<span class="donen"></span>Bağlantı kuruluyor…';
     }, 4000);
@@ -1378,6 +1379,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       $('adim-raf').classList.remove('gizli');
       $('iletisimKart').classList.remove('gizli');
       rafEkraniHazirla();
+      istenenleriYukle();
       if (cevrimdisi) {
         agDurumu(false);
         goster($('msgKayit'), 'uyari', 'Sunucuya ulaşılamadı — <b>çevrimdışı başladınız</b>. ' +
@@ -1512,9 +1514,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
     var img = $('devirKapak');
     if (taze && bilgi.kapak) {
-      /* Apps Script bazen doğrudan Drive görüntüleme sayfasını döndürür.
-         Bu HTML sayfası <img> içinde tarayıcı tarafından engellenir; dosya
-         kimliğini çıkarıp gerçek küçük resim adresini kullan. */
+      /* Eski Drive fotoğraflarında dosya kimliğinden gerçek küçük resim adresini kullan. */
       img.style.visibility = '';
       img.src = rafFotoGoruntu({ url:bilgi.kapak }, 600);
     } else {
@@ -1996,9 +1996,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       goster($('msgSayim'), 'uyari', '<b>' + esc(anahtarKur(mekan, raf, sira)) +
         '</b> sayım bilgisi getiriliyor… Bu sırada sayı girmeyin.');
     }
-    /* Apps Script soğukken bu tek satırlık okuma bile 30 saniyeyi aşabiliyor.
-       Varsayılan 25 saniyede kesmek boş bir form bırakıyordu. Bu ekranda daha
-       uzun bekleyip sonucu açıkça gösteriyoruz. */
+    /* Sayım sonucu gelmeden boş form göstermemek için yanıtı açıkça bekle. */
     return api('sayimBilgisi', { mekan: mekan, raf: raf, sira: sira }, { sure:45000 })
       .then(function (r) {
         /* Seçici bu arada değiştiyse geç gelen cevabı yazma. */
@@ -2747,19 +2745,25 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   function istenenleriYukle() {
     return api('istenenler').then(function (r) {
       var liste = r.kayitlar || [];
-      var kutu = $('istenenler');
-      kutu.classList.toggle('gizli', !liste.length);
-      kutu.classList.toggle('gor', !!liste.length);
-      if (!liste.length) return;
-      kutu.innerHTML = '<b>Koordinatör ' + liste.length +
-        ' kitabı görmek istiyor.</b> Sıranızdaysa masaya götürün:<br>' +
+      var icerik = '<b>Düzeltme bekleyen ' + liste.length + ' kitap var.</b><p>Bir göreve dokunarak doğrudan o kitabın kaydını açabilirsiniz.</p>' +
         liste.map(function (k) {
-          return '<b>' + esc(k.yer || ('#' + k.no)) + '</b> — ' +
-                 esc(k.baslik || '(künye yok)') +
-                 (k.yazar ? ' · ' + esc(k.yazar) : '');
-        }).join('<br>');
+          return '<button type="button" class="istenen-gorev" data-istenen-yer="' + esc(k.yer || '') + '"><b>' +
+            esc(k.yer || ('#' + k.no)) + '</b><span>' + esc(k.baslik || '(künye yok)') +
+            (k.yazar ? ' · ' + esc(k.yazar) : '') + '</span><small>' + esc(k.sebep || 'Koordinatör kontrol istiyor.') + '</small></button>';
+        }).join('');
+      ['istenenler','istenenlerAna'].forEach(function(id){
+        var kutu=$(id);if(!kutu)return;kutu.classList.toggle('gizli',!liste.length);kutu.classList.toggle('gor',!!liste.length);kutu.innerHTML=liste.length?icerik:'';
+      });
     })['catch'](function () { /* liste kritik değil */ });
   }
+
+  document.addEventListener('click', function(e){
+    var b=e.target.closest('[data-istenen-yer]');if(!b)return;
+    var yer=String(b.dataset.istenenYer||'').toUpperCase();
+    var m=/^([^-]+)-([A-ZÇĞİÖŞÜ]+)(\d+)-(\d+)$/.exec(yer);if(!m)return;
+    if($('mekan').options.length){$('mekan').value=m[1];rafSecenekleriKur(m[1]);$('rafHarf').value=m[2];$('siraSec').value=String(Number(m[3]));}
+    D.bulNoOn=yer;$('btnRaf').click();
+  });
 
   /* ───────── çek-geç: ayrıntılar katlı ─────────
      Varsayılan iş: iki fotoğraf + Kaydet. Yazmak isteyen açar. Kitap başına

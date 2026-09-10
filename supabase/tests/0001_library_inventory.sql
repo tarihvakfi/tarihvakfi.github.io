@@ -1,4 +1,6 @@
 begin;
+set local role service_role;
+set local search_path = public, extensions;
 
 select plan(9);
 
@@ -14,31 +16,39 @@ from public.library_shelf_positions where code = 'G-A01';
 
 insert into public.library_decision_opinions (book_id, voter_name, choice)
 select id, 'Birinci Kisi', 'go' from public.library_books where place_code = 'G-A01-999';
-select is((select count(*) from public.library_decision_resolutions), 0::bigint,
+select is((select count(*) from public.library_decision_resolutions where book_id =
+  (select id from public.library_books where place_code = 'G-A01-999')), 0::bigint,
   'tek yeni gorus karari kesinlestirmez');
 
 insert into public.library_decision_opinions (book_id, voter_name, choice)
 select id, 'Ikinci Kisi', 'go' from public.library_books where place_code = 'G-A01-999';
-select is((select kind::text from public.library_decision_resolutions), 'consensus',
+select is((select kind::text from public.library_decision_resolutions where book_id =
+  (select id from public.library_books where place_code = 'G-A01-999')), 'consensus',
   'iki ayni gorus uzlasmayla kesinlesir');
 
-delete from public.library_decision_opinions;
+delete from public.library_decision_opinions where book_id =
+  (select id from public.library_books where place_code = 'G-A01-999');
 insert into public.library_decision_opinions (book_id, voter_name, choice)
 select id, 'Birinci Kisi', 'go' from public.library_books where place_code = 'G-A01-999';
 insert into public.library_decision_opinions (book_id, voter_name, choice)
 select id, 'Ikinci Kisi', 'stay' from public.library_books where place_code = 'G-A01-999';
-select is((select count(*) from public.library_decision_resolutions), 0::bigint,
+select is((select count(*) from public.library_decision_resolutions where book_id =
+  (select id from public.library_books where place_code = 'G-A01-999')), 0::bigint,
   'farkli gorusler karari kesinlestirmez');
 
-delete from public.library_decision_opinions;
+delete from public.library_decision_opinions where book_id =
+  (select id from public.library_books where place_code = 'G-A01-999');
 insert into public.library_decision_opinions (book_id, voter_name, choice, created_at, updated_at)
 select id, 'Birinci Kisi', 'uncertain', now() - interval '31 days', now() - interval '31 days'
 from public.library_books where place_code = 'G-A01-999';
-select is((select kind::text from public.library_decision_resolutions), 'single_after_30_days',
+select is((select kind::text from public.library_decision_resolutions where book_id =
+  (select id from public.library_books where place_code = 'G-A01-999')), 'single_after_30_days',
   'tek gorus 30 gun sonra gecerli olur');
 
-delete from public.library_decision_opinions;
-select is((select count(*) from public.library_decision_resolutions), 0::bigint,
+delete from public.library_decision_opinions where book_id =
+  (select id from public.library_books where place_code = 'G-A01-999');
+select is((select count(*) from public.library_decision_resolutions where book_id =
+  (select id from public.library_books where place_code = 'G-A01-999')), 0::bigint,
   'gorus silinince otomatik karar da kalkar');
 
 select * from finish();

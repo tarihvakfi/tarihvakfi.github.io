@@ -231,6 +231,27 @@ async function applyToSupabase(data) {
   const bookRows = await rest('library_books?select=id,legacy_no&limit=1000');
   const bookIds = new Map(bookRows.map(row => [Number(row.legacy_no), row.id]));
 
+  // Kesim anına kadar eski sistem yetkilidir. İlk kopyadan sonra orada silinen
+  // bir kayıt Supabase'te canlı görünmesin; Supabase'te doğmuş kayıtlara ise
+  // (legacy_no boş) dokunulmaz.
+  const sourceBookNos = new Set(data.books.map(row => Number(row.legacy_no)));
+  const removedLegacyIds = bookRows
+    .filter(row => row.legacy_no != null && !sourceBookNos.has(Number(row.legacy_no)))
+    .map(row => row.id);
+  if (removedLegacyIds.length) {
+    await chunks(removedLegacyIds, 100, ids => rest(
+      `library_books?id=in.(${ids.join(',')})`,
+      { method: 'PATCH', body: { deleted_at: new Date().toISOString() }, prefer: 'return=minimal' }
+    ));
+  }
+
+  // Görüş/sayım geri alma işlemleri de aynen yansısın. Upsert tek başına
+  // kaynaktan silinmiş satırı hedefte bıraktığı için eski sistemden gelmiş
+  // satırlar son kopyada temizlenip yeniden kurulur.
+  await rest('library_decision_opinions?id=not.is.null', { method: 'DELETE', prefer: 'return=minimal' });
+  await rest('library_decision_resolutions?book_id=not.is.null', { method: 'DELETE', prefer: 'return=minimal' });
+  await rest('library_shelf_counts?legacy_source_key=like.apps-script:*', { method: 'DELETE', prefer: 'return=minimal' });
+
   await upsert('library_shelf_counts', data.shelfCounts.map(({ shelf_code, ...row }) => ({
     ...row, shelf_position_id: shelfIds.get(shelf_code)
   })), 'legacy_source_key');

@@ -219,10 +219,10 @@
   <div id="buyukKapak" class="gizli"><img alt="Kapak büyük görünüm"></div>
 </div>
 
-<script src="./js/envanter-ag.js?v=20260910s"></script>
-<script src="./js/gonullu-config.js?v=20260910s"></script>
+<script src="./js/envanter-ag.js?v=20260910v"></script>
+<script src="./js/gonullu-config.js?v=20260910v"></script>
 <script>
-var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPISTIRIN';
+var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_SUPABASE_EDGE_FUNCTION_ADRESINI_YAZIN';
 
 (function () {
   'use strict';
@@ -251,7 +251,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
   function api(action, yuk) {
     if (window.parent !== window && window.parent.TVPanel && ['config','durum'].indexOf(action) >= 0) return window.parent.TVPanel.api(action, yuk);
-    if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
+    if (/BURAYA_SUPABASE/.test(ENVANTER_URL)) {
       return Promise.reject(new Error('Sistem adresi tanımlanmamış (TV_ENVANTER_URL).'));
     }
     var kalan = 0;

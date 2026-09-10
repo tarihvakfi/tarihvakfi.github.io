@@ -4,6 +4,11 @@
 # working directory name when running `supabase init`.
 project_id = "tarihvakfi.github.io"
 
+[functions.library-api]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/library-api/index.ts"
+
 [api]
 enabled = true
 # Port to use for the API URL.

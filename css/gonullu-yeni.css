@@ -99,6 +99,12 @@ input, textarea, select { min-height: 52px; border-color: var(--cizgi); border-r
 .kayit { padding: 15px 0; }
 .iletisimKart { margin-top: 18px; border-style: solid; }
 .iletisimKart summary { min-height: 46px; display: flex; align-items: center; }
+.istenenler-ana { margin: 18px 0 4px !important; background: #fff7df; color: #704b08; border-color: #ead39b; }
+.istenenler-ana > p, #istenenler > p { margin: 5px 0 10px; }
+.istenen-gorev { display: grid; width: 100%; margin-top: 8px; padding: 12px; border: 1px solid #dec688; border-radius: 10px; background: #fff; color: inherit; text-align: left; font: inherit; }
+.istenen-gorev b, .istenen-gorev span, .istenen-gorev small { display: block; }
+.istenen-gorev span { margin-top: 3px; font-weight: 700; }
+.istenen-gorev small { margin-top: 5px; color: #704b08; }
 
 .rfListe figure { position: relative; }
 .rf-buyut { position: absolute; right: 5px; top: 5px; min-height: 34px; padding: 6px 9px; border: 0; border-radius: 7px; background: rgba(33,26,30,.8); color: #fff; font-size: 11px; font-weight: 700; }

@@ -5,6 +5,7 @@
   var D = {
     ad: '', sifre: '', bolum: 'secim', gorunum: 'bekleyen',
     kararlar: [], kararToplam: 0, kararBas: 0, kararAdet: 20,
+    kayitlar: [], kayitToplam: 0, kayitBas: 0, kayitAdet: 20,
     durum: null, raflar: [], raflarYuklendi: false, rafHaritasiTam: false,
     rafOzetiVar: false, rafOzetiHata: false, rafHaritaIstegi: null, rafBas: 0,
     seciliRaf: '', rafKitaplar: [], rafKitapToplam: 0,
@@ -16,7 +17,7 @@
   var kararKod = { gidecek:'Gitsin', belki:'Gitse de olur', gitmeyecek:'Gitmesin', belirsiz:'Belirsiz' };
   var kararSinif = { 'Gidecek':'g', 'Gitse de olur':'s', 'Gitmeyecek':'k', 'Belirsiz':'m' };
   var bildirimZamani, sistemHazirlikNo = 0, sistemKapatmaZamani, sistemSerbestBirakmaZamani;
-  var BASLANGIC_ONBELLEGI = 'tv_koord_baslangic_v4';
+  var BASLANGIC_ONBELLEGI = 'tv_koord_baslangic_v5_supabase';
   var yazanEylemler = ['kararVer','kararGorusGeriAl','kararGeriAl','sayimKaydet','sayimOnayla','sayimGeriAl','siraSec','siraBirak','siraBitir','kitapIste','onayla','topluOnayla','kunyeErtele','kutula'];
 
   function esc(v) {
@@ -100,8 +101,7 @@
       'Bilgiler hazırlanıyor…',
       'Güncel raf ve kitap kayıtları getiriliyor. Ekran hazır olduğunda çalışmaya başlayabilirsiniz.');
     var context = { no:no, baslangic:Date.now() };
-    /* Yavaş Apps Script yanıtları bütün ekranı uzun süre kapatmasın. Kullanıcıya
-       kısa hazırlık uyarısı ver; veri gelene kadar durumu üst çubukta göster. */
+    /* Kısa hazırlık uyarısından sonra veri gelene kadar durumu üst çubukta göster. */
     sistemSerbestBirakmaZamani = setTimeout(function () {
       if (context.no !== sistemHazirlikNo || !$('sistemHazirlik').classList.contains('bekliyor')) return;
       sistemEtkilesimi(true);
@@ -140,9 +140,13 @@
   }
 
   function foto(id, url, boyut) {
-    var kimlik = id || (String(url || '').match(/[-\w]{25,}/) || [])[0];
+    var adres = String(url || '');
+    if (adres && !/drive\.google\.com|googleusercontent\.com/i.test(adres)) {
+      return window.TVEnvanterAg.photoUrl ? window.TVEnvanterAg.photoUrl(adres, boyut || 900) : adres;
+    }
+    var kimlik = id || (adres.match(/[-\w]{25,}/) || [])[0];
     if (kimlik) return 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(kimlik) + '&sz=w' + (boyut || 900);
-    return String(url || '');
+    return adres;
   }
 
   function parcala(kod) {
@@ -436,6 +440,59 @@
     if (g) kararGeriAl(kart, g);
   });
 
+  function kayitKarti(k) {
+    var alt = [k.yazar || 'Yazar yazılmamış', k.yil, Number(k.nusha) > 1 ? k.nusha + ' nüsha' : ''].filter(Boolean).join(' · ');
+    var istek = k.istenen ? '<p class="duzeltme-notu"><b>Gönüllüye gönderilen not:</b> ' + esc(k.istenen) + '</p>' : '';
+    return '<article class="kayit-karti" data-kayit-no="' + Number(k.no) + '"><div class="kayit-fotolar">' +
+      kitapFotografi('Kapak', k.kapakId, k.kapak) + kitapFotografi('Künye', k.fotoId, k.foto) +
+      '</div><div class="kayit-karti-icerik"><p class="yer-kodu">' + esc(k.yer || ('#' + k.no)) + '</p><h2>' +
+      esc(k.baslik || 'Kitap bilgisi tamamlanmamış') + '</h2><p>' + esc(alt) + '</p><p>Kaydeden: ' +
+      esc(k.kaydeden || 'Yazılmamış') + '</p>' + istek + '<div class="kayit-islemleri"><button type="button" data-kayit-duzenle>Künyeyi düzenle</button><button type="button" data-kayit-gorev>' +
+      (k.istenen ? 'Düzeltme notunu değiştir' : 'Gönüllüye düzeltme gönder') + '</button><button type="button" class="tehlike" data-kayit-sil>Kaydı sil</button></div><p class="mesaj kayit-kart-mesaj" role="status"></p></div></article>';
+  }
+
+  function kayitListeCiz() {
+    $('kayitListe').innerHTML = D.kayitlar.map(kayitKarti).join('');
+    $('kayitBos').classList.toggle('gizli', D.kayitlar.length > 0);
+    $('kayitSayfalama').classList.toggle('gizli', D.kayitToplam <= D.kayitAdet && D.kayitBas === 0);
+    $('kayitOnceki').disabled = D.kayitBas === 0;
+    $('kayitSonraki').disabled = D.kayitBas + D.kayitlar.length >= D.kayitToplam;
+    $('kayitAralik').textContent = (D.kayitlar.length ? D.kayitBas + 1 : 0) + '–' + (D.kayitBas + D.kayitlar.length) + ' / ' + sayi(D.kayitToplam);
+  }
+
+  function kayitlariYukle() {
+    mesaj($('kayitMsg'), '', 'Kitap kayıtları getiriliyor…');
+    return api('katalog', { yalnizOnayli:false, ara:$('kayitAra').value.trim(), sirala:'yer', bas:D.kayitBas, adet:D.kayitAdet }, 15000)
+      .then(function (r) { D.kayitlar=r.kayitlar||[];D.kayitToplam=Number(r.toplam||0);kayitListeCiz();mesaj($('kayitMsg'),'',''); })
+      .catch(function(e){if(!sifreHatasi(e))mesaj($('kayitMsg'),'hata',hataMetni(e,'Kitap kayıtları'));});
+  }
+
+  function kayitBul(no) { return D.kayitlar.find(function(k){return Number(k.no)===Number(no);}); }
+  function duzenlemeAc(k) {
+    $('duzenleNo').value=k.no;$('duzenleYer').textContent=k.yer||('#'+k.no);$('duzenleBaslik').value=k.baslik||'';$('duzenleYazar').value=k.yazar||'';$('duzenleYil').value=k.yil||'';$('duzenleNusha').value=k.nusha||1;$('duzenleDurum').value=k.durum||'Sağlam';$('duzenleNot').value=k.not||'';mesaj($('duzenleMsg'),'','');$('kayitDuzenleDialog').showModal();
+  }
+  function gorevAc(k) {
+    $('gorevNo').value=k.no;$('gorevYer').textContent=(k.yer||('#'+k.no))+' · '+(k.baslik||'Künye eksik');$('gorevSebep').value=k.istenen||'';mesaj($('gorevMsg'),'','');$('gorevDialog').showModal();
+  }
+
+  $('kayitListe').addEventListener('click',function(e){
+    var kart=e.target.closest('[data-kayit-no]');if(!kart)return;var k=kayitBul(kart.dataset.kayitNo);if(!k)return;
+    if(e.target.closest('[data-kayit-duzenle]')){duzenlemeAc(k);return;}
+    if(e.target.closest('[data-kayit-gorev]')){gorevAc(k);return;}
+    if(e.target.closest('[data-kayit-sil]')){
+      if(!window.confirm((k.yer||('#'+k.no))+' kaydı silinecek. Bu işlem kayıt listelerinden kaldırır. Devam edilsin mi?'))return;
+      var btn=e.target.closest('button');mesgul(btn,true,'Siliniyor…');api('sil',{no:k.no},15000).then(function(){bildir('Kitap kaydı silindi');D.kayitlar=D.kayitlar.filter(function(x){return Number(x.no)!==Number(k.no);});D.kayitToplam=Math.max(0,D.kayitToplam-1);kayitListeCiz();D.durum=null;D.raflarYuklendi=false;}).catch(function(h){mesgul(btn,false);mesaj(kart.querySelector('.kayit-kart-mesaj'),'hata',hataMetni(h,'Silme'));});
+    }
+  });
+  $('kayitDuzenleForm').addEventListener('submit',function(e){e.preventDefault();var btn=$('btnKayitKaydet');mesgul(btn,true,'Kaydediliyor…');api('guncelle',{no:Number($('duzenleNo').value),kayit:{baslik:$('duzenleBaslik').value.trim(),yazar:$('duzenleYazar').value.trim(),yil:$('duzenleYil').value.trim(),nusha:$('duzenleNusha').value,durum:$('duzenleDurum').value,not:$('duzenleNot').value.trim()}},15000).then(function(){bildir('Kitap kaydı düzeltildi');$('kayitDuzenleDialog').close();return kayitlariYukle();}).catch(function(h){mesaj($('duzenleMsg'),'hata',hataMetni(h,'Düzeltme'));}).finally(function(){mesgul(btn,false);});});
+  $('gorevForm').addEventListener('submit',function(e){e.preventDefault();var sebep=$('gorevSebep').value.trim();if(sebep.length<5){mesaj($('gorevMsg'),'hata','Düzeltme notunu biraz daha açık yazın.');return;}var btn=$('btnGorevGonder');mesgul(btn,true,'Gönderiliyor…');api('kitapIste',{no:Number($('gorevNo').value),sebep:sebep,isteyen:D.ad},15000).then(function(){bildir('Düzeltme görevi gönüllü ekranına gönderildi');$('gorevDialog').close();return kayitlariYukle();}).catch(function(h){mesaj($('gorevMsg'),'hata',hataMetni(h,'Görev'));}).finally(function(){mesgul(btn,false);});});
+  document.querySelectorAll('[data-dialog-kapat]').forEach(function(b){b.addEventListener('click',function(){$(b.dataset.dialogKapat).close();});});
+  document.querySelectorAll('[data-gorev-not]').forEach(function(b){b.addEventListener('click',function(){$('gorevSebep').value=b.dataset.gorevNot;$('gorevSebep').focus();});});
+  $('btnKayitAra').addEventListener('click',function(){D.kayitBas=0;kayitlariYukle();});
+  $('kayitAra').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();D.kayitBas=0;kayitlariYukle();}});
+  $('kayitOnceki').addEventListener('click',function(){D.kayitBas=Math.max(0,D.kayitBas-D.kayitAdet);kayitlariYukle();window.scrollTo({top:0});});
+  $('kayitSonraki').addEventListener('click',function(){D.kayitBas+=D.kayitAdet;kayitlariYukle();window.scrollTo({top:0});});
+
   function sayimSayisi(r) {
     var s = r.sayim || {};
     if (s.durum === 'sayilamadi') return null;
@@ -523,8 +580,7 @@
   }
 
   function ayrintiliRafHaritasiniYukle(zorla) {
-    /* Kullanıcı yenilemeye, ilk arka plan isteği sürerken basabilir. Aynı ağır
-       haritayı ikinci kez başlatmak Apps Script'i yavaşlatır; süren isteği paylaş. */
+    /* Kullanıcı yenilemeye ilk arka plan isteği sürerken basarsa süren isteği paylaş. */
     if (D.rafHaritaIstegi) return D.rafHaritaIstegi;
     D.rafOzetiHata = false;
     /* Bütün 396 sıra için çizimde gereken kısa özet alınır. Ayrıntılı
@@ -741,6 +797,7 @@
     if (history.replaceState) history.replaceState(null, '', '#' + ad);
     if (yukle === false) { window.scrollTo({ top:0, behavior:'auto' }); return; }
     if (ad === 'raflar') raflariYukle(false);
+    if (ad === 'kayitlar' && !D.kayitlar.length) kayitlariYukle();
     if (ad === 'durum') genelDurumYukle(false);
     if (ad === 'secim' && !D.kararlar.length) kararYukle();
     window.scrollTo({ top:0, behavior:'auto' });
@@ -754,7 +811,7 @@
     $('kimAd').textContent = D.ad;
     $('giris').classList.add('gizli'); $('uygulama').classList.remove('gizli');
     D.durum = null; D.raflarYuklendi = false; D.rafHaritasiTam = false;
-    D.rafOzetiVar = false; D.rafOzetiHata = false; D.kararlar = []; D.kararGuncellemeleri = {};
+    D.rafOzetiVar = false; D.rafOzetiHata = false; D.kararlar = []; D.kayitlar = []; D.kayitToplam = 0; D.kayitBas = 0; D.kararGuncellemeleri = {};
     D.rafKitapIstegi = null; D.rafKitapIstekAnahtari = ''; D.rafKitapYukluAnahtari = ''; D.rafKitapIstekNo++;
     bolumAc('secim', false);
     ilkVerileriYukle(false).finally(function () { mesgul(btn, false); });
@@ -793,8 +850,6 @@
     }
     return sunucudan().catch(function (e) {
         if (sifreHatasi(e)) throw e;
-        /* Sayfa, Apps Script yeni sürümü dağıtılmadan önce de çalışsın. Eski
-           sunucu yeni paketi tanımıyorsa önceki iki çağrılı akışa düşer. */
         if (!e || !/Bilinmeyen istek/i.test(e.message || '')) throw e;
         return kararYukle(true).then(function () { return durumYukle(true); });
       });
@@ -841,7 +896,7 @@
   $('kararKategori').addEventListener('change', function () { D.kararBas = 0; kararYukle(); });
   $('kararOnceki').addEventListener('click', function () { D.kararBas = Math.max(0, D.kararBas - D.kararAdet); kararYukle(); window.scrollTo(0,0); });
   $('kararSonraki').addEventListener('click', function () { D.kararBas += D.kararAdet; kararYukle(); window.scrollTo(0,0); });
-  document.querySelectorAll('[data-yenile]').forEach(function (b) { b.addEventListener('click', function () { var ad = b.dataset.yenile; mesgul(b, true, 'Yenileniyor…'); var p = ad === 'secim' ? Promise.all([durumYukle(true), kararYukle()]) : ad === 'raflar' ? raflariYukle(true) : genelDurumYukle(true); Promise.resolve(p).finally(function () { mesgul(b, false); }); }); });
+  document.querySelectorAll('[data-yenile]').forEach(function (b) { b.addEventListener('click', function () { var ad = b.dataset.yenile; mesgul(b, true, 'Yenileniyor…'); var p = ad === 'secim' ? Promise.all([durumYukle(true), kararYukle()]) : ad === 'kayitlar' ? kayitlariYukle() : ad === 'raflar' ? raflariYukle(true) : genelDurumYukle(true); Promise.resolve(p).finally(function () { mesgul(b, false); }); }); });
 
   $('rafKat').addEventListener('change', function () { D.rafBas = 0; rafKitapliklariCiz(''); });
   $('rafKitaplik').addEventListener('change', function () { D.rafBas = 0; rafSiralarCiz(); });

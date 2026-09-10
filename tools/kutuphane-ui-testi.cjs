@@ -35,19 +35,19 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
     baslik: 'Kitap ' + (index + 1), yazar: 'Yazar ' + (index + 1), yil: '1980',
     nusha: 1, onay: 'evet', kategori: '', kapakId: index === 0 ? photoId : '',
     fotoId: index === 0 ? photoId : '', kararVeren: '', kararTarihi: '',
-    kararGorusleri: [], kararDurumu: 'gorus_bekliyor'
+    kararGorusleri: [], kararDurumu: 'gorus_bekliyor', istenen: ''
   }));
 
   const configSource = fs.readFileSync('js/gonullu-config.js', 'utf8').replace(
     /window\.TV_ENVANTER_URL\s*=\s*"[^"]+";/,
-    'window.TV_ENVANTER_URL="https://mock.invalid/api";'
+    'window.TV_ENVANTER_URL="https://mock.supabase.co/functions/v1/library-api";'
   );
   await context.route('**/js/gonullu-config.js*', route => route.fulfill({ contentType: 'application/javascript', body: configSource }));
   await context.route('https://drive.google.com/thumbnail**', route => route.fulfill({
     contentType: 'image/svg+xml',
     body: '<svg xmlns="http://www.w3.org/2000/svg" width="500" height="700"><rect width="100%" height="100%" fill="#ded6d8"/><text x="50%" y="50%" text-anchor="middle" font-size="34">Kitap</text></svg>'
   }));
-  await context.route('**://mock.invalid/api**', async route => {
+  await context.route('https://mock.supabase.co/functions/v1/library-api**', async route => {
     const request = route.request();
     const url = new URL(request.url());
     const query = Object.fromEntries(url.searchParams);
@@ -72,7 +72,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
       }
       if (volunteerAddAttempts === 3) await new Promise(resolve => setTimeout(resolve, 800));
     }
-    if (body.action === 'guncelle' && ++volunteerUpdateAttempts === 1) {
+    if (body.action === 'guncelle' && request.frame().url().includes('kitap-envanteri.html') && ++volunteerUpdateAttempts === 1) {
       await route.fulfill({ contentType:'text/html', body:'<html>geçici yönlendirme</html>' });
       return;
     }
@@ -195,6 +195,14 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
         result = { ok:true, yazilan:[book.no] };
         break;
       }
+      case 'kararGorusGeriAl': {
+        const book = books.find(item => item.no === body.numaralar[0]);
+        const key = String(body.veren).trim().toLocaleLowerCase('tr');
+        book.kararGorusleri = book.kararGorusleri.filter(item => item.veren.trim().toLocaleLowerCase('tr') !== key);
+        book.kararDurumu = book.kararGorusleri.length ? 'ikinci_gorus_bekliyor' : 'gorus_bekliyor';
+        result = { ok:true, yazilan:[book.no], kararDurumu:book.kararDurumu, gorusler:book.kararGorusleri };
+        break;
+      }
       case 'rafFotograflari': result = { ok:true, fotograflar:[{id:photoId,kim:'Deneme',tarih:'9.09.2026'}] }; break;
       case 'sayimBilgisi':
         if (countInfoFailures > 0) {
@@ -225,14 +233,18 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
       }
       case 'guncelle': {
         const record = books.find(book => book.no === Number(body.no));
-        Object.assign(record, body.kayit); result = { ok:true, no:record.no }; break;
+        Object.assign(record, body.kayit, { istenen:'' }); result = { ok:true, no:record.no }; break;
       }
       case 'kayitBul': {
         const record = books.find(book => book.yer === body.yer);
         result = { ok:true, bulundu:!!record, kayit:record || null, silinmis:false }; break;
       }
       case 'sonKayitlar': result = { ok:true, kayitlar:books.slice(-6).reverse() }; break;
-      case 'istenenler': result = { ok:true, kayitlar:[] }; break;
+      case 'istenenler': result = { ok:true, kayitlar:books.filter(book => book.istenen).map(book => ({no:book.no,yer:book.yer,baslik:book.baslik,yazar:book.yazar,sebep:book.istenen})) }; break;
+      case 'kitapIste': {
+        const record = books.find(book => book.no === Number(body.no));
+        record.istenen = body.sebep; result = {ok:true,no:record.no}; break;
+      }
       case 'sil': {
         const index = books.findIndex(book => book.no === Number(body.no));
         if (index >= 0) books.splice(index,1);
@@ -283,7 +295,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   assert.equal(await page.locator('iframe').count(), 0);
   assert.ok(calls.every(call => call.fresh));
   assert.equal(calls.some(call => call.action === 'config'), false);
-  assert.equal(calls.find(call => call.action === 'koordinatorBaslangic').method, 'GET');
+  assert.equal(calls.find(call => call.action === 'koordinatorBaslangic').method, 'POST');
   assert.equal(calls.some(call => call.rawPassword), false, 'Okuma şifresi URL içinde gönderildi');
 
   await page.getByRole('button', { name:/Genel Durum/ }).click();
@@ -307,10 +319,29 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   assert.equal(books[0].kategori, '', 'İlk görüş kesin karar sayıldı');
   assert.equal(books[0].kararGorusleri.length, 1);
   assert.equal(await page.locator('.kitap-karti[data-no="1"]').count(), 1, 'İlk görüşten sonra kitap kuyruktan çıktı');
+  await page.locator('.kitap-karti[data-no="1"]').getByRole('button', { name:'Görüşümü geri al' }).click();
+  await page.getByText('Görüşünüz geri alındı. Kitap yeniden görüş bekliyor.', { exact:true }).waitFor();
+  assert.equal(books[0].kararGorusleri.length, 0, 'Görüş geri alınmadı');
+  await page.locator('.kitap-karti[data-no="1"]').getByRole('button', { name:'Gitsin' }).click();
+  await page.getByText('İkinci görüş bekleniyor', { exact:true }).waitFor();
   await page.locator('.kitap-karti[data-no="1"]').getByRole('button', { name:'Gitsin' }).click();
   await page.waitForTimeout(500);
   assert.equal(books[0].kararGorusleri.length, 1, 'Aynı kişinin ikinci dokunuşu iki görüş sayıldı');
   assert.equal(books[0].kategori, '');
+
+  await page.getByRole('button', { name:/Kitap Kayıtları/ }).click();
+  await page.locator('[data-kayit-no="1"]').waitFor();
+  await page.locator('[data-kayit-no="1"]').getByRole('button', { name:'Gönüllüye düzeltme gönder' }).click();
+  await page.locator('[data-gorev-not]').first().click();
+  await page.locator('#btnGorevGonder').click();
+  await page.locator('#gorevDialog').waitFor({state:'hidden'});
+  assert.match(books[0].istenen,/Kapakta bilgi görünmüyor/,'Gönüllü düzeltme görevi oluşmadı');
+  await page.locator('[data-kayit-no="2"]').getByRole('button', { name:'Künyeyi düzenle' }).click();
+  await page.locator('#duzenleBaslik').fill('Kitap 2 Düzeltilmiş');
+  await page.locator('#btnKayitKaydet').click();
+  await page.locator('#kayitDuzenleDialog').waitFor({state:'hidden'});
+  assert.equal(books[1].baslik,'Kitap 2 Düzeltilmiş','Koordinatör künye düzeltmesi kaydolmadı');
+  await page.getByRole('button', { name:/Kitap Seçimi/ }).click();
   await page.locator('.kitap-karti[data-no="2"]').getByRole('button', { name:'Gitsin' }).click();
   await page.getByText('İkinci görüş bekleniyor', { exact:true }).nth(1).waitFor();
   await page.locator('#btnCikis').click();
@@ -454,6 +485,8 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await page.getByText('Sistem hazır — çalışmaya başlayabilirsiniz', { exact:true }).waitFor({ timeout:4000 });
   await page.locator('#gonulluSistemHazirlik').waitFor({ state:'hidden', timeout:4000 });
   assert.equal(await page.locator('#adim-raf').evaluate(el => el.inert), false, 'Gönüllü işlemleri veri geldikten sonra açılmadı');
+  await page.locator('#istenenlerAna').getByText(/Kapakta bilgi görünmüyor/).waitFor();
+  assert.ok(await page.locator('#istenenlerAna [data-istenen-yer="G-A01-001"]').isVisible(), 'Koordinatörün düzeltme görevi gönüllü ana ekranında görünmedi');
   assert.equal(await page.locator('#gonulluSistemDurum').evaluate(el => getComputedStyle(el).position), 'static',
     'Gönüllü sistem durumu sayfayla birlikte kaymaya devam ediyor');
   if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-gonullu-yeni-mobil.png', fullPage:true });

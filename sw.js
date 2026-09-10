@@ -9,7 +9,7 @@
  *
  * Sayfayı güncellediğinizde SURUM numarasını artırın — eski kabuk temizlenir.
  */
-var SURUM = 'tv-envanter-v22';
+var SURUM = 'tv-envanter-v24';
 var KABUK = [
   './kitap-envanteri.html',
   './js/gonullu-config.js',
@@ -50,7 +50,7 @@ self.addEventListener('fetch', function (e) {
   var istek = e.request;
   if (istek.method !== 'GET') return;                       // kayıt gönderimine karışma
   var adres = new URL(istek.url);
-  if (adres.origin !== self.location.origin) return;        // Apps Script'e / Drive'a karışma
+  if (adres.origin !== self.location.origin) return;        // Supabase Storage gibi dış kaynaklara karışma
 
   // Yalnızca envanter formunun kabuğu saklanır; sitenin geri kalanına karışılmaz.
   var kabukta = KABUK.some(function (y) {

@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#5b123b">
   <title>Kütüphane · Tarih Vakfı</title>
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./css/kutuphane-yeni.css?v=20260910t">
+  <link rel="stylesheet" href="./css/kutuphane-yeni.css?v=20260910v">
   <link rel="stylesheet" href="./css/fotograf-goruntuleyici.css?v=20260909i">
 </head>
 <body>
@@ -48,8 +48,9 @@
 
     <nav class="ana-menu" aria-label="Ana bölümler">
       <button type="button" class="sec" data-bolum="secim" aria-current="page"><span>1</span> Kitap Seçimi</button>
-      <button type="button" data-bolum="raflar"><span>2</span> Raflar ve Kitaplar</button>
-      <button type="button" data-bolum="durum"><span>3</span> Genel Durum</button>
+      <button type="button" data-bolum="kayitlar"><span>2</span> Kitap Kayıtları</button>
+      <button type="button" data-bolum="raflar"><span>3</span> Raflar ve Kitaplar</button>
+      <button type="button" data-bolum="durum"><span>4</span> Genel Durum</button>
     </nav>
 
     <main>
@@ -67,6 +68,15 @@
         <div id="kararListe" class="kitap-kartlari" aria-live="polite"></div>
         <div id="kararBos" class="bos-durum gizli"><div>✓</div><h2>Karar bekleyen kitap yok</h2><p>Yeni kitap kayıtları geldikçe burada görünecek.</p></div>
         <div id="kararSayfalama" class="sayfalama gizli"><button type="button" id="kararOnceki">Önceki</button><span id="kararAralik"></span><button type="button" id="kararSonraki">Sonraki</button></div>
+      </section>
+
+      <section id="bolum-kayitlar" class="bolum gizli">
+        <div class="sayfa-baslik"><div><p class="ust-etiket">ENVANTER KONTROLÜ</p><h1>Kitap Kayıtları</h1><p>Künyeyi bulun; burada düzeltin, gönüllüye açıklamalı bir görev gönderin veya hatalı kaydı silin.</p></div><button type="button" class="btn btn-ikincil yenile" data-yenile="kayitlar">Bilgileri yenile</button></div>
+        <div class="kayit-arama arac-cubugu"><div class="arama-alani"><label class="sadece-ekran-okuyucu" for="kayitAra">Kitap kaydı ara</label><input id="kayitAra" type="search" placeholder="Kitap, yazar veya yer kodu ara"><button type="button" class="btn btn-ikincil" id="btnKayitAra">Ara</button></div></div>
+        <p id="kayitMsg" class="mesaj" role="status"></p>
+        <div id="kayitListe" class="kayit-kartlari" aria-live="polite"></div>
+        <div id="kayitBos" class="bos-durum gizli"><div>⌕</div><h2>Kayıt bulunamadı</h2><p>Başlık, yazar veya yer koduyla yeniden arayın.</p></div>
+        <div id="kayitSayfalama" class="sayfalama gizli"><button type="button" id="kayitOnceki">Önceki</button><span id="kayitAralik"></span><button type="button" id="kayitSonraki">Sonraki</button></div>
       </section>
 
       <section id="bolum-raflar" class="bolum gizli">
@@ -108,10 +118,12 @@
   </div>
 
   <dialog id="kitapDetay" class="kitap-dialog"><button type="button" id="detayKapat" class="dialog-kapat" aria-label="Kapat">×</button><div id="detayIcerik"></div></dialog>
+  <dialog id="kayitDuzenleDialog" class="kitap-dialog form-dialog"><button type="button" class="dialog-kapat" data-dialog-kapat="kayitDuzenleDialog" aria-label="Kapat">×</button><form id="kayitDuzenleForm" class="detay-govde"><p class="yer-kodu" id="duzenleYer"></p><h2>Kitap kaydını düzelt</h2><input type="hidden" id="duzenleNo"><label for="duzenleBaslik">Kitabın adı</label><input id="duzenleBaslik"><label for="duzenleYazar">Yazar</label><input id="duzenleYazar"><div class="form-iki"><div><label for="duzenleYil">Yıl</label><input id="duzenleYil" inputmode="numeric"></div><div><label for="duzenleNusha">Nüsha</label><input id="duzenleNusha" type="number" min="1" max="100"></div></div><label for="duzenleDurum">Kitabın durumu</label><select id="duzenleDurum"><option>Sağlam</option><option>Yıpranmış</option><option>Küflü/böcekli</option></select><label for="duzenleNot">Not</label><textarea id="duzenleNot" rows="3"></textarea><button class="btn btn-ana" id="btnKayitKaydet">Düzeltmeyi kaydet</button><p id="duzenleMsg" class="mesaj" role="status"></p></form></dialog>
+  <dialog id="gorevDialog" class="kitap-dialog form-dialog"><button type="button" class="dialog-kapat" data-dialog-kapat="gorevDialog" aria-label="Kapat">×</button><form id="gorevForm" class="detay-govde"><p class="yer-kodu" id="gorevYer"></p><h2>Gönüllüye düzeltme gönder</h2><input type="hidden" id="gorevNo"><p>Bu not gönüllü ekranında yer koduyla birlikte görünecek.</p><label for="gorevSebep">Ne düzeltilmeli?</label><textarea id="gorevSebep" rows="4" required minlength="5" placeholder="Örn. Kapakta bilgi görünmüyor; künye sayfasını ve kapağı yeniden çekin."></textarea><div class="hazir-notlar"><button type="button" data-gorev-not="Kapakta bilgi görünmüyor; kapak fotoğrafını yeniden çekin.">Kapak yanlış</button><button type="button" data-gorev-not="Künye sayfası yanlış veya okunmuyor; künye fotoğrafını yeniden çekin.">Künye yanlış</button><button type="button" data-gorev-not="Başlık, yazar ve yıl bilgilerini kontrol edip düzeltin.">Bilgiler eksik</button></div><button class="btn btn-ana" id="btnGorevGonder">Görevi gönder</button><p id="gorevMsg" class="mesaj" role="status"></p></form></dialog>
   <div id="bildirim" class="bildirim" role="status" aria-live="polite"></div>
-  <script src="./js/envanter-ag.js?v=20260910s"></script>
-  <script src="./js/gonullu-config.js?v=20260910s"></script>
+  <script src="./js/envanter-ag.js?v=20260910v"></script>
+  <script src="./js/gonullu-config.js?v=20260910v"></script>
   <script src="./js/fotograf-goruntuleyici.js?v=20260909i"></script>
-  <script src="./js/koordinator-yeni.js?v=20260910t"></script>
+  <script src="./js/koordinator-yeni.js?v=20260910v"></script>
 </body>
 </html>

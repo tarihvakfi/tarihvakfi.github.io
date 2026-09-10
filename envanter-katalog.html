@@ -206,10 +206,10 @@
   </section>
 </div>
 
-<script src="./js/envanter-ag.js?v=20260910s"></script>
-<script src="./js/gonullu-config.js?v=20260910s"></script>
+<script src="./js/envanter-ag.js?v=20260910v"></script>
+<script src="./js/gonullu-config.js?v=20260910v"></script>
 <script>
-var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPISTIRIN';
+var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_SUPABASE_EDGE_FUNCTION_ADRESINI_YAZIN';
 
 (function () {
   'use strict';
@@ -229,9 +229,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     else { b.innerHTML = b.dataset.eski || b.innerHTML; b.disabled = false; }
   }
 
-  /* Apps Script uykudan kalkarken ilk istek 20–30 saniye sürebiliyor; zayıf bağlantıda
-     istek büsbütün düşebiliyor. Okuma istekleri otomatik tekrar denenir, yazma istekleri
-     (onayla) denenmez — aynı kayıt iki kez işlenmesin. */
+  /* Okumalar geçici bağlantı hatasında tekrar denenebilir; yazmalar yinelenmez. */
   var TEKRARLANABILIR = ['config', 'onayBekleyen', 'katalog', 'durum'];
 
   function tekIstek(action, yuk, sure) {
@@ -241,7 +239,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   }
 
   function api(action, yuk) {
-    if (/BURAYA_APPS_SCRIPT/.test(ENVANTER_URL)) {
+    if (/BURAYA_SUPABASE/.test(ENVANTER_URL)) {
       return Promise.reject(new Error('Sistem adresi tanımlanmamış (TV_ENVANTER_URL).'));
     }
     var kalan = 0;
@@ -336,17 +334,13 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     });
   }
 
-  // Drive küçük resmi açılmazsa kartı boş bırakma; yerine kısa bir not koy.
-  window.tvResimHata = function (img) {
-    if (img && img.parentNode) img.parentNode.innerHTML = '<div class="yok">fotoğraf açılamadı</div>';
-  };
-
   function resimKutusu(k) {
     // Kapak varsa kapak, yoksa künye sayfası gösterilir.
     var kapakMi = !!(k.kapakId || k.kapakGoruntu);
     var kimlik = kapakMi ? k.kapakId : k.fotoId;
     var dogrudan = kapakMi ? k.kapakGoruntu : k.fotoGoruntu;
     var adres = dogrudan || (kimlik ? 'https://drive.google.com/thumbnail?id=' + kimlik + '&sz=w400' : '');
+    if (adres && window.TVEnvanterAg.photoUrl) adres = window.TVEnvanterAg.photoUrl(adres, 400);
     var bag = (kapakMi ? k.kapak : k.foto) || '';
     var etiket = kapakMi ? 'kapak' : 'künye';
 
@@ -354,7 +348,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       return '<div class="resim"><div class="yok">fotoğraf yok</div></div>';
     }
     return '<a class="resim" href="' + esc(bag || '#') + '" target="_blank" rel="noopener">' +
-      '<img src="' + esc(adres) + '" alt="" loading="lazy" onerror="tvResimHata(this)">' +
+      '<img src="' + esc(adres) + '" alt="" loading="lazy">' +
       '<span class="rozet">' + etiket + '</span></a>';
   }
 
