@@ -1007,10 +1007,13 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
      küçültülmüş kopyası istenir; deneme sayfasında fotoğraf doğrudan
      telefonun içindedir (data:…) ve olduğu gibi gösterilir. */
   function rafFotoGoruntu(f, en) {
-    return f.id
-      ? 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(f.id) +
+    var url = String(f.url || '');
+    var id = f.id || ((url.match(/\/d\/([-\w]{25,})/) ||
+      url.match(/[?&]id=([-\w]{25,})/) || [])[1]);
+    return id
+      ? 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) +
         '&sz=w' + (en || 400)
-      : f.url;
+      : url;
   }
   function rafFotoKapat() {
     $('rafFotoSecici').classList.add('gizli');
@@ -1505,7 +1508,11 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
     var img = $('devirKapak');
     if (taze && bilgi.kapak) {
-      img.style.visibility = ''; img.src = bilgi.kapak;
+      /* Apps Script bazen doğrudan Drive görüntüleme sayfasını döndürür.
+         Bu HTML sayfası <img> içinde tarayıcı tarafından engellenir; dosya
+         kimliğini çıkarıp gerçek küçük resim adresini kullan. */
+      img.style.visibility = '';
+      img.src = rafFotoGoruntu({ url:bilgi.kapak }, 600);
     } else {
       img.removeAttribute('src'); img.style.visibility = 'hidden';
     }

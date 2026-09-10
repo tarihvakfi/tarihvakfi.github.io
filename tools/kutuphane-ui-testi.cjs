@@ -95,7 +95,10 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
         break;
       case 'rafDurum':
         result = { ok:true, anahtar:'G-A01', durum:'devam', sonNo:35, adet:35, cilt:35,
-          onSayim:countRecord && countRecord.toplam, sayim:countRecord };
+          onSayim:countRecord && countRecord.toplam, sayim:countRecord,
+          devir:{ raftakiSira:35, baslik:'Kitap 35', yazar:'Yazar 35', yer:'G-A01-035',
+            kaydeden:'Deneme', tarih:'9.09.2026',
+            kapak:'https://drive.google.com/file/d/' + photoId + '/view?usp=drivesdk' } };
         break;
       case 'katalog': {
         const list = books.filter(book =>
@@ -401,6 +404,9 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
 
   /* Elle raf seçme, kitap ekleme, bulup düzeltme, silme ve sırayı kapatma. */
   await page.locator('#btnKendimSec').click();
+  await page.locator('#devirKapak').waitFor({ state:'visible' });
+  assert.match(await page.locator('#devirKapak').getAttribute('src'), /drive\.google\.com\/thumbnail\?id=/,
+    'Devir kartındaki Drive görüntüleme sayfası resim adresine dönüştürülmedi');
   await page.locator('#btnRaf').click();
   await page.locator('#adim-kayit:not(.gizli)').waitFor();
   await page.locator('#btnAyrinti').click();
