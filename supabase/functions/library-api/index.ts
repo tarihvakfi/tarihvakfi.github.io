@@ -174,6 +174,7 @@ function currentCount(counts: any[]) {
     not: c.note || '', ikinciSayim: null, ikinciSayan: '', ikinciTarih: '',
     onaylayan: c.approved_by_name || '', onayTarihi: trDate(c.approved_at),
     uyusmazlik: c.status === 'disputed', eksik: !!c.back_unavailable,
+    islem: c.kind || '', duzeltmeOnayiBekliyor: c.kind === 'correction' && c.status !== 'approved',
   };
 }
 
@@ -329,11 +330,16 @@ async function handle(body: Record<string, any>, role: 'volunteer' | 'coordinato
       bekleyen:books.filter((b:any)=>!b.bibliography_approved_at).length};
   }
   if (action === 'rafDurum') {
-    const code=shelfCode(body), map=await shelfMap(), row=map.siralar.find((x:any)=>x.sira===code);
-    if(!row) throw new Error('Raf bulunamadı.');
-    const books=(await all('library_books')).filter((b:any)=>!b.deleted_at&&b.place_code.startsWith(`${code}-`));
+    const code=shelfCode(body);
+    const {data:shelf,error:shelfError}=await supabase.from('library_shelf_positions').select('*').eq('code',code).single();if(shelfError)throw shelfError;
+    const [{data:counts,error:countError},{data:books,error:bookError}]=await Promise.all([
+      supabase.from('library_shelf_counts').select('*').eq('shelf_position_id',shelf.id).order('counted_at',{ascending:false}).limit(1),
+      supabase.from('library_books').select('*').eq('shelf_position_id',shelf.id).is('deleted_at',null).order('position_number',{ascending:false}),
+    ]);if(countError)throw countError;if(bookError)throw bookError;
+    const count=currentCount(counts||[]), done=!!shelf.completed_at, bookRows=books||[];
+    const status=done?'bitti':(bookRows.length?'devam':'bos');
     return {ok:true,anahtar:code,sonNo:Math.max(0,...books.map((b:any)=>Number(b.position_number))),adet:books.length,cilt:books.reduce((n:number,b:any)=>n+Number(b.copies||1),0),
-      durum:row.durum,bitiren:row.bitiren,bitisTarihi:row.tarih,raftaki:row.raftaki,sonCalisan:books[0]?.recorded_by_name||'',sonTarih:trDate(books[0]?.recorded_at),tutulu:row.tutulu,tutan:row.tutan,onSayim:row.onSayim,sayim:row.sayim,devir:null};
+      durum:status,bitiren:shelf.completed_by_name||'',bitisTarihi:trDate(shelf.completed_at),raftaki:done?shelf.closing_count:'',sonCalisan:bookRows[0]?.recorded_by_name||'',sonTarih:trDate(bookRows[0]?.recorded_at),tutulu:!!shelf.assigned_at&&!done,tutan:shelf.assigned_by_name||'',onSayim:count?.toplam??null,sayim:count,devir:null};
   }
   if (action === 'sayimBilgisi') {
     const shelf=await findShelf(shelfCode(body));
@@ -358,37 +364,42 @@ async function handle(body: Record<string, any>, role: 'volunteer' | 'coordinato
     const ctx=await loadContext();return {ok:true,bulundu:true,silinmis:false,yer:active.place_code,kayit:await legacyBook(ctx,active)};
   }
   if (action === 'istenenler') {
-    const books=(await all('library_books')).filter((b:any)=>!b.deleted_at&&b.requested_reason);
-    const ctx=await loadContext();return {ok:true,kayitlar:await Promise.all(books.slice(0,40).map(async(b:any)=>{const k=await legacyBook(ctx,b,false);return {no:k.no,yer:k.yer,baslik:k.baslik,yazar:k.yazar,sebep:b.requested_reason};}))};
+    const {data:books,error}=await supabase.from('library_books').select('legacy_no,place_code,title,author,requested_reason').is('deleted_at',null).not('requested_reason','is',null).order('requested_at',{ascending:true}).limit(40);if(error)throw error;
+    return {ok:true,kayitlar:(books||[]).map((b:any)=>({no:b.legacy_no,yer:b.place_code,baslik:b.title||'',yazar:b.author||'',sebep:b.requested_reason||''}))};
   }
   if (action === 'siraSec' || action === 'siraOner') {
     const name=clean(body.kaydeden); let shelf:any, suggested:any=null;
     if(action==='siraOner'){
-      const shelves=(await shelfMap()).siralar;
-      suggested=shelves.find((s:any)=>normalizeName(s.tutan)===normalizeName(name)&&s.durum!=='bitti');
-      if(!suggested)suggested=shelves.find((s:any)=>s.durum!=='bitti'&&!s.tutulu&&s.onSayim==null) || shelves.find((s:any)=>s.durum!=='bitti'&&!s.tutulu);
-      if(!suggested)return {ok:true,tur:'bitti',anahtar:''};
-      shelf=await findShelf(suggested.sira);
+      let response=await supabase.from('library_shelf_positions').select('*').is('completed_at',null).eq('assigned_by_name',name).order('sort_order',{ascending:true}).limit(1).maybeSingle();if(response.error)throw response.error;
+      shelf=response.data;
+      if(!shelf){response=await supabase.from('library_current_shelf_status').select('*').is('completed_at',null).is('assigned_at',null).not('counted_books','is',null).order('sort_order',{ascending:true}).limit(1).maybeSingle();if(response.error)throw response.error;shelf=response.data;}
+      if(!shelf){response=await supabase.from('library_current_shelf_status').select('*').is('completed_at',null).is('assigned_at',null).order('sort_order',{ascending:true}).limit(1).maybeSingle();if(response.error)throw response.error;shelf=response.data;}
+      if(!shelf)return {ok:true,tur:'bitti',anahtar:''};
+      suggested={durum:Number(shelf.book_records||0)?'devam':'bos'};
     }else shelf=await findShelf(shelfCode(body));
     const alreadyMine=normalizeName(shelf.assigned_by_name)===normalizeName(name);
     const {error}=await supabase.from('library_shelf_positions').update({assigned_at:new Date().toISOString(),assigned_by_name:name}).eq('id',shelf.id);if(error)throw error;
     return {ok:true,anahtar:shelf.code,tur:suggested?.durum==='devam'?'devam':'bos',zatenSizde:alreadyMine,kalanBos:0,tutulan:0};
   }
   if (action === 'siraBirak') {
-    const name=normalizeName(body.kaydeden), shelves=await all('library_shelf_positions'); const ids=shelves.filter((s:any)=>normalizeName(s.assigned_by_name)===name&&!s.completed_at&&(!body.anahtar||s.code===clean(body.anahtar))).map((s:any)=>s.id);
-    if(ids.length){const {error}=await supabase.from('library_shelf_positions').update({assigned_at:null,assigned_by_name:null}).in('id',ids);if(error)throw error;}
-    return {ok:true,birakilan:shelves.filter((s:any)=>ids.includes(s.id)).map((s:any)=>s.code)};
+    let query=supabase.from('library_shelf_positions').update({assigned_at:null,assigned_by_name:null}).is('completed_at',null).ilike('assigned_by_name',clean(body.kaydeden));
+    if(body.anahtar)query=query.eq('code',clean(body.anahtar).toUpperCase());
+    const {data,error}=await query.select('code');if(error)throw error;
+    return {ok:true,birakilan:(data||[]).map((s:any)=>s.code)};
   }
   if (action === 'siraBitir') {
-    const shelf=await findShelf(shelfCode(body));const {error}=await supabase.from('library_shelf_positions').update({completed_at:new Date().toISOString(),completed_by_name:clean(body.bitiren||body.kaydeden),closing_count:Number(body.raftaki)||0,closing_note:clean(body.not)||null,assigned_at:null,assigned_by_name:null}).eq('id',shelf.id);if(error)throw error;
-    return {ok:true,anahtar:shelf.code,raftaki:Number(body.raftaki)||0};
+    const code=shelfCode(body),{data:shelf,error:shelfError}=await supabase.from('library_current_shelf_status').select('id,code,counted_books,physical_books,book_records').eq('code',code).single();if(shelfError)throw shelfError;
+    const reference=shelf.counted_books==null?null:Number(shelf.counted_books);
+    const closing=body.sayimdan ? (reference==null?Number(shelf.physical_books||0):reference) : Number(body.raftaki||0);
+    const {error}=await supabase.from('library_shelf_positions').update({completed_at:new Date().toISOString(),completed_by_name:clean(body.bitiren||body.kaydeden),closing_count:closing,closing_note:clean(body.not)||null,assigned_at:null,assigned_by_name:null}).eq('id',shelf.id);if(error)throw error;
+    return {ok:true,anahtar:shelf.code,raftaki:closing,onSayim:reference,kayitli:Number(shelf.physical_books||0),kayitSayisi:Number(shelf.book_records||0),fark:reference==null?null:reference-Number(shelf.physical_books||0)};
   }
   if (action === 'sayimKaydet') {
     const shelf=await findShelf(shelfCode(body)), unavailable=!!body.sayilamadi, layout=body.duzen==='iki'?'double':'single';
     const front=unavailable?null:Number(body.on??body.adet), back=layout==='double'&&!body.arkaSayilamadi?Number(body.arka):null;
     if(!unavailable&&(!Number.isFinite(front)||front<0))throw new Error('Sayılan kitap sayısını yazın.');
     let photoPath=null, uploadedPhotoUrl='';if(body.foto){photoPath=`shelves/${shelf.code}/${crypto.randomUUID()}.jpg`;uploadedPhotoUrl=await uploadDataUrl(clean(body.foto),photoPath);}
-    const rows=await all('library_shelf_counts');const old=rows.filter((c:any)=>c.shelf_position_id===shelf.id).sort((a:any,b:any)=>new Date(b.counted_at).valueOf()-new Date(a.counted_at).valueOf())[0];
+    const {data:rows,error:countError}=await supabase.from('library_shelf_counts').select('*').eq('shelf_position_id',shelf.id).order('counted_at',{ascending:false}).limit(1);if(countError)throw countError;const old=rows?.[0];
     const total=(front||0)+(back||0), second=!!body.ikinci&&old;
     const insert:any={shelf_position_id:shelf.id,kind:second?'control':(old?'correction':'initial'),status:unavailable?'could_not_count':(second&&Number(old.total_count)===total?'approved':(second?'disputed':'counted')),layout,front_count:front,back_count:back,back_unavailable:!!body.arkaSayilamadi,note:clean(body.not)||null,photo_path:photoPath,counted_by_name:clean(body.sayan),counted_at:new Date().toISOString()};
     if(insert.status==='approved'){insert.approved_by_name=clean(body.sayan);insert.approved_at=new Date().toISOString();}
@@ -401,8 +412,8 @@ async function handle(body: Record<string, any>, role: 'volunteer' | 'coordinato
     const {error:e}=await supabase.from('library_shelf_counts').update(update).eq('id',data.id);if(e)throw e;return {ok:true,anahtar:shelf.code,adet:update.front_count??data.total_count,durum:'onaylandi'};
   }
   if (action === 'sayimGeriAl') {
-    const shelf=await findShelf(shelfCode(body));const {data,error}=await supabase.from('library_shelf_counts').select('*').eq('shelf_position_id',shelf.id).order('counted_at',{ascending:false}).limit(1).maybeSingle();if(error)throw error;if(!data)throw new Error('Geri alınacak sayım bulunamadı.');
-    const {error:e}=await supabase.from('library_shelf_counts').delete().eq('id',data.id);if(e)throw e;const {data:prev}=await supabase.from('library_shelf_counts').select('*').eq('shelf_position_id',shelf.id).order('counted_at',{ascending:false}).limit(1).maybeSingle();return {ok:true,anahtar:shelf.code,geriAlinanSayi:data.total_count,temizlendi:!prev,adet:prev?.total_count??null};
+    const shelf=await findShelf(shelfCode(body));const {data,error}=await supabase.from('library_shelf_counts').select('*').eq('shelf_position_id',shelf.id).order('counted_at',{ascending:false}).limit(2);if(error)throw error;if(!data?.[0])throw new Error('Geri alınacak sayım bulunamadı.');
+    const latest=data[0],prev=data[1]||null,{error:e}=await supabase.from('library_shelf_counts').delete().eq('id',latest.id);if(e)throw e;return {ok:true,anahtar:shelf.code,geriAlinanSayi:latest.total_count,temizlendi:!prev,adet:prev?.total_count??null};
   }
   if (action === 'ekle') {
     const k=body.kayit||{}, code=`${clean(k.mekan).toUpperCase()}-${clean(k.raf).toUpperCase()}${String(Number(k.sira)||1).padStart(2,'0')}`, shelf=await findShelf(code);

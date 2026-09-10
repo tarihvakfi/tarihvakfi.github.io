@@ -414,13 +414,13 @@
 
   function kayitKarti(k) {
     var alt = [k.yazar || 'Yazar yazılmamış', k.yil, Number(k.nusha) > 1 ? k.nusha + ' nüsha' : ''].filter(Boolean).join(' · ');
-    var istek = k.istenen ? '<p class="duzeltme-notu"><b>Gönüllüye gönderilen not:</b> ' + esc(k.istenen) + '</p>' : '';
+    var istek = k.istenen ? '<p class="duzeltme-notu"><b>Ortak düzeltme listesindeki not:</b> ' + esc(k.istenen) + '</p>' : '';
     return '<article class="kayit-karti" data-kayit-no="' + Number(k.no) + '"><div class="kayit-fotolar">' +
       kitapFotografi('Kapak', k.kapakId, k.kapak) + kitapFotografi('Künye', k.fotoId, k.foto) +
       '</div><div class="kayit-karti-icerik"><p class="yer-kodu">' + esc(k.yer || ('#' + k.no)) + '</p><h2>' +
       esc(k.baslik || 'Kitap bilgisi tamamlanmamış') + '</h2><p>' + esc(alt) + '</p><p>Kaydeden: ' +
       esc(k.kaydeden || 'Yazılmamış') + '</p>' + istek + '<div class="kayit-islemleri"><button type="button" data-kayit-duzenle>Künyeyi düzenle</button><button type="button" data-kayit-gorev>' +
-      (k.istenen ? 'Düzeltme notunu değiştir' : 'Gönüllüye düzeltme gönder') + '</button><button type="button" class="tehlike" data-kayit-sil>Kaydı sil</button></div><p class="mesaj kayit-kart-mesaj" role="status"></p></div></article>';
+      (k.istenen ? 'Düzeltme notunu değiştir' : 'Ortak listeye gönder') + '</button><button type="button" class="tehlike" data-kayit-sil>Kaydı sil</button></div><p class="mesaj kayit-kart-mesaj" role="status"></p></div></article>';
   }
 
   function kayitListeCiz() {
@@ -457,7 +457,7 @@
     }
   });
   $('kayitDuzenleForm').addEventListener('submit',function(e){e.preventDefault();var btn=$('btnKayitKaydet');mesgul(btn,true,'Kaydediliyor…');api('guncelle',{no:Number($('duzenleNo').value),kayit:{baslik:$('duzenleBaslik').value.trim(),yazar:$('duzenleYazar').value.trim(),yil:$('duzenleYil').value.trim(),nusha:$('duzenleNusha').value,durum:$('duzenleDurum').value,not:$('duzenleNot').value.trim()}},15000).then(function(){bildir('Kitap kaydı düzeltildi');$('kayitDuzenleDialog').close();return kayitlariYukle();}).catch(function(h){mesaj($('duzenleMsg'),'hata',hataMetni(h,'Düzeltme'));}).finally(function(){mesgul(btn,false);});});
-  $('gorevForm').addEventListener('submit',function(e){e.preventDefault();var sebep=$('gorevSebep').value.trim();if(sebep.length<5){mesaj($('gorevMsg'),'hata','Düzeltme notunu biraz daha açık yazın.');return;}var btn=$('btnGorevGonder');mesgul(btn,true,'Gönderiliyor…');api('kitapIste',{no:Number($('gorevNo').value),sebep:sebep,isteyen:D.ad},15000).then(function(){bildir('Düzeltme görevi gönüllü ekranına gönderildi');$('gorevDialog').close();return kayitlariYukle();}).catch(function(h){mesaj($('gorevMsg'),'hata',hataMetni(h,'Görev'));}).finally(function(){mesgul(btn,false);});});
+  $('gorevForm').addEventListener('submit',function(e){e.preventDefault();var sebep=$('gorevSebep').value.trim();if(sebep.length<5){mesaj($('gorevMsg'),'hata','Düzeltme notunu biraz daha açık yazın.');return;}var btn=$('btnGorevGonder');mesgul(btn,true,'Gönderiliyor…');api('kitapIste',{no:Number($('gorevNo').value),sebep:sebep,isteyen:D.ad},15000).then(function(){bildir('Düzeltme görevi bütün gönüllülerin ortak listesine gönderildi');$('gorevDialog').close();return kayitlariYukle();}).catch(function(h){mesaj($('gorevMsg'),'hata',hataMetni(h,'Görev'));}).finally(function(){mesgul(btn,false);});});
   document.querySelectorAll('[data-dialog-kapat]').forEach(function(b){b.addEventListener('click',function(){$(b.dataset.dialogKapat).close();});});
   document.querySelectorAll('[data-gorev-not]').forEach(function(b){b.addEventListener('click',function(){$('gorevSebep').value=b.dataset.gorevNot;$('gorevSebep').focus();});});
   $('btnKayitAra').addEventListener('click',function(){D.kayitBas=0;kayitlariYukle();});

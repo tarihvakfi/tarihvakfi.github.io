@@ -21,7 +21,8 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   let volunteerUpdateAttempts = 0;
   let volunteerDeleteAttempts = 0;
   let countInfoFailures = 0;
-  let countRecord = null;
+  let countRecord = { durum:'onaylandi', toplam:34, sayan:'Önceki gönüllü', sayimTarihi:'9.09.2026 20:00', duzen:'tek' };
+  let previousCountRecord = null;
   let nextBookNo = 36;
   page.on('pageerror', error => errors.push(error.message));
 
@@ -111,7 +112,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
           return;
         }
         result = request.frame().url().includes('kitap-envanteri.html')
-          ? { ok:true, siralar:[{sira:'G-A01',durum:'devam',kayitli:35,
+          ? { ok:true, siralar:[{sira:'G-A01',durum:'bitti',kayitli:35,
               onSayim:countRecord && countRecord.toplam, sayim:countRecord}] }
           : { ok:true, siralar:[{sira:'G-A01',durum:'devam',kayitli:35,onSayim:35,sayim:{toplam:35,durum:'onaylandi'}}] };
         break;
@@ -206,18 +207,21 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
         result = { ok:true, sayim:countRecord }; break;
       case 'sayimKaydet': {
         const total = Number(body.on || body.adet || 0);
-        countRecord = { durum:'bekliyor', toplam:total, sayan:body.sayan, sayimTarihi:'9.09.2026 22:00', duzen:body.duzen || 'tek' };
+        previousCountRecord = countRecord && { ...countRecord };
+        countRecord = { durum:'bekliyor', toplam:total, sayan:body.sayan, sayimTarihi:'9.09.2026 22:00',
+          duzen:body.duzen || 'tek', islem:'correction', duzeltmeOnayiBekliyor:true };
         result = { ok:true, anahtar:'G-A01', adet:total, toplam:total, duzen:body.duzen || 'tek',
           onSira:total, arkaSira:null, eksik:false, fotoUrl:body.foto ? 'https://drive.google.com/file/d/' + photoId + '/view' : '' };
         break;
       }
       case 'sayimOnayla':
-        countRecord = Object.assign({}, countRecord, { durum:'onaylandi', onaylayan:body.onaylayan, onayTarihi:'9.09.2026 22:01' });
+        countRecord = Object.assign({}, countRecord, { durum:'onaylandi', duzeltmeOnayiBekliyor:false,
+          onaylayan:body.onaylayan, onayTarihi:'9.09.2026 22:01' });
         result = { ok:true, anahtar:'G-A01', adet:countRecord.toplam }; break;
       case 'sayimGeriAl': {
         const removed = countRecord && countRecord.toplam;
-        countRecord = null;
-        result = { ok:true, anahtar:'G-A01', geriAlinanSayi:removed, temizlendi:true, adet:null };
+        countRecord = previousCountRecord; previousCountRecord = null;
+        result = { ok:true, anahtar:'G-A01', geriAlinanSayi:removed, temizlendi:!countRecord, adet:countRecord && countRecord.toplam };
         break;
       }
       case 'ekle': {
@@ -243,9 +247,9 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
         if (index >= 0) books.splice(index,1);
         result = { ok:true }; break;
       }
-      case 'siraBitir': result = { ok:true, anahtar:'G-A01', raftaki:Number(body.raftaki), cikarilan:0,
-        kayitli:Number(body.raftaki), kayitSayisi:Number(body.raftaki), onSayim:countRecord && countRecord.toplam,
-        onSayimFark:countRecord ? Number(body.raftaki) - countRecord.toplam : null, fark:0 }; break;
+      case 'siraBitir': result = { ok:true, anahtar:'G-A01', raftaki:countRecord && countRecord.toplam,
+        kayitli:books.length, kayitSayisi:books.length, onSayim:countRecord && countRecord.toplam,
+        fark:countRecord ? countRecord.toplam - books.length : null }; break;
       case 'fotoEkle': result = { ok:true, url:'https://drive.google.com/file/d/' + photoId + '/view' }; break;
       case 'iletisimGonder': result = body.mesaj && body.mesaj.includes('Yetki denemesi')
         ? { ok:true, mailGonderildi:false, mesaj:'Mesaj tabloya kaydedildi ancak arif.solmaz@gmail.com adresine e-posta gönderilemedi.' }
@@ -325,7 +329,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
 
   await page.getByRole('button', { name:/Kitap Kayıtları/ }).click();
   await page.locator('[data-kayit-no="1"]').waitFor();
-  await page.locator('[data-kayit-no="1"]').getByRole('button', { name:'Gönüllüye düzeltme gönder' }).click();
+  await page.locator('[data-kayit-no="1"]').getByRole('button', { name:'Ortak listeye gönder' }).click();
   await page.locator('[data-gorev-not]').first().click();
   await page.locator('#btnGorevGonder').click();
   await page.locator('#gorevDialog').waitFor({state:'hidden'});
@@ -433,7 +437,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
     height:img.getBoundingClientRect().height
   }));
   assert.equal(desktopPhoto.objectFit, 'contain');
-  assert.ok(desktopPhoto.width >= 80 && desktopPhoto.width <= 110 && desktopPhoto.height >= 190 && desktopPhoto.height <= 215,
+  assert.ok(desktopPhoto.width >= 160 && desktopPhoto.width <= 195 && desktopPhoto.height >= 260 && desktopPhoto.height <= 280,
     'Geniş ekran fotoğraf önizlemesi beklenen ölçüde değil: ' + JSON.stringify(desktopPhoto));
   const nestedDesktopScrollers = await page.evaluate(() => [...document.querySelectorAll('body *')].filter(el => {
     const s=getComputedStyle(el), r=el.getBoundingClientRect();
@@ -445,6 +449,11 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await page.getByRole('button', { name:/Kitap Seçimi/ }).click();
   await page.getByRole('button', { name:'Karar bekleyenler', exact:true }).click();
   await page.locator('#kararListe').getByText('Kitap 1', { exact:true }).waitFor();
+  for (const menu of ['Kitap Seçimi','Kitap Kayıtları','Raflar ve Kitaplar','Genel Durum']) {
+    const item = page.getByRole('button', { name:new RegExp(menu) });
+    await item.waitFor();
+    assert.equal(await item.isVisible(), true, 'Mobil menü görünmüyor: ' + menu);
+  }
   await page.waitForTimeout(100);
   if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-koordinator-yeni-mobil.png', fullPage:true });
   const width = await page.evaluate(() => ({ scroll:document.documentElement.scrollWidth, inner:window.innerWidth }));
@@ -475,19 +484,25 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   assert.equal(await page.locator('#gonulluSistemDurum').evaluate(el => getComputedStyle(el).position), 'static',
     'Gönüllü sistem durumu sayfayla birlikte kaymaya devam ediyor');
   if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-gonullu-yeni-mobil.png', fullPage:true });
-  assert.ok(await page.getByRole('button', { name:/1 · Rafı say/ }).isVisible());
-  assert.ok(await page.getByRole('button', { name:/2 · Kitapları kaydet/ }).isVisible());
+  assert.ok(await page.getByRole('button', { name:/Sistem bana bir raf versin/ }).isVisible());
+  assert.ok(await page.getByRole('button', { name:/Rafı kendim seçeyim/ }).isVisible());
 
-  /* Sayımın tamamı: fotoğraf seç, kaydet, onayla ve iki adımlı geri al. */
+  /* Yalnız uyumsuz tamamlanmış raf görünür; düzeltme, onay ve geri alma çalışır. */
+  countInfoFailures = 2;
   await page.locator('#btnSayim').click();
   await page.locator('#sayimPanel:not(.gizli)').waitFor();
-  await page.getByText(/G-A01.*henüz sayılmamış/).waitFor();
+  await page.getByRole('button', { name:'Yeniden dene' }).waitFor();
+  assert.equal(await page.locator('#sayimGiris').isHidden(), true,
+    'Sayım bilgisi alınamadığında boş veri giriş formu açık kaldı');
+  await page.getByRole('button', { name:'Yeniden dene' }).click();
+  await page.locator('#sayimMevcut [data-is="duzelt"]').waitFor();
   if (process.env.TV_TEST_SCREENSHOTS) {
     await page.screenshot({ path:'/tmp/tv-gonullu-yeni-sayim.png', fullPage:true });
     await page.setViewportSize({ width:1440, height:900 });
     await page.screenshot({ path:'/tmp/tv-gonullu-yeni-sayim-genis.png', fullPage:true });
     await page.setViewportSize({ width:390, height:844 });
   }
+  await page.locator('#sayimMevcut [data-is="duzelt"]').click();
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+XprqVwAAAABJRU5ErkJggg==','base64');
   await page.locator('#sayimFotoGirdi').setInputFiles({ name:'raf.png', mimeType:'image/png', buffer:png });
   await page.locator('#sayimFotoOn:not(.gizli)').waitFor();
@@ -496,30 +511,18 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await page.getByRole('button', { name:'Kapat', exact:true }).click();
   await page.locator('#sayimAdet').fill('35');
   await page.locator('#btnSayimKaydet').click();
-  await page.getByText(/sayımı kaydedildi:.*35 kitap/).waitFor();
-  await page.waitForFunction(() => document.querySelector('#sayimSiraSec').value !== '1');
-  assert.equal(await page.locator('#sayimSiraSec option[value="1"]').count(), 0, 'Sayılmış raf yeni sayım listesinde kaldı');
-  countInfoFailures = 2;
-  await page.getByRole('button', { name:'Kontrol / düzeltme sayımı' }).click();
-  await page.getByRole('button', { name:'Yeniden dene' }).waitFor();
-  assert.equal(await page.locator('#sayimGiris').isHidden(), true,
-    'Sayım bilgisi alınamadığında boş veri giriş formu açık kaldı');
-  await page.getByRole('button', { name:'Yeniden dene' }).click();
+  await page.getByText(/sayımı düzeltildi:.*35 kitap/).waitFor();
   await page.locator('#sayimMevcut [data-is="onay"]').waitFor();
   if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-gonullu-kontrol-sayimi.png', fullPage:true });
   await page.locator('#sayimMevcut [data-is="onay"]').click();
-  await page.getByText(/sayımı.*onaylandı.*35 kitap/).waitFor();
-  const undoCount = page.locator('#sayimMevcut [data-is="geri"]');
-  await undoCount.click();
-  await page.getByRole('button', { name:'Emin misiniz? Dokunun' }).click();
-  await page.getByText(/son işlem geri alındı.*yeniden.*sayılmamış/).waitFor();
+  await page.getByText(/sayımı.*onaylandı.*35.*kontrol listesinden çıkarıldı/).waitFor();
+  assert.equal(await page.locator('#sayimSiraSec option[value="1"]').count(), 0,
+    'Uyumu onaylanan raf kontrol listesinde kaldı');
   assert.ok(calls.some(call => call.action === 'sayimKaydet'));
   assert.ok(calls.some(call => call.action === 'sayimOnayla'));
-  assert.ok(calls.some(call => call.action === 'sayimGeriAl'));
   await page.locator('#btnSayim').click();
 
-  await page.getByText('Raf bulma ve çalışma durumu', { exact:true }).click();
-  await page.getByRole('button', { name:'Çalışacağım rafı sistem seçsin' }).click();
+  await page.getByRole('button', { name:/Sistem bana bir raf versin/ }).click();
   await page.getByText('zaten sizin üzerinizde.', { exact:false }).waitFor();
   assert.equal(shelfSuggestionAttempts, 2, 'Raf önerisi ilk ağ hatasından sonra güvenli biçimde tekrarlanmadı');
   await page.getByRole('button', { name:'Üzerimdeki sıraları bırak' }).click();
@@ -559,9 +562,8 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await page.getByText('#36 silindi.', { exact:true }).waitFor();
   assert.equal(volunteerDeleteAttempts, 2, 'Kayıt silme bozuk ilk yanıttan sonra yeniden denenmedi');
   await page.locator('#btnRafDegis').click();
-  await page.locator('#raftaki').fill('35');
   await page.locator('#btnSiraBitir').click();
-  await page.getByText(/bitti.*tutuyor/).waitFor();
+  await page.getByText(/tamamlandı.*eşleşiyor/).waitFor();
   for (const action of ['siraSec','ekle','kayitBul','guncelle','sil','siraBitir']) {
     assert.ok(calls.some(call => call.action === action), action + ' akışı çağrılmadı');
   }

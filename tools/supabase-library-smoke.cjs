@@ -17,7 +17,7 @@ let bookId = null, bookNo = null, boxId = null;
 async function api(action, extra = {}) {
   process.stdout.write(`${action}… `);
   const started = performance.now();
-  const response = await fetch(apiUrl, { method:'POST', headers:{'content-type':'text/plain;charset=utf-8'}, body:JSON.stringify({action,sifre:password,...extra}), signal:AbortSignal.timeout(20000) });
+  const response = await fetch(apiUrl, { method:'POST', headers:{'content-type':'text/plain;charset=utf-8'}, body:JSON.stringify({action,sifre:password,...extra}), signal:AbortSignal.timeout(40000) });
   const data = await response.json();
   timings.push([action, Math.round(performance.now() - started)]);
   process.stdout.write(`${timings.at(-1)[1]} ms\n`);
@@ -86,11 +86,16 @@ async function removePhoto(path) {
     await api('sayac', {kaydeden:actor});
     await api('sonKayitlar', {kaydeden:actor});
     await api('siraOzeti');
-    await api('siraBitir', {mekan:location,raf:'ZZ',sira:1,bitiren:actor,raftaki:1,not:'Canlı kabul testi'});
+    const finished = await api('siraBitir', {mekan:location,raf:'ZZ',sira:1,bitiren:actor,sayimdan:true,not:'Canlı kabul testi'});
+    assert.equal(finished.kayitli, 1);
     await api('sil', {no:bookNo});
 
     console.log(JSON.stringify({ok:true,actions:timings.length,maxMs:Math.max(...timings.map(x=>x[1])),timings}, null, 2));
   } finally {
+    if (!bookId) {
+      const leftovers = await rest('library_books','GET',`?select=id&recorded_by_name=eq.${encodeURIComponent(actor)}`);
+      if (leftovers[0]) bookId = leftovers[0].id;
+    }
     if (bookId) {
       const book = (await rest('library_books','GET',`?select=cover_photo_path,imprint_photo_path&id=eq.${bookId}`))[0];
       if (book) { await removePhoto(book.cover_photo_path); await removePhoto(book.imprint_photo_path); }
