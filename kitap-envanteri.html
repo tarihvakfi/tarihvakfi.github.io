@@ -1231,6 +1231,21 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     gonulluEtkilesimi(true);
   }
 
+  function gonulluOturumHatasi(metin) {
+    localStorage.removeItem('tv_env_sifre');
+    D.sifre = '';
+    gonulluSistemSifirla();
+    $('adim-raf').classList.add('gizli');
+    $('adim-kayit').classList.add('gizli');
+    $('iletisimKart').classList.add('gizli');
+    $('adim-giris').classList.remove('gizli');
+    $('sifre').value = '';
+    mesgul($('btnGiris'), false);
+    $('sifre').focus();
+    goster($('msgGiris'), 'hata', (metin || 'Çalışma şifresi hatalı.') +
+      '<br><small>Çalışma ekranı açılmadı. Karttaki güncel şifreyi yeniden yazın.</small>');
+  }
+
   function tekIstek(action, yuk, sure) {
     var govde = { action: action, sifre: D.sifre };
     for (var k in (yuk || {})) govde[k] = yuk[k];
@@ -1260,7 +1275,12 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
           .then(function () { return dene(kalanDeneme - 1, bekle * 2); });
       });
     }
-    return dene(kalan, 1200);
+    return dene(kalan, 1200)['catch'](function (e) {
+      /* Hazır raf planının ekranda bulunması oturum açıldığı anlamına gelmez.
+         Sunucu şifreyi reddederse hangi bölüm açık olursa olsun girişi kapat. */
+      if (e && e.sifreHatasi) gonulluOturumHatasi(e.message);
+      throw e;
+    });
   }
 
   function agHataMetni(e, cevrimdisi, gecikti) {
@@ -1353,36 +1373,32 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       }
     }
 
-    /* Raf planı sayfanın içinde hazırdır; gönüllüyü Apps Script'in uyanmasını
-       bekletmeden çalışma ekranına geçiririz. Şifre ve canlı sayaç arka planda
-       doğrulanır. Hatalı şifre hiçbir kayıt gönderemez ve girişe geri alınır. */
+    /* Raf planı sayfanın içinde hazır olsa da çalışma ekranını yalnız sunucu
+       şifreyi doğruladıktan sonra açarız. Böylece hazır ayarların görünmesi
+       yanlışlıkla başarılı giriş gibi algılanmaz. */
     function ekraniAc() {
-      iceriGir(navigator.onLine === false);
-      mesgul($('btnGiris'), false);
-      gonulluSistemHazir(hazirlik, navigator.onLine === false);
-      api('sayac', { kaydeden: ad }, { sure:12000 }).then(function (r) {
+      if (navigator.onLine === false) {
+        iceriGir(true);
+        mesgul($('btnGiris'), false);
+        gonulluSistemHazir(hazirlik, true);
+        return;
+      }
+      api('sayac', { kaydeden: ad }, { sure:30000 }).then(function (r) {
         localStorage.setItem('tv_env_ad', ad);
         localStorage.setItem('tv_env_sifre', sifre);
         D.sayac = (r.benim != null) ? r.benim : (r.sayac ? r.sayac.benim : 0);
-        $('bugun').textContent = D.sayac;
+        $('ustSayac').textContent = D.sayac;
+        iceriGir(false);
+        mesgul($('btnGiris'), false);
+        gonulluSistemHazir(hazirlik, false);
       })['catch'](function (e) {
-        if (!e.sifreHatasi) {
-          /* Günlük sayaç çalışma için zorunlu değildir. Bağlantı varken geç
-             yanıt vermesi, yeşil "hazır" göstergesiyle çelişen bir uyarıya
-             dönüşmesin; yalnız gerçekten çevrimdışıysak bilgi ver. */
-          if (navigator.onLine === false) {
-            goster($('msgOner'), 'uyari', 'İnternet bağlantısı yok. Çalışma kayıtları telefonda saklanacak.');
-          }
-          return;
-        }
-        localStorage.removeItem('tv_env_sifre');
-        gonulluSistemSifirla();
-        $('adim-raf').classList.add('gizli');
-        $('iletisimKart').classList.add('gizli');
-        $('adim-giris').classList.remove('gizli');
-        $('sifre').value = '';
-        $('sifre').focus();
-        goster($('msgGiris'), 'hata', e.message + '<br><small>Telefonda saklanan eski şifre silindi; çalışma şifresini yeniden yazın.</small>');
+        clearTimeout(uyari);
+        if (e && e.sifreHatasi) return; // ortak oturum denetimi girişe döndürdü
+        mesgul($('btnGiris'), false);
+        gonulluSistemHatasi(hazirlik, e);
+        goster($('msgGiris'), 'hata', agHataMetni(e,
+          'İnternet bağlantısı yok; giriş doğrulanamadı.',
+          'Kitap sunucusu geç yanıt verdi. Yeniden deneyin.'));
       });
     }
     if (D.cfg) ekraniAc();

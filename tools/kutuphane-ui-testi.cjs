@@ -316,11 +316,17 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
 
   await page.goto(base + '/kitap-envanteri.html');
   await page.locator('#ad').fill('Deneme Gönüllüsü');
+  await page.locator('#sifre').fill('wrong');
+  await page.locator('#btnGiris').click();
+  await page.getByText('Şifre hatalı.', { exact:false }).waitFor();
+  assert.equal(await page.locator('#adim-raf').isHidden(), true, 'Hatalı şifreyle gönüllü çalışma ekranı açıldı');
+  assert.equal(await page.getByText('Sistem hazır — çalışmaya başlayabilirsiniz', { exact:true }).count(), 0,
+    'Hatalı şifreye rağmen sistem hazır gösterildi');
   await page.locator('#sifre').fill('test-only');
   await page.locator('#btnGiris').click();
-  await page.locator('#adim-raf:not(.gizli)').waitFor({ timeout:800 });
   await page.locator('#gonulluSistemHazirlik:not(.gizli)').waitFor();
-  assert.equal(await page.locator('#adim-raf').evaluate(el => el.inert), true, 'Gönüllü işlemleri veri hazırlanırken açık kaldı');
+  assert.equal(await page.locator('#adim-raf').isHidden(), true, 'Şifre doğrulanmadan gönüllü ekranı açıldı');
+  await page.locator('#adim-raf:not(.gizli)').waitFor({ timeout:4000 });
   if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-gonullu-hazirlaniyor.png' });
   await page.getByText('Sistem hazır — çalışmaya başlayabilirsiniz', { exact:true }).waitFor({ timeout:4000 });
   await page.locator('#gonulluSistemHazirlik').waitFor({ state:'hidden', timeout:4000 });
