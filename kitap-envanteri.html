@@ -868,7 +868,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       rafOzetYenile();
     })['catch'](function (h) {
       b.disabled = false; b.textContent = 'Üzerimdeki sıraları bırak';
-      goster($('msgOner'), 'hata', h.message === 'AĞ'
+      goster($('msgOner'), 'hata', h.message === 'AĞ' || h.code === 'SERVER_RESPONSE'
         ? (navigator.onLine === false
             ? 'İnternet bağlantısı yok. Bağlantı gelince tekrar deneyin.'
             : 'Kitap sunucusu iki denemede de yanıt vermedi. Biraz sonra tekrar deneyin.')
@@ -1270,7 +1270,8 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
 
     function dene(kalanDeneme, bekle) {
       return tekIstek(action, yuk, sure)['catch'](function (e) {
-        if (e.message !== 'AĞ' || kalanDeneme <= 0) throw e;
+        var yanitOkunamadi = e && e.code === 'SERVER_RESPONSE';
+        if ((e.message !== 'AĞ' && !yanitOkunamadi) || kalanDeneme <= 0) throw e;
         return new Promise(function (t) { setTimeout(t, bekle); })
           .then(function () { return dene(kalanDeneme - 1, bekle * 2); });
       });
@@ -2269,7 +2270,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       haritaCiz();
       gizle($('msgOner'));
     })['catch'](function (e) {
-      goster($('msgOner'), 'hata', e.message === 'AĞ'
+      goster($('msgOner'), 'hata', e.message === 'AĞ' || e.code === 'SERVER_RESPONSE'
         ? (navigator.onLine === false
             ? 'İnternet bağlantısı yok. Raf planı yine kullanılabilir; canlı durum bağlantı gelince güncellenir.'
             : 'Rafların canlı durumu geç yanıt verdi. Raf planını kullanabilir veya biraz sonra yenileyebilirsiniz.')

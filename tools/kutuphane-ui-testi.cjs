@@ -47,11 +47,11 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
     const body = request.method() === 'GET' ? Object.fromEntries(url.searchParams) : (request.postDataJSON() || {});
     calls.push({ action: body.action, method: request.method(), fresh: url.searchParams.has('tv_req'), sira:body.sira || '' });
     if (body.action === 'siraOner' && ++shelfSuggestionAttempts === 1) {
-      await route.abort('failed');
+      await route.fulfill({ contentType:'text/html', body:'<html>geçici yönlendirme</html>' });
       return;
     }
     if (body.action === 'siraBirak' && ++shelfReleaseAttempts === 1) {
-      await route.abort('failed');
+      await route.fulfill({ contentType:'text/html', body:'<html>geçici yönlendirme</html>' });
       return;
     }
     if (body.action === 'katalog' && !request.frame().url().includes('kitap-envanteri.html') &&
