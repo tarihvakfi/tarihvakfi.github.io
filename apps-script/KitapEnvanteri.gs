@@ -1521,12 +1521,12 @@ function agKoprusu_() {
     'if(olay.origin!==hedef||!olay.data||olay.data.tvEnvanter!=="istek")return;',
     'var id=olay.data.id,kaynak=olay.source;',
     'google.script.run.withSuccessHandler(function(veri){',
-    'kaynak.postMessage({tvEnvanter:"yanit",id:id,data:veri},hedef);',
+    'top.postMessage({tvEnvanter:"yanit",id:id,data:veri},hedef);',
     '}).withFailureHandler(function(hata){',
-    'kaynak.postMessage({tvEnvanter:"yanit",id:id,data:{ok:false,error:"Sunucu hatası: "+(hata&&hata.message||hata)}},hedef);',
+    'top.postMessage({tvEnvanter:"yanit",id:id,data:{ok:false,error:"Sunucu hatası: "+(hata&&hata.message||hata)}},hedef);',
     '}).kopruIslet(olay.data.body||{});',
     '});',
-    'parent.postMessage({tvEnvanter:"hazir"},hedef);',
+    'top.postMessage({tvEnvanter:"hazir"},hedef);',
     '})();<\/script>'
   ].join('');
   return HtmlService.createHtmlOutput(kod)

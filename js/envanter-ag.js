@@ -7,7 +7,7 @@
   var reads = ['config','sayac','rafDurum','sonKayitlar','kayitBul','siraOzeti','sayimBilgisi','rafFotograflari','istenenler','onayBekleyen','onayGruplari','kararBekleyen','katalog','kutular','durum','siraHaritasi','siraHaritasiKisa','koordinatorBaslangic'];
   var configRequests = new Map();
   var digestCache = new Map();
-  var bridgeFrame=null, bridgeUrl='', bridgeOrigin='', bridgeReady=null, bridgeResolve=null, bridgeReject=null, bridgeTimer=null;
+  var bridgeFrame=null, bridgeSource=null, bridgeUrl='', bridgeOrigin='', bridgeReady=null, bridgeResolve=null, bridgeReject=null, bridgeTimer=null;
   var bridgePending=new Map(), bridgeSequence=0;
 
   function bridgeEligible(url) { return /^https:\/\/script\.google\.com\/macros\/s\//.test(String(url||'')); }
@@ -22,9 +22,9 @@
     return data;
   }
   window.addEventListener('message',function(event){
-    if(!bridgeFrame||event.source!==bridgeFrame.contentWindow||!trustedBridgeOrigin(event.origin)||!event.data)return;
+    if(!bridgeFrame||!trustedBridgeOrigin(event.origin)||!event.data)return;
     if(event.data.tvEnvanter==='hazir'){
-      bridgeOrigin=event.origin;clearTimeout(bridgeTimer);
+      bridgeOrigin=event.origin;bridgeSource=event.source;clearTimeout(bridgeTimer);
       if(bridgeResolve)bridgeResolve(true);bridgeResolve=null;bridgeReject=null;return;
     }
     if(event.data.tvEnvanter!=='yanit')return;
@@ -33,10 +33,10 @@
     try{pending.resolve(resultOrError(event.data.data));}catch(error){pending.reject(error);}
   });
   function ensureBridge(url) {
-    if(bridgeFrame&&bridgeUrl===url&&bridgeOrigin)return Promise.resolve(true);
+    if(bridgeFrame&&bridgeUrl===url&&bridgeOrigin&&bridgeSource)return Promise.resolve(true);
     if(bridgeReady&&bridgeUrl===url)return bridgeReady;
     if(bridgeFrame)bridgeFrame.remove();
-    bridgeUrl=url;bridgeOrigin='';
+    bridgeUrl=url;bridgeOrigin='';bridgeSource=null;
     bridgeFrame=document.createElement('iframe');bridgeFrame.hidden=true;bridgeFrame.tabIndex=-1;
     bridgeFrame.setAttribute('aria-hidden','true');bridgeFrame.title='';
     var endpoint=new URL(url,location.href);endpoint.searchParams.set('bridge','1');endpoint.searchParams.set('tv_req',Date.now().toString(36));
@@ -51,7 +51,7 @@
     return ensureBridge(url).then(function(){return new Promise(function(resolve,reject){
       var id=String(++bridgeSequence), timer=setTimeout(function(){bridgePending.delete(id);var e=new Error('AĞ');e.code='NETWORK';reject(e);},timeout||25000);
       bridgePending.set(id,{resolve:resolve,reject:reject,timer:timer});
-      bridgeFrame.contentWindow.postMessage({tvEnvanter:'istek',id:id,body:body},bridgeOrigin);
+      bridgeSource.postMessage({tvEnvanter:'istek',id:id,body:body},bridgeOrigin);
     });});
   }
   function cachedConfig(url) {
