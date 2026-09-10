@@ -17,6 +17,8 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   let coordinatorCatalogAttempts = 0;
   let staleShelfDecisionReads = 0;
   let volunteerAddAttempts = 0;
+  let volunteerUpdateAttempts = 0;
+  let volunteerDeleteAttempts = 0;
   let countRecord = null;
   let nextBookNo = 36;
   page.on('pageerror', error => errors.push(error.message));
@@ -57,11 +59,19 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
     }
     if (body.action === 'ekle' && body.kayit && body.kayit.baslik === 'Yeni Deneme Kitabı') {
       volunteerAddAttempts++;
-      if (volunteerAddAttempts === 1) {
+      if (volunteerAddAttempts <= 2) {
         await route.abort('failed');
         return;
       }
-      if (volunteerAddAttempts === 2) await new Promise(resolve => setTimeout(resolve, 800));
+      if (volunteerAddAttempts === 3) await new Promise(resolve => setTimeout(resolve, 800));
+    }
+    if (body.action === 'guncelle' && ++volunteerUpdateAttempts === 1) {
+      await route.fulfill({ contentType:'text/html', body:'<html>geçici yönlendirme</html>' });
+      return;
+    }
+    if (body.action === 'sil' && ++volunteerDeleteAttempts === 1) {
+      await route.fulfill({ contentType:'text/html', body:'<html>geçici yönlendirme</html>' });
+      return;
     }
     if (body.action === 'katalog' && !request.frame().url().includes('kitap-envanteri.html') &&
         body.sifre === 'test-only') {
@@ -436,17 +446,19 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await page.getByText('Bekleyen kayıtlar gönderildi.', { exact:true }).waitFor();
   assert.equal(await page.locator('#kuyruk').isHidden(), true,
     'Kuyruk gönderilmeden başarı mesajı gösterildi veya kuyruk uyarısı ekranda kaldı');
-  assert.equal(volunteerAddAttempts, 2, 'Bekleyen kayıt tek bir yeniden gönderimle sunucuya ulaşmadı');
+  assert.equal(volunteerAddAttempts, 3, 'Otomatik denemelerden sonra kuyruğa alınan kayıt yeniden gönderilmedi');
   await page.locator('#bulNo').fill('36');
   await page.locator('#btnBul').click();
   await page.locator('#duzenleUyari:not(.gizli)').waitFor();
   await page.locator('#baslik').fill('Düzeltilmiş Deneme Kitabı');
   await page.locator('#btnKaydet').click();
   await page.getByText('#36 güncellendi.', { exact:true }).waitFor();
+  assert.equal(volunteerUpdateAttempts, 2, 'Kayıt düzeltme bozuk ilk yanıttan sonra yeniden denenmedi');
   const addedCard = page.locator('#sonListe .kayit[data-no="36"]');
   await addedCard.getByRole('button', { name:'Sil' }).click();
   await addedCard.getByRole('button', { name:'Evet' }).click();
   await page.getByText('#36 silindi.', { exact:true }).waitFor();
+  assert.equal(volunteerDeleteAttempts, 2, 'Kayıt silme bozuk ilk yanıttan sonra yeniden denenmedi');
   await page.locator('#btnRafDegis').click();
   await page.locator('#raftaki').fill('35');
   await page.locator('#btnSiraBitir').click();

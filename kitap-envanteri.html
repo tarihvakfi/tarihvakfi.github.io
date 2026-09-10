@@ -846,6 +846,10 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
   // Yalnızca okuyan istekler; tekrar denemek güvenli
   var TEKRARLANABILIR = ['config', 'sayac', 'rafDurum', 'sonKayitlar', 'kayitBul',
                          'sayimBilgisi', 'rafFotograflari'];
+  /* Sunucu eklemeyi istemciId ile tekilleştirir; düzeltme ve silme de aynı
+     veriyi tekrar yazmaya güvenlidir. İlk yanıt yolda kaybolursa kullanıcıya
+     yanlış hata göstermeden yalnız bu üç yazma işlemini bir kez daha dene. */
+  var GUVENLI_YAZMA_TEKRARI = ['ekle', 'guncelle', 'sil'];
 
   /* Sıra bırakma: rezervasyon kalkar, kayıtlara dokunulmaz. Deneme yapan ya da
      eve giden kişi kilidi kendisi açar; koordinatörü beklemek gerekmez. */
@@ -1273,7 +1277,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
     var sure = secenek.sure ||
       (action === 'fotoEkle' ? ZAMAN_ASIMI_FOTO : (action === 'config' ? ZAMAN_ASIMI_AYAR : ZAMAN_ASIMI));
     var kalan = (secenek.deneme != null) ? secenek.deneme
-      : 0;
+      : (GUVENLI_YAZMA_TEKRARI.indexOf(action) >= 0 ? 1 : 0);
 
     function dene(kalanDeneme, bekle) {
       return tekIstek(action, yuk, sure)['catch'](function (e) {
