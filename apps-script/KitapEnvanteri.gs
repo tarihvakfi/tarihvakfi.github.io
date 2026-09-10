@@ -1507,7 +1507,42 @@ var YAZAN_EYLEMLER = ['ekle', 'guncelle', 'sil', 'fotoEkle', 'onayla', 'topluOna
                       'kutula', 'siraBitir', 'siraOner', 'siraSec', 'kitapIste', 'sayimKaydet', 'siraBirak',
                       'sayimOnayla', 'sayimGeriAl', 'fotoBagla', 'iletisimGonder'];
 
+/* GitHub Pages ile Apps Script arasında kalıcı, görünmez bağlantı. ContentService
+   her isteği başka bir Google adresine yönlendiriyordu; işlem sunucuda birkaç
+   saniyede bitse bile tarayıcı yanıtı bazen onlarca saniye bekliyordu.
+   HTMLService içindeki google.script.run bu yönlendirmeyi tamamen atlar. */
+function agKoprusu_() {
+  var hedef = 'https://tarihvakfi.github.io';
+  var kod = [
+    '<!doctype html><meta charset="utf-8"><script>',
+    '(function(){',
+    'var hedef=' + JSON.stringify(hedef) + ';',
+    'addEventListener("message",function(olay){',
+    'if(olay.origin!==hedef||!olay.data||olay.data.tvEnvanter!=="istek")return;',
+    'var id=olay.data.id,kaynak=olay.source;',
+    'google.script.run.withSuccessHandler(function(veri){',
+    'kaynak.postMessage({tvEnvanter:"yanit",id:id,data:veri},hedef);',
+    '}).withFailureHandler(function(hata){',
+    'kaynak.postMessage({tvEnvanter:"yanit",id:id,data:{ok:false,error:"Sunucu hatası: "+(hata&&hata.message||hata)}},hedef);',
+    '}).kopruIslet(olay.data.body||{});',
+    '});',
+    'parent.postMessage({tvEnvanter:"hazir"},hedef);',
+    '})();<\/script>'
+  ].join('');
+  return HtmlService.createHtmlOutput(kod)
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/* Alt çizgiyle bitmez: google.script.run yalnızca dışarı açık sunucu
+   işlevlerini çağırabilir. Asıl yetki denetimi yine islet_ içinde yapılır. */
+function kopruIslet(istek) {
+  var yanit = islet_(istek || {});
+  try { return JSON.parse(yanit.getContent()); }
+  catch (h) { return { ok: false, error: 'Sunucu yanıtı okunamadı.' }; }
+}
+
 function doGet(e) {
+  if (e && e.parameter && e.parameter.bridge === '1') return agKoprusu_();
   if (e && e.parameter) {
     var istek = e.parameter;
     if (e.parameter.tv_json) {
