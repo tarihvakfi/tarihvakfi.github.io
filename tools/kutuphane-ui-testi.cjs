@@ -396,6 +396,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   assert.equal(shelfSuggestionAttempts, 2, 'Raf önerisi ilk ağ hatasından sonra güvenli biçimde tekrarlanmadı');
   await page.getByRole('button', { name:'Üzerimdeki sıraları bırak' }).click();
   await page.getByText('G-A01 bırakıldı.', { exact:false }).waitFor();
+  assert.equal(await page.locator('#gorevKart').isHidden(), true, 'Bırakılan rafın görev kartı ekranda kaldı');
   assert.equal(shelfReleaseAttempts, 2, 'Raf bırakma ilk ağ hatasından sonra güvenli biçimde tekrarlanmadı');
 
   /* Elle raf seçme, kitap ekleme, bulup düzeltme, silme ve sırayı kapatma. */
