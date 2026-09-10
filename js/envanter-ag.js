@@ -4,7 +4,7 @@
    Writes keep the password in a POST body and are sent exactly once. */
 (function () {
   'use strict';
-  var reads = ['config','sayac','rafDurum','sonKayitlar','kayitBul','siraOzeti','sayimBilgisi','rafFotograflari','istenenler','onayBekleyen','onayGruplari','kararBekleyen','katalog','kutular','durum','siraHaritasi','koordinatorBaslangic'];
+  var reads = ['config','sayac','rafDurum','sonKayitlar','kayitBul','siraOzeti','sayimBilgisi','rafFotograflari','istenenler','onayBekleyen','onayGruplari','kararBekleyen','katalog','kutular','durum','siraHaritasi','siraHaritasiKisa','koordinatorBaslangic'];
   var configRequests = new Map();
   var digestCache = new Map();
   function cachedConfig(url) {

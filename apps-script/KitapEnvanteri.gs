@@ -1433,8 +1433,9 @@ function siraHaritasi_() {
    30 saniyelik önbellek art arda açılan sekmeleri hızlandırır; yazan her
    işlem başarılı olduğunda aşağıda temizlenir. */
 var KOORDINATOR_BASLANGIC_CACHE = 'koordinator_baslangic_v1';
+var RAF_HARITASI_KISA_CACHE = 'raf_haritasi_kisa_v1';
 function koordinatorOnbellekTemizle_() {
-  try { CacheService.getScriptCache().remove(KOORDINATOR_BASLANGIC_CACHE); }
+  try { CacheService.getScriptCache().removeAll([KOORDINATOR_BASLANGIC_CACHE, RAF_HARITASI_KISA_CACHE]); }
   catch (h) {}
 }
 
@@ -1454,6 +1455,46 @@ function koordinatorBaslangic_(g) {
   try {
     var metin = JSON.stringify(paket);
     if (metin.length < 95000) CacheService.getScriptCache().put(KOORDINATOR_BASLANGIC_CACHE, metin, 30);
+  } catch (h2) {}
+  return paket;
+}
+
+/* Koordinatörün yeni raf ekranı bütün 396 sıra için yalnızca çizimde gereken
+   alanları alır. Tam haritadaki boş açıklamalar ve ayrıntılı sayım geçmişleri
+   yanıtı gereksiz yere büyütüp Google'ın dönüş sayfasına takılabiliyordu. */
+function siraHaritasiKisa_() {
+  try {
+    var sakli = CacheService.getScriptCache().get(RAF_HARITASI_KISA_CACHE);
+    if (sakli) return JSON.parse(sakli);
+  } catch (h) {}
+  var tam = siraHaritasi_();
+  var paket = {
+    ok: true,
+    siralar: (tam.siralar || []).map(function (x) {
+      var y = {
+        sira: x.sira, durum: x.durum,
+        kayitli: x.kayitli || 0, kayitSayisi: x.kayitSayisi || 0,
+        kararVerilen: x.kararVerilen || 0
+      };
+      if (x.raftaki !== '' && x.raftaki != null) y.raftaki = x.raftaki;
+      if (x.fark !== '' && x.fark != null) y.fark = x.fark;
+      if (x.tutulu) { y.tutulu = true; y.tutan = x.tutan || ''; }
+      if (x.onSayim != null) y.onSayim = x.onSayim;
+      if (x.sayimFoto) y.sayimFoto = x.sayimFoto;
+      if (x.sayim) {
+        var s = {};
+        if (x.sayim.toplam != null) s.toplam = x.sayim.toplam;
+        if (x.sayim.durum) s.durum = x.sayim.durum;
+        if (x.sayim.uyusmazlik) s.uyusmazlik = true;
+        if (x.sayim.eksik) s.eksik = true;
+        y.sayim = s;
+      }
+      return y;
+    })
+  };
+  try {
+    var metin = JSON.stringify(paket);
+    if (metin.length < 95000) CacheService.getScriptCache().put(RAF_HARITASI_KISA_CACHE, metin, 30);
   } catch (h2) {}
   return paket;
 }
@@ -1496,7 +1537,7 @@ function doPost(e) {
 var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayGruplari', 'onayla', 'topluOnayla', 'kutula',
                              'kararBekleyen', 'kararVer', 'kararGeriAl', 'kunyeErtele',
                              'katalog', 'kutular', 'durum', 'siraHaritasi', 'kitapIste',
-                             'koordinatorBaslangic'];
+                             'koordinatorBaslangic', 'siraHaritasiKisa'];
 
 /* Şifreleri herkese açık kaynak koduna yazmak yerine Apps Script'in gizli
    proje özelliklerinde tutarız. Eski kurulumlar için AYAR değeri yedektir. */
@@ -1585,6 +1626,7 @@ function islet_(istek) {
       case 'siraSec':     sonuc = siraSec_(istek); break;
       case 'siraBitir':   sonuc = siraBitir_(istek); break;
       case 'siraHaritasi':sonuc = siraHaritasi_(); break;
+      case 'siraHaritasiKisa':sonuc = siraHaritasiKisa_(); break;
       case 'kitapIste':   sonuc = kitapIste_(istek); break;
       case 'istenenler':  sonuc = istenenler_(); break;
       case 'iletisimGonder': sonuc = iletisimGonder_(istek); break;

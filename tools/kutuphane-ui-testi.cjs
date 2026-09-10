@@ -117,7 +117,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
       case 'siraOner': result = { ok:true, anahtar:'G-A01', tur:'sizin', zatenSizde:true, kalanBos:0, yarimKalan:0 }; break;
       case 'siraBirak': result = { ok:true, birakilan:['G-A01'] }; break;
       case 'siraSec': result = { ok:true, anahtar:'G-A01' }; break;
-      case 'siraHaritasi':
+      case 'siraHaritasiKisa':
         if (++shelfMapAttempts === 1) {
           await route.abort('failed');
           return;
@@ -312,7 +312,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await page.getByText('Giriş Kat · A kitaplığı · 1. sıra', { exact:true }).waitFor();
   await page.getByText('Kitap kayıtları ve raf sayımı eşleştirildi.', { exact:true }).waitFor();
   assert.ok(await page.locator('#rafSayaclari').getByText('35', { exact:true }).count() >= 1);
-  assert.equal(calls.filter(call => call.action === 'siraOzeti').length, 0,
+  assert.equal(calls.filter(call => call.action === 'siraOzeti' || call.action === 'siraHaritasi').length, 0,
     'Koordinatör raf ekranı aynı veriyi siraOzeti ile ikinci kez istedi');
   assert.ok(shelfMapAttempts >= 2, 'Raf haritası ilk ağ hatasından sonra güvenli biçimde tekrarlanmadı');
   assert.equal(calls.filter(call => call.action === 'katalog' && call.sira === 'G-A01').length, shelfCatalogCallsAfterDecision + 1,

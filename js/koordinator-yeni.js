@@ -440,10 +440,9 @@
        haritayı ikinci kez başlatmak Apps Script'i yavaşlatır; süren isteği paylaş. */
     if (D.rafHaritaIstegi) return D.rafHaritaIstegi;
     D.rafOzetiHata = false;
-    /* siraHaritasi sayım, kayıt ve karar ayrıntılarının tamamını zaten
-       içeriyor. Öncesinde siraOzeti çağırmak aynı iki tabloyu ikinci kez
-       okutuyor ve raf sekmesinin süresini neredeyse ikiye katlıyordu. */
-    D.rafHaritaIstegi = api('siraHaritasi', {}, 50000).then(function (r) {
+    /* Bütün 396 sıra için çizimde gereken kısa özet alınır. Ayrıntılı
+       geçmişler raf açıldığında ayrıca yüklenir; ilk yanıt küçük kalır. */
+    D.rafHaritaIstegi = api('siraHaritasiKisa', {}, 30000).then(function (r) {
       D.raflar = r.siralar || [];
       D.raflarYuklendi = true; D.rafHaritasiTam = true; D.rafOzetiVar = true; D.rafOzetiHata = false;
       rafSayaclariCiz(); rafSecicileriCiz(true);
