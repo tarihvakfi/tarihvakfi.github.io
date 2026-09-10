@@ -8,6 +8,7 @@
     durum: null, raflar: [], raflarYuklendi: false, rafHaritasiTam: false, rafOzetiVar: false, rafHaritaIstegi: null, rafBas: 0,
     seciliRaf: '', rafKitaplar: [], rafKitapToplam: 0,
     rafKitapIstegi: null, rafKitapIstekAnahtari: '', rafKitapYukluAnahtari: '', rafKitapIstekNo: 0,
+    kararGuncellemeleri: {},
     cfg: window.TV_ENVANTER_CONFIG || null, islem: 0
   };
   var kararEtiket = { 'Gidecek':'Gitsin', 'Gitse de olur':'Gitse de olur', 'Gitmeyecek':'Gitmesin', 'Belirsiz':'Belirsiz' };
@@ -260,8 +261,45 @@
     sayaclariCiz();
   }
 
+  /* Google Sheets, yazma yanıtını verdikten hemen sonra yapılan ilk okumada
+     birkaç saniyeliğine eski hücreyi döndürebiliyor. Yeni kararı kısa süre
+     bellekte tutup katalog yanıtının üzerine uygularız; sunucu aynı kararı
+     döndürdüğünde bu geçici kayıt kendiliğinden kalkar. */
+  function kararKaydiniYereldeTut(kayit, kategori, veren, tarih) {
+    if (!kayit || !kayit.no) return;
+    var no = Number(kayit.no);
+    var guncel = Object.assign({}, kayit, {
+      kategori: kategori || '',
+      kararVeren: kategori ? (veren || D.ad) : '',
+      kararTarihi: kategori ? (tarih || 'Az önce') : ''
+    });
+    D.kararGuncellemeleri[no] = { kategori:guncel.kategori, kayit:guncel, zaman:Date.now() };
+    D.rafKitaplar = D.rafKitaplar.map(function (k) { return Number(k.no) === no ? Object.assign({}, k, guncel) : k; });
+    D.rafKitapIstegi = null; D.rafKitapIstekAnahtari = ''; D.rafKitapYukluAnahtari = ''; D.rafKitapIstekNo++;
+    D.raflarYuklendi = false;
+    try {
+      localStorage.setItem('tv_env_karar_degisti', JSON.stringify({ no:no, kategori:guncel.kategori, kayit:guncel, zaman:Date.now() }));
+    } catch (e) {}
+  }
+
+  function kararKaydiniEsitle(kayit) {
+    var no = Number(kayit && kayit.no), yerel = D.kararGuncellemeleri[no];
+    if (!yerel) return kayit;
+    if (Date.now() - yerel.zaman > 120000) {
+      delete D.kararGuncellemeleri[no];
+      return kayit;
+    }
+    var sunucuKategori = kararEtiket[kayit.kategori] ? kayit.kategori : '';
+    if (sunucuKategori === yerel.kategori) {
+      delete D.kararGuncellemeleri[no];
+      return kayit;
+    }
+    return Object.assign({}, kayit, yerel.kayit);
+  }
+
   function kararVer(kart, kod, dugme) {
     var no = Number(kart.dataset.no), not = kart.querySelector('[data-karar-not]').value.trim();
+    var kayit = D.kararlar.find(function (k) { return Number(k.no) === no; });
     kart.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
     mesaj(kart.querySelector('.kart-mesaj'), '', 'Karar kaydediliyor…');
     api('kararVer', { numaralar:[no], kategori:kod, kural:'Diğer: ' + (not || 'Yetkili kararı'), veren:D.ad }).then(function (r) {
@@ -270,7 +308,7 @@
       kart.classList.add('satir-basarili');
       mesaj(kart.querySelector('.kart-mesaj'), 'iyi', kararKod[kod] + ' olarak kaydedildi. Kararı veren: ' + D.ad);
       bildir('Karar kaydedildi: ' + kararKod[kod]);
-      D.raflarYuklendi = false;
+      kararKaydiniYereldeTut(kayit || { no:no }, r.kategori, D.ad, r.kararTarihi || 'Az önce');
       D.kararlar = D.kararlar.filter(function (k) { return Number(k.no) !== no; });
       D.kararToplam = Math.max(0, D.kararToplam - 1);
       setTimeout(function () { kararListeCiz(); durumYukle(true).catch(function () {}); }, 650);
@@ -293,7 +331,7 @@
         sayaclariCiz();
       }
       bildir('Kitap karar bekleyenlere geri alındı.');
-      D.raflarYuklendi = false;
+      kararKaydiniYereldeTut(kayit || { no:no }, '', '', '');
       kart.classList.add('satir-basarili');
       setTimeout(function () { kararYukle(); }, 500);
     }).catch(function (e) {
@@ -511,7 +549,7 @@
     D.rafKitapIstekAnahtari = anahtar;
     D.rafKitapIstegi = api('katalog', { sira:kod, yalnizOnayli:false, sirala:'yer', adet:30, bas:bas }, 45000).then(function (r) {
       if (istekNo !== D.rafKitapIstekNo || kod !== D.seciliRaf || bas !== D.rafBas) return;
-      D.rafKitaplar = r.kayitlar || []; D.rafKitapToplam = Number(r.toplam || 0);
+      D.rafKitaplar = (r.kayitlar || []).map(kararKaydiniEsitle); D.rafKitapToplam = Number(r.toplam || 0);
       D.rafKitapYukluAnahtari = anahtar;
       var raf = D.raflar.find(function (x) { return x.sira === kod; });
       if (raf && D.rafBas === 0 && D.rafKitapToplam <= D.rafKitaplar.length) {
@@ -618,7 +656,7 @@
     localStorage.setItem('tv_env_ad', D.ad); localStorage.setItem('tv_env_koord_sifre', D.sifre);
     $('kimAd').textContent = D.ad;
     $('giris').classList.add('gizli'); $('uygulama').classList.remove('gizli');
-    D.durum = null; D.raflarYuklendi = false; D.rafHaritasiTam = false; D.rafOzetiVar = false; D.kararlar = [];
+    D.durum = null; D.raflarYuklendi = false; D.rafHaritasiTam = false; D.rafOzetiVar = false; D.kararlar = []; D.kararGuncellemeleri = {};
     D.rafKitapIstegi = null; D.rafKitapIstekAnahtari = ''; D.rafKitapYukluAnahtari = ''; D.rafKitapIstekNo++;
     /* İlk ekranda asıl iş kitap seçimidir. Apps Script'e aynı anda iki ağır
        istek gönderip ikisini de yavaşlatmamak için listeyi önce getirir,
@@ -634,13 +672,31 @@
   }
 
   $('girisForm').addEventListener('submit', function (e) { e.preventDefault(); girisYap($('ad').value, $('sifre').value, false); });
-  $('btnCikis').addEventListener('click', function () { D.sifre = ''; D.kararlar = []; D.raflar = []; D.durum = null; localStorage.removeItem('tv_env_koord_sifre'); $('sifre').value = ''; $('uygulama').classList.add('gizli'); $('giris').classList.remove('gizli'); $('sifre').focus(); });
+  $('btnCikis').addEventListener('click', function () { D.sifre = ''; D.kararlar = []; D.raflar = []; D.durum = null; D.kararGuncellemeleri = {}; localStorage.removeItem('tv_env_koord_sifre'); $('sifre').value = ''; $('uygulama').classList.add('gizli'); $('giris').classList.remove('gizli'); $('sifre').focus(); });
   document.querySelectorAll('[data-bolum]').forEach(function (b) { b.addEventListener('click', function () { bolumAc(b.dataset.bolum); }); });
   document.querySelectorAll('[data-bolum-link]').forEach(function (b) { b.addEventListener('click', function (e) { e.preventDefault(); bolumAc(b.dataset.bolumLink); }); });
   $('btnIletisimUst').addEventListener('click', function () { bolumAc('iletisim'); });
   $('btnSistemTekrar').addEventListener('click', ilkVerileriYukle);
   $('sistemDurum').addEventListener('click', function () {
     if ($('sistemDurum').classList.contains('hata')) ilkVerileriYukle();
+  });
+
+  /* Aynı site başka bir sekmede açıksa verilen/geri alınan kararı oraya da
+     bildir. Sekme açıldığında bir sonraki katalog okuması bu kararı esas alır. */
+  window.addEventListener('storage', function (e) {
+    if (e.key !== 'tv_env_karar_degisti' || !e.newValue) return;
+    if (!D.sifre || $('uygulama').classList.contains('gizli')) return;
+    try {
+      var g = JSON.parse(e.newValue);
+      if (!g.no || Date.now() - Number(g.zaman || 0) > 120000) return;
+      var kayit = g.kayit || { no:Number(g.no) };
+      D.kararGuncellemeleri[Number(g.no)] = { kategori:g.kategori || '', kayit:kayit, zaman:Number(g.zaman) };
+      D.rafKitapIstegi = null; D.rafKitapIstekAnahtari = ''; D.rafKitapYukluAnahtari = ''; D.rafKitapIstekNo++;
+      D.raflarYuklendi = false; D.durum = null;
+      if (D.bolum === 'raflar') raflariYukle(true);
+      if (D.bolum === 'secim') kararYukle();
+      if (D.bolum === 'durum') genelDurumYukle(true);
+    } catch (h) {}
   });
 
   $('kararGorunum').addEventListener('click', function (e) { var b = e.target.closest('[data-gorunum]'); if (!b || b.dataset.gorunum === D.gorunum) return; D.gorunum = b.dataset.gorunum; D.kararBas = 0; $('kararGorunum').querySelectorAll('button').forEach(function (x) { x.classList.toggle('sec', x === b); }); $('kararKategori').classList.toggle('gizli', D.gorunum !== 'verilmis'); kararYukle(); });

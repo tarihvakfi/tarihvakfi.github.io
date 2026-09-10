@@ -15,6 +15,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   let shelfReleaseAttempts = 0;
   let shelfSummaryAttempts = 0;
   let coordinatorCatalogAttempts = 0;
+  let staleShelfDecisionReads = 0;
   let countRecord = null;
   let nextBookNo = 36;
   page.on('pageerror', error => errors.push(error.message));
@@ -104,7 +105,14 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
           (!body.kategori || book.kategori === body.kategori)
         );
         const start = Number(body.bas || 0), amount = Number(body.adet || 30);
-        result = { ok:true, toplam:list.length, kayitlar:list.slice(start,start + amount) };
+        let records = list.slice(start,start + amount).map(book => ({ ...book }));
+        // Apps Script/Sheets, karar yazıldıktan hemen sonraki ilk katalog
+        // okumasında eski kategori hücresini döndürebilir.
+        if (body.sira && staleShelfDecisionReads > 0) {
+          staleShelfDecisionReads--;
+          records = records.map(book => book.no === 1 ? { ...book, kategori:'', kararVeren:'', kararTarihi:'' } : book);
+        }
+        result = { ok:true, toplam:list.length, kayitlar:records };
         break;
       }
       case 'durum':
@@ -115,6 +123,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
       case 'kararVer': {
         const book = books.find(item => item.no === body.numaralar[0]);
         book.kategori = categories[body.kategori].ad; book.kararVeren = body.veren; book.kararTarihi = '9.09.2026 20:00';
+        staleShelfDecisionReads = 1;
         result = { ok:true, yazilan:[book.no], kategori:book.kategori };
         break;
       }
@@ -223,6 +232,15 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   const decisionMessage = await page.locator('.kart-mesaj').first().textContent();
   assert.ok(!pendingIds.includes('1'), 'Karar verilen kitap listede kaldı: ' + JSON.stringify(pendingIds.slice(0,5)) + ' · mesaj: ' + decisionMessage + ' · hatalar: ' + errors.join(' | '));
   assert.equal(calls.findLast(call => call.action === 'kararVer').method, 'POST');
+
+  await page.getByRole('button', { name:/Raflar ve Kitaplar/ }).click();
+  await page.locator('#rafKitaplar .raf-kitap').first().waitFor();
+  assert.match(await page.locator('#rafKitaplar .raf-kitap').first().textContent(), /Gitsin/,
+    'Karar sonrası ilk raf okuması eski gelse de yeni karar rozeti gösterilmedi');
+  if (process.env.TV_TEST_SCREENSHOTS) await page.locator('.raf-detay').screenshot({ path:'/tmp/tv-karar-raf-eslesme.png' });
+  const shelfCatalogCallsAfterDecision = calls.filter(call => call.action === 'katalog' && call.sira === 'G-A01').length;
+
+  await page.getByRole('button', { name:/Kitap Seçimi/ }).click();
   await page.getByRole('button', { name:'Verilmiş kararlar' }).click();
   await page.getByRole('button', { name:'Karar bekleyenlere geri al' }).waitFor();
   page.once('dialog', dialog => dialog.accept());
@@ -233,8 +251,8 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await page.getByText('Giriş Kat · A kitaplığı · 1. sıra', { exact:true }).waitFor();
   await page.getByText('Raf sayımları ve kitap kayıtları gösteriliyor.', { exact:false }).waitFor();
   assert.ok(await page.locator('#rafSayaclari').getByText('35', { exact:true }).count() >= 1);
-  assert.equal(shelfSummaryAttempts, 2, 'Raf özeti ilk ağ hatasından sonra güvenli biçimde tekrarlanmadı');
-  assert.equal(calls.filter(call => call.action === 'katalog' && call.sira === 'G-A01').length, 1,
+  assert.ok(shelfSummaryAttempts >= 2, 'Raf özeti ilk ağ hatasından sonra güvenli biçimde tekrarlanmadı');
+  assert.equal(calls.filter(call => call.action === 'katalog' && call.sira === 'G-A01').length, shelfCatalogCallsAfterDecision + 1,
     'Raf özeti yüklenirken aynı raf için yeni katalog isteği başlatıldı');
   await page.getByRole('button', { name:'Raf fotoğrafları' }).click();
   await page.locator('#rafFotolar img').waitFor();
