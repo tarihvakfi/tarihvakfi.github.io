@@ -114,11 +114,10 @@ main { width: min(100% - 36px, 1240px); margin: 0 auto; padding: 38px 0 80px; }
 
 .kitap-kartlari { display: grid; gap: 16px; }
 .kitap-karti { display: grid; grid-template-columns: 400px minmax(0,1fr); overflow: hidden; border: 1px solid var(--cizgi); border-radius: 20px; background: var(--kagit); box-shadow: 0 7px 24px rgba(50,28,39,.045); }
-.kitap-gorseller { align-self: start; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; height: 300px; padding: 14px; background: #eee8e3; }
+.kitap-gorseller { align-self: start; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; height: auto; padding: 14px; background: #eee8e3; }
 .kitap-foto { position: relative; display: block; min-width: 0; overflow: hidden; border: 1px solid rgba(92,71,79,.12); border-radius: 10px; background: #f5f1ee; color: var(--soluk); }
 .kitap-foto img { display: block; width: 100%; height: 100%; object-fit: contain; background: #f5f1ee; }
-.kitap-gorseller .kitap-foto img,
-.kayit-fotolar .kitap-foto img { object-fit: cover; object-position: center top; }
+.kitap-gorseller .kitap-foto { aspect-ratio: 3 / 4; }
 .kitap-foto span { position: absolute; right: 7px; bottom: 7px; left: 7px; padding: 5px; border-radius: 7px; background: rgba(27,19,23,.76); color: #fff; font-size: 11px; font-weight: 700; text-align: center; }
 .kitap-foto.yok { display: grid; place-items: center; padding: 10px; font-size: 13px; text-align: center; }
 .kitap-bilgi { display: flex; flex-direction: column; padding: 18px 22px; }
@@ -220,7 +219,7 @@ main { width: min(100% - 36px, 1240px); margin: 0 auto; padding: 38px 0 80px; }
 @media (max-width: 940px) {
   .karar-sayaclari { grid-template-columns: repeat(5, minmax(130px,1fr)); overflow-x: auto; padding-bottom: 5px; }
   .kitap-karti { grid-template-columns: 330px minmax(0,1fr); }
-  .kitap-gorseller { height: 260px; }
+  .kitap-gorseller { height: auto; }
   .karar-dugmeleri { grid-template-columns: 1fr 1fr; }
   .ozet-kartlari, .yonetim-sayilari { grid-template-columns: 1fr 1fr; }
   .durum-iki-sutun { grid-template-columns: 1fr; }
@@ -239,7 +238,7 @@ main { width: min(100% - 36px, 1240px); margin: 0 auto; padding: 38px 0 80px; }
   .sayfa-baslik h1 { font-size: 34px; }.sayfa-baslik p:last-child { font-size: 15px; }
   .karar-sayaclari { margin-right: -12px; padding-right: 12px; scroll-snap-type: x mandatory; }.karar-sayaci { min-width: 132px; min-height: 88px; padding: 14px; scroll-snap-align: start; }.karar-sayaci b { font-size: 27px; }
   .arac-cubugu { align-items: stretch; flex-direction: column; }.gorunum-secici button { flex: 1; padding: 7px 8px; font-size: 14px; }.arama-alani { flex-wrap: wrap; }.arama-alani input { max-width: none; flex: 1 1 200px; }.arama-alani select { max-width: none; flex: 1 1 170px; }.arama-alani .btn { flex: 0 0 auto; }
-  .kitap-karti { display: block; }.kitap-gorseller { height: 270px; }.kitap-bilgi { padding: 18px; }.kitap-bilgi h2 { font-size: 25px; }.karar-dugmeleri button { min-height: 62px; font-size: 15px; }
+  .kitap-karti { display: block; }.kitap-gorseller { height: auto; }.kitap-bilgi { padding: 18px; }.kitap-bilgi h2 { font-size: 25px; }.karar-dugmeleri button { min-height: 62px; font-size: 15px; }
   .raf-seciciler { grid-template-columns: 1fr 1fr; }.raf-yerlesim { display: block; }.raf-listesi { position: static; margin-bottom: 12px; padding: 10px; }.raf-listesi h2 { display: none; }#rafSiralar { grid-template-columns: repeat(6,minmax(96px,1fr)); overflow-x: auto; padding-bottom: 4px; }.raf-sira { min-width: 96px; }.raf-detay { padding: 17px; }.raf-detay-baslik { align-items: start; }.raf-detay h2 { font-size: 24px; }.raf-ozet-grid { grid-template-columns: 1fr; }.raf-kitap { align-items: start; }
   .kayit-asama-grid { grid-template-columns: 1fr; }.surec { grid-template-columns: 1fr; }.form-iki { grid-template-columns: 1fr; }.detay-govde { padding: 20px; }.detay-fotolar { grid-template-columns: 1fr; }.detay-fotolar button { min-height: 250px; }.detay-fotolar img { height: 300px; }
   .kayit-karti { grid-template-columns: 1fr; }.kayit-fotolar { min-height: 230px; }.kayit-fotolar .kitap-foto img { height: 215px; min-height: 215px; }
@@ -250,7 +249,7 @@ main { width: min(100% - 36px, 1240px); margin: 0 auto; padding: 38px 0 80px; }
   .marka .marka-isareti { width: 39px; height: 39px; }.marka b { font-size: 17px; }
   .ana-menu button { text-align: center; }
   .karar-sayaclari { grid-template-columns: repeat(5,124px); }.karar-sayaci { min-width: 124px; }
-  .kitap-gorseller { height: 225px; }.kitap-foto span { font-size: 10px; }.karar-dugmeleri { gap: 7px; }.karar-dugmeleri button { min-height: 58px; padding: 6px; font-size: 14px; }
+  .kitap-gorseller { height: auto; }.kitap-foto span { font-size: 10px; }.karar-dugmeleri { gap: 7px; }.karar-dugmeleri button { min-height: 58px; padding: 6px; font-size: 14px; }
   .ozet-kartlari, .yonetim-sayilari { grid-template-columns: 1fr 1fr; gap: 8px; }.ozet-karti, .yonetim-sayi { padding: 15px; }.ozet-karti b, .yonetim-sayi b { font-size: 27px; }.ozet-karti span, .yonetim-sayi span { font-size: 12px; }
   .raf-seciciler { grid-template-columns: 1fr; }.raf-seciciler div:first-child { grid-column: auto; }.raf-detay-baslik { display: block; }.raf-detay-baslik .btn { margin-top: 12px; width: 100%; }
   .dagilim-satir { grid-template-columns: 88px 1fr auto; font-size: 12px; }.bilgi-kart { padding: 17px; }

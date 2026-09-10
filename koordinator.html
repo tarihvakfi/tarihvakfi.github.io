@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#5b123b">
   <title>Kütüphane · Tarih Vakfı</title>
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./css/kutuphane-yeni.css?v=20260911b">
+  <link rel="stylesheet" href="./css/kutuphane-yeni.css?v=20260911d">
   <link rel="stylesheet" href="./css/fotograf-goruntuleyici.css?v=20260909i">
 </head>
 <body>
@@ -121,7 +121,7 @@
   <dialog id="kayitDuzenleDialog" class="kitap-dialog form-dialog"><button type="button" class="dialog-kapat" data-dialog-kapat="kayitDuzenleDialog" aria-label="Kapat">×</button><form id="kayitDuzenleForm" class="detay-govde"><p class="yer-kodu" id="duzenleYer"></p><h2>Kitap kaydını düzelt</h2><input type="hidden" id="duzenleNo"><label for="duzenleBaslik">Kitabın adı</label><input id="duzenleBaslik"><label for="duzenleYazar">Yazar</label><input id="duzenleYazar"><div class="form-iki"><div><label for="duzenleYil">Yıl</label><input id="duzenleYil" inputmode="numeric"></div><div><label for="duzenleNusha">Nüsha</label><input id="duzenleNusha" type="number" min="1" max="100"></div></div><label for="duzenleDurum">Kitabın durumu</label><select id="duzenleDurum"><option>Sağlam</option><option>Yıpranmış</option><option>Küflü/böcekli</option></select><label for="duzenleNot">Not</label><textarea id="duzenleNot" rows="3"></textarea><button class="btn btn-ana" id="btnKayitKaydet">Düzeltmeyi kaydet</button><p id="duzenleMsg" class="mesaj" role="status"></p></form></dialog>
   <dialog id="gorevDialog" class="kitap-dialog form-dialog"><button type="button" class="dialog-kapat" data-dialog-kapat="gorevDialog" aria-label="Kapat">×</button><form id="gorevForm" class="detay-govde"><p class="yer-kodu" id="gorevYer"></p><h2>Ortak düzeltme listesine gönder</h2><input type="hidden" id="gorevNo"><p>Görev belirli bir kişiye atanmaz. Bütün gönüllüler yer koduyla birlikte görür; uygun olan kişi kitabı bulup düzeltir.</p><label for="gorevSebep">Ne düzeltilmeli?</label><textarea id="gorevSebep" rows="4" required minlength="5" placeholder="Örn. Kapakta bilgi görünmüyor; künye sayfasını ve kapağı yeniden çekin."></textarea><div class="hazir-notlar"><button type="button" data-gorev-not="Kapakta bilgi görünmüyor; kapak fotoğrafını yeniden çekin.">Kapak yanlış</button><button type="button" data-gorev-not="Künye sayfası yanlış veya okunmuyor; künye fotoğrafını yeniden çekin.">Künye yanlış</button><button type="button" data-gorev-not="Başlık, yazar ve yıl bilgilerini kontrol edip düzeltin.">Bilgiler eksik</button></div><button class="btn btn-ana" id="btnGorevGonder">Ortak listeye gönder</button><p id="gorevMsg" class="mesaj" role="status"></p></form></dialog>
   <div id="bildirim" class="bildirim" role="status" aria-live="polite"></div>
-  <script src="./js/envanter-ag.js?v=20260910v"></script>
+  <script src="./js/envanter-ag.js?v=20260911d"></script>
   <script src="./js/gonullu-config.js?v=20260910v"></script>
   <script src="./js/fotograf-goruntuleyici.js?v=20260909i"></script>
   <script src="./js/koordinator-yeni.js?v=20260911a"></script>

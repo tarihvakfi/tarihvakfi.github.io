@@ -83,8 +83,22 @@
     var value = String(url || '');
     if (!value || !/\/storage\/v1\/object\/public\/library-photos\//.test(value)) return value;
     var rendered = value.replace('/storage/v1/object/public/library-photos/', '/storage/v1/render/image/public/library-photos/');
-    var join = rendered.indexOf('?') >= 0 ? '&' : '?';
-    return rendered + join + 'width=' + Math.max(160, Number(width) || 900) + '&quality=82';
+    var targetWidth = Math.max(160, Number(width) || 900);
+    /* Supabase Image Transformation yalnız genişlik verilince bu projedeki
+       1200×1600 fotoğrafları 500×1600 üretip görüntüyü inceltiyor. 3:4 hedef
+       kutusunu ve contain kipini birlikte vererek oranı koru. */
+    try {
+      var parsed = new URL(rendered);
+      parsed.searchParams.set('width', String(targetWidth));
+      parsed.searchParams.set('height', String(Math.round(targetWidth * 4 / 3)));
+      parsed.searchParams.set('resize', 'contain');
+      parsed.searchParams.set('quality', '82');
+      return parsed.href;
+    } catch (e) {
+      var join = rendered.indexOf('?') >= 0 ? '&' : '?';
+      return rendered + join + 'width=' + targetWidth + '&height=' +
+        Math.round(targetWidth * 4 / 3) + '&resize=contain&quality=82';
+    }
   }
 
   /* Supabase Storage nadiren bir resmi ilk paralel istekte atlayabiliyor.
