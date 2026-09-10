@@ -19,6 +19,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   let volunteerAddAttempts = 0;
   let volunteerUpdateAttempts = 0;
   let volunteerDeleteAttempts = 0;
+  let countInfoFailures = 0;
   let countRecord = null;
   let nextBookNo = 36;
   page.on('pageerror', error => errors.push(error.message));
@@ -156,7 +157,13 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
         break;
       }
       case 'rafFotograflari': result = { ok:true, fotograflar:[{id:photoId,kim:'Deneme',tarih:'9.09.2026'}] }; break;
-      case 'sayimBilgisi': result = { ok:true, sayim:countRecord }; break;
+      case 'sayimBilgisi':
+        if (countInfoFailures > 0) {
+          countInfoFailures--;
+          await route.abort('failed');
+          return;
+        }
+        result = { ok:true, sayim:countRecord }; break;
       case 'sayimKaydet': {
         const total = Number(body.on || body.adet || 0);
         countRecord = { durum:'bekliyor', toplam:total, sayan:body.sayan, sayimTarihi:'9.09.2026 22:00', duzen:body.duzen || 'tek' };
@@ -387,7 +394,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   /* Sayımın tamamı: fotoğraf seç, kaydet, onayla ve iki adımlı geri al. */
   await page.locator('#btnSayim').click();
   await page.locator('#sayimPanel:not(.gizli)').waitFor();
-  await page.getByText('Sıradaki sayılmamış raf seçildi:', { exact:false }).waitFor();
+  await page.getByText(/G-A01.*henüz sayılmamış/).waitFor();
   if (process.env.TV_TEST_SCREENSHOTS) {
     await page.screenshot({ path:'/tmp/tv-gonullu-yeni-sayim.png', fullPage:true });
     await page.setViewportSize({ width:1440, height:900 });
@@ -405,7 +412,12 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await page.getByText(/sayımı kaydedildi:.*35 kitap/).waitFor();
   await page.waitForFunction(() => document.querySelector('#sayimSiraSec').value !== '1');
   assert.equal(await page.locator('#sayimSiraSec option[value="1"]').count(), 0, 'Sayılmış raf yeni sayım listesinde kaldı');
+  countInfoFailures = 2;
   await page.getByRole('button', { name:'Kontrol / düzeltme sayımı' }).click();
+  await page.getByRole('button', { name:'Yeniden dene' }).waitFor();
+  assert.equal(await page.locator('#sayimGiris').isHidden(), true,
+    'Sayım bilgisi alınamadığında boş veri giriş formu açık kaldı');
+  await page.getByRole('button', { name:'Yeniden dene' }).click();
   await page.locator('#sayimMevcut [data-is="onay"]').waitFor();
   if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-gonullu-kontrol-sayimi.png', fullPage:true });
   await page.locator('#sayimMevcut [data-is="onay"]').click();

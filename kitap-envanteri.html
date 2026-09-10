@@ -1985,13 +1985,21 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       'koordinatörün betiği yeniden yayınlaması gerekiyor.');
   }
 
-  function sayimDurumYukle() {
+  function sayimDurumYukle(secenek) {
     var mekan = $('sayimMekan').value, raf = $('sayimRaf').value;
     var sira = Number($('sayimSiraSec').value) || 1;
+    var sessiz = secenek && secenek.sessiz;
     sayimDurumu = null;
     $('sayimMevcut').classList.add('gizli');
-    sayimFormGoster(true);
-    return api('sayimBilgisi', { mekan: mekan, raf: raf, sira: sira })
+    sayimFormGoster(false);
+    if (!sessiz) {
+      goster($('msgSayim'), 'uyari', '<b>' + esc(anahtarKur(mekan, raf, sira)) +
+        '</b> sayım bilgisi getiriliyor… Bu sırada sayı girmeyin.');
+    }
+    /* Apps Script soğukken bu tek satırlık okuma bile 30 saniyeyi aşabiliyor.
+       Varsayılan 25 saniyede kesmek boş bir form bırakıyordu. Bu ekranda daha
+       uzun bekleyip sonucu açıkça gösteriyoruz. */
+    return api('sayimBilgisi', { mekan: mekan, raf: raf, sira: sira }, { sure:45000 })
       .then(function (r) {
         /* Seçici bu arada değiştiyse geç gelen cevabı yazma. */
         if ($('sayimMekan').value !== mekan || $('sayimRaf').value !== raf ||
@@ -1999,15 +2007,30 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         sunucuEski = false;
         sayimDurumu = r.sayim || null;
         sayimMevcutGoster();
+        if (!sessiz) {
+          goster($('msgSayim'), 'iyi', '<b>' + esc(anahtarKur(mekan, raf, sira)) + '</b> ' +
+            (sayimDurumu && sayimDurumu.durum
+              ? 'sayım bilgisi hazır. Kontrol işlemini seçebilirsiniz.'
+              : 'henüz sayılmamış. Sayıyı girebilirsiniz.'));
+        }
       })['catch'](function (e) {
         /* Bağlantı yoksa boş form kalır — o normal. Ama sunucu isteği
            TANIMIYORSA betik eskidir; gönüllü bunu bilmeli. */
         if (e && e.message && /Bilinmeyen istek/i.test(e.message)) {
           sunucuEski = true;
           sunucuEskiUyar();
+          return;
         }
+        sayimFormGoster(false);
+        goster($('msgSayim'), 'hata', agHataMetni(e,
+          'İnternet bağlantısı yok; rafın sayım bilgisi alınamadı.',
+          'Rafın sayım bilgisi gecikti. <button type="button" id="btnSayimTekrar">Yeniden dene</button>'));
       });
   }
+
+  $('msgSayim').addEventListener('click', function (e) {
+    if (e.target && e.target.id === 'btnSayimTekrar') sayimDurumYukle();
+  });
 
   function sayimOnayla() {
     var mekan = $('sayimMekan').value, raf = $('sayimRaf').value;
@@ -2017,7 +2040,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       .then(function (c) {
         goster($('msgSayim'), 'iyi', yerEtiket(c.anahtar) + ' sayımı <b>onaylandı</b>: ' +
           c.adet + ' kitap.');
-        return sayimDurumYukle();
+        return sayimDurumYukle({ sessiz:true });
       })['catch'](function (e) {
         goster($('msgSayim'), 'hata', agHataMetni(e,
           'İnternet bağlantısı yok; onay gönderilmedi.',
@@ -2171,7 +2194,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
       goster($('msgSayim'), 'uyari', yerEtiket(c.anahtar) +
         ' <b>sayılamadı</b> olarak kaydedildi. Sebep koordinatöre iletildi.' +
         (c.fotoUrl ? ' 📷 Raf fotoğrafı da kaydedildi.' : ''));
-      return sayimAsama === 'yeni' ? sayimKaldigiYer() : sayimDurumYukle();
+      return sayimAsama === 'yeni' ? sayimKaldigiYer() : sayimDurumYukle({ sessiz:true });
     })['catch'](function (e) {
       goster($('msgSayim'), 'hata', agHataMetni(e,
         'İnternet bağlantısı yok; bilgi gönderilmedi. Bağlantı gelince tekrar deneyin.',
@@ -2219,7 +2242,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
             : yerEtiket(c.anahtar) + ': ilk sayım <b>' + c.ilkSayim +
               '</b>, sizin sayımınız <b>' + c.adet + '</b> — <b>tutmuyor</b>. ' +
               'Kayda geçti; koordinatör hangisinin geçerli olduğuna karar verecek.');
-        return sayimDurumYukle();
+        return sayimDurumYukle({ sessiz:true });
       }
 
       var duzeltmeMi = sayimKip === 'duzelt';
@@ -2254,7 +2277,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_APPS_SCRIPT_ADRESINI_YAPIST
         });
       }
       goster($('msgSayim'), 'iyi', mesaj);
-      return sayimDurumYukle();
+      return sayimDurumYukle({ sessiz:true });
     })['catch'](function (e) {
       goster($('msgSayim'), 'hata', agHataMetni(e,
         'İnternet bağlantısı yok; sayım gönderilmedi. Bağlantı gelince tekrar deneyin.',
