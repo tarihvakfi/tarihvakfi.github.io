@@ -5,7 +5,8 @@
   var D = {
     ad: '', sifre: '', bolum: 'secim', gorunum: 'bekleyen',
     kararlar: [], kararToplam: 0, kararBas: 0, kararAdet: 20,
-    durum: null, raflar: [], raflarYuklendi: false, rafHaritasiTam: false, rafOzetiVar: false, rafHaritaIstegi: null, rafBas: 0,
+    durum: null, raflar: [], raflarYuklendi: false, rafHaritasiTam: false,
+    rafOzetiVar: false, rafOzetiHata: false, rafHaritaIstegi: null, rafBas: 0,
     seciliRaf: '', rafKitaplar: [], rafKitapToplam: 0,
     rafKitapIstegi: null, rafKitapIstekAnahtari: '', rafKitapYukluAnahtari: '', rafKitapIstekNo: 0,
     kararGuncellemeleri: {},
@@ -407,9 +408,11 @@
       if ((r.sayim || {}).durum === 'onaylandi') onayli++;
     });
     $('rafSayaclari').innerHTML = [
-      [sayilan, 'Raflarda sayılan kitap'], [kayitli, 'Kaydedilen kitap / nüsha'],
-      [sayimli, 'Sayımı yapılan raf sırası'], [onayli, 'Sayımı onaylanan raf sırası']
-    ].map(function (x) { return '<div class="ozet-karti"><b>' + sayi(x[0]) + '</b><span>' + esc(x[1]) + '</span></div>'; }).join('');
+      [D.rafOzetiVar ? sayilan : null, 'Raflarda sayılan kitap'], [kayitli, 'Kaydedilen kitap / nüsha'],
+      [D.rafOzetiVar ? sayimli : null, 'Sayımı yapılan raf sırası'],
+      [D.rafOzetiVar ? onayli : null, 'Sayımı onaylanan raf sırası']
+    ].map(function (x) { return '<div class="ozet-karti"><b>' + (x[0] == null ? '—' : sayi(x[0])) +
+      '</b><span>' + esc(x[1]) + '</span></div>'; }).join('');
   }
 
   function rafOzetiniBirlestir(siralar) {
@@ -427,7 +430,7 @@
         hizliOzet:false
       });
     });
-    D.rafOzetiVar = true;
+    D.rafOzetiVar = true; D.rafOzetiHata = false;
     rafSayaclariCiz(); rafSecicileriCiz(true);
     if (D.bolum === 'durum') genelDurumCiz();
   }
@@ -437,6 +440,7 @@
        haritayı ikinci kez başlatmak Apps Script'i yavaşlatır; süren isteği paylaş. */
     if (D.rafHaritaIstegi) return D.rafHaritaIstegi;
     var ozetAlindi = false;
+    D.rafOzetiHata = false;
     D.rafHaritaIstegi = api('siraOzeti', {}, 40000).then(function (r) {
       rafOzetiniBirlestir(r.siralar || []); ozetAlindi = true;
       mesaj($('rafMsg'), 'iyi', 'Raf sayımları yüklendi. Karar bilgileri eşleştiriliyor…');
@@ -446,16 +450,18 @@
       return api('siraHaritasi', {}, 45000);
     }).then(function (r) {
       D.raflar = r.siralar || [];
-      D.raflarYuklendi = true; D.rafHaritasiTam = true; D.rafOzetiVar = true;
+      D.raflarYuklendi = true; D.rafHaritasiTam = true; D.rafOzetiVar = true; D.rafOzetiHata = false;
       rafSayaclariCiz(); rafSecicileriCiz(true);
       mesaj($('rafMsg'), 'iyi', 'Kitap kayıtları ve raf sayımı eşleştirildi.');
       if (D.bolum === 'durum') genelDurumCiz();
       return D.raflar;
     }).catch(function (e) {
       if (sifreHatasi(e)) throw e;
+      if (!ozetAlindi) D.rafOzetiHata = true;
       mesaj($('rafMsg'), '', ozetAlindi
         ? 'Raf sayımları ve kitap kayıtları gösteriliyor. Kararların raf bazındaki ayrıntısı daha sonra yenilenecek.'
         : hataMetni(e, 'Raf sayımları'));
+      if (D.bolum === 'durum') genelDurumCiz();
       return D.raflar;
     }).finally(function () { D.rafHaritaIstegi = null; });
     return D.rafHaritaIstegi;
@@ -601,9 +607,10 @@
     var sayilan = 0, kayitli = 0, sayimli = 0;
     D.raflar.forEach(function (r) { var n = sayimSayisi(r); if (n != null) { sayilan += n; sayimli++; } kayitli += Number(r.kayitli || 0); });
     $('genelSayaclar').innerHTML = [
-      [sayilan, 'Raflarda sayılan kitap', 'vurgu'], [kayitli, 'Kaydedilen kitap / nüsha', ''],
+      [D.rafOzetiVar ? sayilan : null, 'Raflarda sayılan kitap', 'vurgu'], [kayitli, 'Kaydedilen kitap / nüsha', ''],
       [v.toplam || 0, 'Ayrı kitap kaydı', ''], [v.kararBekleyen || 0, 'Karar bekleyen kitap', '']
-    ].map(function (x) { return '<div class="yonetim-sayi ' + x[2] + '"><b>' + sayi(x[0]) + '</b><span>' + esc(x[1]) + '</span></div>'; }).join('');
+    ].map(function (x) { return '<div class="yonetim-sayi ' + x[2] + '"><b>' +
+      (x[0] == null ? '—' : sayi(x[0])) + '</b><span>' + esc(x[1]) + '</span></div>'; }).join('');
     var kararli = Number(k.Gidecek || 0) + Number(k['Gitse de olur'] || 0) + Number(k.Gitmeyecek || 0) + Number(k.Belirsiz || 0);
     var kararBekleyen = Number(v.kararBekleyen || 0), toplam = Number(v.toplam || 0);
     var bilgiAsamasi = Math.max(0, toplam - kararBekleyen - kararli);
@@ -626,7 +633,14 @@
         sayi(x[2]) + '</b></div>';
     }).join('');
     var uyarilar = D.raflar.filter(function (r) { var n = sayimSayisi(r); return (r.sayim || {}).uyusmazlik || (r.sayim || {}).eksik || (n != null && n !== Number(r.kayitli || 0)); });
-    $('rafUyarilari').innerHTML = uyarilar.length ? '<div class="uyari-listesi">' + uyarilar.slice(0,8).map(function (r) { var n = sayimSayisi(r), fark = n == null ? 0 : n - Number(r.kayitli || 0); return '<div class="uyari-satir"><button type="button" data-uyari-raf="' + esc(r.sira) + '">' + esc(yerAdi(r.sira)) + '</button><span>' + ((r.sayim || {}).uyusmazlik ? 'Sayımlar tutmuyor' : (r.sayim || {}).eksik ? 'Sayım eksik' : 'Fark ' + (fark > 0 ? '+' : '') + sayi(fark)) + '</span></div>'; }).join('') + '</div>' + (uyarilar.length > 8 ? '<p class="kitap-alt">Ayrıca ' + sayi(uyarilar.length - 8) + ' raf daha kontrol bekliyor.</p>' : '') : '<div class="bos-durum"><div>✓</div><h2>Belirgin uyuşmazlık yok</h2><p>Sayımı yapılmış rafların kayıtları eşleşiyor.</p></div>';
+    if (!D.rafOzetiVar) {
+      $('rafUyarilari').innerHTML = '<div class="bos-durum"><div>' + (D.rafOzetiHata ? '!' : '…') +
+        '</div><h2>' + (D.rafOzetiHata ? 'Raf sayımları alınamadı' : 'Raf sayımları yükleniyor') +
+        '</h2><p>' + (D.rafOzetiHata ? 'Bilgileri yenile düğmesiyle yeniden deneyin.' :
+          'Toplamlar ve uyuşmazlıklar birazdan burada görünecek.') + '</p></div>';
+    } else {
+      $('rafUyarilari').innerHTML = uyarilar.length ? '<div class="uyari-listesi">' + uyarilar.slice(0,8).map(function (r) { var n = sayimSayisi(r), fark = n == null ? 0 : n - Number(r.kayitli || 0); return '<div class="uyari-satir"><button type="button" data-uyari-raf="' + esc(r.sira) + '">' + esc(yerAdi(r.sira)) + '</button><span>' + ((r.sayim || {}).uyusmazlik ? 'Sayımlar tutmuyor' : (r.sayim || {}).eksik ? 'Sayım eksik' : 'Fark ' + (fark > 0 ? '+' : '') + sayi(fark)) + '</span></div>'; }).join('') + '</div>' + (uyarilar.length > 8 ? '<p class="kitap-alt">Ayrıca ' + sayi(uyarilar.length - 8) + ' raf daha kontrol bekliyor.</p>' : '') : '<div class="bos-durum"><div>✓</div><h2>Belirgin uyuşmazlık yok</h2><p>Sayımı yapılmış rafların kayıtları eşleşiyor.</p></div>';
+    }
   }
 
   function genelDurumYukle(zorla) {
@@ -638,11 +652,12 @@
     }).catch(function (e) { if (!e.sifreHatasi) mesaj($('durumMsg'), 'hata', hataMetni(e, 'Genel durum')); });
   }
 
-  function bolumAc(ad) {
+  function bolumAc(ad, yukle) {
     D.bolum = ad;
     document.querySelectorAll('.bolum').forEach(function (b) { b.classList.toggle('gizli', b.id !== 'bolum-' + ad); });
     document.querySelectorAll('[data-bolum]').forEach(function (b) { b.classList.toggle('sec', b.dataset.bolum === ad); if (b.dataset.bolum === ad) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); });
     if (history.replaceState) history.replaceState(null, '', '#' + ad);
+    if (yukle === false) { window.scrollTo({ top:0, behavior:'auto' }); return; }
     if (ad === 'raflar') raflariYukle(false);
     if (ad === 'durum') genelDurumYukle(false);
     if (ad === 'secim' && !D.kararlar.length) kararYukle();
@@ -656,8 +671,10 @@
     localStorage.setItem('tv_env_ad', D.ad); localStorage.setItem('tv_env_koord_sifre', D.sifre);
     $('kimAd').textContent = D.ad;
     $('giris').classList.add('gizli'); $('uygulama').classList.remove('gizli');
-    D.durum = null; D.raflarYuklendi = false; D.rafHaritasiTam = false; D.rafOzetiVar = false; D.kararlar = []; D.kararGuncellemeleri = {};
+    D.durum = null; D.raflarYuklendi = false; D.rafHaritasiTam = false;
+    D.rafOzetiVar = false; D.rafOzetiHata = false; D.kararlar = []; D.kararGuncellemeleri = {};
     D.rafKitapIstegi = null; D.rafKitapIstekAnahtari = ''; D.rafKitapYukluAnahtari = ''; D.rafKitapIstekNo++;
+    bolumAc('secim', false);
     /* İlk ekranda asıl iş kitap seçimidir. Apps Script'e aynı anda iki ağır
        istek gönderip ikisini de yavaşlatmamak için listeyi önce getirir,
        özet sayaçlarını hemen arkasından yenileriz. */

@@ -88,6 +88,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
       case 'sayac': await new Promise(resolve => setTimeout(resolve, 1500)); result = { ok:true, benim:0 }; break;
       case 'siraOzeti':
         if (!request.frame().url().includes('kitap-envanteri.html') && ++shelfSummaryAttempts === 1) {
+          await new Promise(resolve => setTimeout(resolve, 400));
           await route.abort('failed');
           return;
         }
@@ -226,6 +227,12 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   assert.equal(await page.locator('iframe').count(), 0);
   assert.ok(calls.every(call => call.fresh));
   assert.equal(calls.some(call => call.action === 'config'), false);
+
+  await page.getByRole('button', { name:/Genel Durum/ }).click();
+  await page.getByText('Raf sayımları yükleniyor', { exact:true }).waitFor({ timeout:2000 });
+  assert.equal(await page.locator('#genelSayaclar').getByText('0', { exact:true }).count(), 0,
+    'Raf sayımı henüz alınmamışken yanıltıcı biçimde 0 gösterildi');
+  await page.getByRole('button', { name:/Kitap Seçimi/ }).click();
 
   await page.locator('.kitap-foto').first().click();
   await page.locator('.tv-foto-goruntuleyici.acik').waitFor();
