@@ -42,6 +42,11 @@ function fail(error: unknown, status = 400) {
   return result({ ok: false, error: message }, status);
 }
 function clean(value: unknown) { return String(value ?? '').trim(); }
+function html(value: unknown) {
+  return clean(value).replace(/[&<>"']/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;',
+  }[character] || character));
+}
 function normalizeName(value: unknown) { return clean(value).replace(/\s+/g, ' ').toLocaleLowerCase('tr'); }
 function trDate(value: unknown) {
   if (!value) return '';
@@ -449,7 +454,65 @@ async function handle(body: Record<string, any>, role: 'volunteer' | 'coordinato
     return {ok:true,kutu:code,hedef:storage?'DEPO':'YENİ BİNA',yazilan:accepted.length,cilt:accepted.reduce((n:number,b:any)=>n+Number(b.copies||1),0),atlanan:skipped+(nums.length-(books||[]).length),aralik:places.length?(places[0]===places.at(-1)?places[0]:`${places[0]} → ${places.at(-1)}`):''};
   }
   if (action === 'kutular') {const boxes=await all('library_boxes');const books=(await all('library_books')).filter((b:any)=>!b.deleted_at);return {ok:true,kutular:boxes.map((b:any)=>b.code).sort((a:string,b:string)=>a.localeCompare(b,'tr',{numeric:true})),siralar:[...new Set(books.map((b:any)=>b.place_code.replace(/-\d+$/,'')))].sort((a:string,b:string)=>a.localeCompare(b,'tr',{numeric:true}))};}
-  if (action === 'iletisimGonder') {const row={page:clean(body.sayfa)||'Site',message_type:clean(body.tur)||'mesaj',sender_name:clean(body.ad)||'İsimsiz',sender_contact:clean(body.iletisim)||null,subject:clean(body.konu)||null,message:clean(body.mesaj),context:{baglam:clean(body.baglam)},delivery_status:'pending'};if(row.message.length<5)throw new Error('Mesajınızı biraz daha açık yazın.');const {error}=await supabase.from('library_contact_messages').insert(row);if(error)throw error;return {ok:true,mailGonderildi:false,mesaj:'Mesajınız kaydedildi. E-posta bildirimi hazırlanıyor.'};}
+  if (action === 'iletisimGonder') {
+    const row = {
+      page: clean(body.sayfa) || 'Site', message_type: clean(body.tur) || 'mesaj',
+      sender_name: clean(body.ad) || 'İsimsiz', sender_contact: clean(body.iletisim) || null,
+      subject: clean(body.konu) || null, message: clean(body.mesaj),
+      context: { baglam: clean(body.baglam) }, delivery_status: 'pending',
+    };
+    if (row.message.length < 5) throw new Error('Mesajınızı biraz daha açık yazın.');
+    const inserted = await supabase.from('library_contact_messages').insert(row).select('id').single();
+    if (inserted.error) throw inserted.error;
+
+    const apiKey = clean(Deno.env.get('RESEND_API_KEY'));
+    const recipient = clean(Deno.env.get('LIBRARY_CONTACT_EMAIL')) || 'arif.solmaz@gmail.com';
+    const sender = clean(Deno.env.get('RESEND_FROM_EMAIL')) || 'Tarih Vakfı Kütüphanesi <onboarding@resend.dev>';
+    if (!apiKey) {
+      await supabase.from('library_contact_messages').update({ delivery_status: 'failed' }).eq('id', inserted.data.id);
+      return { ok:true, mailGonderildi:false, mesaj:'Mesajınız kaydedildi ancak e-posta bağlantısı henüz etkin değil.' };
+    }
+
+    const typeLabels: Record<string, string> = {
+      soru: 'Soru', duzeltme: 'Düzeltme', oneri: 'Öneri', iletisim: 'İletişim isteği',
+    };
+    const typeLabel = typeLabels[row.message_type] || row.message_type;
+    const subject = `[Kütüphane] ${typeLabel}${row.subject ? `: ${row.subject}` : ''}`.slice(0, 180);
+    const context = clean((row.context as Record<string, unknown>).baglam);
+    const textBody = [
+      `Gönderen: ${row.sender_name}`, `İletişim: ${row.sender_contact || 'Belirtilmedi'}`,
+      `Sayfa: ${row.page}`, `Tür: ${typeLabel}`, context ? `Bağlam: ${context}` : '',
+      '', row.message,
+    ].filter(value => value !== '').join('\n');
+    const replyTo = row.sender_contact && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.sender_contact)
+      ? row.sender_contact : undefined;
+    const mailResponse = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        from: sender, to: [recipient], subject, reply_to: replyTo,
+        text: textBody,
+        html: `<div style="font-family:Arial,sans-serif;line-height:1.55;color:#241b20;max-width:680px">
+          <h2 style="color:#5b123b">Tarih Vakfı kütüphane mesajı</h2>
+          <p><strong>Gönderen:</strong> ${html(row.sender_name)}<br>
+          <strong>İletişim:</strong> ${html(row.sender_contact || 'Belirtilmedi')}<br>
+          <strong>Sayfa:</strong> ${html(row.page)}<br>
+          <strong>Tür:</strong> ${html(typeLabel)}${context ? `<br><strong>Bağlam:</strong> ${html(context)}` : ''}</p>
+          <div style="padding:16px;border-left:4px solid #5b123b;background:#f8f1f5;white-space:pre-wrap">${html(row.message)}</div>
+        </div>`,
+      }),
+    });
+    if (!mailResponse.ok) {
+      const detail = (await mailResponse.text()).slice(0, 500);
+      console.error('Resend delivery failed', mailResponse.status, detail);
+      await supabase.from('library_contact_messages').update({ delivery_status: 'failed' }).eq('id', inserted.data.id);
+      return { ok:true, mailGonderildi:false, mesaj:'Mesajınız kaydedildi ancak e-posta gönderilemedi. Sistem yöneticisi kaydı görebilir.' };
+    }
+    await supabase.from('library_contact_messages').update({
+      delivery_status: 'sent', delivered_at: new Date().toISOString(),
+    }).eq('id', inserted.data.id);
+    return { ok:true, mailGonderildi:true, mesaj:`Mesajınız ${recipient} adresine e-posta olarak iletildi.` };
+  }
   throw new Error(`Bilinmeyen istek: ${action}`);
 }
 
