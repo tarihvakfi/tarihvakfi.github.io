@@ -1467,11 +1467,19 @@ var YAZAN_EYLEMLER = ['ekle', 'guncelle', 'sil', 'fotoEkle', 'onayla', 'topluOna
                       'sayimOnayla', 'sayimGeriAl', 'fotoBagla', 'iletisimGonder'];
 
 function doGet(e) {
-  if (e && e.parameter && e.parameter.action) {
-    if (YAZAN_EYLEMLER.indexOf(e.parameter.action) >= 0) {
+  if (e && e.parameter) {
+    var istek = e.parameter;
+    if (e.parameter.tv_json) {
+      try { istek = JSON.parse(e.parameter.tv_json); }
+      catch (h) { return cikti_({ ok: false, error: 'İstek okunamadı.' }); }
+      istek.sifreOzeti = String(e.parameter.sifreOzeti || '');
+      istek._getOkuma = true;
+    }
+    if (!istek.action) return cikti_({ ok: true, mesaj: AYAR.KURUM + ' kitap envanteri çalışıyor.' });
+    if (YAZAN_EYLEMLER.indexOf(istek.action) >= 0) {
       return cikti_({ ok: false, error: 'Bu işlem bağlantı ile yapılamaz.' });
     }
-    return islet_(e.parameter);
+    return islet_(istek);
   }
   return cikti_({ ok: true, mesaj: AYAR.KURUM + ' kitap envanteri çalışıyor.' });
 }
@@ -1500,6 +1508,20 @@ function gizliAyar_(ad, varsayilan) {
   return String(varsayilan || '').trim();
 }
 
+/* Okuma isteklerinde gerçek şifre URL'ye girmez. Tarayıcı SHA-256 özetini
+   yollar; özet yalnızca GET ile gelen, veri değiştirmeyen eylemlerde geçer.
+   Kayıt/karar işlemleri gerçek şifreyi POST gövdesinde doğrulamaya devam eder. */
+function sifreOzeti_(deger) {
+  var baytlar = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    String(deger || '').trim(),
+    Utilities.Charset.UTF_8
+  );
+  return baytlar.map(function (bayt) {
+    return ('0' + ((bayt + 256) % 256).toString(16)).slice(-2);
+  }).join('');
+}
+
 function islet_(istek) {
   try {
     /* Apps Script aynı çalışanı yeniden kullanabilse de veri belleği yalnızca
@@ -1513,17 +1535,22 @@ function islet_(istek) {
     var sifre = String(istek.sifre || '').trim();
     var calismaSifresi = gizliAyar_('CALISMA_SIFRESI', AYAR.CALISMA_SIFRESI);
     var koordinatorSifresi = gizliAyar_('KOORDINATOR_SIFRESI', AYAR.KOORDINATOR_SIFRESI);
+    var ozet = String(istek.sifreOzeti || '').trim().toLowerCase();
+    var ozetliOkuma = !!istek._getOkuma && YAZAN_EYLEMLER.indexOf(istek.action) < 0;
+    var calismaYetkisi = sifre === calismaSifresi ||
+      (ozetliOkuma && ozet === sifreOzeti_(calismaSifresi));
+    var koordinatorYetkisi = !!koordinatorSifresi && (sifre === koordinatorSifresi ||
+      (ozetliOkuma && ozet === sifreOzeti_(koordinatorSifresi)));
 
     if (KOORDINATOR_EYLEMLERI.indexOf(istek.action) >= 0 && koordinatorSifresi) {
       // Onay ekranı ve katalog ayrı şifre ister; çalışma şifresi buraya yetmez.
-      if (sifre !== koordinatorSifresi) {
+      if (!koordinatorYetkisi) {
         return cikti_({ ok: false, sifreHatasi: true,
-          error: sifre === calismaSifresi
+          error: calismaYetkisi
             ? 'Bu ekran koordinatör şifresi ister — girdiğiniz çalışma şifresi.'
             : 'Bu ekran koordinatör şifresi ister.' });
       }
-    } else if (sifre !== calismaSifresi &&
-               !(koordinatorSifresi && sifre === koordinatorSifresi)) {
+    } else if (!calismaYetkisi && !koordinatorYetkisi) {
       /* Koordinatör şifresi ÜST KÜMEDİR: gönüllü eylemlerinde de geçer.
          Böylece koordinatör katalogdan herhangi bir kaydı silebilir/düzeltebilir.
          Hata mesajı kendi kendini teşhis etsin: rafta duran gönüllü ile

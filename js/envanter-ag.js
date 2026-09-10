@@ -1,27 +1,47 @@
-/* Shared transport for the library pages. Passwords stay in POST bodies.
-   A fresh URL prevents an obsolete Google ContentService redirect being reused.
-   Only reads may be retried; writes are sent exactly once. */
+/* Shared transport for the library pages.
+   Reads use GET with a one-way password digest. This avoids the unreliable
+   ContentService POST redirect without putting the actual password in a URL.
+   Writes keep the password in a POST body and are sent exactly once. */
 (function () {
   'use strict';
   var reads = ['config','sayac','rafDurum','sonKayitlar','kayitBul','siraOzeti','sayimBilgisi','rafFotograflari','istenenler','onayBekleyen','onayGruplari','kararBekleyen','katalog','kutular','durum','siraHaritasi','koordinatorBaslangic'];
   var configRequests = new Map();
+  var digestCache = new Map();
   function cachedConfig(url) {
     try { var c=JSON.parse(sessionStorage.getItem('tv_env_config_v1')||'null');return c&&c.url===url&&Date.now()-c.time<300000?c.data:null; } catch(e){return null;}
   }
-  function once(url, body, timeout) {
+  function passwordDigest(password) {
+    password=String(password||'').trim();
+    if(digestCache.has(password))return Promise.resolve(digestCache.get(password));
+    if(!(window.crypto&&window.crypto.subtle&&window.TextEncoder))return Promise.resolve(null);
+    return window.crypto.subtle.digest('SHA-256',new TextEncoder().encode(password)).then(function(buffer){
+      var digest=Array.from(new Uint8Array(buffer)).map(function(byte){return byte.toString(16).padStart(2,'0');}).join('');
+      digestCache.set(password,digest);return digest;
+    }).catch(function(){return null;});
+  }
+  function once(url, body, timeout, read) {
     var controller = new AbortController();
     var timer = setTimeout(function(){controller.abort();},timeout || 25000);
     var endpoint=new URL(url,location.href);
     endpoint.searchParams.set('tv_req',Date.now().toString(36)+'_'+Math.random().toString(36).slice(2));
     var configOku = body.action === 'config';
-    if (configOku) endpoint.searchParams.set('action', 'config');
-    return fetch(endpoint.href,{
-      method:configOku?'GET':'POST',
-      cache:'no-store',
-      headers:configOku?undefined:{'Content-Type':'text/plain;charset=utf-8'},
-      body:configOku?undefined:JSON.stringify(body),
-      redirect:'follow',signal:controller.signal
-    })
+    function gonder(digest) {
+      var getOku = configOku || (read && digest);
+      if(configOku) endpoint.searchParams.set('action','config');
+      else if(getOku){
+        var safeBody={};Object.keys(body).forEach(function(key){if(key!=='sifre')safeBody[key]=body[key];});
+        endpoint.searchParams.set('tv_json',JSON.stringify(safeBody));
+        endpoint.searchParams.set('sifreOzeti',digest);
+      }
+      return fetch(endpoint.href,{
+        method:getOku?'GET':'POST',
+        cache:'no-store',
+        headers:getOku?undefined:{'Content-Type':'text/plain;charset=utf-8'},
+        body:getOku?undefined:JSON.stringify(body),
+        redirect:'follow',signal:controller.signal
+      });
+    }
+    return (configOku?Promise.resolve(null):passwordDigest(body.sifre).then(function(digest){return read?digest:null;})).then(gonder)
       .catch(function(){var e=new Error('AĞ');e.code='NETWORK';throw e;})
       .then(function(response){return response.text().then(function(text){
         var data;
@@ -46,7 +66,7 @@
     var read=reads.indexOf(body.action)>=0;
     var kalan=read?(options.retries==null?1:Math.max(0,Number(options.retries)||0)):0;
     function dene() {
-      return once(url,body,options.timeout).catch(function(e){
+      return once(url,body,options.timeout,read).catch(function(e){
         // Reads are side-effect free. A cold Apps Script redirect may fail once;
         // retry it with a fresh URL. Writes still run exactly once here.
         if(read&&kalan>0&&(e.code==='SERVER_RESPONSE'||e.code==='NETWORK')){

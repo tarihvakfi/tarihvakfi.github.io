@@ -49,8 +49,12 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await context.route('**://mock.invalid/api**', async route => {
     const request = route.request();
     const url = new URL(request.url());
-    const body = request.method() === 'GET' ? Object.fromEntries(url.searchParams) : (request.postDataJSON() || {});
-    calls.push({ action: body.action, method: request.method(), fresh: url.searchParams.has('tv_req'), sira:body.sira || '' });
+    const query = Object.fromEntries(url.searchParams);
+    const body = request.method() === 'GET' && query.tv_json
+      ? Object.assign(JSON.parse(query.tv_json), { sifreOzeti:query.sifreOzeti })
+      : request.method() === 'GET' ? query : (request.postDataJSON() || {});
+    calls.push({ action: body.action, method: request.method(), fresh: url.searchParams.has('tv_req'), sira:body.sira || '',
+      rawPassword:url.searchParams.has('sifre') || url.href.includes('test-only') });
     if (body.action === 'siraOner' && ++shelfSuggestionAttempts === 1) {
       await route.fulfill({ contentType:'text/html', body:'<html>geçici yönlendirme</html>' });
       return;
@@ -76,7 +80,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
       return;
     }
     if (body.action === 'koordinatorBaslangic' && !request.frame().url().includes('kitap-envanteri.html') &&
-        body.sifre === 'test-only') {
+        (body.sifre === 'test-only' || body.sifreOzeti === 'bb310ae75eb4a77421ea0d52b9db9a10d93be149185126cbfdada35d55c970e9')) {
       coordinatorCatalogAttempts++;
       if (coordinatorCatalogAttempts <= 2) {
         await new Promise(resolve => setTimeout(resolve, 300));
@@ -88,7 +92,8 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
       }
     }
     let result;
-    if (body.action !== 'config' && body.sifre !== 'test-only') {
+    if (body.action !== 'config' && body.sifre !== 'test-only' &&
+        body.sifreOzeti !== 'bb310ae75eb4a77421ea0d52b9db9a10d93be149185126cbfdada35d55c970e9') {
       result = { ok: false, sifreHatasi: true, error: 'Şifre hatalı.' };
       await route.fulfill({ contentType: 'application/json', body: JSON.stringify(result) });
       return;
@@ -262,6 +267,8 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   assert.equal(await page.locator('iframe').count(), 0);
   assert.ok(calls.every(call => call.fresh));
   assert.equal(calls.some(call => call.action === 'config'), false);
+  assert.equal(calls.find(call => call.action === 'koordinatorBaslangic').method, 'GET');
+  assert.equal(calls.some(call => call.rawPassword), false, 'Okuma şifresi URL içinde gönderildi');
 
   await page.getByRole('button', { name:/Genel Durum/ }).click();
   await page.getByText('Raf sayımları yükleniyor', { exact:true }).waitFor({ timeout:2000 });
