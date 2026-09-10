@@ -113,18 +113,18 @@ main { width: min(100% - 36px, 1240px); margin: 0 auto; padding: 38px 0 80px; }
 .arama-alani select { max-width: 190px; }
 
 .kitap-kartlari { display: grid; gap: 16px; }
-.kitap-karti { display: grid; grid-template-columns: minmax(310px,360px) minmax(0,1fr); overflow: hidden; border: 1px solid var(--cizgi); border-radius: 20px; background: var(--kagit); box-shadow: 0 7px 24px rgba(50,28,39,.045); }
-.kitap-gorseller { align-self: start; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; height: 350px; padding: 12px; background: #eee8e3; }
-.kitap-foto { position: relative; display: block; min-width: 0; overflow: hidden; border: 0; border-radius: 12px; background: #e4dcda; color: var(--soluk); }
-.kitap-foto img { display: block; width: 100%; height: 100%; object-fit: contain; background: #e4dcda; }
+.kitap-karti { display: grid; grid-template-columns: 220px minmax(0,1fr); overflow: hidden; border: 1px solid var(--cizgi); border-radius: 20px; background: var(--kagit); box-shadow: 0 7px 24px rgba(50,28,39,.045); }
+.kitap-gorseller { align-self: start; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; height: 230px; padding: 10px; background: #eee8e3; }
+.kitap-foto { position: relative; display: block; min-width: 0; overflow: hidden; border: 1px solid rgba(92,71,79,.12); border-radius: 10px; background: #f5f1ee; color: var(--soluk); }
+.kitap-foto img { display: block; width: 100%; height: 100%; object-fit: contain; background: #f5f1ee; }
 .kitap-foto span { position: absolute; right: 7px; bottom: 7px; left: 7px; padding: 5px; border-radius: 7px; background: rgba(27,19,23,.76); color: #fff; font-size: 11px; font-weight: 700; text-align: center; }
 .kitap-foto.yok { display: grid; place-items: center; padding: 10px; font-size: 13px; text-align: center; }
-.kitap-bilgi { display: flex; flex-direction: column; padding: 22px 24px; }
+.kitap-bilgi { display: flex; flex-direction: column; padding: 18px 22px; }
 .yer-kodu { margin: 0 0 5px; color: var(--bordo); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; font-weight: 800; letter-spacing: .04em; }
 .kitap-bilgi h2 { margin: 0; font-family: Georgia, serif; font-size: clamp(23px, 3vw, 31px); line-height: 1.16; }
 .kitap-alt { margin: 8px 0 0; color: var(--soluk); }
 .kitap-not { margin: 12px 0 0; padding: 9px 12px; border-radius: 9px; background: var(--sari-acik); color: #76500f; font-size: 14px; }
-.karar-alani { margin-top: auto; padding-top: 20px; }
+.karar-alani { margin-top: 15px; padding-top: 0; }
 .karar-alani > label { margin: 0 0 8px; }
 .karar-dugmeleri { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
 .karar-dugmeleri button { min-height: 58px; padding: 8px 7px; border: 1.5px solid; border-radius: 12px; background: #fff; font-size: 15px; font-weight: 800; }
@@ -217,8 +217,8 @@ main { width: min(100% - 36px, 1240px); margin: 0 auto; padding: 38px 0 80px; }
 
 @media (max-width: 940px) {
   .karar-sayaclari { grid-template-columns: repeat(5, minmax(130px,1fr)); overflow-x: auto; padding-bottom: 5px; }
-  .kitap-karti { grid-template-columns: 280px minmax(0,1fr); }
-  .kitap-gorseller { height: 310px; }
+  .kitap-karti { grid-template-columns: 200px minmax(0,1fr); }
+  .kitap-gorseller { height: 220px; }
   .karar-dugmeleri { grid-template-columns: 1fr 1fr; }
   .ozet-kartlari, .yonetim-sayilari { grid-template-columns: 1fr 1fr; }
   .durum-iki-sutun { grid-template-columns: 1fr; }

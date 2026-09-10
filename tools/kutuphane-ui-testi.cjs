@@ -433,7 +433,8 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
     height:img.getBoundingClientRect().height
   }));
   assert.equal(desktopPhoto.objectFit, 'contain');
-  assert.ok(desktopPhoto.width > 150 && desktopPhoto.height > 280, 'Geniş ekran fotoğraf alanı çok küçük: ' + JSON.stringify(desktopPhoto));
+  assert.ok(desktopPhoto.width >= 80 && desktopPhoto.width <= 110 && desktopPhoto.height >= 190 && desktopPhoto.height <= 215,
+    'Geniş ekran fotoğraf önizlemesi beklenen ölçüde değil: ' + JSON.stringify(desktopPhoto));
   const nestedDesktopScrollers = await page.evaluate(() => [...document.querySelectorAll('body *')].filter(el => {
     const s=getComputedStyle(el), r=el.getBoundingClientRect();
     return r.height > 300 && el.scrollHeight > el.clientHeight + 3 && /auto|scroll/.test(s.overflowY) && !el.matches('dialog,textarea');
