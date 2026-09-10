@@ -1507,43 +1507,29 @@ var YAZAN_EYLEMLER = ['ekle', 'guncelle', 'sil', 'fotoEkle', 'onayla', 'topluOna
                       'kutula', 'siraBitir', 'siraOner', 'siraSec', 'kitapIste', 'sayimKaydet', 'siraBirak',
                       'sayimOnayla', 'sayimGeriAl', 'fotoBagla', 'iletisimGonder'];
 
-/* GitHub Pages ile Apps Script arasında kalıcı, görünmez bağlantı. ContentService
-   her isteği başka bir Google adresine yönlendiriyordu; işlem sunucuda birkaç
-   saniyede bitse bile tarayıcı yanıtı bazen onlarca saniye bekliyordu.
-   HTMLService içindeki google.script.run bu yönlendirmeyi tamamen atlar. */
-function agKoprusu_() {
-  var hedef = 'https://tarihvakfi.github.io';
-  var kod = [
-    '<!doctype html><meta charset="utf-8"><script>',
-    '(function(){',
-    'var hedef=' + JSON.stringify(hedef) + ';',
-    'addEventListener("message",function(olay){',
-    'if(olay.origin!==hedef||!olay.data||olay.data.tvEnvanter!=="istek")return;',
-    'var id=olay.data.id,kaynak=olay.source;',
-    'google.script.run.withSuccessHandler(function(veri){',
-    'top.postMessage({tvEnvanter:"yanit",id:id,data:veri},hedef);',
-    '}).withFailureHandler(function(hata){',
-    'top.postMessage({tvEnvanter:"yanit",id:id,data:{ok:false,error:"Sunucu hatası: "+(hata&&hata.message||hata)}},hedef);',
-    '}).kopruIslet(olay.data.body||{});',
-    '});',
-    'top.postMessage({tvEnvanter:"hazir"},hedef);',
-    '})();<\/script>'
-  ].join('');
-  return HtmlService.createHtmlOutput(kod)
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+/* ContentService yanıtı başka bir Google adresine yönlendirir. Tarayıcının
+   fetch çağrısı bu dönüşte bazen onlarca saniye bekliyor. Okuma yanıtını
+   güvenli bir JSONP çağrısı olarak vermek, tarayıcının normal komut dosyası
+   yükleyicisini kullanır ve bu beklemeyi ortadan kaldırır. */
+function jsonpCikti_(callback, yanit) {
+  var ad = String(callback || '');
+  if (!/^[A-Za-z_$][0-9A-Za-z_$]*$/.test(ad)) return yanit;
+  return ContentService.createTextOutput(ad + '(' + yanit.getContent() + ');')
+    .setMimeType(ContentService.MimeType.JAVASCRIPT);
 }
 
-/* Alt çizgiyle bitmez: google.script.run yalnızca dışarı açık sunucu
-   işlevlerini çağırabilir. Asıl yetki denetimi yine islet_ içinde yapılır. */
-function kopruIslet(istek) {
-  var yanit = islet_(istek || {});
-  try { return JSON.parse(yanit.getContent()); }
-  catch (h) { return { ok: false, error: 'Sunucu yanıtı okunamadı.' }; }
+function istekSonucuCikti_(id) {
+  id = String(id || '');
+  if (!/^[A-Za-z0-9_-]{20,80}$/.test(id)) return cikti_({ ok:false, error:'İstek kimliği geçersiz.' });
+  var metin = CacheService.getScriptCache().get('envanter_istek_' + id);
+  return metin
+    ? ContentService.createTextOutput(metin).setMimeType(ContentService.MimeType.JSON)
+    : cikti_({ ok:true, bekliyor:true });
 }
 
 function doGet(e) {
-  if (e && e.parameter && e.parameter.bridge === '1') return agKoprusu_();
   if (e && e.parameter) {
+    if (e.parameter.sonuc) return jsonpCikti_(e.parameter.callback, istekSonucuCikti_(e.parameter.sonuc));
     var istek = e.parameter;
     if (e.parameter.tv_json) {
       try { istek = JSON.parse(e.parameter.tv_json); }
@@ -1551,20 +1537,31 @@ function doGet(e) {
       istek.sifreOzeti = String(e.parameter.sifreOzeti || '');
       istek._getOkuma = true;
     }
-    if (!istek.action) return cikti_({ ok: true, mesaj: AYAR.KURUM + ' kitap envanteri çalışıyor.' });
+    if (!istek.action) return jsonpCikti_(e.parameter.callback, cikti_({ ok: true, mesaj: AYAR.KURUM + ' kitap envanteri çalışıyor.' }));
     if (YAZAN_EYLEMLER.indexOf(istek.action) >= 0) {
-      return cikti_({ ok: false, error: 'Bu işlem bağlantı ile yapılamaz.' });
+      return jsonpCikti_(e.parameter.callback, cikti_({ ok: false, error: 'Bu işlem bağlantı ile yapılamaz.' }));
     }
-    return islet_(istek);
+    return jsonpCikti_(e.parameter.callback, islet_(istek));
   }
   return cikti_({ ok: true, mesaj: AYAR.KURUM + ' kitap envanteri çalışıyor.' });
 }
 
 function doPost(e) {
   var istek = {};
-  try { istek = JSON.parse((e && e.postData && e.postData.contents) || '{}'); }
+  try { istek = JSON.parse((e && e.parameter && e.parameter.tv_json) || (e && e.postData && e.postData.contents) || '{}'); }
   catch (h) { return cikti_({ ok: false, error: 'İstek okunamadı.' }); }
-  return islet_(istek);
+  var id = String(istek._requestId || '');
+  var anahtar = /^[A-Za-z0-9_-]{20,80}$/.test(id) ? 'envanter_istek_' + id : '';
+  if (anahtar) {
+    var onceki = CacheService.getScriptCache().get(anahtar);
+    if (onceki) return ContentService.createTextOutput(onceki).setMimeType(ContentService.MimeType.JSON);
+  }
+  var yanit = islet_(istek);
+  if (anahtar) {
+    try { CacheService.getScriptCache().put(anahtar, yanit.getContent(), 300); }
+    catch (h2) {}
+  }
+  return yanit;
 }
 
 // Yalnızca koordinatörün açabileceği işlemler
