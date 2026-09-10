@@ -1666,7 +1666,7 @@ function doPost(e) {
 // Yalnızca koordinatörün açabileceği işlemler
 // istenenler_ bilerek gönüllü eylemi: rafta çalışan görecek.
 var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayGruplari', 'onayla', 'topluOnayla', 'kutula',
-                             'kararBekleyen', 'kararVer', 'kararGeriAl', 'kunyeErtele',
+                             'kararBekleyen', 'kararVer', 'kararGorusGeriAl', 'kararGeriAl', 'kunyeErtele',
                              'katalog', 'kutular', 'durum', 'siraHaritasi', 'kitapIste',
                              'koordinatorBaslangic', 'siraHaritasiKisa'];
 

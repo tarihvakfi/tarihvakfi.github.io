@@ -1,0 +1,2 @@
+-- Canlı veriler bu dosyaya yazılmaz. Mevcut Google E-Tablo kayıtları
+-- tools/migrate_inventory_to_supabase.mjs ile kontrollü olarak aktarılır.
