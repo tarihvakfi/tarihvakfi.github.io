@@ -136,6 +136,13 @@ main { width: min(100% - 36px, 1240px); margin: 0 auto; padding: 38px 0 80px; }
 .karar-meta { margin-top: 16px; padding: 14px; border-left: 4px solid var(--bordo); border-radius: 8px; background: var(--bordo-acik); }
 .karar-meta strong, .karar-meta span { display: block; }
 .karar-meta span { margin-top: 3px; color: var(--soluk); font-size: 14px; }
+.gorus-ozeti { display: grid; gap: 7px; margin-top: 15px; padding: 13px 15px; border-left: 4px solid var(--mavi); border-radius: 9px; background: var(--mavi-acik); color: #234f73; }
+.gorus-ozeti.ayrilik { border-left-color: var(--sari); background: var(--sari-acik); color: #76500e; }
+.gorus-ozeti > strong, .gorus-ozeti > span, .gorus-ozeti > small { display: block; }
+.gorus-ozeti > span { padding-top: 6px; border-top: 1px solid rgba(42,91,134,.16); font-size: 14px; }
+.gorus-ozeti.ayrilik > span { border-top-color: rgba(160,106,18,.2); }
+.gorus-ozeti span small { display: block; margin-top: 3px; font-weight: 400; }
+.gorus-ozeti > small { margin-top: 2px; line-height: 1.4; }
 .geri-al { align-self: flex-start; margin-top: 14px; padding: 10px 14px; border: 1.5px solid var(--cizgi); border-radius: 10px; background: #fff; color: var(--bordo); font-weight: 750; }
 .karar-gecmisi { margin-top: 12px; color: var(--soluk); font-size: 14px; }
 .karar-gecmisi pre { overflow: auto; padding: 10px; border-radius: 8px; background: #f5f0ec; white-space: pre-wrap; font: 12px/1.45 ui-monospace, monospace; }

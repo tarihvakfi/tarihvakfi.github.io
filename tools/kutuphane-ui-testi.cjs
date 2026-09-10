@@ -34,7 +34,8 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
     no: index + 1, yer: 'G-A01-' + String(index + 1).padStart(3, '0'),
     baslik: 'Kitap ' + (index + 1), yazar: 'Yazar ' + (index + 1), yil: '1980',
     nusha: 1, onay: 'evet', kategori: '', kapakId: index === 0 ? photoId : '',
-    fotoId: index === 0 ? photoId : '', kararVeren: '', kararTarihi: ''
+    fotoId: index === 0 ? photoId : '', kararVeren: '', kararTarihi: '',
+    kararGorusleri: [], kararDurumu: 'gorus_bekliyor'
   }));
 
   const configSource = fs.readFileSync('js/gonullu-config.js', 'utf8').replace(
@@ -169,13 +170,28 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
       }
       case 'kararVer': {
         const book = books.find(item => item.no === body.numaralar[0]);
-        book.kategori = categories[body.kategori].ad; book.kararVeren = body.veren; book.kararTarihi = '9.09.2026 20:00';
-        staleShelfDecisionReads = 1;
-        result = { ok:true, yazilan:[book.no], kategori:book.kategori };
+        const key = String(body.veren).trim().toLocaleLowerCase('tr');
+        const opinion = { kategori:body.kategori, kategoriAdi:categories[body.kategori].ad,
+          veren:body.veren, tarih:'2026-09-10T10:00:00.000Z', not:'' };
+        const previous = book.kararGorusleri.findIndex(item => item.veren.trim().toLocaleLowerCase('tr') === key);
+        if (previous >= 0) book.kararGorusleri[previous] = opinion; else book.kararGorusleri.push(opinion);
+        const agreeing = book.kararGorusleri.filter(item => item.kategori === body.kategori);
+        const distinct = new Set(book.kararGorusleri.map(item => item.kategori));
+        const final = agreeing.length >= 2;
+        book.kararDurumu = final ? 'kesin' : (distinct.size > 1 ? 'gorus_ayriligi' : 'ikinci_gorus_bekliyor');
+        if (final) {
+          book.kategori = categories[body.kategori].ad;
+          book.kararVeren = agreeing.map(item => item.veren).join(' + ');
+          book.kararTarihi = '10.09.2026 13:00';
+          staleShelfDecisionReads = 1;
+        }
+        result = { ok:true, yazilan:[book.no], kategori:final ? book.kategori : '', kesinlesti:final,
+          kararDurumu:book.kararDurumu, gorusler:book.kararGorusleri, kararTarihi:book.kararTarihi };
         break;
       }
       case 'kararGeriAl': {
         const book = books.find(item => item.no === body.numaralar[0]); book.kategori = '';
+        book.kararVeren = ''; book.kararTarihi = ''; book.kararGorusleri = []; book.kararDurumu = 'gorus_bekliyor';
         result = { ok:true, yazilan:[book.no] };
         break;
       }
@@ -287,8 +303,34 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await page.getByRole('button', { name:'Kapat', exact:true }).click();
 
   await page.locator('.kitap-karti').first().getByRole('button', { name:'Gitsin' }).click();
+  await page.getByText('İkinci görüş bekleniyor', { exact:true }).waitFor();
+  assert.equal(books[0].kategori, '', 'İlk görüş kesin karar sayıldı');
+  assert.equal(books[0].kararGorusleri.length, 1);
+  assert.equal(await page.locator('.kitap-karti[data-no="1"]').count(), 1, 'İlk görüşten sonra kitap kuyruktan çıktı');
+  await page.locator('.kitap-karti[data-no="1"]').getByRole('button', { name:'Gitsin' }).click();
+  await page.waitForTimeout(500);
+  assert.equal(books[0].kararGorusleri.length, 1, 'Aynı kişinin ikinci dokunuşu iki görüş sayıldı');
+  assert.equal(books[0].kategori, '');
+  await page.locator('.kitap-karti[data-no="2"]').getByRole('button', { name:'Gitsin' }).click();
+  await page.getByText('İkinci görüş bekleniyor', { exact:true }).nth(1).waitFor();
+  await page.locator('#btnCikis').click();
+  await page.locator('#ad').fill('İkinci Yetkili');
+  await page.locator('#sifre').fill('test-only');
+  await page.locator('#btnGiris').click();
+  await page.locator('#kararListe').getByText('Kitap 1', { exact:true }).waitFor();
+  await page.locator('.kitap-karti[data-no="2"]').getByRole('button', { name:'Gitmesin' }).click();
+  await page.locator('.kitap-karti[data-no="2"]').getByText('Görüş ayrılığı var', { exact:true }).waitFor();
+  if (process.env.TV_TEST_SCREENSHOTS) {
+    await page.locator('.kitap-karti[data-no="2"]').screenshot({ path:'/tmp/tv-gorus-ayriligi.png' });
+    await page.setViewportSize({ width:390, height:844 });
+    await page.locator('.kitap-karti[data-no="2"]').screenshot({ path:'/tmp/tv-gorus-ayriligi-mobil.png' });
+    await page.setViewportSize({ width:1280, height:850 });
+  }
+  assert.equal(books[1].kategori, '', 'Farklı görüşler yanlışlıkla kesin karar sayıldı');
+  assert.equal(books[1].kararGorusleri.length, 2);
+  await page.locator('.kitap-karti[data-no="1"]').getByRole('button', { name:'Gitsin' }).click();
   await page.waitForTimeout(900);
-  assert.equal(books[0].kategori, 'Gidecek');
+  assert.equal(books[0].kategori, 'Gidecek', 'İki farklı yetkilinin ortak görüşü kesinleşmedi');
   const pendingIds = await page.locator('.kitap-karti').evaluateAll(nodes => nodes.map(node => node.dataset.no));
   const decisionMessage = await page.locator('.kart-mesaj').first().textContent();
   assert.ok(!pendingIds.includes('1'), 'Karar verilen kitap listede kaldı: ' + JSON.stringify(pendingIds.slice(0,5)) + ' · mesaj: ' + decisionMessage + ' · hatalar: ' + errors.join(' | '));
