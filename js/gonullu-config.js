@@ -25,7 +25,7 @@ window.TV_APP_URL = "https://script.google.com/macros/s/AKfycbxKD1hzj0Qh6Oqm8Olo
  * Envanter formunu henüz kurmadıysanız bu satırı olduğu gibi bırakın; gönüllü
  * sistemi bundan etkilenmez.
  */
-window.TV_ENVANTER_URL = "https://script.google.com/macros/s/AKfycbxCd0rKSe__Lp9ISe8A3Gh9Kq5ZShrzQIXVBayD5x2lUjQ0Cb36qghf74Fwk3W2u-t-/exec";
+window.TV_ENVANTER_URL = "https://script.google.com/macros/s/AKfycbxizSokX0hZLTjiCaEyzpLa4PnauIPEuEqZC5JtzA-Vkuwrc6hav0ohxAJejBKsOo6_/exec";
 
 /* Ekranların açılışta sunucudan beklemeden kullanacağı sabit kütüphane ayarları.
  * Raf düzeni değişirse Apps Script'teki AYAR bölümüyle birlikte güncellenmelidir.

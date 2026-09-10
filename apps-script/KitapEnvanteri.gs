@@ -1522,21 +1522,56 @@ function jsonpCikti_(callback, yanit) {
 }
 
 function istekSonucuCikti_(id) {
-  id = String(id || '');
-  if (!/^[A-Za-z0-9_-]{20,80}$/.test(id)) return cikti_({ ok:false, error:'İstek kimliği geçersiz.' });
-  var metin = CacheService.getScriptCache().get('envanter_istek_' + id);
-  return metin
-    ? ContentService.createTextOutput(metin).setMimeType(ContentService.MimeType.JSON)
-    : cikti_({ ok:true, bekliyor:true });
+  return cikti_(istekSonucu_(id));
 }
 
 function istekSonucu_(id) {
   id = String(id || '');
   if (!/^[A-Za-z0-9_-]{20,80}$/.test(id)) return { ok:false, error:'İstek kimliği geçersiz.' };
-  var metin = CacheService.getScriptCache().get('envanter_istek_' + id);
+  var metin = istekSonucuMetni_(id);
   if (!metin) return { ok:true, bekliyor:true };
-  try { return JSON.parse(metin); }
+  try { return { ok:true, bekliyor:false, yanit:JSON.parse(metin) }; }
   catch (h) { return { ok:false, error:'İşlem sonucu okunamadı.' }; }
+}
+
+/* CacheService farklı web-app çalıştırmalarında birkaç saniye gecikmeli
+   görünebiliyor. Sonucu ScriptProperties'e de yazarak fotoğraf POST'unu izleyen
+   doğrulama çağrısının hemen görmesini sağlarız. Kayıtlar beş dakika tutulur;
+   ara sıra yapılan temizlik proje özelliklerinin büyümesini önler. */
+function istekSonucuMetni_(id) {
+  var anahtar = 'envanter_istek_' + id;
+  var metin = CacheService.getScriptCache().get(anahtar);
+  if (metin) return metin;
+  try {
+    var paket = PropertiesService.getScriptProperties().getProperty(anahtar);
+    if (!paket) return '';
+    var veri = JSON.parse(paket);
+    if (Number(veri.son || 0) < Date.now()) {
+      PropertiesService.getScriptProperties().deleteProperty(anahtar);
+      return '';
+    }
+    return String(veri.metin || '');
+  } catch (h) { return ''; }
+}
+
+function istekSonucuSakla_(id, metin) {
+  if (!id) return;
+  var anahtar = 'envanter_istek_' + id;
+  try { CacheService.getScriptCache().put(anahtar, metin, 300); } catch (h) {}
+  try {
+    var ozellikler = PropertiesService.getScriptProperties();
+    ozellikler.setProperty(anahtar, JSON.stringify({ son:Date.now() + 300000, metin:metin }));
+    if (Math.random() < 0.1) {
+      var tumu = ozellikler.getProperties();
+      Object.keys(tumu).forEach(function(k) {
+        if (k.indexOf('envanter_istek_') !== 0) return;
+        try {
+          var eski = JSON.parse(tumu[k]);
+          if (Number(eski.son || 0) < Date.now()) ozellikler.deleteProperty(k);
+        } catch (h2) { ozellikler.deleteProperty(k); }
+      });
+    }
+  } catch (h3) {}
 }
 
 /* Form POST yanıtını üst sayfaya doğrudan bildirir. Böylece Google'ın
@@ -1565,7 +1600,7 @@ function biletliYazCikti_(bilet, istek) {
   var sonucAnahtari = /^[A-Za-z0-9_-]{20,80}$/.test(id) ? 'envanter_istek_' + id : '';
   var cache = CacheService.getScriptCache();
   if (sonucAnahtari) {
-    var onceki = cache.get(sonucAnahtari);
+    var onceki = istekSonucuMetni_(id);
     if (onceki) return ContentService.createTextOutput(onceki).setMimeType(ContentService.MimeType.JSON);
   }
   if (!/^[a-f0-9]{40}$/.test(bilet)) return cikti_({ok:false,error:'İşlem bileti geçersiz.'});
@@ -1583,7 +1618,7 @@ function biletliYazCikti_(bilet, istek) {
     : gizliAyar_('CALISMA_SIFRESI', AYAR.CALISMA_SIFRESI);
   var yanit = islet_(istek);
   if (sonucAnahtari) {
-    try { cache.put(sonucAnahtari, yanit.getContent(), 300); } catch (h2) {}
+    istekSonucuSakla_(id, yanit.getContent());
   }
   return yanit;
 }
@@ -1620,14 +1655,11 @@ function doPost(e) {
   var id = String(istek._requestId || '');
   var anahtar = /^[A-Za-z0-9_-]{20,80}$/.test(id) ? 'envanter_istek_' + id : '';
   if (anahtar) {
-    var onceki = CacheService.getScriptCache().get(anahtar);
+    var onceki = istekSonucuMetni_(id);
     if (onceki) return formMesajiCikti_(id, onceki);
   }
   var yanit = islet_(istek);
-  if (anahtar) {
-    try { CacheService.getScriptCache().put(anahtar, yanit.getContent(), 300); }
-    catch (h2) {}
-  }
+  if (anahtar) istekSonucuSakla_(id, yanit.getContent());
   return anahtar ? formMesajiCikti_(id, yanit.getContent()) : yanit;
 }
 

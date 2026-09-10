@@ -73,7 +73,7 @@
           if(kalan<=0){var e=new Error('AĞ');e.code='NETWORK';return Promise.reject(e);}
           return appsScriptOku(url,{action:'istekSonucu',sifre:body.sifre,_requestId:id},Math.min(10000,kalan))
             .then(function(data){
-              if(!data||!data.bekliyor)return data;
+              if(!data||!data.bekliyor)return resultOrError(data&&data.yanit?data.yanit:data);
               return new Promise(function(r){setTimeout(r,700);}).then(sonucuBekle);
             })
             .catch(function(e){
@@ -92,26 +92,13 @@
   }
   function formPostOnce(url,body,timeout) {
     var id=requestId(), payload=Object.assign({},body,{_requestId:id}), started=Date.now();
-    var name='tv_envanter_post_'+id.replace(/[^A-Za-z0-9_]/g,''), frame=document.createElement('iframe'), form=document.createElement('form'), input=document.createElement('input');
     var tamamlandi=false, toplam=Math.max(45000,Number(timeout)||0), sonrakiYoklama;
-    frame.name=name;frame.hidden=true;frame.tabIndex=-1;frame.setAttribute('aria-hidden','true');frame.title='';
-    form.hidden=true;form.method='POST';form.action=url;form.target=name;form.acceptCharset='utf-8';
-    input.type='hidden';input.name='tv_json';input.value=JSON.stringify(payload);form.appendChild(input);
-    function cleanup(){
-      clearTimeout(sonrakiYoklama);window.removeEventListener('message',mesajAl);
-      setTimeout(function(){frame.remove();},1000);
-    }
     function bitir(resolve,reject,data,hata){
-      if(tamamlandi)return;tamamlandi=true;cleanup();
+      if(tamamlandi)return;tamamlandi=true;clearTimeout(sonrakiYoklama);
       if(hata){reject(hata);return;}
       try{resolve(resultOrError(data));}catch(e){reject(e);}
     }
     var disResolve,disReject;
-    function mesajAl(e){
-      var d=e&&e.data;
-      if(!d||d.kaynak!=='tv-envanter'||d.id!==id)return;
-      bitir(disResolve,disReject,d.yanit);
-    }
     function poll(){
       if(tamamlandi)return;
       var kalan=toplam-(Date.now()-started);
@@ -119,14 +106,19 @@
       appsScriptOku(url,{action:'istekSonucu',sifre:body.sifre,_requestId:id},Math.min(10000,kalan))
         .then(function(data){
           if(data&&data.bekliyor){sonrakiYoklama=setTimeout(poll,900);return;}
-          bitir(disResolve,disReject,data);
+          bitir(disResolve,disReject,data&&data.yanit?data.yanit:data);
         })
         .catch(function(){sonrakiYoklama=setTimeout(poll,900);});
     }
     return new Promise(function(resolve,reject){
-      disResolve=resolve;disReject=reject;window.addEventListener('message',mesajAl);
-      document.body.appendChild(frame);document.body.appendChild(form);form.submit();form.remove();
-      sonrakiYoklama=setTimeout(poll,4000);
+      disResolve=resolve;disReject=reject;
+      /* Fotoğraf gibi URL sınırını aşan gövdeler yalnızca bir kez POST edilir.
+         Apps Script'in çapraz alan yanıtı beklenmez; işlem sonucu, istek kimliği
+         ile ayrıca okunur. Böylece yanıt yönlendirmesi takılsa da çift kayıt yok. */
+      fetch(url,{method:'POST',mode:'no-cors',cache:'no-store',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)})
+        .catch(function(){/* Sonucu aşağıdaki doğrulama çağrısı belirler. */});
+      sonrakiYoklama=setTimeout(poll,1200);
     });
   }
   function once(url, body, timeout, read) {
@@ -176,8 +168,10 @@
     var read=reads.indexOf(body.action)>=0;
     var kalan=read?(options.retries==null?1:Math.max(0,Number(options.retries)||0)):0;
     function dene() {
-      var istek=appsScriptUrl(url)
-        ? (read ? appsScriptOku(url,body,options.timeout) : appsScriptYaz(url,body,options.timeout))
+      var apps=appsScriptUrl(url), buyukYazma=!read&&JSON.stringify(body).length>1200;
+      var istek=apps
+        ? (read ? appsScriptOku(url,body,options.timeout)
+                : (buyukYazma ? formPostOnce(url,body,options.timeout) : appsScriptYaz(url,body,options.timeout)))
         : once(url,body,options.timeout,read);
       return istek.catch(function(e){
         // Reads are side-effect free, so a geçici ağ hatasında yeniden denenebilir.
