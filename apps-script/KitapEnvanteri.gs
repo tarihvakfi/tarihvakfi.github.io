@@ -1074,20 +1074,16 @@ function devirBilgisi_(sayfa, k) {
  * atlanmış). İkisinde de rafta kaydı olmayan bir kitap var demektir.
  */
 function siraOzeti_() {
-  var sayfa = sayfaAl_('Envanter');
-  var son = sayfa.getLastRow();
+  var anlik = envanterAnligi_();
   var canli = {}, sonNolar = {}, ciltler = {};
-  if (son >= 2) {
-    var veri = sayfa.getRange(2, S.mekan, son - 1, 4).getValues();   // Mekân, Raf, Sıra, Sıra no
-    var silinen = sayfa.getRange(2, S.silindi, son - 1, 1).getValues();
-    var nusha = sayfa.getRange(2, S.nusha, son - 1, 1).getValues();
-    veri.forEach(function (r, i) {
-      var a = rafAnahtari_(r[0], r[1], r[2]);
-      var n = Number(r[3]) || 0;
+  if (anlik.satirlar.length) {
+    anlik.satirlar.forEach(function (r) {
+      var a = rafAnahtari_(r[S.mekan - 1], r[S.raf - 1], r[S.sira - 1]);
+      var n = Number(r[S.siraNo - 1]) || 0;
       if (n > (sonNolar[a] || 0)) sonNolar[a] = n;    // silinmiş de sayılır: numara harcandı
-      if (silinen[i][0]) return;
+      if (r[S.silindi - 1]) return;
       (canli[a] = canli[a] || {})[n] = true;
-      ciltler[a] = (ciltler[a] || 0) + Math.max(1, Number(nusha[i][0]) || 1);
+      ciltler[a] = (ciltler[a] || 0) + Math.max(1, Number(r[S.nusha - 1]) || 1);
     });
   }
 
@@ -1143,10 +1139,11 @@ function tumSiralar_() {
  * Her satırda hem rezervasyon (kime verildi) hem bitiş (kim kapattı) olabilir.
  */
 function siraKayitlari_() {
+  if (_siraKayitlariAnligi) return _siraKayitlariAnligi;
   var sayfa = sayfaAl_('Sıralar');
   var son = sayfa.getLastRow();
   var harita = {};
-  if (son < 2) return harita;
+  if (son < 2) { _siraKayitlariAnligi = harita; return harita; }
   var genislik = Math.min(sayfa.getMaxColumns(),
                     Math.max(sayfa.getLastColumn(), SIRA_SUTUNLARI.length));
   sayfa.getRange(2, 1, son - 1, genislik).getValues().forEach(function (r, i) {
@@ -1175,6 +1172,7 @@ function siraKayitlari_() {
       sayim: sayimNesnesi_(r)
     };
   });
+  _siraKayitlariAnligi = harita;
   return harita;
 }
 
@@ -1367,23 +1365,18 @@ function siraBitir_(g) {
 
 /** Koordinatör için sıra haritası: hangi sıra bitti, hangisi yarım, hangisi boş. */
 function siraHaritasi_() {
-  var sayfa = sayfaAl_('Envanter');
-  var son = sayfa.getLastRow();
+  var anlik = envanterAnligi_();
   var sayilar = {}, ciltler = {}, kararlilar = {};
-  if (son >= 2) {
-    var veri = sayfa.getRange(2, S.mekan, son - 1, 3).getValues();
-    var silinen = sayfa.getRange(2, S.silindi, son - 1, 1).getValues();
-    var nusha = sayfa.getRange(2, S.nusha, son - 1, 1).getValues();
-    var kategori = sayfa.getRange(2, S.kategori, son - 1, 1).getValues();
-    veri.forEach(function (r, i) {
-      if (silinen[i][0]) return;
-      var a = rafAnahtari_(r[0], r[1], r[2]);
+  if (anlik.satirlar.length) {
+    anlik.satirlar.forEach(function (r) {
+      if (r[S.silindi - 1]) return;
+      var a = rafAnahtari_(r[S.mekan - 1], r[S.raf - 1], r[S.sira - 1]);
       sayilar[a] = (sayilar[a] || 0) + 1;
-      ciltler[a] = (ciltler[a] || 0) + Math.max(1, Number(nusha[i][0]) || 1);
+      ciltler[a] = (ciltler[a] || 0) + Math.max(1, Number(r[S.nusha - 1]) || 1);
       /* Karar KAYIT başınadır (nüsha değil): üç nüshalık tek kayda tek karar
          verilir. Bu yüzden kararVerilen ile kayitSayisi karşılaştırılabilir,
          kayitli (cilt) ile değil. */
-      if (kararVerilmis_(kategori[i][0])) kararlilar[a] = (kararlilar[a] || 0) + 1;
+      if (kararVerilmis_(r[S.kategori - 1])) kararlilar[a] = (kararlilar[a] || 0) + 1;
     });
   }
   var kayitlar = siraKayitlari_();
@@ -1434,6 +1427,37 @@ function siraHaritasi_() {
            }).length };
 }
 
+/* Koordinatörün ilk ekranı eskiden aynı Envanter sekmesini iki ayrı web
+   isteğinde okuyordu: önce karar listesi, sonra sayaçlar. Tek paket hem Apps
+   Script soğuk açılışını hem de E-Tablo taramasını bir kereye indirir.
+   30 saniyelik önbellek art arda açılan sekmeleri hızlandırır; yazan her
+   işlem başarılı olduğunda aşağıda temizlenir. */
+var KOORDINATOR_BASLANGIC_CACHE = 'koordinator_baslangic_v1';
+function koordinatorOnbellekTemizle_() {
+  try { CacheService.getScriptCache().remove(KOORDINATOR_BASLANGIC_CACHE); }
+  catch (h) {}
+}
+
+function koordinatorBaslangic_(g) {
+  g = g || {};
+  if (!g.zorla) {
+    try {
+      var sakli = CacheService.getScriptCache().get(KOORDINATOR_BASLANGIC_CACHE);
+      if (sakli) return JSON.parse(sakli);
+    } catch (h) {}
+  }
+  var kararlar = katalog_({
+    yalnizOnayli: true, yalnizKararsiz: true,
+    sirala: 'yer', bas: 0, adet: Math.min(Math.max(Number(g.adet) || 20, 1), 60)
+  });
+  var paket = { ok: true, kararlar: kararlar, durum: durum_() };
+  try {
+    var metin = JSON.stringify(paket);
+    if (metin.length < 95000) CacheService.getScriptCache().put(KOORDINATOR_BASLANGIC_CACHE, metin, 30);
+  } catch (h2) {}
+  return paket;
+}
+
 /* ═══════════════ GİRİŞ NOKTALARI ═══════════════ */
 
 // Bağlantıya (GET) tıklanarak çalıştırılamayacak işlemler: bir bağlantı
@@ -1463,7 +1487,8 @@ function doPost(e) {
 // istenenler_ bilerek gönüllü eylemi: rafta çalışan görecek.
 var KOORDINATOR_EYLEMLERI = ['onayBekleyen', 'onayGruplari', 'onayla', 'topluOnayla', 'kutula',
                              'kararBekleyen', 'kararVer', 'kararGeriAl', 'kunyeErtele',
-                             'katalog', 'kutular', 'durum', 'siraHaritasi', 'kitapIste'];
+                             'katalog', 'kutular', 'durum', 'siraHaritasi', 'kitapIste',
+                             'koordinatorBaslangic'];
 
 /* Şifreleri herkese açık kaynak koduna yazmak yerine Apps Script'in gizli
    proje özelliklerinde tutarız. Eski kurulumlar için AYAR değeri yedektir. */
@@ -1477,6 +1502,9 @@ function gizliAyar_(ad, varsayilan) {
 
 function islet_(istek) {
   try {
+    /* Apps Script aynı çalışanı yeniden kullanabilse de veri belleği yalnızca
+       bu HTTP isteğine ait olsun. */
+    _dosya = null; _sayfalar = {}; _envanterAnligi = null; _siraKayitlariAnligi = null;
     if (istek.action === 'config') return cikti_(ayarlar_());
 
     /* Şifre karşılaştırması iki tarafta da kırpılır. Ayara yapıştırırken araya
@@ -1506,47 +1534,53 @@ function islet_(istek) {
           : 'Çalışma şifresi hatalı. Karttaki şifreyi baştan yazın.' });
     }
 
+    var sonuc;
     switch (istek.action) {
-      case 'ekle':        return cikti_(ekle_(istek.kayit || {}));
-      case 'sonKayitlar': return cikti_(sonKayitlar_(istek.kaydeden));
-      case 'kayitBul':    return cikti_(kayitBul_(istek));
-      case 'guncelle':    return cikti_(guncelle_(istek.no, istek.kayit || {}));
-      case 'sil':         return cikti_(sil_(istek.no));
-      case 'sayac':       return cikti_(sayac_(istek.kaydeden));
-      case 'rafDurum':    return cikti_(rafDurum_(istek.mekan, istek.raf, istek.sira));
-      case 'siraOzeti':   return cikti_(siraOzeti_());
-      case 'sayimKaydet': return cikti_(sayimKaydet_(istek));
+      case 'ekle':        sonuc = ekle_(istek.kayit || {}); break;
+      case 'sonKayitlar': sonuc = sonKayitlar_(istek.kaydeden); break;
+      case 'kayitBul':    sonuc = kayitBul_(istek); break;
+      case 'guncelle':    sonuc = guncelle_(istek.no, istek.kayit || {}); break;
+      case 'sil':         sonuc = sil_(istek.no); break;
+      case 'sayac':       sonuc = sayac_(istek.kaydeden); break;
+      case 'rafDurum':    sonuc = rafDurum_(istek.mekan, istek.raf, istek.sira); break;
+      case 'siraOzeti':   sonuc = siraOzeti_(); break;
+      case 'sayimKaydet': sonuc = sayimKaydet_(istek); break;
       /* Sayım işleri gönüllüye açıktır: rafta duran kişi kendi yanlışını
          düzeltebilsin, ikinci sayımı yapabilsin diye. Koordinatör şifresi
          üst küme olduğu için panelden de aynı eylemler çalışır. */
-      case 'sayimBilgisi': return cikti_(sayimBilgisi_(istek));
-      case 'sayimOnayla': return cikti_(sayimOnayla_(istek));
-      case 'sayimGeriAl': return cikti_(sayimGeriAl_(istek));
-      case 'rafFotograflari': return cikti_(rafFotograflari_(istek));
-      case 'fotoBagla':   return cikti_(fotoBagla_(istek));
-      case 'siraBirak':   return cikti_(siraBirak_(istek));
-      case 'siraOner':    return cikti_(siraOner_(istek));
-      case 'siraSec':     return cikti_(siraSec_(istek));
-      case 'siraBitir':   return cikti_(siraBitir_(istek));
-      case 'siraHaritasi':return cikti_(siraHaritasi_());
-      case 'kitapIste':   return cikti_(kitapIste_(istek));
-      case 'istenenler':  return cikti_(istenenler_());
-      case 'iletisimGonder': return cikti_(iletisimGonder_(istek));
-      case 'fotoEkle':    return cikti_(fotoEkle_(istek.no, istek.veri, istek.tur, istek.hangi));
-      case 'onayBekleyen':return cikti_(onayBekleyen_(istek.adet));
-      case 'kunyeErtele': return cikti_(kunyeErtele_(istek));
-      case 'onayGruplari':return cikti_(onayGruplari_(istek.adet));
-      case 'kararBekleyen':return cikti_(kararBekleyen_(istek.adet));
-      case 'kararVer':    return cikti_(kararVer_(istek));
-      case 'kararGeriAl': return cikti_(kararGeriAl_(istek));
-      case 'topluOnayla': return cikti_(topluOnayla_(istek));
-      case 'kutula':      return cikti_(kutula_(istek));
-      case 'onayla':      return cikti_(onayla_(istek.no, istek.kayit || {}));
-      case 'katalog':     return cikti_(katalog_(istek));
-      case 'kutular':     return cikti_(kutular_());
-      case 'durum':       return cikti_(durum_());
-      default:            return cikti_({ ok: false, error: 'Bilinmeyen istek.' });
+      case 'sayimBilgisi': sonuc = sayimBilgisi_(istek); break;
+      case 'sayimOnayla': sonuc = sayimOnayla_(istek); break;
+      case 'sayimGeriAl': sonuc = sayimGeriAl_(istek); break;
+      case 'rafFotograflari': sonuc = rafFotograflari_(istek); break;
+      case 'fotoBagla':   sonuc = fotoBagla_(istek); break;
+      case 'siraBirak':   sonuc = siraBirak_(istek); break;
+      case 'siraOner':    sonuc = siraOner_(istek); break;
+      case 'siraSec':     sonuc = siraSec_(istek); break;
+      case 'siraBitir':   sonuc = siraBitir_(istek); break;
+      case 'siraHaritasi':sonuc = siraHaritasi_(); break;
+      case 'kitapIste':   sonuc = kitapIste_(istek); break;
+      case 'istenenler':  sonuc = istenenler_(); break;
+      case 'iletisimGonder': sonuc = iletisimGonder_(istek); break;
+      case 'fotoEkle':    sonuc = fotoEkle_(istek.no, istek.veri, istek.tur, istek.hangi); break;
+      case 'onayBekleyen':sonuc = onayBekleyen_(istek.adet); break;
+      case 'kunyeErtele': sonuc = kunyeErtele_(istek); break;
+      case 'onayGruplari':sonuc = onayGruplari_(istek.adet); break;
+      case 'kararBekleyen':sonuc = kararBekleyen_(istek.adet); break;
+      case 'kararVer':    sonuc = kararVer_(istek); break;
+      case 'kararGeriAl': sonuc = kararGeriAl_(istek); break;
+      case 'topluOnayla': sonuc = topluOnayla_(istek); break;
+      case 'kutula':      sonuc = kutula_(istek); break;
+      case 'onayla':      sonuc = onayla_(istek.no, istek.kayit || {}); break;
+      case 'katalog':     sonuc = katalog_(istek); break;
+      case 'kutular':     sonuc = kutular_(); break;
+      case 'durum':       sonuc = durum_(); break;
+      case 'koordinatorBaslangic': sonuc = koordinatorBaslangic_(istek); break;
+      default:            sonuc = { ok: false, error: 'Bilinmeyen istek.' };
     }
+    if (YAZAN_EYLEMLER.indexOf(istek.action) >= 0 && sonuc && sonuc.ok !== false) {
+      koordinatorOnbellekTemizle_();
+    }
+    return cikti_(sonuc);
   } catch (hata) {
     Logger.log(hata);
     return cikti_({ ok: false, error: 'Sunucu hatası: ' + hata.message });
@@ -2032,6 +2066,9 @@ function gunAnahtari_(t) {
 }
 
 var _dosya = null;
+var _sayfalar = {};
+var _envanterAnligi = null;
+var _siraKayitlariAnligi = null;
 function dosya_() {
   if (_dosya) return _dosya;
   var kimlik = String(AYAR.TABLO_ID || '').trim();
@@ -2061,6 +2098,7 @@ function tabloBasliklariniTamamla_(sayfa, basliklar, logMesaji) {
 }
 
 function sayfaAl_(ad) {
+  if (_sayfalar[ad]) return _sayfalar[ad];
   var dosya = dosya_();
   var sayfa = dosya.getSheetByName(ad);
   if (sayfa) {
@@ -2075,6 +2113,7 @@ function sayfaAl_(ad) {
     } else if (ad === 'İletişim') {
       tabloBasliklariniTamamla_(sayfa, ILETISIM_SUTUNLARI, 'İletişim başlıkları güncellendi.');
     }
+    _sayfalar[ad] = sayfa;
     return sayfa;
   }
 
@@ -2126,7 +2165,24 @@ function sayfaAl_(ad) {
     sayfa.setColumnWidth(7, 460); sayfa.setColumnWidth(8, 280);
     sayfa.setColumnWidth(10, 180);
   }
+  _sayfalar[ad] = sayfa;
   return sayfa;
+}
+
+/* Aynı web isteği içinde Envanter sekmesini birkaç kez baştan okumayalım.
+   Koordinatör açılış paketi, durum ve karar listesini bu tek görüntüden
+   üretir. islet_ her isteğin başında bu belleği sıfırlar; farklı kullanıcı
+   istekleri arasında eski veri taşınmaz. */
+function envanterAnligi_() {
+  if (_envanterAnligi) return _envanterAnligi;
+  var sayfa = sayfaAl_('Envanter');
+  var son = sayfa.getLastRow();
+  _envanterAnligi = {
+    sayfa: sayfa,
+    son: son,
+    satirlar: son < 2 ? [] : sayfa.getRange(2, 1, son - 1, SUTUNLAR.length).getValues()
+  };
+  return _envanterAnligi;
 }
 
 
@@ -2855,11 +2911,10 @@ function topluOnayla_(g) {
  */
 function katalog_(g) {
   g = g || {};
-  var sayfa = sayfaAl_('Envanter');
-  var son = sayfa.getLastRow();
-  if (son < 2) return { ok: true, kayitlar: [], toplam: 0, bas: 0 };
+  var anlik = envanterAnligi_();
+  if (!anlik.satirlar.length) return { ok: true, kayitlar: [], toplam: 0, bas: 0 };
 
-  var satirlar = sayfa.getRange(2, 1, son - 1, SUTUNLAR.length).getValues();
+  var satirlar = anlik.satirlar;
   var yalnizOnayli = g.yalnizOnayli !== false;          // varsayılan: onaylananlar
   var ara = String(g.ara || '').trim().toLocaleLowerCase('tr');
   var kategori = String(g.kategori || '');
@@ -2919,8 +2974,7 @@ function katalog_(g) {
  * Binlerce satırda bile tek okuma yaptığı için hızlıdır.
  */
 function durum_() {
-  var sayfa = sayfaAl_('Envanter');
-  var son = sayfa.getLastRow();
+  var anlik = envanterAnligi_();
   var bos = {
     ok: true, toplam: 0, onayli: 0, onayBekleyen: 0, kararBekleyen: 0, kunyeEksik: 0, tamam: 0,
     fotoli: 0, kapakli: 0, kategori: {}, fiziksel: {}, ocr: {},
@@ -2928,9 +2982,9 @@ function durum_() {
     uyarilar: [], sessizler: [], yedekSaat: sonYedekSaat_(),
     hesaplandi: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'd MMMM yyyy HH:mm')
   };
-  if (son < 2) return bos;
+  if (!anlik.satirlar.length) return bos;
 
-  var satirlar = sayfa.getRange(2, 1, son - 1, SUTUNLAR.length).getValues();
+  var satirlar = anlik.satirlar;
   var d = bos;
   var gunler = {}, kisiler = {}, siralar = {};
   var bugunKey = gunAnahtari_(new Date());

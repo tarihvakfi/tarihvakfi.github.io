@@ -439,16 +439,11 @@
     /* Kullanıcı yenilemeye, ilk arka plan isteği sürerken basabilir. Aynı ağır
        haritayı ikinci kez başlatmak Apps Script'i yavaşlatır; süren isteği paylaş. */
     if (D.rafHaritaIstegi) return D.rafHaritaIstegi;
-    var ozetAlindi = false;
     D.rafOzetiHata = false;
-    D.rafHaritaIstegi = api('siraOzeti', {}, 40000).then(function (r) {
-      rafOzetiniBirlestir(r.siralar || []); ozetAlindi = true;
-      mesaj($('rafMsg'), 'iyi', 'Raf sayımları yüklendi. Karar bilgileri eşleştiriliyor…');
-    }).catch(function (e) {
-      if (sifreHatasi(e)) throw e;
-    }).then(function () {
-      return api('siraHaritasi', {}, 45000);
-    }).then(function (r) {
+    /* siraHaritasi sayım, kayıt ve karar ayrıntılarının tamamını zaten
+       içeriyor. Öncesinde siraOzeti çağırmak aynı iki tabloyu ikinci kez
+       okutuyor ve raf sekmesinin süresini neredeyse ikiye katlıyordu. */
+    D.rafHaritaIstegi = api('siraHaritasi', {}, 50000).then(function (r) {
       D.raflar = r.siralar || [];
       D.raflarYuklendi = true; D.rafHaritasiTam = true; D.rafOzetiVar = true; D.rafOzetiHata = false;
       rafSayaclariCiz(); rafSecicileriCiz(true);
@@ -457,10 +452,8 @@
       return D.raflar;
     }).catch(function (e) {
       if (sifreHatasi(e)) throw e;
-      if (!ozetAlindi) D.rafOzetiHata = true;
-      mesaj($('rafMsg'), '', ozetAlindi
-        ? 'Raf sayımları ve kitap kayıtları gösteriliyor. Kararların raf bazındaki ayrıntısı daha sonra yenilenecek.'
-        : hataMetni(e, 'Raf sayımları'));
+      D.rafOzetiHata = true;
+      mesaj($('rafMsg'), '', hataMetni(e, 'Raf sayımları'));
       if (D.bolum === 'durum') genelDurumCiz();
       return D.raflar;
     }).finally(function () { D.rafHaritaIstegi = null; });
@@ -675,15 +668,31 @@
     D.rafOzetiVar = false; D.rafOzetiHata = false; D.kararlar = []; D.kararGuncellemeleri = {};
     D.rafKitapIstegi = null; D.rafKitapIstekAnahtari = ''; D.rafKitapYukluAnahtari = ''; D.rafKitapIstekNo++;
     bolumAc('secim', false);
-    /* İlk ekranda asıl iş kitap seçimidir. Apps Script'e aynı anda iki ağır
-       istek gönderip ikisini de yavaşlatmamak için listeyi önce getirir,
-       özet sayaçlarını hemen arkasından yenileriz. */
-    ilkVerileriYukle().finally(function () { mesgul(btn, false); });
+    ilkVerileriYukle(false).finally(function () { mesgul(btn, false); });
   }
 
-  function ilkVerileriYukle() {
+  function baslangicVerileriniYukle(zorla) {
+    mesaj($('kararMsg'), '', 'Kitaplar ve güncel sayılar birlikte yükleniyor…');
+    return api('koordinatorBaslangic', { adet:D.kararAdet, zorla:!!zorla }, 50000)
+      .then(function (r) {
+        var k = r.kararlar || {};
+        D.kararlar = k.kayitlar || [];
+        D.kararToplam = Number(k.toplam || 0);
+        D.durum = r.durum || null;
+        mesaj($('kararMsg'), '', '');
+        kararListeCiz(); sayaclariCiz();
+      }).catch(function (e) {
+        if (sifreHatasi(e)) throw e;
+        /* Sayfa, Apps Script yeni sürümü dağıtılmadan önce de çalışsın. Eski
+           sunucu yeni paketi tanımıyorsa önceki iki çağrılı akışa düşer. */
+        if (!e || !/Bilinmeyen istek/i.test(e.message || '')) throw e;
+        return kararYukle(true).then(function () { return durumYukle(true); });
+      });
+  }
+
+  function ilkVerileriYukle(zorla) {
     var context = sistemYukleniyor();
-    return kararYukle(true).then(function () { return durumYukle(true); })
+    return baslangicVerileriniYukle(zorla)
       .then(function () { return sistemHazir(context); })
       .catch(function (e) { sistemHatasiGoster(context, e); });
   }
@@ -693,9 +702,9 @@
   document.querySelectorAll('[data-bolum]').forEach(function (b) { b.addEventListener('click', function () { bolumAc(b.dataset.bolum); }); });
   document.querySelectorAll('[data-bolum-link]').forEach(function (b) { b.addEventListener('click', function (e) { e.preventDefault(); bolumAc(b.dataset.bolumLink); }); });
   $('btnIletisimUst').addEventListener('click', function () { bolumAc('iletisim'); });
-  $('btnSistemTekrar').addEventListener('click', ilkVerileriYukle);
+  $('btnSistemTekrar').addEventListener('click', function () { ilkVerileriYukle(true); });
   $('sistemDurum').addEventListener('click', function () {
-    if ($('sistemDurum').classList.contains('hata')) ilkVerileriYukle();
+    if ($('sistemDurum').classList.contains('hata')) ilkVerileriYukle(true);
   });
 
   /* Aynı site başka bir sekmede açıksa verilen/geri alınan kararı oraya da

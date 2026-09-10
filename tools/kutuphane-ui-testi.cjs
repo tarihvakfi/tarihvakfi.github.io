@@ -14,6 +14,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   let shelfSuggestionAttempts = 0;
   let shelfReleaseAttempts = 0;
   let shelfSummaryAttempts = 0;
+  let shelfMapAttempts = 0;
   let coordinatorCatalogAttempts = 0;
   let staleShelfDecisionReads = 0;
   let volunteerAddAttempts = 0;
@@ -74,7 +75,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
       await route.fulfill({ contentType:'text/html', body:'<html>geçici yönlendirme</html>' });
       return;
     }
-    if (body.action === 'katalog' && !request.frame().url().includes('kitap-envanteri.html') &&
+    if (body.action === 'koordinatorBaslangic' && !request.frame().url().includes('kitap-envanteri.html') &&
         body.sifre === 'test-only') {
       coordinatorCatalogAttempts++;
       if (coordinatorCatalogAttempts <= 2) {
@@ -112,7 +113,13 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
       case 'siraBirak': result = { ok:true, birakilan:['G-A01'] }; break;
       case 'siraSec': result = { ok:true, anahtar:'G-A01' }; break;
       case 'siraHaritasi':
-        result = { ok:false, error:'Raf servisi geçici olarak yanıt vermedi.' };
+        if (++shelfMapAttempts === 1) {
+          await route.abort('failed');
+          return;
+        }
+        result = { ok:true, siralar:[{sira:'G-A01',durum:'devam',kayitli:35,
+          kayitSayisi:35,kararVerilen:books.filter(book => book.kategori).length,
+          onSayim:35,sayim:{toplam:35,durum:'onaylandi'}}] };
         break;
       case 'rafDurum':
         result = { ok:true, anahtar:'G-A01', durum:'devam', sonNo:35, adet:35, cilt:35,
@@ -144,6 +151,17 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
           kararBekleyen:193, kategori:books.reduce((all,book) => { if (book.kategori) all[book.kategori]=(all[book.kategori]||0)+1; return all; },{}),
           siralar:[{sira:'G-A01',sayi:35}] };
         break;
+      case 'koordinatorBaslangic': {
+        const list = books.filter(book => book.onay && !book.kategori);
+        result = {
+          ok:true,
+          kararlar:{ ok:true, toplam:list.length, bas:0, kayitlar:list.slice(0,Number(body.adet || 20)).map(book => ({ ...book })) },
+          durum:{ ok:true, toplam:287, onayBekleyen:70, kunyeEksik:24, tamam:0,
+            kararBekleyen:193, kategori:books.reduce((all,book) => { if (book.kategori) all[book.kategori]=(all[book.kategori]||0)+1; return all; },{}),
+            siralar:[{sira:'G-A01',sayi:35}] }
+        };
+        break;
+      }
       case 'kararVer': {
         const book = books.find(item => item.no === body.numaralar[0]);
         book.kategori = categories[body.kategori].ad; book.kararVeren = body.veren; book.kararTarihi = '9.09.2026 20:00';
@@ -285,9 +303,11 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
 
   await page.getByRole('button', { name:/Raflar ve Kitaplar/ }).click();
   await page.getByText('Giriş Kat · A kitaplığı · 1. sıra', { exact:true }).waitFor();
-  await page.getByText('Raf sayımları ve kitap kayıtları gösteriliyor.', { exact:false }).waitFor();
+  await page.getByText('Kitap kayıtları ve raf sayımı eşleştirildi.', { exact:true }).waitFor();
   assert.ok(await page.locator('#rafSayaclari').getByText('35', { exact:true }).count() >= 1);
-  assert.ok(shelfSummaryAttempts >= 2, 'Raf özeti ilk ağ hatasından sonra güvenli biçimde tekrarlanmadı');
+  assert.equal(calls.filter(call => call.action === 'siraOzeti').length, 0,
+    'Koordinatör raf ekranı aynı veriyi siraOzeti ile ikinci kez istedi');
+  assert.ok(shelfMapAttempts >= 2, 'Raf haritası ilk ağ hatasından sonra güvenli biçimde tekrarlanmadı');
   assert.equal(calls.filter(call => call.action === 'katalog' && call.sira === 'G-A01').length, shelfCatalogCallsAfterDecision + 1,
     'Raf özeti yüklenirken aynı raf için yeni katalog isteği başlatıldı');
   await page.getByRole('button', { name:'Raf fotoğrafları' }).click();
