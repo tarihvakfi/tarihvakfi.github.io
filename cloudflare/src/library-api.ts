@@ -52,14 +52,16 @@ async function passwordDigest(value: string) {
 async function authenticate(supplied: string, action: string): Promise<'volunteer' | 'coordinator' | null> {
   if (!supplied) return null;
   if (runtimeEnv.LIBRARY_COORDINATOR_PASSWORD && supplied === runtimeEnv.LIBRARY_COORDINATOR_PASSWORD) return 'coordinator';
-  if (runtimeEnv.LIBRARY_VOLUNTEER_PASSWORD && supplied === runtimeEnv.LIBRARY_VOLUNTEER_PASSWORD) return 'volunteer';
   if (!runtimeEnv.LIBRARY_AUTH_PEPPER) return null;
 
-  const expectedRole = coordinatorActions.has(action) ? 'coordinator' : 'volunteer';
-  const key = `auth/${expectedRole}`;
   const digest = await passwordDigest(supplied);
-  const saved = await runtimeEnv.PHOTOS.get(key);
-  return saved === digest ? expectedRole : null;
+  const coordinatorDigest = await runtimeEnv.PHOTOS.get('auth/coordinator');
+  if (coordinatorDigest === digest) return 'coordinator';
+
+  if (coordinatorActions.has(action)) return null;
+  if (runtimeEnv.LIBRARY_VOLUNTEER_PASSWORD && supplied === runtimeEnv.LIBRARY_VOLUNTEER_PASSWORD) return 'volunteer';
+  const volunteerDigest = await runtimeEnv.PHOTOS.get('auth/volunteer');
+  return volunteerDigest === digest ? 'volunteer' : null;
 }
 function trDate(value: unknown) {
   if (!value) return '';
