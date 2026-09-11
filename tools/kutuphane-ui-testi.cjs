@@ -23,6 +23,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   let countInfoFailures = 0;
   let gapNumberScenario = false;
   let countRecord = { durum:'onaylandi', toplam:34, sayan:'Önceki gönüllü', sayimTarihi:'9.09.2026 20:00', duzen:'tek' };
+  let newCountRecord = null;
   let previousCountRecord = null;
   let nextBookNo = 36;
   page.on('pageerror', error => errors.push(error.message));
@@ -103,7 +104,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
     }
     switch (body.action) {
       case 'config':
-        result = { ok:true, kategoriler:categories, kurallar:[], durumlar:['Sağlam'], mekanlar:[{kod:'G',ad:'Giriş Kat'}], rafHarfleri:['A'], siraSayisi:1 };
+        result = { ok:true, kategoriler:categories, kurallar:[], durumlar:['Sağlam'], mekanlar:[{kod:'G',ad:'Giriş Kat'}], rafHarfleri:['A'], siraSayisi:2 };
         break;
       case 'sayac': await new Promise(resolve => setTimeout(resolve, 1500)); result = { ok:true, benim:0 }; break;
       case 'siraOzeti':
@@ -114,7 +115,9 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
         }
         result = request.frame().url().includes('kitap-envanteri.html')
           ? { ok:true, siralar:[{sira:'G-A01',durum:'bitti',kayitli:35,
-              onSayim:countRecord && countRecord.toplam, sayim:countRecord}] }
+              onSayim:countRecord && countRecord.toplam, sayim:countRecord},
+              {sira:'G-A02',durum:'bos',kayitli:0,
+              onSayim:newCountRecord && newCountRecord.toplam, sayim:newCountRecord}] }
           : { ok:true, siralar:[{sira:'G-A01',durum:'devam',kayitli:35,onSayim:35,sayim:{toplam:35,durum:'onaylandi'}}] };
         break;
       case 'siraOner': result = { ok:true, anahtar:'G-A01', tur:'sizin', zatenSizde:true, kalanBos:0, yarimKalan:0 }; break;
@@ -208,9 +211,18 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
           await route.abort('failed');
           return;
         }
-        result = { ok:true, sayim:countRecord }; break;
+        result = { ok:true, sayim:Number(body.sira) === 1 ? countRecord :
+          (Number(body.sira) === 2 ? newCountRecord : null) }; break;
       case 'sayimKaydet': {
         const total = Number(body.on || body.adet || 0);
+        if (Number(body.sira) === 2) {
+          newCountRecord = { durum:'bekliyor', toplam:total, sayan:body.sayan,
+            sayimTarihi:'9.09.2026 22:00', duzen:body.duzen || 'tek' };
+          result = { ok:true, anahtar:'G-A02', adet:total, toplam:total,
+            duzen:body.duzen || 'tek', onSira:total, arkaSira:null, eksik:false,
+            fotoUrl:body.foto ? 'https://drive.google.com/file/d/' + photoId + '/view' : '' };
+          break;
+        }
         previousCountRecord = countRecord && { ...countRecord };
         countRecord = { durum:'bekliyor', toplam:total, sayan:body.sayan, sayimTarihi:'9.09.2026 22:00',
           duzen:body.duzen || 'tek', islem:'correction', duzeltmeOnayiBekliyor:true };
@@ -498,8 +510,28 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   assert.equal(await page.locator('#gonulluSistemDurum').evaluate(el => getComputedStyle(el).position), 'static',
     'Gönüllü sistem durumu sayfayla birlikte kaymaya devam ediyor');
   if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-gonullu-yeni-mobil.png', fullPage:true });
-  assert.ok(await page.getByRole('button', { name:/Sistem bana bir raf versin/ }).isVisible());
-  assert.ok(await page.getByRole('button', { name:/Rafı kendim seçeyim/ }).isVisible());
+  assert.ok(await page.getByRole('button', { name:/Kitapları fotoğrafla/ }).isVisible());
+  assert.ok(await page.getByRole('button', { name:/Rafı say ve fotoğrafla/ }).isVisible());
+  await page.getByText('Diğer işlemler', { exact:true }).click();
+  assert.ok(await page.getByRole('button', { name:/Belirli bir rafı kendim seçeyim/ }).isVisible());
+
+  /* Yeni sayım yalnız sayılmamış rafı seçer; sayı, raf fotoğrafı olmadan kaydedilmez. */
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+XprqVwAAAABJRU5ErkJggg==','base64');
+  await page.locator('#btnYeniSayim').click();
+  await page.locator('#sayimPanel:not(.gizli)').waitFor();
+  await page.locator('#sayimSira').getByText('G-A02', { exact:true }).waitFor();
+  if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-gonullu-yeni-raf-sayimi.png', fullPage:true });
+  await page.locator('#sayimAdet').fill('12');
+  await page.locator('#btnSayimKaydet').click();
+  await page.getByText(/Rafın genel fotoğrafını çekin/).waitFor();
+  assert.equal(newCountRecord, null, 'Raf fotoğrafı olmadan yeni sayım kaydedildi');
+  await page.locator('#sayimFotoGirdi').setInputFiles({ name:'raf.png', mimeType:'image/png', buffer:png });
+  await page.locator('#sayimFotoOn:not(.gizli)').waitFor();
+  await page.locator('#btnSayimKaydet').click();
+  await page.getByText(/sayımı kaydedildi:.*12 kitap.*Sıradaki sayılmamış raf seçildi:.*G-A03/).waitFor();
+  assert.equal(newCountRecord.toplam, 12, 'Yeni raf sayımı kaydedilmedi');
+  assert.ok(calls.some(call => call.action === 'sayimKaydet' && Number(call.sira) === 2));
+  await page.locator('#btnYeniSayim').click();
 
   /* Yalnız uyumsuz tamamlanmış raf görünür; düzeltme, onay ve geri alma çalışır. */
   countInfoFailures = 2;
@@ -517,7 +549,6 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
     await page.setViewportSize({ width:390, height:844 });
   }
   await page.locator('#sayimMevcut [data-is="duzelt"]').click();
-  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+XprqVwAAAABJRU5ErkJggg==','base64');
   await page.locator('#sayimFotoGirdi').setInputFiles({ name:'raf.png', mimeType:'image/png', buffer:png });
   await page.locator('#sayimFotoOn:not(.gizli)').waitFor();
   await page.locator('#sayimFotoOn img').click();
@@ -537,7 +568,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await page.locator('#btnSayim').click();
 
   gapNumberScenario = true;
-  await page.getByRole('button', { name:/Sistem bana bir raf versin/ }).click();
+  await page.getByRole('button', { name:/Kitapları fotoğrafla/ }).click();
   await page.getByText('zaten sizin üzerinizde.', { exact:false }).waitFor();
   await page.locator('#gorevKart').getByText('48 / 50 kitap', { exact:true }).waitFor();
   await page.locator('#gorevKart').getByText('2 kitap daha fotoğraflanacak', { exact:true }).waitFor();
@@ -594,9 +625,9 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
     assert.ok(calls.some(call => call.action === action), action + ' akışı çağrılmadı');
   }
 
-  await page.getByRole('button', { name:'Rafların durumunu gör' }).click();
+  await page.getByRole('button', { name:'Bütün rafların durumunu göreyim' }).click();
   await page.locator('#haritaPanel:not(.gizli)').waitFor();
-  await page.locator('#hRaflar .hRaf').waitFor();
+  await page.locator('#hRaflar .hRaf').first().waitFor();
   await page.getByText('Soru / düzeltme / öneri gönder', { exact:true }).click();
   await page.locator('#iletisimMesaj').fill('Gönüllü deneme mesajıdır.');
   await page.locator('#btnIletisimGonder').click();

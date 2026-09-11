@@ -401,11 +401,16 @@ async function handle(body: Record<string, any>, role: 'volunteer' | 'coordinato
   if (action === 'siraSec' || action === 'siraOner') {
     const name=clean(body.kaydeden); let shelf:any, suggested:any=null;
     if(action==='siraOner'){
-      let response=await supabase.from('library_shelf_positions').select('*').is('completed_at',null).eq('assigned_by_name',name).order('sort_order',{ascending:true}).limit(1).maybeSingle();if(response.error)throw response.error;
-      shelf=response.data;
-      if(!shelf){const available=(await loadContext()).shelves.filter((item:any)=>!item.completed_at&&!item.assigned_at).sort((a:any,b:any)=>a.sort_order-b.sort_order);shelf=available.find((item:any)=>item.counted_books!=null)||available[0];}
-      if(!shelf)return {ok:true,tur:'bitti',anahtar:''};
-      suggested={durum:Number(shelf.book_records||0)?'devam':'bos'};
+      const [shelves,counts]=await Promise.all([all('library_shelf_positions'),all('library_shelf_counts','shelf_position_id')]);
+      const counted=new Set(counts.map((item:any)=>item.shelf_position_id));
+      shelf=shelves.find((item:any)=>!item.completed_at&&counted.has(item.id)&&normalizeName(item.assigned_by_name)===normalizeName(name));
+      if(!shelf){const available=shelves.filter((item:any)=>!item.completed_at&&!item.assigned_at&&counted.has(item.id)).sort((a:any,b:any)=>a.sort_order-b.sort_order);shelf=available[0];}
+      if(!shelf){
+        const hasUncounted=shelves.some((item:any)=>!item.completed_at&&!counted.has(item.id));
+        return {ok:true,tur:hasUncounted?'sayimGerekli':'bitti',anahtar:''};
+      }
+      const {data:existing,error:existingError}=await supabase.from('library_books').select('id').eq('shelf_position_id',shelf.id).is('deleted_at',null).limit(1);if(existingError)throw existingError;
+      suggested={durum:existing?.length?'devam':'bos'};
     }else shelf=await findShelf(shelfCode(body));
     const alreadyMine=normalizeName(shelf.assigned_by_name)===normalizeName(name);
     const {error}=await supabase.from('library_shelf_positions').update({assigned_at:new Date().toISOString(),assigned_by_name:name}).eq('id',shelf.id);if(error)throw error;
