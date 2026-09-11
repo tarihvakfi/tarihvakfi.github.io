@@ -9,7 +9,7 @@
  *
  * Sayfayı güncellediğinizde SURUM numarasını artırın — eski kabuk temizlenir.
  */
-var SURUM = 'tv-envanter-v27';
+var SURUM = 'tv-envanter-v28';
 var KABUK = [
   './kitap-envanteri.html',
   './js/gonullu-config.js',

@@ -407,7 +407,7 @@
   .dip{text-align:center;color:var(--soluk);font-size:12px;margin:22px 12px 0}
 .anaGorevler{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}.anaGorevler .btn{margin:0;min-height:62px;font-size:17px;padding:12px}.anaGorevler .btn:last-child{background:#fff;color:var(--bordo);border:2px solid var(--bordo)}@media(max-width:380px){.anaGorevler{grid-template-columns:1fr}}
 </style>
-<link rel="stylesheet" href="./css/gonullu-yeni.css?v=20260911c">
+<link rel="stylesheet" href="./css/gonullu-yeni.css?v=20260911d">
 <link rel="stylesheet" href="./css/fotograf-goruntuleyici.css?v=20260909i">
 </head>
 <body>
@@ -453,30 +453,25 @@
   <!-- ══ 2. RAF ══ -->
   <section id="adim-raf" class="kart gizli">
     <p class="ekran-etiket">GÖNÜLLÜ ÇALIŞMA EKRANI</p>
-    <h1>Bugün ne yapacaksınız?</h1>
-    <p class="ipucu">Bir iş seçin; sıradaki uygun rafı sistem bulsun.</p>
+    <h1>Çalışmaya başlayın</h1>
+    <p class="ipucu">Sistem uygun rafı bulup yapacağınız işi gösterecek.</p>
     <div class="anaGorevler" aria-label="Ana işler">
       <button type="button" id="btnSiraOner" class="is-karti ana">
-        <span class="is-numara">1</span><span><b>Kitapları fotoğrafla</b><small>Sayılmış bir rafta kaldığı yerden devam et</small></span>
-      </button>
-      <button type="button" id="btnYeniSayim" class="is-karti">
-        <span class="is-numara">2</span><span><b>Rafı say ve fotoğrafla</b><small>Yalnız daha önce sayılmamış raflar</small></span>
+        <span class="is-numara">→</span><span><b>Çalışmaya başla</b><small>Sıradaki uygun rafı sistem seçsin</small></span>
       </button>
     </div>
     <div class="msg gizli" id="msgOner" style="margin:14px 0 0"></div>
     <div id="gorevKart" class="gorev gizli"></div>
-    <div class="msg gizli istenenler-ana" id="istenenlerAna" aria-live="polite"></div>
 
-    <div class="yardimAraclari" aria-label="Diğer işlemler">
-      <button type="button" id="btnSayim" class="yardim-tusu"><b>Sayım uyuşmazlığını düzelt</b><small>Yalnız kayıtla sayım eşleşmiyorsa</small></button>
-      <details class="diger-islemler">
-        <summary>Diğer işlemler</summary>
-        <div>
-          <button type="button" id="btnKendimSec" class="baglanti-btn">Belirli bir rafı kendim seçeyim</button>
-          <button type="button" id="btnHarita" class="baglanti-btn">Bütün rafların durumunu göreyim</button>
-        </div>
-      </details>
-    </div>
+    <details class="diger-islemler yardimAraclari" id="digerGorevler">
+      <summary>Başka bir iş yapacağım</summary>
+      <div>
+        <button type="button" id="btnYeniSayim" class="baglanti-btn">Raf sayımı yap</button>
+        <details class="gizli istenenler-ana" id="istenenlerAna"></details>
+        <button type="button" id="btnKendimSec" class="baglanti-btn">Belirli bir rafı seç</button>
+        <button type="button" id="btnHarita" class="baglanti-btn">Rafların durumunu gör</button>
+      </div>
+    </details>
 
     <!-- Ön sayım: envanterden bağımsız görev. Gönüllü rafı sayar, sayı sıranın
          kaydına yazılır; sıra kapanırken üç sayı karşılaştırılır. -->
@@ -877,7 +872,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_SUPABASE_EDGE_FUNCTION_ADRE
       var adlar = (r.birakilan || []).join(', ');
       goster($('msgOner'), 'iyi', (r.birakilan && r.birakilan.length
         ? '<b>' + esc(adlar) + '</b> bırakıldı. Kayıtlarınız duruyor; ' +
-          'artık <b>Kitapları fotoğrafla</b> ile yeni bir raf alabilirsiniz.'
+          'artık <b>Çalışmaya başla</b> ile yeni bir raf alabilirsiniz.'
         : 'Üzerinizde sıra görünmüyor; bırakma işlemi tamamlandı. Kayıtlarınız duruyor.'));
       /* Bırakılan rafın kartı ekranda kalırsa gönüllü onu hâlâ aktif görevi
          sanıp çalışmaya başlayabilir. Sunucu bırakmayı onayladığı anda kaldır. */
@@ -1657,7 +1652,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_SUPABASE_EDGE_FUNCTION_ADRE
     var acik = !$('secici').classList.contains('gizli');
     $('secici').classList.toggle('gizli', acik);
     $('btnKendimSec').textContent = acik
-      ? 'Belirli bir rafı kendim seçeyim'
+      ? 'Belirli bir rafı seç'
       : 'Raf seçimini kapat';
     if (!acik) { panelleriKapat('kayit'); $('gorevKart').classList.add('gizli'); }
     if (!acik) rafOzetYenile();
@@ -1674,6 +1669,11 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_SUPABASE_EDGE_FUNCTION_ADRE
   var sayimOzetHarita = null;       // sayılmış gözleri normal akıştan ayırır
 
   function sayimMetniniGuncelle() {
+    if (sayimAsama === 'otomatik') {
+      $('sayimBaslik').textContent = 'Raf sayımı hazırlanıyor';
+      $('sayimAciklama').textContent = 'Sistem sıradaki sayım işini kontrol ediyor…';
+      return;
+    }
     var yeni = sayimAsama === 'yeni';
     $('sayimBaslik').textContent = yeni ? 'Rafı say ve fotoğrafla' : 'Sayım uyuşmazlığını düzelt';
     $('sayimAciklama').textContent = yeni
@@ -1781,6 +1781,14 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_SUPABASE_EDGE_FUNCTION_ADRE
     return api('siraOzeti', {}, { sure:30000 }).then(function (r) {
       sayimOzetHarita = {};
       (r.siralar || []).forEach(function (x) { sayimOzetHarita[x.sira] = x; });
+      if (sayimAsama === 'otomatik') {
+        var uyusmayanVar = tumSayimGozleri().some(function (g) {
+          return sayimKayitUyusmazligi(sayimOzetHarita[g.anahtar]);
+        });
+        sayimAsama = uyusmayanVar ? 'kontrol' : 'yeni';
+        sayimMetniniGuncelle();
+        sayimAsamaDugmeleriniCiz();
+      }
       var varMi = sayimSecicileriKur(tercih);
       if (!varMi) {
         sayimDurumu = null;
@@ -2139,10 +2147,11 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_SUPABASE_EDGE_FUNCTION_ADRE
   }
 
   function sayimPanelAc(kip) {
-    var ayniAcik = !$('sayimPanel').classList.contains('gizli') && sayimAsama === kip;
+    var panelAcik = !$('sayimPanel').classList.contains('gizli');
+    var ayniAcik = panelAcik && (sayimAsama === kip || kip === 'otomatik');
     panelleriKapat('sayim');
     $('secici').classList.add('gizli');
-    $('btnKendimSec').textContent = 'Belirli bir rafı kendim seçeyim';
+    $('btnKendimSec').textContent = 'Belirli bir rafı seç';
     if (ayniAcik) { $('sayimPanel').classList.add('gizli'); return; }
     sayimAsama = kip;
     sayimMetniniGuncelle();
@@ -2154,11 +2163,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_SUPABASE_EDGE_FUNCTION_ADRE
     $('sayimPanel').scrollIntoView({ behavior:'smooth', block:'start' });
   }
 
-  $('btnYeniSayim').addEventListener('click', function () { sayimPanelAc('yeni'); });
-
-  $('btnSayim').addEventListener('click', function () {
-    sayimPanelAc('kontrol');
-  });
+  $('btnYeniSayim').addEventListener('click', function () { sayimPanelAc('otomatik'); });
 
   /* Raf sayımı genel raf fotoğrafıyla birlikte kaydedilir; koordinatör
      sayıyı fotoğrafla karşılaştırabilir. Fotoğraf da kayıt fotoğrafları gibi
@@ -2356,7 +2361,7 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_SUPABASE_EDGE_FUNCTION_ADRE
             ? 'İnternet bağlantısı yok. Raf planı yine kullanılabilir; canlı durum bağlantı gelince güncellenir.'
             : 'Rafların canlı durumu geç yanıt verdi. Raf planını kullanabilir veya biraz sonra yenileyebilirsiniz.')
         : e.message);
-    }).then(function () { $('btnHarita').textContent = 'Bütün rafların durumunu göreyim'; });
+    }).then(function () { $('btnHarita').textContent = 'Rafların durumunu gör'; });
   });
 
   var haritaMekan = '';                         // seçili mekân sekmesi
@@ -2607,12 +2612,16 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_SUPABASE_EDGE_FUNCTION_ADRE
     }, 5000);
     api('siraOner', { kaydeden: D.ad }, { sure:15000, deneme:1 }).then(function (d) {
       if (!d.anahtar) {
-        goster($('msgOner'), d.tur === 'hepsiTutulu' || d.tur === 'sayimGerekli' ? 'uyari' : 'iyi',
+        if (d.tur === 'sayimGerekli') {
+          goster($('msgOner'), 'uyari',
+            'Fotoğraf kaydına hazır raf kalmadı. Sistem sizi sıradaki raf sayımına yönlendiriyor.');
+          sayimPanelAc('yeni');
+          return;
+        }
+        goster($('msgOner'), d.tur === 'hepsiTutulu' ? 'uyari' : 'iyi',
           d.tur === 'hepsiTutulu'
             ? 'Boş sıra kalmadı — açık sıraların hepsi şu an başkalarının üzerinde. ' +
               'Koordinatöre sorun.'
-            : d.tur === 'sayimGerekli'
-              ? 'Fotoğraf kaydına hazır sayılmış bir raf bulunamadı. Önce <b>Rafı say ve fotoğrafla</b> görevini seçin.'
             : 'Bütün sıralar bitmiş görünüyor. Koordinatöre sorun.');
         return;
       }
@@ -2809,15 +2818,21 @@ var ENVANTER_URL = window.TV_ENVANTER_URL || 'BURAYA_SUPABASE_EDGE_FUNCTION_ADRE
   function istenenleriYukle() {
     return api('istenenler').then(function (r) {
       var liste = r.kayitlar || [];
-      var icerik = '<b>Ortak düzeltme listesinde ' + liste.length + ' kitap var.</b><p>Bu görevler belirli bir kişiye atanmaz. Uygun olan gönüllü bir göreve dokunup kitabı düzeltebilir.</p>' +
-        liste.map(function (k) {
+      var gorevler = liste.map(function (k) {
           return '<button type="button" class="istenen-gorev" data-istenen-yer="' + esc(k.yer || '') + '"><b>' +
             esc(k.yer || ('#' + k.no)) + '</b><span>' + esc(k.baslik || '(künye yok)') +
             (k.yazar ? ' · ' + esc(k.yazar) : '') + '</span><small>' + esc(k.sebep || 'Koordinatör kontrol istiyor.') + '</small></button>';
         }).join('');
-      ['istenenler','istenenlerAna'].forEach(function(id){
-        var kutu=$(id);if(!kutu)return;kutu.classList.toggle('gizli',!liste.length);kutu.classList.toggle('gor',!!liste.length);kutu.innerHTML=liste.length?icerik:'';
-      });
+      var icerik = '<b>Ortak düzeltme listesinde ' + liste.length + ' kitap var.</b><p>Uygun olan gönüllü bir kitaba dokunup kaydı düzeltebilir.</p>' + gorevler;
+      var kayitKutusu = $('istenenler');
+      kayitKutusu.classList.toggle('gizli', !liste.length);
+      kayitKutusu.classList.toggle('gor', !!liste.length);
+      kayitKutusu.innerHTML = liste.length ? icerik : '';
+      var anaKutu = $('istenenlerAna');
+      anaKutu.classList.toggle('gizli', !liste.length);
+      anaKutu.innerHTML = liste.length
+        ? '<summary>Düzeltilecek kitaplar <span>' + liste.length + '</span></summary><div>' + gorevler + '</div>'
+        : '';
     })['catch'](function () { /* liste kritik değil */ });
   }
 

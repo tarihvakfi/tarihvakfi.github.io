@@ -505,15 +505,21 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   await page.getByText('Sistem hazır — çalışmaya başlayabilirsiniz', { exact:true }).waitFor({ timeout:4000 });
   await page.locator('#gonulluSistemHazirlik').waitFor({ state:'hidden', timeout:4000 });
   assert.equal(await page.locator('#adim-raf').evaluate(el => el.inert), false, 'Gönüllü işlemleri veri geldikten sonra açılmadı');
+  assert.ok(await page.getByRole('button', { name:/Çalışmaya başla/ }).isVisible());
+  assert.equal(await page.locator('#btnYeniSayim').isHidden(), true,
+    'Yardımcı raf sayımı ana ekranı kalabalıklaştırıyor');
+  if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-gonullu-yeni-mobil.png', fullPage:true });
+  await page.locator('#digerGorevler summary').first().click();
+  assert.ok(await page.getByRole('button', { name:'Raf sayımı yap', exact:true }).isVisible());
+  await page.locator('#istenenlerAna').getByText(/Düzeltilecek kitaplar/).waitFor();
+  assert.equal(await page.locator('#istenenlerAna [data-istenen-yer="G-A01-001"]').isHidden(), true,
+    'Düzeltme listesi ana ekranda kendiliğinden açılarak kalabalık oluşturuyor');
+  await page.locator('#istenenlerAna summary').click();
   await page.locator('#istenenlerAna').getByText(/Kapakta bilgi görünmüyor/).waitFor();
   assert.ok(await page.locator('#istenenlerAna [data-istenen-yer="G-A01-001"]').isVisible(), 'Koordinatörün düzeltme görevi gönüllü ana ekranında görünmedi');
   assert.equal(await page.locator('#gonulluSistemDurum').evaluate(el => getComputedStyle(el).position), 'static',
     'Gönüllü sistem durumu sayfayla birlikte kaymaya devam ediyor');
-  if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-gonullu-yeni-mobil.png', fullPage:true });
-  assert.ok(await page.getByRole('button', { name:/Kitapları fotoğrafla/ }).isVisible());
-  assert.ok(await page.getByRole('button', { name:/Rafı say ve fotoğrafla/ }).isVisible());
-  await page.getByText('Diğer işlemler', { exact:true }).click();
-  assert.ok(await page.getByRole('button', { name:/Belirli bir rafı kendim seçeyim/ }).isVisible());
+  assert.ok(await page.getByRole('button', { name:/Belirli bir rafı seç/ }).isVisible());
   await page.setViewportSize({ width:720, height:820 });
   const otherTaskRows = await page.locator('.diger-islemler .baglanti-btn').evaluateAll(items =>
     items.map(item => Math.round(item.getBoundingClientRect().top)));
@@ -524,6 +530,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
 
   /* Yeni sayım yalnız sayılmamış rafı seçer; sayı, raf fotoğrafı olmadan kaydedilmez. */
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+XprqVwAAAABJRU5ErkJggg==','base64');
+  countRecord = Object.assign({}, countRecord, { toplam:35 });
   await page.locator('#btnYeniSayim').click();
   await page.locator('#sayimPanel:not(.gizli)').waitFor();
   await page.locator('#sayimSira').getByText('G-A02', { exact:true }).waitFor();
@@ -539,10 +546,11 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   assert.equal(newCountRecord.toplam, 12, 'Yeni raf sayımı kaydedilmedi');
   assert.ok(calls.some(call => call.action === 'sayimKaydet' && Number(call.sira) === 2));
   await page.locator('#btnYeniSayim').click();
+  countRecord = Object.assign({}, countRecord, { toplam:34 });
 
   /* Yalnız uyumsuz tamamlanmış raf görünür; düzeltme, onay ve geri alma çalışır. */
   countInfoFailures = 2;
-  await page.locator('#btnSayim').click();
+  await page.locator('#btnYeniSayim').click();
   await page.locator('#sayimPanel:not(.gizli)').waitFor();
   await page.getByRole('button', { name:'Yeniden dene' }).waitFor();
   assert.equal(await page.locator('#sayimGiris').isHidden(), true,
@@ -572,10 +580,10 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
     'Uyumu onaylanan raf kontrol listesinde kaldı');
   assert.ok(calls.some(call => call.action === 'sayimKaydet'));
   assert.ok(calls.some(call => call.action === 'sayimOnayla'));
-  await page.locator('#btnSayim').click();
+  await page.locator('#btnYeniSayim').click();
 
   gapNumberScenario = true;
-  await page.getByRole('button', { name:/Kitapları fotoğrafla/ }).click();
+  await page.getByRole('button', { name:/Çalışmaya başla/ }).click();
   await page.getByText('zaten sizin üzerinizde.', { exact:false }).waitFor();
   await page.locator('#gorevKart').getByText('48 / 50 kitap', { exact:true }).waitFor();
   await page.locator('#gorevKart').getByText('2 kitap daha fotoğraflanacak', { exact:true }).waitFor();
@@ -632,7 +640,7 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
     assert.ok(calls.some(call => call.action === action), action + ' akışı çağrılmadı');
   }
 
-  await page.getByRole('button', { name:'Bütün rafların durumunu göreyim' }).click();
+  await page.getByRole('button', { name:'Rafların durumunu gör' }).click();
   await page.locator('#haritaPanel:not(.gizli)').waitFor();
   await page.locator('#hRaflar .hRaf').first().waitFor();
   await page.getByText('Soru / düzeltme / öneri gönder', { exact:true }).click();
