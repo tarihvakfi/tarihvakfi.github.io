@@ -59,23 +59,7 @@ async function authenticate(supplied: string, action: string): Promise<'voluntee
   const key = `auth/${expectedRole}`;
   const digest = await passwordDigest(supplied);
   const saved = await runtimeEnv.PHOTOS.get(key);
-  if (saved) return saved === digest ? expectedRole : null;
-  if (!runtimeEnv.LEGACY_API_URL) return null;
-
-  const checkAction = expectedRole === 'coordinator' ? 'koordinatorBaslangic' : 'sayac';
-  try {
-    const response = await fetch(runtimeEnv.LEGACY_API_URL, {
-      method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-      body:JSON.stringify({ action:checkAction, sifre:supplied, kaydeden:'Cloudflare geçiş doğrulaması', adet:1 }),
-      signal:AbortSignal.timeout(55000),
-    });
-    const data = await response.json() as { ok?: boolean };
-    if (!response.ok || !data.ok) return null;
-    await runtimeEnv.PHOTOS.put(key, digest);
-    return expectedRole;
-  } catch (_) {
-    return null;
-  }
+  return saved === digest ? expectedRole : null;
 }
 function trDate(value: unknown) {
   if (!value) return '';
@@ -609,7 +593,6 @@ interface Env {
   LIBRARY_COORDINATOR_PASSWORD?: string;
   LIBRARY_VOLUNTEER_PASSWORD?: string;
   LIBRARY_AUTH_PEPPER: string;
-  LEGACY_API_URL?: string;
   RESEND_API_KEY?: string;
   LIBRARY_CONTACT_EMAIL?: string;
   RESEND_FROM_EMAIL?: string;
