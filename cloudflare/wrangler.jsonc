@@ -20,7 +20,6 @@
   ],
   "vars": {
     "LIBRARY_CONTACT_EMAIL": "arif.solmaz@gmail.com",
-    "RESEND_FROM_EMAIL": "Tarih Vakfı Kütüphanesi <onboarding@resend.dev>",
-    "LEGACY_API_URL": "https://ksikaryxaqulassdiwso.supabase.co/functions/v1/library-api"
+    "RESEND_FROM_EMAIL": "Tarih Vakfı Kütüphanesi <onboarding@resend.dev>"
   }
 }

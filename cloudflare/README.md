@@ -6,7 +6,7 @@ Kitap envanteri, raf sayımı, kararlar ve iletişim kayıtları Cloudflare Work
 - KV: `PHOTOS` (`dfd21d71f1c046d98c9d11fcea9b0f64`)
 - Worker: `tarih-vakfi-library-api`
 
-Gerekli gizli değerler Cloudflare'de tutulur: `LIBRARY_AUTH_PEPPER` ve `RESEND_API_KEY`. Eski ortak şifreler ilk kullanımda eski sunucuda bir kez doğrulanır ve Cloudflare'e yalnızca anahtarlı özeti kaydedilir.
+Gerekli gizli değerler Cloudflare'de tutulur: `LIBRARY_AUTH_PEPPER`, `LIBRARY_VOLUNTEER_PASSWORD` ve `RESEND_API_KEY`. Yetkili şifresinin yalnızca anahtarlı özeti KV içinde `auth/coordinator` anahtarında tutulur.
 
 ## Dağıtım
 
