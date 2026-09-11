@@ -42,14 +42,14 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
 
   const configSource = fs.readFileSync('js/gonullu-config.js', 'utf8').replace(
     /window\.TV_ENVANTER_URL\s*=\s*"[^"]+";/,
-    'window.TV_ENVANTER_URL="https://mock.supabase.co/functions/v1/library-api";'
+    'window.TV_ENVANTER_URL="https://mock.workers.dev";'
   );
   await context.route('**/js/gonullu-config.js*', route => route.fulfill({ contentType: 'application/javascript', body: configSource }));
   await context.route('https://drive.google.com/thumbnail**', route => route.fulfill({
     contentType: 'image/svg+xml',
     body: '<svg xmlns="http://www.w3.org/2000/svg" width="500" height="700"><rect width="100%" height="100%" fill="#ded6d8"/><text x="50%" y="50%" text-anchor="middle" font-size="34">Kitap</text></svg>'
   }));
-  await context.route('https://mock.supabase.co/functions/v1/library-api**', async route => {
+  await context.route('https://mock.workers.dev/**', async route => {
     const request = route.request();
     const url = new URL(request.url());
     const query = Object.fromEntries(url.searchParams);

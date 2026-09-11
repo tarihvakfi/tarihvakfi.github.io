@@ -1,6 +1,5 @@
-/* Tarih Vakfı kütüphane sayfalarının Supabase bağlantısı.
-   Bütün envanter okumaları ve yazmaları aynı Edge Function'a JSON olarak gider.
-   Apps Script taşıma/yönlendirme katmanı bu dosyada özellikle yoktur. */
+/* Tarih Vakfı kütüphane sayfalarının API bağlantısı.
+   Bütün envanter okumaları ve yazmaları aynı Cloudflare Worker'a JSON olarak gider. */
 (function () {
   'use strict';
 
@@ -17,7 +16,7 @@
 
   function cachedConfig(url) {
     try {
-      var c = JSON.parse(sessionStorage.getItem('tv_env_config_v2_supabase') || 'null');
+      var c = JSON.parse(sessionStorage.getItem('tv_env_config_v3_cloudflare') || 'null');
       return c && c.url === url && Date.now() - c.time < 300000 ? c.data : null;
     } catch (e) { return null; }
   }
@@ -51,8 +50,8 @@
 
   function request(url, body, options) {
     options = options || {};
-    if (!url || !/^https:\/\/[^/]+\.supabase\.co\/functions\/v1\//.test(url)) {
-      return Promise.reject(new Error('Kitap sistemi Supabase adresi tanımlanmamış.'));
+    if (!url || !/^https:\/\/(?:[^/]+\.workers\.dev(?:\/|$)|[^/]+\.supabase\.co\/functions\/v1\/)/.test(url)) {
+      return Promise.reject(new Error('Kitap sistemi sunucu adresi tanımlanmamış.'));
     }
     if (body.action === 'config') {
       if (window.TV_ENVANTER_CONFIG) return Promise.resolve(JSON.parse(JSON.stringify(window.TV_ENVANTER_CONFIG)));
@@ -71,7 +70,7 @@
     }
     var promise = run().then(function (data) {
       if (body.action === 'config') try {
-        sessionStorage.setItem('tv_env_config_v2_supabase', JSON.stringify({ url:url, time:Date.now(), data:data }));
+        sessionStorage.setItem('tv_env_config_v3_cloudflare', JSON.stringify({ url:url, time:Date.now(), data:data }));
       } catch (e) {}
       return data;
     }).finally(function () { if (body.action === 'config') configRequests.delete(url); });
@@ -97,11 +96,11 @@
     }
   }
 
-  /* Supabase Storage nadiren bir resmi ilk paralel istekte atlayabiliyor.
-     Görseli bir kez önbelleksiz yeniden istemek boş kartı engeller. */
+  /* Geçici ağ hatasında görseli bir kez önbelleksiz yeniden istemek boş kartı engeller. */
   document.addEventListener('error', function (event) {
     var img = event.target;
-    if (!(img instanceof HTMLImageElement) || !/\.supabase\.co\/storage\/v1\//.test(img.src) || img.dataset.tvRetry) return;
+    if (!(img instanceof HTMLImageElement) ||
+        !/(?:\.supabase\.co\/storage\/v1\/|\.workers\.dev\/photos\/)/.test(img.src) || img.dataset.tvRetry) return;
     img.dataset.tvRetry = '1';
     var src = img.src, join = src.indexOf('?') >= 0 ? '&' : '?';
     setTimeout(function () { img.src = src + join + 'retry=' + Date.now(); }, 250);

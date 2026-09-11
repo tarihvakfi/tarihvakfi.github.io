@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tarih-vakfi-library-api",
+  "main": "src/library-api.ts",
+  "compatibility_date": "2026-09-11",
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "tarih-vakfi-library",
+      "database_id": "bda4c311-abc9-4937-9c7a-f7ace3c9a4c3",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "PHOTOS",
+      "id": "dfd21d71f1c046d98c9d11fcea9b0f64"
+    }
+  ],
+  "vars": {
+    "LIBRARY_CONTACT_EMAIL": "arif.solmaz@gmail.com",
+    "RESEND_FROM_EMAIL": "Tarih Vakfı Kütüphanesi <onboarding@resend.dev>",
+    "LEGACY_API_URL": "https://ksikaryxaqulassdiwso.supabase.co/functions/v1/library-api"
+  }
+}

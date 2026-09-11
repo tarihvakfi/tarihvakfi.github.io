@@ -17,7 +17,7 @@
   var kararKod = { gidecek:'Gitsin', belki:'Gitse de olur', gitmeyecek:'Gitmesin', belirsiz:'Belirsiz' };
   var kararSinif = { 'Gidecek':'g', 'Gitse de olur':'s', 'Gitmeyecek':'k', 'Belirsiz':'m' };
   var bildirimZamani, sistemHazirlikNo = 0, sistemKapatmaZamani, sistemSerbestBirakmaZamani;
-  var BASLANGIC_ONBELLEGI = 'tv_koord_baslangic_v5_supabase';
+  var BASLANGIC_ONBELLEGI = 'tv_koord_baslangic_v6_cloudflare';
   var yazanEylemler = ['kararVer','kararGorusGeriAl','kararGeriAl','sayimKaydet','sayimOnayla','sayimGeriAl','siraSec','siraBirak','siraBitir','kitapIste','onayla','topluOnayla','kunyeErtele','kutula'];
 
   function esc(v) {

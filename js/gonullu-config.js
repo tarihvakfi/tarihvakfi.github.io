@@ -15,12 +15,12 @@ window.TV_APP_URL = "https://script.google.com/macros/s/AKfycbxKD1hzj0Qh6Oqm8Olo
 
 /* ── 2. Kitap Envanteri (kütüphane taşınması) ───────────────────────────
  * Okuyan sayfalar: kitap-envanteri.html · koordinator.html ve eski yönetim
- * ekranları. Kitap, raf, sayım ve karar işlemleri doğrudan Supabase'e gider.
+ * ekranları. Kitap, raf, sayım, fotoğraf ve karar işlemleri Cloudflare'e gider.
  */
-window.TV_ENVANTER_URL = "https://ksikaryxaqulassdiwso.supabase.co/functions/v1/library-api";
+window.TV_ENVANTER_URL = "https://tarih-vakfi-library-api.tarih-vakfi-cloudflare-backend.workers.dev";
 
 /* Ekranların açılışta sunucudan beklemeden kullanacağı sabit kütüphane ayarları.
- * Raf düzeni değişirse Supabase raf planıyla birlikte güncellenmelidir.
+ * Raf düzeni değişirse Cloudflare raf planıyla birlikte güncellenmelidir.
  * Kitaplar, sayımlar ve kararlar burada tutulmaz; her zaman canlı tablodan gelir. */
 (function () {
   var raflar = [];
