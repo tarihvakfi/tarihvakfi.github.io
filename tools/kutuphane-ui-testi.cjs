@@ -514,6 +514,13 @@ const base = process.env.TV_TEST_URL || 'http://127.0.0.1:8766';
   assert.ok(await page.getByRole('button', { name:/Rafı say ve fotoğrafla/ }).isVisible());
   await page.getByText('Diğer işlemler', { exact:true }).click();
   assert.ok(await page.getByRole('button', { name:/Belirli bir rafı kendim seçeyim/ }).isVisible());
+  await page.setViewportSize({ width:720, height:820 });
+  const otherTaskRows = await page.locator('.diger-islemler .baglanti-btn').evaluateAll(items =>
+    items.map(item => Math.round(item.getBoundingClientRect().top)));
+  assert.notEqual(otherTaskRows[0], otherTaskRows[1],
+    'Dar ekranda diğer işlem bağlantıları aynı satıra sıkışıyor');
+  if (process.env.TV_TEST_SCREENSHOTS) await page.screenshot({ path:'/tmp/tv-gonullu-720-hizalama.png', fullPage:true });
+  await page.setViewportSize({ width:390, height:844 });
 
   /* Yeni sayım yalnız sayılmamış rafı seçer; sayı, raf fotoğrafı olmadan kaydedilmez. */
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+XprqVwAAAABJRU5ErkJggg==','base64');

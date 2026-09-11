@@ -180,6 +180,11 @@ input, textarea, select { min-height: 52px; border-color: var(--cizgi); border-r
   .son { padding: 17px 14px; }
 }
 
+@media (max-width: 760px) {
+  .diger-islemler > div { display: grid; grid-template-columns: 1fr; justify-items: center; gap: 0; }
+  .yardimAraclari .baglanti-btn { width: 100%; text-align: center; }
+}
+
 @media (max-width: 370px) {
   .foto-ikili { grid-template-columns: 1fr; }
 }
