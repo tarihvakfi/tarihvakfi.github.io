@@ -16,16 +16,21 @@
     'PNB 30 Anıl',
     'PNB 39 Anıl - Berf',
     'PNB 40 Anıl - Berf',
+    'PNB 42 Anıl - Berf',
     'Copy of PNB 29 SUDE-ARAS',
     'PNB 34 Berfin',
     'PNB 33 Berfin',
     'PNB 33 Sude',
     'PNB 34 Sude - Aras',
     'PNB 44 ÖZDEN',
+    'PNB 43 Anıl',
+    'PNB 41',
+    'PNB 49 ÖZDEN',
     'PNB 37 Öykü Zelal Berfin',
     'PNB 1',
     'PNB 2',
     'PNB 68 Sibel',
+    'Tarama Notları',
     'NSS Harita'
   ];
 
@@ -146,7 +151,7 @@
 
       state.loading = false;
       state.loadError = '';
-      state.sourceNote = 'Çalışma dosyası canlı okunuyor. Genel ilerleme PNB Sayısallaştırma L105 hücresinden alınıyor.';
+      state.sourceNote = 'Çalışma dosyası canlı okunuyor. Geçiş sırasında Günlük Akış aynası daha güncelse rapora dahil edilir. Genel ilerleme PNB Sayısallaştırma L105 hücresinden alınıyor.';
       setStatus('live', 'canlı veri');
       render();
     } catch (error) {
@@ -390,23 +395,41 @@
 
   function mapActivityRows(table) {
     const rows = rowsWithHeaders(table);
-    return rows.map(function (row) {
+    return rows.map(function (row, offset) {
       const people = splitPeople(pick(row, ['Paydaş']));
       const title = clean(pick(row, ['Devam Eden Çalışma']));
       const area = clean(pick(row, ['Çalışma Alanı']));
+      const notes = clean(pick(row, ['Notlar']));
+      const text = [area, title, notes].filter(Boolean).join(' · ');
+      const workTypes = activityWorkTypes(text);
       return {
+        source: ACTIVITY_SHEET,
+        kind: 'daily',
         date: clean(pick(row, ['Tarih'])),
         dateKey: dateKey(pick(row, ['Tarih'])),
         people,
+        workTypes,
         area: area || inferArea(title),
         work: title || area || 'Genel çalışma',
         amount: numberFrom(pick(row, ['Yapılan Çalışmaya İlişkin Sayısal Bilgi'])),
+        unit: activityUnit(text, pick(row, ['Yapılan Çalışmaya İlişkin Sayısal Bilgi'])),
+        fund: activityFund(text),
+        box: activityBox(text),
         computer: clean(pick(row, ['Bilgisayar'])),
         scanner: clean(pick(row, ['Tarayıcı'])),
-        notes: clean(pick(row, ['Notlar']))
+        notes,
+        statuses: ['Kayıt'],
+        webVisible: true,
+        recordId: 'GA-Ayna-' + (offset + 2)
       };
     }).filter(function (row) {
-      return row.date || row.people.length || row.area || row.work || row.notes;
+      return row.people.length
+        || row.area
+        || (row.work && row.work !== 'Genel çalışma')
+        || row.amount
+        || row.computer
+        || row.scanner
+        || row.notes;
     }).sort(descByDate);
   }
 
@@ -566,6 +589,7 @@
   }
 
   function buildMetrics() {
+    const dailyRows = reportDailyRows();
     const targetPages = state.inventoryRows.reduce(function (sum, row) {
       return sum + Number(row.targetPages || 0);
     }, 0);
@@ -573,7 +597,7 @@
     const sheetProgress = state.progressPercent == null ? null : state.progressPercent;
     return {
       progress: sheetProgress == null && targetPages ? (detailRows / targetPages) * 100 : sheetProgress,
-      records: state.pilotDailyRows.length + detailRows + state.pilotCodeRows.length,
+      records: dailyRows.length + detailRows + state.pilotCodeRows.length,
       details: detailRows,
       volunteers: volunteerStats().length,
       boxes: boxStats().filter(function (row) { return row.done > 0; }).length
@@ -583,7 +607,7 @@
   function renderReport() {
     const progress = progressModel();
     const window = recentWindow();
-    const latestKey = latestDateKey(state.pilotDailyRows.concat(state.pilotScanRows, state.pilotCodeRows));
+    const latestKey = latestDateKey(reportDailyRows().concat(state.pilotScanRows, state.pilotCodeRows));
 
     setElementText(el.heroPeriod, state.loading
       ? 'Canlı rapor · veri bekleniyor'
@@ -646,7 +670,7 @@
   }
 
   function recentWindow() {
-    const rows = state.pilotDailyRows.concat(state.pilotScanRows, state.pilotCodeRows);
+    const rows = reportDailyRows().concat(state.pilotScanRows, state.pilotCodeRows);
     const latestKey = latestDateKey(rows);
     const startKey = latestKey ? shiftDateKey(latestKey, -6) : '';
     const filtered = rows.filter(function (row) {
@@ -884,7 +908,7 @@
       const structuredRows = label === 'Kontrol'
         ? state.pilotCodeRows.concat(state.pilotScanRows.filter(function (row) { return hasWorkType(row, label); }))
         : state.pilotScanRows.filter(function (row) { return hasWorkType(row, label); });
-      const dailyRows = state.pilotDailyRows.filter(function (row) {
+      const dailyRows = reportDailyRows().filter(function (row) {
         return hasWorkType(row, label);
       });
       const peopleSet = new Set();
@@ -916,7 +940,19 @@
   }
 
   function allReportRows() {
-    return state.pilotDailyRows.concat(state.pilotScanRows, state.pilotCodeRows);
+    return reportDailyRows().concat(state.pilotScanRows, state.pilotCodeRows);
+  }
+
+  function reportDailyRows() {
+    const pilotRows = state.pilotDailyRows.slice();
+    const mirrorRows = state.activityRows.slice();
+    const pilotLatest = latestDateKey(pilotRows);
+    const mirrorLatest = latestDateKey(mirrorRows);
+    if (!pilotRows.length) return mirrorRows.sort(descByDate);
+    if (!mirrorLatest || mirrorLatest <= pilotLatest) return pilotRows.sort(descByDate);
+    return pilotRows.concat(mirrorRows.filter(function (row) {
+      return row.dateKey && row.dateKey > pilotLatest;
+    })).sort(descByDate);
   }
 
   function summarizeWindow(rows, days, fallbackLatestKey) {
@@ -1002,7 +1038,7 @@
 
   function dayGroups() {
     const groups = new Map();
-    state.pilotDailyRows.concat(state.pilotScanRows, state.pilotCodeRows).forEach(function (row) {
+    reportDailyRows().concat(state.pilotScanRows, state.pilotCodeRows).forEach(function (row) {
       if (!row.dateKey) return;
       if (!groups.has(row.dateKey)) {
         groups.set(row.dateKey, {
@@ -1171,7 +1207,7 @@
       : '';
     el.dataNote.textContent = state.loading
       ? 'Veri yükleniyor; çalışma sekmeleri birkaç saniye sürebilir.'
-      : `${state.sourceNote || 'Çalışma dosyasındaki sekmeler doğrudan okunuyor.'} · ${formatNumber(state.pilotScanRows.length)} sayfa/detay satırı · ${formatNumber(state.pilotDailyRows.length)} gönüllü günlüğü · ${formatNumber(state.pilotCodeRows.length)} kontrol/onay${limitNote}`;
+      : `${state.sourceNote || 'Çalışma dosyasındaki sekmeler doğrudan okunuyor.'} · ${formatNumber(state.pilotScanRows.length)} sayfa/detay satırı · ${formatNumber(reportDailyRows().length)} gönüllü günlüğü · ${formatNumber(state.pilotCodeRows.length)} kontrol/onay${limitNote}`;
   }
 
   function tableConfig(view) {
@@ -1316,7 +1352,7 @@
       kicker: 'Günlük görünüm',
       title: 'Gönüllü günlüğü',
       limit: 500,
-      rows: function () { return state.pilotDailyRows.length ? state.pilotDailyRows : state.activityRows; },
+      rows: reportDailyRows,
       columns: [
         { label: 'Tarih', render: function (row) { return `<strong>${escapeHtml(row.date || '—')}</strong>`; } },
         { label: 'Gönüllü', render: function (row) { return escapeHtml(row.people.join(', ') || '—'); } },
@@ -1329,9 +1365,16 @@
   }
 
   function pilotRows() {
+    const dailyRows = reportDailyRows();
+    if (state.webSummaryRows.length) {
+      const webLatest = latestDateKey(state.webSummaryRows);
+      return state.webSummaryRows.concat(dailyRows.filter(function (row) {
+        return row.dateKey && (!webLatest || row.dateKey > webLatest);
+      })).sort(descByDate);
+    }
     const sourceRows = state.webSummaryRows.length
       ? state.webSummaryRows
-      : state.pilotDailyRows.concat(state.pilotScanRows, state.pilotCodeRows);
+      : dailyRows.concat(state.pilotScanRows, state.pilotCodeRows);
     return sourceRows.sort(descByDate);
   }
 
@@ -1458,7 +1501,7 @@
 
   function workStats() {
     const groups = new Map();
-    state.pilotDailyRows.forEach(function (row) {
+    reportDailyRows().forEach(function (row) {
       const labels = row.workTypes.length ? row.workTypes : [row.area || inferArea(row.work) || 'Diğer çalışma'];
       labels.forEach(function (label) {
         if (!groups.has(label)) {
@@ -1541,7 +1584,7 @@
 
   function volunteerStats() {
     const groups = new Map();
-    state.pilotDailyRows.forEach(function (row) {
+    reportDailyRows().forEach(function (row) {
       row.people.forEach(function (person) {
         const group = volunteerGroup(groups, person);
         group.activityCount += 1;
@@ -1771,6 +1814,52 @@
     return 'Diğer çalışma';
   }
 
+  function activityWorkTypes(value) {
+    const text = clean(value).toLocaleLowerCase('tr');
+    const labels = [
+      ['Tarama', /tarama|taran|dijitalleştir|sayısallaştır/],
+      ['Kodlama', /kodlama|kodlan|dijital kod|excel/],
+      ['Kontrol', /kontrol|onay|denetim/],
+      ['Kataloglama', /katalog|tasnif|tanımlama/],
+      ['PDF/JPEG', /pdf|jpeg|jpg|görüntü/],
+      ['Kütüphane taşıma', /taşın|taşıma|nakil/],
+      ['Kütüphane envanteri', /kütüphane|kitap|raf|envanter|sayım/],
+      ['Proje geliştirme', /proje|başvuru|fon başvurusu/],
+      ['Web sitesi', /web|site|github/],
+      ['Kronoloji / araştırma', /kronoloji|araştırma|karar defteri|faaliyet raporu/],
+      ['Toplantı / eğitim', /toplantı|eğitim|atölye|plan toplantısı/],
+      ['Koordinasyon', /koordinasyon|planlama|gönüllü organizasyonu/]
+    ];
+    const matches = labels.filter(function (entry) {
+      return entry[1].test(text);
+    }).map(function (entry) {
+      return entry[0];
+    });
+    return matches.length ? matches : ['Diğer'];
+  }
+
+  function activityFund(value) {
+    const text = clean(value).toLocaleLowerCase('tr');
+    if (/pnb|boratav|pertev/.test(text)) return 'PNB';
+    if (/kütüphane|kitap|raf|envanter|sayım|taşın/.test(text)) return 'Kütüphane';
+    if (/vakıf|karar defteri|kronoloji|faaliyet raporu/.test(text)) return 'Vakıf';
+    return '';
+  }
+
+  function activityBox(value) {
+    const match = clean(value).match(/\b(?:kutu|box)\s*[:#]?\s*([0-9]+(?:[.,][0-9]+)?)/i);
+    return match ? match[1] : '';
+  }
+
+  function activityUnit(value, amount) {
+    if (!numberFrom(amount)) return '';
+    const text = clean(value).toLocaleLowerCase('tr');
+    if (/sayfa/.test(text)) return 'sayfa';
+    if (/kitap/.test(text)) return 'kitap';
+    if (/kayıt|satır/.test(text)) return 'kayıt';
+    return 'adet';
+  }
+
   function boxKey(fund, box) {
     return `${clean(fund) || 'Fon'}::${clean(box) || 'Kutu'}`;
   }
@@ -1801,9 +1890,9 @@
       .replace(/\.{2,}/g, '.');
     if (!text) return '';
     const splitYear = text.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2})\.(\d{2})$/);
-    if (splitYear) return `${splitYear[3]}${splitYear[4]}-${pad(splitYear[2])}-${pad(splitYear[1])}`;
+    if (splitYear) return plausibleDateKey(`${splitYear[3]}${splitYear[4]}-${pad(splitYear[2])}-${pad(splitYear[1])}`);
     const dot = text.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/);
-    if (dot) return `${dot[3]}-${pad(dot[2])}-${pad(dot[1])}`;
+    if (dot) return plausibleDateKey(`${dot[3]}-${pad(dot[2])}-${pad(dot[1])}`);
     const tr = text.match(/^(\d{1,2})\s+([A-Za-zÇĞİÖŞÜçğıöşü]+)\s+(\d{4})/);
     if (tr) {
       const month = [
@@ -1820,11 +1909,17 @@
         'kasım',
         'aralık'
       ].indexOf(tr[2].toLocaleLowerCase('tr')) + 1;
-      if (month > 0) return `${tr[3]}-${pad(month)}-${pad(tr[1])}`;
+      if (month > 0) return plausibleDateKey(`${tr[3]}-${pad(month)}-${pad(tr[1])}`);
     }
     const parsed = new Date(text);
-    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+    if (!Number.isNaN(parsed.getTime())) return plausibleDateKey(parsed.toISOString().slice(0, 10));
     return '';
+  }
+
+  function plausibleDateKey(key) {
+    if (!key) return '';
+    const latestAllowed = shiftDateKey(todayKey(), 31);
+    return latestAllowed && key > latestAllowed ? '' : key;
   }
 
   function latestDateKey(rows) {

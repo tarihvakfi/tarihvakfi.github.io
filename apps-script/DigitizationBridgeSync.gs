@@ -28,16 +28,21 @@ const TVF_DIGITIZATION_BRIDGE = {
     'PNB 30 Anıl',
     'PNB 39 Anıl - Berf',
     'PNB 40 Anıl - Berf',
+    'PNB 42 Anıl - Berf',
     'Copy of PNB 29 SUDE-ARAS',
     'PNB 34 Berfin',
     'PNB 33 Berfin',
     'PNB 33 Sude',
     'PNB 34 Sude - Aras',
     'PNB 44 ÖZDEN',
+    'PNB 43 Anıl',
+    'PNB 41',
+    'PNB 49 ÖZDEN',
     'PNB 37 Öykü Zelal Berfin',
     'PNB 1',
     'PNB 2',
     'PNB 68 Sibel',
+    'Tarama Notları',
     'NSS Harita'
   ]
 };
@@ -295,7 +300,7 @@ function buildBridgeDailyRows_(source) {
       'GA-' + sourceRowNumber
     ];
   }).filter(function (row) {
-    return bridgeHasAny_(row[0], row[1], row[21]);
+    return bridgeHasAny_(row[1], row[18], row[20], row[21]);
   });
 }
 
@@ -317,7 +322,7 @@ function buildBridgeScanRows_(source) {
       const documentNo = bridgePick_(row, headerIndex, ['Belge No', 'Belge']);
       const page = bridgePick_(row, headerIndex, ['Sayfa']);
       const digitalCode = bridgePick_(row, headerIndex, ['Dijital Belge Kodu', 'Dijital kod']);
-      const documentDate = bridgePick_(row, headerIndex, ['Belge Tarihi', 'Belge tarihi']);
+      const documentDate = bridgePick_(row, headerIndex, ['Belge Tarihi', 'Belge tarihi', 'Evrak Tarihi']);
       const notes = bridgePick_(row, headerIndex, ['Notlar', 'Not']);
       const creator = normalizeBridgePeople_(bridgePick_(row, headerIndex, ['Kaydı Oluşturan', 'Kaydı Oluşuran']));
       const scanner = bridgePick_(row, headerIndex, ['Tarayıcı']);
