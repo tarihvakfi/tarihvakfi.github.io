@@ -130,7 +130,7 @@
 
     try {
       const core = await Promise.all([
-        fetchTable(PILOT_DAILY_SHEET, 'A1:X1000'),
+        fetchTable(PILOT_DAILY_SHEET, 'A1:Y1000'),
         fetchTable(PILOT_SCAN_SHEET, 'A1:Y12000'),
         fetchTable(PILOT_CODE_SHEET, 'A1:V1500'),
         fetchTable(WEB_SUMMARY_SHEET, 'A1:N1000'),
@@ -235,6 +235,7 @@
         'PDF/JPEG',
         'Kütüphane taşıma',
         'Kütüphane envanteri',
+        'Vakıf envanteri',
         'Proje geliştirme',
         'Web sitesi',
         'Kronoloji / araştırma',
@@ -1808,7 +1809,8 @@
     if (!text) return '';
     if (text.includes('tarama') || text.includes('kodlama') || text.includes('kontrol')) return 'Sayısallaştırma';
     if (text.includes('kronoloji')) return 'Kronoloji';
-    if (text.includes('proje') || text.includes('başvuru')) return 'Proje çalışmaları';
+    if (/tasnif|envanter|data girişi|veri girişi|arşiv fonu/.test(text)) return 'Vakıf envanteri';
+    if (/başvuru|bütçe|iş planı|proje hazırl|proje geliştirme|proje değerlendirme|fon başvurusu/.test(text)) return 'Proje çalışmaları';
     if (text.includes('web')) return 'Web sitesi';
     if (text.includes('toplantı') || text.includes('eğitim')) return 'Toplantı / eğitim';
     if (text.includes('taşıma') || text.includes('raf') || text.includes('kütüphane')) return 'Kütüphane';
@@ -1821,11 +1823,12 @@
       ['Tarama', /tarama|taran|dijitalleştir|sayısallaştır/],
       ['Kodlama', /kodlama|kodlan|dijital kod|excel/],
       ['Kontrol', /kontrol|onay|denetim/],
-      ['Kataloglama', /katalog|tasnif|tanımlama/],
+      ['Kataloglama', /katalog|künye|atom/],
       ['PDF/JPEG', /pdf|jpeg|jpg|görüntü/],
       ['Kütüphane taşıma', /taşın|taşıma|nakil/],
-      ['Kütüphane envanteri', /kütüphane|kitap|raf|envanter|sayım/],
-      ['Proje geliştirme', /proje|başvuru|fon başvurusu/],
+      ['Kütüphane envanteri', /kütüphane|kitap|raf|sayım/],
+      ['Vakıf envanteri', /tasnif|envanter|data girişi|veri girişi|arşiv fonu|datasafe/],
+      ['Proje geliştirme', /başvuru|bütçe|iş planı|proje hazırl|proje geliştirme|proje değerlendirme|fon başvurusu/],
       ['Web sitesi', /web|site|github/],
       ['Kronoloji / araştırma', /kronoloji|araştırma|karar defteri|faaliyet raporu/],
       ['Toplantı / eğitim', /toplantı|eğitim|atölye|plan toplantısı/],
@@ -1842,7 +1845,8 @@
   function activityFund(value) {
     const text = clean(value).toLocaleLowerCase('tr');
     if (/pnb|boratav|pertev/.test(text)) return 'PNB';
-    if (/kütüphane|kitap|raf|envanter|sayım|taşın/.test(text)) return 'Kütüphane';
+    if (/kütüphane|kitap|raf|sayım|taşın/.test(text)) return 'Kütüphane';
+    if (/tasnif|envanter|data girişi|veri girişi|arşiv fonu|datasafe/.test(text)) return 'Vakıf';
     if (/vakıf|karar defteri|kronoloji|faaliyet raporu/.test(text)) return 'Vakıf';
     return '';
   }

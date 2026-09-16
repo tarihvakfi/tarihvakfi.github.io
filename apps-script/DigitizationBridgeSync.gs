@@ -58,6 +58,7 @@ const TVF_BRIDGE_DAILY_HEADERS = [
   'PDF/JPEG',
   'Kütüphane taşıma',
   'Kütüphane envanteri',
+  'Vakıf envanteri',
   'Proje geliştirme',
   'Web sitesi',
   'Kronoloji / araştırma',
@@ -284,6 +285,7 @@ function buildBridgeDailyRows_(source) {
       flags['PDF/JPEG'],
       flags['Kütüphane taşıma'],
       flags['Kütüphane envanteri'],
+      flags['Vakıf envanteri'],
       flags['Proje geliştirme'],
       flags['Web sitesi'],
       flags['Kronoloji / araştırma'],
@@ -437,6 +439,7 @@ function buildBridgeWebRows_(dailyRows, scanRows, controlRows) {
         'PDF/JPEG',
         'Kütüphane taşıma',
         'Kütüphane envanteri',
+        'Vakıf envanteri',
         'Proje geliştirme',
         'Web sitesi',
         'Kronoloji / araştırma',
@@ -444,16 +447,16 @@ function buildBridgeWebRows_(dailyRows, scanRows, controlRows) {
         'Koordinasyon',
         'Diğer'
       ]).join(', '),
-      row[16],
       row[17],
-      '',
-      '',
       row[18],
+      '',
+      '',
       row[19],
-      row[22] ? 'Webde göster' : 'Kayıt',
-      row[21],
+      row[20],
+      row[23] ? 'Webde göster' : 'Kayıt',
       row[22],
-      row[23]
+      row[23],
+      row[24]
     ]);
   });
 
@@ -680,11 +683,12 @@ function classifyBridgeWork_(text) {
     'Tarama': /tarama|taran|dijitalleştir|sayısallaştır/.test(normalized),
     'Kodlama': /kodlama|kodlan|dijital kod|excel/.test(normalized),
     'Kontrol': /kontrol|onay|denetim/.test(normalized),
-    'Kataloglama': /katalog|tasnif|tanımlama/.test(normalized),
+    'Kataloglama': /katalog|künye|atom/.test(normalized),
     'PDF/JPEG': /pdf|jpeg|jpg|görüntü/.test(normalized),
     'Kütüphane taşıma': /taşın|taşıma|nakil/.test(normalized),
-    'Kütüphane envanteri': /kütüphane|kitap|raf|envanter|sayım/.test(normalized),
-    'Proje geliştirme': /proje|başvuru|fon başvurusu/.test(normalized),
+    'Kütüphane envanteri': /kütüphane|kitap|raf|sayım/.test(normalized),
+    'Vakıf envanteri': /tasnif|envanter|data girişi|veri girişi|arşiv fonu|datasafe/.test(normalized),
+    'Proje geliştirme': /başvuru|bütçe|iş planı|proje hazırl|proje geliştirme|proje değerlendirme|fon başvurusu/.test(normalized),
     'Web sitesi': /web|site|github/.test(normalized),
     'Kronoloji / araştırma': /kronoloji|araştırma|karar defteri|faaliyet raporu/.test(normalized),
     'Toplantı / eğitim': /toplantı|eğitim|atölye|plan toplantısı/.test(normalized),
@@ -700,7 +704,8 @@ function classifyBridgeWork_(text) {
 function inferBridgeFund_(text) {
   const normalized = bridgeText_(text);
   if (/pnb|boratav|pertev/.test(normalized)) return 'PNB';
-  if (/kütüphane|kitap|raf|envanter|sayım|taşın/.test(normalized)) return 'Kütüphane';
+  if (/kütüphane|kitap|raf|sayım|taşın/.test(normalized)) return 'Kütüphane';
+  if (/tasnif|envanter|data girişi|veri girişi|arşiv fonu|datasafe/.test(normalized)) return 'Vakıf';
   if (/vakıf|karar defteri|kronoloji|faaliyet raporu/.test(normalized)) return 'Vakıf';
   return '';
 }
