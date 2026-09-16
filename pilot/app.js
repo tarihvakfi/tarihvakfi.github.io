@@ -17,6 +17,7 @@
     'PNB 39 Anıl - Berf',
     'PNB 40 Anıl - Berf',
     'PNB 42 Anıl - Berf',
+    'PNB 45 Anıl - Berf',
     'Copy of PNB 29 SUDE-ARAS',
     'PNB 34 Berfin',
     'PNB 33 Berfin',
