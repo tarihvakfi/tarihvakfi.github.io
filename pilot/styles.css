@@ -464,8 +464,18 @@ body.pilot-dashboard {
 
 .plan-person-line {
   display: grid;
+  gap: 3px;
   padding-left: 9px;
   border-left: 2px solid var(--accent-soft);
+}
+
+.plan-person-line.actual,
+.plan-person-line.planned {
+  border-left-color: var(--accent);
+}
+
+.plan-person-line.future-plan {
+  border-left-color: rgba(82, 122, 96, 0.45);
 }
 
 .plan-person-line b {
@@ -473,6 +483,20 @@ body.pilot-dashboard {
   font-size: 14px;
   font-weight: 700;
   line-height: 1.2;
+}
+
+.plan-person-line span {
+  color: var(--ink-mute);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
+.plan-person-line small {
+  color: var(--accent);
+  font-family: 'DM Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .report-latest {

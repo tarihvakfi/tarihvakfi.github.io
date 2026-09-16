@@ -8,13 +8,24 @@
   const ATOM_EXPORT_SHEET = '05 AtoM Aktarım';
   const ACTIVITY_SHEET = 'Günlük Akış';
   const INVENTORY_SHEET = 'PNB Sayısallaştırma';
-  const PLAN_SHEET = 'Haftalık Plan';
+  const MANAGEMENT_URL = window.TV_APP_URL || '';
+  const MANAGEMENT_TOKEN_KEY = 'tv_yonetim';
+  const MANAGEMENT_TIME_LABELS = {
+    sabah: '09–13',
+    ogleden_sonra: '13–18',
+    tam_gun: 'Tam gün'
+  };
+  const MANAGEMENT_AREA_LABELS = {
+    kutuphane: 'Kütüphane',
+    arsiv: 'Arşiv',
+    ikisi: 'Kütüphane + Arşiv'
+  };
   const PLAN_DAYS = [
-    { key: 'Pazartesi', label: 'Pazartesi', short: 'Pzt', offset: 0 },
-    { key: 'Salı', label: 'Salı', short: 'Sal', offset: 1 },
-    { key: 'Çarşamba', label: 'Çarşamba', short: 'Çar', offset: 2 },
-    { key: 'Perşembe', label: 'Perşembe', short: 'Per', offset: 3 },
-    { key: 'Cuma', label: 'Cuma', short: 'Cum', offset: 4 }
+    { key: 'pazartesi', label: 'Pazartesi', short: 'Pzt', offset: 0 },
+    { key: 'sali', label: 'Salı', short: 'Sal', offset: 1 },
+    { key: 'carsamba', label: 'Çarşamba', short: 'Çar', offset: 2 },
+    { key: 'persembe', label: 'Perşembe', short: 'Per', offset: 3 },
+    { key: 'cuma', label: 'Cuma', short: 'Cum', offset: 4 }
   ];
   const DETAIL_SHEETS = [
     'PNB 27 Anıl',
@@ -57,6 +68,8 @@
     detailRows: [],
     inventoryRows: [],
     planRows: [],
+    planLabels: {},
+    planNote: '',
     progressPercent: null
   };
 
@@ -138,16 +151,18 @@
     render();
 
     try {
-      const core = await Promise.all([
-        fetchTable(PILOT_DAILY_SHEET, 'A1:Y1000'),
-        fetchTable(PILOT_SCAN_SHEET, 'A1:Y12000'),
-        fetchTable(PILOT_CODE_SHEET, 'A1:V1500'),
-        fetchTable(WEB_SUMMARY_SHEET, 'A1:N1000'),
-        fetchTable(ATOM_EXPORT_SHEET, 'A1:O1000'),
-        fetchTable(ACTIVITY_SHEET, 'A1:H1200'),
-        fetchTable(INVENTORY_SHEET, 'A1:L1100'),
-        fetchTable(PLAN_SHEET, 'A1:I80'),
-        fetchCell(INVENTORY_SHEET, 'L105:L105')
+      const [core, managementPlan] = await Promise.all([
+        Promise.all([
+          fetchTable(PILOT_DAILY_SHEET, 'A1:Y1000'),
+          fetchTable(PILOT_SCAN_SHEET, 'A1:Y12000'),
+          fetchTable(PILOT_CODE_SHEET, 'A1:V1500'),
+          fetchTable(WEB_SUMMARY_SHEET, 'A1:N1000'),
+          fetchTable(ATOM_EXPORT_SHEET, 'A1:O1000'),
+          fetchTable(ACTIVITY_SHEET, 'A1:H1200'),
+          fetchTable(INVENTORY_SHEET, 'A1:L1100'),
+          fetchCell(INVENTORY_SHEET, 'L105:L105')
+        ]),
+        fetchManagementPlan()
       ]);
       state.pilotDailyRows = mapPilotDailyRows(core[0]);
       state.pilotScanRows = mapPilotScanRows(core[1]);
@@ -156,12 +171,14 @@
       state.atomExportRows = mapAtomExportRows(core[4]);
       state.activityRows = mapActivityRows(core[5]);
       state.inventoryRows = mapInventoryRows(core[6]);
-      state.planRows = mapPlanRows(core[7]);
-      state.progressPercent = progressPercentFrom(core[8]);
+      state.progressPercent = progressPercentFrom(core[7]);
+      state.planRows = managementPlan.rows;
+      state.planLabels = managementPlan.labels;
+      state.planNote = managementPlan.note;
 
       state.loading = false;
       state.loadError = '';
-      state.sourceNote = 'Çalışma dosyası canlı okunuyor. Geçiş sırasında Günlük Akış aynası daha güncelse rapora dahil edilir. Genel ilerleme PNB Sayısallaştırma L105 hücresinden, haftalık plan Haftalık Plan sekmesinden alınıyor.';
+      state.sourceNote = 'Çalışma dosyası canlı okunuyor. Geçiş sırasında Günlük Akış aynası daha güncelse rapora dahil edilir. Genel ilerleme PNB Sayısallaştırma L105 hücresinden; haftalık kişi planı yönetim paneli oturumundan okunur.';
       setStatus('live', 'canlı veri');
       render();
     } catch (error) {
@@ -212,6 +229,63 @@
         if (cell.v == null) return '';
         return String(cell.v);
       });
+  }
+
+  function fetchManagementPlan() {
+    if (!MANAGEMENT_URL || /BURAYA_APPS_SCRIPT/.test(MANAGEMENT_URL)) {
+      return Promise.resolve({
+        rows: [],
+        labels: {},
+        note: 'Yönetim takvimi için servis adresi tanımlı değil.'
+      });
+    }
+
+    const token = readManagementToken();
+    if (!token) {
+      return Promise.resolve({
+        rows: [],
+        labels: {},
+        note: 'Yönetim takvimi için aynı tarayıcıda yönetim paneline giriş yapılmalı.'
+      });
+    }
+
+    return fetch(MANAGEMENT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'adminData', token }),
+      redirect: 'follow'
+    })
+      .then(function (response) { return response.text(); })
+      .then(function (text) {
+        const data = JSON.parse(text);
+        if (!data.ok) throw new Error(data.error || 'Yönetim verisi okunamadı.');
+        return {
+          rows: Array.isArray(data.kayitlar) ? data.kayitlar : [],
+          labels: data.etiketler || {},
+          note: `Yönetim paneli ${clean(data.hesaplama) || 'canlı'} verisiyle okunuyor.`
+        };
+      })
+      .catch(function (error) {
+        return {
+          rows: [],
+          labels: {},
+          note: `Yönetim takvimi okunamadı: ${error.message}`
+        };
+      });
+  }
+
+  function readManagementToken() {
+    try {
+      return window.localStorage.getItem(MANAGEMENT_TOKEN_KEY)
+        || window.sessionStorage.getItem(MANAGEMENT_TOKEN_KEY)
+        || '';
+    } catch (error) {
+      try {
+        return window.sessionStorage.getItem(MANAGEMENT_TOKEN_KEY) || '';
+      } catch (ignored) {
+        return '';
+      }
+    }
   }
 
   function parseGvizResponse(text) {
@@ -466,31 +540,6 @@
     });
   }
 
-  function mapPlanRows(table) {
-    const rows = rowsWithHeaders(table);
-    return rows.map(function (row) {
-      const device = clean(pick(row, ['Tercih Edilen Cihaz', 'Tercih edilen cihaz']));
-      const station = clean(row.__first || pick(row, ['İstasyon'])) || device || 'Ek gönüllüler';
-      return {
-        station,
-        Pazartesi: clean(pick(row, ['Pazartesi'])),
-        Salı: clean(pick(row, ['Salı'])),
-        Çarşamba: clean(pick(row, ['Çarşamba', 'Çarşama'])),
-        Perşembe: clean(pick(row, ['Perşembe'])),
-        Cuma: clean(pick(row, ['Cuma'])),
-        updated: clean(pick(row, ['Güncellenme'])),
-        device
-      };
-    }).filter(function (row) {
-      const weekdayValues = PLAN_DAYS.map(function (day) { return row[day.key]; });
-      const repeatedHeader = weekdayValues.every(function (value, index) {
-        return !value || value === PLAN_DAYS[index].label;
-      });
-      if (repeatedHeader && !row.device) return false;
-      return row.station !== 'Ek gönüllüler' || weekdayValues.some(Boolean);
-    });
-  }
-
   function mapDetailRows(sheetName, table) {
     const rows = rowsWithHeaders(table);
     return rows.map(function (row) {
@@ -528,6 +577,11 @@
       .split(/\s*(?:,|;|\||·)\s*/)
       .map(clean)
       .filter(Boolean);
+  }
+
+  function arrayValue(value) {
+    if (Array.isArray(value)) return value.map(clean).filter(Boolean);
+    return splitList(value);
   }
 
   function hasPilotContent(row) {
@@ -1154,61 +1208,229 @@
 
   function renderPlanReport() {
     if (!el.report.planWeek) return;
-    const assignments = planAssignments();
+    const weekStart = weekKey(todayKey());
+    const assignments = planAssignments(weekStart);
     const people = uniqueValues(assignments.map(function (row) { return row.person; }));
 
     setElementText(el.report.planMeta, assignments.length
-      ? `${formatNumber(people.length)} kişi`
-      : 'plan kaydı bekleniyor');
+      ? `${formatNumber(people.length)} kişi · kayıt ve plan birlikte`
+      : state.planNote || 'kayıt bekleniyor');
 
     if (el.report.planWeek) {
-      const weekStart = weekKey(todayKey());
+      const today = todayKey();
       el.report.planWeek.innerHTML = PLAN_DAYS.map(function (day) {
         const key = shiftDateKey(weekStart, day.offset);
-        const rows = assignments.filter(function (row) { return row.weekday === day.label; });
+        const rows = assignments.filter(function (row) { return row.dateKey === key; });
+        const empty = key <= today
+          ? 'Bu gün için Drive kaydı yok.'
+          : 'Bu gün için plan kaydı yok.';
         return `<article class="plan-day-card">
           <div class="plan-day-top">
             <span>${escapeHtml(day.short)}</span>
             <span>${escapeHtml(formatDateKey(key))}</span>
           </div>
           <strong>${escapeHtml(day.label)}</strong>
-          <div class="plan-day-list">${rows.length ? rows.map(planPersonHtml).join('') : '<p class="empty-line">Bu gün için plan kaydı yok.</p>'}</div>
+          <div class="plan-day-list">${rows.length ? rows.map(planPersonHtml).join('') : `<p class="empty-line">${empty}</p>`}</div>
         </article>`;
       }).join('');
     }
   }
 
   function planPersonHtml(row) {
-    return `<div class="plan-person-line">
+    const detail = [row.summary, row.time && row.time !== '—' ? row.time : '', row.area && row.area !== '—' ? row.area : ''].filter(Boolean).join(' · ');
+    return `<div class="plan-person-line ${escapeHtml(row.kind || 'plan')}">
       <b>${escapeHtml(row.person)}</b>
+      <span>${escapeHtml(detail || row.status || '—')}</span>
+      <small>${escapeHtml(row.status || '—')}</small>
     </div>`;
   }
 
   function planAssignments(weekStartKey) {
     const startKey = weekStartKey || weekKey(todayKey());
+    const today = todayKey();
+    const actualByKey = actualAssignmentsByPerson(startKey);
+    const planEntries = managementPlanEntries(startKey);
+    const planByKey = new Map();
+    planEntries.forEach(function (entry) {
+      planByKey.set(planEntryKey(entry.dateKey, entry.person), entry);
+    });
+
     const rows = [];
-    state.planRows.forEach(function (row) {
-      PLAN_DAYS.forEach(function (day) {
-        splitPlanPeople(row[day.key]).forEach(function (person) {
-          const dateKeyValue = shiftDateKey(startKey, day.offset);
-          rows.push({
+    PLAN_DAYS.forEach(function (day) {
+      const dateKeyValue = shiftDateKey(startKey, day.offset);
+      if (dateKeyValue <= today) {
+        Array.from(actualByKey.values()).filter(function (entry) {
+          return entry.dateKey === dateKeyValue;
+        }).forEach(function (actual) {
+          const planned = planByKey.get(planEntryKey(dateKeyValue, actual.person));
+          rows.push(Object.assign({}, actual, {
             weekday: day.label,
             weekdayShort: day.short,
             weekdayOffset: day.offset,
-            dateKey: dateKeyValue,
             dateLabel: formatDateKey(dateKeyValue),
+            kind: planned ? 'actual planned' : 'actual',
+            status: planned ? 'Kayıt + plan' : 'Drive kaydı',
+            time: planned ? planned.time : '—',
+            area: planned ? planned.area : '—'
+          }));
+        });
+        return;
+      }
+
+      planEntries.filter(function (entry) {
+        return entry.dateKey === dateKeyValue;
+      }).forEach(function (entry) {
+        rows.push(Object.assign({}, entry, {
+          kind: 'future-plan',
+          status: 'Yönetim planı',
+          summary: 'Gelecek gün planı'
+        }));
+      });
+    });
+
+    return rows.sort(function (a, b) {
+      return a.weekdayOffset - b.weekdayOffset
+        || Number(a.timeOrder || 9) - Number(b.timeOrder || 9)
+        || String(a.person).localeCompare(String(b.person), 'tr');
+    });
+  }
+
+  function actualAssignmentsByPerson(weekStartKey) {
+    const endKey = shiftDateKey(weekStartKey, 4);
+    const groups = new Map();
+    allReportRows().forEach(function (row) {
+      if (!row.dateKey || row.dateKey < weekStartKey || row.dateKey > endKey) return;
+      const day = PLAN_DAYS.find(function (item) {
+        return shiftDateKey(weekStartKey, item.offset) === row.dateKey;
+      });
+      if (!day) return;
+      (row.people || []).forEach(function (person) {
+        const key = planEntryKey(row.dateKey, person);
+        if (!groups.has(key)) {
+          groups.set(key, {
+            weekday: day.label,
+            weekdayShort: day.short,
+            weekdayOffset: day.offset,
+            dateKey: row.dateKey,
+            dateLabel: formatDateKey(row.dateKey),
             person,
-            station: row.station,
-            device: row.device,
-            updated: row.updated
+            workSet: new Set(),
+            areaSet: new Set(),
+            sourceSet: new Set(),
+            count: 0,
+            summary: '',
+            area: '—',
+            time: '—',
+            timeOrder: 9
           });
+        }
+        const group = groups.get(key);
+        group.count += 1;
+        planWorkLabels(row).forEach(function (label) { group.workSet.add(label); });
+        if (row.area) group.areaSet.add(row.area);
+        if (row.source === PILOT_SCAN_SHEET) group.sourceSet.add('tarama satırı');
+        else if (row.source === PILOT_CODE_SHEET) group.sourceSet.add('kontrol satırı');
+        else group.sourceSet.add('günlük kayıt');
+      });
+    });
+
+    groups.forEach(function (group) {
+      const works = Array.from(group.workSet).filter(Boolean).sort(localeSort);
+      const sources = Array.from(group.sourceSet).filter(Boolean).sort(localeSort);
+      const areas = Array.from(group.areaSet).filter(Boolean).sort(localeSort);
+      group.summary = [
+        works.slice(0, 2).join(', '),
+        `${formatNumber(group.count)} kayıt`,
+        sources.slice(0, 2).join(', ')
+      ].filter(Boolean).join(' · ');
+      group.area = areas.join(', ') || '—';
+    });
+
+    return groups;
+  }
+
+  function planWorkLabels(row) {
+    const labels = Array.isArray(row.workTypes) ? row.workTypes.filter(Boolean) : [];
+    if (labels.length) return labels;
+    return [row.area, row.work, row.fund ? `${row.fund} çalışması` : ''].filter(Boolean);
+  }
+
+  function managementPlanEntries(weekStartKey) {
+    const rows = [];
+    (state.planRows || []).forEach(function (record) {
+      const person = clean(record.full_name);
+      if (!person || (record.status && record.status !== 'aktif')) return;
+      PLAN_DAYS.forEach(function (day) {
+        const dateKeyValue = shiftDateKey(weekStartKey, day.offset);
+        if (!managementDayMatches(record, day.key)) return;
+        if (!managementStartMatches(record, dateKeyValue)) return;
+        rows.push({
+          weekday: day.label,
+          weekdayShort: day.short,
+          weekdayOffset: day.offset,
+          dateKey: dateKeyValue,
+          dateLabel: formatDateKey(dateKeyValue),
+          person,
+          time: managementTimeLabel(record),
+          timeOrder: managementTimeOrder(record),
+          area: managementAreaLabel(record),
+          status: 'Yönetim planı',
+          summary: 'Gelecek gün planı'
         });
       });
     });
     return rows.sort(function (a, b) {
       return a.weekdayOffset - b.weekdayOffset
+        || Number(a.timeOrder || 9) - Number(b.timeOrder || 9)
         || String(a.person).localeCompare(String(b.person), 'tr');
     });
+  }
+
+  function managementDayMatches(record, key) {
+    const days = arrayValue(record.days);
+    if (days.includes(key)) return true;
+    if (key === 'cumartesi' || key === 'pazar') {
+      return days.includes('hafta_sonu_olursa') || days.includes('hafta_sonu') || days.includes('farketmez');
+    }
+    return days.includes('hafta_ici') || days.includes('farketmez');
+  }
+
+  function managementStartMatches(record, dateKeyValue) {
+    if (record.start_pref !== 'tarihten_sonra' || !record.start_date) return true;
+    const start = managementDateKey(record.start_date);
+    return !start || start <= dateKeyValue;
+  }
+
+  function managementTimeKeys(record) {
+    const times = arrayValue(record.times);
+    if (times.includes('tam_gun')) return ['tam_gun'];
+    const keys = [];
+    if (times.includes('sabah')) keys.push('sabah');
+    if (times.includes('ogleden_sonra')) keys.push('ogleden_sonra');
+    return keys;
+  }
+
+  function managementTimeLabel(record) {
+    const keys = managementTimeKeys(record);
+    return keys.length ? keys.map(function (key) {
+      return MANAGEMENT_TIME_LABELS[key] || key;
+    }).join(', ') : 'Saat belirtilmedi';
+  }
+
+  function managementTimeOrder(record) {
+    const keys = managementTimeKeys(record);
+    if (keys.includes('sabah')) return 1;
+    if (keys.includes('ogleden_sonra')) return 2;
+    if (keys.includes('tam_gun')) return 3;
+    return 4;
+  }
+
+  function managementAreaLabel(record) {
+    return MANAGEMENT_AREA_LABELS[record.area] || '—';
+  }
+
+  function planEntryKey(dateKeyValue, person) {
+    return `${dateKeyValue}::${personKey(person)}`;
   }
 
   function volunteerSignal(row) {
@@ -1278,9 +1500,10 @@
     const limitNote = configRows.length > (config.limit || 80)
       ? ` · tabloda ilk ${formatNumber(config.limit || 80)} kayıt gösteriliyor`
       : '';
+    const planNote = state.view === 'plan' && state.planNote ? ` · ${state.planNote}` : '';
     el.dataNote.textContent = state.loading
       ? 'Veri yükleniyor; çalışma sekmeleri birkaç saniye sürebilir.'
-      : `${state.sourceNote || 'Çalışma dosyasındaki sekmeler doğrudan okunuyor.'} · ${formatNumber(state.pilotScanRows.length)} sayfa/detay satırı · ${formatNumber(reportDailyRows().length)} gönüllü günlüğü · ${formatNumber(state.pilotCodeRows.length)} kontrol/onay${limitNote}`;
+      : `${state.sourceNote || 'Çalışma dosyasındaki sekmeler doğrudan okunuyor.'} · ${formatNumber(state.pilotScanRows.length)} sayfa/detay satırı · ${formatNumber(reportDailyRows().length)} gönüllü günlüğü · ${formatNumber(state.pilotCodeRows.length)} kontrol/onay${limitNote}${planNote}`;
   }
 
   function tableConfig(view) {
@@ -1390,14 +1613,16 @@
     if (view === 'plan') {
       return {
         kicker: 'Koordinasyon görünümü',
-        title: 'Haftalık kişi planı',
+        title: 'Haftalık kayıt ve plan',
         limit: 200,
         rows: planAssignments,
         columns: [
           { label: 'Gün', render: function (row) { return `<strong>${escapeHtml(row.weekday)}</strong>`; } },
           { label: 'Tarih', render: function (row) { return escapeHtml(row.dateLabel); } },
           { label: 'Gönüllü', render: function (row) { return escapeHtml(row.person); } },
-          { label: 'Güncelleme', render: function (row) { return escapeHtml(planUpdatedLabel(row.updated)); } }
+          { label: 'Durum', render: function (row) { return statusPills([row.status]); } },
+          { label: 'Saat / alan', render: function (row) { return escapeHtml([row.time, row.area].filter(function (value) { return value && value !== '—'; }).join(' · ') || '—'); } },
+          { label: 'Kayıt', render: function (row) { return escapeHtml(row.summary || '—'); } }
         ]
       };
     }
@@ -1845,17 +2070,6 @@
       });
   }
 
-  function splitPlanPeople(value) {
-    return splitPeople(value).filter(function (person) {
-      const key = personKey(person);
-      return key !== 'pazartesi'
-        && key !== 'sali'
-        && key !== 'carsamba'
-        && key !== 'persembe'
-        && key !== 'cuma';
-    });
-  }
-
   function canonicalPersonName(value) {
     const name = clean(value);
     const aliases = {
@@ -1970,7 +2184,9 @@
   }
 
   function dateKey(value) {
-    const text = clean(value)
+    const original = clean(value);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(original)) return plausibleDateKey(original);
+    const text = original
       .replace(/[/-]/g, '.')
       .replace(/\.{2,}/g, '.');
     if (!text) return '';
@@ -1999,6 +2215,32 @@
     const parsed = new Date(text);
     if (!Number.isNaN(parsed.getTime())) return plausibleDateKey(parsed.toISOString().slice(0, 10));
     return '';
+  }
+
+  function managementDateKey(value) {
+    const original = clean(value);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(original)) return original;
+    const dot = original.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/);
+    if (dot) return `${dot[3]}-${pad(dot[2])}-${pad(dot[1])}`;
+    const tr = original.match(/^(\d{1,2})\s+([A-Za-zÇĞİÖŞÜçğıöşü]+)\s+(\d{4})/);
+    if (tr) {
+      const month = [
+        'ocak',
+        'şubat',
+        'mart',
+        'nisan',
+        'mayıs',
+        'haziran',
+        'temmuz',
+        'ağustos',
+        'eylül',
+        'ekim',
+        'kasım',
+        'aralık'
+      ].indexOf(tr[2].toLocaleLowerCase('tr')) + 1;
+      if (month > 0) return `${tr[3]}-${pad(month)}-${pad(tr[1])}`;
+    }
+    return dateKey(original);
   }
 
   function plausibleDateKey(key) {
@@ -2103,26 +2345,6 @@
     if (!Number.isFinite(percent)) return null;
     if (percent > 0 && percent <= 1 && !text.includes('%')) percent *= 100;
     return clamp(percent, 0, 100);
-  }
-
-  function planUpdatedLabel(value) {
-    const text = clean(value);
-    if (!text) return '—';
-    const numeric = Number(text.replace(',', '.'));
-    if (Number.isFinite(numeric) && numeric > 20000 && numeric < 90000) {
-      const ms = Math.round((numeric - 25569) * 86400000);
-      const date = new Date(ms);
-      if (!Number.isNaN(date.getTime())) {
-        return date.toLocaleString('tr-TR', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-      }
-    }
-    return text;
   }
 
   function clean(value) {
