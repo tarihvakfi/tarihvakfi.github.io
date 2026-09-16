@@ -9,6 +9,13 @@
   const ACTIVITY_SHEET = 'Günlük Akış';
   const INVENTORY_SHEET = 'PNB Sayısallaştırma';
   const PLAN_SHEET = 'Haftalık Plan';
+  const PLAN_DAYS = [
+    { key: 'Pazartesi', label: 'Pazartesi', short: 'Pzt', offset: 0 },
+    { key: 'Salı', label: 'Salı', short: 'Sal', offset: 1 },
+    { key: 'Çarşamba', label: 'Çarşamba', short: 'Çar', offset: 2 },
+    { key: 'Perşembe', label: 'Perşembe', short: 'Per', offset: 3 },
+    { key: 'Cuma', label: 'Cuma', short: 'Cum', offset: 4 }
+  ];
   const DETAIL_SHEETS = [
     'PNB 27 Anıl',
     'PNB 28 Anıl',
@@ -89,6 +96,10 @@
       tracks: document.getElementById('reportTracks'),
       boxesMeta: document.getElementById('reportBoxesMeta'),
       boxes: document.getElementById('reportBoxes'),
+      planMeta: document.getElementById('reportPlanMeta'),
+      planWeek: document.getElementById('reportPlanWeek'),
+      planMonthMeta: document.getElementById('reportPlanMonthMeta'),
+      planMonth: document.getElementById('reportPlanMonth'),
       controlMeta: document.getElementById('reportControlMeta'),
       control: document.getElementById('reportControl')
     },
@@ -152,7 +163,7 @@
 
       state.loading = false;
       state.loadError = '';
-      state.sourceNote = 'Çalışma dosyası canlı okunuyor. Geçiş sırasında Günlük Akış aynası daha güncelse rapora dahil edilir. Genel ilerleme PNB Sayısallaştırma L105 hücresinden alınıyor.';
+      state.sourceNote = 'Çalışma dosyası canlı okunuyor. Geçiş sırasında Günlük Akış aynası daha güncelse rapora dahil edilir. Genel ilerleme PNB Sayısallaştırma L105 hücresinden, haftalık plan Haftalık Plan sekmesinden alınıyor.';
       setStatus('live', 'canlı veri');
       render();
     } catch (error) {
@@ -460,23 +471,25 @@
   function mapPlanRows(table) {
     const rows = rowsWithHeaders(table);
     return rows.map(function (row) {
+      const device = clean(pick(row, ['Tercih Edilen Cihaz', 'Tercih edilen cihaz']));
+      const station = clean(row.__first || pick(row, ['İstasyon'])) || device || 'Ek gönüllüler';
       return {
-        station: clean(row.__first || pick(row, ['İstasyon'])) || 'Ek gönüllüler',
+        station,
         Pazartesi: clean(pick(row, ['Pazartesi'])),
         Salı: clean(pick(row, ['Salı'])),
         Çarşamba: clean(pick(row, ['Çarşamba', 'Çarşama'])),
         Perşembe: clean(pick(row, ['Perşembe'])),
         Cuma: clean(pick(row, ['Cuma'])),
         updated: clean(pick(row, ['Güncellenme'])),
-        device: clean(pick(row, ['Tercih Edilen Cihaz']))
+        device
       };
     }).filter(function (row) {
-      return row.station !== 'Ek gönüllüler'
-        || row.Pazartesi
-        || row.Salı
-        || row.Çarşamba
-        || row.Perşembe
-        || row.Cuma;
+      const weekdayValues = PLAN_DAYS.map(function (day) { return row[day.key]; });
+      const repeatedHeader = weekdayValues.every(function (value, index) {
+        return !value || value === PLAN_DAYS[index].label;
+      });
+      if (repeatedHeader && !row.device) return false;
+      return row.station !== 'Ek gönüllüler' || weekdayValues.some(Boolean);
     });
   }
 
@@ -641,6 +654,7 @@
     renderVolunteerReport();
     renderTrackReport();
     renderBoxReport();
+    renderPlanReport();
     renderControlReport();
   }
 
@@ -1140,6 +1154,94 @@
     }).join('') || '<article class="report-empty">Aktif kutu kaydı bekleniyor.</article>';
   }
 
+  function renderPlanReport() {
+    if (!el.report.planWeek && !el.report.planMonth) return;
+    const assignments = planAssignments();
+    const people = uniqueValues(assignments.map(function (row) { return row.person; }));
+    const stations = uniqueValues(assignments.map(function (row) { return row.station; }));
+
+    setElementText(el.report.planMeta, assignments.length
+      ? `${formatNumber(people.length)} kişi · ${formatNumber(stations.length)} istasyon`
+      : 'plan kaydı bekleniyor');
+
+    if (el.report.planWeek) {
+      const weekStart = weekKey(todayKey());
+      el.report.planWeek.innerHTML = PLAN_DAYS.map(function (day) {
+        const key = shiftDateKey(weekStart, day.offset);
+        const rows = assignments.filter(function (row) { return row.weekday === day.label; });
+        return `<article class="plan-day-card">
+          <div class="plan-day-top">
+            <span>${escapeHtml(day.short)}</span>
+            <span>${escapeHtml(formatDateKey(key))}</span>
+          </div>
+          <strong>${escapeHtml(day.label)}</strong>
+          <div class="plan-day-list">${rows.length ? rows.map(planPersonHtml).join('') : '<p class="empty-line">Bu gün için plan kaydı yok.</p>'}</div>
+        </article>`;
+      }).join('');
+    }
+
+    if (el.report.planMonth) {
+      const monthKeys = currentMonthWorkdayKeys();
+      const header = PLAN_DAYS.map(function (day) {
+        return `<div class="plan-month-head">${escapeHtml(day.short)}</div>`;
+      }).join('');
+      const firstOffset = monthKeys.length ? weekdayOffset(monthKeys[0]) : 0;
+      const blanks = Array.from({ length: Math.max(0, firstOffset) }).map(function () {
+        return '<div class="plan-month-cell empty"></div>';
+      }).join('');
+      const cells = monthKeys.map(function (key) {
+        const offset = weekdayOffset(key);
+        const rows = offset >= 0 && offset < PLAN_DAYS.length
+          ? planAssignments(weekKey(key)).filter(function (row) { return row.dateKey === key; })
+          : [];
+        const names = uniqueValues(rows.map(function (row) { return row.person; }));
+        return `<div class="plan-month-cell${key === todayKey() ? ' today' : ''}">
+          <div><b>${escapeHtml(dayNumberFromKey(key))}</b><span>${escapeHtml(PLAN_DAYS[offset].short)}</span></div>
+          <p>${names.length ? `${formatNumber(names.length)} kişi` : '—'}</p>
+          <small>${escapeHtml(names.slice(0, 3).join(', ') || 'Plan yok')}${names.length > 3 ? ' +' + formatNumber(names.length - 3) : ''}</small>
+        </div>`;
+      }).join('');
+      setElementText(el.report.planMonthMeta, `${monthNameFromKey(todayKey())} ${todayKey().slice(0, 4)} · haftalık planın tekrar eden görünümü`);
+      el.report.planMonth.innerHTML = header + blanks + cells;
+    }
+  }
+
+  function planPersonHtml(row) {
+    const detail = [row.station, row.device && row.device !== row.station ? row.device : ''].filter(Boolean).join(' · ');
+    return `<div class="plan-person-line">
+      <b>${escapeHtml(row.person)}</b>
+      <span>${escapeHtml(detail || 'İstasyon belirtilmemiş')}</span>
+    </div>`;
+  }
+
+  function planAssignments(weekStartKey) {
+    const startKey = weekStartKey || weekKey(todayKey());
+    const rows = [];
+    state.planRows.forEach(function (row) {
+      PLAN_DAYS.forEach(function (day) {
+        splitPlanPeople(row[day.key]).forEach(function (person) {
+          const dateKeyValue = shiftDateKey(startKey, day.offset);
+          rows.push({
+            weekday: day.label,
+            weekdayShort: day.short,
+            weekdayOffset: day.offset,
+            dateKey: dateKeyValue,
+            dateLabel: formatDateKey(dateKeyValue),
+            person,
+            station: row.station,
+            device: row.device,
+            updated: row.updated
+          });
+        });
+      });
+    });
+    return rows.sort(function (a, b) {
+      return a.weekdayOffset - b.weekdayOffset
+        || String(a.station).localeCompare(String(b.station), 'tr')
+        || String(a.person).localeCompare(String(b.person), 'tr');
+    });
+  }
+
   function volunteerSignal(row) {
     if (row.detailCount && row.activityCount) return 'Çok yönlü';
     if (row.detailCount) return 'Detay işi';
@@ -1319,16 +1421,16 @@
     if (view === 'plan') {
       return {
         kicker: 'Koordinasyon görünümü',
-        title: 'Haftalık plan',
+        title: 'Haftalık kişi planı',
         limit: 200,
-        rows: function () { return state.planRows; },
+        rows: planAssignments,
         columns: [
-          { label: 'İstasyon', render: function (row) { return `<strong>${escapeHtml(row.station)}</strong>`; } },
-          { label: 'Pazartesi', render: function (row) { return escapeHtml(row.Pazartesi || '—'); } },
-          { label: 'Salı', render: function (row) { return escapeHtml(row.Salı || '—'); } },
-          { label: 'Çarşamba', render: function (row) { return escapeHtml(row.Çarşamba || '—'); } },
-          { label: 'Perşembe', render: function (row) { return escapeHtml(row.Perşembe || '—'); } },
-          { label: 'Cuma', render: function (row) { return escapeHtml(row.Cuma || '—'); } }
+          { label: 'Gün', render: function (row) { return `<strong>${escapeHtml(row.weekday)}</strong>`; } },
+          { label: 'Tarih', render: function (row) { return escapeHtml(row.dateLabel); } },
+          { label: 'Gönüllü', render: function (row) { return escapeHtml(row.person); } },
+          { label: 'İstasyon', render: function (row) { return escapeHtml(row.station || '—'); } },
+          { label: 'Cihaz', render: function (row) { return escapeHtml(row.device && row.device !== row.station ? row.device : '—'); } },
+          { label: 'Güncelleme', render: function (row) { return escapeHtml(planUpdatedLabel(row.updated)); } }
         ]
       };
     }
@@ -1765,8 +1867,8 @@
 
   function splitPeople(value) {
     const seen = new Set();
-    return clean(value)
-      .split(/\s*(?:,|&|\+|\s+-\s+| ve )\s*/i)
+    return String(value == null ? '' : value)
+      .split(/\s*(?:,|;|\||&|\+|\r?\n|\s+-\s+| ve )\s*/i)
       .map(canonicalPersonName)
       .filter(function (person) {
         const key = personKey(person);
@@ -1774,6 +1876,17 @@
         seen.add(key);
         return true;
       });
+  }
+
+  function splitPlanPeople(value) {
+    return splitPeople(value).filter(function (person) {
+      const key = personKey(person);
+      return key !== 'pazartesi'
+        && key !== 'sali'
+        && key !== 'carsamba'
+        && key !== 'persembe'
+        && key !== 'cuma';
+    });
   }
 
   function canonicalPersonName(value) {
@@ -1953,6 +2066,26 @@
     return Math.max(1, Math.round((end - start) / 86400000) + 1);
   }
 
+  function currentMonthWorkdayKeys() {
+    const today = todayKey();
+    const year = Number(today.slice(0, 4));
+    const month = Number(today.slice(5, 7));
+    const lastDay = new Date(year, month, 0).getDate();
+    const keys = [];
+    for (let day = 1; day <= lastDay; day += 1) {
+      const key = `${year}-${pad(month)}-${pad(day)}`;
+      const offset = weekdayOffset(key);
+      if (offset >= 0 && offset < PLAN_DAYS.length) keys.push(key);
+    }
+    return keys;
+  }
+
+  function weekdayOffset(key) {
+    const date = new Date(`${key}T12:00:00`);
+    if (Number.isNaN(date.getTime())) return -1;
+    return (date.getDay() + 6) % 7;
+  }
+
   function weekKey(key) {
     const date = new Date(`${key}T12:00:00`);
     if (Number.isNaN(date.getTime())) return '';
@@ -2025,6 +2158,26 @@
     return clamp(percent, 0, 100);
   }
 
+  function planUpdatedLabel(value) {
+    const text = clean(value);
+    if (!text) return '—';
+    const numeric = Number(text.replace(',', '.'));
+    if (Number.isFinite(numeric) && numeric > 20000 && numeric < 90000) {
+      const ms = Math.round((numeric - 25569) * 86400000);
+      const date = new Date(ms);
+      if (!Number.isNaN(date.getTime())) {
+        return date.toLocaleString('tr-TR', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      }
+    }
+    return text;
+  }
+
   function clean(value) {
     return String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
   }
@@ -2035,6 +2188,16 @@
 
   function localeSort(a, b) {
     return String(a).localeCompare(String(b), 'tr');
+  }
+
+  function uniqueValues(values) {
+    const seen = new Set();
+    return (Array.isArray(values) ? values : []).map(clean).filter(function (value) {
+      const key = personKey(value);
+      if (!value || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).sort(localeSort);
   }
 
   function initials(name) {

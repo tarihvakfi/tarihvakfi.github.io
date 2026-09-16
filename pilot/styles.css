@@ -416,6 +416,149 @@ body.pilot-dashboard {
   background: var(--accent);
 }
 
+.plan-report {
+  margin-top: 38px;
+  padding-top: 28px;
+  border-top: 1px solid var(--rule);
+}
+
+.plan-week-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.plan-day-card {
+  min-height: 188px;
+  padding: 13px 0 0;
+  border-top: 1px solid var(--rule);
+  background: transparent;
+}
+
+.plan-day-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--ink-mute);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.plan-day-card > strong {
+  display: block;
+  margin: 10px 0 12px;
+  color: var(--accent);
+  font-family: 'Crimson Pro', serif;
+  font-size: 24px;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.plan-day-list {
+  display: grid;
+  gap: 8px;
+}
+
+.plan-person-line {
+  display: grid;
+  gap: 2px;
+  padding-left: 9px;
+  border-left: 2px solid var(--accent-soft);
+}
+
+.plan-person-line b {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.plan-person-line span {
+  color: var(--ink-mute);
+  font-size: 12.5px;
+  line-height: 1.3;
+}
+
+.plan-month-panel {
+  margin-top: 28px;
+  padding-top: 22px;
+  border-top: 1px dashed var(--rule);
+}
+
+.plan-month-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.plan-month-head {
+  padding-bottom: 6px;
+  color: var(--accent);
+  font-family: 'DM Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.plan-month-cell {
+  min-height: 88px;
+  padding: 9px;
+  border: 1px solid var(--rule-soft);
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.plan-month-cell.empty {
+  border-color: transparent;
+  background: transparent;
+}
+
+.plan-month-cell.today {
+  border-color: var(--accent);
+  background: var(--paper);
+}
+
+.plan-month-cell div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.plan-month-cell b {
+  color: var(--ink);
+  font-family: 'DM Mono', monospace;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.plan-month-cell span,
+.plan-month-cell p,
+.plan-month-cell small {
+  color: var(--ink-mute);
+}
+
+.plan-month-cell span {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.plan-month-cell p {
+  margin: 8px 0 4px;
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.plan-month-cell small {
+  display: block;
+  font-size: 11.5px;
+  line-height: 1.3;
+}
+
 .report-latest {
   margin-top: 36px;
 }
@@ -934,6 +1077,7 @@ body.pilot-dashboard {
 
   .metric-strip,
   .indicator-grid,
+  .plan-week-grid,
   .report-volunteers {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -948,6 +1092,8 @@ body.pilot-dashboard {
   .metric-strip,
   .indicator-grid,
   .workflow-stage-panel,
+  .plan-week-grid,
+  .plan-month-grid,
   .report-signals,
   .report-day-grid,
   .report-volunteers {
