@@ -178,7 +178,7 @@
 
       state.loading = false;
       state.loadError = '';
-      state.sourceNote = 'Çalışma dosyası canlı okunuyor. Geçiş sırasında Günlük Akış aynası daha güncelse rapora dahil edilir. Genel ilerleme PNB Sayısallaştırma L105 hücresinden; haftalık kişi planı yönetim paneli oturumundan okunur.';
+      state.sourceNote = 'Çalışma dosyası canlı okunuyor. Geçiş sırasında Günlük Akış aynası daha güncelse rapora dahil edilir. Genel ilerleme PNB Sayısallaştırma L105 hücresinden; haftalık kişi planı herkese açık yönetim planı servisinden okunur.';
       setStatus('live', 'canlı veri');
       render();
     } catch (error) {
@@ -240,37 +240,54 @@
       });
     }
 
-    const token = readManagementToken();
-    if (!token) {
-      return Promise.resolve({
-        rows: [],
-        labels: {},
-        note: 'Yönetim takvimi için aynı tarayıcıda yönetim paneline giriş yapılmalı.'
+    return fetchManagementAction('publicPlan')
+      .then(function (data) {
+        return {
+          rows: Array.isArray(data.kayitlar) ? data.kayitlar : [],
+          labels: data.etiketler || {},
+          note: `Herkese açık yönetim planı ${clean(data.hesaplama) || 'canlı'} verisiyle okunuyor.`
+        };
+      })
+      .catch(function (publicError) {
+        const token = readManagementToken();
+        if (!token) {
+          return {
+            rows: [],
+            labels: {},
+            note: `Herkese açık yönetim planı okunamadı: ${publicError.message}`
+          };
+        }
+        return fetchManagementAction('adminData', { token })
+          .then(function (data) {
+            return {
+              rows: Array.isArray(data.kayitlar) ? data.kayitlar : [],
+              labels: data.etiketler || {},
+              note: `Yönetim paneli ${clean(data.hesaplama) || 'canlı'} verisiyle okunuyor.`
+            };
+          })
+          .catch(function (error) {
+            return {
+              rows: [],
+              labels: {},
+              note: `Yönetim takvimi okunamadı: ${error.message}`
+            };
+          });
       });
-    }
+  }
 
+  function fetchManagementAction(action, payload) {
+    const body = Object.assign({ action }, payload || {});
     return fetch(MANAGEMENT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'adminData', token }),
+      body: JSON.stringify(body),
       redirect: 'follow'
     })
       .then(function (response) { return response.text(); })
       .then(function (text) {
         const data = JSON.parse(text);
         if (!data.ok) throw new Error(data.error || 'Yönetim verisi okunamadı.');
-        return {
-          rows: Array.isArray(data.kayitlar) ? data.kayitlar : [],
-          labels: data.etiketler || {},
-          note: `Yönetim paneli ${clean(data.hesaplama) || 'canlı'} verisiyle okunuyor.`
-        };
-      })
-      .catch(function (error) {
-        return {
-          rows: [],
-          labels: {},
-          note: `Yönetim takvimi okunamadı: ${error.message}`
-        };
+        return data;
       });
   }
 

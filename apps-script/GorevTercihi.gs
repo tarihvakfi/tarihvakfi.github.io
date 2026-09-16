@@ -186,6 +186,7 @@ function islet_(istek) {
       case 'get':         return cikti_(kaydiGetir_(istek.token));
       case 'save':        return cikti_(kaydet_(istek.token, istek.data || {}));
       case 'logout':      return cikti_(oturumKapat_(istek.token));
+      case 'publicPlan':  return cikti_(herkeseAcikPlan_());
       case 'adminData':   return cikti_(yonetimVerisi_(istek.token));
       case 'adminDelete': return cikti_(yonetimSil_(istek.token, istek.email));
       case 'adminStatus': return cikti_(yonetimDurum_(istek.token, istek.email, istek.status));
@@ -442,6 +443,37 @@ function yoneticiMi_(eposta) {
     return a.trim().toLowerCase();
   }).filter(function (a) { return a; });
   return liste.indexOf(String(eposta || '').toLowerCase()) >= 0;
+}
+
+/** Pilot raporun herkese açık takvim görünümü. Özel yönetim alanları döndürülmez. */
+function herkeseAcikPlan_() {
+  var kayitlar = tumKayitlar_().filter(function (k) {
+    return k.full_name && k.status === 'aktif';
+  }).map(function (k) {
+    return {
+      full_name: k.full_name,
+      area: k.area,
+      start_pref: k.start_pref,
+      start_date: k.start_date,
+      days: k.days,
+      times: k.times,
+      status: k.status
+    };
+  });
+
+  return {
+    ok: true,
+    public: true,
+    hesaplama: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'd MMMM yyyy HH:mm'),
+    kayitlar: kayitlar,
+    etiketler: {
+      area: ALAN,
+      start_pref: BASLANGIC,
+      days: GUNLER,
+      times: SAATLER,
+      status: DURUM
+    }
+  };
 }
 
 /** Web panelinin ihtiyaç duyduğu her şeyi tek istekte döner. */
