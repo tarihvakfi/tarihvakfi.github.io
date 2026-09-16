@@ -1254,12 +1254,64 @@
   }
 
   function planPersonHtml(row) {
-    const detail = [row.summary, row.time && row.time !== '—' ? row.time : '', row.area && row.area !== '—' ? row.area : ''].filter(Boolean).join(' · ');
+    const detail = [row.time && row.time !== '—' ? row.time : '', row.area && row.area !== '—' ? row.area : ''].filter(Boolean).join(' · ');
+    const title = planEntryTooltip(row);
+    const check = row.status === 'Kayıt + plan' ? '<span aria-label="Yönetim planında var ve Drive kaydı var">&#10003;</span>' : '';
     return `<div class="plan-person-line ${escapeHtml(row.kind || 'plan')}">
-      <b>${escapeHtml(row.person)}</b>
+      <b title="${escapeHtml(title)}">${escapeHtml(row.person)}${check}</b>
       <span>${escapeHtml(detail || row.status || '—')}</span>
-      <small>${escapeHtml(row.status || '—')}</small>
     </div>`;
+  }
+
+  function planDayRows(weekStartKey) {
+    const startKey = weekStartKey || weekKey(todayKey());
+    const assignments = planAssignments(startKey);
+    return PLAN_DAYS.map(function (day) {
+      const dateKeyValue = shiftDateKey(startKey, day.offset);
+      return {
+        weekday: day.label,
+        weekdayShort: day.short,
+        weekdayOffset: day.offset,
+        dateKey: dateKeyValue,
+        dateLabel: formatDateKey(dateKeyValue),
+        entries: assignments.filter(function (entry) {
+          return entry.dateKey === dateKeyValue;
+        })
+      };
+    });
+  }
+
+  function planTableDateCell(row) {
+    return `<div class="plan-date-cell">
+      <strong>${escapeHtml(row.weekday)}</strong>
+      <span>${escapeHtml(row.dateLabel)}</span>
+    </div>`;
+  }
+
+  function planPeopleCell(row, slot) {
+    const entries = row.entries.filter(function (entry) {
+      return planSlotKey(entry) === slot;
+    });
+    return entries.length
+      ? `<div class="plan-table-people">${entries.map(planNameChipHtml).join('')}</div>`
+      : '—';
+  }
+
+  function planSlotKey(row) {
+    if (row.time === MANAGEMENT_TIME_LABELS.sabah) return 'sabah';
+    if (row.time === MANAGEMENT_TIME_LABELS.ogleden_sonra) return 'ogleden_sonra';
+    return 'tam_gun';
+  }
+
+  function planNameChipHtml(row) {
+    const title = planEntryTooltip(row);
+    const check = row.status === 'Kayıt + plan' ? '<span aria-label="Yönetim planında var ve Drive kaydı var">&#10003;</span>' : '';
+    return `<span class="plan-name-chip ${escapeHtml(row.kind || 'plan')}" title="${escapeHtml(title)}">${escapeHtml(row.person)}${check}</span>`;
+  }
+
+  function planEntryTooltip(row) {
+    if (row.status === 'Yönetim planı') return 'Günlük plan işlenmemiş';
+    return row.summary || row.status || 'Çalışma kaydı';
   }
 
   function planAssignments(weekStartKey) {
@@ -1631,15 +1683,13 @@
       return {
         kicker: 'Koordinasyon görünümü',
         title: 'Haftalık kayıt ve plan',
-        limit: 200,
-        rows: planAssignments,
+        limit: 5,
+        rows: planDayRows,
         columns: [
-          { label: 'Gün', render: function (row) { return `<strong>${escapeHtml(row.weekday)}</strong>`; } },
-          { label: 'Tarih', render: function (row) { return escapeHtml(row.dateLabel); } },
-          { label: 'Gönüllü', render: function (row) { return escapeHtml(row.person); } },
-          { label: 'Durum', render: function (row) { return statusPills([row.status]); } },
-          { label: 'Saat / alan', render: function (row) { return escapeHtml([row.time, row.area].filter(function (value) { return value && value !== '—'; }).join(' · ') || '—'); } },
-          { label: 'Kayıt', render: function (row) { return escapeHtml(row.summary || '—'); } }
+          { label: 'Gün / tarih', render: planTableDateCell },
+          { label: '09–13', render: function (row) { return planPeopleCell(row, 'sabah'); } },
+          { label: '13–18', render: function (row) { return planPeopleCell(row, 'ogleden_sonra'); } },
+          { label: 'Tam gün / saat yok', render: function (row) { return planPeopleCell(row, 'tam_gun'); } }
         ]
       };
     }

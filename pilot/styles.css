@@ -479,10 +479,27 @@ body.pilot-dashboard {
 }
 
 .plan-person-line b {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   color: var(--ink);
   font-size: 14px;
   font-weight: 700;
   line-height: 1.2;
+}
+
+.plan-person-line b span,
+.plan-name-chip span {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid rgba(82, 122, 96, 0.45);
+  background: #f3f8f4;
+  color: #315d3c;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  line-height: 1;
 }
 
 .plan-person-line span {
@@ -953,6 +970,51 @@ body.pilot-dashboard {
 
 .pilot-panel td strong {
   color: var(--ink);
+}
+
+.plan-date-cell {
+  display: grid;
+  gap: 3px;
+}
+
+.plan-date-cell strong {
+  color: var(--ink);
+}
+
+.plan-date-cell span {
+  color: var(--ink-mute);
+  font-size: 13px;
+}
+
+.plan-table-people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.plan-name-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  border: 1px solid var(--rule);
+  background: var(--paper-soft);
+  color: var(--ink);
+  cursor: help;
+  font-weight: 700;
+  line-height: 1.15;
+  padding: 6px 8px;
+}
+
+.plan-name-chip.actual,
+.plan-name-chip.planned {
+  border-color: rgba(82, 122, 96, 0.35);
+  background: #f3f8f4;
+}
+
+.plan-name-chip.future-plan {
+  border-color: rgba(171, 107, 43, 0.28);
+  background: #fff7ea;
 }
 
 .data-note {
