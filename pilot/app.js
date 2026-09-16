@@ -98,8 +98,6 @@
       boxes: document.getElementById('reportBoxes'),
       planMeta: document.getElementById('reportPlanMeta'),
       planWeek: document.getElementById('reportPlanWeek'),
-      planMonthMeta: document.getElementById('reportPlanMonthMeta'),
-      planMonth: document.getElementById('reportPlanMonth'),
       controlMeta: document.getElementById('reportControlMeta'),
       control: document.getElementById('reportControl')
     },
@@ -1155,13 +1153,12 @@
   }
 
   function renderPlanReport() {
-    if (!el.report.planWeek && !el.report.planMonth) return;
+    if (!el.report.planWeek) return;
     const assignments = planAssignments();
     const people = uniqueValues(assignments.map(function (row) { return row.person; }));
-    const stations = uniqueValues(assignments.map(function (row) { return row.station; }));
 
     setElementText(el.report.planMeta, assignments.length
-      ? `${formatNumber(people.length)} kişi · ${formatNumber(stations.length)} istasyon`
+      ? `${formatNumber(people.length)} kişi`
       : 'plan kaydı bekleniyor');
 
     if (el.report.planWeek) {
@@ -1179,38 +1176,11 @@
         </article>`;
       }).join('');
     }
-
-    if (el.report.planMonth) {
-      const monthKeys = currentMonthWorkdayKeys();
-      const header = PLAN_DAYS.map(function (day) {
-        return `<div class="plan-month-head">${escapeHtml(day.short)}</div>`;
-      }).join('');
-      const firstOffset = monthKeys.length ? weekdayOffset(monthKeys[0]) : 0;
-      const blanks = Array.from({ length: Math.max(0, firstOffset) }).map(function () {
-        return '<div class="plan-month-cell empty"></div>';
-      }).join('');
-      const cells = monthKeys.map(function (key) {
-        const offset = weekdayOffset(key);
-        const rows = offset >= 0 && offset < PLAN_DAYS.length
-          ? planAssignments(weekKey(key)).filter(function (row) { return row.dateKey === key; })
-          : [];
-        const names = uniqueValues(rows.map(function (row) { return row.person; }));
-        return `<div class="plan-month-cell${key === todayKey() ? ' today' : ''}">
-          <div><b>${escapeHtml(dayNumberFromKey(key))}</b><span>${escapeHtml(PLAN_DAYS[offset].short)}</span></div>
-          <p>${names.length ? `${formatNumber(names.length)} kişi` : '—'}</p>
-          <small>${escapeHtml(names.slice(0, 3).join(', ') || 'Plan yok')}${names.length > 3 ? ' +' + formatNumber(names.length - 3) : ''}</small>
-        </div>`;
-      }).join('');
-      setElementText(el.report.planMonthMeta, `${monthNameFromKey(todayKey())} ${todayKey().slice(0, 4)} · haftalık planın tekrar eden görünümü`);
-      el.report.planMonth.innerHTML = header + blanks + cells;
-    }
   }
 
   function planPersonHtml(row) {
-    const detail = [row.station, row.device && row.device !== row.station ? row.device : ''].filter(Boolean).join(' · ');
     return `<div class="plan-person-line">
       <b>${escapeHtml(row.person)}</b>
-      <span>${escapeHtml(detail || 'İstasyon belirtilmemiş')}</span>
     </div>`;
   }
 
@@ -1237,7 +1207,6 @@
     });
     return rows.sort(function (a, b) {
       return a.weekdayOffset - b.weekdayOffset
-        || String(a.station).localeCompare(String(b.station), 'tr')
         || String(a.person).localeCompare(String(b.person), 'tr');
     });
   }
@@ -1428,8 +1397,6 @@
           { label: 'Gün', render: function (row) { return `<strong>${escapeHtml(row.weekday)}</strong>`; } },
           { label: 'Tarih', render: function (row) { return escapeHtml(row.dateLabel); } },
           { label: 'Gönüllü', render: function (row) { return escapeHtml(row.person); } },
-          { label: 'İstasyon', render: function (row) { return escapeHtml(row.station || '—'); } },
-          { label: 'Cihaz', render: function (row) { return escapeHtml(row.device && row.device !== row.station ? row.device : '—'); } },
           { label: 'Güncelleme', render: function (row) { return escapeHtml(planUpdatedLabel(row.updated)); } }
         ]
       };
@@ -2064,26 +2031,6 @@
     const end = new Date(`${endKey}T12:00:00`);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
     return Math.max(1, Math.round((end - start) / 86400000) + 1);
-  }
-
-  function currentMonthWorkdayKeys() {
-    const today = todayKey();
-    const year = Number(today.slice(0, 4));
-    const month = Number(today.slice(5, 7));
-    const lastDay = new Date(year, month, 0).getDate();
-    const keys = [];
-    for (let day = 1; day <= lastDay; day += 1) {
-      const key = `${year}-${pad(month)}-${pad(day)}`;
-      const offset = weekdayOffset(key);
-      if (offset >= 0 && offset < PLAN_DAYS.length) keys.push(key);
-    }
-    return keys;
-  }
-
-  function weekdayOffset(key) {
-    const date = new Date(`${key}T12:00:00`);
-    if (Number.isNaN(date.getTime())) return -1;
-    return (date.getDay() + 6) % 7;
   }
 
   function weekKey(key) {
