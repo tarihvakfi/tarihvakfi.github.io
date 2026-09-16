@@ -1310,7 +1310,12 @@
   }
 
   function planEntryTooltip(row) {
-    if (row.status === 'Yönetim planı') return 'Günlük plan işlenmemiş';
+    if (row.status === 'Yönetim planı') {
+      if (row.dateKey && row.dateKey > todayKey()) {
+        return [row.summary, row.time && row.time !== '—' ? row.time : '', row.area && row.area !== '—' ? row.area : ''].filter(Boolean).join(' · ') || 'Gelecek gün planı';
+      }
+      return 'Günlük plan işlenmemiş';
+    }
     return row.summary || row.status || 'Çalışma kaydı';
   }
 
