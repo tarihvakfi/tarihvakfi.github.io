@@ -195,6 +195,8 @@ For urgent updates, run `refreshMirror` manually in Apps Script.
 
 - Edit chronology data only in the `.xlsx` master.
 - Edit `Site Metinleri` in the `.xlsx` master when that tab exists there.
+- `Düzeltme Önerileri` lives only in the mirror (the website writes correction
+  suggestions there); `refreshMirror` never deletes or overwrites it.
 - Do not publish the raw `.xlsx`.
 - Do not expose internal comments, private notes, or editor metadata.
 - The website receives only sanitized fields from `ChronologyPublicApi.gs`.

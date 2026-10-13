@@ -11,6 +11,10 @@
 const SOURCE_XLSX_FILE_ID = "PASTE_CURRENT_XLSX_FILE_ID_HERE";
 const MIRROR_SPREADSHEET_ID = "PASTE_STABLE_MIRROR_GOOGLE_SHEET_ID_HERE";
 const PRESERVED_MIRROR_SHEET_NAMES = ["Site Metinleri"];
+// Tabs that exist only in the mirror (written by the website, e.g. correction
+// suggestions from ChronologyPublicApi.gs). They are never deleted or
+// overwritten by refreshMirror, and same-named tabs in the .xlsx are ignored.
+const MIRROR_ONLY_SHEET_NAMES = ["Düzeltme Önerileri"];
 
 function refreshMirror() {
   if (!SOURCE_XLSX_FILE_ID || SOURCE_XLSX_FILE_ID.indexOf("PASTE_") === 0) {
@@ -87,13 +91,15 @@ function replaceMirrorSheets_(sourceSpreadsheet, mirrorSpreadsheet) {
   const placeholder = mirrorSpreadsheet.insertSheet(`_refresh_${Date.now()}`);
 
   mirrorSpreadsheet.getSheets().forEach((sheet) => {
-    const shouldKeepPreservedSheet = PRESERVED_MIRROR_SHEET_NAMES.indexOf(sheet.getName()) !== -1;
+    const shouldKeepPreservedSheet = PRESERVED_MIRROR_SHEET_NAMES.indexOf(sheet.getName()) !== -1
+      || MIRROR_ONLY_SHEET_NAMES.indexOf(sheet.getName()) !== -1;
     if (sheet.getSheetId() !== placeholder.getSheetId() && !shouldKeepPreservedSheet) {
       mirrorSpreadsheet.deleteSheet(sheet);
     }
   });
 
   sourceSpreadsheet.getSheets().forEach((sourceSheet) => {
+    if (MIRROR_ONLY_SHEET_NAMES.indexOf(sourceSheet.getName()) !== -1) return;
     if (PRESERVED_MIRROR_SHEET_NAMES.indexOf(sourceSheet.getName()) !== -1) {
       copySiteContentSheet_(sourceSheet, mirrorSpreadsheet);
       return;

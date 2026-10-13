@@ -139,14 +139,6 @@ const PERIOD_LABELS_BY_NUMBER = {
   6: "6. Dönem (2016–2020)",
   7: "7. Dönem (2021–2026)",
 };
-const KIND_ID_PREFIXES = {
-  event: "eve",
-  publication: "pub",
-  organizational: "org",
-  project: "pro",
-  chronology: "chr",
-  unknown: "unk",
-};
 const LEGACY_CONTENT_GUARDS = {
   "archive.footer.note": ["kayıt ID, erişim tarihi"],
   "citation.format": ["kayıt {id}, erişim tarihi"],
@@ -422,19 +414,7 @@ function periodNumberFromText(value) {
 }
 
 function recordAliases(row) {
-  return unique([row.id, row.legacy_id, row.legacyId, liveStyleRecordId(row)].filter(Boolean).map(normalizeRecordId));
-}
-
-function liveStyleRecordId(row) {
-  const periodNumber = periodNumberFromText(row.period || row.source_sheet || row.sheet_name);
-  const sourceRow = Number(row.source_row || row._sourceRow || 0);
-  const prefix = KIND_ID_PREFIXES[row.item_kind] || cleanRecordValue(row.item_kind).slice(0, 3).toLocaleLowerCase("en-US");
-  if (!periodNumber || !sourceRow || !prefix) return "";
-  return `tvk-${padNumber(periodNumber, 2)}-${padNumber(sourceRow, 4)}-${prefix}`;
-}
-
-function padNumber(value, length) {
-  return String(value).padStart(length, "0");
+  return unique([row.id, row.legacy_id, row.legacyId].filter(Boolean).map(normalizeRecordId));
 }
 
 function normalizeRecordId(value) {
@@ -451,18 +431,31 @@ function findRecordById(id) {
   return allRecords.find((row) => (row._aliases || recordAliases(row)).includes(normalizedId)) || null;
 }
 
+// Old static IDs (e.g. TV00001) come from an earlier export whose sheet rows no
+// longer line up with the live reviewer tabs, so they are matched to live records
+// by content (same period, similar text), never by row number. A match is only
+// accepted when it is clearly better than the runner-up; otherwise the old ID
+// stays unresolved rather than pointing at the wrong record.
+const STATIC_ALIAS_MIN_SCORE = 0.7;
+const STATIC_ALIAS_MIN_MARGIN = 0.1;
+const STATIC_ALIAS_YEAR_PENALTY = 0.15;
+
 function attachStaticAliases(records, staticRecords) {
   if (!staticRecords.length) return records;
   const liveIds = new Map(records.map((row) => [normalizeRecordId(row.id), row]));
   const aliasesByRecord = new Map(records.map((row) => [row, [...(row._aliases || recordAliases(row))]]));
-  const uniqueLiveKeys = uniqueRecordKeyMap(records);
-  const uniqueStaticKeys = uniqueRecordKeyMap(staticRecords);
+  const candidatesByPeriod = new Map();
+  records.forEach((row) => {
+    const periodNumber = periodNumberFromText(row.period || row.source_sheet || row.sheet_name);
+    if (!periodNumber) return;
+    if (!candidatesByPeriod.has(periodNumber)) candidatesByPeriod.set(periodNumber, []);
+    candidatesByPeriod.get(periodNumber).push({ row, tokens: aliasMatchTokens(row.description || row.title || row.raw_text) });
+  });
 
   staticRecords.forEach((staticRecord) => {
-    const aliases = staticRecord._aliases || recordAliases(staticRecord);
-    const exactLiveRecord = liveIds.get(normalizeRecordId(liveStyleRecordId(staticRecord)));
-    const keyedLiveRecord = recordMatchingUniqueKey(staticRecord, uniqueLiveKeys, uniqueStaticKeys);
-    const target = exactLiveRecord || keyedLiveRecord;
+    const aliases = [staticRecord.id, staticRecord.legacy_id, staticRecord.legacyId].filter(Boolean).map(normalizeRecordId);
+    if (!aliases.length) return;
+    const target = liveIds.get(aliases[0]) || bestContentMatch(staticRecord, candidatesByPeriod);
     if (!target) return;
     aliasesByRecord.set(target, unique([...(aliasesByRecord.get(target) || []), ...aliases]));
   });
@@ -470,35 +463,51 @@ function attachStaticAliases(records, staticRecords) {
   return records.map((row) => ({ ...row, _aliases: aliasesByRecord.get(row) || row._aliases || recordAliases(row) }));
 }
 
-function uniqueRecordKeyMap(records) {
-  const counts = new Map();
-  records.forEach((row) => {
-    recordMatchKeys(row).forEach((key) => counts.set(key, (counts.get(key) || 0) + 1));
+function bestContentMatch(staticRecord, candidatesByPeriod) {
+  const periodNumber = periodNumberFromText(staticRecord.period || staticRecord.source_sheet || staticRecord.sheet_name);
+  const candidates = candidatesByPeriod.get(periodNumber) || [];
+  const tokens = aliasMatchTokens(staticRecord.description || staticRecord.title || staticRecord.raw_text);
+  if (!tokens.size) return null;
+  let best = null;
+  let bestScore = 0;
+  let secondScore = 0;
+  candidates.forEach((candidate) => {
+    let score = aliasMatchScore(tokens, candidate.tokens);
+    if (staticRecord.year && candidate.row.year && String(staticRecord.year) !== String(candidate.row.year)) {
+      score -= STATIC_ALIAS_YEAR_PENALTY;
+    }
+    if (score > bestScore) {
+      secondScore = bestScore;
+      bestScore = score;
+      best = candidate.row;
+    } else if (score > secondScore) {
+      secondScore = score;
+    }
   });
-  const matches = new Map();
-  records.forEach((row) => {
-    recordMatchKeys(row).forEach((key) => {
-      if (counts.get(key) === 1) matches.set(key, row);
-    });
-  });
-  return matches;
+  if (bestScore < STATIC_ALIAS_MIN_SCORE || bestScore - secondScore < STATIC_ALIAS_MIN_MARGIN) return null;
+  return best;
 }
 
-function recordMatchingUniqueKey(row, liveKeys, staticKeys) {
-  for (const key of recordMatchKeys(row)) {
-    if (staticKeys.get(key) === row && liveKeys.has(key)) return liveKeys.get(key);
-  }
-  return null;
+function aliasMatchTokens(value) {
+  return new Set(
+    normalize(value)
+      .replace(/tv(?=yay)/g, "")
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .split(" ")
+      .filter((token) => token.length > 1),
+  );
 }
 
-function recordMatchKeys(row) {
-  const periodNumber = periodNumberFromText(row.period || row.source_sheet || row.sheet_name);
-  const sourceRow = Number(row.source_row || row._sourceRow || 0);
-  if (!periodNumber || !sourceRow) return [];
-  const keys = [`row:${periodNumber}:${sourceRow}`];
-  const titleKey = normalize(row.title || row.description || row.raw_text || "").slice(0, 120);
-  if (titleKey) keys.unshift(`title:${periodNumber}:${sourceRow}:${titleKey}`);
-  return keys;
+function aliasMatchScore(a, b) {
+  if (!a.size || !b.size) return 0;
+  let shared = 0;
+  a.forEach((token) => {
+    if (b.has(token)) shared += 1;
+  });
+  const dice = (2 * shared) / (a.size + b.size);
+  const smaller = Math.min(a.size, b.size);
+  const containment = smaller >= 3 ? (0.9 * shared) / smaller : 0;
+  return Math.max(dice, containment);
 }
 
 function shouldWaitForLiveRecord(id) {
