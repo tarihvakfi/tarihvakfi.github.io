@@ -191,6 +191,30 @@ page after the mirror has refreshed.
 
 For urgent updates, run `refreshMirror` manually in Apps Script.
 
+## Record IDs
+
+Every public record has a permanent ID (for example `tvk-02-0418-eve`). IDs are
+used in links and citations, so they never change and are never reused.
+
+- The first refresh after this feature was deployed kept every existing ID.
+- Each refresh matches sheet rows to known IDs by content (period, date,
+  text), not by row number. Inserting, deleting, moving or sorting rows,
+  fixing typos, changing a code or correcting a date keeps the ID.
+- A new row gets a new ID from a separate range (`tvk-PP-5001-…`, `5002`, …).
+- A deleted row's ID is kept as "retired"; its old link says the record was
+  removed. If the row comes back, it gets its old ID again.
+- If one refresh would remove more than 20% of the published records (for
+  example a tab was renamed or emptied by mistake), the public data is not
+  updated. Fix the sheet, or run `forceRefreshPublicDataCache` if the change
+  is intended. `WEB_APP_URL?health=1` shows the last refresh report.
+- The ID memory is a Drive file, `TV KRONOLOJI ID REGISTRY.json`. Do not
+  delete or edit it; deleting it would make the next refresh re-create IDs
+  from row numbers.
+
+Columns in the reviewer tabs are found by their header names (`Gün`, `Ay`,
+`Yıl`, `ETKİNLİKLER/ÜRETİMLER`, `KOD`), so columns can be added or moved.
+Keep those five header names.
+
 ## Rules
 
 - Edit chronology data only in the `.xlsx` master.

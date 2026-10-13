@@ -22,6 +22,21 @@ const SITE_CONTENT_SHEET_NAME = "Site Metinleri";
 const ACTIVITY_CODE_SHEET_NAME = "Faaliyet Kodları";
 const CORRECTION_SHEET_NAME = "Düzeltme Önerileri";
 const PUBLIC_DATA_FILE_NAME = "TV KRONOLOJI PUBLIC DATA.json";
+const ID_REGISTRY_FILE_ID_PROPERTY = "CHRONOLOGY_ID_REGISTRY_FILE_ID";
+const ID_REGISTRY_FILE_NAME = "TV KRONOLOJI ID REGISTRY.json";
+const LAST_REFRESH_REPORT_PROPERTY = "CHRONOLOGY_LAST_REFRESH_REPORT";
+// Record IDs are permanent. Each refresh matches sheet rows to previously
+// published IDs by content (period, date, text), so inserting, deleting or
+// reordering rows never changes an existing record's ID. New rows get new IDs
+// from this sequence; removed rows are kept as "retired" IDs.
+const NEW_ID_SEQUENCE_START = 5001;
+const ID_FUZZY_MIN_SCORE = 0.75;
+const ID_FUZZY_MIN_MARGIN = 0.1;
+const ID_FUZZY_MAX_PAIRS = 4000000;
+// Safety guard: if one refresh would retire more than this share of the
+// currently published records (e.g. a tab was renamed or emptied by mistake),
+// the public data is NOT updated. Run forceRefreshPublicDataCache() to accept.
+const MAX_RETIRED_SHARE_PER_REFRESH = 0.2;
 
 const UPDATED_CHRONOLOGY_COLUMNS = {
   day: 0,
@@ -155,11 +170,15 @@ function doGet(event) {
         generatedAt: new Date().toISOString(),
         mirror: typeof getMirrorStatus === "function" ? getMirrorStatus() : {},
         cache: getPublicDataCacheStatus(),
+        lastRefresh: readLastRefreshReport(),
       });
     }
     const cachedJson = readPublicDataCache();
     if (cachedJson) return rawJsonResponse(cachedJson);
-    return jsonResponse(buildChronologyPayload());
+    const payload = buildChronologyPayload();
+    delete payload.idRegistry;
+    delete payload.idStats;
+    return jsonResponse(payload);
   } catch (error) {
     return jsonResponse({
       ok: false,
@@ -169,34 +188,74 @@ function doGet(event) {
 }
 
 function refreshPublicDataCache() {
-  const payload = buildChronologyPayload();
-  const json = JSON.stringify(payload);
-  const props = PropertiesService.getScriptProperties();
-  const file = getOrCreatePublicDataFile(props);
-  file.setContent(json);
-  props.setProperties({
-    [PUBLIC_DATA_FILE_ID_PROPERTY]: file.getId(),
-    [PUBLIC_DATA_REFRESH_AT_PROPERTY]: payload.generatedAt,
-    [PUBLIC_DATA_RECORD_COUNT_PROPERTY]: String(payload.recordCount),
-  });
-  return {
-    ok: true,
-    generatedAt: payload.generatedAt,
-    recordCount: payload.recordCount,
-    contentKeys: Object.keys(payload.content || {}).length,
-    fileId: file.getId(),
-    size: json.length,
-  };
+  return refreshPublicDataCache_(false);
 }
 
-function buildChronologyPayload() {
+/** Run manually to publish even when the mass-removal guard blocked a refresh. */
+function forceRefreshPublicDataCache() {
+  return refreshPublicDataCache_(true);
+}
+
+function refreshPublicDataCache_(force) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(5 * 60 * 1000);
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const registry = readIdRegistry(props);
+    const payload = buildChronologyPayload(registry);
+    const report = {
+      at: payload.generatedAt,
+      recordCount: payload.recordCount,
+      ids: payload.idStats,
+      warnings: payload.warnings,
+    };
+
+    const previouslyActive = payload.idStats.previouslyActive;
+    const newlyRetired = payload.idStats.retired;
+    if (!force && previouslyActive > 0 && newlyRetired / previouslyActive > MAX_RETIRED_SHARE_PER_REFRESH) {
+      report.ok = false;
+      report.blocked = `${newlyRetired} of ${previouslyActive} published records would disappear; public data was NOT updated. Check the sheet, or run forceRefreshPublicDataCache().`;
+      props.setProperty(LAST_REFRESH_REPORT_PROPERTY, JSON.stringify(report));
+      console.warn(report.blocked);
+      return report;
+    }
+
+    writeIdRegistry(props, payload.idRegistry);
+    delete payload.idRegistry;
+    delete payload.idStats;
+    const json = JSON.stringify(payload);
+    const file = getOrCreatePublicDataFile(props);
+    file.setContent(json);
+    props.setProperties({
+      [PUBLIC_DATA_FILE_ID_PROPERTY]: file.getId(),
+      [PUBLIC_DATA_REFRESH_AT_PROPERTY]: payload.generatedAt,
+      [PUBLIC_DATA_RECORD_COUNT_PROPERTY]: String(payload.recordCount),
+    });
+    report.ok = true;
+    report.fileId = file.getId();
+    report.size = json.length;
+    props.setProperty(LAST_REFRESH_REPORT_PROPERTY, JSON.stringify(report));
+    return report;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function buildChronologyPayload(registry) {
+  PARSE_WARNINGS.length = 0;
   const records = normalizeChronology();
   const content = readSiteContent();
+  const generatedAt = new Date().toISOString();
+  const result = assignStableIds(records, registry || readIdRegistry(PropertiesService.getScriptProperties()), generatedAt);
   return {
-    generatedAt: new Date().toISOString(),
-    recordCount: records.length,
+    generatedAt,
+    recordCount: result.records.length,
     content,
-    records,
+    records: result.records,
+    retired: result.retired,
+    warnings: PARSE_WARNINGS.slice(),
+    idStats: result.stats,
+    idRegistry: result.registry,
   };
 }
 
@@ -456,26 +515,28 @@ function normalizeUpdatedChronologySheet(sheet, periodNumber, activityCodeMap) {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return records;
 
-  const range = sheet.getRange(1, 1, lastRow, 5);
+  const lastColumn = Math.max(sheet.getLastColumn(), 5);
+  const range = sheet.getRange(1, 1, lastRow, lastColumn);
   const values = range.getValues();
   const displays = range.getDisplayValues();
+  const columns = detectUpdatedColumns(displays[0], sheet.getName());
   let currentDate = { display: "", start_date: "", end_date: "", year: "", note: "missing", exact: false };
   let currentYear = "";
 
   for (let rowIndex = 1; rowIndex < values.length; rowIndex += 1) {
     const sourceRow = rowIndex + 1;
-    const day = cleanText(displays[rowIndex][UPDATED_CHRONOLOGY_COLUMNS.day]);
-    const month = cleanText(displays[rowIndex][UPDATED_CHRONOLOGY_COLUMNS.month]);
-    const yearDisplay = cleanText(displays[rowIndex][UPDATED_CHRONOLOGY_COLUMNS.year]);
-    const rawText = cleanText(displays[rowIndex][UPDATED_CHRONOLOGY_COLUMNS.text]);
-    const rawCode = cleanText(displays[rowIndex][UPDATED_CHRONOLOGY_COLUMNS.code]);
+    const day = cleanText(displays[rowIndex][columns.day]);
+    const month = cleanText(displays[rowIndex][columns.month]);
+    const yearDisplay = cleanText(displays[rowIndex][columns.year]);
+    const rawText = cleanText(displays[rowIndex][columns.text]);
+    const rawCode = cleanText(displays[rowIndex][columns.code]);
     const hasDateParts = Boolean(day || month || yearDisplay);
 
     if (hasDateParts) {
       const parsedContextYear = firstYearInText(yearDisplay);
       if (parsedContextYear) currentYear = parsedContextYear;
       currentDate = parseDateValue(
-        values[rowIndex][UPDATED_CHRONOLOGY_COLUMNS.year],
+        values[rowIndex][columns.year],
         buildUpdatedDateDisplay(day, month, yearDisplay, currentYear),
         currentYear,
       );
@@ -508,7 +569,6 @@ function normalizeUpdatedChronologySheet(sheet, periodNumber, activityCodeMap) {
 
     records.push({
       id: `tvk-${pad(periodNumber, 2)}-${pad(sourceRow, 4)}-${KIND_ID_PREFIXES[itemKind] || "unk"}`,
-      legacy_id: `tvk-${pad(periodNumber, 2)}-${pad(sourceRow, 4)}-${itemKind.slice(0, 3)}`,
       period: `${periodNumber}. DÖNEM`,
       sheet_name: sheet.getName(),
       item_kind: itemKind,
@@ -958,4 +1018,290 @@ function unique(values) {
 
 function jsonResponse(payload) {
   return ContentService.createTextOutput(JSON.stringify(payload)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ---------------------------------------------------------------------------
+// Column detection: reviewer tabs are read by header name, so inserting,
+// deleting or moving columns does not break parsing.
+// ---------------------------------------------------------------------------
+
+const PARSE_WARNINGS = [];
+
+function detectUpdatedColumns(headerRow, sheetName) {
+  const keys = (headerRow || []).map(activityKey);
+  const find = (test) => keys.findIndex(test);
+  let text = find((key) => key.indexOf("uretim") >= 0);
+  if (text < 0) text = find((key) => key.indexOf("etkinlik") === 0);
+  const found = {
+    day: find((key) => key === "gun"),
+    month: find((key) => key === "ay"),
+    year: find((key) => key === "yil"),
+    text,
+    code: find((key) => key === "kod" || key === "faaliyet kodu" || key === "kodu"),
+  };
+  const columns = {};
+  const missing = [];
+  Object.keys(UPDATED_CHRONOLOGY_COLUMNS).forEach((name) => {
+    if (found[name] >= 0) {
+      columns[name] = found[name];
+    } else {
+      columns[name] = UPDATED_CHRONOLOGY_COLUMNS[name];
+      missing.push(name);
+    }
+  });
+  if (missing.length) {
+    PARSE_WARNINGS.push(`${sheetName}: başlık bulunamadı (${missing.join(", ")}); varsayılan sütun kullanıldı.`);
+  }
+  return columns;
+}
+
+// ---------------------------------------------------------------------------
+// Permanent record IDs
+// ---------------------------------------------------------------------------
+
+function readIdRegistry(props) {
+  const fileId = cleanText(props.getProperty(ID_REGISTRY_FILE_ID_PROPERTY));
+  if (!fileId) return emptyIdRegistry();
+  const text = DriveApp.getFileById(fileId).getBlob().getDataAsString("UTF-8");
+  const parsed = JSON.parse(text);
+  if (!parsed || typeof parsed.entries !== "object") throw new Error("ID registry file is not valid.");
+  return parsed;
+}
+
+function writeIdRegistry(props, registry) {
+  const json = JSON.stringify(registry);
+  const fileId = cleanText(props.getProperty(ID_REGISTRY_FILE_ID_PROPERTY));
+  if (fileId) {
+    DriveApp.getFileById(fileId).setContent(json);
+    return fileId;
+  }
+  const file = DriveApp.createFile(ID_REGISTRY_FILE_NAME, json, MimeType.PLAIN_TEXT);
+  props.setProperty(ID_REGISTRY_FILE_ID_PROPERTY, file.getId());
+  return file.getId();
+}
+
+function readLastRefreshReport() {
+  try {
+    return JSON.parse(PropertiesService.getScriptProperties().getProperty(LAST_REFRESH_REPORT_PROPERTY) || "{}");
+  } catch (error) {
+    return {};
+  }
+}
+
+function emptyIdRegistry() {
+  return { version: 1, nextSeq: {}, entries: {} };
+}
+
+/**
+ * Gives every record a permanent ID.
+ * - First run (empty registry): records keep their current row-based IDs, so
+ *   every link published so far stays valid.
+ * - Later runs: rows are matched to known IDs by content, in passes from the
+ *   strictest to the loosest (exact text + date + period, then text without
+ *   date/period, then similar text within the same period). Retired IDs can
+ *   be matched again if a deleted row comes back.
+ * - Unmatched rows get a new ID; unmatched known IDs become "retired".
+ * Pure function: no Apps Script services used (testable outside Apps Script).
+ */
+function assignStableIds(records, registry, nowIso) {
+  const reg = registry && registry.entries ? JSON.parse(JSON.stringify(registry)) : emptyIdRegistry();
+  reg.nextSeq = reg.nextSeq || {};
+  const entries = reg.entries;
+  const knownIds = Object.keys(entries);
+  const stats = { seeded: 0, exact: 0, moved: 0, fuzzy: 0, created: 0, retired: 0, revived: 0, previouslyActive: 0 };
+  knownIds.forEach((id) => { if (entries[id].status !== "retired") stats.previouslyActive += 1; });
+
+  const prints = records.map(stableIdFingerprint);
+  const assigned = new Array(records.length).fill(null);
+  const taken = {};
+
+  if (!knownIds.length) {
+    records.forEach((record, index) => {
+      if (record.id && !taken[record.id]) {
+        assigned[index] = record.id;
+        taken[record.id] = true;
+        stats.seeded += 1;
+      }
+    });
+  } else {
+    const entryPrint = (id) => entries[id];
+    const passes = [
+      (f) => `${f.p}|${f.d}|${f.t}`,
+      (f) => `${f.d}|${f.t}`,
+      (f) => `${f.p}|${f.t}`,
+      (f) => f.t,
+    ];
+    passes.forEach((keyOf, passIndex) => {
+      const pool = {};
+      knownIds
+        .filter((id) => !taken[id])
+        .sort((a, b) => stableIdEntryOrder(entries[a], entries[b]))
+        .forEach((id) => {
+          const key = keyOf(entryPrint(id));
+          (pool[key] = pool[key] || []).push(id);
+        });
+      records.forEach((record, index) => {
+        if (assigned[index]) return;
+        const list = pool[keyOf(prints[index])];
+        if (!list) return;
+        while (list.length && taken[list[0]]) list.shift();
+        if (!list.length) return;
+        const id = list.shift();
+        assigned[index] = id;
+        taken[id] = true;
+        if (passIndex === 0) stats.exact += 1; else stats.moved += 1;
+      });
+    });
+    stats.fuzzy = fuzzyAssignStableIds(records, prints, assigned, taken, entries);
+  }
+
+  records.forEach((record, index) => {
+    if (assigned[index]) return;
+    const periodKey = pad(prints[index].p || 0, 2);
+    let seq = Math.max(Number(reg.nextSeq[periodKey]) || 0, NEW_ID_SEQUENCE_START);
+    let id = "";
+    do {
+      id = `tvk-${periodKey}-${seq}-${KIND_ID_PREFIXES[record.item_kind] || "unk"}`;
+      seq += 1;
+    } while (entries[id] || taken[id]);
+    reg.nextSeq[periodKey] = seq;
+    assigned[index] = id;
+    taken[id] = true;
+    stats.created += 1;
+  });
+
+  const outRecords = records.map((record, index) => {
+    const id = assigned[index];
+    const previous = entries[id];
+    if (previous && previous.status === "retired") stats.revived += 1;
+    entries[id] = {
+      p: prints[index].p,
+      d: prints[index].d,
+      t: prints[index].t,
+      title: record.title || "",
+      sheet: record.source_sheet || "",
+      row: record.source_row || 0,
+      status: "active",
+      first_seen: (previous && previous.first_seen) || nowIso,
+      last_seen: nowIso,
+    };
+    return Object.assign({}, record, { id });
+  });
+
+  Object.keys(entries).forEach((id) => {
+    const entry = entries[id];
+    if (taken[id] || entry.status === "retired") return;
+    entry.status = "retired";
+    entry.retired_at = nowIso;
+    stats.retired += 1;
+  });
+
+  const retired = Object.keys(entries)
+    .filter((id) => entries[id].status === "retired")
+    .sort()
+    .map((id) => ({ id, title: entries[id].title, period: entries[id].p, retired_at: entries[id].retired_at || "" }));
+
+  reg.updatedAt = nowIso;
+  return { records: outRecords, retired, registry: reg, stats };
+}
+
+function fuzzyAssignStableIds(records, prints, assigned, taken, entries) {
+  const recordsByPeriod = {};
+  records.forEach((record, index) => {
+    if (assigned[index]) return;
+    const p = prints[index].p;
+    (recordsByPeriod[p] = recordsByPeriod[p] || []).push(index);
+  });
+  const idsByPeriod = {};
+  Object.keys(entries).forEach((id) => {
+    if (taken[id]) return;
+    const p = entries[id].p;
+    (idsByPeriod[p] = idsByPeriod[p] || []).push(id);
+  });
+
+  let matched = 0;
+  Object.keys(recordsByPeriod).forEach((p) => {
+    const recordIndexes = recordsByPeriod[p];
+    const ids = idsByPeriod[p] || [];
+    if (!ids.length || recordIndexes.length * ids.length > ID_FUZZY_MAX_PAIRS) return;
+    const idTokens = ids.map((id) => stableIdTokens(entries[id].t));
+    const proposals = [];
+    recordIndexes.forEach((recordIndex) => {
+      const tokens = stableIdTokens(prints[recordIndex].t);
+      let best = -1;
+      let bestScore = 0;
+      let secondScore = 0;
+      idTokens.forEach((candidate, candidateIndex) => {
+        let score = stableIdSimilarity(tokens, candidate);
+        if (prints[recordIndex].d && prints[recordIndex].d === entries[ids[candidateIndex]].d) score += 0.05;
+        if (score > bestScore) {
+          secondScore = bestScore;
+          bestScore = score;
+          best = candidateIndex;
+        } else if (score > secondScore) {
+          secondScore = score;
+        }
+      });
+      if (best >= 0 && bestScore >= ID_FUZZY_MIN_SCORE && bestScore - secondScore >= ID_FUZZY_MIN_MARGIN) {
+        proposals.push({ recordIndex, id: ids[best], score: bestScore });
+      }
+    });
+    proposals
+      .sort((a, b) => b.score - a.score)
+      .forEach((proposal) => {
+        if (assigned[proposal.recordIndex] || taken[proposal.id]) return;
+        assigned[proposal.recordIndex] = proposal.id;
+        taken[proposal.id] = true;
+        matched += 1;
+      });
+  });
+  return matched;
+}
+
+function stableIdFingerprint(record) {
+  const periodMatch = String(record.period || "").match(/^\s*(\d+)/);
+  return {
+    p: periodMatch ? Number(periodMatch[1]) : 0,
+    d: record.start_date || stableIdTextKey(record.date_display) || String(record.year || ""),
+    t: stableIdTextKey(record.raw_text || record.description || record.title).slice(0, 300),
+  };
+}
+
+function stableIdEntryOrder(a, b) {
+  const activeA = a.status === "retired" ? 1 : 0;
+  const activeB = b.status === "retired" ? 1 : 0;
+  if (activeA !== activeB) return activeA - activeB;
+  if ((a.p || 0) !== (b.p || 0)) return (a.p || 0) - (b.p || 0);
+  return (a.row || 0) - (b.row || 0);
+}
+
+function stableIdTextKey(value) {
+  return cleanText(value)
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ı/g, "i")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/tv(?=yay)/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function stableIdTokens(textKey) {
+  const set = {};
+  String(textKey || "").split(" ").forEach((token) => {
+    if (token.length > 1) set[token] = true;
+  });
+  return set;
+}
+
+function stableIdSimilarity(a, b) {
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (!aKeys.length || !bKeys.length) return 0;
+  let shared = 0;
+  aKeys.forEach((token) => { if (b[token]) shared += 1; });
+  const dice = (2 * shared) / (aKeys.length + bKeys.length);
+  const smaller = Math.min(aKeys.length, bKeys.length);
+  const containment = smaller >= 3 ? (0.9 * shared) / smaller : 0;
+  return Math.max(dice, containment);
 }

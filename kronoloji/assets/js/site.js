@@ -152,6 +152,7 @@ let archiveView = "cards";
 let currentPage = "";
 let liveRefreshAttempted = false;
 let staticAliasRecords = [];
+let retiredRecords = new Map();
 
 document.addEventListener("DOMContentLoaded", () => {
   markCurrentNav();
@@ -206,6 +207,7 @@ async function loadData() {
 
 async function loadRowsFromSource(source) {
   const payload = await fetchPayload(source);
+  rememberRetiredRecords(payload);
   const rows = extractRows(payload);
   if (!Array.isArray(rows)) {
     throw new Error(`${source.label}: response does not contain a record array`);
@@ -261,6 +263,7 @@ async function refreshLiveDataInBackground() {
   liveRefreshAttempted = true;
   try {
     const payload = await fetchPayload(liveSource);
+    rememberRetiredRecords(payload);
     const rows = extractRows(payload);
     if (!Array.isArray(rows)) {
       throw new Error("live: response does not contain a record array");
@@ -304,6 +307,13 @@ function refreshCurrentPage() {
   }
   if (currentPage === "item") initItem();
   if (currentPage === "contribute") initContribute();
+}
+
+// IDs of records that were removed from the source sheet. Record IDs are never
+// reused, so an old link can say the record was removed instead of failing.
+function rememberRetiredRecords(payload) {
+  if (!payload || !Array.isArray(payload.retired)) return;
+  retiredRecords = new Map(payload.retired.map((row) => [normalizeRecordId(row.id), row]));
 }
 
 function extractRows(payload) {
@@ -658,6 +668,16 @@ function initItem() {
   if (!record) {
     if (shouldWaitForLiveRecord(id)) {
       target.innerHTML = `<div class="loading">${escapeHtml(contentText("item.loading_live", "Canlı veri kontrol ediliyor."))}</div>`;
+      return;
+    }
+    const retired = retiredRecords.get(normalizeRecordId(id));
+    if (retired) {
+      const message = contentFormat(
+        "item.retired",
+        { id: retired.id, title: retired.title || "" },
+        `Bu kayıt (${retired.id}) kaynak tablodan kaldırılmış veya başka bir kayıtla birleştirilmiş: “${retired.title || ""}”`,
+      );
+      target.innerHTML = `<div class="note">${escapeHtml(message)} <a href="archive.html">${escapeHtml(contentText("item.footer.archive", "Arşive dön"))}</a></div>`;
       return;
     }
     target.innerHTML = `<div class="error">${escapeHtml(contentFormat("item.not_found", { id: id || "" }, `Bu kimlikle kayıt bulunamadı: ${id || ""}`))}</div>`;
