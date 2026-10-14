@@ -284,14 +284,7 @@ async function refreshLiveDataInBackground() {
 
 function refreshCurrentPage() {
   if (currentPage === "home") {
-    renderMetrics("homeMetrics", allRecords);
-    renderOverviewText();
-    renderPeriodStrip("homePeriodStrip", allRecords);
-    renderYearChart("homeYearChart", allRecords);
-    renderPeriodChart("homePeriodChart", allRecords);
-    renderKindChart("homeKindChart", allRecords);
-    renderQualityChart("homeQualityChart", allRecords);
-    renderRecentRecords("homeRecords", sortRecords(allRecords).slice(0, 8));
+    initHome();
   }
   if (currentPage === "timeline") {
     setupFilterOptions("timeline", allRecords);
@@ -608,6 +601,7 @@ function compactText(value) {
 }
 
 function initHome() {
+  if (window.renderEditorialHome) return window.renderEditorialHome();
   renderMetrics("homeMetrics", allRecords);
   renderOverviewText();
   renderPeriodStrip("homePeriodStrip", allRecords);
@@ -619,6 +613,7 @@ function initHome() {
 }
 
 function initTimeline() {
+  if (window.initEditorialTimeline) return window.initEditorialTimeline();
   setupFilterOptions("timeline", allRecords);
   addFilterListeners(["timelineSearch", "timelineKind", "timelinePeriod", "timelineStatus", "timelineCode", "timelineYearFrom", "timelineYearTo"], renderTimeline);
   renderTimeline();
@@ -954,6 +949,7 @@ function setYearRangeDefaults(prefix, records) {
 }
 
 function renderTimeline() {
+  if (window.renderEditorialTimeline) return window.renderEditorialTimeline();
   const filtered = sortRecords(filterRecords("timeline", allRecords));
   const target = document.getElementById("timelineList");
   setText(
