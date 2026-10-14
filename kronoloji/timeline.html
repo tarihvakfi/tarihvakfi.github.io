@@ -225,6 +225,12 @@
       renderTL();
     }
 
+    // site.js calls renderTimeline() again when the live data arrives; route it
+    // to this page's renderer so the list and the counters both update.
+    function renderTimeline() {
+      renderTL();
+    }
+
     function renderTL() {
       const search = (document.getElementById('timelineSearch')?.value||'').toLocaleLowerCase('tr-TR');
       const kind   = document.getElementById('timelineKind')?.value||'';
