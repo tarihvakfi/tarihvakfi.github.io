@@ -1,6 +1,5 @@
 /* Uses the existing data loader and its live refresh; no duplicate data source. */
 (() => {
-  const selectedIds = ['TV00013', 'TV00126', 'TV00134', 'TV00078', 'TV00128', 'TV00174'];
   const filterKeys = { q:'Search', kind:'Kind', period:'Period', status:'Status', code:'Code', from:'YearFrom', to:'YearTo' };
   let yearSections = [];
   let scrollPending = false;
@@ -33,17 +32,6 @@
   });
 
   window.renderEditorialHome = () => {
-    // An explicit editorial selection, resolved through existing static/live aliases.
-    const selected = selectedIds.map(findRecordById).filter(Boolean);
-    const collageTitles = ['Kuruluşun tescili', 'İstanbul Ansiklopedisi', 'Toplumsal Tarih'];
-    $('recordCollage').innerHTML = selected.slice(0,3).map(row => `<a class="specimen" href="${recordHref(row)}" aria-label="${safe(row.title)}">
-      <small>KRONOLOJİ KAYDI / ${safe(kindLabel(row))}</small><strong>${safe(row.year)}</strong>
-      <p>${safe(collageTitles[selectedIds.findIndex(id => findRecordById(id) === row)] || row.title)}</p><span class="specimen-link">Kaydı incele ↗</span></a>`).join('') +
-      '<span class="collage-caption">KRONOLOJİDEN BİR SEÇKİ</span>';
-    $('selectedRecords').innerHTML = selected.length ? selected.map(row => `<a class="selected-card" href="${recordHref(row)}">
-      <div class="selected-art" aria-hidden="true"><span>${safe(kindLabel(row))}</span><strong>${safe(row.year)}</strong></div>
-      <p class="record-date">${safe(dateLabel(row))}</p><h3>${safe(row.title)}</h3>
-      <span class="selection-link">Kaydı ve kaynağını incele ↗</span></a>`).join('') : '<p>Seçkideki kayıtlar güncelleniyor. Tüm kayıtlara arşivden ulaşabilirsiniz.</p>';
     const periods = unique(allRecords.map(row => row.period)).sort((a,b) => a.localeCompare(b,'tr'));
     $('editionPeriods').innerHTML = periods.map(period => `<a href="timeline.html?period=${encodeURIComponent(period)}">
       <strong>${safe(periodRangeLabel(period) || period)}</strong><span>${allRecords.filter(row => row.period === period).length.toLocaleString('tr-TR')} kayıt →</span></a>`).join('');
