@@ -1,13 +1,68 @@
 <!doctype html>
-<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Dijital Kronoloji | Tarih Vakfı</title><meta name="description" content="Tarih Vakfı’nın yayınlarını, etkinliklerini ve projelerini yıllar içinde keşfedin."><link rel="icon" href="../assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="assets/css/style.css"><link rel="stylesheet" href="assets/css/editorial.css"></head><body data-page="home" class="editorial"><a class="skip-link" href="#main">İçeriğe geç</a>
-<header class="site-header"><nav class="nav" aria-label="Ana gezinme">
-<a class="editorial-brand" href="index.html" aria-label="Tarih Vakfı Dijital Kronolojisi ana sayfa"><img src="../assets/img/tarih-vakfi-logo.png" alt="Tarih Vakfı" width="160" height="60"><span>DİJİTAL KRONOLOJİ</span></a>
-<button class="nav-toggle" aria-label="Menüyü aç/kapat" aria-expanded="false" aria-controls="primaryNav"><span aria-hidden="true">☰</span></button>
-<div class="nav-links" id="primaryNav"><a href="timeline.html" data-page="timeline">Kronoloji</a><a href="archive.html" data-page="archive">Arşiv</a><a href="dashboard.html" data-page="dashboard">Görsel Özet</a><a class="work-link" href="../index.html">Emek Günlüğü ↗</a></div>
-</nav></header><main id="main">
-<section class="archive-hero edition-wrap" aria-labelledby="homeTitle"><div class="hero-copy"><p class="overline">BELGELER · YAYINLAR · İNSANLAR</p><h1 id="homeTitle">35 yıllık<br>kurumsal hafıza</h1><p class="hero-dates">1991 — 2026</p><p class="hero-lead">Tarih Vakfı’nın yayınları, buluşmaları ve projeleri üzerinden geçmişten bugüne bir yolculuk.</p><form class="edition-search" action="timeline.html" role="search"><label class="sr-only" for="homeSearch">Kronolojide ara</label><input id="homeSearch" name="q" type="search" placeholder="Bir konu, yayın veya yıl arayın…"><button type="submit" aria-label="Ara">Ara <span aria-hidden="true">↗</span></button></form><a class="text-link" href="timeline.html">Kronolojiyi keşfet <span aria-hidden="true">→</span></a></div>
-<figure class="record-collage"><img src="assets/img/archive-collage.png" alt="Eski kitaplar, el yazmaları, fotoğraflar ve film şeridinden oluşan temsili arşiv kolajı" width="1255" height="838" fetchpriority="high"><figcaption>Kurumsal hafızadan ilham alan temsili görsel</figcaption></figure></section>
-<section class="edition-wrap curated-section" aria-labelledby="selectedTitle"><div class="section-heading"><div><p class="overline">ÖNE ÇIKAN BAŞLIKLAR</p><h2 id="selectedTitle">Kurumsal hafızadan seçmeler</h2></div><a class="text-link" href="archive.html">Tüm kayıtlar →</a></div><p class="section-intro">Yayınlar, belgeler ve buluşmalar üzerinden ortak hafızamızı keşfedin.</p><div class="selected-grid"><a class="selected-card" href="timeline.html?kind=publication"><div class="theme-art art-publication" aria-hidden="true"></div><div class="selected-copy"><h3>Yayınlar</h3><p>Kitaplar, süreli yayınlar ve yayın çalışmaları.</p><span class="selection-link">Arşivi incele →</span></div></a><a class="selected-card" href="archive.html"><div class="theme-art art-document" aria-hidden="true"></div><div class="selected-copy"><h3>Arşiv Belgeleri</h3><p>Kurumsal hafızanın izini kaynaklarıyla sürün.</p><span class="selection-link">Arşivi incele →</span></div></a><a class="selected-card" href="timeline.html?kind=event"><div class="theme-art art-event" aria-hidden="true"></div><div class="selected-copy"><h3>Etkinlikler</h3><p>Konferanslar, paneller ve buluşmalar.</p><span class="selection-link">Arşivi incele →</span></div></a></div><p class="illustration-note">Görseller temsili olarak hazırlanmıştır; özgün belgeler ve kaynak bilgileri ilgili kayıtlarda yer alır.</p></section>
-<section class="period-section" aria-labelledby="periodTitle"><div class="edition-wrap"><div class="section-heading"><div><p class="overline">DÖNEMLERE GÖRE KEŞFEDİN</p><h2 id="periodTitle">Yıllar içinde Tarih Vakfı</h2></div><p>Bir dönem seçin,<br>kayıtların izini sürün.</p></div><div class="edition-periods" id="editionPeriods"></div></div></section>
-<section class="edition-wrap summary-section" aria-label="Kronolojiye genel bakış"><div id="editionMetrics" class="edition-metrics"></div><a class="text-link" href="dashboard.html">Sayılarla kronoloji →</a></section>
-<noscript><p class="edition-wrap">Kayıtları görüntülemek için JavaScript’i etkinleştirin. <a href="assets/data/chronology_public.csv">Kronolojiyi CSV olarak indirin.</a></p></noscript></main><footer class="editorial-footer"><div class="edition-wrap"><div><strong>Tarih Vakfı</strong><p>Geçmişin izleri, ortak bir hafıza.</p></div><p>Bu kronoloji gelişmeye devam ediyor.<br>Kaynak ve doğrulama bilgileri her kayıtta yer alır.</p><div><a href="contribute.html">Düzeltme öner →</a><span>Tasarım: Arif Solmaz</span></div></div></footer><script src="assets/js/config.js"></script><script src="assets/js/site.js"></script><script src="assets/js/editorial.js"></script></body></html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dijital Kronoloji | Tarih Vakfı</title>
+<meta name="description" content="Tarih Vakfı’nın 1991’den bu yana yayınları, buluşmaları ve projeleri, yıl yıl.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Instrument+Sans:wght@400;500;600&family=Archivo:wdth,wght@62..100,500..900&family=Courier+Prime&family=Caveat:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/raf.css">
+</head>
+<body>
+<a class="skip" href="#yv">İçeriğe geç</a>
+<div class="wrap">
+  <header class="top">
+    <a class="raf-brand" href="index.html" aria-label="Tarih Vakfı Dijital Kronolojisi ana sayfa"><span class="logo" role="img" aria-label="Tarih Vakfı"></span><span>Dijital Kronoloji, 1991–2026</span></a>
+    <nav class="site-nav" aria-label="Ana gezinme"><a href="index.html" data-content="nav.timeline" aria-current="page">Kronoloji</a><a href="archive.html" data-content="nav.archive">Arşiv</a><a href="dashboard.html" data-content="nav.dashboard">Görsel Özet</a></nav>
+  </header>
+
+  <section class="hero" aria-labelledby="h1">
+    <h1 id="h1" data-content="raf.hero.title">Otuz beş yıl, bir rafta.</h1>
+    <p data-content="raf.hero.lead">1991’den bu yana Tarih Vakfı’nın yayınları, buluşmaları ve projeleri yıl yıl ciltlendi. Raftan bir cilt çekin; o yıl önünüzde açılsın.</p>
+    <div class="river">
+      <div class="shelf-scroll"><div class="shelf" id="cols" role="group" aria-label="Yıllar"></div></div>
+      <p class="tip" id="tip" aria-live="polite"></p>
+    </div>
+  </section>
+</div>
+
+<div class="bar">
+  <div class="wrap">
+    <div class="bar-in">
+      <label class="search"><span class="sr">Kronolojide ara</span><input id="q" type="search" placeholder="Bir kişi, konu, yayın ya da yer arayın" data-content-placeholder="raf.search.placeholder" autocomplete="off"></label>
+      <div class="chips" id="chips" role="group" aria-label="Kayıt türü"></div>
+      <button class="rand" id="rand" type="button">Rastgele bir kayıt aç</button>
+    </div>
+    <div class="mini" id="mini" aria-hidden="true"></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <main id="yv" class="yv" aria-live="polite"><p class="tip">Kronoloji hazırlanıyor…</p></main>
+  <section class="today" id="today" aria-labelledby="todayH" hidden></section>
+  <section class="table eras-sec" aria-labelledby="erasH">
+    <h3 id="erasH" data-content="raf.eras.title">Yedi dönemden yedi iz</h3>
+    <p class="eras-lead" data-content="raf.eras.lead">Her yönetim döneminden, o yılları en iyi anlatan kayıtlardan biri.</p>
+    <div class="strip" id="eras"></div>
+  </section>
+</div>
+<footer class="raf-foot">
+  <div class="wrap">
+    <p data-content="raf.footer.note">Bu kronoloji, hatırlayanlarla birlikte büyümeye devam ediyor. Kayıtlar Dijital Kronoloji’nin herkese açık verisinden alınmıştır. Yayın, afiş ve davetiye çizimleri yalnızca kayıttaki bilgilerle hazırlanmış temsili çizimlerdir; özgün görseller eklendikçe yerlerini alacaktır. Sarı notlar, henüz kesinleşmemiş bilgileri gösterir.</p>
+    <p class="raf-foot-links"><a href="contribute.html">Düzeltme öner</a><a href="https://tarihvakfi.org.tr">tarihvakfi.org.tr</a><a href="../index.html">Emek Günlüğü</a><span>Tasarım: Arif Solmaz</span></p>
+  </div>
+</footer>
+
+<nav class="dock" aria-label="Yıllar arasında gezinme"><button type="button" data-dock="prev" aria-label="Önceki yıl">‹</button><div class="yr" id="dockYr" title="Parmağınızı kaydırarak yıllar arasında gezinin"><b id="dockY" aria-live="polite"></b><div class="dm" id="dockM" aria-hidden="true"></div></div><button type="button" data-dock="next" aria-label="Sonraki yıl">›</button><button type="button" data-dock="search">Ara</button></nav>
+
+<dialog id="dlg" aria-labelledby="dlgT"><div class="dl" id="dlBody"></div></dialog>
+
+<noscript><p class="wrap">Kronolojiyi görüntülemek için JavaScript’i etkinleştirin. <a href="assets/data/chronology_public.csv">Kronolojiyi CSV olarak indirin.</a></p></noscript>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/raf-art.js"></script>
+<script src="assets/js/raf.js"></script>
+</body>
+</html>

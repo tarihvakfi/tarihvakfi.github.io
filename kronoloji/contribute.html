@@ -2,35 +2,28 @@
 <html lang="tr">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Düzeltme Öner | Tarih Vakfı Dijital Kronolojisi</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="assets/css/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Instrument+Sans:wght@400;500;600&family=Archivo:wdth,wght@62..100,500..900&family=Courier+Prime&family=Caveat:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/raf.css">
+<link rel="stylesheet" href="assets/css/raf-pages.css">
     <link rel="preload" href="assets/data/chronology_public.json" as="fetch">
     <link rel="preload" href="assets/data/site_content.json" as="fetch">
   </head>
-  <body data-page="contribute">
-    <header class="site-header">
-      <nav class="nav" aria-label="Ana gezinme">
-        <a class="brand" href="index.html"><span class="brand-mark">TV</span> Tarih Vakfı Dijital Kronolojisi</a>
-        <button class="nav-toggle" aria-label="Menüyü aç/kapat" aria-expanded="false"
-          onclick="this.setAttribute('aria-expanded',this.getAttribute('aria-expanded')==='true'?'false':'true');
-                   document.querySelector('.nav-links').classList.toggle('open')">
-          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="3" y1="6" x2="19" y2="6"/>
-            <line x1="3" y1="11" x2="19" y2="11"/>
-            <line x1="3" y1="16" x2="19" y2="16"/>
-          </svg>
-        </button>
-        <div class="nav-links">
-          <a class="home-link" href="../index.html">Emek Günlüğü</a>
-          <a href="timeline.html" data-page="timeline">Kronoloji</a>
-          <a href="archive.html" data-page="archive">Arşiv</a>
-          <a href="dashboard.html" data-page="dashboard">Görsel Özet</a>
-        </div>
-      </nav>
-    </header>
+  <body data-page="contribute" class="raf-page">
+    <a class="skip" href="#main">İçeriğe geç</a>
+<div class="wrap">
+  <header class="top">
+    <a class="raf-brand" href="index.html" aria-label="Tarih Vakfı Dijital Kronolojisi ana sayfa"><span class="logo" role="img" aria-label="Tarih Vakfı"></span><span>Dijital Kronoloji, 1991–2026</span></a>
+    <nav class="site-nav" aria-label="Ana gezinme"><a href="index.html" data-content="nav.timeline">Kronoloji</a><a href="archive.html" data-content="nav.archive">Arşiv</a><a href="dashboard.html" data-content="nav.dashboard">Görsel Özet</a></nav>
+  </header>
+</div>
 
-    <main class="page-shell">
+    <main class="page-shell" id="main">
       <section class="section">
         <p class="eyebrow" data-content="contribute.hero.eyebrow">Katkı ve düzeltme</p>
         <h1 data-content="contribute.hero.title">Düzeltme Öner</h1>
@@ -144,8 +137,11 @@
         <span class="design-credit">Tasarım: Arif Solmaz</span>
       </div>
     </footer>
+<p class="raf-note">Yayın, afiş ve davetiye çizimleri yalnızca kayıttaki bilgilerle hazırlanmış temsili çizimlerdir; özgün görseller eklendikçe yerlerini alacaktır. Sarı notlar, henüz kesinleşmemiş bilgileri gösterir. Bir kayıtta yanlış ya da eksik gördüğünüz bir bilgi varsa <a href="contribute.html">düzeltme önerin</a>.</p>
 
     <script src="assets/js/config.js"></script>
     <script src="assets/js/site.js"></script>
+<script src="assets/js/raf-art.js"></script>
+<script src="assets/js/raf-enhance.js"></script>
   </body>
 </html>

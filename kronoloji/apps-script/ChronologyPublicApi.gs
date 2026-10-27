@@ -530,6 +530,8 @@ function normalizeUpdatedChronologySheet(sheet, periodNumber, activityCodeMap) {
     const yearDisplay = cleanText(displays[rowIndex][columns.year]);
     const rawText = cleanText(displays[rowIndex][columns.text]);
     const rawCode = cleanText(displays[rowIndex][columns.code]);
+    const image = columns.image >= 0 ? cleanText(displays[rowIndex][columns.image]) : "";
+    const imageCredit = columns.image_credit >= 0 ? cleanText(displays[rowIndex][columns.image_credit]) : "";
     const hasDateParts = Boolean(day || month || yearDisplay);
 
     if (hasDateParts) {
@@ -585,6 +587,8 @@ function normalizeUpdatedChronologySheet(sheet, periodNumber, activityCodeMap) {
       verification_status: status,
       public_note: unique(publicNotes.filter(Boolean)).join(" "),
       raw_text: rawText,
+      gorsel: image,
+      gorsel_kaynak: imageCredit,
     });
   }
   return records;
@@ -1039,6 +1043,10 @@ function detectUpdatedColumns(headerRow, sheetName) {
     text,
     code: find((key) => key === "kod" || key === "faaliyet kodu" || key === "kodu"),
   };
+  // Optional image columns: a file name in kronoloji/assets/img/kayitlar/ (or a
+  // full URL) and its credit line. Missing columns are simply skipped.
+  const imageColumn = find((key) => key === "gorsel" || key === "gorsel dosyasi");
+  const imageCreditColumn = find((key) => key === "gorsel kaynagi" || key === "gorsel kaynak");
   const columns = {};
   const missing = [];
   Object.keys(UPDATED_CHRONOLOGY_COLUMNS).forEach((name) => {
@@ -1052,6 +1060,8 @@ function detectUpdatedColumns(headerRow, sheetName) {
   if (missing.length) {
     PARSE_WARNINGS.push(`${sheetName}: başlık bulunamadı (${missing.join(", ")}); varsayılan sütun kullanıldı.`);
   }
+  columns.image = imageColumn;
+  columns.image_credit = imageCreditColumn;
   return columns;
 }
 
