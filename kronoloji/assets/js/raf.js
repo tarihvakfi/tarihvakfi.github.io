@@ -30,7 +30,7 @@ KINDS.forEach(k => {
 
 /* shelf + mini */
 const cols = document.getElementById('cols'), mini = document.getElementById('mini'), tip = document.getElementById('tip');
-function buildShelf(){ cols.innerHTML = ''; mini.innerHTML = '';
+function buildShelf(animate){ cols.innerHTML = ''; mini.innerHTML = '';
 let idx = 0;
 ERAS.forEach(e => {
   const ys = years.filter(y => y >= e[2] && y <= e[3]); if (!ys.length) return;
@@ -38,6 +38,7 @@ ERAS.forEach(e => {
   const books = document.createElement('div'); books.className = 'books';
   ys.forEach(y => {
     const c = document.createElement('button'); c.type='button'; c.className='spine'; c.dataset.y=y;
+    if (!animate) c.style.animation = 'none';
     c.style.setProperty('--bind', `var(--b${e[0]})`); c.style.setProperty('--i', idx++);
     c.style.setProperty('--g', (Math.sqrt(totalBy[y]||0)+2).toFixed(2)); c.style.height = (80 + ((y*37)%21)) + '%';
     c.innerHTML = `<span>${y}</span>`;
@@ -267,7 +268,7 @@ function renderEras(){
 }
 function render(list, first){
   const open = dlg.open ? location.hash.slice(1) : '';
-  setRecords(list); buildChips(); buildShelf(); buildDockMini(); renderToday(); renderEras(); apply();
+  setRecords(list); buildChips(); buildShelf(first); buildDockMini(); renderToday(); renderEras(); apply();
   if (first) fromHash(); else if (open && byId.has(open)) openRec(open, false);
 }
 async function boot(){
