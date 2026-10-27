@@ -705,7 +705,7 @@ function initItem() {
           ${detailRow(contentText("item.field.activity_code", "Faaliyet kodu"), activityText(record))}
           ${detailRow(contentText("item.field.activity_status", "Kod durumu"), activityStatusText(record))}
           ${detailRow(contentText("item.field.date", "Tarih"), record.date_display || record.year || contentText("common.unspecified", "Belirtilmemiş"))}
-          ${detailRow(contentText("item.field.source", "Kaynak"), contentFormat("item.source_format", { sheet: record.source_sheet, row: record.source_row }, `${record.source_sheet}, satır ${record.source_row}`))}
+          ${detailRow(contentText("item.field.source", "Kaynak"), sourceAddress(record))}
           ${detailRow(contentText("item.field.status", "Durum"), STATUS_LABELS[record.verification_status] || record.verification_status)}
         </dl>
         <button class="button" type="button" data-copy="${escapeAttr(citation)}">${escapeHtml(contentText("record.copy_citation", "Atıfı kopyala"))}</button>
@@ -1148,7 +1148,7 @@ function renderArchiveTable(rows) {
                   <td>${escapeHtml(row.category || "")}</td>
                   <td>${escapeHtml(row.period || "")}</td>
                   <td>${escapeHtml(STATUS_LABELS[row.verification_status] || row.verification_status)}</td>
-                  <td>${escapeHtml(`${row.source_sheet}, ${row.source_row}`)}</td>
+                  <td>${escapeHtml(sourceAddress(row))}</td>
                 </tr>
               `,
             )
@@ -1668,12 +1668,18 @@ function detailRow(label, value) {
   return `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value || "")}</dd></div>`;
 }
 
+function sourceAddress(row) {
+  const cell = cleanRecordValue(row.source_cell);
+  // Older snapshots have no column information; do not invent a cell address.
+  return cell || `Satır ${row.source_row || "?"}`;
+}
+
 function makeCitation(row) {
   const accessed = new Date().toLocaleDateString("tr-TR");
   const title = row.title || row.raw_text || row.id;
   const date = row.date_display || row.year || contentText("common.unspecified", "Belirtilmemiş");
   const kind = KIND_LABELS[row.item_kind] || row.item_kind || "";
-  const source = contentFormat("item.source_format", { sheet: row.source_sheet, row: row.source_row }, `${row.source_sheet}, satır ${row.source_row}`);
+  const source = sourceAddress(row);
   const url = new URL(`item.html?id=${encodeURIComponent(row.id)}`, window.location.href).href;
   const fallback = `Tarih Vakfı Dijital Kronolojisi, "{title}", {date}, {kind}, kayıt {id}, kaynak: {source}, {url}, erişim tarihi {accessed}.`;
   const configured = contentText("citation.format", fallback);
